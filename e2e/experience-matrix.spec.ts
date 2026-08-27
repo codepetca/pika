@@ -153,9 +153,30 @@ async function mockBlueprintRollover(page: Page) {
   })
 }
 
-test('keeps Attendance hours reachable across the responsive context bar', async ({ page }, testInfo) => {
+test('keeps the Attendance roster compact and selection-driven', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  const browserErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => browserErrors.push(error.message))
   await applyProjectTheme(page, testInfo)
+
+  const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
+  const attendanceStudents = Array.from({ length: 45 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(2, '0')
+    const status = attendanceStatuses[index % attendanceStatuses.length]
+    return {
+      studentId: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      firstName: `Student ${ordinal}`,
+      lastName: `Alpha${ordinal}`,
+      status,
+      source: index % 3 === 0 ? 'student_qr' : index % 3 === 1 ? 'staff' : null,
+      revision: status === 'unmarked' ? null : 1,
+      pendingCommand: false,
+      commandFailed: false,
+    }
+  })
 
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
     await route.fulfill({
@@ -173,18 +194,7 @@ test('keeps Attendance hours reachable across the responsive context bar', async
           commandFailed: false,
         },
         sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
-        students: [
-          {
-            studentId: '40000000-0000-4000-8000-000000000001',
-            firstName: 'Ada',
-            lastName: 'Lovelace',
-            status: 'present',
-            source: 'student_qr',
-            revision: 1,
-            pendingCommand: false,
-            commandFailed: false,
-          },
-        ],
+        students: attendanceStudents,
       }),
     })
   })
@@ -209,14 +219,84 @@ test('keeps Attendance hours reachable across the responsive context bar', async
 
   await page.goto('/e2e-fixtures/teacher-live-attendance', { waitUntil: 'domcontentloaded' })
 
+  const contextBar = page.getByTestId('attendance-context-bar')
+  const primaryControl = page.getByTestId('attendance-primary-control')
   const trailingActions = page.getByTestId('attendance-trailing-actions')
+  const scrollPane = page.getByTestId('attendance-student-scroll-pane')
+  const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
+  const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
+  const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
+  const studentActionsButton = primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })
+  await expect(contextBar).toContainText('Open')
   await expect(trailingActions).toBeVisible()
+  await expect(studentActionsButton).toBeDisabled()
+  await expect(dateButton.locator('svg')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toBeVisible()
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerHeight + 1),
+  )
+
+  const [primaryBox, previousBox, dateBox, nextBox] = await Promise.all([
+    primaryControl.boundingBox(),
+    previousDayButton.boundingBox(),
+    dateButton.boundingBox(),
+    nextDayButton.boundingBox(),
+  ])
+  expect(primaryBox).not.toBeNull()
+  expect(previousBox).not.toBeNull()
+  expect(dateBox).not.toBeNull()
+  expect(nextBox).not.toBeNull()
+  expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+  expect(Math.abs((previousBox!.x + previousBox!.width) - dateBox!.x)).toBeLessThan(1)
+  expect(Math.abs((dateBox!.x + dateBox!.width) - nextBox!.x)).toBeLessThan(1)
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-context-bar.png`),
-    fullPage: true,
+    path: testInfo.outputPath(`attendance-${viewport}-default.png`),
     animations: 'disabled',
   })
+
+  if (viewport === 'mobile') {
+    await primaryControl.getByRole('button', { name: 'Attendance session actions' }).click()
+    const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance session actions' })
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show QR' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Close attendance' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  } else {
+    await primaryControl.getByRole('button', { name: 'Show QR' }).hover()
+    await expect(page.getByRole('tooltip', { name: 'Show QR' })).toBeVisible()
+  }
+
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  const selectedActionsButton = primaryControl.getByRole('button', {
+    name: 'Student actions for 1 selected',
+  })
+  await expect(selectedActionsButton).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected.png`),
+    animations: 'disabled',
+  })
+  await selectedActionsButton.click()
+  const selectedActionsMenu = page.getByRole('menu', {
+    name: 'Selected student attendance actions',
+  })
+  for (const action of ['Present', 'Late', 'Absent', 'Clear mark']) {
+    await expect(selectedActionsMenu.getByRole('menuitem', { name: action })).toBeVisible()
+  }
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+
+  await scrollPane.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(scrollPane.locator('thead')).toBeVisible()
+  await page.getByRole('button', { name: 'Sort Present first, 12 students' }).click()
+  await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toHaveAttribute('aria-pressed', 'true')
 
   if (viewport === 'mobile') {
     const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
@@ -231,9 +311,9 @@ test('keeps Attendance hours reachable across the responsive context bar', async
   await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
-    fullPage: true,
     animations: 'disabled',
   })
+  expect(browserErrors).toEqual([])
 })
 
 test('keeps the selected Test grading roster compact and selection-driven', async ({ page }, testInfo) => {

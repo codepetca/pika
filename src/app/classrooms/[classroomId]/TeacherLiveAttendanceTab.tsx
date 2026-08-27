@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import {
   Check,
+  ChevronDown,
   ClipboardCopy,
   Clock3,
   DoorClosed,
@@ -17,9 +18,9 @@ import {
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import {
   TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { TeacherSelectionBar } from '@/components/teacher-work-surface/TeacherSelectionBar'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { useTableSelection } from '@/hooks/useTableSelection'
@@ -595,6 +596,54 @@ export function TeacherLiveAttendanceTab({
       onSelect: () => void loadView(true),
     },
   ]
+  const mobileSessionActions: TeacherWorkSurfaceActionItem[] = [
+    ...(sessionState === 'open' ? [{
+      id: 'show-attendance-qr',
+      label: 'Show QR',
+      icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || localSessionPending,
+      onSelect: openQrPresentation,
+    }] : []),
+    ...(sessionAction ? [{
+      id: `${sessionAction.command}-attendance`,
+      label: sessionAction.label,
+      icon: sessionAction.command === 'open'
+        ? <DoorOpen className="h-4 w-4" aria-hidden="true" />
+        : <DoorClosed className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || localSessionPending,
+      onSelect: () => void submitSessionCommand(sessionAction.command),
+    }] : []),
+  ]
+  const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'mark-selected-present',
+      label: 'Present',
+      icon: <UserRoundCheck className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks('present'),
+    },
+    {
+      id: 'mark-selected-late',
+      label: 'Late',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks('late'),
+    },
+    {
+      id: 'mark-selected-absent',
+      label: 'Absent',
+      icon: <UserRoundX className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks('absent'),
+    },
+    {
+      id: 'clear-selected-mark',
+      label: 'Clear mark',
+      icon: <Check className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks('unmarked'),
+    },
+  ]
   const actionBar = (
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
@@ -628,15 +677,32 @@ export function TeacherLiveAttendanceTab({
             labelAriaLabel="Go to today"
             prevAriaLabel="Previous day"
             nextAriaLabel="Next day"
-            labelClassName="px-1"
+            labelClassName="min-w-16 px-2 sm:min-w-20 sm:px-3"
+            joined
           />
+          {mobileSessionActions.length > 0 ? (
+            <div className="sm:hidden">
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Attendance session actions"
+                tooltip="Attendance session actions"
+                variant="primary"
+                icon={sessionState === 'open'
+                  ? <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+                  : <DoorOpen className="h-4 w-4" aria-hidden="true" />}
+                items={mobileSessionActions}
+                disabled={Boolean(activeCommand) || localSessionPending}
+                menuAriaLabel="Attendance session actions"
+                menuAlign="center"
+              />
+            </div>
+          ) : null}
           {sessionState === 'open' ? (
             <Tooltip content="Show QR">
               <Button
                 type="button"
                 size="sm"
                 variant="primary"
-                className="h-9 w-9 px-0"
+                className="hidden h-9 w-9 px-0 sm:inline-flex"
                 aria-label="Show QR"
                 disabled={Boolean(activeCommand) || localSessionPending}
                 onClick={openQrPresentation}
@@ -651,7 +717,7 @@ export function TeacherLiveAttendanceTab({
                 type="button"
                 size="sm"
                 variant={sessionAction.command === 'open' ? 'primary' : 'secondary'}
-                className="h-9 w-9 px-0"
+                className="hidden h-9 w-9 px-0 sm:inline-flex"
                 aria-label={sessionAction.label}
                 loading={activeCommand === `session:${sessionAction.command}`}
                 disabled={Boolean(activeCommand) || localSessionPending}
@@ -664,6 +730,33 @@ export function TeacherLiveAttendanceTab({
                 )}
               </Button>
             </Tooltip>
+          ) : null}
+          {view?.integration === 'ready' ? (
+            <TeacherWorkSurfaceMenuButton
+              label={(
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="hidden sm:inline">
+                    {selectedCount > 0 ? `${selectedCount} selected` : 'Student actions'}
+                  </span>
+                  <span className="sm:hidden" aria-hidden="true">
+                    {selectedCount > 0 ? selectedCount : <UserRoundCheck className="h-4 w-4" />}
+                  </span>
+                  <ChevronDown className="hidden h-4 w-4 sm:block" aria-hidden="true" />
+                </span>
+              )}
+              items={selectedStudentActions}
+              variant="secondary"
+              size="sm"
+              disabled={selectedCount === 0 || Boolean(activeCommand) || !canMark}
+              menuAriaLabel="Selected student attendance actions"
+              menuPlacement="down"
+              menuAlign="center"
+              buttonProps={{
+                'aria-label': selectedCount > 0
+                  ? `Student actions for ${selectedCount} selected`
+                  : 'Student actions (select students to enable)',
+              }}
+            />
           ) : null}
         </div>
       )}
@@ -764,7 +857,10 @@ export function TeacherLiveAttendanceTab({
               : `${failedStudentCount} previous attendance ${failedStudentCount === 1 ? 'update' : 'updates'} failed. Select the affected ${failedStudentCount === 1 ? 'student' : 'students'} to try again.`}
           </div>
         ) : null}
-        <TeacherWorkSurfaceTableFrame selectionActive={selectedCount > 0}>
+        <TeacherWorkSurfaceTableFrame
+          className="min-h-0 rounded-md border border-border"
+          data-testid="attendance-student-scroll-pane"
+        >
           <DataTable density="tight" className="table-fixed">
             <caption className="sr-only">Student attendance for {formatFullDay(selectedDate)}</caption>
             <colgroup>
@@ -919,25 +1015,6 @@ export function TeacherLiveAttendanceTab({
           </DataTable>
         </TeacherWorkSurfaceTableFrame>
 
-        <TeacherSelectionBar
-          selectedCount={selectedCount}
-          onClear={clearSelection}
-          clearDisabled={Boolean(activeCommand)}
-          ariaLabel="Bulk attendance actions"
-        >
-            <Button type="button" size="sm" variant="success" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:present'} onClick={() => void submitMarks('present')}>
-              <UserRoundCheck className="h-4 w-4" aria-hidden="true" /> Present
-            </Button>
-            <Button type="button" size="sm" variant="secondary" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:late'} onClick={() => void submitMarks('late')}>
-              <Clock3 className="h-4 w-4" aria-hidden="true" /> Late
-            </Button>
-            <Button type="button" size="sm" variant="danger" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:absent'} onClick={() => void submitMarks('absent')}>
-              <UserRoundX className="h-4 w-4" aria-hidden="true" /> Absent
-            </Button>
-            <Button type="button" size="sm" variant="ghost" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:unmarked'} onClick={() => void submitMarks('unmarked')}>
-              <Check className="h-4 w-4" aria-hidden="true" /> Clear mark
-            </Button>
-        </TeacherSelectionBar>
       </div>
     )
   }
