@@ -119,6 +119,7 @@ export function SurveyCreationModal({
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [workspaceSettingsBusy, setWorkspaceSettingsBusy] = useState(false)
   const initializedSurveyKeyRef = useRef<string | null>(null)
+  const currentSurveyRef = useRef<Survey | null>(survey ?? null)
 
   const isCreateMode = !surveyId
   const activeSurveyId = surveyId ?? currentSurvey?.id ?? null
@@ -161,6 +162,7 @@ export function SurveyCreationModal({
 
     const updatedSurvey = data.survey as Survey
     const savedValues = getSurveyValues(updatedSurvey)
+    currentSurveyRef.current = updatedSurvey
     setCurrentSurvey(updatedSurvey)
     onSurveyUpdated?.(updatedSurvey)
     return savedValues
@@ -181,6 +183,7 @@ export function SurveyCreationModal({
   useEffect(() => {
     if (!isOpen) {
       initializedSurveyKeyRef.current = null
+      currentSurveyRef.current = null
       return
     }
 
@@ -195,6 +198,7 @@ export function SurveyCreationModal({
 
     if (isCreateMode) {
       const defaults = getDefaultSurveyValues()
+      currentSurveyRef.current = null
       setCurrentSurvey(null)
       setTitle(defaults.title)
       setShowResults(defaults.showResults)
@@ -211,6 +215,7 @@ export function SurveyCreationModal({
       setQuestionsCount(getSurveyQuestionsCount(survey))
       if (survey) {
         const nextValues = getSurveyValues(survey)
+        currentSurveyRef.current = survey
         setCurrentSurvey(survey)
         setTitle(nextValues.title)
         setShowResults(nextValues.showResults)
@@ -228,6 +233,7 @@ export function SurveyCreationModal({
         resetAutosave(nextValues)
       } else {
         const defaults = getDefaultSurveyValues()
+        currentSurveyRef.current = null
         setCurrentSurvey(null)
         setTitle(defaults.title)
         setShowResults(defaults.showResults)
@@ -270,6 +276,7 @@ export function SurveyCreationModal({
         if (!response.ok) throw new Error(data.error || 'Failed to create survey')
 
         const createdSurvey = data.survey as Survey
+        currentSurveyRef.current = createdSurvey
         setCurrentSurvey(createdSurvey)
         setTitle(getDisplayedSurveyTitle(createdSurvey))
         setShowResults(createdSurvey.show_results)
@@ -322,6 +329,7 @@ export function SurveyCreationModal({
       if (!response.ok) throw new Error(data.error || 'Failed to update survey')
 
       const updatedSurvey = data.survey as Survey
+      currentSurveyRef.current = updatedSurvey
       setCurrentSurvey(updatedSurvey)
       onSurveyUpdated?.(updatedSurvey)
       if (options?.closeAfter) onClose()
@@ -374,17 +382,17 @@ export function SurveyCreationModal({
     }
   }
 
-  async function handleBeforeWorkspaceSettingsMutation(): Promise<boolean> {
+  async function handleBeforeWorkspaceMutation(): Promise<Survey | null> {
     setWorkspaceSettingsBusy(true)
     const flushed = await flushAutosave()
-    if (!flushed) setWorkspaceSettingsBusy(false)
-    return flushed
+    return flushed ? currentSurveyRef.current : null
   }
 
   function handleWorkspaceSurveyUpdated(
     updatedSurvey: Survey,
     context?: { source: 'load' | 'mutation' },
   ) {
+    currentSurveyRef.current = updatedSurvey
     setCurrentSurvey((previous) => {
       if (!previous || previous.id !== updatedSurvey.id || context?.source === 'mutation') {
         const nextValues = getSurveyValues(updatedSurvey)
@@ -582,8 +590,8 @@ export function SurveyCreationModal({
               embedded
               hideSettingsHeader
               surveyOverride={currentSurvey}
-              beforeSurveySettingsMutation={handleBeforeWorkspaceSettingsMutation}
-              onSurveySettingsMutationSettled={() => setWorkspaceSettingsBusy(false)}
+              beforeSurveyMutation={handleBeforeWorkspaceMutation}
+              onSurveyMutationSettled={() => setWorkspaceSettingsBusy(false)}
               onBack={onClose}
               onSurveyUpdated={handleWorkspaceSurveyUpdated}
               onQuestionCountChanged={handleQuestionCountChanged}

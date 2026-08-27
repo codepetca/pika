@@ -45,8 +45,8 @@ interface TeacherSurveyWorkspaceProps {
   hideSettingsHeader?: boolean
   surveyOverride?: Survey | null
   onInitialEditModeConsumed?: () => void
-  beforeSurveySettingsMutation?: () => Promise<boolean>
-  onSurveySettingsMutationSettled?: () => void
+  beforeSurveyMutation?: () => Promise<Survey | null>
+  onSurveyMutationSettled?: () => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey, context?: { source: 'load' | 'mutation' }) => void
   onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
@@ -472,8 +472,8 @@ export function TeacherSurveyWorkspace({
   hideSettingsHeader = false,
   surveyOverride,
   onInitialEditModeConsumed,
-  beforeSurveySettingsMutation,
-  onSurveySettingsMutationSettled,
+  beforeSurveyMutation,
+  onSurveyMutationSettled,
   onBack,
   onSurveyUpdated,
   onQuestionCountChanged,
@@ -754,23 +754,27 @@ export function TeacherSurveyWorkspace({
       return
     }
 
-    let coordinatedSettingsMutation = false
+    const surveyUpdate: Record<string, unknown> = {}
+    if (parsed.content.title !== survey.title) surveyUpdate.title = parsed.content.title
+    if (parsed.content.show_results !== survey.show_results) {
+      surveyUpdate.show_results = parsed.content.show_results
+    }
+    if (parsed.content.dynamic_responses !== survey.dynamic_responses) {
+      surveyUpdate.dynamic_responses = parsed.content.dynamic_responses
+    }
+
+    let coordinatedMutation = false
     try {
       let nextSurvey = survey
-      const surveyUpdate: Record<string, unknown> = {}
-      if (parsed.content.title !== survey.title) surveyUpdate.title = parsed.content.title
-      if (parsed.content.show_results !== survey.show_results) {
-        surveyUpdate.show_results = parsed.content.show_results
-      }
-      if (parsed.content.dynamic_responses !== survey.dynamic_responses) {
-        surveyUpdate.dynamic_responses = parsed.content.dynamic_responses
+      if (beforeSurveyMutation) {
+        coordinatedMutation = true
+        const synchronizedSurvey = await beforeSurveyMutation()
+        if (!synchronizedSurvey) return
+        nextSurvey = synchronizedSurvey
+        setDetail((current) => current ? { ...current, survey: synchronizedSurvey } : current)
       }
 
       if (Object.keys(surveyUpdate).length > 0) {
-        if (beforeSurveySettingsMutation) {
-          coordinatedSettingsMutation = true
-          if (!(await beforeSurveySettingsMutation())) return
-        }
         const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -779,6 +783,8 @@ export function TeacherSurveyWorkspace({
         const data = await response.json()
         if (!response.ok) throw new Error(data.error || 'Failed to update survey')
         nextSurvey = data.survey
+        setDetail((current) => current ? { ...current, survey: nextSurvey } : current)
+        onSurveyUpdated(nextSurvey, { source: 'mutation' })
       }
 
       const existingById = new Map(questions.map((question) => [question.id, question]))
@@ -825,7 +831,6 @@ export function TeacherSurveyWorkspace({
         .slice()
         .sort((left, right) => left.position - right.position)
       setDetail({ survey: nextSurvey, questions: nextQuestions })
-      onSurveyUpdated(nextSurvey, { source: 'mutation' })
       onQuestionCountChanged?.(surveyId, nextQuestions.length)
 
       const nextMarkdown = surveyToMarkdown({ survey: nextSurvey, questions: nextQuestions })
@@ -835,7 +840,7 @@ export function TeacherSurveyWorkspace({
     } catch (err) {
       setSurveyMarkdownError(err instanceof Error ? err.message : 'Failed to apply markdown')
     } finally {
-      if (coordinatedSettingsMutation) onSurveySettingsMutationSettled?.()
+      if (coordinatedMutation) onSurveyMutationSettled?.()
       setSurveyMarkdownSaving(false)
     }
   }

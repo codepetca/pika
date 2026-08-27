@@ -269,6 +269,69 @@ describe('TeacherSurveyWorkspace', () => {
     })
   })
 
+  it('coordinates question-only markdown applies without emitting a stale survey mutation', async () => {
+    const question = {
+      id: 'question-1',
+      survey_id: 'survey-1',
+      question_type: 'short_text' as const,
+      question_text: 'Original question',
+      options: [],
+      response_max_chars: 500,
+      position: 0,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    }
+    const synchronizedSurvey = makeSurvey({ title: 'Flushed top-line title' })
+    const beforeSurveyMutation = vi.fn(async () => synchronizedSurvey)
+    const onSurveyMutationSettled = vi.fn()
+    const onSurveyUpdated = vi.fn()
+
+    fetchMock.mockImplementation(async (url: string | URL, init?: RequestInit) => {
+      const href = String(url)
+      if (href === '/api/teacher/surveys/survey-1/questions/question-1' && init?.method === 'PATCH') {
+        return jsonResponse({
+          question: { ...question, ...JSON.parse(String(init.body)) },
+        })
+      }
+      if (href === '/api/teacher/surveys/survey-1') {
+        return jsonResponse({ survey: makeSurvey(), questions: [question] })
+      }
+      throw new Error(`Unexpected fetch: ${href}`)
+    })
+
+    render(
+      <TeacherSurveyWorkspace
+        classroomId="classroom-1"
+        surveyId="survey-1"
+        initialEditMode="markdown"
+        beforeSurveyMutation={beforeSurveyMutation}
+        onSurveyMutationSettled={onSurveyMutationSettled}
+        onBack={vi.fn()}
+        onSurveyUpdated={onSurveyUpdated}
+        onSurveyDeleted={vi.fn()}
+      />
+    )
+
+    const editor = await screen.findByLabelText('Survey markdown editor')
+    await waitFor(() => expect(onSurveyUpdated).toHaveBeenCalled())
+    onSurveyUpdated.mockClear()
+    fireEvent.change(editor, {
+      target: {
+        value: (editor as HTMLTextAreaElement).value.replace(
+          'Original question',
+          'Updated question',
+        ),
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+    expect(await screen.findByText('Markdown applied')).toBeInTheDocument()
+    expect(beforeSurveyMutation).toHaveBeenCalledTimes(1)
+    expect(onSurveyMutationSettled).toHaveBeenCalledTimes(1)
+    expect(onSurveyUpdated).not.toHaveBeenCalled()
+    expect((editor as HTMLTextAreaElement).value).toContain('Title: Flushed top-line title')
+  })
+
   it('saves title edits from the selected survey header', async () => {
     let surveyState = makeSurvey({ title: 'Untitled 2026-05-14 10:15:30' })
     fetchMock.mockImplementation(async (url: string | URL, init?: RequestInit) => {

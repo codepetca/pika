@@ -263,6 +263,140 @@ describe('SurveyCreationModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('flushes pending top-line edits before applying question-only Code changes', async () => {
+    let serverSurvey = makeSurvey()
+    const question = makeQuestion()
+    const surveyPatchBodies: Array<Record<string, unknown>> = []
+    const questionPatchBodies: Array<Record<string, unknown>> = []
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const href = String(url)
+      if (href === '/api/teacher/surveys/survey-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>
+        surveyPatchBodies.push(body)
+        serverSurvey = {
+          ...serverSurvey,
+          ...(body.title !== undefined ? { title: String(body.title) } : {}),
+        }
+        return { ok: true, json: async () => ({ survey: serverSurvey }) }
+      }
+      if (href === '/api/teacher/surveys/survey-1/questions/question-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>
+        questionPatchBodies.push(body)
+        return { ok: true, json: async () => ({ question: { ...question, ...body } }) }
+      }
+      if (href === '/api/teacher/surveys/survey-1') {
+        return { ok: true, json: async () => ({ survey: serverSurvey, questions: [question] }) }
+      }
+      throw new Error(`Unexpected fetch: ${href}`)
+    }))
+
+    render(
+      <SurveyCreationModal
+        isOpen
+        classroomId="classroom-1"
+        surveyId={serverSurvey.id}
+        survey={serverSurvey}
+        onClose={vi.fn()}
+      />
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Code' }))
+    const editor = await screen.findByLabelText('Survey markdown editor')
+    fireEvent.change(editor, {
+      target: {
+        value: (editor as HTMLTextAreaElement).value.replace(
+          'What should we change?',
+          'What should we improve?',
+        ),
+      },
+    })
+
+    const titleInput = screen.getByPlaceholderText('Enter survey title')
+    fireEvent.change(titleInput, { target: { value: 'New top-line title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+    expect(await screen.findByText('Markdown applied')).toBeInTheDocument()
+    expect(titleInput).toHaveValue('New top-line title')
+    expect(surveyPatchBodies).toHaveLength(1)
+    expect(surveyPatchBodies[0].title).toBe('New top-line title')
+    expect(questionPatchBodies).toHaveLength(1)
+    expect(questionPatchBodies[0].question_text).toBe('What should we improve?')
+  })
+
+  it('retains saved Code settings when a later question mutation fails', async () => {
+    let serverSurvey = makeSurvey()
+    const question = makeQuestion()
+    const surveyPatchBodies: Array<Record<string, unknown>> = []
+    const onClose = vi.fn()
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, init?: RequestInit) => {
+      const href = String(url)
+      if (href === '/api/teacher/surveys/survey-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>
+        surveyPatchBodies.push(body)
+        serverSurvey = {
+          ...serverSurvey,
+          ...(body.title !== undefined ? { title: String(body.title) } : {}),
+          ...(body.show_results !== undefined ? { show_results: Boolean(body.show_results) } : {}),
+          ...(body.dynamic_responses !== undefined
+            ? { dynamic_responses: Boolean(body.dynamic_responses) }
+            : {}),
+        }
+        return { ok: true, json: async () => ({ survey: serverSurvey }) }
+      }
+      if (href === '/api/teacher/surveys/survey-1/questions/question-1' && init?.method === 'PATCH') {
+        return {
+          ok: false,
+          json: async () => ({ error: 'Question update failed' }),
+        }
+      }
+      if (href === '/api/teacher/surveys/survey-1') {
+        return { ok: true, json: async () => ({ survey: serverSurvey, questions: [question] }) }
+      }
+      throw new Error(`Unexpected fetch: ${href}`)
+    }))
+
+    render(
+      <SurveyCreationModal
+        isOpen
+        classroomId="classroom-1"
+        surveyId={serverSurvey.id}
+        survey={serverSurvey}
+        onClose={onClose}
+      />
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Code' }))
+    const editor = await screen.findByLabelText('Survey markdown editor')
+    fireEvent.change(editor, {
+      target: {
+        value: (editor as HTMLTextAreaElement).value
+          .replace('Title: Class feedback', 'Title: Code title')
+          .replace('Show Results: true', 'Show Results: false')
+          .replace('Dynamic Responses: false', 'Dynamic Responses: true')
+          .replace('What should we change?', 'What should we improve?'),
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+    expect(await screen.findByText('Question update failed')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Enter survey title')).toHaveValue('Code title')
+    expect(screen.getByLabelText('Show class results to students')).not.toBeChecked()
+    expect(screen.getByLabelText('Allow students to update answers while open')).toBeChecked()
+
+    fireEvent.click(screen.getByLabelText('Show class results to students'))
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey modal' }))
+
+    await waitFor(() => expect(surveyPatchBodies).toHaveLength(2))
+    expect(surveyPatchBodies[1]).toEqual(expect.objectContaining({
+      title: 'Code title',
+      show_results: true,
+      dynamic_responses: true,
+    }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('shows reschedule and open-now actions for a scheduled survey', async () => {
     const survey = makeSurvey({
       status: 'active',
