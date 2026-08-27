@@ -143,7 +143,9 @@ Roll out the contract in compatibility order:
    stamping defect without position or content inference. Any legacy draft input
    or resolved portable identity that is not UUIDv4 aborts the whole migration;
    reconcile that source record explicitly before retrying instead of silently
-   generating a replacement identity that could sever immutable lineage.
+   generating a replacement identity that could sever immutable lineage. The
+   migration fences Draft writers before question writers, waiting behind any
+   in-flight save before it holds the question-table fence.
 3. Verify capture, activation, recapture, Version creation, classroom
    instantiation, and archived reuse before removing the legacy read path.
 

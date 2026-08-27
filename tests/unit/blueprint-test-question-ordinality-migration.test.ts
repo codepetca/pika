@@ -338,14 +338,14 @@ describe('Blueprint test-question identity migration', () => {
   })
 
   it('backfills legacy draft row IDs to portable identity transactionally', () => {
+    const draftLock = migration.indexOf(
+      'lock table public.assessment_drafts in exclusive mode;',
+    )
     const questionLock = migration.indexOf(
       'lock table public.test_questions in share row exclusive mode;',
     )
-    const draftLock = migration.indexOf(
-      'lock table public.assessment_drafts in share row exclusive mode;',
-    )
-    expect(questionLock).toBeGreaterThanOrEqual(0)
-    expect(draftLock).toBeGreaterThan(questionLock)
+    expect(draftLock).toBeGreaterThanOrEqual(0)
+    expect(questionLock).toBeGreaterThan(draftLock)
     expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
     )
@@ -402,6 +402,9 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'Post-backfill save and activation did not preserve canonical question identity',
+    )
+    expect(databaseContract).toContain(
+      'Migration fence did not wait behind the in-flight draft save',
     )
     expect(databaseContract).toContain(
       'Stale archived request did not retain its failed ledger',

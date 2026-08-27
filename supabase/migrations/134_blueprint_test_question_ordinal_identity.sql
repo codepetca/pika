@@ -25,12 +25,13 @@ declare
   v_claimed_row_ids uuid[];
   v_seen_portable_ids uuid[];
 begin
-  -- Backfill and version fencing must be one atomic schema operation. This
-  -- blocks application writes from racing the scan and either being overwritten
-  -- by the migration or restoring a legacy row ID after it. Question writers
-  -- precede Draft synchronization in the lifecycle, so preserve that lock order.
+  -- Backfill and version fencing must be one atomic schema operation. Application
+  -- saves lock the Draft row before writing questions, so fence Draft writers
+  -- first with a mode that conflicts with SELECT FOR UPDATE. This waits behind
+  -- any in-flight save before holding the question-table fence and prevents a
+  -- Draft-row/question-table lock-upgrade deadlock. Plain readers remain allowed.
+  lock table public.assessment_drafts in exclusive mode;
   lock table public.test_questions in share row exclusive mode;
-  lock table public.assessment_drafts in share row exclusive mode;
 
   for v_draft in
     select id, assessment_id, content

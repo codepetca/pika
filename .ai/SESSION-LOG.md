@@ -1240,6 +1240,11 @@ no production data was changed by migration 134 and no migration retry occurred.
   activation functions. Materialized Blueprint capture now validates in a
   portable-only mode while the temporary dual reader remains scoped to actual
   legacy draft JSON.
+- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
+  lock before the question-table fence. This makes the migration wait behind an
+  in-flight save before holding a lock that save must upgrade, preventing a
+  Draft-row/question-table deadlock; the database harness now rehearses that
+  two-session ordering.
 - A privacy-minimized read-only production rehearsal resolved all 351 questions
   across 28 drafts: 212 persisted questions would receive portable draft IDs,
   139 remain valid draft-only questions, and zero invalid IDs, ambiguous

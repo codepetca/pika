@@ -18,8 +18,8 @@ fi
 docker exec -e PGAPPNAME=b134_backfill_lock_contract -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+lock table public.assessment_drafts in exclusive mode;
 lock table public.test_questions in share row exclusive mode;
-lock table public.assessment_drafts in share row exclusive mode;
 select pg_sleep(5);
 rollback;
 SQL
@@ -28,7 +28,7 @@ backfill_lock_ready=false
 for _attempt in {1..40}; do
   held_backfill_locks="$(docker exec -i "$DB_CONTAINER" psql \
     -U postgres -d "$DATABASE_NAME" -X -Atqc \
-    "select count(distinct c.relname) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation join pg_catalog.pg_stat_activity a on a.pid = l.pid where a.application_name = 'b134_backfill_lock_contract' and l.granted and l.mode = 'ShareRowExclusiveLock' and c.relname in ('assessment_drafts', 'test_questions')")"
+    "select count(*) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation join pg_catalog.pg_stat_activity a on a.pid = l.pid where a.application_name = 'b134_backfill_lock_contract' and l.granted and ((c.relname = 'assessment_drafts' and l.mode = 'ExclusiveLock') or (c.relname = 'test_questions' and l.mode = 'ShareRowExclusiveLock'))")"
   if [[ "$held_backfill_locks" == "2" ]]; then
     backfill_lock_ready=true
     break
@@ -58,6 +58,158 @@ if [[ "$blocked_writer_status" -eq 0 ]] \
   echo "$blocked_writer_output" >&2
   exit 1
 fi
+
+# Rehearse the application save lock order against the migration fence. A save
+# may already hold Test/Classroom/Draft row locks before its first table write.
+# The migration must wait at the Draft table before it holds the question fence,
+# allowing the save to finish without a lock-upgrade deadlock.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role) values (
+  'b1348000-0000-4000-8000-000000000001',
+  'blueprint-question-migration-lock-order@example.test',
+  'teacher'
+);
+insert into public.classrooms (
+  id, teacher_id, title, class_code
+) values (
+  'b1348000-0000-4000-8000-000000000010',
+  'b1348000-0000-4000-8000-000000000001',
+  'Migration lock order',
+  'B134L8'
+);
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values (
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000010',
+  'Migration lock order',
+  'active',
+  false,
+  1,
+  'b1348000-0000-4000-8000-000000000001'
+);
+insert into public.test_questions (
+  id, test_id, artifact_id, question_type, question_text, options,
+  correct_option, points, response_max_chars, response_monospace, position
+) values (
+  'b1348000-0000-4000-8000-000000000013',
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000014',
+  'open_response',
+  'Migration lock order question',
+  '[]'::jsonb,
+  null,
+  1,
+  5000,
+  false,
+  0
+);
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values (
+  'b1348000-0000-4000-8000-000000000012',
+  'test',
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000010',
+  '{"title":"Migration lock order","show_results":false,"questions":[{"id":"b1348000-0000-4000-8000-000000000014","question_type":"open_response","question_text":"Migration lock order question","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  1,
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000001'
+);
+SQL
+
+docker exec -e PGAPPNAME=b134_save_before_migration_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select id
+from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011'
+for update;
+select teacher_id
+from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010'
+for share;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+select pg_sleep(5);
+update public.test_questions
+set position = position
+where id = 'b1348000-0000-4000-8000-000000000013';
+update public.assessment_drafts
+set version = version
+where id = 'b1348000-0000-4000-8000-000000000012';
+commit;
+SQL
+save_before_fence_pid=$!
+save_before_fence_ready=false
+for _attempt in {1..40}; do
+  save_before_fence_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_save_before_migration_fence' and wait_event = 'PgSleep'")"
+  if [[ "$save_before_fence_sleeping" == "1" ]]; then
+    save_before_fence_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$save_before_fence_ready" != "true" ]]; then
+  kill "$save_before_fence_pid" 2>/dev/null || true
+  wait "$save_before_fence_pid" 2>/dev/null || true
+  echo "In-flight draft save did not reach the migration-fence checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_migration_fence_waits_for_save -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+lock table public.assessment_drafts in exclusive mode;
+lock table public.test_questions in share row exclusive mode;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+rollback;
+SQL
+migration_fence_pid=$!
+migration_fence_waited=false
+for _attempt in {1..40}; do
+  migration_fence_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_migration_fence_waits_for_save' and wait_event_type = 'Lock'")"
+  if [[ "$migration_fence_waiting" == "1" ]]; then
+    migration_fence_waited=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$migration_fence_waited" != "true" ]]; then
+  kill "$migration_fence_pid" 2>/dev/null || true
+  kill "$save_before_fence_pid" 2>/dev/null || true
+  wait "$migration_fence_pid" 2>/dev/null || true
+  wait "$save_before_fence_pid" 2>/dev/null || true
+  echo "Migration fence did not wait behind the in-flight draft save." >&2
+  exit 1
+fi
+wait "$save_before_fence_pid"
+wait "$migration_fence_pid"
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+delete from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012';
+delete from public.test_questions
+where id = 'b1348000-0000-4000-8000-000000000013';
+delete from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011';
+delete from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010';
+delete from public.users
+where id = 'b1348000-0000-4000-8000-000000000001';
+SQL
 
 # Re-run the migration's exact backfill statement against the production
 # collision shape left by migrations 112/114. Legacy drafts stored row IDs,
