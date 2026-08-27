@@ -1,23 +1,25 @@
 ---
 status: stable
 scope: teacher operational work surfaces
-approved_reference: Attendance
+approved_reference: Attendance table rhythm and selected Test grading actions
 approved_on: 2026-08-27
 executable_owners:
   - src/components/teacher-work-surface/TeacherWorkSurfaceContextBar.tsx
   - src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx
-  - src/components/teacher-work-surface/TeacherSelectionBar.tsx
   - src/ui/DataTable.tsx
 reference_surface:
   - src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx
+  - src/app/classrooms/[classroomId]/TeacherTestsTab.tsx
 ---
 
 # Teacher Operational Tables
 
 This is the stable composition for scan-heavy teacher sections that combine an
 active scope, sortable rows, status triage, and optional batch actions.
-Attendance is the approved visual and interaction reference. Reuse its design
-language; do not copy its attendance-specific states or business logic.
+Attendance is the approved density, column, and scrolling reference. The
+selected Test grading roster is the approved action-scope and selection
+reference. Reuse the combined design language; do not copy either feature's
+domain states or business logic.
 
 ## Migration direction
 
@@ -63,7 +65,8 @@ scope/actions and condense edge information instead of wrapping another row.
   both themes.
 
 Daily provides the column and sorting rhythm. Attendance provides the approved
-overall context/table/selection composition.
+density and table composition. Selected Test grading provides the approved
+global, selection-aware, and row-action composition.
 
 ## Status-count sorting
 
@@ -84,17 +87,25 @@ Do not add a chip for every internal state. Omit neutral or incomplete states
 when they are not a teacher triage target, as Attendance does for Unmarked.
 Do not repeat the same counts in the context row.
 
-## Long-list and selection behavior
+## Long-list, selection, and action scope
 
 - Keep the context row outside the internal table scroller.
 - Keep the table header sticky inside that scroller so columns and status-sort
   controls remain visible.
 - Let only rows pass beneath the sticky header. Do not insert an
   `overflow-hidden` ancestor between it and the intended scroller.
-- Show the bottom selection bar only after selection. It contains the selected
-  count, feature-owned batch actions, and the shared clear action.
-- Add bottom scroll clearance only while that bar is present, including its
-  taller wrapped height on mobile.
+- Keep global scope commands stable when rows are selected.
+- Keep one selection-aware menu visible in the centered cluster. It is disabled
+  with no selection and becomes a selected-count trigger when enabled.
+- Keep the menu limited to feature-owned actions that truly apply to the
+  selection. Do not duplicate global commands or add a clear-selection item.
+- Apply immediate, reversible row state changes inline with a non-color state
+  carrier. Do not require confirmation for each row toggle.
+- Confirm broad global state changes and destructive actions. For costly or
+  overwrite-capable actions, ask for the meaningful scope at execution time.
+- `TeacherSelectionBar` is transitional support for existing adopters. New or
+  materially refreshed operational tables use the centered persistent menu and
+  do not add bottom selection clearance.
 
 ## Executable composition
 
@@ -106,19 +117,15 @@ Do not repeat the same counts in the context row.
   actions={utilities}
 />
 
-<TeacherWorkSurfaceTableFrame selectionActive={selectedCount > 0}>
+<TeacherWorkSurfaceTableFrame>
   <DataTable density="tight">
     {/* sticky sortable header and feature-owned rows */}
   </DataTable>
 </TeacherWorkSurfaceTableFrame>
-
-<TeacherSelectionBar selectedCount={selectedCount} onClear={clearSelection}>
-  {featureOwnedBatchActions}
-</TeacherSelectionBar>
 ```
 
-The shared components own layout, responsive hierarchy, scroll containment,
-selection placement, selected-count context, and clear-selection behavior.
+The shared components own layout, responsive hierarchy, and scroll containment.
+The feature-owned action cluster owns command placement and selected-count context.
 Features own labels, dates, statuses, semantic status colors, row data,
 comparisons, column limits, loading, permissions, commands, and mutations.
 
@@ -141,10 +148,10 @@ the overall composition fits.
 
 | Section/state | Centered action focus | Table adaptation | Status-chip rule |
 | --- | --- | --- | --- |
-| Attendance | Date plus QR/open/close commands | First, Last, Source, Status | Present/Late/Absent; Unmarked has no chip |
+| Attendance | Date plus QR/open/close commands; migrate selection actions into the centered persistent menu | First, Last, Source, Status | Present/Late/Absent; Unmarked has no chip |
 | Classwork operational list | Active collection, range, or selected assignment plus immediate commands | Title or student identity, relevant dates/metadata, Status | Use only for a small set of row states teachers actively triage |
 | Tests summary | Active filter/scope and immediate create or management command | Test title, availability, response metadata, Status | Use only when counts map to visible test rows |
-| Selected Test grading roster | Selected test/mode and immediate grading commands | First, Last, score/submission metadata, Status | Suitable for a small mutually meaningful set such as submission/review states |
+| Selected Test grading roster | Persistent Open All/Close All icons plus the disabled-until-selection student-actions menu | First, Last, Access, score/activity metadata, Status | Suitable for a small mutually meaningful set such as submission/review states |
 
 These mappings define hierarchy, not final feature requirements. Before each
 adoption, inspect the existing workflow, name its row states, and verify the
@@ -156,7 +163,9 @@ and error states that materially change.
 - a second summary row beneath the context bar
 - status totals duplicated outside the Status header
 - informational chips that resemble actions
-- a permanent bottom toolbar or permanent clearance for one
+- a bottom selection toolbar or permanent clearance for one in new work
+- selection replacing or hiding global scope commands
+- confirmation for immediate reversible row toggles
 - a generic data-grid owner that absorbs feature business logic
 - Attendance-specific colors or statuses in another domain without semantic
   justification

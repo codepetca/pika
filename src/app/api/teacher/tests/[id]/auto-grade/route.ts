@@ -7,21 +7,10 @@ import {
   type TestAiGradingNoopSummary,
 } from '@/lib/server/test-ai-grading-runs'
 import { withErrorHandler } from '@/lib/api-handler'
+import { startTestAutoGradeSchema } from '@/lib/validations/test-grading'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-function normalizeStudentIds(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return []
-
-  return Array.from(
-    new Set(
-      raw
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .map((value) => value.trim()),
-    ),
-  )
-}
 
 function buildNoopResponse(summary: TestAiGradingNoopSummary) {
   return NextResponse.json(
@@ -37,22 +26,9 @@ function buildNoopResponse(summary: TestAiGradingNoopSummary) {
 export const POST = withErrorHandler('PostTeacherTestAutoGrade', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
-  const body = await request.json()
-  const studentIds = normalizeStudentIds(body?.student_ids)
-
-  if (studentIds.length === 0) {
-    return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
-  }
-
-  if (studentIds.length > 100) {
-    return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
-  }
-
-  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'prompt_guideline')) {
-    if (body.prompt_guideline != null && typeof body.prompt_guideline !== 'string') {
-      return NextResponse.json({ error: 'prompt_guideline must be a string' }, { status: 400 })
-    }
-  }
+  const { studentIds, promptGuidelineOverride, gradeScope } = startTestAutoGradeSchema.parse(
+    await request.json(),
+  )
 
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
@@ -82,8 +58,8 @@ export const POST = withErrorHandler('PostTeacherTestAutoGrade', async (request,
     testId,
     teacherId: user.id,
     studentIds,
-    promptGuidelineOverride:
-      typeof body?.prompt_guideline === 'string' ? body.prompt_guideline : null,
+    promptGuidelineOverride,
+    gradeScope,
   })
 
   if (runResult.kind === 'noop') {

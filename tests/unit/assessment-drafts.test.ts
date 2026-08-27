@@ -424,6 +424,431 @@ describe('assessment drafts', () => {
     })
   })
 
+  it('keeps Test draft saves usable before migration 134 without persisting portable IDs', async () => {
+    const portableContent = {
+      title: 'Saved before migration',
+      show_results: false,
+      question_identity_version: 1 as const,
+      questions: [{
+        id: ARTIFACT_ID_1,
+        question_type: 'open_response' as const,
+        question_text: 'Explain the rollout',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: { ...portableContent, question_identity_version: undefined },
+      version: 3,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const savedLegacyDraft = {
+      ...storedDraft,
+      version: 4,
+      content: {
+        ...portableContent,
+        question_identity_version: undefined,
+        questions: [{ ...portableContent.questions[0], id: TEST_ID_1 }],
+      },
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const draftUpdate: any = {
+      eq: vi.fn(() => draftUpdate),
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: savedLegacyDraft, error: null }),
+      })),
+    }
+    const questionSelect = {
+      eq: vi.fn().mockResolvedValue({
+        data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
+        error: null,
+      }),
+    }
+    const testStatusSelect: any = {
+      eq: vi.fn(() => testStatusSelect),
+      single: vi.fn().mockResolvedValue({ data: { status: 'draft' }, error: null }),
+    }
+    const testUpdate: any = {
+      eq: vi.fn(() => testUpdate),
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'test-1', status: 'draft', title: portableContent.title },
+          error: null,
+        }),
+      })),
+    }
+    const assessmentDraftUpdate = vi.fn(() => draftUpdate)
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'save_test_draft_atomic is missing' },
+    })
+    const supabase = {
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table === 'assessment_drafts') {
+          return { select: vi.fn(() => draftSelect), update: assessmentDraftUpdate }
+        }
+        if (table === 'test_questions') {
+          return { select: vi.fn(() => questionSelect) }
+        }
+        return {
+          select: vi.fn(() => testStatusSelect),
+          update: vi.fn(() => testUpdate),
+        }
+      }),
+    }
+
+    const result = await saveTestDraftAtomic(supabase, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content: portableContent,
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      draft: {
+        version: 4,
+        content: {
+          question_identity_version: 1,
+          questions: [{ id: ARTIFACT_ID_1 }],
+        },
+      },
+    })
+    expect(assessmentDraftUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.objectContaining({
+        questions: [expect.objectContaining({ id: TEST_ID_1 })],
+      }),
+      version: 4,
+    }))
+    expect(assessmentDraftUpdate.mock.calls[0]![0].content).not.toHaveProperty(
+      'question_identity_version',
+    )
+  })
+
+  it('rejects a draft-only portable ID that collides with any legacy question row ID before writing', async () => {
+    const portableContent = {
+      title: 'Rejected before migration',
+      show_results: false,
+      question_identity_version: 1 as const,
+      questions: [{
+        id: TEST_ID_1,
+        question_type: 'open_response' as const,
+        question_text: 'This UUID is already an internal row ID',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: { ...portableContent, questions: [] },
+      version: 3,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const identitySelect = {
+      eq: vi.fn().mockResolvedValue({
+        data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
+        error: null,
+      }),
+    }
+    const collisionSelect = {
+      in: vi.fn(() => ({
+        limit: vi.fn().mockResolvedValue({ data: [{ id: TEST_ID_1 }], error: null }),
+      })),
+    }
+    const draftUpdate = vi.fn()
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'save_test_draft_atomic is missing' },
+    })
+    const supabase = {
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table === 'assessment_drafts') {
+          return { select: vi.fn(() => draftSelect), update: draftUpdate }
+        }
+        if (table === 'test_questions') {
+          return {
+            select: vi.fn((columns: string) => columns === 'id'
+              ? collisionSelect
+              : identitySelect),
+          }
+        }
+        throw new Error(`Unexpected table ${table}`)
+      }),
+    }
+
+    await expect(saveTestDraftAtomic(supabase, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content: portableContent,
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Test draft question identity is invalid or ambiguous',
+    })
+    expect(draftUpdate).not.toHaveBeenCalled()
+  })
+
+  it('refuses pre-migration question graph edits while a Test is active', async () => {
+    const content = {
+      title: 'Active Test',
+      show_results: false,
+      question_identity_version: 1 as const,
+      questions: [{
+        id: ARTIFACT_ID_1,
+        question_type: 'open_response' as const,
+        question_text: 'Changed after activation',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content,
+      version: 3,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const statusSelect: any = {
+      eq: vi.fn(() => statusSelect),
+      single: vi.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
+    }
+    const draftUpdate = vi.fn()
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'save_test_draft_atomic is missing' },
+    })
+    const supabase = {
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table === 'assessment_drafts') {
+          return { select: vi.fn(() => draftSelect), update: draftUpdate }
+        }
+        if (table === 'test_questions') {
+          return {
+            select: vi.fn((columns: string) => ({
+              eq: vi.fn(() => columns.includes('question_type')
+                ? {
+                    order: vi.fn().mockResolvedValue({
+                      data: [{
+                        id: TEST_ID_1,
+                        question_type: 'open_response',
+                        question_text: 'Original question',
+                        options: [],
+                        correct_option: null,
+                        answer_key: null,
+                        sample_solution: null,
+                        points: 1,
+                        response_max_chars: 5000,
+                        response_monospace: false,
+                        position: 0,
+                      }],
+                      error: null,
+                    }),
+                  }
+                : Promise.resolve({
+                    data: [{
+                      id: TEST_ID_1,
+                      artifact_id: ARTIFACT_ID_1,
+                      source_artifact_id: null,
+                    }],
+                    error: null,
+                  })),
+            })),
+          }
+        }
+        return { select: vi.fn(() => statusSelect) }
+      }),
+    }
+
+    await expect(saveTestDraftAtomic(supabase, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content,
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Reopen this Test before changing its questions',
+    })
+    expect(draftUpdate).not.toHaveBeenCalled()
+  })
+
+  it('temporarily refuses Test activation until migration 134 installs the atomic RPC', async () => {
+    const collidingPortableId = TEST_ID_1
+    const secondRowId = '77777777-7777-4777-8777-777777777777'
+    const markedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: {
+        title: 'Activate before migration',
+        show_results: false,
+        question_identity_version: 1 as const,
+        questions: [{
+          id: collidingPortableId,
+          question_type: 'open_response' as const,
+          question_text: 'Portable identity wins',
+          options: [],
+          correct_option: null,
+          answer_key: null,
+          sample_solution: null,
+          points: 1,
+          response_max_chars: 5000,
+          response_monospace: false,
+        }],
+      },
+      version: 8,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const rows = [
+      { id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null },
+      { id: secondRowId, artifact_id: collidingPortableId, source_artifact_id: null },
+    ]
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: markedDraft, error: null }),
+    }
+    const persistedDraftUpdate: any = {
+      eq: vi.fn(() => persistedDraftUpdate),
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: { id: markedDraft.id }, error: null }),
+      })),
+    }
+    const questionUpdate: any = { eq: vi.fn(() => questionUpdate) }
+    const questionDelete: any = { eq: vi.fn(() => questionDelete) }
+    const questionUpdateFn = vi.fn(() => questionUpdate)
+    const questionDeleteFn = vi.fn(() => questionDelete)
+    const questionSelectFn = vi.fn((columns: string) => {
+      if (columns.includes('question_type')) {
+        const inspectionSelect: any = {
+          eq: vi.fn(() => inspectionSelect),
+          order: vi.fn().mockResolvedValue({
+            data: rows.map((row, position) => ({
+              ...row,
+              question_type: 'open_response',
+              question_text: position === 0 ? 'Existing row' : 'Portable identity wins',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+              position,
+            })),
+            error: null,
+          }),
+        }
+        return inspectionSelect
+      }
+      return {
+        eq: vi.fn().mockResolvedValue({
+          data: columns === 'id' ? rows.map(({ id }) => ({ id })) : rows,
+          error: null,
+        }),
+      }
+    })
+    const usageSelect = {
+      eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    }
+    const testUpdate: any = {
+      eq: vi.fn(() => testUpdate),
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'test-1', status: 'active' },
+          error: null,
+        }),
+      })),
+    }
+    const testUpdateFn = vi.fn(() => testUpdate)
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'activate_test_from_draft_atomic is missing' },
+    })
+    const supabase = {
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table === 'assessment_drafts') {
+          return { select: vi.fn(() => draftSelect), update: vi.fn(() => persistedDraftUpdate) }
+        }
+        if (table === 'test_questions') {
+          return {
+            select: questionSelectFn,
+            update: questionUpdateFn,
+            insert: vi.fn().mockResolvedValue({ error: null }),
+            delete: questionDeleteFn,
+          }
+        }
+        if (table === 'test_attempts' || table === 'test_responses') {
+          return { select: vi.fn(() => usageSelect) }
+        }
+        return { update: testUpdateFn }
+      }),
+    }
+
+    await expect(activateTestFromDraftAtomic(supabase, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 8,
+    })).resolves.toEqual({
+      ok: false,
+      status: 503,
+      error: 'Atomic Test draft activate requires migration 134 to be applied',
+    })
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
+
   it('maps an activation version conflict to a reviewable 409', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: null,

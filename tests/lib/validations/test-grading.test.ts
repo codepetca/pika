@@ -3,6 +3,7 @@ import {
   clearTestOpenGradesSchema,
   saveStudentTestGradesSchema,
   saveTestResponseGradeSchema,
+  startTestAutoGradeSchema,
 } from '@/lib/validations/test-grading'
 
 const questionGradingSnapshot = {
@@ -231,5 +232,43 @@ describe('clearTestOpenGradesSchema', () => {
     { student_ids: Array.from({ length: 101 }, (_, index) => `student-${index}`), responses: [] },
   ])('rejects an invalid clear request %#', (input) => {
     expect(clearTestOpenGradesSchema.safeParse(input).success).toBe(false)
+  })
+})
+
+describe('startTestAutoGradeSchema', () => {
+  it('normalizes student ids and defaults to ungraded', () => {
+    expect(startTestAutoGradeSchema.parse({
+      student_ids: [' student-1 ', 'student-1', 'student-2'],
+    })).toEqual({
+      studentIds: ['student-1', 'student-2'],
+      promptGuidelineOverride: null,
+      gradeScope: 'ungraded',
+    })
+  })
+
+  it('accepts regrading all eligible responses', () => {
+    expect(startTestAutoGradeSchema.parse({
+      student_ids: ['student-1'],
+      prompt_guideline: 'Use concise feedback.',
+      grade_scope: 'all',
+    })).toEqual({
+      studentIds: ['student-1'],
+      promptGuidelineOverride: 'Use concise feedback.',
+      gradeScope: 'all',
+    })
+  })
+
+  it.each([
+    [{}, 'student_ids array is required'],
+    [{ student_ids: ['student-1'], prompt_guideline: 4 }, 'prompt_guideline must be a string'],
+    [{ student_ids: ['student-1'], grade_scope: 'missing' }, 'grade_scope must be ungraded or all'],
+    [{ student_ids: Array.from({ length: 101 }, (_, index) => `student-${index}`) }, 'Cannot auto-grade more than 100 students at once'],
+  ])('rejects invalid request %#', (input, expectedMessage) => {
+    const result = startTestAutoGradeSchema.safeParse(input)
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(expectedMessage)
+    }
   })
 })

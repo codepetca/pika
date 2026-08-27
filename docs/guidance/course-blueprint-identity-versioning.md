@@ -143,8 +143,8 @@ rubrics, and named resources must adopt the same contract.
   rows are never rewritten; older snapshot shapes are normalized in memory at
   their read/instantiation boundary.
 - Every writer that can touch this graph locks in one order: Classroom, Test,
-  Draft, then question rows. Archive reuse follows the same parent-first order,
-  preventing a Classroom/Test lock cycle.
+  Draft, then question rows. Archive reuse and student attempt save/submission
+  follow the same parent-first order, preventing a Classroom/Test lock cycle.
 
 ### Test question identity rollout and rollback
 
@@ -153,8 +153,23 @@ Roll out the contract as a finite cutover:
 1. Deploy the compatibility application. It assigns portable identity at
    question creation, marks every projected response and save, treats marked
    documents as portable-only, and gives exact row-ID precedence only to an
-   unmarked live draft during this pre-migration window. This keeps existing
-   drafts usable while migration application remains a separate human action.
+   unmarked live draft during this pre-migration window. When the migration RPC
+   is not installed yet, the server projects marked portable IDs back to the
+   exact legacy row IDs before persistence and activation, while returning the
+   portable representation to the client. Draft-only UUIDs remain unchanged
+   and are materialized with that same UUID in both the legacy row-ID and
+   artifact-ID slots. Migration 133 cannot transactionally fence student entry
+   across application-side question synchronization, so active and closed Tests
+   accept only metadata/document saves whose question graph is unchanged;
+   question edits require reopening the Test as a draft. Test activation is
+   deliberately unavailable during this short application-before-migration
+   window because migration 133 has no transactional activation primitive;
+   once migration 134 is applied, the atomic RPC resumes activation. A
+   draft-only portable UUID that already exists anywhere as an internal
+   question row ID is rejected before writing because the legacy single-ID
+   format cannot represent that namespace collision safely. This narrow
+   fallback keeps Test draft saving usable while migration application remains
+   a separate human action; activation resumes after the RPC exists.
 2. Apply the identity migration as one transaction. It resolves an exact
    historical row-ID match first because legacy drafts stored row IDs. Only
    when no row-ID match exists does it fall back to the one source-first
@@ -179,7 +194,8 @@ Roll out the contract as a finite cutover:
    portable-ID collision and concurrent archive reuse. The marker constraint
    makes the live unmarked compatibility branch unreachable after this point;
    remove that pre-migration caller in a later cleanup after production
-   verification, while retaining the cold-archive adapter.
+   verification, while retaining the cold-archive adapter. Remove the
+   pre-migration application fallback in the same cleanup pass.
 
 Before step 2, application rollback is ordinary. A migration failure rolls the
 whole transaction back, including draft backfill, constraints, indexes, and

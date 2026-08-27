@@ -276,7 +276,7 @@ test.describe('teacher exam mode', () => {
         }
       }).toEqual({ studentCount, openCount: studentCount })
       await expect(page.getByRole('button', { name: 'Close All' })).toBeVisible()
-      await expect(page.locator('[data-test-grading-student-row]').first().getByRole('button', {
+      await expect(page.locator('[data-test-grading-student-row]').first().getByRole('switch', {
         name: /Access open.*Close access/,
       })).toBeVisible()
 
@@ -293,7 +293,7 @@ test.describe('teacher exam mode', () => {
         }
       }).toEqual({ studentCount, closedCount: studentCount })
       await expect(page.getByRole('button', { name: 'Open All' })).toBeVisible()
-      await expect(page.locator('[data-test-grading-student-row]').first().getByRole('button', {
+      await expect(page.locator('[data-test-grading-student-row]').first().getByRole('switch', {
         name: /Access closed for this student\. Open access/,
       })).toBeVisible()
 

@@ -191,8 +191,9 @@ Use `TeacherWorkSurfaceContextBar` with this hierarchy:
 
 The informational slots must not look interactive: avoid filled pills, borders around individual labels, hover treatments, and button-like weight. The center cluster is the clear interactive affordance and must not contain metrics. Keep low-priority utilities visually subordinate. On mobile, preserve the centered control and essential actions while condensing nonessential context instead of wrapping into a second row.
 
-Attendance is the approved reference implementation. The stable composition,
-adoption criteria, and Classwork/Tests mappings are documented in
+Attendance is the approved table-density reference and the selected Test
+grading roster is the approved action-scope and selection reference. The stable
+composition, adoption criteria, and section mappings are documented in
 [`teacher-operational-tables.md`](./teacher-operational-tables.md).
 
 Migration rule: `TeacherWorkSurfaceContextBar` is the target for refreshed
@@ -216,10 +217,16 @@ criteria rather than mechanically changing unrelated authoring surfaces.
   counts in the operational context bar.
 - Do not place an `overflow-hidden` wrapper between a sticky table head and its
   intended scroll region.
-- Use `TeacherWorkSurfaceTableFrame` to add bottom scroll clearance only while selection actions are visible.
-- Use `TeacherSelectionBar` for a bottom bulk-action surface that appears only after selection.
-- Keep selection commands feature-owned; the shared component owns placement, selected-count context, and clear-selection behavior only.
-- Do not reserve permanent page padding for a toolbar that is usually absent.
+- Keep global scope commands stable as selection changes.
+- Keep a selection-aware menu visible in the centered action cluster, disabled
+  until selection and labeled with the selected count when enabled.
+- Keep selection commands feature-owned. Escape and table selection controls
+  provide clearance without a permanent clear-selection action.
+- Treat `TeacherSelectionBar` as migration support for existing surfaces, not
+  the target for newly refreshed operational tables.
+- Do not reserve permanent page padding for a selection surface.
+- Apply immediate, reversible row state changes inline. Confirm broad global
+  changes, destructive mutations, and costly or overwrite-capable actions.
 - Treat this as a shared composition, not a universal data-grid component.
   Features retain their own row model, status vocabulary, comparison logic,
   commands, permissions, and mutations.

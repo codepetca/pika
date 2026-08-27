@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Lock, LogOut, Pencil, RotateCcw, Send, Trash2, Unlock, X } from 'lucide-react'
+import { ChevronDown, ClockAlert, EllipsisVertical, Lock, LogOut, Pencil, RotateCcw, Send, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -29,7 +29,12 @@ import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/T
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
+  TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
+  type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
+import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -64,6 +69,7 @@ import {
 import {
   Button,
   ConfirmDialog,
+  ColumnResizeHandle,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -77,13 +83,12 @@ import {
   RefreshingIndicator,
   Select,
   SortableHeaderCell,
-  SplitButton,
   TableSelectionCell,
   TableSelectionHeaderCell,
   Tooltip,
+  cn,
   useAppMessage,
   useOverlayMessage,
-  type SplitButtonProps,
 } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -124,20 +129,133 @@ type TestGradingSortColumn =
   | 'last_activity'
   | 'exits'
   | 'away'
-type TestGradingResizableColumn = 'student' | 'status' | 'access' | 'score' | 'last_activity'
+type TestGradingResizableColumn = 'first' | 'last' | 'status' | 'access' | 'score' | 'last_activity'
+type TestGradingStatusSort = Extract<TestGradingStudentRow['status'], 'closed' | 'submitted' | 'returned'>
 
 const TEST_GRADING_COLUMN_LIMITS = {
-  student: { defaultWidth: 184, min: 120, max: 320 },
-  status: { defaultWidth: 72, min: 56, max: 112 },
+  first: { defaultWidth: 96, min: 72, max: 180 },
+  last: { defaultWidth: 120, min: 80, max: 220 },
+  status: { defaultWidth: 188, min: 152, max: 240 },
   access: { defaultWidth: 72, min: 56, max: 112 },
   score: { defaultWidth: 80, min: 64, max: 120 },
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
 } satisfies Record<TestGradingResizableColumn, { defaultWidth: number; min: number; max: number }>
 
+const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['closed', 'submitted', 'returned']
+
+const TEST_GRADING_STATUS_CHIP_CLASSES: Record<TestGradingStatusSort, string> = {
+  closed: 'bg-surface-3 text-text-muted',
+  submitted: 'bg-success-bg text-success',
+  returned: 'bg-info-bg text-primary',
+}
+
+const TEST_LIFECYCLE_LABELS: Record<NonNullable<TestAssessment['status']>, string> = {
+  draft: 'Draft',
+  active: 'Active',
+  closed: 'Closed',
+}
+
+const TEST_LIFECYCLE_DOT_CLASSES: Record<NonNullable<TestAssessment['status']>, string> = {
+  draft: 'bg-border-strong',
+  active: 'bg-success-solid',
+  closed: 'bg-border-strong',
+}
+
 const GRADING_POLL_INTERVAL_MS = 15_000
 
 function getTestGradingExitCount(student: TestGradingStudentRow): number {
   return getTestExitCount(student.focus_summary)
+}
+
+function TestGradingStatusSortChip({
+  status,
+  count,
+  active,
+  onClick,
+}: {
+  status: TestGradingStatusSort
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  const label = getTestGradingWorkStatusDisplay(status).label
+  const studentLabel = count === 1 ? 'student' : 'students'
+
+  return (
+    <Tooltip content={`${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        className="rounded-badge px-0 py-0"
+        aria-label={`Sort ${label} first, ${count} ${studentLabel}`}
+        aria-pressed={active}
+        onClick={onClick}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'inline-flex h-6 min-w-6 items-center justify-center rounded-badge px-2 text-sm font-semibold',
+            TEST_GRADING_STATUS_CHIP_CLASSES[status],
+            active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
+          )}
+        >
+          {count}
+        </span>
+      </Button>
+    </Tooltip>
+  )
+}
+
+function TestStudentAccessToggle({
+  isOpen,
+  disabled,
+  ariaLabel,
+  tooltip,
+  onToggle,
+}: {
+  isOpen: boolean
+  disabled: boolean
+  ariaLabel: string
+  tooltip: string
+  onToggle: () => void
+}) {
+  const AccessIcon = isOpen ? Unlock : Lock
+
+  return (
+    <Tooltip content={tooltip}>
+      <span className="inline-flex">
+        <Button
+          type="button"
+          role="switch"
+          aria-checked={isOpen}
+          aria-label={ariaLabel}
+          variant="ghost"
+          size="xs"
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggle()
+          }}
+          className="gap-1 px-1"
+        >
+          <span
+            className={cn(
+              'inline-flex h-5 w-9 items-center rounded-badge transition-colors',
+              isOpen ? 'justify-end bg-success-solid' : 'justify-start bg-danger-solid',
+            )}
+            aria-hidden="true"
+          >
+            <span className="mx-0.5 h-4 w-4 rounded-badge bg-surface shadow-sm" />
+          </span>
+          <AccessIcon
+            className={cn('h-4 w-4', isOpen ? 'text-success' : 'text-danger')}
+            aria-hidden="true"
+          />
+        </Button>
+      </span>
+    </Tooltip>
+  )
 }
 
 function TestWorkspacePaneFrame({ children }: { children: ReactNode }) {
@@ -341,7 +459,8 @@ export function TeacherTestsTab({
   const [gradingSortState, setGradingSortState] = useState<{
     column: TestGradingSortColumn
     direction: 'asc' | 'desc'
-  }>({ column: 'last_name', direction: 'asc' })
+    status: TestGradingStatusSort | null
+  }>({ column: 'last_name', direction: 'asc', status: null })
   const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
@@ -412,7 +531,6 @@ export function TeacherTestsTab({
     void retryTests()
   }, [retryTests])
   const [gradingInfo, setGradingInfo] = useState('')
-  const [gradingWarning, setGradingWarning] = useState('')
   const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
   const [isBatchReturning, setIsBatchReturning] = useState(false)
   const [isBatchUnsubmitting, setIsBatchUnsubmitting] = useState(false)
@@ -420,8 +538,6 @@ export function TeacherTestsTab({
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [showUnsubmitConfirm, setShowUnsubmitConfirm] = useState(false)
   const [pendingUnsubmitStudent, setPendingUnsubmitStudent] = useState<TestGradingStudentRow | null>(null)
-  const [pendingOpenAccessStudent, setPendingOpenAccessStudent] = useState<TestGradingStudentRow | null>(null)
-  const [pendingCloseAccessStudent, setPendingCloseAccessStudent] = useState<TestGradingStudentRow | null>(null)
   const [showCloseAccessConfirm, setShowCloseAccessConfirm] = useState(false)
   const [pendingOpenAccessStudentIds, setPendingOpenAccessStudentIds] = useState<string[] | null>(null)
   const [pendingCloseAccessStudentIds, setPendingCloseAccessStudentIds] = useState<string[] | null>(null)
@@ -485,7 +601,7 @@ export function TeacherTestsTab({
   const sortedGradingStudents = useMemo(
     () =>
       [...gradingStudents].sort((a, b) => {
-        const { column, direction } = gradingSortState
+        const { column, direction, status } = gradingSortState
         const aNameParts = getSortableNameParts(a)
         const bNameParts = getSortableNameParts(b)
         if (column === 'first_name' || column === 'last_name') {
@@ -505,6 +621,24 @@ export function TeacherTestsTab({
           )
         }
         if (column === 'status') {
+          if (status) {
+            const statusRank = Number(b.status === status) - Number(a.status === status)
+            if (statusRank !== 0) return statusRank
+            return compareByNameFields(
+              {
+                firstName: aNameParts.firstName,
+                lastName: aNameParts.lastName,
+                id: a.email || a.student_id,
+              },
+              {
+                firstName: bNameParts.firstName,
+                lastName: bNameParts.lastName,
+                id: b.email || b.student_id,
+              },
+              'last_name',
+              'asc',
+            )
+          }
           return applyDirection(a.status.localeCompare(b.status), direction)
         }
         if (column === 'access') {
@@ -546,13 +680,27 @@ export function TeacherTestsTab({
     selectedCount: batchSelectedCount,
   } = useTableSelection(gradingRowIds)
   const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
-    storageKey: 'teacher-test-grading:v1',
+    storageKey: 'teacher-test-grading:v2',
     columns: TEST_GRADING_COLUMN_LIMITS,
   })
 
   const handleGradingSort = useCallback((column: TestGradingSortColumn) => {
-    setGradingSortState((previous) => toggleSort(previous, column))
+    setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: null }))
   }, [])
+
+  const handleGradingStatusSort = useCallback((status: TestGradingStatusSort) => {
+    setGradingSortState({ column: 'status', direction: 'asc', status })
+  }, [])
+
+  const gradingStatusCounts = useMemo(() => {
+    const counts: Record<TestGradingStatusSort, number> = { closed: 0, submitted: 0, returned: 0 }
+    for (const student of gradingStudents) {
+      if (student.status === 'closed' || student.status === 'submitted' || student.status === 'returned') {
+        counts[student.status] += 1
+      }
+    }
+    return counts
+  }, [gradingStudents])
 
   const batchSelectedStudents = useMemo(
     () => sortedGradingStudents.filter((student) => batchSelectedIds.has(student.student_id)),
@@ -622,7 +770,6 @@ export function TeacherTestsTab({
     setGradingRefreshing(false)
     setGradingError('')
     setGradingInfo('')
-    setGradingWarning('')
     setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle', scopeKey: null })
     setIsBatchAutoGrading(false)
     setIsBatchReturning(false)
@@ -631,8 +778,6 @@ export function TeacherTestsTab({
     setShowReturnConfirm(false)
     setShowUnsubmitConfirm(false)
     setPendingUnsubmitStudent(null)
-    setPendingOpenAccessStudent(null)
-    setPendingCloseAccessStudent(null)
     setShowCloseAccessConfirm(false)
     setPendingOpenAccessStudentIds(null)
     setPendingCloseAccessStudentIds(null)
@@ -911,8 +1056,6 @@ export function TeacherTestsTab({
     setUnreviewedExitCounts({})
     setExitAlertStudentId(null)
     setPendingUnsubmitStudent(null)
-    setPendingOpenAccessStudent(null)
-    setPendingCloseAccessStudent(null)
     setShowUnsubmitConfirm(false)
     setShowCloseAccessConfirm(false)
     setPendingOpenAccessStudentIds(null)
@@ -935,7 +1078,6 @@ export function TeacherTestsTab({
 
     clearTestWorkspace()
     setGradingError('')
-    setGradingWarning('')
     setGradingInfo('')
     clearBatchSelection()
   }, [clearBatchSelection, clearTestWorkspace, testsTabClickToken, workspaceState])
@@ -966,7 +1108,7 @@ export function TeacherTestsTab({
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (document.querySelector('[role="dialog"]')) return
+      if (document.querySelector('[role="dialog"], [role="menu"]')) return
 
       const target = event.target
       if (target instanceof HTMLElement) {
@@ -1283,7 +1425,6 @@ export function TeacherTestsTab({
   function handleOpenTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
     setGradingError('')
-    setGradingWarning('')
     setGradingInfo('')
     clearBatchSelection()
   }
@@ -1434,7 +1575,7 @@ export function TeacherTestsTab({
     ]
   )
 
-  async function handleBatchAutoGrade(options?: {
+  async function handleBatchAutoGrade(gradeScope: 'ungraded' | 'all', options?: {
     studentIds?: string[]
     preserveSelection?: boolean
     infoPrefix?: string
@@ -1451,6 +1592,7 @@ export function TeacherTestsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_ids: targetStudentIds,
+          grade_scope: gradeScope,
         }),
       })
       const data = await response.json()
@@ -1538,7 +1680,10 @@ export function TeacherTestsTab({
     }
   }
 
-  async function handleBatchStudentAccess(state: 'open' | 'closed', options?: { studentIds?: string[] }) {
+  async function handleBatchStudentAccess(
+    state: 'open' | 'closed',
+    options?: { studentIds?: string[]; preserveSelection?: boolean },
+  ) {
     const targetStudentIds = options?.studentIds || Array.from(batchSelectedIds)
     if (!selectedTestId || targetStudentIds.length === 0) return
     const previousAccessByStudentId = new Map(
@@ -1599,11 +1744,11 @@ export function TeacherTestsTab({
         )
       }
 
-      clearBatchSelection()
+      if (!options?.preserveSelection) {
+        clearBatchSelection()
+      }
       setShowCloseAccessConfirm(false)
-      setPendingOpenAccessStudent(null)
       setPendingOpenAccessStudentIds(null)
-      setPendingCloseAccessStudent(null)
       setPendingCloseAccessStudentIds(null)
       await loadGradingRows()
       onTestGradingDataRefresh?.()
@@ -1825,153 +1970,50 @@ export function TeacherTestsTab({
     () => sortedGradingStudents.map((student) => student.student_id),
     [sortedGradingStudents]
   )
-  const selectedClosedAccessCount = batchSelectedCount - selectedOpenAccessCount
-  const selectedReturnableCount = batchSelectedStudents.filter((student) => {
-    const hasWork = student.status !== 'not_started'
-    return hasWork && getEffectiveStudentAccess(student) === 'closed' && student.ungraded_open_responses === 0
-  }).length
-  const shouldOpenSelectedAccess = batchSelectedCount > 0 && selectedClosedAccessCount >= selectedOpenAccessCount
-  const accessPrimaryState: 'open' | 'closed' =
-    batchSelectedCount > 0
-      ? shouldOpenSelectedAccess ? 'open' : 'closed'
-      : allOpenAccessCount > 0 ? 'closed' : 'open'
-  const accessPrimaryCount = batchSelectedCount > 0 ? batchSelectedCount : allStudentIds.length
-  const accessPrimaryScope = batchSelectedCount > 0 ? 'Selected' : 'All'
-  const accessAlternateState: 'open' | 'closed' = accessPrimaryState === 'open' ? 'closed' : 'open'
-  const openAccessConfirmCount = pendingOpenAccessStudentIds?.length ?? batchSelectedCount
-  const closeAccessConfirmCount = pendingCloseAccessStudentIds?.length ?? batchSelectedCount
-  const pendingCloseAccessStudentLabel =
-    pendingCloseAccessStudent?.name || pendingCloseAccessStudent?.email || null
+  const openAccessConfirmCount = pendingOpenAccessStudentIds?.length ?? allStudentIds.length
+  const closeAccessConfirmCount = pendingCloseAccessStudentIds?.length ?? allStudentIds.length
   const unsubmitConfirmTitle = pendingUnsubmitStudent
     ? `Mark ${pendingUnsubmitStudent.name || pendingUnsubmitStudent.email || 'this student'} unsubmitted?`
     : `Mark ${batchSelectedSubmittedCount} selected attempt${batchSelectedSubmittedCount === 1 ? '' : 's'} unsubmitted?`
-  const isAccessActionDisabled =
+  const areGlobalAccessActionsBusy =
     !selectedTestWorkspace ||
     isReadOnly ||
     isBatchAutoGrading ||
     isBatchReturning ||
     isBatchUnsubmitting ||
-    isBatchUpdatingAccess ||
-    (accessPrimaryState === 'open' &&
-      selectedTestWorkspace.status === 'draft' &&
-      (!selectedActivation.valid || checkingActivation || statusUpdating || hasPendingMarkdownImport)) ||
-    (accessPrimaryState === 'closed' && allStudentIds.length === 0)
+    isBatchUpdatingAccess
+  const isOpenAllDisabled =
+    areGlobalAccessActionsBusy ||
+    (selectedTestWorkspace?.status === 'draft'
+      ? !selectedActivation.valid || checkingActivation || statusUpdating || hasPendingMarkdownImport
+      : allStudentIds.length === 0 || allOpenAccessCount === allStudentIds.length)
+  const isCloseAllDisabled = areGlobalAccessActionsBusy || allOpenAccessCount === 0
 
-  function renderCountedActionLabel({
-    icon,
-    label,
-    count,
-    danger = false,
-  }: {
-    icon: JSX.Element
-    label: string
-    count: number
-    danger?: boolean
-  }) {
-    return (
-      <span className={['inline-flex w-full items-center justify-between gap-3 whitespace-nowrap', danger ? 'text-danger' : ''].join(' ')}>
-        <span className="inline-flex min-w-0 items-center gap-2">
-          {icon}
-          <span>{label}</span>
-        </span>
-        <span
-          className={[
-            'ml-2 inline-flex min-w-5 justify-center rounded-badge px-1.5 py-0.5 text-xs font-semibold',
-            danger ? 'bg-danger-bg text-danger' : 'bg-surface-2 text-text-muted',
-          ].join(' ')}
-        >
-          {count}
-        </span>
-      </span>
-    )
-  }
-
-  function getAccessActionLabel(state: 'open' | 'closed', scope: 'All' | 'Selected', count: number): string {
-    const verb = state === 'open' ? 'Open' : 'Close'
-    return scope === 'Selected' ? `${verb} ${count} Selected` : `${verb} All`
-  }
-
-  function getAccessActionIcon(state: 'open' | 'closed') {
-    return state === 'open'
-      ? <Unlock className="h-4 w-4 text-success" aria-hidden="true" />
-      : <Lock className="h-4 w-4 text-danger" aria-hidden="true" />
-  }
-
-  function handleAccessAction(state: 'open' | 'closed') {
+  function handleAllAccessAction(state: 'open' | 'closed') {
     if (!selectedTestWorkspace) return
-    const targetStudentIds = batchSelectedCount > 0 ? batchSelectedStudentIds : allStudentIds
 
     if (state === 'open') {
       if (selectedTestWorkspace.status === 'draft') {
         void handleRequestSelectedTestActivate()
         return
       }
-      if (targetStudentIds.length === 0) return
-      setPendingOpenAccessStudent(null)
-      setPendingOpenAccessStudentIds(targetStudentIds)
+      if (allStudentIds.length === 0) return
+      setPendingOpenAccessStudentIds(allStudentIds)
       return
     }
 
-    if (targetStudentIds.length === 0) return
-    setPendingCloseAccessStudent(null)
-    setPendingCloseAccessStudentIds(targetStudentIds)
+    if (allStudentIds.length === 0) return
+    setPendingCloseAccessStudentIds(allStudentIds)
     setShowCloseAccessConfirm(true)
   }
 
-  function handleStudentAccessIconClick(student: TestGradingStudentRow, effectiveAccess: 'open' | 'closed') {
+  function handleStudentAccessToggle(student: TestGradingStudentRow, effectiveAccess: 'open' | 'closed') {
     if (isReadOnly || isCombinedTestActionsBusy) return
-
-    if (effectiveAccess === 'open') {
-      setPendingCloseAccessStudent(student)
-      setPendingCloseAccessStudentIds([student.student_id])
-      setShowCloseAccessConfirm(true)
-      return
-    }
-
-    setPendingOpenAccessStudent(student)
+    void handleBatchStudentAccess(effectiveAccess === 'open' ? 'closed' : 'open', {
+      studentIds: [student.student_id],
+      preserveSelection: true,
+    })
   }
-
-  const accessAlternateLabel = getAccessActionLabel(accessAlternateState, accessPrimaryScope, accessPrimaryCount)
-  const accessAlternateDisabled =
-    isReadOnly ||
-    isBatchAutoGrading ||
-    isBatchReturning ||
-    isBatchUnsubmitting ||
-    isBatchUpdatingAccess ||
-    (accessAlternateState === 'open' &&
-      selectedTestWorkspace?.status === 'draft' &&
-      (!selectedActivation.valid || checkingActivation || statusUpdating || hasPendingMarkdownImport)) ||
-    (accessAlternateState === 'closed' && accessPrimaryCount === 0)
-
-  const batchGradeDescriptionParts: string[] = []
-  if (batchAutoGradePreflight.selectedCount > 0) {
-    const questionBreakdown: string[] = []
-    if (batchAutoGradePreflight.codeQuestions > 0) {
-      questionBreakdown.push(
-        `${batchAutoGradePreflight.codeQuestions} code question${batchAutoGradePreflight.codeQuestions === 1 ? '' : 's'}`
-      )
-    }
-    if (batchAutoGradePreflight.regularQuestions > 0) {
-      questionBreakdown.push(
-        `${batchAutoGradePreflight.regularQuestions} regular question${batchAutoGradePreflight.regularQuestions === 1 ? '' : 's'}`
-      )
-    }
-
-    batchGradeDescriptionParts.push(
-      questionBreakdown.length > 0
-        ? `This will grade ${batchAutoGradePreflight.selectedCount} selected student${batchAutoGradePreflight.selectedCount === 1 ? '' : 's'} across ${questionBreakdown.join(' and ')}.`
-        : `This will grade ${batchAutoGradePreflight.selectedCount} selected student${batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.`
-    )
-    batchGradeDescriptionParts.push(
-      `Up to ${batchAutoGradePreflight.potentialAiSends} ungraded open response${batchAutoGradePreflight.potentialAiSends === 1 ? '' : 's'} may be sent to AI.`
-    )
-    if (batchAutoGradePreflight.gradedResponses > 0) {
-      batchGradeDescriptionParts.push(
-        `${batchAutoGradePreflight.gradedResponses} response${batchAutoGradePreflight.gradedResponses === 1 ? '' : 's'} already have grades and may be skipped.`
-      )
-    }
-  }
-  const batchGradeDescription = batchGradeDescriptionParts.join(' ')
 
   const isCombinedTestActionsBusy =
     hasActiveTestAiRun ||
@@ -2041,27 +2083,31 @@ export function TeacherTestsTab({
       ) : (
         <KeyboardNavigableTable
           ariaLabel="Test grading students"
-          ref={gradingStudentTableScrollRef}
           rowKeys={gradingRowIds}
           selectedKey={selectedStudentId}
           onSelectKey={handleGradingStudentSelect}
           getRowId={getTestGradingStudentRowId}
-          className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
-          data-testid="test-grading-student-scroll-pane"
-          onScroll={preserveGradingStudentTableScrollPosition}
+          className="flex min-h-0 w-full flex-1 flex-col rounded-none"
         >
+          <TeacherWorkSurfaceTableFrame
+            ref={gradingStudentTableScrollRef}
+            className="min-h-0 rounded-md border border-border"
+            data-testid="test-grading-student-scroll-pane"
+            onScroll={preserveGradingStudentTableScrollPosition}
+          >
           <DataTable density="tight" className="table-fixed text-sm">
             <colgroup>
               <col style={{ width: '40px' }} />
-              <col style={{ width: `${gradingColumnWidths.student}px` }} />
-              <col style={{ width: `${gradingColumnWidths.status}px` }} />
+              <col style={{ width: `${gradingColumnWidths.first}px` }} />
+              <col style={{ width: `${gradingColumnWidths.last}px` }} />
               <col style={{ width: `${gradingColumnWidths.access}px` }} />
-              <col style={{ width: `${gradingColumnWidths.score}px` }} />
-              <col className="hidden lg:table-column" style={{ width: `${gradingColumnWidths.last_activity}px` }} />
-              <col className="hidden lg:table-column" style={{ width: '64px' }} />
-              <col className="hidden lg:table-column" style={{ width: '64px' }} />
+              <col className="hidden md:table-column" style={{ width: `${gradingColumnWidths.score}px` }} />
+              <col className="hidden xl:table-column" style={{ width: `${gradingColumnWidths.last_activity}px` }} />
+              <col className="hidden xl:table-column" style={{ width: '64px' }} />
+              <col className="hidden xl:table-column" style={{ width: '64px' }} />
+              <col style={{ width: `${gradingColumnWidths.status}px` }} />
             </colgroup>
-            <DataTableHead>
+            <DataTableHead sticky>
               <DataTableRow>
                 <TableSelectionHeaderCell
                   checked={batchAllSelected}
@@ -2070,29 +2116,29 @@ export function TeacherTestsTab({
                   ariaLabel="Select all students"
                 />
                 <SortableHeaderCell
-                  label="Student"
+                  label="First"
+                  isActive={gradingSortState.column === 'first_name'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('first_name')}
+                  buttonClassName="!px-2 !pr-5 sm:!px-3 sm:!pr-5"
+                  resize={{
+                    value: gradingColumnWidths.first,
+                    min: TEST_GRADING_COLUMN_LIMITS.first.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.first.max,
+                    onChange: (width) => setGradingColumnWidth('first', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Last"
                   isActive={gradingSortState.column === 'last_name'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('last_name')}
                   buttonClassName="!px-2 !pr-5 sm:!px-3 sm:!pr-5"
                   resize={{
-                    value: gradingColumnWidths.student,
-                    min: TEST_GRADING_COLUMN_LIMITS.student.min,
-                    max: TEST_GRADING_COLUMN_LIMITS.student.max,
-                    onChange: (width) => setGradingColumnWidth('student', width),
-                  }}
-                />
-                <SortableHeaderCell
-                  label="Status"
-                  isActive={gradingSortState.column === 'status'}
-                  direction={gradingSortState.direction}
-                  onClick={() => handleGradingSort('status')}
-                  buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
-                  resize={{
-                    value: gradingColumnWidths.status,
-                    min: TEST_GRADING_COLUMN_LIMITS.status.min,
-                    max: TEST_GRADING_COLUMN_LIMITS.status.max,
-                    onChange: (width) => setGradingColumnWidth('status', width),
+                    value: gradingColumnWidths.last,
+                    min: TEST_GRADING_COLUMN_LIMITS.last.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.last.max,
+                    onChange: (width) => setGradingColumnWidth('last', width),
                   }}
                 />
                 <SortableHeaderCell
@@ -2113,6 +2159,7 @@ export function TeacherTestsTab({
                   isActive={gradingSortState.column === 'score'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('score')}
+                  className="hidden md:table-cell"
                   buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
                   resize={{
                     value: gradingColumnWidths.score,
@@ -2122,11 +2169,11 @@ export function TeacherTestsTab({
                   }}
                 />
                 <SortableHeaderCell
-                  label="Last"
+                  label="Activity"
                   isActive={gradingSortState.column === 'last_activity'}
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('last_activity')}
-                  className="hidden lg:table-cell"
+                  className="hidden xl:table-cell"
                   buttonClassName="!pr-5"
                   resize={{
                     value: gradingColumnWidths.last_activity,
@@ -2141,7 +2188,7 @@ export function TeacherTestsTab({
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('exits')}
                   align="center"
-                  className="hidden lg:table-cell"
+                  className="hidden xl:table-cell"
                   buttonClassName="!px-1"
                 />
                 <SortableHeaderCell
@@ -2150,14 +2197,47 @@ export function TeacherTestsTab({
                   direction={gradingSortState.direction}
                   onClick={() => handleGradingSort('away')}
                   align="center"
-                  className="hidden lg:table-cell"
+                  className="hidden xl:table-cell"
                   buttonClassName="!px-1"
                 />
+                <DataTableHeaderCell
+                  className="group relative !p-0"
+                  aria-label="Status"
+                  aria-sort={gradingSortState.column === 'status' ? 'other' : 'none'}
+                  style={{ width: `${gradingColumnWidths.status}px`, maxWidth: `${gradingColumnWidths.status}px` }}
+                >
+                  <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
+                    <span className="hidden shrink-0 2xl:inline">Status</span>
+                    <span
+                      role="group"
+                      aria-label="Sort Test grading by status"
+                      className="flex min-w-0 items-center"
+                    >
+                      {TEST_GRADING_SORTABLE_STATUSES.map((status) => (
+                        <TestGradingStatusSortChip
+                          key={status}
+                          status={status}
+                          count={gradingStatusCounts[status]}
+                          active={gradingSortState.column === 'status' && gradingSortState.status === status}
+                          onClick={() => handleGradingStatusSort(status)}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                  <ColumnResizeHandle
+                    label="Status"
+                    value={gradingColumnWidths.status}
+                    min={TEST_GRADING_COLUMN_LIMITS.status.min}
+                    max={TEST_GRADING_COLUMN_LIMITS.status.max}
+                    onChange={(width) => setGradingColumnWidth('status', width)}
+                  />
+                </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
               {sortedGradingStudents.map((student) => {
                 const isSelected = student.student_id === selectedStudentId
+                const studentNameParts = getSortableNameParts(student)
                 const scoreLabel =
                   student.status === 'not_started'
                     ? '—'
@@ -2178,8 +2258,6 @@ export function TeacherTestsTab({
                 const effectiveAccess = getEffectiveTestAccess(student, selectedTestWorkspace?.status)
                 const accessSource = student.access_source || 'test'
                 const accessLabel = effectiveAccess === 'open' ? 'Open' : 'Closed'
-                const AccessIcon = effectiveAccess === 'open' ? Unlock : Lock
-                const accessIconClass = effectiveAccess === 'open' ? 'text-success' : 'text-danger'
                 const accessTooltip =
                   accessSource === 'student'
                     ? `Access ${accessLabel.toLowerCase()} for this student`
@@ -2241,10 +2319,74 @@ export function TeacherTestsTab({
                       checked={batchSelectedIds.has(student.student_id)}
                       onChange={() => toggleBatchSelect(student.student_id)}
                       ariaLabel={`Select ${student.name || 'student'}`}
-                      className="py-2 sm:!px-3"
+                      className="py-2"
                     />
                     <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
-                      <div className="truncate font-medium text-text-default">{student.name || 'Student'}</div>
+                      {student.name ? <span className="sr-only">{student.name}</span> : null}
+                      <span className="block truncate font-medium text-text-default" title={studentNameParts.firstName || undefined}>
+                        {studentNameParts.firstName || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
+                      <span className="block truncate font-medium text-text-default" title={studentNameParts.lastName || undefined}>
+                        {studentNameParts.lastName || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="px-2 py-2 sm:px-3">
+                      <TestStudentAccessToggle
+                        isOpen={effectiveAccess === 'open'}
+                        disabled={!canToggleAccess}
+                        ariaLabel={`${accessAriaLabel}. ${accessActionLabel}`}
+                        tooltip={`${accessTooltip}. ${accessActionTooltip}`}
+                        onToggle={() => handleStudentAccessToggle(student, effectiveAccess)}
+                      />
+                    </DataTableCell>
+                    <DataTableCell className="hidden px-2 py-2 text-text-default sm:px-3 md:table-cell">{scoreLabel}</DataTableCell>
+                    <DataTableCell
+                      className={[
+                        'hidden px-3 py-2 tabular-nums xl:table-cell',
+                        formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
+                      ].join(' ')}
+                    >
+                      <Tooltip content="Most recent recorded in-test activity time (Toronto).">
+                        <span
+                          className={[
+                            'cursor-help',
+                            formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
+                          ].join(' ')}
+                        >
+                          {formattedLastActivity.value}
+                        </span>
+                      </Tooltip>
+                    </DataTableCell>
+                    <DataTableCell className="hidden px-3 py-2 text-xs tabular-nums xl:table-cell">
+                      <Tooltip
+                        content={
+                          <div className="space-y-0.5">
+                            <p className="font-medium">Exits: {exitsCount}</p>
+                            <p>Away/focus: {awayCount}</p>
+                            <p>In-app exits: {routeExitAttempts}</p>
+                            <p>Window exits: {windowUnmaximizeAttempts}</p>
+                          </div>
+                        }
+                      >
+                        <span
+                          className={exitsClassName}
+                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                        >
+                          {exitsCount}
+                        </span>
+                      </Tooltip>
+                    </DataTableCell>
+                    <DataTableCell className="hidden px-3 py-2 text-xs text-text-muted tabular-nums xl:table-cell">
+                      <Tooltip content={`Away from test route for ${awayLabel} total.`}>
+                        <span
+                          className="cursor-help"
+                          aria-label={`Away time ${awayLabel}. Away from test route for ${awayLabel} total.`}
+                        >
+                          {awayLabel}
+                        </span>
+                      </Tooltip>
                     </DataTableCell>
                     <DataTableCell className="px-2 py-2 sm:px-3">
                       {student.status === 'submitted' ? (
@@ -2274,212 +2416,49 @@ export function TeacherTestsTab({
                         </Tooltip>
                       )}
                     </DataTableCell>
-                    <DataTableCell className="px-2 py-2 sm:px-3">
-                      <Tooltip content={`${accessTooltip}. ${accessActionTooltip}`}>
-                        <button
-                          type="button"
-                          className="inline-flex cursor-pointer items-center justify-center rounded-control p-0.5 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
-                          aria-label={`${accessAriaLabel}. ${accessActionLabel}`}
-                          disabled={!canToggleAccess}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleStudentAccessIconClick(student, effectiveAccess)
-                          }}
-                        >
-                          <AccessIcon className={`h-4 w-4 ${accessIconClass}`} aria-hidden="true" />
-                        </button>
-                      </Tooltip>
-                    </DataTableCell>
-                    <DataTableCell className="px-2 py-2 text-text-default sm:px-3">{scoreLabel}</DataTableCell>
-                    <DataTableCell
-                      className={[
-                        'hidden px-3 py-2 tabular-nums lg:table-cell',
-                        formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
-                      ].join(' ')}
-                    >
-                      <Tooltip content="Most recent recorded in-test activity time (Toronto).">
-                        <span
-                          className={[
-                            'cursor-help',
-                            formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
-                          ].join(' ')}
-                        >
-                          {formattedLastActivity.value}
-                        </span>
-                      </Tooltip>
-                    </DataTableCell>
-                    <DataTableCell className="hidden px-3 py-2 text-xs tabular-nums lg:table-cell">
-                      <Tooltip
-                        content={
-                          <div className="space-y-0.5">
-                            <p className="font-medium">Exits: {exitsCount}</p>
-                            <p>Away/focus: {awayCount}</p>
-                            <p>In-app exits: {routeExitAttempts}</p>
-                            <p>Window exits: {windowUnmaximizeAttempts}</p>
-                          </div>
-                        }
-                      >
-                        <span
-                          className={exitsClassName}
-                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
-                        >
-                          {exitsCount}
-                        </span>
-                      </Tooltip>
-                    </DataTableCell>
-                    <DataTableCell className="hidden px-3 py-2 text-xs text-text-muted tabular-nums lg:table-cell">
-                      <Tooltip content={`Away from test route for ${awayLabel} total.`}>
-                        <span
-                          className="cursor-help"
-                          aria-label={`Away time ${awayLabel}. Away from test route for ${awayLabel} total.`}
-                        >
-                          {awayLabel}
-                        </span>
-                      </Tooltip>
-                    </DataTableCell>
                   </DataTableRow>
                 )
               })}
             </DataTableBody>
           </DataTable>
+          </TeacherWorkSurfaceTableFrame>
         </KeyboardNavigableTable>
       )}
     </div>
   )
 
-  const openSelectedTestEditor = () => {
+  function openSelectedTestEditor() {
     if (!selectedTestWorkspace) return
     navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
     setHasPendingMarkdownImport(false)
     setShowEditModal(true)
   }
 
-  const selectedTestAction: SplitButtonProps | null = selectedTestWorkspace ? {
-      label: (
-        <span className="inline-flex items-center gap-2">
-          {getAccessActionIcon(accessPrimaryState)}
-          <span>{getAccessActionLabel(accessPrimaryState, accessPrimaryScope, accessPrimaryCount)}</span>
-        </span>
-      ),
-      onPrimaryClick: () => handleAccessAction(accessPrimaryState),
-      options: [
-        {
-          id: `${accessAlternateState}-${accessPrimaryScope.toLowerCase()}`,
-          label: (
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              {getAccessActionIcon(accessAlternateState)}
-              <span>{accessAlternateLabel}</span>
-            </span>
-          ),
-          onSelect: () => handleAccessAction(accessAlternateState),
-          disabled: accessAlternateDisabled,
-        },
-        {
-          id: 'ai-grade',
-          label: renderCountedActionLabel({
-            icon: <Check className="h-4 w-4" aria-hidden="true" />,
-            label: 'AI Grade',
-            count: batchSelectedCount,
-          }),
-          onSelect: () => {
-            setShowBatchGradeModal(true)
-          },
-          disabled:
-            batchSelectedCount === 0 ||
-            isCombinedTestActionsBusy,
-        },
-        {
-          id: 'unsubmit-selected',
-          label: renderCountedActionLabel({
-            icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-            label: 'Unsubmit Selected',
-            count: batchSelectedSubmittedCount,
-          }),
-          onSelect: () => {
-            if (batchSelectedSubmittedCount === 0) {
-              setGradingWarning('Select submitted students to unsubmit')
-              return
-            }
-            setPendingUnsubmitStudent(null)
-            setShowUnsubmitConfirm(true)
-          },
-          disabled:
-            batchSelectedSubmittedCount === 0 ||
-            isCombinedTestActionsBusy,
-        },
-        {
-          id: 'return',
-          label: renderCountedActionLabel({
-            icon: <Send className="h-4 w-4" aria-hidden="true" />,
-            label: 'Return',
-            count: selectedReturnableCount,
-          }),
-          onSelect: () => {
-            if (batchSelectedCount === 0) {
-              setGradingWarning('Select students to return')
-              return
-            }
-            if (selectedOpenAccessCount > 0) {
-              setGradingError('Close selected students before returning')
-              return
-            }
-            setShowReturnConfirm(true)
-          },
-          disabled:
-            batchSelectedCount === 0 ||
-            isCombinedTestActionsBusy,
-        },
-        {
-          id: 'delete-selected',
-          label: renderCountedActionLabel({
-            icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
-            label: 'Delete Selected',
-            count: batchSelectedCount,
-            danger: true,
-          }),
-          onSelect: () => {
-            if (batchSelectedCount === 0) {
-              setGradingWarning('Select students to delete')
-              return
-            }
-            setPendingDeleteStudentAttemptIds(batchSelectedStudentIds)
-          },
-          disabled:
-            batchSelectedCount === 0 ||
-            isCombinedTestActionsBusy,
-          destructive: true,
-        },
-        {
-          id: 'delete-test',
-          label: (
-            <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              <span>Delete Test</span>
-            </span>
-          ),
-          onSelect: () => {
-            if (onRequestDelete) {
-              onRequestDelete()
-              return
-            }
-            setPendingDeleteTest(selectedTestWorkspace)
-          },
-          disabled:
-            isReadOnly ||
-            isCombinedTestActionsBusy,
-          destructive: true,
-        },
-      ],
-      variant: 'secondary',
-      size: 'sm',
-      className: 'inline-flex',
-      toggleAriaLabel: 'More test actions',
-      menuPlacement: 'down',
-      primaryButtonProps: {
-        'aria-label': getAccessActionLabel(accessPrimaryState, accessPrimaryScope, accessPrimaryCount),
-        disabled: isAccessActionDisabled,
-      },
-    } : null
+  const deleteTestAction: TeacherWorkSurfaceActionItem | null = selectedTestWorkspace ? {
+    id: 'delete-test',
+    label: 'Delete Test',
+    icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+    onSelect: () => {
+      if (onRequestDelete) {
+        onRequestDelete()
+        return
+      }
+      setPendingDeleteTest(selectedTestWorkspace)
+    },
+    disabled: isReadOnly || isCombinedTestActionsBusy,
+    destructive: true,
+  } : null
+
+  const testUtilityActions: TeacherWorkSurfaceActionItem[] = selectedTestWorkspace && deleteTestAction ? [
+    {
+      id: 'edit-test',
+      label: 'Edit Test',
+      icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+      onSelect: openSelectedTestEditor,
+      disabled: isReadOnly,
+    },
+    deleteTestAction,
+  ] : []
 
   const workspaceModeStatus =
     activeTestGradingSaveScopeKey &&
@@ -2503,26 +2482,143 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
-  const selectedTestControls = selectedTestAction ? (
+  const selectedStudentUtilityActions: Array<TeacherWorkSurfaceActionItem & { label: string }> = [
+    {
+      id: 'ai-grade-selected',
+      label: 'AI Grade',
+      icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => setShowBatchGradeModal(true),
+    },
+    {
+      id: 'unsubmit-selected',
+      label: 'Unsubmit',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      disabled: batchSelectedSubmittedCount === 0 || isCombinedTestActionsBusy,
+      onSelect: () => {
+        setPendingUnsubmitStudent(null)
+        setShowUnsubmitConfirm(true)
+      },
+    },
+    {
+      id: 'return-selected',
+      label: 'Return',
+      icon: <Send className="h-4 w-4" aria-hidden="true" />,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => {
+        if (selectedOpenAccessCount > 0) {
+          setGradingError('Close selected students before returning')
+          return
+        }
+        setShowReturnConfirm(true)
+      },
+    },
+    {
+      id: 'delete-work-selected',
+      label: 'Delete Work',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      destructive: true,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => setPendingDeleteStudentAttemptIds(batchSelectedStudentIds),
+    },
+  ]
+
+  const selectedTestControls = selectedTestWorkspace ? (
     <div
       data-testid="test-workspace-actionbar-center"
       className="flex min-w-0 items-center justify-center gap-2"
     >
-      <TeacherWorkSurfaceActionCluster>
-        <SplitButton {...selectedTestAction} />
-        <Button
-          type="button"
+      <div role="toolbar" aria-label="Test grading actions" className="flex max-w-full items-center justify-center gap-2">
+        <TeacherWorkSurfaceActionCluster className="gap-0 overflow-hidden p-0">
+          <TeacherWorkSurfaceIconButton
+            ariaLabel="Open All"
+            tooltip="Open access for all students"
+            icon={<Unlock className="h-4 w-4 text-success" aria-hidden="true" />}
+            variant="ghost"
+            className="rounded-r-none"
+            disabled={isOpenAllDisabled}
+            onClick={() => handleAllAccessAction('open')}
+          />
+          <TeacherWorkSurfaceIconButton
+            ariaLabel="Close All"
+            tooltip="Close access for all students"
+            icon={<Lock className="h-4 w-4 text-danger" aria-hidden="true" />}
+            variant="ghost"
+            className="rounded-l-none border-l border-border"
+            disabled={isCloseAllDisabled}
+            onClick={() => handleAllAccessAction('closed')}
+          />
+        </TeacherWorkSurfaceActionCluster>
+        <TeacherWorkSurfaceMenuButton
+          label={(
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </span>
+          )}
+          items={selectedStudentUtilityActions}
+          disabled={batchSelectedCount === 0 || isCombinedTestActionsBusy}
           variant="secondary"
           size="sm"
+          menuPlacement="down"
+          menuAlign="center"
+          menuAriaLabel="Selected student actions"
+          buttonProps={{
+            'aria-label': batchSelectedCount > 0
+              ? `Student actions for ${batchSelectedCount} selected`
+              : 'Student actions (select students to enable)',
+          }}
+        />
+      </div>
+    </div>
+  ) : null
+
+  const selectedTestLifecycleStatus =
+    gradingServerTestId === selectedTestWorkspace?.id && gradingServerTestStatus
+      ? gradingServerTestStatus
+      : selectedTestWorkspace?.status ?? null
+
+  const selectedTestContext = selectedTestLifecycleStatus ? (
+    <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+      <span
+        className={cn('h-2 w-2 shrink-0 rounded-full', TEST_LIFECYCLE_DOT_CLASSES[selectedTestLifecycleStatus])}
+        aria-hidden="true"
+      />
+      <span className="truncate">{TEST_LIFECYCLE_LABELS[selectedTestLifecycleStatus]}</span>
+      {workspaceModeStatus ? <span className="hidden items-center gap-1 xl:inline-flex">· {workspaceModeStatus}</span> : null}
+    </div>
+  ) : workspaceModeStatus
+
+  const selectedTestUtilities = deleteTestAction ? (
+    <div className="flex items-center" data-testid="test-workspace-trailing-actions">
+      <div className="sm:hidden">
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="Test utilities"
+          tooltip="Test utilities"
+          variant="ghost"
+          icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+          items={testUtilityActions}
+          menuAriaLabel="Test utilities"
+        />
+      </div>
+      <div className="hidden items-center gap-1 sm:flex">
+        <TeacherWorkSurfaceIconButton
+          ariaLabel="Edit Test"
+          tooltip="Edit Test"
+          variant="ghost"
+          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
           onClick={openSelectedTestEditor}
           disabled={isReadOnly}
-          className="gap-1.5"
-        >
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-          Edit Test
-        </Button>
-      </TeacherWorkSurfaceActionCluster>
-      {workspaceModeStatus}
+        />
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="More Test utilities"
+          tooltip="More Test utilities"
+          variant="ghost"
+          icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+          items={[deleteTestAction]}
+          menuAriaLabel="More Test utilities"
+        />
+      </div>
     </div>
   ) : null
 
@@ -2556,25 +2652,6 @@ export function TeacherTestsTab({
   useOverlayMessage(!!activeTestGradingMessage, activeTestGradingMessage, { tone: 'loading' })
 
   useEffect(() => {
-    if (!gradingWarning) return
-    if (batchSelectedCount > 0) {
-      setGradingWarning('')
-      return
-    }
-    if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
-      showMessage({ text: gradingWarning, tone: 'warning' })
-    }
-    setGradingWarning('')
-  }, [
-    activeTestGradingMessage,
-    batchSelectedCount,
-    gradingWarning,
-    selectedWorkspaceTab,
-    showMessage,
-    workspaceState,
-  ])
-
-  useEffect(() => {
     if (!gradingInfo) return
     if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
       showMessage({ text: gradingInfo, tone: 'info' })
@@ -2589,9 +2666,13 @@ export function TeacherTestsTab({
   ])
 
   const primaryContent = workspaceState === 'selected' ? (
-    <TeacherWorkSurfaceActionBar
-      center={selectedTestControls}
-      centerPlacement="floating"
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Test grading controls and status"
+      testId="test-grading-context-bar"
+      context={selectedTestContext}
+      primary={selectedTestControls}
+      actions={selectedTestUtilities}
+      trailingClassName="overflow-visible"
     />
   ) : (
     <TeacherWorkSurfaceActionBar
@@ -2793,6 +2874,8 @@ export function TeacherTestsTab({
           feedback={feedback}
           summary={summaryContent}
           workspace={workspaceContent}
+          actionBarClassName={workspaceState === 'selected' ? 'relative z-local-menu pb-0' : undefined}
+          contentClassName={workspaceState === 'selected' ? 'pt-1' : undefined}
           workspaceFrame="standalone"
           workspaceFrameClassName="min-h-[360px] border-0 bg-page"
         />
@@ -2825,21 +2908,11 @@ export function TeacherTestsTab({
         className="p-6"
       >
         <h2 id="test-ai-grade-title" className="text-lg font-semibold text-text-default">
-          AI Grading
+          AI Grade selected students
         </h2>
         <p className="mt-2 text-sm text-text-muted">
-          Review the current selection before starting AI grading.
+          Choose whether to grade only responses without a grade or regrade every eligible response for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
         </p>
-        <div className="mt-4 rounded-md border border-border bg-surface px-3 py-3 text-sm text-text-default">
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <span>{batchAutoGradePreflight.selectedCount} selected</span>
-            <span>{batchAutoGradePreflight.codeQuestions} code</span>
-            <span>{batchAutoGradePreflight.regularQuestions} regular</span>
-          </div>
-          <p className="mt-2 text-sm text-text-muted">
-            {batchGradeDescription || 'This will grade the currently selected students.'}
-          </p>
-        </div>
         <div className="mt-5 flex justify-end gap-2">
           <Button
             type="button"
@@ -2850,13 +2923,24 @@ export function TeacherTestsTab({
           </Button>
           <Button
             type="button"
+            variant="secondary"
             disabled={isBatchAutoGrading || hasActiveTestAiRun}
             onClick={() => {
               setShowBatchGradeModal(false)
-              void handleBatchAutoGrade()
+              void handleBatchAutoGrade('ungraded')
             }}
           >
-            {isBatchAutoGrading ? 'Grading...' : 'Grade with AI'}
+            Only ungraded
+          </Button>
+          <Button
+            type="button"
+            disabled={isBatchAutoGrading || hasActiveTestAiRun}
+            onClick={() => {
+              setShowBatchGradeModal(false)
+              void handleBatchAutoGrade('all')
+            }}
+          >
+            Regrade all
           </Button>
         </div>
       </DialogPanel>
@@ -2905,11 +2989,7 @@ export function TeacherTestsTab({
 
       <ConfirmDialog
         isOpen={showCloseAccessConfirm}
-        title={
-          pendingCloseAccessStudentLabel
-            ? `Close access for ${pendingCloseAccessStudentLabel}?`
-            : `Close access for ${closeAccessConfirmCount} student(s)?`
-        }
+        title={`Close access for ${closeAccessConfirmCount} student(s)?`}
         description="Blocks access. Saved work stays available for grading."
         confirmLabel={isBatchUpdatingAccess ? 'Closing...' : 'Close Access'}
         cancelLabel="Cancel"
@@ -2917,29 +2997,11 @@ export function TeacherTestsTab({
         isCancelDisabled={isBatchUpdatingAccess}
         onCancel={() => {
           setShowCloseAccessConfirm(false)
-          setPendingCloseAccessStudent(null)
           setPendingCloseAccessStudentIds(null)
         }}
         onConfirm={() => {
           void handleBatchStudentAccess('closed', {
-            studentIds: pendingCloseAccessStudentIds ?? Array.from(batchSelectedIds),
-          })
-        }}
-      />
-
-      <ConfirmDialog
-        isOpen={!!pendingOpenAccessStudent}
-        title={`Open access for ${pendingOpenAccessStudent?.name || pendingOpenAccessStudent?.email || 'this student'}?`}
-        description="Allows the student to start or continue. Submission state is unchanged."
-        confirmLabel={isBatchUpdatingAccess ? 'Opening...' : 'Open Access'}
-        cancelLabel="Cancel"
-        isConfirmDisabled={isBatchUpdatingAccess}
-        isCancelDisabled={isBatchUpdatingAccess}
-        onCancel={() => setPendingOpenAccessStudent(null)}
-        onConfirm={() => {
-          if (!pendingOpenAccessStudent) return
-          void handleBatchStudentAccess('open', {
-            studentIds: [pendingOpenAccessStudent.student_id],
+            studentIds: pendingCloseAccessStudentIds ?? allStudentIds,
           })
         }}
       />
@@ -2955,7 +3017,7 @@ export function TeacherTestsTab({
         onCancel={() => setPendingOpenAccessStudentIds(null)}
         onConfirm={() => {
           void handleBatchStudentAccess('open', {
-            studentIds: pendingOpenAccessStudentIds ?? Array.from(batchSelectedIds),
+            studentIds: pendingOpenAccessStudentIds ?? allStudentIds,
           })
         }}
       />

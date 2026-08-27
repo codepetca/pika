@@ -22,6 +22,10 @@ insert into public.users (id, email, role) values (
   'b1349000-0000-4000-8000-000000000001',
   'blueprint-question-migration-lifecycle@example.test',
   'teacher'
+), (
+  'b1349000-0000-4000-8000-000000000002',
+  'blueprint-question-migration-student@example.test',
+  'student'
 );
 insert into public.classrooms (
   id, teacher_id, title, class_code
@@ -41,6 +45,10 @@ insert into public.tests (
   false,
   2,
   'b1349000-0000-4000-8000-000000000001'
+);
+insert into public.classroom_enrollments (classroom_id, student_id) values (
+  'b1349000-0000-4000-8000-000000000010',
+  'b1349000-0000-4000-8000-000000000002'
 );
 insert into public.test_questions (
   id, test_id, artifact_id, source_artifact_id, question_type,
@@ -90,6 +98,12 @@ insert into public.assessment_drafts (
 );
 SQL
 
+# Exercise the real application compatibility path while the database is still
+# at migration 133. The missing atomic RPC must fall back to legacy row-ID
+# persistence without confusing a portable ID that collides with another row.
+# Activation remains unavailable until the migration installs its atomic RPC.
+pnpm exec tsx scripts/check-test-question-identity-pre-migration.ts
+
 supabase migration up --local
 
 docker exec -i "$DB_CONTAINER" psql \
@@ -107,11 +121,13 @@ begin
     select 1
     from public.assessment_drafts draft
     where draft.id = 'b1349000-0000-4000-8000-000000000012'
-      and draft.version = 8
+      and draft.version = 10
       and draft.content->>'question_identity_version' = '1'
       and draft.content->'questions'->0->>'id'
-        = 'b1349000-0000-4000-8000-000000000021'
+        = 'b1349000-0000-4000-8000-000000000041'
       and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->2->>'id'
         = 'b1349000-0000-4000-8000-000000000031'
   ) then
     raise exception 'Actual 133-to-134 migration did not backfill the collision';
@@ -139,8 +155,8 @@ $contract$;
 select public.save_test_draft_atomic(
   'b1349000-0000-4000-8000-000000000001',
   'b1349000-0000-4000-8000-000000000011',
-  8,
-  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  10,
+  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000041","question_type":"open_response","question_text":"Draft-only addition retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Edited original question retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Moved collision question retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -153,7 +169,7 @@ where id = 'b1349000-0000-4000-8000-000000000011';
 select public.activate_test_from_draft_atomic(
   'b1349000-0000-4000-8000-000000000001',
   'b1349000-0000-4000-8000-000000000011',
-  9
+  11
 );
 
 do $contract$
@@ -166,7 +182,7 @@ begin
       and draft.assessment_id = test.id
     where test.id = 'b1349000-0000-4000-8000-000000000011'
       and test.status = 'active'
-      and draft.version = 9
+      and draft.version = 11
       and draft.content->>'question_identity_version' = '1'
       and (
         select array_agg(
@@ -176,6 +192,7 @@ begin
         from public.test_questions question
         where question.test_id = test.id
       ) = array[
+        'b1349000-0000-4000-8000-000000000041'::uuid,
         'b1349000-0000-4000-8000-000000000021'::uuid,
         'b1349000-0000-4000-8000-000000000031'::uuid
       ]
@@ -188,7 +205,10 @@ $contract$;
 delete from public.classrooms
 where id = 'b1349000-0000-4000-8000-000000000010';
 delete from public.users
-where id = 'b1349000-0000-4000-8000-000000000001';
+where id in (
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000002'
+);
 SQL
 
 echo "Migration 134 production-shaped lifecycle contract passed."
