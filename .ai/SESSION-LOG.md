@@ -918,6 +918,52 @@ this is a teacher-only surface.
 **Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
 for one bounded independent correctness and requirements review.
 
+## 2026-08-27 — Redesign teacher Attendance action hierarchy
+
+**Risk profile:** standard UI interaction change — teacher Attendance action
+placement and responsive grouping changed; Attendance permissions, session
+states, command eligibility, confirmation polling, API behavior, persistence,
+authentication, schema, migrations, dependencies, and student UI are unchanged.
+
+- Implemented the user-selected Option 1 using the Test grading work-surface
+  hierarchy without importing Test terminology or domain behavior.
+- Joined the previous/date/next controls into one segmented date navigator. The
+  arrows touch the date and the selectable date has no dropdown chevron.
+- Moved Present, Late, Absent, and Clear mark from the transitional bottom bar
+  into a persistent centered Student actions menu that is disabled before
+  selection and becomes a selected-count trigger.
+- Preserved explicit desktop QR and session commands. At 390 px, the same
+  session actions collapse into one centered icon menu so the quiet edge utility
+  menu cannot overlap the primary cluster.
+- Kept Attendance hours and refresh at the quiet edge, retained status-count
+  sorting and per-student status dots, and added a bordered internally scrolling
+  roster with sticky sortable/resizable headers.
+- Added component coverage for the joined date treatment, persistent selected
+  actions, command confirmation, disabled states, and menu focus/arrow/Escape
+  behavior. Expanded the Playwright experience matrix to a 45-student roster
+  with default, selected, menu, sorted/scrolled, hours, mobile session-action,
+  and browser-error checks.
+- Retained the approved design target, normalized comparison boards, and the
+  complete desktop/mobile light/dark evidence matrix under
+  `docs/guidance/ui/evidence/attendance-actions-2026-08-27/`.
+- Durable guidance was not changed because the reusable hierarchy rules were
+  already established by the merged Test grading guidance; the joined date
+  treatment remains scoped until another surface proves it reusable.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused component tests (18/18), responsive Attendance
+Playwright matrix (4/4) after one mobile-overlap correction, TypeScript, lint,
+production build, Pika audit, diff checks, and Product Design comparison pass.
+Visual review covers teacher desktop/mobile in light/dark, default/selected/menu
+states, internal scrolling/sticky headers, tooltips, mobile session actions, and
+Attendance hours. Student UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, responsive behavior, accessibility, and regression
+risk.
+
 ## 2026-08-27 — Close Test identity release-safety gaps
 
 **Risk profile:** runtime-platform — cross-version Test authoring compatibility
