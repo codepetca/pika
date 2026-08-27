@@ -41,7 +41,7 @@
     "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
     "managed-storage:cleanup": "tsx scripts/run-managed-storage-cleanup.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
-    "eval:daily-log-summaries": "tsx scripts/evaluate-daily-log-summary-prompt.ts",
+    "eval:daily-log-summaries": "node --env-file=.env.local --import tsx scripts/evaluate-daily-log-summary-prompt.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",
     "eval:grading-reviews": "tsx scripts/summarize-grading-reviews.ts",
     "eval:test-ai-grading-gold-set": "tsx scripts/eval-test-ai-grading-gold-set.ts",
