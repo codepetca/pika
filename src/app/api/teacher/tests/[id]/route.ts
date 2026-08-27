@@ -13,7 +13,11 @@ import {
   isMissingAssessmentDraftsError,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { getPortableTestQuestionIdentity, projectPortableTestQuestionIds } from '@/lib/test-question-identity'
+import {
+  getPortableTestQuestionIdentity,
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+} from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
@@ -136,6 +140,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
       const projected = projectPortableTestQuestionIds(
         validated.value,
         questions || [],
+        getTestDraftIdentityResolutionOptions(validated.value),
       )
       if (!projected.ok) {
         return NextResponse.json(

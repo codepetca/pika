@@ -1015,10 +1015,11 @@ unapplied migration 134 backfill; no database was reset or migrated.
   instantiation also retain or introduce the portable marker at their format
   boundaries.
 - Added collision regressions across draft GET/PATCH projection, Blueprint
-  capture, migration replay, save, activation, and Version instantiation. The
-  known row-ID/artifact-ID collision remains distinct after conversion instead
-  of re-entering the legacy dual-identity reader.
-- The focused 87-test identity suite, full 5,145-test suite, TypeScript, lint,
+  detail GET overlay, Blueprint capture, migration replay, save, activation,
+  and Version instantiation. The known row-ID/artifact-ID collision remains
+  distinct after conversion instead of re-entering the legacy dual-identity
+  reader.
+- The focused identity suites, full 5,146-test suite, TypeScript, lint,
   architecture/design/UI policies, managed-storage lineage, shell syntax, diff
   validation, session-log validation, and production build pass. The disposable
   database CI job remains authoritative; migration 134 was not applied locally.
