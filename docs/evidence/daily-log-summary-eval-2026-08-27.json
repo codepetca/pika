@@ -1,8 +1,8 @@
 {
-  "evaluated_at": "2026-08-27T13:24:17.013Z",
+  "evaluated_at": "2026-08-27T13:30:10.111Z",
   "requested_model": "gpt-5-nano-2025-08-07",
   "policy_version": "high-priority-v1",
-  "evaluated_source_sha": "01672ea1ba73b7a9eaceabda0234e23e9e65cd98",
+  "evaluated_source_sha": "56ab59fcdea0b9eaef888c0bd1f8203d4d70c5bb",
   "command": "node --env-file=.env.local --import tsx scripts/evaluate-daily-log-summary-prompt.ts",
   "acceptance": {
     "maximum_false_negatives": 0,

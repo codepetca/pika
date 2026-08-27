@@ -974,6 +974,8 @@ dependency, migration, deployment, or hosted state changed.
   high-priority cases and 7/7 routine/vague exclusions with zero category or
   attribution mismatches. The evaluation pins the documented
   `gpt-5-nano-2025-08-07` snapshot and verifies the provider-returned model.
+  The package evaluation command loads the shared `.env.local` directly and
+  passes with no API key pre-exported in the shell.
   A forged log boundary stayed attributed to its submitting log and never to
   the targeted student.
 - Focused unit, cron, teacher API, and component suites pass (65/65). Visual
