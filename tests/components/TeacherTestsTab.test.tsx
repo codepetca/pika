@@ -1725,6 +1725,15 @@ describe('TeacherTestsTab', () => {
     expect(contextBar).toHaveTextContent('Active')
     expect(within(contextBar).getByRole('button', { name: 'Close All' })).toBeEnabled()
     expect(within(contextBar).getByRole('button', { name: 'Edit Test' })).toBeEnabled()
+    const wholeTestAccessMenuButton = within(contextBar).getByRole('button', {
+      name: 'More whole-Test access actions',
+    })
+    expect(wholeTestAccessMenuButton).toHaveAttribute('aria-haspopup', 'menu')
+    fireEvent.click(wholeTestAccessMenuButton)
+    expect(screen.getByRole('menuitem', { name: 'Open All' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menuitem', { name: 'Open All' })).not.toBeInTheDocument()
+    expect(wholeTestAccessMenuButton).toHaveFocus()
     expect(screen.getByTestId('test-grading-student-scroll-pane').querySelector('thead')).toHaveClass(
       'sticky',
       'top-0',

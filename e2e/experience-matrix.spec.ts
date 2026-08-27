@@ -322,6 +322,8 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const primaryControl = page.getByTestId('test-workspace-actionbar-center')
   const trailingActions = page.getByTestId('test-workspace-trailing-actions')
   const scrollPane = page.getByTestId('test-grading-student-scroll-pane')
+  const selectAllCheckbox = page.getByRole('checkbox', { name: 'Select all students' })
+  const firstStudentCheckbox = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
   await expect(contextBar).toContainText('Active')
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
   await expect(trailingActions).toBeVisible()
@@ -335,6 +337,44 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const primaryBox = await primaryControl.boundingBox()
   expect(primaryBox).not.toBeNull()
   expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+
+  const [contextBox, scrollPaneBox, selectAllBox, firstStudentBox] = await Promise.all([
+    contextBar.boundingBox(),
+    scrollPane.boundingBox(),
+    selectAllCheckbox.boundingBox(),
+    firstStudentCheckbox.boundingBox(),
+  ])
+  expect(contextBox).not.toBeNull()
+  expect(scrollPaneBox).not.toBeNull()
+  expect(selectAllBox).not.toBeNull()
+  expect(firstStudentBox).not.toBeNull()
+  expect(scrollPaneBox!.y - (contextBox!.y + contextBox!.height)).toBeLessThanOrEqual(4)
+  expect(Math.abs(
+    (selectAllBox!.x + selectAllBox!.width / 2) -
+    (firstStudentBox!.x + firstStudentBox!.width / 2),
+  )).toBeLessThan(1)
+
+  await page.getByRole('button', { name: 'More whole-Test access actions' }).click()
+  const wholeTestAccessMenu = page.getByRole('menu')
+  await expect(wholeTestAccessMenu.getByRole('menuitem', { name: 'Open All' })).toBeVisible()
+  const menuBox = await wholeTestAccessMenu.boundingBox()
+  const tableHeadBox = await scrollPane.locator('thead').boundingBox()
+  expect(menuBox).not.toBeNull()
+  expect(tableHeadBox).not.toBeNull()
+  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+  expect(await wholeTestAccessMenu.evaluate((element) => document.elementFromPoint(
+    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
+    element.getBoundingClientRect().bottom - 2,
+  ) === element || element.contains(document.elementFromPoint(
+    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
+    element.getBoundingClientRect().bottom - 2,
+  )))).toBe(true)
+  expect(menuBox!.y).toBeLessThan(tableHeadBox!.y + tableHeadBox!.height)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-menu.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
 
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-default.png`),

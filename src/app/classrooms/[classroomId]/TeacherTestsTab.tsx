@@ -2364,7 +2364,7 @@ export function TeacherTestsTab({
                       checked={batchSelectedIds.has(student.student_id)}
                       onChange={() => toggleBatchSelect(student.student_id)}
                       ariaLabel={`Select ${student.name || 'student'}`}
-                      className="py-2 sm:!px-3"
+                      className="py-2"
                     />
                     <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
                       {student.name ? <span className="sr-only">{student.name}</span> : null}
@@ -2959,6 +2959,8 @@ export function TeacherTestsTab({
           feedback={feedback}
           summary={summaryContent}
           workspace={workspaceContent}
+          actionBarClassName={workspaceState === 'selected' ? 'relative z-local-menu pb-0' : undefined}
+          contentClassName={workspaceState === 'selected' ? 'pt-1' : undefined}
           workspaceFrame="standalone"
           workspaceFrameClassName="min-h-[360px] border-0 bg-page"
         />
