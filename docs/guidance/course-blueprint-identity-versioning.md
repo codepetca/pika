@@ -99,6 +99,9 @@ rubrics, and named resources must adopt the same contract.
 
 - `TestDraftQuestion.id` is the question's portable Artifact ID. It is assigned
   when the draft question is created and is preserved by edits and reordering.
+- Creating, editing, deleting, and reordering Test questions are version-fenced
+  draft-document operations. Direct `test_questions` row authoring endpoints
+  are retired so row state cannot diverge from the draft activation consumes.
 - `test_questions.id` is an internal database row ID and is never written into
   Blueprint, Version, package, or draft content as logical identity.
 - An origin row stores the draft UUID in `artifact_id`. An instantiated row has

@@ -21,6 +21,8 @@ declare
   v_portable_id uuid;
   v_questions jsonb;
   v_changed boolean;
+  v_claimed_row_ids uuid[];
+  v_seen_portable_ids uuid[];
 begin
   -- Backfill and version fencing must be one atomic schema operation. This
   -- blocks application writes from racing the scan and either being overwritten
@@ -36,6 +38,8 @@ begin
   loop
     v_questions := '[]'::jsonb;
     v_changed := false;
+    v_claimed_row_ids := array[]::uuid[];
+    v_seen_portable_ids := array[]::uuid[];
 
     for v_question in
       select question.value
@@ -45,6 +49,7 @@ begin
       order by question.ordinal
     loop
       v_question_id := (v_question->>'id')::uuid;
+      v_portable_id := v_question_id;
       select array_agg(source_question.id order by source_question.id)
       into v_question_row_ids
       from public.test_questions as source_question
@@ -59,6 +64,12 @@ begin
         raise exception 'Legacy Test draft question identity backfill is ambiguous'
           using errcode = '22023';
       elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
+        if v_question_row_ids[1] = any(v_claimed_row_ids) then
+          raise exception 'Legacy Test draft question identity backfill reuses one row'
+            using errcode = '22023';
+        end if;
+        v_claimed_row_ids := array_append(v_claimed_row_ids, v_question_row_ids[1]);
+
         select coalesce(
           source_question.source_artifact_id,
           source_question.artifact_id,
@@ -78,6 +89,12 @@ begin
           v_changed := true;
         end if;
       end if;
+
+      if v_portable_id = any(v_seen_portable_ids) then
+        raise exception 'Legacy Test draft question identity backfill produces duplicate portable identity'
+          using errcode = '22023';
+      end if;
+      v_seen_portable_ids := array_append(v_seen_portable_ids, v_portable_id);
 
       v_questions := v_questions || jsonb_build_array(v_question);
     end loop;
@@ -1076,9 +1093,10 @@ alter function public.instantiate_course_blueprint_atomic_v2_pre_managed_storage
 
 -- Migration 112 assigned freshly instantiated Test-question identities by
 -- position after the base RPC inserted rows. Keep that compatibility RPC for
--- the rest of the graph, then rematerialize only the brand-new question rows
--- from explicit Version artifact IDs. The parent Test is resolved by its
--- established source_artifact_id, never by title or position.
+-- the rest of the graph, but suppress its question creation/mapping branch and
+-- materialize questions here from explicit Version artifact IDs. The parent
+-- Test is resolved by its established source_artifact_id, never by title or
+-- position.
 create or replace function public.instantiate_course_blueprint_atomic_v2_pre_managed_storage(
   p_operation_id uuid,
   p_teacher_id uuid,
@@ -1097,17 +1115,19 @@ declare
   v_operation public.course_blueprint_operations;
   v_result jsonb;
   v_classroom_id uuid;
+  v_compatibility_plan jsonb;
   v_parent_id uuid;
   v_item jsonb;
   v_child jsonb;
   v_error_code text;
   v_error_sqlstate text;
+  v_question_count integer := 0;
   v_resource_counts jsonb := '{}'::jsonb;
 begin
-  -- Retain the operation row outside the rematerialization savepoint. The
-  -- compatibility RPC completes its own ledger before this wrapper replaces
-  -- positional question rows, so a later identity failure must roll back the
-  -- complete Classroom graph without erasing durable failure evidence.
+  -- Retain the operation row outside the materialization savepoint. The
+  -- compatibility RPC completes its own ledger before this wrapper creates
+  -- question rows, so a later identity failure must roll back the complete
+  -- Classroom graph without erasing durable failure evidence.
   insert into public.course_blueprint_operations (
     id,
     teacher_id,
@@ -1151,6 +1171,33 @@ begin
     return jsonb_set(v_operation.result, '{replayed}', 'true'::jsonb, true);
   end if;
 
+  -- The compatibility implementation still creates the rest of the Classroom
+  -- graph, but its Test-question branch assigns identity by position. Give it
+  -- an empty questions array for every Test so it creates neither temporary
+  -- question rows nor positional identities. The canonical loop below then
+  -- materializes each question exactly once from its explicit Version ID. Keep
+  -- draft_content intact: it already carries the same portable identities.
+  select coalesce(
+    sum(jsonb_array_length(coalesce(source_test.value->'questions', '[]'::jsonb))),
+    0
+  )::integer
+  into v_question_count
+  from jsonb_array_elements(coalesce(p_plan->'tests', '[]'::jsonb)) source_test(value);
+
+  select p_plan || jsonb_build_object(
+    'tests',
+    coalesce(
+      jsonb_agg(
+        source_test.value || jsonb_build_object('questions', '[]'::jsonb)
+        order by source_test.ordinality
+      ),
+      '[]'::jsonb
+    )
+  )
+  into v_compatibility_plan
+  from jsonb_array_elements(coalesce(p_plan->'tests', '[]'::jsonb))
+    with ordinality as source_test(value, ordinality);
+
   begin
   v_result := public.instantiate_course_blueprint_atomic_v2_pre_question_identity(
     p_operation_id,
@@ -1159,13 +1206,19 @@ begin
     p_blueprint_version_id,
     p_request_sha256,
     p_expected_content_revision,
-    p_plan
+    v_compatibility_plan
   );
   if coalesce((v_result->>'ok')::boolean, false) is false
     or coalesce((v_result->>'replayed')::boolean, false)
   then
     return v_result;
   end if;
+  v_result := jsonb_set(
+    v_result,
+    '{counts,questions}',
+    to_jsonb(v_question_count),
+    true
+  );
   v_resource_counts := coalesce(v_result->'counts', '{}'::jsonb);
 
   v_classroom_id := (v_result->>'classroom_id')::uuid;
@@ -1185,9 +1238,6 @@ begin
       raise exception 'Instantiated Test identity mapping failed'
         using errcode = '22023';
     end if;
-
-    delete from public.test_questions
-    where test_id = v_parent_id;
 
     for v_child in
       select value from jsonb_array_elements(coalesce(v_item->'questions', '[]'::jsonb))
@@ -1226,6 +1276,13 @@ begin
       );
     end loop;
   end loop;
+
+  update public.course_blueprint_operations
+  set
+    result = v_result,
+    resource_counts = v_resource_counts,
+    updated_at = now()
+  where id = p_operation_id;
 
   perform set_config('pika.identity_mapping', 'off', true);
   return v_result;
@@ -1356,9 +1413,27 @@ begin
     );
   end if;
 
-  -- The classroom winner is authoritative only after the caller's operation
-  -- identity has been validated. Otherwise the shortcut can turn a conflicting
-  -- reuse of an existing key into an apparent success.
+  -- Reserve every operation key before any winner replay. A replay against an
+  -- already-linked classroom is still a completed operation and must retain
+  -- its teacher/type/hash contract for future idempotency checks.
+  insert into public.course_blueprint_operations (
+    id,
+    teacher_id,
+    operation_type,
+    request_sha256,
+    status,
+    source_classroom_id
+  )
+  values (
+    p_operation_id,
+    p_teacher_id,
+    'import',
+    p_request_sha256,
+    'running',
+    p_source_classroom_id
+  )
+  on conflict (id) do nothing;
+
   select *
   into v_operation
   from public.course_blueprint_operations
@@ -1381,8 +1456,12 @@ begin
     );
   end if;
 
+  if v_operation.status = 'completed' and v_operation.result is not null then
+    return jsonb_set(v_operation.result, '{replayed}', 'true'::jsonb, true);
+  end if;
+
   -- A distinct concurrent request that waited on this row reuses the winner.
-  -- No second Blueprint or operation row is created.
+  -- No second Blueprint is created; this operation's ledger converges on it.
   if v_classroom.source_blueprint_id is not null then
     select content_revision
     into v_blueprint_revision
@@ -1412,12 +1491,12 @@ begin
     );
 
     -- Operation A can fail durably before operation B establishes the
-    -- classroom winner. A compatible retry of A must converge both the result
-    -- and its retained ledger row on B's winner.
+    -- classroom winner. A compatible retry of A, or a fresh operation that
+    -- arrives after B, must converge both the result and its ledger row.
     update public.course_blueprint_operations
     set
       status = 'completed',
-      attempt_count = attempt_count + 1,
+      attempt_count = case when status = 'failed' then attempt_count + 1 else attempt_count end,
       source_classroom_id = p_source_classroom_id,
       result_blueprint_id = v_classroom.source_blueprint_id,
       result_classroom_id = p_source_classroom_id,
@@ -1427,8 +1506,7 @@ begin
       error_sqlstate = null,
       completed_at = now(),
       updated_at = now()
-    where id = p_operation_id
-      and status = 'failed';
+    where id = p_operation_id;
 
     return v_result;
   end if;
@@ -1444,27 +1522,6 @@ begin
       'retryable', true
     );
   end if;
-
-  -- Retain the operation row outside the domain-write savepoint. The nested
-  -- Blueprint creation and all archived-source identity writes then roll back
-  -- together while a structured failure remains available for recovery.
-  insert into public.course_blueprint_operations (
-    id,
-    teacher_id,
-    operation_type,
-    request_sha256,
-    status,
-    source_classroom_id
-  )
-  values (
-    p_operation_id,
-    p_teacher_id,
-    'import',
-    p_request_sha256,
-    'running',
-    p_source_classroom_id
-  )
-  on conflict (id) do nothing;
 
   begin
 

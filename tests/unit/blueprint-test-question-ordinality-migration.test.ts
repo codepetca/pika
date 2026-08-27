@@ -68,9 +68,11 @@ function expectReadOnlyStableQuestionIdentityValidation(
 }
 
 function expectDurableIdentityFailureLedger(definition: string) {
-  expect(definition).toMatch(
-    /insert into public\.course_blueprint_operations \([\s\S]{0,700}on conflict \(id\) do nothing;\s+begin/,
-  )
+  const ledgerSeed = definition.indexOf('insert into public.course_blueprint_operations (')
+  const savepoint = definition.indexOf('\n  begin\n', ledgerSeed)
+  expect(ledgerSeed).toBeGreaterThanOrEqual(0)
+  expect(definition.slice(ledgerSeed, savepoint)).toContain('on conflict (id) do nothing;')
+  expect(savepoint).toBeGreaterThan(ledgerSeed)
   expect(definition).toContain(
     "v_error_code := 'test_question_identity_ambiguous'",
   )
@@ -227,8 +229,11 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition.slice(ledgerValidation, winnerReplay)).toContain(
       "'error_code', 'idempotency_conflict'",
     )
+    expect(definition.slice(0, ledgerValidation)).toMatch(
+      /insert into public\.course_blueprint_operations \([\s\S]{0,700}on conflict \(id\) do nothing/,
+    )
     expect(definition.slice(winnerReplay)).toMatch(
-      /update public\.course_blueprint_operations\s+set\s+status = 'completed',[\s\S]{0,500}result_blueprint_id = v_classroom\.source_blueprint_id[\s\S]{0,500}where id = p_operation_id\s+and status = 'failed'/,
+      /update public\.course_blueprint_operations\s+set\s+status = 'completed',[\s\S]{0,500}attempt_count = case when status = 'failed' then attempt_count \+ 1 else attempt_count end[\s\S]{0,500}result_blueprint_id = v_classroom\.source_blueprint_id[\s\S]{0,500}where id = p_operation_id/,
     )
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
@@ -247,11 +252,15 @@ describe('Blueprint test-question identity migration', () => {
       'public.instantiate_course_blueprint_atomic_v2_pre_question_identity(',
     )
     expect(definition).toMatch(
-      /source_test\.source_artifact_id = \(v_item->>'artifact_id'\)::uuid/,
+      /source_test\.value \|\| jsonb_build_object\('questions', '\[\]'::jsonb\)/,
     )
     expect(definition).toMatch(
-      /delete from public\.test_questions\s+where test_id = v_parent_id/,
+      /public\.instantiate_course_blueprint_atomic_v2_pre_question_identity\([\s\S]{0,300}v_compatibility_plan/,
     )
+    expect(definition).toMatch(
+      /source_test\.source_artifact_id = \(v_item->>'artifact_id'\)::uuid/,
+    )
+    expect(definition).not.toMatch(/delete from public\.test_questions/)
     expect(definition).toMatch(
       /insert into public\.test_questions \([\s\S]{0,260}artifact_id,[\s\S]{0,100}source_artifact_id,[\s\S]{0,100}source_blueprint_version_id/,
     )
@@ -300,6 +309,12 @@ describe('Blueprint test-question identity migration', () => {
     expect(draftLock).toBeGreaterThan(questionLock)
     expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
+    )
+    expect(migration).toContain(
+      "raise exception 'Legacy Test draft question identity backfill reuses one row'",
+    )
+    expect(migration).toContain(
+      "raise exception 'Legacy Test draft question identity backfill produces duplicate portable identity'",
     )
     expect(migration).toMatch(
       /from public\.assessment_drafts[\s\S]{0,120}assessment_type = 'test'/,

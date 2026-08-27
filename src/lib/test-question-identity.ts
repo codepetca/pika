@@ -77,6 +77,7 @@ export function resolveTestQuestionIdentities(
 
   const seenInputIds = new Set<string>()
   const matchedRowIds = new Set<string>()
+  const seenPortableIds = new Set<string>()
   const identities: ResolvedTestQuestionIdentity[] = []
 
   for (const rawInputId of inputIds) {
@@ -100,14 +101,20 @@ export function resolveTestQuestionIdentities(
       const matchingRow = rowsByInternalId.get(normalizeTestQuestionIdentity(matchingRowId))
       if (!matchingRow) return { ok: false }
 
+      const portableId = getPortableTestQuestionIdentity(matchingRow)
+      if (seenPortableIds.has(portableId)) return { ok: false }
+      seenPortableIds.add(portableId)
+
       identities.push({
         inputId,
-        portableId: getPortableTestQuestionIdentity(matchingRow),
+        portableId,
         matchingRowId,
       })
       continue
     }
 
+    if (seenPortableIds.has(inputId)) return { ok: false }
+    seenPortableIds.add(inputId)
     identities.push({ inputId, portableId: inputId })
   }
 

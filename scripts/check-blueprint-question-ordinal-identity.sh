@@ -934,9 +934,10 @@ insert into public.course_blueprint_versions (
   'b1340000-0000-4000-8000-000000000001'
 );
 
--- Fail only the explicit-identity reinsertion performed by migration 134. The
--- compatibility RPC's initial positional rows have no source_artifact_id, so
--- this proves a failure after the base RPC returned still retains its ledger.
+-- Fail only the explicit-identity insertion performed by migration 134. The
+-- compatibility RPC receives no Test questions, so this proves a failure after
+-- the base Classroom graph returned still rolls that graph back and retains its
+-- operation ledger.
 create function public.b134_fail_question_rematerialization_once()
 returns trigger
 language plpgsql
@@ -978,6 +979,7 @@ declare
   v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
   v_archived_winner_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000221';
+  v_archived_fresh_replay_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000222';
   v_instantiation_blueprint_id constant uuid := 'b1340000-0000-4000-8000-000000000301';
   v_instantiation_version_id constant uuid := 'b1340000-0000-4000-8000-000000000302';
   v_instantiation_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000303';
@@ -1493,6 +1495,62 @@ begin
     raise exception 'Archived winner replay did not reconcile the failed ledger';
   end if;
 
+  -- A fresh operation arriving after the classroom winner must also reserve
+  -- and complete its key. Reusing that key with a different hash must conflict
+  -- rather than passing through the winner shortcut again.
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    v_archived_fresh_replay_operation_id,
+    v_teacher_id,
+    repeat('e', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false)
+    or not coalesce((v_result->>'replayed')::boolean, false)
+    or v_result->>'blueprint_id' is distinct from v_blueprint_id::text
+  then
+    raise exception 'Fresh archived winner replay failed: %', v_result;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_archived_fresh_replay_operation_id
+      and request_sha256 = repeat('e', 64)
+      and status = 'completed'
+      and attempt_count = 1
+      and result_blueprint_id = v_blueprint_id
+      and result_classroom_id = v_archived_classroom_id
+      and result = v_result
+  ) then
+    raise exception 'Fresh archived winner replay did not reserve its ledger key';
+  end if;
+
+  v_replay := public.create_archived_classroom_blueprint_atomic(
+    v_archived_fresh_replay_operation_id,
+    v_teacher_id,
+    repeat('f', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if coalesce((v_replay->>'ok')::boolean, true)
+    or v_replay->>'status' is distinct from '409'
+    or v_replay->>'error_code' is distinct from 'idempotency_conflict'
+  then
+    raise exception 'Fresh archived winner replay reused its key with a different hash: %', v_replay;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_archived_fresh_replay_operation_id
+      and request_sha256 = repeat('e', 64)
+      and status = 'completed'
+      and result_blueprint_id = v_blueprint_id
+  ) then
+    raise exception 'Fresh archived winner hash conflict mutated its ledger';
+  end if;
+
   select
     array_agg(artifact_id order by position),
     array_agg(source_artifact_id order by position)
@@ -1714,6 +1772,9 @@ begin
   if not coalesce((v_result->>'ok')::boolean, false) then
     raise exception 'Version question identity instantiation failed: %', v_result;
   end if;
+  if (v_result->'counts'->>'questions')::integer <> 2 then
+    raise exception 'Version question identity instantiation returned the wrong question count: %', v_result;
+  end if;
   v_instantiated_classroom_id := (v_result->>'classroom_id')::uuid;
   if not exists (
     select 1
@@ -1722,6 +1783,7 @@ begin
       and status = 'completed'
       and attempt_count = 2
       and result_classroom_id = v_instantiated_classroom_id
+      and (resource_counts->>'questions')::integer = 2
   ) then
     raise exception 'Version rematerialization retry did not complete its ledger';
   end if;

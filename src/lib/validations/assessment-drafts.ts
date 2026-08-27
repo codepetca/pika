@@ -1,11 +1,9 @@
 import { validateTestQuestionCreate } from '@/lib/test-questions'
+import { UUID_V4_PATTERN } from '@/lib/course-blueprint-artifact-identity'
 import type {
   TestDraftContent,
   TestDraftQuestion,
 } from '@/types'
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export type AssessmentDraftValidationResult<TContent> =
   | { valid: true; value: TContent }
@@ -17,7 +15,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseUuid(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  return UUID_RE.test(value) ? value.toLowerCase() : null
+  return UUID_V4_PATTERN.test(value) ? value.toLowerCase() : null
 }
 
 function parseTitle(value: unknown): string | null {

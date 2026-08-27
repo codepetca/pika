@@ -94,6 +94,25 @@ describe('assessment drafts', () => {
     })
   })
 
+  it.each([
+    'aaaaaaaa-aaaa-1aaa-8aaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa',
+  ])('rejects non-v4 portable question identity %s', (id) => {
+    expect(validateTestDraftContent({
+      title: 'Canonical identity only',
+      show_results: false,
+      questions: [{
+        id,
+        question_type: 'open_response',
+        question_text: 'Explain',
+        points: 1,
+      }],
+    })).toEqual({
+      valid: false,
+      error: 'Q1: Invalid question id',
+    })
+  })
+
   it('preserves markdown metadata when applying a full test draft update', () => {
     const result = buildNextDraftContent(
       {

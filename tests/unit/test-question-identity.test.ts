@@ -57,6 +57,13 @@ describe('Test question identity', () => {
     ])).toEqual({ ok: false })
   })
 
+  it('fails closed when distinct legacy rows collapse to one portable identity', () => {
+    expect(resolveTestQuestionIdentities([ROW_ID, OTHER_ROW_ID], [
+      { id: ROW_ID, artifact_id: ARTIFACT_ID, source_artifact_id: null },
+      { id: OTHER_ROW_ID, artifact_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', source_artifact_id: ARTIFACT_ID },
+    ])).toEqual({ ok: false })
+  })
+
   it('projects persisted legacy IDs read-only and preserves draft-only identities', () => {
     const draftOnlyId = '40000000-0000-4000-8000-000000000001'
     const rows = [{ id: ROW_ID, artifact_id: ARTIFACT_ID, source_artifact_id: null }]

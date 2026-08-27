@@ -1,160 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/questions/route'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+
+const from = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+  getServiceRoleClient: vi.fn(() => ({ from })),
 }))
 
 vi.mock('@/lib/auth', () => ({
-  requireRole: vi.fn(async () => ({
-    id: 'teacher-1',
-    email: 'teacher@example.com',
-    role: 'teacher',
-  })),
+  requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
 }))
 
 vi.mock('@/lib/server/tests', () => ({
-  isLockedTestQuestionMutationError: vi.fn((error: { code?: string }) => error?.code === '55000'),
   assertTeacherOwnsTest: vi.fn(async () => ({
     ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      classroom_id: 'classroom-1',
-      status: 'draft',
-      classrooms: { archived_at: null },
-    },
+    test: { id: 'test-1', classroom_id: 'classroom-1', status: 'draft' },
   })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
-
 describe('POST /api/teacher/tests/[id]/questions', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+  beforeEach(() => vi.clearAllMocks())
 
-  it('allows empty question text for draft tests', async () => {
-    const insertSpy = vi.fn((payload: Record<string, unknown>) => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'question-1', test_id: 'test-1', ...payload },
-          error: null,
-        }),
-      })),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: { position: 1 }, error: null }),
-      })),
-      insert: insertSpy,
-    }))
-
+  it('retires direct row creation in favor of the versioned draft endpoint', async () => {
     const response = await POST(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/questions', {
         method: 'POST',
-        body: JSON.stringify({
-          question_type: 'multiple_choice',
-          question_text: '   ',
-          options: ['Option 1', 'Option 2'],
-          correct_option: 0,
-          points: 1,
-          response_max_chars: 5000,
-          response_monospace: false,
-        }),
-      }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
-
-    expect(response.status).toBe(201)
-    expect(insertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        test_id: 'test-1',
-        artifact_id: expect.stringMatching(
-          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-        ),
-        question_text: '',
-      })
-    )
-    expect(data.question.question_text).toBe('')
-  })
-
-  it('rejects empty question text for active tests', async () => {
-    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
-      ok: true,
-      test: {
-        id: 'test-1',
-        title: 'Unit Test',
-        classroom_id: 'classroom-1',
-        status: 'active',
-        classrooms: { archived_at: null },
-      } as any,
-    })
-
-    const response = await POST(
-      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          question_type: 'multiple_choice',
-          question_text: '   ',
-          options: ['Option 1', 'Option 2'],
-          correct_option: 0,
-          points: 1,
-          response_max_chars: 5000,
-          response_monospace: false,
-        }),
-      }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('Question text is required')
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-  })
-
-  it('returns 409 when student work locks the question set', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })),
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: null,
-            error: { code: '55000', message: 'Test questions cannot be changed after student work exists' },
-          }),
-        })),
-      })),
-    }))
-
-    const response = await POST(
-      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          question_type: 'multiple_choice',
-          question_text: 'New question',
-          options: ['A', 'B'],
-          correct_option: 0,
-          points: 1,
-        }),
+        body: JSON.stringify({ question_text: 'Bypass the draft' }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) },
     )
 
-    expect(response.status).toBe(409)
+    expect(response.status).toBe(410)
     expect(await response.json()).toEqual({
-      error: 'Test questions cannot be changed after student work exists',
+      error: 'Direct question writes are retired; save the versioned Test draft instead',
+      draft_endpoint: '/api/teacher/tests/test-1/draft',
     })
+    expect(from).not.toHaveBeenCalled()
   })
 })
