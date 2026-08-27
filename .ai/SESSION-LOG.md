@@ -11,51 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-21 — Adopt the minimal Pal level-up celebration
-
-**Risk profile:** none — student-only presentation and reward-modal dismissal;
-no schema, grading, assessment, workspace persistence, or hosted state changed.
-
-**Implemented:**
-- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
-- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
-  host-managed reward modal and removed the normal Continue action.
-- Preserved Pika ownership of dialog semantics, focus containment, Escape,
-  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
-  acknowledgement keeps the modal visible and restores Pal's Retry action.
-- Updated the Pal pilot integration contract and minimal title-presentation
-  expectations.
-
-**Verification:**
-- Focused student Pal experience and widget theme-contract suites pass 17 tests;
-  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
-- Playwright verification passed for the student modal on desktop/mobile in
-  light/dark themes, including launch/linger visuals, Escape and backdrop
-  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
-  is not applicable because Pal reward layers mount only for students.
-- Composite-widget accessibility checklist reviewed: keyboard behavior covered
-  yes; semantic state covered by tests yes; remaining manual follow-up none.
-
-## 2026-08-21 — Make teacher CLI hints invocation-aware
-
-**Risk profile:** none — teacher CLI help and recovery text only; no application
-runtime, schema, hosted environment, deployment, or database state changed.
-
-**Completed:**
-- Derived the copy-pasteable command prefix from the global launcher's existing
-  `PIKA_ORIGIN_PWD` handoff, so global runs print `pika ...` while package-script
-  runs print `pnpm pika ...`.
-- Applied the detected invocation consistently to help, usage errors, login and
-  expired-session recovery, Blueprint follow-up, and Classroom undo hints.
-- Replaced the stale `course pull/push/instantiate` error text with the current
-  Blueprint commands while retaining newer proposal, apply, and delete commands.
-- Added behavior-level regression coverage through both real entry points with
-  a local mock API for help/errors, recovery, Next, and Undo output.
-
-**Verification:**
-- Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
-- Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
-
 ## 2026-08-21 — Center the first-login Pal reward
 
 **Risk profile:** none — student-only reward-modal layout and regression coverage;
@@ -1035,6 +990,12 @@ cross-role visual verification.
 - Simplified the Classwork inspector's authenticity and grade summaries, harmonized shared save-status accessibility/copy, and refreshed affected regression tests.
 
 **Validation:**
-- Focused classwork tests (165 passed); full suite product tests (5,123 passed)
-- TypeScript, lint, production build, `git diff --check`, and Pika audit passed
-- Teacher inspector desktop/mobile screenshots reviewed in light and dark; student view is not applicable.
+- Focused changed-file regressions (227 passed); full suite (5,156 passed)
+- Review remediation coordinates Survey Code-mode mutations with the parent autosave,
+  strictly validates survey/material timestamp and boolean payloads, and synchronizes
+  generated survey due-policy types with migration 134.
+- Removed those four hardened routes from the deletion-only API Zod-debt baseline.
+- TypeScript, lint, architecture, UI-control policy, production build,
+  `git diff --check`, and Pika audit passed.
+- Teacher inspector and shared modal controls were reviewed on desktop/mobile in
+  light and dark with no horizontal overflow; student view is not applicable.
