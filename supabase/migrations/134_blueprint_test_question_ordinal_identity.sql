@@ -33,6 +33,12 @@ begin
   lock table public.assessment_drafts in exclusive mode;
   lock table public.test_questions in share row exclusive mode;
 
+  -- Rewriting a legacy draft row ID to its portable question identity does not
+  -- change the authored Test. Suppress the structural-revision trigger while
+  -- the migration owns both fences so a concurrent save cannot hold Classroom
+  -- and wait on Draft while this backfill waits on that same Classroom.
+  perform set_config('pika.identity_mapping', 'on', true);
+
   for v_draft in
     select id, assessment_id, content
     from public.assessment_drafts
@@ -140,6 +146,8 @@ begin
       where id = v_draft.id;
     end if;
   end loop;
+
+  perform set_config('pika.identity_mapping', 'off', true);
 end;
 $$;
 

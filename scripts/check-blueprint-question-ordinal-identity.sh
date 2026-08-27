@@ -197,6 +197,142 @@ fi
 wait "$save_before_fence_pid"
 wait "$migration_fence_pid"
 
+# Prove the inverse order is also safe. When the migration owns both table
+# fences first, a save may hold Test and Classroom while waiting on Draft. The
+# identity-only draft rewrite must not ask the structural-revision trigger to
+# update that Classroom, or PostgreSQL can deadlock the two sessions.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+update public.assessment_drafts
+set
+  content = jsonb_set(
+    content,
+    '{questions,0,id}',
+    to_jsonb('b1348000-0000-4000-8000-000000000013'::text),
+    false
+  ),
+  version = version + 1
+where id = 'b1348000-0000-4000-8000-000000000012';
+
+update public.classrooms
+set blueprint_source_revision = 17
+where id = 'b1348000-0000-4000-8000-000000000010';
+SQL
+
+docker exec -e PGAPPNAME=b134_migration_before_save_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+set local statement_timeout = '15s';
+lock table public.assessment_drafts in exclusive mode;
+lock table public.test_questions in share row exclusive mode;
+select pg_sleep(5);
+select set_config('pika.identity_mapping', 'on', true);
+update public.assessment_drafts
+set
+  content = jsonb_set(
+    content,
+    '{questions,0,id}',
+    to_jsonb('b1348000-0000-4000-8000-000000000014'::text),
+    false
+  ),
+  version = version + 1
+where id = 'b1348000-0000-4000-8000-000000000012';
+select set_config('pika.identity_mapping', 'off', true);
+commit;
+SQL
+migration_before_save_pid=$!
+migration_before_save_ready=false
+for _attempt in {1..40}; do
+  migration_before_save_state="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity a where a.application_name = 'b134_migration_before_save_fence' and a.wait_event = 'PgSleep' and 2 = (select count(*) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation where l.pid = a.pid and l.granted and ((c.relname = 'assessment_drafts' and l.mode = 'ExclusiveLock') or (c.relname = 'test_questions' and l.mode = 'ShareRowExclusiveLock')))")"
+  if [[ "$migration_before_save_state" == "1" ]]; then
+    migration_before_save_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$migration_before_save_ready" != "true" ]]; then
+  kill "$migration_before_save_pid" 2>/dev/null || true
+  wait "$migration_before_save_pid" 2>/dev/null || true
+  echo "Migration-first rehearsal did not acquire both source-table locks." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_save_waits_for_migration_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+set local statement_timeout = '15s';
+select id
+from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011'
+for update;
+select teacher_id
+from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010'
+for share;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+rollback;
+SQL
+save_waits_for_migration_pid=$!
+save_waited_for_migration=false
+for _attempt in {1..40}; do
+  save_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_save_waits_for_migration_fence' and wait_event_type = 'Lock'")"
+  if [[ "$save_waiting" == "1" ]]; then
+    save_waited_for_migration=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$save_waited_for_migration" != "true" ]]; then
+  kill "$migration_before_save_pid" 2>/dev/null || true
+  kill "$save_waits_for_migration_pid" 2>/dev/null || true
+  wait "$migration_before_save_pid" 2>/dev/null || true
+  wait "$save_waits_for_migration_pid" 2>/dev/null || true
+  echo "Draft save did not wait behind the migration-first fence." >&2
+  exit 1
+fi
+
+set +e
+wait "$migration_before_save_pid"
+migration_before_save_status=$?
+wait "$save_waits_for_migration_pid"
+save_waits_for_migration_status=$?
+set -e
+if [[ "$migration_before_save_status" -ne 0 ]] \
+  || [[ "$save_waits_for_migration_status" -ne 0 ]]; then
+  echo "Migration-first draft identity rewrite deadlocked with a draft save." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $$
+begin
+  if (
+    select blueprint_source_revision
+    from public.classrooms
+    where id = 'b1348000-0000-4000-8000-000000000010'
+  ) <> 17 then
+    raise exception 'Migration identity backfill advanced the Classroom structural revision';
+  end if;
+
+  if (
+    select content #>> '{questions,0,id}'
+    from public.assessment_drafts
+    where id = 'b1348000-0000-4000-8000-000000000012'
+  ) <> 'b1348000-0000-4000-8000-000000000014' then
+    raise exception 'Migration-first draft identity rewrite did not complete';
+  end if;
+end;
+$$;
+SQL
+
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 delete from public.assessment_drafts

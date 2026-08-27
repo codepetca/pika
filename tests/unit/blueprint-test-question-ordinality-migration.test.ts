@@ -344,8 +344,23 @@ describe('Blueprint test-question identity migration', () => {
     const questionLock = migration.indexOf(
       'lock table public.test_questions in share row exclusive mode;',
     )
+    const identityMappingOn = migration.indexOf(
+      "perform set_config('pika.identity_mapping', 'on', true);",
+      questionLock,
+    )
+    const draftBackfill = migration.indexOf(
+      'update public.assessment_drafts',
+      identityMappingOn,
+    )
+    const identityMappingOff = migration.indexOf(
+      "perform set_config('pika.identity_mapping', 'off', true);",
+      draftBackfill,
+    )
     expect(draftLock).toBeGreaterThanOrEqual(0)
     expect(questionLock).toBeGreaterThan(draftLock)
+    expect(identityMappingOn).toBeGreaterThan(questionLock)
+    expect(draftBackfill).toBeGreaterThan(identityMappingOn)
+    expect(identityMappingOff).toBeGreaterThan(draftBackfill)
     expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
     )
@@ -405,6 +420,12 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'Migration fence did not wait behind the in-flight draft save',
+    )
+    expect(databaseContract).toContain(
+      'Migration-first draft identity rewrite deadlocked with a draft save',
+    )
+    expect(databaseContract).toContain(
+      'Migration identity backfill advanced the Classroom structural revision',
     )
     expect(databaseContract).toContain(
       'Stale archived request did not retain its failed ledger',

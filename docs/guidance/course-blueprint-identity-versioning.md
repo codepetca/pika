@@ -145,7 +145,11 @@ Roll out the contract in compatibility order:
    reconcile that source record explicitly before retrying instead of silently
    generating a replacement identity that could sever immutable lineage. The
    migration fences Draft writers before question writers, waiting behind any
-   in-flight save before it holds the question-table fence.
+   in-flight save before it holds the question-table fence. The draft rewrite
+   runs under the transaction-local identity-mapping guard because replacing a
+   legacy row ID with its portable identity is not an authored Test change and
+   must not advance the Classroom structural revision or introduce a reverse
+   Classroom/Draft lock dependency.
 3. Verify capture, activation, recapture, Version creation, classroom
    instantiation, and archived reuse before removing the legacy read path.
 

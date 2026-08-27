@@ -23894,6 +23894,7 @@ changed.
   runtime/type-parity guards remain intentionally unavailable because the local
   schema does not include unapplied migration 132; no migration was applied
   without fresh authorization.
+
 ## 2026-08-23 — Refine the student classroom attendance signal
 
 **Risk profile:** student-only visual refinement; no attendance behavior,
@@ -24103,3 +24104,37 @@ no assignment state, API contract, schema, persistence, or layout behavior chang
   no Supabase credentials; the harness was removed. The composite-widget
   checklist was reviewed: keyboard and semantic behavior are unchanged, with
   no remaining manual follow-up.
+
+<!-- pika-session-log-archive-batch:2cd0351c83aceb499dd125992d5e10bc0fae0e75e2029447dab744a14fb7981c -->
+## 2026-08-25 — Reconcile attendance rollout documentation
+
+**Risk profile:** none — documentation consistency only; no migration,
+deployment, configuration, entitlement, smoke, or hosted data changed.
+
+- Reconciled the adapter status, control runbooks, native-attendance roadmap,
+  canary boundary, and completion audit with the verified production state:
+  migrations through 132, enabled `teacher_entitlements`, and the passing 4/4
+  deployed smoke.
+- Preserved the exact pair as the signed-smoke scope, retained separate
+  authorization for future changes, and replaced completed pre-enable steps
+  with the remaining entitled-teacher workflow, UI, isolation, and pilot gates.
+- Review remediation rewrote the operational-recovery procedure from the
+  current enabled state and extended the rollout regression to cover the
+  compact handoff plus production smoke instructions.
+- Final remediation made the regression pin the runbook's dated 4/4 status and
+  complete enabled production command, preventing a partial command or stale
+  pre-enable block from satisfying the rollout-continuity gate.
+- Rebased onto current `main`, retained its assignment timestamp work and
+  canonical continuity history, then corrected the v1 guide's production
+  preflight example to the enabled entitlement state and pinned the full command
+  in regression coverage.
+- Rereview hardened that regression to inspect fenced preflight commands
+  independent of option order while allowing historical prose and preview-only
+  pre-enable examples.
+- Final parser remediation reconstructs individual continued commands across
+  common shell fence labels, preventing cross-command false positives and
+  catching reordered or equals-form stale production flags.
+- With an explicitly extended review budget, replaced the growing shell parser
+  with an exact single-purpose preflight-fence contract and labeled the
+  migration-132 rollout sequence as completed audit history rather than future
+  operator instructions.
