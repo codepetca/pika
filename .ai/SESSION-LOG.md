@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Repair Blueprint Test question identity mapping
-
-**Risk profile:** runtime-platform — the initial database RPC replacement was
-applied locally; its review revision awaits authorized local reapplication. No
-staging or production migration was applied.
-
-- Traced production Blueprint capture operation
-  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
-  confirmed Test draft questions intentionally use JSON array order rather than
-  a persisted `position` field.
-- Added proposed migration 134 so active Classroom capture and archived
-  Classroom reuse map Test question identities by zero-based JSON ordinality,
-  preserving the managed-storage wrapper, RPC signatures, privileges, and all
-  unrelated function behavior.
-- Added rollback/replay database coverage and CI wiring. The new rollback-only
-  harness reproduces the production `23505` artifact-identity collision against
-  the pre-134 schema; the local dry run contains only migration 134.
-- After exact one-time authorization, migration 134 applied locally as the sole
-  pending migration. The post-migration database harness passes active capture,
-  archived reuse, rollback, identity order, and replay; adjacent atomic
-  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
-- Initial PR review found that valid source positions can contain gaps after a
-  question deletion. Fix batch 1 now maps each JSON question to the nth source
-  row ordered by `(position, id)` and gives both active and archived fixtures
-  positions `0,2`; the strengthened harness failed against the installed
-  pre-review function as expected.
-- After exact destructive-reset authorization, local was reset without seeding
-  and migrations 001-134 replayed from the reviewed branch. The strengthened
-  active/archived gap-position harness, adjacent atomic and versioned Blueprint
-  contracts, managed-storage contract, generated types, lint, architecture,
-  audit, and 48 focused tests all pass.
-- Lint, architecture boundaries, generated database types, focused Blueprint
-  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
-  remain unchanged, and the worktree has no production project binding.
-
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1030,3 +995,164 @@ migrated and no hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the Version-provenance database
 contract and final migration replay review.
+## 2026-08-27 — Migrate selected Test grading to the teacher work surface
+
+**Risk profile:** async-grading — teacher Test roster presentation, sorting,
+selection, and action routing changed around preserved grading mutations; no API,
+schema, persistence, authentication, dependency, or student UI changed.
+
+- Mapped the selected-Test domain before migrating it: whole-Test access remains
+  distinct from selected-student access, while AI grade, unsubmit, return, and
+  delete-work retain their existing eligibility and confirmation behavior.
+- Adopted the shared teacher context bar, internally scrolling table frame, and
+  selection bar. The whole-Test access control stays mathematically centered;
+  lifecycle context and Test utilities stay quiet at the edges; bulk actions
+  appear only after row selection.
+- Split names into sortable/resizable First and Last columns, kept compact
+  operational metrics, added sticky sortable/resizable headers, and added
+  semantic count chips that can prioritize closed, submitted, or returned rows.
+- Added a guarded long-roster fixture and responsive browser contract covering
+  default, status-sorted, scrolled, and selected states on desktop/mobile in
+  light/dark. Student UI is n/a because the surface is teacher-only.
+- Composite-widget accessibility checklist reviewed: keyboard navigation and
+  Escape behavior remain covered, semantic sort/pressed states have focused
+  tests, and remaining manual follow-up is none. Existing design guidance
+  already governs this surface, so no durable design rule was added.
+
+**Verification:** focused Test/shared work-surface tests (71/71), responsive
+Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
+checks, and production build pass. Visual review covers eight captures: default
+and selected long-roster states across desktop/mobile and light/dark.
+
+**Model recommendation:** current GPT-5 coding model for a domain-sensitive
+teacher workspace migration with responsive visual verification.
+
+## 2026-08-27 — Tighten selected Test roster controls
+
+**Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
+alignment changed; no grading behavior, permissions, API, schema, persistence,
+authentication, dependency, migration, or student UI changed.
+
+- Reduced the selected Test action-to-roster gap to the established Attendance
+  work-surface spacing and kept the centered whole-Test action visually dominant.
+- Raised the action-bar stacking context with the existing semantic layer token
+  so the whole-Test split-button menu stays visible and interactive above the
+  sticky roster header.
+- Restored the shared selection-cell inset so the select-all checkbox and row
+  checkboxes align on desktop and mobile.
+- Added browser geometry regressions for the 4px maximum gap, checkbox-center
+  alignment, and an unobscured menu, plus component coverage for menu semantics,
+  Escape dismissal, and focus restoration.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused Test/shared component tests (87/87 plus final Test-only
+68/68), responsive long-roster Playwright matrix (4/4), lint, design/UI policies,
+Pika audit, and diff checks pass. Visual review covers default, menu-open, and
+selected states on desktop/mobile in light/dark. Student UI is n/a because this
+is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded teacher UI
+remediation with responsive visual verification.
+
+## 2026-08-27 — Consolidate Test grading actions at the top
+
+**Risk profile:** UI-only — selected Test grading action placement and shared
+teacher context-bar chrome changed; no grading behavior, permissions, API,
+schema, persistence, authentication, dependency, migration, or student UI
+changed.
+
+- Removed the floating bottom selection bar from Test grading. Selecting rows
+  now replaces the centered whole-Test control with the selected-student action
+  toolbar in the same top command area.
+- Preserved direct bulk actions on wide layouts and kept every action available
+  from a top overflow menu on narrower layouts. Access, clear-selection, action
+  eligibility, confirmations, and terminology are unchanged.
+- Removed the 4px inset from the shared teacher context-bar floating chrome so
+  the chrome hugs the existing 44px buttons instead of making the FAB appear
+  oversized. This also keeps Attendance and Test on the same shared treatment.
+- Removed obsolete bottom scroll clearance after the selection bar moved.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused Test/shared component tests (74/74, then 71/71 after
+the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
+lint, architecture/design/UI policies, Pika audit, diff checks, and live local
+browser inspection pass. Visual review covers default and selected states on
+desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
+while button height remains 44px. Student UI is n/a because this is a
+teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a focused responsive
+teacher-work-surface interaction refinement.
+
+## 2026-08-27 — Compact selected-student Test actions
+
+**Risk profile:** UI-only — selected-student utility controls changed from
+labeled buttons to icon buttons; no action eligibility, grading behavior,
+permissions, API, schema, persistence, authentication, migration, or student UI
+changed.
+
+- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
+  work-surface icon buttons on desktop while retaining their explicit accessible
+  names, hover tooltips, disabled states, and destructive treatment.
+- Kept the selected access split button labeled because it communicates the
+  current action and scope, and retained labeled utility actions in the narrow
+  layout overflow menu.
+- Added component coverage for icon-only accessible naming and browser coverage
+  for empty visible button text plus the AI Grade hover tooltip.
+- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
+  its fetch mock now matches URL and method instead of depending on concurrent
+  request order. Product code and preview behavior are unchanged.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes (existing split/menu Escape and focus tests remain intact);
+  semantic state covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
+responsive long-roster Playwright matrix (4/4), TypeScript, lint,
+architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
+covers selected desktop/mobile states in light/dark and the desktop tooltip
+hover state. Student UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded accessible
+teacher-toolbar refinement.
+
+## 2026-08-27 — Adopt persistent Test grading action scopes
+
+**Risk profile:** standard — selected Test grading action placement, row access
+state changes, and AI-grading request scope changed; permissions, enrollment
+validation, test status rules, grading eligibility, persistence schema,
+authentication, dependencies, migrations, and student UI are unchanged.
+
+- Kept Open All and Close All as persistent icon commands in the centered Test
+  action cluster, with tooltips and confirmation for the global mutations.
+- Added one persistent student-actions menu that is disabled before selection,
+  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
+  Return, and Delete Work. Global access commands and selection clearing are not
+  duplicated in the menu.
+- Replaced row access icons with immediate semantic switches: green/right for
+  open and red/left for closed, with a lock-state icon, accessible state, and no
+  per-row confirmation.
+- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
+  the explicit scope through a Zod-validated API boundary into run preflight.
+  Ungraded scope now preserves any persisted grade; all scope queues eligible
+  answered responses even when previously graded.
+- Updated stable teacher operational-table guidance to combine Attendance's
+  table rhythm with selected Test grading's persistent action-scope pattern.
+  Attendance's bottom selection bar is now documented as migration debt for a
+  later focused pass.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  align Attendance with the new persistent selection-menu pattern in a separate
+  change.
+
+**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
+(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
+checks pass. Visual review covers default, global confirmation, selected menu,
+and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
+this is a teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
+for one bounded independent correctness and requirements review.

@@ -4,7 +4,8 @@ This audit classifies the current teacher-side work-surface family:
 
 - teacher assignments
 - teacher tests
-- teacher operational tables, with Attendance as the reference implementation
+- teacher operational tables, with Attendance as the table reference and
+  selected Test grading as the action-scope reference
 
 Use it to decide what should become a primitive, what should remain a composed pattern, and what should stay feature-local.
 
@@ -48,7 +49,7 @@ These interaction rules are now considered stable for the teacher work-surface f
 | Inspector activation is selection- and mode-driven, not passive | assignments as baseline, tests grading as adopter | stable | treat as family default | now |
 | Parent tab re-click returns to summary | assignments intent, tests implementation direction | stable | treat as family default | now |
 | Ownership check across feature tab, classroom shell, and route config | family-wide diagnostic rule | stable | require in future parity work | now |
-| Operational context/table/selection composition | Attendance as approved reference, Classwork and Tests as adopters when eligible | stable | reuse the shared composition and adoption checklist | now |
+| Operational context/table/selection composition | Attendance table rhythm plus selected Test grading actions | stable | reuse the combined composition and adoption checklist | now |
 
 ## True Primitives
 
@@ -59,7 +60,8 @@ These are the current or proposed structural primitives for the teacher work-sur
 | Page-shell primitives (`PageLayout`, `PageActionBar`, `PageContent`, `PageStack`) | assignments/tests | shared already | stable | keep as primitives | now |
 | Calm empty-state container via `EmptyState` | tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
 | Teacher workspace split container derived from assignments | integrated assignment viewing/grading panes | adopted by tests when grading needs side-by-side work | stable structural primitive | keep as primitive | now |
-| Operational context bar, table frame, and selection bar | Attendance | Classwork and Tests when their workflow is scan-heavy and row-operational | stable structural primitives | keep as primitives | now |
+| Operational context bar and table frame | Attendance and selected Test grading | Classwork and nearby sections when scan-heavy and row-operational | stable structural primitives | keep as primitives | now |
+| Bottom `TeacherSelectionBar` | Attendance | existing adopters only | migration support | replace with centered persistent selection menu when the surface is refreshed | next Attendance pass |
 | Shared teacher work-item card variant | `SortableAssignmentCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
 | Generic teacher list/detail container | no single owner yet | conceptually repeated | unstable | do not extract yet | never for now |
 
@@ -73,7 +75,8 @@ These should remain composed feature patterns even if they use shared primitives
 | Teacher assignment focused workspace and student inspection | `TeacherClassroomView`, `TeacherStudentWorkPanel` | stable | keep composed, feed split extraction | now |
 | Teacher test authoring composition | `TeacherTestsTab`, `TestDetailPanel` | experimental | keep composed | now |
 | Teacher grading workspace composition | `TeacherTestsTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
-| Attendance operational table composition | `TeacherLiveAttendanceTab` | stable | approved reference for eligible teacher tables | now |
+| Attendance operational table composition | `TeacherLiveAttendanceTab` | stable table reference; selection placement is migration debt | keep table rhythm, migrate actions next | now |
+| Selected Test grading action composition | `TeacherTestsTab` | stable | approved reference for global, selected, and inline row actions | now |
 
 ## Feature-Local Behavior
 
@@ -114,12 +117,12 @@ These are present or recently present patterns that should not be treated as reu
 
 ### Current: teacher operational table composition
 
-The Attendance composition is stable and reusable through three narrow owners:
+The combined operational composition is stable through two narrow structural owners:
 
 - `TeacherWorkSurfaceContextBar` owns the quiet-edge/centered-action hierarchy
-- `TeacherWorkSurfaceTableFrame` owns the internal scroller and conditional
-  selection clearance
-- `TeacherSelectionBar` owns the selection count, placement, and clear action
+- `TeacherWorkSurfaceTableFrame` owns the internal scroller
+- feature-owned centered menus keep selection actions visible-but-disabled until
+  selection; `TeacherSelectionBar` remains transitional for existing consumers
 
 Sortable/resizable table behavior continues to come from the shared `@/ui`
 table primitives. Status vocabulary, colors, comparisons, columns, and batch

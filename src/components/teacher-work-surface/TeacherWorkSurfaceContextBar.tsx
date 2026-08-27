@@ -57,7 +57,7 @@ export function TeacherWorkSurfaceContextBar({
       <div
         className={cn(
           'min-w-0 justify-self-center',
-          primaryChrome === 'floating' && 'rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur',
+          primaryChrome === 'floating' && 'rounded-lg bg-surface/95 shadow-elevated backdrop-blur',
           primaryClassName,
         )}
       >

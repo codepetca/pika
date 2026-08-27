@@ -2096,41 +2096,52 @@ _None_
 
     it('uses the in-app preview callback for tests when provided', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 1,
-              content: {
-                title: 'Inline Preview Test',
-                show_results: true,
-                questions: sampleQuestions,
+      fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/test-inline-preview-id/draft' && options?.method === 'PATCH') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 2,
+                content: {
+                  title: 'Inline Preview Test',
+                  show_results: true,
+                  questions: sampleQuestions,
+                },
               },
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            test: {
-              documents: [],
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 2,
-              content: {
-                title: 'Inline Preview Test',
-                show_results: true,
-                questions: sampleQuestions,
+            }),
+          })
+        }
+
+        if (url === '/api/teacher/tests/test-inline-preview-id/draft') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Inline Preview Test',
+                  show_results: true,
+                  questions: sampleQuestions,
+                },
               },
-            },
-          }),
-        })
+            }),
+          })
+        }
+
+        if (url === '/api/teacher/tests/test-inline-preview-id') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              test: {
+                documents: [],
+              },
+            }),
+          })
+        }
+
+        throw new Error(`Unexpected fetch in in-app preview test: ${url}`)
+      })
 
       const onRequestTestPreview = vi.fn()
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
