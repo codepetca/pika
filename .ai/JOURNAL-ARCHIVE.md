@@ -23894,7 +23894,6 @@ changed.
   runtime/type-parity guards remain intentionally unavailable because the local
   schema does not include unapplied migration 132; no migration was applied
   without fresh authorization.
-
 ## 2026-08-23 — Refine the student classroom attendance signal
 
 **Risk profile:** student-only visual refinement; no attendance behavior,

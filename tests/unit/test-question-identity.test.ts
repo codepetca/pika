@@ -57,6 +57,28 @@ describe('Test question identity', () => {
     ])).toEqual({ ok: false })
   })
 
+  it('ignores internal row IDs when validating canonical materialized content', () => {
+    const nextPortableId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    expect(resolveTestQuestionIdentities([ROW_ID, nextPortableId], [
+      { id: OTHER_ROW_ID, artifact_id: ROW_ID, source_artifact_id: null },
+      { id: ROW_ID, artifact_id: nextPortableId, source_artifact_id: null },
+    ], {
+      acceptInternalRowIds: false,
+      allowDraftOnly: false,
+    })).toEqual({
+      ok: true,
+      identities: [{
+        inputId: ROW_ID,
+        portableId: ROW_ID,
+        matchingRowId: OTHER_ROW_ID,
+      }, {
+        inputId: nextPortableId,
+        portableId: nextPortableId,
+        matchingRowId: ROW_ID,
+      }],
+    })
+  })
+
   it('fails closed when distinct legacy rows collapse to one portable identity', () => {
     expect(resolveTestQuestionIdentities([ROW_ID, OTHER_ROW_ID], [
       { id: ROW_ID, artifact_id: ARTIFACT_ID, source_artifact_id: null },

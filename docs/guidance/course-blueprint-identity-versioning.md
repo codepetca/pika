@@ -123,6 +123,10 @@ rubrics, and named resources must adopt the same contract.
   resolving those IDs to persisted portable identity. Runtime code may detect
   legacy row IDs for a clear failure, but must not silently infer or rewrite
   logical identity.
+- The temporary row-ID compatibility reader is limited to actual legacy draft
+  JSON. Content rebuilt from materialized rows, Blueprint capture, save, and
+  activation validate only portable artifact/source identity, so coincident
+  UUID values cannot merge the internal and portable identity domains.
 
 ### Test question identity rollout and rollback
 

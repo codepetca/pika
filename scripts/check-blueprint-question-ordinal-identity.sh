@@ -192,6 +192,62 @@ begin
 end;
 $contract$;
 
+select public.save_test_draft_atomic(
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000011',
+  8,
+  '{"title":"Legacy row-ID precedence","show_results":false,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+
+update public.tests
+set status = 'draft'
+where id = 'b1349000-0000-4000-8000-000000000011';
+
+select public.activate_test_from_draft_atomic(
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000011',
+  9
+);
+
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.tests test
+    join public.assessment_drafts draft
+      on draft.assessment_type = 'test'
+      and draft.assessment_id = test.id
+    where test.id = 'b1349000-0000-4000-8000-000000000011'
+      and test.status = 'active'
+      and draft.version = 9
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+      and (
+        select count(*)
+        from public.test_questions question
+        where question.test_id = test.id
+          and (
+            (
+              question.id = 'b1349000-0000-4000-8000-000000000020'
+              and question.artifact_id = 'b1349000-0000-4000-8000-000000000021'
+            )
+            or (
+              question.id = 'b1349000-0000-4000-8000-000000000021'
+              and question.artifact_id = 'b1349000-0000-4000-8000-000000000031'
+            )
+          )
+      ) = 2
+  ) then
+    raise exception 'Post-backfill save and activation did not preserve canonical question identity';
+  end if;
+end;
+$contract$;
+
 delete from public.assessment_drafts
 where id = 'b1349000-0000-4000-8000-000000000012';
 delete from public.test_questions

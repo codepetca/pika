@@ -282,15 +282,24 @@ export async function loadClassroomBlueprintSource(
     // Draft JSON is authoritative only while the Test is editable. Once the
     // Test is active or closed, capture the rows materialized by activation so
     // a stale or rejected draft save cannot leak into a Blueprint.
-    const content = test.status === 'draft'
+    const draftContent = test.status === 'draft'
       ? draftsByTestId.get(String(test.id))
-        ?? buildTestDraftContentFromRows(persistedTestContentSource, questions)
-      : buildTestDraftContentFromRows(persistedTestContentSource, questions)
+      : undefined
+    const content = draftContent
+      ?? buildTestDraftContentFromRows(persistedTestContentSource, questions)
+    // Only actual draft JSON may exercise the temporary legacy row-ID reader.
+    // Row-built content is already canonical, so validate it strictly in the
+    // portable identity domain without treating coincident row UUIDs as aliases.
     const projectedContent = projectPortableTestQuestionIds(content, questions.map((question) => ({
       id: String(question.id),
       artifact_id: question.artifact_id ?? null,
       source_artifact_id: question.source_artifact_id ?? null,
-    })))
+    })), draftContent
+      ? undefined
+      : {
+          acceptInternalRowIds: false,
+          allowDraftOnly: false,
+        })
     if (!projectedContent.ok) {
       return {
         ok: false,

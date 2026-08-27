@@ -103,7 +103,12 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({
         data: overrides?.testQuestionsError
           ? null
-          : overrides?.testQuestions || [{ id: 'tq-1', test_id: 't-1', prompt: 'Q1' }],
+          : overrides?.testQuestions || [{
+              id: 'tq-1',
+              artifact_id: '20000000-0000-4000-8000-000000000001',
+              test_id: 't-1',
+              prompt: 'Q1',
+            }],
         error: overrides?.testQuestionsError ?? null,
       }),
     ],
@@ -217,7 +222,12 @@ describe('classroom blueprint source loader', () => {
         { id: 't-2', title: 'Draft test', status: 'draft', show_results: false, position: 1 },
       ],
       testQuestions: [
-        { id: 'tq-1', test_id: 't-1', prompt: 'Published question' },
+        {
+          id: 'tq-1',
+          artifact_id: '20000000-0000-4000-8000-000000000001',
+          test_id: 't-1',
+          prompt: 'Published question',
+        },
         { id: 'tq-2', test_id: 't-2', prompt: 'Draft question' },
       ],
       assessmentDrafts: [
@@ -367,6 +377,47 @@ describe('classroom blueprint source loader', () => {
         question_text: 'Materialized question A',
       })],
     }))
+  })
+
+  it('captures canonical materialized identity when a portable ID collides with another row ID', async () => {
+    const firstRowId = '10000000-0000-4000-8000-000000000001'
+    const firstPortableId = '20000000-0000-4000-8000-000000000001'
+    const secondPortableId = '30000000-0000-4000-8000-000000000001'
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        title: 'Activated Test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+      }],
+      testQuestions: [{
+        id: firstRowId,
+        artifact_id: firstPortableId,
+        source_artifact_id: firstPortableId,
+        test_id: 't-1',
+        question_type: 'open_response',
+        question_text: 'First question',
+        position: 0,
+      }, {
+        id: firstPortableId,
+        artifact_id: secondPortableId,
+        source_artifact_id: secondPortableId,
+        test_id: 't-1',
+        question_type: 'open_response',
+        question_text: 'Second question',
+        position: 1,
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].content.questions.map((question) => question.id)).toEqual([
+      firstPortableId,
+      secondPortableId,
+    ])
   })
 
   it('preserves draft-only identity and fails closed on ambiguous persisted identity', () => {

@@ -407,7 +407,6 @@ begin
         and (
           question.artifact_id = v_question_id
           or question.source_artifact_id = v_question_id
-          or question.id = v_question_id
         );
 
       if coalesce(cardinality(v_matched_row_ids), 0) > 1 then
@@ -642,7 +641,6 @@ begin
       and (
         question.artifact_id = v_question_id
         or question.source_artifact_id = v_question_id
-        or question.id = v_question_id
       );
 
     if coalesce(cardinality(v_matched_row_ids), 0) > 1 then

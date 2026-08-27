@@ -20,6 +20,13 @@ export type ResolvedTestQuestionIdentity = {
   matchingRowId?: string
 }
 
+export type TestQuestionIdentityResolutionOptions = {
+  /** Accept legacy draft JSON whose question IDs are internal row IDs. */
+  acceptInternalRowIds?: boolean
+  /** Accept a portable draft identity that has not been materialized yet. */
+  allowDraftOnly?: boolean
+}
+
 /**
  * UUID text is case-insensitive in PostgreSQL. Normalize it at the application
  * boundary so JavaScript maps and sets preserve the same identity semantics.
@@ -57,7 +64,12 @@ export function getPortableTestQuestionIdentity(
 export function resolveTestQuestionIdentities(
   inputIds: string[],
   persistedQuestions: PersistedTestQuestionIdentity[],
+  options: TestQuestionIdentityResolutionOptions = {},
 ): { ok: true; identities: ResolvedTestQuestionIdentity[] } | { ok: false } {
+  const {
+    acceptInternalRowIds = true,
+    allowDraftOnly = true,
+  } = options
   const rowIdsByKnownIdentity = new Map<string, Set<string>>()
   const rowsByInternalId = new Map<string, PersistedTestQuestionIdentity>()
 
@@ -86,8 +98,10 @@ export function resolveTestQuestionIdentities(
     seenInputIds.add(inputId)
 
     const matchingRowIds = new Set(rowIdsByKnownIdentity.get(inputId) ?? [])
-    const internalRow = rowsByInternalId.get(inputId)
-    if (internalRow) matchingRowIds.add(internalRow.id)
+    if (acceptInternalRowIds) {
+      const internalRow = rowsByInternalId.get(inputId)
+      if (internalRow) matchingRowIds.add(internalRow.id)
+    }
     if (matchingRowIds.size > 1) return { ok: false }
 
     const [matchingRowId] = matchingRowIds
@@ -113,6 +127,7 @@ export function resolveTestQuestionIdentities(
       continue
     }
 
+    if (!allowDraftOnly) return { ok: false }
     if (seenPortableIds.has(inputId)) return { ok: false }
     seenPortableIds.add(inputId)
     identities.push({ inputId, portableId: inputId })
@@ -124,10 +139,12 @@ export function resolveTestQuestionIdentities(
 export function projectPortableTestQuestionIds(
   content: TestDraftContent,
   persistedQuestions: PersistedTestQuestionIdentity[],
+  options?: TestQuestionIdentityResolutionOptions,
 ): { ok: true; content: TestDraftContent } | { ok: false } {
   const resolved = resolveTestQuestionIdentities(
     content.questions.map((question) => question.id),
     persistedQuestions,
+    options,
   )
   if (!resolved.ok) return resolved
 

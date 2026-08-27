@@ -158,16 +158,18 @@ describe('Blueprint test-question identity migration', () => {
       saveDefinition.indexOf("if v_test.status in ('active', 'closed') then"),
     )
     expect(saveDefinition).toMatch(
-      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id[\s\S]{0,100}question\.id = v_question_id/,
+      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id/,
     )
+    expect(saveDefinition).not.toContain('question.id = v_question_id')
     expect(saveDefinition).toMatch(
       /update public\.tests test[\s\S]{0,260}where test\.id = p_test_id[\s\S]{0,80}test\.status = v_test\.status/,
     )
     expect(activationDefinition).toContain("v_test.status is distinct from 'draft'")
     expect(activationDefinition).toContain("message = 'test_not_draft'")
     expect(activationDefinition).toMatch(
-      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id[\s\S]{0,100}question\.id = v_question_id/,
+      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id/,
     )
+    expect(activationDefinition).not.toContain('question.id = v_question_id')
     expect(activationDefinition).toMatch(
       /insert into public\.test_questions \([\s\S]{0,180}artifact_id[\s\S]{0,320}p_test_id,[\s\S]{0,80}v_question_id/,
     )
@@ -397,6 +399,9 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'Legacy row-ID precedence mutated persisted question rows',
+    )
+    expect(databaseContract).toContain(
+      'Post-backfill save and activation did not preserve canonical question identity',
     )
     expect(databaseContract).toContain(
       'Stale archived request did not retain its failed ledger',
