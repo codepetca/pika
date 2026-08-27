@@ -399,8 +399,12 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   expect(selectedScrollPaneBox).not.toBeNull()
   expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThan(selectedScrollPaneBox!.y)
   if (viewport === 'desktop') {
-    await expect(selectionBar.getByRole('button', { name: 'AI Grade' })).toBeVisible()
+    const aiGradeButton = selectionBar.getByRole('button', { name: 'AI Grade' })
+    await expect(aiGradeButton).toBeVisible()
+    await expect(aiGradeButton).toHaveText('')
     await expect(selectionBar.getByRole('button', { name: 'Delete Work' })).toBeVisible()
+    await aiGradeButton.hover()
+    await expect(page.getByRole('tooltip', { name: 'AI Grade' })).toBeVisible()
   } else {
     await selectionBar.getByRole('button', { name: 'More selected student actions' }).click()
     await expect(page.getByRole('menuitem', { name: 'AI Grade' })).toBeVisible()

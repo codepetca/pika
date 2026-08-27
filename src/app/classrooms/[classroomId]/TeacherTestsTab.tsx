@@ -2649,16 +2649,15 @@ export function TeacherTestsTab({
           />
           <div className="hidden items-center gap-1 lg:flex">
             {selectedStudentUtilityActions.map((action) => (
-              <Button
+              <TeacherWorkSurfaceIconButton
                 key={action.id}
-                type="button"
-                size="sm"
+                ariaLabel={action.label}
+                tooltip={action.label}
+                icon={action.icon}
                 variant={action.destructive ? 'danger' : 'secondary'}
                 disabled={action.disabled}
                 onClick={action.onSelect}
-              >
-                {action.icon}{action.label}
-              </Button>
+              />
             ))}
           </div>
           <div className="lg:hidden">

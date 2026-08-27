@@ -46,41 +46,6 @@ staging or production migration was applied.
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.
 
-## 2026-08-25 — Repair Blueprint Test question identity mapping
-
-**Risk profile:** runtime-platform — the initial database RPC replacement was
-applied locally; its review revision awaits authorized local reapplication. No
-staging or production migration was applied.
-
-- Traced production Blueprint capture operation
-  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
-  confirmed Test draft questions intentionally use JSON array order rather than
-  a persisted `position` field.
-- Added proposed migration 134 so active Classroom capture and archived
-  Classroom reuse map Test question identities by zero-based JSON ordinality,
-  preserving the managed-storage wrapper, RPC signatures, privileges, and all
-  unrelated function behavior.
-- Added rollback/replay database coverage and CI wiring. The new rollback-only
-  harness reproduces the production `23505` artifact-identity collision against
-  the pre-134 schema; the local dry run contains only migration 134.
-- After exact one-time authorization, migration 134 applied locally as the sole
-  pending migration. The post-migration database harness passes active capture,
-  archived reuse, rollback, identity order, and replay; adjacent atomic
-  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
-- Initial PR review found that valid source positions can contain gaps after a
-  question deletion. Fix batch 1 now maps each JSON question to the nth source
-  row ordered by `(position, id)` and gives both active and archived fixtures
-  positions `0,2`; the strengthened harness failed against the installed
-  pre-review function as expected.
-- After exact destructive-reset authorization, local was reset without seeding
-  and migrations 001-134 replayed from the reviewed branch. The strengthened
-  active/archived gap-position harness, adjacent atomic and versioned Blueprint
-  contracts, managed-storage contract, generated types, lint, architecture,
-  audit, and 48 focused tests all pass.
-- Lint, architecture boundaries, generated database types, focused Blueprint
-  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
-  remain unchanged, and the worktree has no production project binding.
-
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1157,3 +1122,31 @@ teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a focused responsive
 teacher-work-surface interaction refinement.
+
+## 2026-08-27 — Compact selected-student Test actions
+
+**Risk profile:** UI-only — selected-student utility controls changed from
+labeled buttons to icon buttons; no action eligibility, grading behavior,
+permissions, API, schema, persistence, authentication, migration, or student UI
+changed.
+
+- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
+  work-surface icon buttons on desktop while retaining their explicit accessible
+  names, hover tooltips, disabled states, and destructive treatment.
+- Kept the selected access split button labeled because it communicates the
+  current action and scope, and retained labeled utility actions in the narrow
+  layout overflow menu.
+- Added component coverage for icon-only accessible naming and browser coverage
+  for empty visible button text plus the AI Grade hover tooltip.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes (existing split/menu Escape and focus tests remain intact);
+  semantic state covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** full Vitest suite (5,139/5,139), responsive long-roster
+Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, and
+diff checks pass. Visual review covers selected desktop/mobile states in
+light/dark and the desktop tooltip hover state. Student UI is n/a because this
+is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded accessible
+teacher-toolbar refinement.
