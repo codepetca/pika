@@ -1019,12 +1019,16 @@ unapplied migration 134 backfill; no database was reset or migrated.
   Test save and activation now take the Classroom update lock up front, avoiding
   shared-lock upgrades when two Tests advance the same structural revision; the
   disposable database contract exercises concurrent saves.
+- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
+  memory before semantic comparison. The persisted Version stays unchanged, and
+  adding the discriminator alone cannot create a false Blueprint/Classroom
+  divergence or unnecessary review flow.
 - Added collision regressions across draft GET/PATCH projection, Blueprint
   detail GET overlay, Blueprint capture, migration replay, save, activation,
   and Version instantiation. The known row-ID/artifact-ID collision remains
   distinct after conversion instead of re-entering the legacy dual-identity
   reader.
-- The focused identity suites, full 5,146-test suite, TypeScript, lint,
+- The focused identity suites, full 5,147-test suite, TypeScript, lint,
   architecture/design/UI policies, managed-storage lineage, shell syntax, diff
   validation, session-log validation, and production build pass. The disposable
   database CI job remains authoritative; migration 134 was not applied locally.

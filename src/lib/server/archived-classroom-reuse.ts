@@ -11,6 +11,7 @@ import {
   createCourseBlueprintFromClassroom,
   getCourseBlueprintDetail,
 } from '@/lib/server/course-blueprints'
+import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import {
   applyBlueprintMergeSuggestions,
   getBlueprintMergeSuggestionSet,
@@ -59,6 +60,19 @@ function reusableBlueprintContent(snapshot: CourseBlueprintSnapshot) {
   }
 }
 
+function normalizeTestQuestionIdentityFormat(
+  snapshot: CourseBlueprintSnapshot,
+): CourseBlueprintSnapshot {
+  const normalized = structuredClone(snapshot)
+  return {
+    ...normalized,
+    assessments: normalized.assessments.map((assessment) => ({
+      ...assessment,
+      content: markPortableTestQuestionIdentity(assessment.content),
+    })),
+  }
+}
+
 function normalizeVersionForClassroom(
   snapshot: CourseBlueprintSnapshot,
   appliedLessonArtifactIds: ReadonlySet<string>,
@@ -99,16 +113,23 @@ export function classifyArchivedClassroomReuseSnapshots(args: {
   currentClassroom: CourseBlueprintSnapshot
   appliedLessonArtifactIds: ReadonlySet<string>
 }) {
+  // Immutable Versions created before the explicit discriminator already carry
+  // portable question IDs. Normalize that older serialization in memory so a
+  // format-only marker addition is not mistaken for authored Blueprint or
+  // Classroom divergence. Persisted Version snapshots remain immutable.
+  const baseVersion = normalizeTestQuestionIdentityFormat(args.baseVersion)
+  const currentBlueprint = normalizeTestQuestionIdentityFormat(args.currentBlueprint)
+  const currentClassroom = normalizeTestQuestionIdentityFormat(args.currentClassroom)
   const classroomBaseline = normalizeVersionForClassroom(
-    args.baseVersion,
+    baseVersion,
     args.appliedLessonArtifactIds,
   )
   const blueprintChanged =
-    hashCanonicalJson(reusableBlueprintContent(args.baseVersion))
-    !== hashCanonicalJson(reusableBlueprintContent(args.currentBlueprint))
+    hashCanonicalJson(reusableBlueprintContent(baseVersion))
+    !== hashCanonicalJson(reusableBlueprintContent(currentBlueprint))
   const classroomChanged =
     hashCanonicalJson(classroomReusableContent(classroomBaseline))
-    !== hashCanonicalJson(classroomReusableContent(args.currentClassroom))
+    !== hashCanonicalJson(classroomReusableContent(currentClassroom))
 
   return {
     blueprintChanged,
@@ -129,30 +150,59 @@ export function decideArchivedClassroomReuse(args: {
   return 'promote'
 }
 
-function changedReusableAreas(
+export function changedReusableAreas(
   blueprint: CourseBlueprintSnapshot,
   classroom: CourseBlueprintSnapshot,
 ): ReusableArea[] {
+  const normalizedBlueprint = normalizeTestQuestionIdentityFormat(blueprint)
+  const normalizedClassroom = normalizeTestQuestionIdentityFormat(classroom)
   const changed = (left: unknown, right: unknown) =>
     hashCanonicalJson(left) !== hashCanonicalJson(right)
   const areas: ReusableArea[] = []
 
-  if (changed(blueprint.sections.overview_markdown, classroom.sections.overview_markdown)) {
+  if (changed(
+    normalizedBlueprint.sections.overview_markdown,
+    normalizedClassroom.sections.overview_markdown,
+  )) {
     areas.push('overview')
   }
-  if (changed(blueprint.sections.outline_markdown, classroom.sections.outline_markdown)) {
+  if (changed(
+    normalizedBlueprint.sections.outline_markdown,
+    normalizedClassroom.sections.outline_markdown,
+  )) {
     areas.push('outline')
   }
-  if (changed(blueprint.sections.resources_markdown, classroom.sections.resources_markdown)) {
+  if (changed(
+    normalizedBlueprint.sections.resources_markdown,
+    normalizedClassroom.sections.resources_markdown,
+  )) {
     areas.push('resources')
   }
-  if (changed(blueprint.assignments, classroom.assignments)) areas.push('assignments')
-  if (changed(blueprint.assessments, classroom.assessments)) areas.push('tests')
-  if (changed(blueprint.lesson_templates, classroom.lesson_templates)) areas.push('lesson-plans')
-  if (changed(blueprint.materials, classroom.materials)) areas.push('materials')
-  if (changed(blueprint.surveys, classroom.surveys)) areas.push('surveys')
-  if (changed(blueprint.grading, classroom.grading)) areas.push('grading')
-  if (changed(blueprint.planned_site.config, classroom.planned_site.config)) {
+  if (changed(normalizedBlueprint.assignments, normalizedClassroom.assignments)) {
+    areas.push('assignments')
+  }
+  if (changed(normalizedBlueprint.assessments, normalizedClassroom.assessments)) {
+    areas.push('tests')
+  }
+  if (changed(
+    normalizedBlueprint.lesson_templates,
+    normalizedClassroom.lesson_templates,
+  )) {
+    areas.push('lesson-plans')
+  }
+  if (changed(normalizedBlueprint.materials, normalizedClassroom.materials)) {
+    areas.push('materials')
+  }
+  if (changed(normalizedBlueprint.surveys, normalizedClassroom.surveys)) {
+    areas.push('surveys')
+  }
+  if (changed(normalizedBlueprint.grading, normalizedClassroom.grading)) {
+    areas.push('grading')
+  }
+  if (changed(
+    normalizedBlueprint.planned_site.config,
+    normalizedClassroom.planned_site.config,
+  )) {
     areas.push('site-visibility')
   }
 
