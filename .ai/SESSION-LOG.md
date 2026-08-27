@@ -1003,13 +1003,17 @@ credential mutation.
   replaced password/mock-email-first setup, deployment, troubleshooting, and
   test-plan guidance across the README and core docs. A source-doc regression
   now prevents those retired primary-auth claims from returning.
+- Password-backed browser fixtures now require explicit legacy mode in both the
+  local quick start and controlled-preview workflow. The docs prohibit using
+  that fixture flow against default WorkOS previews or Production, and a
+  source-doc regression keeps the server, credentials, and selector aligned.
 - Runtime verification covers the default login/signup pages, password-page
   redirects, disabled legacy API, and unavailable unconfigured WorkOS send.
   Visual verification covers login, signup, and code entry on desktop/mobile in
   light/dark with no horizontal overflow. Teacher/student role variants are n/a
   because these are shared unauthenticated screens.
 
-**Verification:** full Vitest (5,154/5,154), production build, lint,
+**Verification:** full Vitest (5,159/5,159), production build, lint,
 full coverage (including 100% for `src/lib/auth.ts`),
 architecture/design/UI policy checks, Pika audit, configuration fail-fast
 regressions, and responsive Playwright capture review pass. Synthetic complete

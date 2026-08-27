@@ -185,7 +185,12 @@ E2E_BASE_URL=http://localhost:3000 pnpm run e2e:snapshots
 pnpm exec playwright show-report playwright-report
 ```
 
-**Remote workflow (e.g. a Vercel preview deployment)**:
+**Remote password-fixture workflow (controlled preview only)**:
+
+The target preview must be intentionally configured with
+`PIKA_LEGACY_PASSWORD_AUTH=true` and seeded password accounts. Do not use this
+fixture workflow against the default WorkOS preview or Production.
+
 ```bash
 E2E_BASE_URL=https://your-preview-url \
 E2E_TEACHER_EMAIL=your-seeded-teacher@example.com \

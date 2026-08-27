@@ -234,10 +234,10 @@ For visual UI verification during development, AI agents use the Playwright CLI 
 **Quick Start:**
 
 ```bash
-# 1. Start the dev server (in one terminal)
-pnpm dev
+# 1. Start the password-backed browser fixture server (in one terminal)
+PIKA_LEGACY_PASSWORD_AUTH=true pnpm dev
 
-# 2. Generate auth states (if needed)
+# 2. Generate auth states from the seeded password fixtures
 pnpm e2e:auth
 
 # 3. Take screenshot as teacher or student
