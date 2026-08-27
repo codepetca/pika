@@ -1112,6 +1112,16 @@ describe('TeacherClassroomView', () => {
   })
 
   it('uses the compact WYSIWYG preset for material content', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        material: makeMaterialSummary('material-new', 'Untitled Material', {
+          is_draft: true,
+          released_at: null,
+        }),
+      }),
+    })
+
     render(
       <TeacherClassroomView
         classroom={classroom}
@@ -1126,7 +1136,7 @@ describe('TeacherClassroomView', () => {
     const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
     expect(materialEditor).toHaveAttribute('contenteditable', 'true')
     expect(
-      within(screen.getByRole('dialog', { name: 'New Material' }))
+      within(screen.getByRole('dialog'))
         .getByRole('toolbar', { name: 'Formatting options' }),
     ).toHaveAttribute('data-toolbar-preset', 'compact')
   })

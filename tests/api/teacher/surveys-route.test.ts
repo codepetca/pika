@@ -909,7 +909,7 @@ describe('POST /api/teacher/surveys', () => {
       due_policy: 'soft',
     }))
     expect(data).toEqual({
-      error: 'Survey due dates are unavailable until migration 080 is applied.',
+      error: 'Survey due dates are unavailable until migration 134 is applied.',
       code: 'SURVEY_DUE_MIGRATION_REQUIRED',
       migration_required: true,
     })

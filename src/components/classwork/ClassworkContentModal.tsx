@@ -90,7 +90,7 @@ const SAVE_STATUS_TONE_CLASS = {
 
 const SAVE_STATUS_LABEL = {
   saved: 'Saved',
-  saving: 'Saving...',
+  saving: 'Saving…',
   unsaved: 'Unsaved',
 } as const
 
@@ -291,7 +291,7 @@ export function ClassworkModalSaveStatus({
   className,
 }: ClassworkModalSaveStatusProps) {
   return (
-    <span className={cn('text-xs', SAVE_STATUS_TONE_CLASS[status], className)}>
+    <span role="status" className={cn('text-xs', SAVE_STATUS_TONE_CLASS[status], className)}>
       {labels?.[status] ?? SAVE_STATUS_LABEL[status]}
     </span>
   )

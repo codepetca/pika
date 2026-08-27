@@ -18,6 +18,7 @@ import type {
   RepoReviewTimelinePoint,
   RepoReviewWarning,
   SurveyStatus,
+  SurveyDuePolicy,
   TestAiGradingRunErrorSample,
   TestAiGradingRunStatus,
   TestDocument,
@@ -212,8 +213,16 @@ type TableOverrides = {
   >
   surveys: TableContract<
     'surveys',
-    { status: SurveyStatus },
-    { status?: SurveyStatus }
+    {
+      due_at: string | null
+      due_policy: SurveyDuePolicy
+      status: SurveyStatus
+    },
+    {
+      due_at?: string | null
+      due_policy?: SurveyDuePolicy
+      status?: SurveyStatus
+    }
   >
   test_ai_grading_runs: TableContract<
     'test_ai_grading_runs',

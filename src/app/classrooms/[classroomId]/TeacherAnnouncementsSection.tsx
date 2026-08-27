@@ -673,7 +673,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                     className="flex min-h-9 min-w-0 items-center gap-2 rounded-control border border-warning bg-warning-bg px-3 text-sm font-medium text-warning hover:bg-surface-hover"
                   >
                     <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{formatDate(modalScheduledFor)}</span>
+                    <span className="truncate">{formatAnnouncementTimestamp(modalScheduledFor)}</span>
                   </button>
                   <Button
                     type="button"

@@ -7,7 +7,7 @@ import {
   ClassworkModalSplitAction,
   ClassworkModalTopLine,
 } from '@/components/classwork/ClassworkContentModal'
-import { RichTextEditor } from '@/components/editor'
+import { ContentField, RichTextEditor } from '@/components/editor'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { useAutosaveQueue } from '@/hooks/useAutosaveQueue'
 import {
@@ -22,7 +22,7 @@ import {
   getDisplayedMaterialTitle,
   isGeneratedMaterialTitle,
 } from '@/lib/materials'
-import { DialogPanel, FormField, useAppMessage } from '@/ui'
+import { DialogPanel, useAppMessage } from '@/ui'
 import type { Classroom, ClassworkMaterial, TiptapContent } from '@/types'
 
 type MaterialEditorValues = {
@@ -300,14 +300,16 @@ export function TeacherMaterialModal({
             ) : null}
           />
 
-          <FormField label="Content">
+          <ContentField label="Content">
             <RichTextEditor
               content={content}
               onChange={updateContent}
               editable={!saving && !creatingDraft && !isReadOnly}
               placeholder="Add links, notes, readings, or instructions..."
+              toolbarPreset="compact"
+              aria-label="Material content"
             />
-          </FormField>
+          </ContentField>
 
           {error && (
             <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

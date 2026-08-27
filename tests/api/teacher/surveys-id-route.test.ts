@@ -20,7 +20,7 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/server/surveys', () => ({
   assertTeacherOwnsSurvey: mockAssertTeacherOwnsSurvey,
   SURVEY_DUE_MIGRATION_REQUIRED: {
-    error: 'Survey due dates are unavailable until migration 080 is applied.',
+    error: 'Survey due dates are unavailable until migration 134 is applied.',
     code: 'SURVEY_DUE_MIGRATION_REQUIRED',
     migration_required: true,
   },
@@ -149,7 +149,7 @@ describe('PATCH /api/teacher/surveys/[id]', () => {
       due_policy: 'hard',
     })
     expect(data).toEqual({
-      error: 'Survey due dates are unavailable until migration 080 is applied.',
+      error: 'Survey due dates are unavailable until migration 134 is applied.',
       code: 'SURVEY_DUE_MIGRATION_REQUIRED',
       migration_required: true,
     })

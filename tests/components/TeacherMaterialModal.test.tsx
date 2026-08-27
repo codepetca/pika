@@ -1,10 +1,14 @@
 import { render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherMaterialModal } from '@/components/materials/TeacherMaterialModal'
 import type { Classroom, ClassworkMaterial } from '@/types'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
 vi.mock('@/components/editor', () => ({
+  ContentField: ({ label, children }: { label: string; children: ReactNode }) => (
+    <section aria-label={label}>{children}</section>
+  ),
   RichTextEditor: () => <div role="textbox" aria-label="Material content" />,
 }))
 

@@ -192,14 +192,13 @@ describe('announcement markdown rendering', () => {
   })
 
   it('renders a larger, vertically resizable creation textarea', async () => {
-    const { container } = render(teacherAnnouncementsElement(classroom))
+    render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
     fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
 
-    const titleInput = screen.getByPlaceholderText('Title (optional)')
-    const titleLabel = container.querySelector(`label[for="${titleInput.id}"]`)
-    expect(titleLabel).toHaveTextContent('Title')
+    const titleInput = screen.getByRole('textbox', { name: 'Title' })
+    expect(titleInput).toHaveAttribute('placeholder', 'Title (optional)')
     expect(screen.queryByPlaceholderText('Optional title')).not.toBeInTheDocument()
 
     const textarea = screen.getByRole('textbox', { name: 'Announcement body' })
@@ -621,7 +620,7 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
       target: { value: 'Edited Classroom A update' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
@@ -745,8 +744,8 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
       target: { value: 'Edited while switch is suspended' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Attempt classroom switch' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByText('Attempt classroom switch'))
 
     await act(async () => {
       editResponse.resolve(

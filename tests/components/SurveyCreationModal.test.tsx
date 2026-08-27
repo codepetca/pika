@@ -102,7 +102,7 @@ describe('SurveyCreationModal', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: false,
       json: async () => ({
-        error: 'Survey due dates are unavailable until migration 080 is applied.',
+        error: 'Survey due dates are unavailable until migration 134 is applied.',
         code: 'SURVEY_DUE_MIGRATION_REQUIRED',
         migration_required: true,
       }),
@@ -116,7 +116,7 @@ describe('SurveyCreationModal', () => {
       />
     )
 
-    expect(await screen.findByText('Survey due dates are unavailable until migration 080 is applied.')).toBeInTheDocument()
+    expect(await screen.findByText('Survey due dates are unavailable until migration 134 is applied.')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
   })

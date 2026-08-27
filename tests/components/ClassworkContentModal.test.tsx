@@ -8,6 +8,12 @@ import {
 import { ClassworkDueFields } from '@/components/classwork/ClassworkDueFields'
 
 describe('ClassworkContentModal presentation primitives', () => {
+  it('announces in-progress saves with the shared status copy', () => {
+    render(<ClassworkModalSaveStatus status="saving" />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+  })
+
   it('composes title, status, due controls, and publication actions without domain state', () => {
     const onTitleChange = vi.fn()
     const onDueDateChange = vi.fn()
