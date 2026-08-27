@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { updateMaterialRequestSchema } from '@/lib/validations/classwork-content'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -41,13 +42,11 @@ async function verifyMaterialOwnership(userId: string, classroomId: string, mate
 export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId, materialId } = await context.params
-  const body = await request.json()
-  const { title, content, is_draft: isDraft, released_at } = body as {
-    title?: string
-    content?: unknown
-    is_draft?: boolean
-    released_at?: string | null
+  const parsedBody = updateMaterialRequestSchema.safeParse(await request.json())
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: 'Invalid material request' }, { status: 400 })
   }
+  const { title, content, is_draft: isDraft, released_at } = parsedBody.data
 
   if (title === undefined && content === undefined && isDraft === undefined && released_at === undefined) {
     return NextResponse.json({ error: 'No changes provided' }, { status: 400 })
@@ -67,11 +66,7 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
     if (released_at === null) {
       parsedReleasedAt = null
     } else {
-      const parsed = new Date(released_at)
-      if (Number.isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: 'Invalid release date' }, { status: 400 })
-      }
-      parsedReleasedAt = parsed.toISOString()
+      parsedReleasedAt = new Date(released_at).toISOString()
     }
   }
 

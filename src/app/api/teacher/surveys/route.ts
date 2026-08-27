@@ -10,6 +10,7 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import { createSurveyRequestSchema } from '@/lib/validations/classwork-content'
 import type { SurveyDuePolicy } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -199,34 +200,14 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 
 export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   const user = await requireRole('teacher')
-  const body = await request.json()
-  const { classroom_id, title, show_results = true, dynamic_responses = false, due_at, due_policy = 'soft' } = body as {
-    classroom_id?: string
-    title?: string
-    show_results?: boolean
-    dynamic_responses?: boolean
-    due_at?: string | null
-    due_policy?: SurveyDuePolicy
+  const parsedBody = createSurveyRequestSchema.safeParse(await request.json())
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: 'Invalid survey request' }, { status: 400 })
   }
-
-  if (!classroom_id) {
-    return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
-  }
+  const { classroom_id, title, show_results, dynamic_responses, due_at, due_policy } = parsedBody.data
 
   const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
-  const validDuePolicies: SurveyDuePolicy[] = ['soft', 'hard']
-  if (!validDuePolicies.includes(due_policy)) {
-    return NextResponse.json({ error: 'Invalid due policy' }, { status: 400 })
-  }
-
-  let parsedDueAt: string | null = null
-  if (due_at) {
-    const parsed = new Date(due_at)
-    if (Number.isNaN(parsed.getTime())) {
-      return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
-    }
-    parsedDueAt = parsed.toISOString()
-  }
+  const parsedDueAt = due_at ? new Date(due_at).toISOString() : null
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {

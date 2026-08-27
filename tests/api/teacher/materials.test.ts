@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/materials/route'
+import { PATCH } from '@/app/api/teacher/classrooms/[id]/materials/[materialId]/route'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -61,6 +62,30 @@ describe('GET /api/teacher/classrooms/[id]/materials', () => {
 describe('POST /api/teacher/classrooms/[id]/materials', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it.each([
+    ['number', 1],
+    ['boolean', true],
+    ['object', { value: '2026-05-06T14:00:00.000Z' }],
+    ['offsetless timestamp', '2026-05-06T14:00:00'],
+  ])('rejects a %s release timestamp', async (_label, releasedAt) => {
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/materials', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'Reference',
+          content: doc,
+          is_draft: false,
+          released_at: releasedAt,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'c-1' }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'Invalid material request' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('creates a posted material without assignment docs or grades', async () => {
@@ -218,5 +243,30 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: 'Invalid content format' })
+  })
+})
+
+describe('PATCH /api/teacher/classrooms/[id]/materials/[materialId]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([
+    ['number', 1],
+    ['boolean', true],
+    ['object', { value: '2026-05-06T14:00:00.000Z' }],
+    ['offsetless timestamp', '2026-05-06T14:00:00'],
+  ])('rejects a %s release timestamp', async (_label, releasedAt) => {
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/materials/mat-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ released_at: releasedAt }),
+      }),
+      { params: Promise.resolve({ id: 'c-1', materialId: 'mat-1' }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'Invalid material request' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })

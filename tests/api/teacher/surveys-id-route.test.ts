@@ -66,6 +66,26 @@ describe('PATCH /api/teacher/surveys/[id]', () => {
     })
   })
 
+  it.each([
+    ['numeric due date', { due_at: 1 }],
+    ['boolean open date', { opens_at: true }],
+    ['object due date', { due_at: { value: '2026-01-02T20:30:00.000Z' } }],
+    ['offsetless open date', { opens_at: '2026-01-02T20:30:00' }],
+    ['string boolean', { dynamic_responses: 'true' }],
+  ])('rejects an invalid %s', async (_label, body) => {
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/surveys/survey-1', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'Invalid survey request' })
+    expect(mockAssertTeacherOwnsSurvey).not.toHaveBeenCalled()
+  })
+
   it('allows rescheduling an active scheduled survey without rejecting active-to-active updates', async () => {
     const update = vi.fn((payload: Record<string, unknown>) => ({
       eq: vi.fn(() => ({

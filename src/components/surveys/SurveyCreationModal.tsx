@@ -117,6 +117,7 @@ export function SurveyCreationModal({
   const [scheduleDate, setScheduleDate] = useState(getTodayInSchedulingTimezone())
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [workspaceSettingsBusy, setWorkspaceSettingsBusy] = useState(false)
   const initializedSurveyKeyRef = useRef<string | null>(null)
 
   const isCreateMode = !surveyId
@@ -366,16 +367,26 @@ export function SurveyCreationModal({
   }
 
   async function handleClose() {
-    if (creatingDraft || actionBusy) return
+    if (creatingDraft || actionBusy || workspaceSettingsBusy) return
     const flushed = await flushAutosave()
     if (flushed) {
       onClose()
     }
   }
 
-  function handleWorkspaceSurveyUpdated(updatedSurvey: Survey) {
+  async function handleBeforeWorkspaceSettingsMutation(): Promise<boolean> {
+    setWorkspaceSettingsBusy(true)
+    const flushed = await flushAutosave()
+    if (!flushed) setWorkspaceSettingsBusy(false)
+    return flushed
+  }
+
+  function handleWorkspaceSurveyUpdated(
+    updatedSurvey: Survey,
+    context?: { source: 'load' | 'mutation' },
+  ) {
     setCurrentSurvey((previous) => {
-      if (!previous || previous.id !== updatedSurvey.id) {
+      if (!previous || previous.id !== updatedSurvey.id || context?.source === 'mutation') {
         const nextValues = getSurveyValues(updatedSurvey)
         setTitle(nextValues.title)
         setShowResults(nextValues.showResults)
@@ -394,7 +405,7 @@ export function SurveyCreationModal({
     onQuestionCountChanged?.(nextSurveyId, nextQuestionsCount)
   }
 
-  const busy = creatingDraft || actionBusy || autosaveStatus === 'saving'
+  const busy = creatingDraft || actionBusy || workspaceSettingsBusy || autosaveStatus === 'saving'
   const surveyIsScheduled = currentSurvey ? isSurveyScheduled(currentSurvey) : false
   const isSurveyOpen = currentSurvey?.status === 'active' && !surveyIsScheduled
   const statusBadge = currentSurvey ? (
@@ -431,7 +442,7 @@ export function SurveyCreationModal({
         }
         titleId="survey-create-modal-title"
         closeLabel="Close survey modal"
-        closeDisabled={creatingDraft || actionBusy}
+        closeDisabled={creatingDraft || actionBusy || workspaceSettingsBusy}
         maxWidth="!max-w-6xl"
       >
         <div className="w-full space-y-4">
@@ -439,7 +450,7 @@ export function SurveyCreationModal({
             title={title}
             titlePlaceholder="Enter survey title"
             titleError={error}
-            titleDisabled={creatingDraft || isReadOnly}
+            titleDisabled={creatingDraft || workspaceSettingsBusy || isReadOnly}
             titleInputRef={titleInputRef}
             titleStatus={(
               <span className="inline-flex items-center gap-2">
@@ -458,7 +469,7 @@ export function SurveyCreationModal({
               <ClassworkDueFields
                 dueDate={dueDate}
                 dueTime={dueTime}
-                disabled={creatingDraft || isReadOnly}
+                disabled={creatingDraft || workspaceSettingsBusy || isReadOnly}
                 onDueDateChange={(nextDate) => {
                   setDueDate(nextDate)
                   updateValues({ dueDate: nextDate })
@@ -540,7 +551,7 @@ export function SurveyCreationModal({
           <div className="flex max-w-xl flex-col gap-3 sm:flex-row sm:flex-wrap">
             <AssessmentSetupCheckbox
               checked={showResults}
-              disabled={creatingDraft || isReadOnly}
+              disabled={creatingDraft || workspaceSettingsBusy || isReadOnly}
               onChange={(checked) => {
                 setShowResults(checked)
                 updateValues({ showResults: checked })
@@ -551,7 +562,7 @@ export function SurveyCreationModal({
 
             <AssessmentSetupCheckbox
               checked={dynamicResponses}
-              disabled={creatingDraft || isReadOnly}
+              disabled={creatingDraft || workspaceSettingsBusy || isReadOnly}
               onChange={(checked) => {
                 setDynamicResponses(checked)
                 updateValues({ dynamicResponses: checked })
@@ -571,6 +582,8 @@ export function SurveyCreationModal({
               embedded
               hideSettingsHeader
               surveyOverride={currentSurvey}
+              beforeSurveySettingsMutation={handleBeforeWorkspaceSettingsMutation}
+              onSurveySettingsMutationSettled={() => setWorkspaceSettingsBusy(false)}
               onBack={onClose}
               onSurveyUpdated={handleWorkspaceSurveyUpdated}
               onQuestionCountChanged={handleQuestionCountChanged}

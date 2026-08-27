@@ -593,6 +593,7 @@ describe('TeacherSurveyWorkspace', () => {
     })
     expect(onSurveyUpdated).toHaveBeenLastCalledWith(
       expect.objectContaining({ dynamic_responses: false }),
+      { source: 'mutation' },
     )
   })
 })

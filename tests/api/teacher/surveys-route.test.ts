@@ -746,6 +746,36 @@ describe('POST /api/teacher/surveys', () => {
     vi.clearAllMocks()
   })
 
+  it.each([
+    ['number', 1],
+    ['boolean', true],
+    ['object', { value: '2026-01-02T20:30:00.000Z' }],
+    ['offsetless timestamp', '2026-01-02T20:30:00'],
+  ])('rejects a %s survey due timestamp', async (_label, dueAt) => {
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/surveys', {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'classroom-1', due_at: dueAt }),
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'Invalid survey request' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('rejects non-boolean survey settings', async () => {
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/surveys', {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'classroom-1', show_results: 'true' }),
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   it('creates an untitled draft survey when no title is provided', async () => {
     const insertedSurvey = {
       id: 'survey-1',

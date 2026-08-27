@@ -5812,6 +5812,8 @@ export type Database = {
           classroom_id: string
           created_at: string
           created_by: string
+          due_at: string | null
+          due_policy: string
           dynamic_responses: boolean
           id: string
           opens_at: string | null
@@ -5829,6 +5831,8 @@ export type Database = {
           classroom_id: string
           created_at?: string
           created_by: string
+          due_at?: string | null
+          due_policy?: string
           dynamic_responses?: boolean
           id?: string
           opens_at?: string | null
@@ -5846,6 +5850,8 @@ export type Database = {
           classroom_id?: string
           created_at?: string
           created_by?: string
+          due_at?: string | null
+          due_policy?: string
           dynamic_responses?: boolean
           id?: string
           opens_at?: string | null

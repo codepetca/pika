@@ -45,8 +45,10 @@ interface TeacherSurveyWorkspaceProps {
   hideSettingsHeader?: boolean
   surveyOverride?: Survey | null
   onInitialEditModeConsumed?: () => void
+  beforeSurveySettingsMutation?: () => Promise<boolean>
+  onSurveySettingsMutationSettled?: () => void
   onBack: () => void
-  onSurveyUpdated: (survey: Survey) => void
+  onSurveyUpdated: (survey: Survey, context?: { source: 'load' | 'mutation' }) => void
   onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
   onSurveyDeleted: (surveyId: string) => void
 }
@@ -470,6 +472,8 @@ export function TeacherSurveyWorkspace({
   hideSettingsHeader = false,
   surveyOverride,
   onInitialEditModeConsumed,
+  beforeSurveySettingsMutation,
+  onSurveySettingsMutationSettled,
   onBack,
   onSurveyUpdated,
   onQuestionCountChanged,
@@ -534,7 +538,7 @@ export function TeacherSurveyWorkspace({
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
       const loadedQuestions = data.questions || []
       setDetail({ survey: data.survey, questions: loadedQuestions })
-      onSurveyUpdatedRef.current(data.survey)
+      onSurveyUpdatedRef.current(data.survey, { source: 'load' })
       onQuestionCountChangedRef.current?.(requestedSurveyId, loadedQuestions.length)
     } catch (err) {
       if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
@@ -627,7 +631,7 @@ export function TeacherSurveyWorkspace({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey title')
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
-      onSurveyUpdated(data.survey)
+      onSurveyUpdated(data.survey, { source: 'mutation' })
     } catch (err) {
       setTitleError(err instanceof Error ? err.message : 'Failed to update survey title')
     } finally {
@@ -649,7 +653,7 @@ export function TeacherSurveyWorkspace({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey')
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
-      onSurveyUpdated(data.survey)
+      onSurveyUpdated(data.survey, { source: 'mutation' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey')
     } finally {
@@ -674,7 +678,7 @@ export function TeacherSurveyWorkspace({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey due date')
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
-      onSurveyUpdated(data.survey)
+      onSurveyUpdated(data.survey, { source: 'mutation' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey due date')
     } finally {
@@ -750,6 +754,7 @@ export function TeacherSurveyWorkspace({
       return
     }
 
+    let coordinatedSettingsMutation = false
     try {
       let nextSurvey = survey
       const surveyUpdate: Record<string, unknown> = {}
@@ -762,6 +767,10 @@ export function TeacherSurveyWorkspace({
       }
 
       if (Object.keys(surveyUpdate).length > 0) {
+        if (beforeSurveySettingsMutation) {
+          coordinatedSettingsMutation = true
+          if (!(await beforeSurveySettingsMutation())) return
+        }
         const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -816,7 +825,7 @@ export function TeacherSurveyWorkspace({
         .slice()
         .sort((left, right) => left.position - right.position)
       setDetail({ survey: nextSurvey, questions: nextQuestions })
-      onSurveyUpdated(nextSurvey)
+      onSurveyUpdated(nextSurvey, { source: 'mutation' })
       onQuestionCountChanged?.(surveyId, nextQuestions.length)
 
       const nextMarkdown = surveyToMarkdown({ survey: nextSurvey, questions: nextQuestions })
@@ -826,6 +835,7 @@ export function TeacherSurveyWorkspace({
     } catch (err) {
       setSurveyMarkdownError(err instanceof Error ? err.message : 'Failed to apply markdown')
     } finally {
+      if (coordinatedSettingsMutation) onSurveySettingsMutationSettled?.()
       setSurveyMarkdownSaving(false)
     }
   }

@@ -8,6 +8,7 @@ import {
   SURVEY_DUE_MIGRATION_REQUIRED,
 } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { updateSurveyRequestSchema } from '@/lib/validations/classwork-content'
 import type { SurveyDuePolicy, SurveyStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -44,16 +45,11 @@ export const GET = withErrorHandler('GetTeacherSurvey', async (_request, context
 export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  const { title, status, show_results, dynamic_responses, opens_at, due_at, due_policy } = body as {
-    title?: string
-    status?: SurveyStatus
-    show_results?: boolean
-    dynamic_responses?: boolean
-    opens_at?: string | null
-    due_at?: string | null
-    due_policy?: SurveyDuePolicy
+  const parsedBody = updateSurveyRequestSchema.safeParse(await request.json())
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: 'Invalid survey request' }, { status: 400 })
   }
+  const { title, status, show_results, dynamic_responses, opens_at, due_at, due_policy } = parsedBody.data
 
   const access = await assertTeacherOwnsSurvey(user.id, id, { checkArchived: true })
   if (!access.ok) {
@@ -67,11 +63,7 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     if (opens_at === null) {
       parsedOpensAt = null
     } else {
-      const parsed = new Date(opens_at)
-      if (Number.isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: 'Invalid open date' }, { status: 400 })
-      }
-      parsedOpensAt = parsed.toISOString()
+      parsedOpensAt = new Date(opens_at).toISOString()
     }
   }
 
@@ -80,29 +72,13 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     if (due_at === null) {
       parsedDueAt = null
     } else {
-      const parsed = new Date(due_at)
-      if (Number.isNaN(parsed.getTime())) {
-        return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
-      }
-      parsedDueAt = parsed.toISOString()
-    }
-  }
-
-  if (due_policy !== undefined) {
-    const validDuePolicies: SurveyDuePolicy[] = ['soft', 'hard']
-    if (!validDuePolicies.includes(due_policy)) {
-      return NextResponse.json({ error: 'Invalid due policy' }, { status: 400 })
+      parsedDueAt = new Date(due_at).toISOString()
     }
   }
 
   const isStatusChange = status !== undefined && status !== existing.status
 
   if (status !== undefined) {
-    const validStatuses: SurveyStatus[] = ['draft', 'active', 'closed']
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
-
     if (isStatusChange && existing.status === 'active' && status === 'draft' && hasSurveyOpened(existing)) {
       return NextResponse.json(
         { error: 'Cannot revert a survey that has already opened to draft' },

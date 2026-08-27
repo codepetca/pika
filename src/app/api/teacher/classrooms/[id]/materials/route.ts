@@ -4,6 +4,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
+import { createMaterialRequestSchema } from '@/lib/validations/classwork-content'
 import type { TiptapContent } from '@/types'
 import type { TableInsert } from '@/types/database'
 
@@ -67,13 +68,11 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
 export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
-  const body = await request.json()
-  const { title, content, is_draft: isDraft = true, released_at } = body as {
-    title?: string
-    content?: unknown
-    is_draft?: boolean
-    released_at?: string | null
+  const parsedBody = createMaterialRequestSchema.safeParse(await request.json())
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: 'Invalid material request' }, { status: 400 })
   }
+  const { title, content, is_draft: isDraft, released_at } = parsedBody.data
 
   const cleanTitle = title?.trim()
   if (!cleanTitle) {
@@ -86,11 +85,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
 
   let parsedReleasedAt: string | null = null
   if (!isDraft && released_at) {
-    const parsed = new Date(released_at)
-    if (Number.isNaN(parsed.getTime())) {
-      return NextResponse.json({ error: 'Invalid release date' }, { status: 400 })
-    }
-    parsedReleasedAt = parsed.toISOString()
+    parsedReleasedAt = new Date(released_at).toISOString()
   }
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
