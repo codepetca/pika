@@ -269,6 +269,47 @@ describe('Blueprint test-question identity migration', () => {
     )
   })
 
+  it('locks Classroom before Test for student save and submission RPCs', () => {
+    const atomicSubmitContract = readFileSync(
+      resolve(process.cwd(), 'scripts/check-atomic-test-submit.sh'),
+      'utf8',
+    )
+
+    for (const name of ['save_test_attempt_atomic', 'submit_test_attempt_atomic']) {
+      const definition = functionDefinition(name)
+      const discovery = definition.indexOf('from public.tests test')
+      const classroomLock = definition.indexOf('from public.classrooms classroom')
+      const testLock = definition.indexOf('from public.tests test', discovery + 1)
+      const legacyCall = definition.indexOf(`private.${name}_pre_parent_lock_order`)
+
+      expect(discovery).toBeGreaterThanOrEqual(0)
+      expect(classroomLock).toBeGreaterThan(discovery)
+      expect(testLock).toBeGreaterThan(classroomLock)
+      expect(legacyCall).toBeGreaterThan(testLock)
+      expect(definition.slice(discovery, classroomLock)).not.toContain('for share;')
+      expect(definition.slice(classroomLock, testLock)).toContain('for share;')
+      expect(definition.slice(testLock, legacyCall)).toContain('for share;')
+      expect(definition.slice(testLock, legacyCall)).toContain(
+        'test.classroom_id = v_classroom_id',
+      )
+    }
+
+    expect(migration).toContain(
+      'set schema private;',
+    )
+    expect(migration).toContain(
+      'revoke all on function private.save_test_attempt_atomic_pre_parent_lock_order',
+    )
+    expect(migration).toContain(
+      'revoke all on function private.submit_test_attempt_atomic_pre_parent_lock_order',
+    )
+    expect(atomicSubmitContract).toContain('run_parent_order_race save 41')
+    expect(atomicSubmitContract).toContain('run_parent_order_race submit 42')
+    expect(atomicSubmitContract).toContain(
+      'attempt held Test while waiting for Classroom',
+    )
+  })
+
   it('maps active classroom capture questions by stable identity', () => {
     const definition = functionDefinition(
       'create_course_blueprint_atomic_v2_pre_managed_storage',
@@ -512,6 +553,9 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(migrationLifecycleContract).toContain(
       'supabase db reset --local --version 133 --no-seed',
+    )
+    expect(migrationLifecycleContract).toContain(
+      'pnpm exec tsx scripts/check-test-question-identity-pre-migration.ts',
     )
     expect(migrationLifecycleContract).toContain('supabase migration up --local')
     expect(migrationLifecycleContract).toContain(

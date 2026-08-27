@@ -1156,3 +1156,33 @@ this is a teacher-only surface.
 
 **Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
 for one bounded independent correctness and requirements review.
+
+## 2026-08-27 — Close Test identity release-safety gaps
+
+**Risk profile:** runtime-platform — cross-version Test authoring compatibility
+and Classroom/Test database lock ordering; no database was reset or migrated
+and no hosted state changed.
+
+- Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
+  marked portable question IDs back to exact legacy row IDs for persistence and
+  activation while continuing to return the portable API contract. Draft-only
+  UUIDs remain valid, and the fallback becomes unreachable when migration 134's
+  atomic RPCs exist.
+- Added a real pre-migration integration contract to the disposable CI lifecycle:
+  it runs save and activation against migration 133, covers the production-shaped
+  row-ID/portable-ID collision, then applies migration 134 and verifies the same
+  Test through the portable-only path.
+- Wrapped student attempt save and submission so both acquire Classroom before
+  Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
+  The original migration-088 implementations moved behind non-callable private
+  functions, preserving behavior without exposing a bypass.
+- Added database races for teacher question authoring versus both student
+  autosave and submission. A third lock probe proves the student writer does not
+  retain Test while waiting for Classroom, and both RPCs must complete without
+  SQLSTATE 40P01 or partial state.
+- The full 5,155-test suite, focused 63-test Test identity/API suite, TypeScript,
+  lint, Pika audit, shell syntax, diff validation, and production build pass.
+  The disposable migration replay remains CI-authoritative.
+
+**Model recommendation:** GPT-5.6 Sol for the migration/concurrency correction
+and GPT-5.6 Terra for cross-version compatibility review.

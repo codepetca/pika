@@ -314,6 +314,149 @@ begin
 end;
 $$;
 
+-- Migration 088 acquired Test and Classroom row locks through one joined
+-- SELECT. PostgreSQL currently locks the Test row first for that plan, which is
+-- the reverse of the Classroom -> Test order used by Test authoring, archive,
+-- Blueprint reuse, and the child-mutation trigger above. Preserve the proven
+-- attempt implementations behind private wrappers, but fence each call in the
+-- global parent-first order before the legacy body reacquires those same locks.
+alter function public.save_test_attempt_atomic(uuid, uuid, jsonb)
+  rename to save_test_attempt_atomic_pre_parent_lock_order;
+alter function public.save_test_attempt_atomic_pre_parent_lock_order(uuid, uuid, jsonb)
+  set schema private;
+
+alter function public.submit_test_attempt_atomic(uuid, uuid, jsonb, timestamptz)
+  rename to submit_test_attempt_atomic_pre_parent_lock_order;
+alter function public.submit_test_attempt_atomic_pre_parent_lock_order(
+  uuid,
+  uuid,
+  jsonb,
+  timestamptz
+)
+  set schema private;
+
+revoke all on function private.save_test_attempt_atomic_pre_parent_lock_order(
+  uuid,
+  uuid,
+  jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function private.submit_test_attempt_atomic_pre_parent_lock_order(
+  uuid,
+  uuid,
+  jsonb,
+  timestamptz
+) from public, anon, authenticated, service_role;
+
+create or replace function public.save_test_attempt_atomic(
+  p_test_id uuid,
+  p_student_id uuid,
+  p_responses jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_classroom_id uuid;
+begin
+  select test.classroom_id
+    into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+
+  if not found then
+    raise exception 'Test not found' using errcode = 'P0002';
+  end if;
+
+  perform 1
+  from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for share;
+
+  if not found then
+    raise exception 'Classroom not found' using errcode = 'P0002';
+  end if;
+
+  perform 1
+  from public.tests test
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+  for share;
+
+  if not found then
+    raise exception 'Test not found' using errcode = 'P0002';
+  end if;
+
+  return private.save_test_attempt_atomic_pre_parent_lock_order(
+    p_test_id,
+    p_student_id,
+    p_responses
+  );
+end;
+$$;
+
+create or replace function public.submit_test_attempt_atomic(
+  p_test_id uuid,
+  p_student_id uuid,
+  p_responses jsonb,
+  p_submitted_at timestamptz default now()
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_classroom_id uuid;
+begin
+  select test.classroom_id
+    into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+
+  if not found then
+    raise exception 'Test not found' using errcode = 'P0002';
+  end if;
+
+  perform 1
+  from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for share;
+
+  if not found then
+    raise exception 'Classroom not found' using errcode = 'P0002';
+  end if;
+
+  perform 1
+  from public.tests test
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+  for share;
+
+  if not found then
+    raise exception 'Test not found' using errcode = 'P0002';
+  end if;
+
+  return private.submit_test_attempt_atomic_pre_parent_lock_order(
+    p_test_id,
+    p_student_id,
+    p_responses,
+    p_submitted_at
+  );
+end;
+$$;
+
+revoke all on function public.save_test_attempt_atomic(uuid, uuid, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.save_test_attempt_atomic(uuid, uuid, jsonb)
+  to service_role;
+
+revoke all on function public.submit_test_attempt_atomic(uuid, uuid, jsonb, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.submit_test_attempt_atomic(uuid, uuid, jsonb, timestamptz)
+  to service_role;
+
 -- Test authoring and activation use one global writer order: Classroom, Test,
 -- Draft, then question rows. A draft save that owns those locks first is
 -- included in activation, while stale activation fails its version fence.
