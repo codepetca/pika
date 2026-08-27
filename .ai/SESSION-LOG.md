@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-21 — Add classroom-scoped feature visibility
-
-**Risk profile:** workspace-state + exam-mode — per-classroom navigation,
-student notifications, direct-link routing, assessment visibility, and one
-additive schema migration. Migration 128 was explicitly authorized and applied
-only to the local Supabase database; no hosted environment was changed.
-
-**Implemented:**
-- Added one default-on classroom feature contract for Attendance, Classwork,
-  Tests, Gradebook, Calendar, Syllabus, Announcements, and Pal-gated
-  Achievements; Daily/Today, Roster, and Settings remain permanent.
-- Added teacher Settings switches with complete-record validation, optimistic
-  persistence, rollback, archived read-only behavior, and a Gradebook dependency
-  on Classwork or Tests.
-- Centralized teacher/student sidebar filtering, workspace mounting, stale URL
-  fallback, prefetch suppression, notification counts, and Calendar-embedded
-  assignment/announcement visibility.
-- Authored migration 128 with a constrained JSON default and cold-archive row
-  normalization so pre-128 archives restore with all features enabled.
-- Documented the teacher/student tab mapping and rollout contract in
-  `docs/guidance/classroom-feature-visibility.md`.
-
-**Verification completed:**
-- All 4,901 tests across 560 files, TypeScript, lint, production build,
-  architecture, design policy,
-  UI policy, generated database contract, diff checks, and the Pika pre-commit
-  audit pass.
-- Composite-widget accessibility review passes: labeled group, semantic pressed
-  and switch state, roving keyboard focus, arrow/Home/End behavior, and tests.
-- Local migration history, column/default/constraint shape, existing rows, and
-  cold-archive normalization were checked after applying migration 128; generated
-  database types now include `feature_visibility`.
-- Playwright verification passed for teacher and student desktop/mobile views in
-  light/dark themes, including enabled/hidden Settings states, filtered nav,
-  direct-link fallbacks, hidden notification counts, and restoration to defaults.
-
 ## 2026-08-21 — Adopt the minimal Pal level-up celebration
 
 **Risk profile:** none — student-only presentation and reward-modal dismissal;
@@ -980,6 +944,7 @@ layout, API, schema, persistence, authentication, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Terra at high reasoning for a standard-risk
 application state-transition review.
+
 ## 2026-08-27 — Keep Daily class-log summaries minimal
 
 **Risk profile:** runtime-platform — AI summary policy, untrusted-output boundary,
@@ -1000,11 +965,16 @@ dependency, migration, deployment, or hosted state changed.
   runtime validation rejects unknown/duplicate references and extra fields, and
   all visible wording is derived server-side.
 - Versioned cached summaries retire legacy broad summaries instead of serving
-  them as current. The teacher sees concise unavailable copy for those dates.
-- A synthetic live-model matrix passed 5/5 explicit high-priority cases and 7/7
-  routine/vague exclusions. A forged log boundary stayed attributed to its
+  them as current, including stale and malformed historical shapes. The teacher
+  sees concise unavailable copy for those dates.
+- Successful model responses must now be complete and non-refusal before their
+  schema-valid output can be accepted; incomplete and mixed refusal/output
+  payloads fail closed.
+- A committed, reproducible synthetic live-model matrix passed 5/5 explicit
+  high-priority cases and 7/7 routine/vague exclusions with zero category or
+  attribution mismatches. A forged log boundary stayed attributed to its
   submitting log and never to the targeted student.
-- Focused unit, cron, teacher API, and component suites pass (59/59). Visual
+- Focused unit, cron, teacher API, and component suites pass (65/65). Visual
   verification of the teacher unavailable state passed on desktop/mobile in
   light/dark with no overflow; student is n/a because the panel is teacher-only.
 - Pika audit, lint, architecture, TypeScript, session-log, and diff checks pass.
