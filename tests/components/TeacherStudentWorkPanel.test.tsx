@@ -365,12 +365,8 @@ describe('TeacherStudentWorkPanel', () => {
     ])
 
     const gradesSection = screen.getByTestId('inspector-section-grades')
-    const authenticitySummary = screen.getByText('Authenticity 64%')
-    const gradeSummary = within(gradesSection).getByText('0%')
-    expect(authenticitySummary).toHaveClass('text-text-muted', 'tabular-nums')
-    expect(gradeSummary).toHaveClass('text-text-default', 'tabular-nums')
-    expect(authenticitySummary.closest('.text-right')).toBeInTheDocument()
-    expect(gradeSummary.closest('.text-right')).toBeInTheDocument()
+    expect(screen.getByText('Authenticity 64%')).toBeInTheDocument()
+    expect(within(gradesSection).getByText('0%')).toBeInTheDocument()
     expect(within(gradesSection).getByText('Total')).toBeInTheDocument()
     expect(within(gradesSection).getByText('30')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Comments' })).toBeInTheDocument()
@@ -1344,7 +1340,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByText('Iteration')).not.toBeInTheDocument()
   })
 
-  it('keeps TeacherWorkInspector summary clicks and keyboard toggles accessible', async () => {
+  it('toggles collapsed cards when clicking the header summary area', async () => {
     mockFetchByStudent({
       'student-1': { graded: false },
     })
@@ -1372,14 +1368,6 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(historySummary!)
 
     expect(screen.getByTestId('history-list')).toBeInTheDocument()
-
-    const historyHeader = within(historySection).getByRole('button', { name: 'History' })
-    historyHeader.focus()
-    await user.keyboard('{Enter}')
-    expect(historyHeader).toHaveAttribute('aria-expanded', 'false')
-    await waitFor(() => {
-      expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
-    })
   })
 
   it('updates the individual-mode preview when hovering a history entry', async () => {

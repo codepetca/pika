@@ -987,7 +987,7 @@ cross-role visual verification.
 **Completed:**
 - Rebased the classwork modal branch onto current `origin/main` and resolved the modal/editor integration with main's compact WYSIWYG and loading-state changes.
 - Resequenced the survey due-policy migration to `134_add_survey_due_policy.sql` and updated its typed database contract and migration-required responses.
-- Simplified the Classwork inspector's authenticity and grade summaries, harmonized shared save-status accessibility/copy, and refreshed affected regression tests.
+- Harmonized shared save-status accessibility/copy and refreshed affected regression tests.
 
 **Validation:**
 - Focused changed-file regressions (230 passed); final rebased full suite (5,154 passed)
@@ -1001,5 +1001,5 @@ cross-role visual verification.
 - Removed those four hardened routes from the deletion-only API Zod-debt baseline.
 - TypeScript, lint, architecture, UI-control policy, design policy, production build,
   `git diff --check`, and Pika audit passed.
-- Teacher inspector and shared modal controls were reviewed on desktop/mobile in
-  light and dark with no horizontal overflow; student view is not applicable.
+- Shared modal controls were reviewed on desktop/mobile in light and dark with
+  no horizontal overflow; student view is not applicable.
