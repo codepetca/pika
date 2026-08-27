@@ -11,51 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-21 — Adopt the minimal Pal level-up celebration
-
-**Risk profile:** none — student-only presentation and reward-modal dismissal;
-no schema, grading, assessment, workspace persistence, or hosted state changed.
-
-**Implemented:**
-- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
-- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
-  host-managed reward modal and removed the normal Continue action.
-- Preserved Pika ownership of dialog semantics, focus containment, Escape,
-  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
-  acknowledgement keeps the modal visible and restores Pal's Retry action.
-- Updated the Pal pilot integration contract and minimal title-presentation
-  expectations.
-
-**Verification:**
-- Focused student Pal experience and widget theme-contract suites pass 17 tests;
-  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
-- Playwright verification passed for the student modal on desktop/mobile in
-  light/dark themes, including launch/linger visuals, Escape and backdrop
-  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
-  is not applicable because Pal reward layers mount only for students.
-- Composite-widget accessibility checklist reviewed: keyboard behavior covered
-  yes; semantic state covered by tests yes; remaining manual follow-up none.
-
-## 2026-08-21 — Make teacher CLI hints invocation-aware
-
-**Risk profile:** none — teacher CLI help and recovery text only; no application
-runtime, schema, hosted environment, deployment, or database state changed.
-
-**Completed:**
-- Derived the copy-pasteable command prefix from the global launcher's existing
-  `PIKA_ORIGIN_PWD` handoff, so global runs print `pika ...` while package-script
-  runs print `pnpm pika ...`.
-- Applied the detected invocation consistently to help, usage errors, login and
-  expired-session recovery, Blueprint follow-up, and Classroom undo hints.
-- Replaced the stale `course pull/push/instantiate` error text with the current
-  Blueprint commands while retaining newer proposal, apply, and delete commands.
-- Added behavior-level regression coverage through both real entry points with
-  a local mock API for help/errors, recovery, Next, and Undo output.
-
-**Verification:**
-- Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
-- Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
-
 ## 2026-08-21 — Center the first-login Pal reward
 
 **Risk profile:** none — student-only reward-modal layout and regression coverage;
@@ -919,6 +874,7 @@ no workflow, API, schema, persistence, dependency, or hosted state changed.
   shared local environment has no Supabase URL or keys.
 
 **Model recommendation:** current model for a narrow, accessible UI refinement.
+
 ## 2026-08-27 — Return Pika logo navigation to active classrooms
 
 **Risk profile:** none — localized teacher classroom-list state transition; no
@@ -988,3 +944,36 @@ dependency, migration, deployment, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the untrusted AI-output, attribution,
 safety-threshold, cache-compatibility, and review remediation boundary.
+
+## 2026-08-27 — Make the titlebar Classroom title static
+
+**Risk profile:** none — shared titlebar interaction removal only; no API,
+schema, persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the multi-Classroom selector in `AppHeader` with the same static,
+  truncated Classroom title treatment used for a single Classroom. Clicking the
+  title now has no behavior; the Pika logo remains the Home link to
+  `/classrooms`.
+- Removed the unused selector component, its switching/navigation guard
+  plumbing, its focused test suite, and the now-stale UI/design exception
+  registry entries. Added AppHeader coverage proving multiple Classrooms still
+  render the current title without a selector or listbox and remain inert when
+  clicked, plus shell/exam-source wiring contracts that prevent the removed
+  callback from returning.
+- Focused Vitest passes (54/54); lint, TypeScript, architecture, UI policy,
+  design policy, Pika audit, and diff checks pass.
+- Playwright rendered the real AppHeader for teacher and student at
+  desktop/mobile in light/dark. All eight captures passed visual review with no
+  overflow, truncation, alignment, or contrast regressions; direct browser
+  clicks left the titlebar unchanged and desktop snapshots retained the linked
+  Pika logo. The temporary visual harness was removed after capture because the
+  shared local environment has no Supabase URL or keys.
+- Composite-widget review: the Classroom dropdown was removed completely, so
+  its menu keyboard/focus contract and exception entries are no longer
+  applicable. Existing UserMenu and mobile navigation controls are unchanged.
+- Independent PR review found no merge blockers. Its one P3 documentation
+  finding was fixed by updating the shared-header comment from Classroom
+  selector to Classroom title.
+
+**Model recommendation:** GPT-5.6 Sol for a shared-shell behavior removal with
+cross-role visual verification.

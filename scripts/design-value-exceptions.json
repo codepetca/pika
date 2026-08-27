@@ -470,30 +470,6 @@
       ]
     },
     {
-      "file": "src/components/ClassroomDropdown.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "451b7b47ec4cd7be",
-          "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "dd7dae98312857f9",
-          "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "3eef1ce97dba458a",
-          "reason": "special-layer"
-        }
-      ]
-    },
-    {
       "file": "src/components/creation/CreationModalShell.tsx",
       "reviewBy": "phase-3-creation-flows",
       "values": [

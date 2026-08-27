@@ -5,7 +5,6 @@ import { ClockAlert, LogOut, Maximize, Menu, Minimize } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
 import { Tooltip } from '@/ui'
@@ -28,10 +27,8 @@ interface AppHeaderProps {
     themeColor: ClassroomThemeColor
   }>
   currentClassroomId?: string
-  currentTab?: string
   onOpenSidebar?: () => void
   onNavigateHome?: (href: string) => boolean
-  onNavigateClassroom?: (href: string) => boolean
   examModeHeader?: {
     testTitle: string
     exitsCount: number
@@ -50,16 +47,14 @@ function formatDuration(totalSeconds: number): string {
 const EXIT_COUNT_PULSE_MS = 1600
 
 /**
- * Compact global header (48px) with logo, classroom selector, date, and user menu.
+ * Compact global header (48px) with logo, classroom title, date, and user menu.
  */
 export function AppHeader({
   user,
   classrooms,
   currentClassroomId,
-  currentTab,
   onOpenSidebar,
   onNavigateHome,
-  onNavigateClassroom,
   examModeHeader,
   pageTitle,
 }: AppHeaderProps) {
@@ -82,6 +77,7 @@ export function AppHeader({
       ? 'text-base sm:text-lg'
       : 'text-sm'
   const themedClassroom = classrooms?.find((classroom) => classroom.id === currentClassroomId)
+  const currentClassroom = themedClassroom ?? classrooms?.[0]
   const classroomTheme = themedClassroom ? getClassroomThemeDefinition(themedClassroom.themeColor) : null
   const headerStyle = classroomTheme ? getClassroomThemeStyle(classroomTheme.value) : undefined
   const usesMobileClassroomNavigation = Boolean(onOpenSidebar) && !isExamMode && !pageTitle
@@ -188,15 +184,11 @@ export function AppHeader({
           </Link>
         </Tooltip>
 
-        {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
-        {classrooms && classrooms.length > 0 && (
-          <ClassroomDropdown
-            className="ml-1 min-w-0 sm:ml-4"
-            classrooms={classrooms}
-            currentClassroomId={currentClassroomId}
-            currentTab={currentTab}
-            onBeforeNavigate={onNavigateClassroom}
-          />
+        {/* Classroom title */}
+        {currentClassroom && (
+          <div className="ml-1 max-w-full min-w-0 truncate text-xl font-bold text-text-default sm:ml-4 sm:max-w-xs">
+            {currentClassroom.title}
+          </div>
         )}
       </div>
 

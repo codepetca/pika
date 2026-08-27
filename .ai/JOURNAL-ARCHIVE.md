@@ -23537,3 +23537,49 @@ only to the local Supabase database; no hosted environment was changed.
 - Playwright verification passed for teacher and student desktop/mobile views in
   light/dark themes, including enabled/hidden Settings states, filtered nav,
   direct-link fallbacks, hidden notification counts, and restoration to defaults.
+
+<!-- pika-session-log-archive-batch:e512325d56777bf8e16981d2d8ed75f1e52197f0412671ea42155263d1ae82f9 -->
+## 2026-08-21 — Adopt the minimal Pal level-up celebration
+
+**Risk profile:** none — student-only presentation and reward-modal dismissal;
+no schema, grading, assessment, workspace persistence, or hosted state changed.
+
+**Implemented:**
+- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
+- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
+  host-managed reward modal and removed the normal Continue action.
+- Preserved Pika ownership of dialog semantics, focus containment, Escape,
+  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
+  acknowledgement keeps the modal visible and restores Pal's Retry action.
+- Updated the Pal pilot integration contract and minimal title-presentation
+  expectations.
+
+**Verification:**
+- Focused student Pal experience and widget theme-contract suites pass 17 tests;
+  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright verification passed for the student modal on desktop/mobile in
+  light/dark themes, including launch/linger visuals, Escape and backdrop
+  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
+  is not applicable because Pal reward layers mount only for students.
+- Composite-widget accessibility checklist reviewed: keyboard behavior covered
+  yes; semantic state covered by tests yes; remaining manual follow-up none.
+
+## 2026-08-21 — Make teacher CLI hints invocation-aware
+
+**Risk profile:** none — teacher CLI help and recovery text only; no application
+runtime, schema, hosted environment, deployment, or database state changed.
+
+**Completed:**
+- Derived the copy-pasteable command prefix from the global launcher's existing
+  `PIKA_ORIGIN_PWD` handoff, so global runs print `pika ...` while package-script
+  runs print `pnpm pika ...`.
+- Applied the detected invocation consistently to help, usage errors, login and
+  expired-session recovery, Blueprint follow-up, and Classroom undo hints.
+- Replaced the stale `course pull/push/instantiate` error text with the current
+  Blueprint commands while retaining newer proposal, apply, and delete commands.
+- Added behavior-level regression coverage through both real entry points with
+  a local mock API for help/errors, recovery, Next, and Undo output.
+
+**Verification:**
+- Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
+- Lint, production build, architecture boundaries, and Pika pre-commit audit pass.

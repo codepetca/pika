@@ -106,6 +106,28 @@ describe('AppHeader exam mode', () => {
 })
 
 describe('AppHeader classroom theme', () => {
+  it('renders the current classroom title as static text when multiple classrooms are available', () => {
+    render(
+      <AppHeader
+        classrooms={[
+          { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' },
+          { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' },
+        ]}
+        currentClassroomId="class-2"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const title = screen.getByText('Beta')
+    expect(title).toHaveClass('truncate', 'text-xl', 'font-bold')
+    expect(screen.queryByRole('button', { name: 'Select classroom' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+    fireEvent.click(title)
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
   it('themes the appbar from the current classroom color', () => {
     render(
       <AppHeader
@@ -143,7 +165,7 @@ describe('AppHeader classroom theme', () => {
     const leftSection = screen.getByRole('button', { name: 'Open classroom navigation' }).parentElement
     expect(leftSection).toHaveClass('col-span-2', 'lg:col-span-1')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('hidden', 'lg:flex')
-    expect(screen.getByText('A Longer Classroom Name').closest('div')).toHaveClass('max-w-full')
+    expect(screen.getByText('A Longer Classroom Name')).toHaveClass('max-w-full')
   })
 
   it('keeps the brand logo on unthemed appbars', () => {

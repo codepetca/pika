@@ -166,7 +166,6 @@ const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
 const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',
   'home_navigation',
-  'classroom_switch',
 ])
 const EXAM_LIFECYCLE_EXIT_SOURCES = new Set([
   'beforeunload',

@@ -439,17 +439,6 @@
       ]
     },
     {
-      "file": "src/components/ClassroomDropdown.tsx",
-      "reviewBy": "phase-2-shared-foundation-debt",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 2,
-          "reason": "composite-widget"
-        }
-      ]
-    },
-    {
       "file": "src/components/CreateClassroomModal.tsx",
       "reviewBy": "phase-3-dashboard-roster",
       "controls": [

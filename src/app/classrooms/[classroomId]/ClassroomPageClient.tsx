@@ -631,17 +631,6 @@ function ClassroomPageContent({
     })
   }, [requestExamModeNavigation])
 
-  const handleClassroomNavigationAttempt = useCallback((href: string) => {
-    return requestExamModeNavigation({
-      targetLabel: 'another classroom',
-      source: 'classroom_switch',
-      nextTab: null,
-      navigate: () => {
-        window.location.assign(href)
-      },
-    })
-  }, [requestExamModeNavigation])
-
   useEffect(() => {
     setMountedTabs((previous) => {
       const next = Object.fromEntries(
@@ -1268,10 +1257,8 @@ function ClassroomPageContent({
             ]
       }
       currentClassroomId={classroom.id}
-      currentTab={activeTab}
       onOpenSidebar={hideLeftRailForExamMode ? undefined : openLeft}
       onNavigateHome={handleHomeNavigationAttempt}
-      onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
       examModeHeader={examHeaderData}

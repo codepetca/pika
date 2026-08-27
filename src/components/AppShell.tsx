@@ -21,10 +21,8 @@ interface AppShellProps {
     themeColor: ClassroomThemeColor
   }>
   currentClassroomId?: string
-  currentTab?: string
   onOpenSidebar?: () => void
   onNavigateHome?: (href: string) => boolean
-  onNavigateClassroom?: (href: string) => boolean
   mainClassName?: string
   constrainToViewport?: boolean
   examModeHeader?: {
@@ -46,10 +44,8 @@ export function AppShell({
   user,
   classrooms,
   currentClassroomId,
-  currentTab,
   onOpenSidebar,
   onNavigateHome,
-  onNavigateClassroom,
   mainClassName,
   constrainToViewport = false,
   examModeHeader,
@@ -65,10 +61,8 @@ export function AppShell({
           user={user}
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
-          currentTab={currentTab}
           onOpenSidebar={onOpenSidebar}
           onNavigateHome={onNavigateHome}
-          onNavigateClassroom={onNavigateClassroom}
           examModeHeader={examModeHeader}
           pageTitle={pageTitle}
         />
