@@ -355,6 +355,54 @@ export const clearTestOpenGradesSchema = z.unknown().transform((raw, context) =>
   return { student_ids: studentIds, responses }
 })
 
+export const startTestAutoGradeSchema = z.unknown().transform((raw, context) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    context.addIssue({ code: 'custom', message: 'student_ids array is required' })
+    return z.NEVER
+  }
+
+  const record = raw as Record<string, unknown>
+  if (!Array.isArray(record.student_ids)) {
+    context.addIssue({ code: 'custom', message: 'student_ids array is required' })
+    return z.NEVER
+  }
+
+  const studentIds = Array.from(
+    new Set(
+      record.student_ids
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map((value) => value.trim()),
+    ),
+  )
+  if (studentIds.length === 0) {
+    context.addIssue({ code: 'custom', message: 'student_ids array is required' })
+    return z.NEVER
+  }
+  if (studentIds.length > 100) {
+    context.addIssue({ code: 'custom', message: 'Cannot auto-grade more than 100 students at once' })
+    return z.NEVER
+  }
+
+  if (record.prompt_guideline != null && typeof record.prompt_guideline !== 'string') {
+    context.addIssue({ code: 'custom', message: 'prompt_guideline must be a string' })
+    return z.NEVER
+  }
+
+  const gradeScope = record.grade_scope ?? 'ungraded'
+  if (gradeScope !== 'ungraded' && gradeScope !== 'all') {
+    context.addIssue({ code: 'custom', message: 'grade_scope must be ungraded or all' })
+    return z.NEVER
+  }
+
+  return {
+    studentIds,
+    promptGuidelineOverride:
+      typeof record.prompt_guideline === 'string' ? record.prompt_guideline : null,
+    gradeScope: gradeScope as 'ungraded' | 'all',
+  }
+})
+
 export type SaveStudentTestGradesInput = z.infer<typeof saveStudentTestGradesSchema>
 export type SaveTestResponseGradeInput = z.infer<typeof saveTestResponseGradeSchema>
 export type ClearTestOpenGradesInput = z.infer<typeof clearTestOpenGradesSchema>
+export type StartTestAutoGradeInput = z.infer<typeof startTestAutoGradeSchema>

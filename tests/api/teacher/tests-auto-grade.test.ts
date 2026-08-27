@@ -109,12 +109,29 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     expect(data.error).toBe('prompt_guideline must be a string')
   })
 
+  it('returns 400 when grade_scope is invalid', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+        grade_scope: 'missing',
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('grade_scope must be ungraded or all')
+  })
+
   it('starts or resumes a background run when AI work remains', async () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
         student_ids: ['student-1', 'student-2'],
         prompt_guideline: 'Use one strength and one next step.',
+        grade_scope: 'all',
       }),
     })
 
@@ -135,6 +152,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
       teacherId: 'teacher-1',
       studentIds: ['student-1', 'student-2'],
       promptGuidelineOverride: 'Use one strength and one next step.',
+      gradeScope: 'all',
     })
     expect(validateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
       mockSupabaseClient,

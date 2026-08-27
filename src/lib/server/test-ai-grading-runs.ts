@@ -35,6 +35,10 @@ import {
   buildTestQuestionGradingSnapshot,
   hasPersistedTestResponseGrade,
 } from '@/lib/test-grading-context'
+import {
+  classifyTestAiGradeResponse,
+  type TestAiGradeScope,
+} from '@/lib/test-ai-grading-scope'
 
 const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
@@ -132,8 +136,10 @@ function normalizePromptGuidelineOverride(raw: string | null | undefined): strin
   return trimmed || null
 }
 
-function buildSelectionHash(studentIds: string[]): string {
-  return createHash('sha256').update(normalizeStudentIds(studentIds).join('|')).digest('hex')
+function buildSelectionHash(studentIds: string[], gradeScope: TestAiGradeScope): string {
+  return createHash('sha256')
+    .update(`${gradeScope}:${normalizeStudentIds(studentIds).join('|')}`)
+    .digest('hex')
 }
 
 function mapErrorSamples(rawSamples: unknown): TestAiGradingRunErrorSample[] {
@@ -682,12 +688,13 @@ export async function createOrResumeTestAiGradingRun(opts: {
   testId: string
   teacherId: string
   studentIds: string[]
+  gradeScope: TestAiGradeScope
   promptGuidelineOverride?: string | null
 }): Promise<CreateTestAiGradingRunResult> {
   const supabase = getServiceRoleClient()
   const normalizedStudentIds = normalizeStudentIds(opts.studentIds)
   const promptGuidelineOverride = normalizePromptGuidelineOverride(opts.promptGuidelineOverride)
-  const selectionHash = buildSelectionHash(normalizedStudentIds)
+  const selectionHash = buildSelectionHash(normalizedStudentIds, opts.gradeScope)
   const model = getTestOpenResponseGradingModel()
   const activeRun = await fetchLatestActiveRun(supabase, opts.testId)
 
@@ -768,11 +775,16 @@ export async function createOrResumeTestAiGradingRun(opts: {
       }
 
       const responseText = typeof existing.response_text === 'string' ? existing.response_text.trim() : ''
-      if (!responseText) {
-        if (hasPersistedTestResponseGrade(existing)) {
-          skippedAlreadyGradedCount += 1
-          continue
-        }
+      const disposition = classifyTestAiGradeResponse({
+        gradeScope: opts.gradeScope,
+        responseText,
+        hasPersistedGrade: hasPersistedTestResponseGrade(existing),
+      })
+      if (disposition === 'already_graded') {
+        skippedAlreadyGradedCount += 1
+        continue
+      }
+      if (disposition === 'unanswered') {
         unansweredRows.push({
           question_id: question.id,
           student_id: studentId,
@@ -781,16 +793,6 @@ export async function createOrResumeTestAiGradingRun(opts: {
           submitted_at: null,
         })
         skippedUnansweredCount += 1
-        continue
-      }
-
-      const alreadyAiGraded =
-        promptGuidelineOverride == null &&
-        existing.ai_model === model &&
-        existing.graded_at != null &&
-        existing.score != null
-      if (alreadyAiGraded) {
-        skippedAlreadyGradedCount += 1
         continue
       }
 

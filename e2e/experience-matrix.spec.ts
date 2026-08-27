@@ -325,10 +325,12 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const selectAllCheckbox = page.getByRole('checkbox', { name: 'Select all students' })
   const firstStudentCheckbox = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
   await expect(contextBar).toContainText('Active')
+  await expect(primaryControl.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
+  await expect(primaryControl.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
   await expect(trailingActions).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
-  await expect(page.getByRole('toolbar', { name: 'Selected student Test actions' })).toHaveCount(0)
+  await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
     await page.evaluate(() => window.innerHeight + 1),
@@ -355,27 +357,17 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     (firstStudentBox!.x + firstStudentBox!.width / 2),
   )).toBeLessThan(1)
 
-  await page.getByRole('button', { name: 'More whole-Test access actions' }).click()
-  const wholeTestAccessMenu = page.getByRole('menu')
-  await expect(wholeTestAccessMenu.getByRole('menuitem', { name: 'Open All' })).toBeVisible()
-  const menuBox = await wholeTestAccessMenu.boundingBox()
-  const tableHeadBox = await scrollPane.locator('thead').boundingBox()
-  expect(menuBox).not.toBeNull()
-  expect(tableHeadBox).not.toBeNull()
-  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
-  expect(await wholeTestAccessMenu.evaluate((element) => document.elementFromPoint(
-    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
-    element.getBoundingClientRect().bottom - 2,
-  ) === element || element.contains(document.elementFromPoint(
-    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
-    element.getBoundingClientRect().bottom - 2,
-  )))).toBe(true)
-  expect(menuBox!.y).toBeLessThan(tableHeadBox!.y + tableHeadBox!.height)
+  if (viewport === 'desktop') {
+    await primaryControl.getByRole('button', { name: 'Open All' }).hover()
+    await expect(page.getByRole('tooltip', { name: 'Open access for all students' })).toBeVisible()
+  }
+  await primaryControl.getByRole('button', { name: 'Close All' }).click()
+  await expect(page.getByRole('dialog')).toContainText(`Close access for ${students.length} student(s)?`)
   await page.screenshot({
-    path: testInfo.outputPath(`test-grading-${viewport}-menu.png`),
+    path: testInfo.outputPath(`test-grading-${viewport}-close-all-confirm.png`),
     animations: 'disabled',
   })
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Cancel' }).click()
 
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-default.png`),
@@ -391,26 +383,49 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
 
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
-  const selectionBar = page.getByRole('toolbar', { name: 'Selected student Test actions' })
-  await expect(selectionBar).toContainText('1 selected')
-  const selectionBarBox = await selectionBar.boundingBox()
+  const gradingToolbar = page.getByRole('toolbar', { name: 'Test grading actions' })
+  const studentActionsButton = gradingToolbar.getByRole('button', { name: 'Student actions for 1 selected' })
+  await expect(studentActionsButton).toContainText('1 selected')
+  await expect(gradingToolbar.getByRole('button', { name: 'Open All' })).toBeVisible()
+  await expect(gradingToolbar.getByRole('button', { name: 'Close All' })).toBeVisible()
+  const selectionBarBox = await gradingToolbar.boundingBox()
   const selectedScrollPaneBox = await scrollPane.boundingBox()
   expect(selectionBarBox).not.toBeNull()
   expect(selectedScrollPaneBox).not.toBeNull()
   expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThan(selectedScrollPaneBox!.y)
-  if (viewport === 'desktop') {
-    const aiGradeButton = selectionBar.getByRole('button', { name: 'AI Grade' })
-    await expect(aiGradeButton).toBeVisible()
-    await expect(aiGradeButton).toHaveText('')
-    await expect(selectionBar.getByRole('button', { name: 'Delete Work' })).toBeVisible()
-    await aiGradeButton.hover()
-    await expect(page.getByRole('tooltip', { name: 'AI Grade' })).toBeVisible()
-  } else {
-    await selectionBar.getByRole('button', { name: 'More selected student actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'AI Grade' })).toBeVisible()
-    await expect(page.getByRole('menuitem', { name: 'Delete Work' })).toBeVisible()
-    await page.keyboard.press('Escape')
+  await studentActionsButton.click()
+  const studentActionsMenu = page.getByRole('menu', { name: 'Selected student actions' })
+  for (const action of ['AI Grade', 'Unsubmit', 'Return', 'Delete Work']) {
+    await expect(studentActionsMenu.getByRole('menuitem', { name: action })).toBeVisible()
   }
+  await expect(studentActionsMenu.getByRole('menuitem', { name: /Open selected/i })).toHaveCount(0)
+  await expect(studentActionsMenu.getByRole('menuitem', { name: /Clear selection/i })).toHaveCount(0)
+  const menuBox = await studentActionsMenu.boundingBox()
+  const tableHeadBox = await scrollPane.locator('thead').boundingBox()
+  expect(menuBox).not.toBeNull()
+  expect(tableHeadBox).not.toBeNull()
+  expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+  expect(await studentActionsMenu.evaluate((element) => document.elementFromPoint(
+    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
+    element.getBoundingClientRect().bottom - 2,
+  ) === element || element.contains(document.elementFromPoint(
+    element.getBoundingClientRect().left + element.getBoundingClientRect().width / 2,
+    element.getBoundingClientRect().bottom - 2,
+  )))).toBe(true)
+  expect(menuBox!.y).toBeLessThan(tableHeadBox!.y + tableHeadBox!.height)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-menu.png`),
+    animations: 'disabled',
+  })
+  await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade' }).click()
+  await expect(page.getByRole('dialog')).toContainText('AI Grade selected students')
+  await expect(page.getByRole('button', { name: 'Only ungraded' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Regrade all' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-scope.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Cancel' }).click()
 
   await verifyProjectContract(page, testInfo)
   await page.screenshot({

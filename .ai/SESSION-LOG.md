@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Repair Blueprint Test question identity mapping
-
-**Risk profile:** runtime-platform — the initial database RPC replacement was
-applied locally; its review revision awaits authorized local reapplication. No
-staging or production migration was applied.
-
-- Traced production Blueprint capture operation
-  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
-  confirmed Test draft questions intentionally use JSON array order rather than
-  a persisted `position` field.
-- Added proposed migration 134 so active Classroom capture and archived
-  Classroom reuse map Test question identities by zero-based JSON ordinality,
-  preserving the managed-storage wrapper, RPC signatures, privileges, and all
-  unrelated function behavior.
-- Added rollback/replay database coverage and CI wiring. The new rollback-only
-  harness reproduces the production `23505` artifact-identity collision against
-  the pre-134 schema; the local dry run contains only migration 134.
-- After exact one-time authorization, migration 134 applied locally as the sole
-  pending migration. The post-migration database harness passes active capture,
-  archived reuse, rollback, identity order, and replay; adjacent atomic
-  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
-- Initial PR review found that valid source positions can contain gaps after a
-  question deletion. Fix batch 1 now maps each JSON question to the nth source
-  row ordered by `(position, id)` and gives both active and archived fixtures
-  positions `0,2`; the strengthened harness failed against the installed
-  pre-review function as expected.
-- After exact destructive-reset authorization, local was reset without seeding
-  and migrations 001-134 replayed from the reviewed branch. The strengthened
-  active/archived gap-position harness, adjacent atomic and versioned Blueprint
-  contracts, managed-storage contract, generated types, lint, architecture,
-  audit, and 48 focused tests all pass.
-- Lint, architecture boundaries, generated database types, focused Blueprint
-  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
-  remain unchanged, and the worktree has no production project binding.
-
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1153,3 +1118,41 @@ hover state. Student UI is n/a because this is a teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a bounded accessible
 teacher-toolbar refinement.
+
+## 2026-08-27 — Adopt persistent Test grading action scopes
+
+**Risk profile:** standard — selected Test grading action placement, row access
+state changes, and AI-grading request scope changed; permissions, enrollment
+validation, test status rules, grading eligibility, persistence schema,
+authentication, dependencies, migrations, and student UI are unchanged.
+
+- Kept Open All and Close All as persistent icon commands in the centered Test
+  action cluster, with tooltips and confirmation for the global mutations.
+- Added one persistent student-actions menu that is disabled before selection,
+  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
+  Return, and Delete Work. Global access commands and selection clearing are not
+  duplicated in the menu.
+- Replaced row access icons with immediate semantic switches: green/right for
+  open and red/left for closed, with a lock-state icon, accessible state, and no
+  per-row confirmation.
+- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
+  the explicit scope through a Zod-validated API boundary into run preflight.
+  Ungraded scope now preserves any persisted grade; all scope queues eligible
+  answered responses even when previously graded.
+- Updated stable teacher operational-table guidance to combine Attendance's
+  table rhythm with selected Test grading's persistent action-scope pattern.
+  Attendance's bottom selection bar is now documented as migration debt for a
+  later focused pass.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  align Attendance with the new persistent selection-menu pattern in a separate
+  change.
+
+**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
+(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
+checks pass. Visual review covers default, global confirmation, selected menu,
+and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
+this is a teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
+for one bounded independent correctness and requirements review.

@@ -266,12 +266,18 @@ Scan-heavy teacher workflows use a stable action-versus-information hierarchy:
   of becoming a competing summary row
 - long row sets scroll beneath a sticky header while the scope actions remain
   available
-- batch actions appear only after selection and remain close to the selected
-  work without permanently reducing the table viewport
+- global scope actions remain stable when rows are selected; selection-aware
+  actions use a persistent, disabled-until-selection menu that becomes a
+  selected-count trigger without moving the primary cluster
+- immediate, reversible row state changes happen inline; broad, destructive,
+  costly, or overwrite-capable actions require confirmation or an explicit
+  scope choice
 
-Attendance is the approved reference implementation. Classwork, Tests, and
-nearby teacher sections should adopt the same composition when they are
-scan-heavy, have one meaningful active scope, and offer real row operations.
+Attendance is the approved table-density reference. The selected Test grading
+roster is the approved action-scope and selection reference. Classwork,
+Attendance, Tests, and nearby teacher sections should adopt the combined
+composition when they are scan-heavy, have one meaningful active scope, and
+offer real row operations.
 They keep their own statuses, labels, columns, permissions, and mutations.
 Do not force a centered cluster or status chips onto a reading surface, an
 authoring form, or a list whose state does not map directly to its rows.
