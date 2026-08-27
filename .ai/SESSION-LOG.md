@@ -11,6 +11,98 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-25 — Pin the student Pal companion on iPhone
+
+**Risk profile:** none — student-only Pal companion placement; no academic
+state, API contract, authentication, schema, or reward behavior changed.
+
+**Model recommendation:** GPT-5.6 — localized host-layout work with
+cross-browser verification and a bounded independent review.
+
+- Made the Pika-owned companion host explicitly use a non-interactive
+  bottom-right placement contract backed by Pika spacing/layer tokens and iOS
+  safe-area insets.
+- Added component and stylesheet contract coverage for the placement invariant
+  while preserving the existing test-surface suppression and Pal failure
+  boundary behavior.
+- The focused suites pass (19/19), the full Vitest suite passes
+  (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
+  are clean after rebasing onto current `main`.
+- Playwright visual verification passed for student desktop/mobile in light and
+  dark themes and for an iPhone 13 WebKit profile; teacher desktop/mobile were
+  checked as unaffected. Chromium and WebKit pointer-drag probes both retained
+  the same bottom-right rectangle at 16px from the viewport edges.
+
+## 2026-08-25 — Verify entitled-teacher active-class readiness
+
+**Risk profile:** runtime-platform — read-only production UI and aggregate
+database verification; no production migration, deployment, entitlement,
+configuration, flag, cleanup, or attendance-data mutation was performed.
+
+- Confirmed the entitled teacher sees Attendance in the sole active production
+  classroom and that its enabled policy plus opaque roster/schedule mapping are
+  fully synced.
+- Added the target-pinned, aggregate-only `attendance:pilot:readiness` operator.
+  It emits no teacher, classroom, roster, or student identifiers and fails
+  closed unless configured and unconfigured active classrooms both exist.
+- The production run correctly reported
+  `requires_at_least_two_active_classrooms` and
+  `requires_unconfigured_active_classroom`; the save-isolation gate therefore
+  remains open until a second intended active classroom exists or an exact
+  temporary setup and restoration is separately authorized.
+- Added focused readiness, service-role read-path, and operator-contract
+  coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
+  production build pass with only the existing WorkOS Edge-runtime warnings.
+- Independent review found that separate REST reads could observe inconsistent
+  states, an unconfigured Class mapping could mask a missing configured-Class
+  mapping, the service-role transport was not operation-read-only, and output
+  could expose unstable error or revision detail.
+- Remediated those findings with proposed, unapplied migration 133: one stable
+  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
+  transport allowlist, stable operator failure codes, and database regression
+  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
+  boundaries, and the production build pass. Production remains through
+  migration 132 and was not modified.
+- Targeted re-review caught and fixed a database-test false positive where the
+  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
+  assertion now requires exactly the eight aggregate keys with numeric values;
+  migration 133 remains unapplied pending exact authorization.
+
+## 2026-08-25 — Repair Blueprint Test question identity mapping
+
+**Risk profile:** runtime-platform — the initial database RPC replacement was
+applied locally; its review revision awaits authorized local reapplication. No
+staging or production migration was applied.
+
+- Traced production Blueprint capture operation
+  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
+  confirmed Test draft questions intentionally use JSON array order rather than
+  a persisted `position` field.
+- Added proposed migration 134 so active Classroom capture and archived
+  Classroom reuse map Test question identities by zero-based JSON ordinality,
+  preserving the managed-storage wrapper, RPC signatures, privileges, and all
+  unrelated function behavior.
+- Added rollback/replay database coverage and CI wiring. The new rollback-only
+  harness reproduces the production `23505` artifact-identity collision against
+  the pre-134 schema; the local dry run contains only migration 134.
+- After exact one-time authorization, migration 134 applied locally as the sole
+  pending migration. The post-migration database harness passes active capture,
+  archived reuse, rollback, identity order, and replay; adjacent atomic
+  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
+- Initial PR review found that valid source positions can contain gaps after a
+  question deletion. Fix batch 1 now maps each JSON question to the nth source
+  row ordered by `(position, id)` and gives both active and archived fixtures
+  positions `0,2`; the strengthened harness failed against the installed
+  pre-review function as expected.
+- After exact destructive-reset authorization, local was reset without seeding
+  and migrations 001-134 replayed from the reviewed branch. The strengthened
+  active/archived gap-position harness, adjacent atomic and versioned Blueprint
+  contracts, managed-storage contract, generated types, lint, architecture,
+  audit, and 48 focused tests all pass.
+- Lint, architecture boundaries, generated database types, focused Blueprint
+  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
+  remain unchanged, and the worktree has no production project binding.
+
 ## 2026-08-25 — Repair Blueprint Test question identity mapping
 
 **Risk profile:** runtime-platform — the initial database RPC replacement was
@@ -1030,3 +1122,34 @@ migrated and no hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the Version-provenance database
 contract and final migration replay review.
+## 2026-08-27 — Migrate selected Test grading to the teacher work surface
+
+**Risk profile:** async-grading — teacher Test roster presentation, sorting,
+selection, and action routing changed around preserved grading mutations; no API,
+schema, persistence, authentication, dependency, or student UI changed.
+
+- Mapped the selected-Test domain before migrating it: whole-Test access remains
+  distinct from selected-student access, while AI grade, unsubmit, return, and
+  delete-work retain their existing eligibility and confirmation behavior.
+- Adopted the shared teacher context bar, internally scrolling table frame, and
+  selection bar. The whole-Test access control stays mathematically centered;
+  lifecycle context and Test utilities stay quiet at the edges; bulk actions
+  appear only after row selection.
+- Split names into sortable/resizable First and Last columns, kept compact
+  operational metrics, added sticky sortable/resizable headers, and added
+  semantic count chips that can prioritize closed, submitted, or returned rows.
+- Added a guarded long-roster fixture and responsive browser contract covering
+  default, status-sorted, scrolled, and selected states on desktop/mobile in
+  light/dark. Student UI is n/a because the surface is teacher-only.
+- Composite-widget accessibility checklist reviewed: keyboard navigation and
+  Escape behavior remain covered, semantic sort/pressed states have focused
+  tests, and remaining manual follow-up is none. Existing design guidance
+  already governs this surface, so no durable design rule was added.
+
+**Verification:** focused Test/shared work-surface tests (71/71), responsive
+Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
+checks, and production build pass. Visual review covers eight captures: default
+and selected long-roster states across desktop/mobile and light/dark.
+
+**Model recommendation:** current GPT-5 coding model for a domain-sensitive
+teacher workspace migration with responsive visual verification.

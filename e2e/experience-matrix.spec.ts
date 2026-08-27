@@ -5,6 +5,8 @@ const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
 const BLUEPRINT_ID = '10000000-0000-4000-8000-000000000101'
 const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
+const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
+const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -212,6 +214,150 @@ test('keeps Attendance hours reachable across the responsive context bar', async
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
     fullPage: true,
+    animations: 'disabled',
+  })
+})
+
+test('keeps the selected Test grading roster compact and selection-driven', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  const statuses = ['not_started', 'in_progress', 'closed', 'submitted', 'returned'] as const
+  const students = Array.from({ length: 45 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(2, '0')
+    const status = statuses[index % statuses.length]
+    const accessClosed = status === 'closed' || status === 'submitted' || status === 'returned'
+    return {
+      student_id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      name: `Student ${ordinal} Alpha${ordinal}`,
+      first_name: `Student ${ordinal}`,
+      last_name: `Alpha${ordinal}`,
+      email: `student${ordinal}@example.com`,
+      status,
+      submitted_at: status === 'submitted' || status === 'returned' ? '2026-08-27T14:00:00.000Z' : null,
+      returned_at: status === 'returned' ? '2026-08-27T15:00:00.000Z' : null,
+      last_activity_at: status === 'not_started' ? null : '2026-08-27T14:15:00.000Z',
+      points_earned: status === 'not_started' ? 0 : index % 10,
+      points_possible: 10,
+      percent: status === 'not_started' ? null : (index % 10) * 10,
+      graded_open_responses: status === 'returned' ? 1 : 0,
+      ungraded_open_responses: status === 'submitted' ? 1 : 0,
+      access_state: accessClosed ? 'closed' : null,
+      effective_access: accessClosed ? 'closed' : 'open',
+      access_source: accessClosed ? 'student' : 'test',
+      focus_summary: {
+        away_count: index % 3,
+        away_total_seconds: (index % 4) * 35,
+        route_exit_attempts: index % 2,
+        window_unmaximize_attempts: 0,
+      },
+    }
+  })
+
+  await page.route('**/api/teacher/tests**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}/results`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          test: {
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            title: 'Functions and Graphs Test',
+            status: 'active',
+            grading_finalized_at: null,
+          },
+          questions: [{ id: 'question-1', question_type: 'open_response', response_monospace: false }],
+          students,
+          active_ai_grading_run: null,
+        }),
+      })
+      return
+    }
+
+    if (
+      url.pathname === '/api/teacher/tests' &&
+      url.searchParams.get('classroom_id') === TEST_GRADING_FIXTURE_CLASSROOM_ID
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tests: [{
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Functions and Graphs Test',
+            description: null,
+            instructions: null,
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            created_at: '2026-08-27T12:00:00.000Z',
+            updated_at: '2026-08-27T12:00:00.000Z',
+            stats: {
+              total_students: students.length,
+              responded: students.filter((student) => student.status !== 'not_started').length,
+              submitted: students.filter((student) => student.status === 'submitted').length,
+              open_access: students.filter((student) => student.effective_access === 'open').length,
+              closed_access: students.filter((student) => student.effective_access === 'closed').length,
+              questions_count: 1,
+            },
+          }],
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: `Unhandled Test grading fixture route: ${url.pathname}` }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading', { waitUntil: 'domcontentloaded' })
+
+  const contextBar = page.getByTestId('test-grading-context-bar')
+  const primaryControl = page.getByTestId('test-workspace-actionbar-center')
+  const trailingActions = page.getByTestId('test-workspace-trailing-actions')
+  const scrollPane = page.getByTestId('test-grading-student-scroll-pane')
+  await expect(contextBar).toContainText('Active')
+  await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
+  await expect(trailingActions).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
+  await expect(page.getByRole('toolbar', { name: 'Selected student Test actions' })).toHaveCount(0)
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerHeight + 1),
+  )
+
+  const primaryBox = await primaryControl.boundingBox()
+  expect(primaryBox).not.toBeNull()
+  expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-default.png`),
+    animations: 'disabled',
+  })
+
+  await scrollPane.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(scrollPane.locator('thead')).toBeVisible()
+  await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
+  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  const selectionBar = page.getByRole('toolbar', { name: 'Selected student Test actions' })
+  await expect(selectionBar).toContainText('1 selected')
+  await expect(selectionBar.getByRole('button', { name: 'AI Grade' })).toBeVisible()
+  await expect(selectionBar.getByRole('button', { name: 'Delete Work' })).toBeVisible()
+
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-selected.png`),
     animations: 'disabled',
   })
 })
