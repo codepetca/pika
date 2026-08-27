@@ -8,11 +8,11 @@ import {
   clearPendingWorkOSMagicAuth,
   readPendingWorkOSMagicAuth,
 } from '@/lib/server/workos-magic-pending'
-import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
+import { requireWorkOSMagicAuth, safePikaPath } from '@/lib/server/workos-config'
 import { verifyWorkOSMagicAuthSchema } from '@/lib/validations/auth'
 
 export const POST = withErrorHandler('VerifyWorkOSMagicAuth', async (request: NextRequest) => {
-  requireWorkOSMagicAuthPilot()
+  requireWorkOSMagicAuth()
   const { code } = verifyWorkOSMagicAuthSchema.parse(await request.json())
   const pending = await readPendingWorkOSMagicAuth()
 

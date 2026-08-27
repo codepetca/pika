@@ -3,11 +3,13 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { resetPasswordVerifySchema } from '@/lib/validations/auth'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-config'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
 
 export const POST = withErrorHandler('ResetPasswordVerify', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, code: normalizedCode } = resetPasswordVerifySchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

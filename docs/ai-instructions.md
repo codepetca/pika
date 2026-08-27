@@ -41,7 +41,7 @@ Inspect or edit source only after startup and routed docs.
 - Platform: Next.js App Router, Supabase, Tailwind CSS, Vitest, Vercel
 - Vercel cron: Hobby plan schedules must run at most once per day
 - Timezone: all deadline and attendance logic uses `America/Toronto`
-- Auth: email verification codes plus password login; WorkOS must map to `public.users.workos_user_id` while preserving local UUIDs
+- Auth: WorkOS email-code login is default; legacy passwords require `PIKA_LEGACY_PASSWORD_AUTH=true`; preserve local UUIDs and map `workos_user_id`
 - Supabase access: authorize in server routes via `requireAuth()` / `requireRole()` and service-role client; no new browser-side table/RPC access without review
 - Architecture: keep business logic out of UI components; prefer `src/lib/*` and server-side modules
 - API routes: use `withErrorHandler` and feature-owned Zod schemas for untrusted input

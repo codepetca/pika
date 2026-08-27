@@ -2,7 +2,8 @@
  * pika-api.ts — Minimal authenticated client for Pika's teacher API.
  *
  * Standalone: Node built-ins only, no extra dependencies.
- * Logs in via the same POST /api/auth/login path the browser uses, then
+ * Logs in via the legacy POST /api/auth/login path when the local server was
+ * started with PIKA_LEGACY_PASSWORD_AUTH=true, then
  * persists the `pika_session` cookie to .auth/pika-cli.json (gitignored) so
  * subsequent commands act as the logged-in teacher. No new server code — the
  * CLI is just a second consumer of the existing role-gated routes.
@@ -70,6 +71,12 @@ export async function login(email: string, password: string): Promise<SavedSessi
   })
   const data = (await res.json().catch(() => ({}))) as { error?: string; user?: SavedSession['user'] }
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        'Password CLI login is disabled. For local CLI use, restart Pika with '
+        + 'PIKA_LEGACY_PASSWORD_AUTH=true.',
+      )
+    }
     throw new Error(`Login failed (${res.status}): ${data.error ?? res.statusText}`)
   }
   const cookie = extractSessionCookie(res)

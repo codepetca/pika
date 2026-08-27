@@ -25,7 +25,7 @@ function readyEnvironment(): BaraAttendanceRolloutEnvironment {
     SUPABASE_SECRET_KEY: 'sb_secret_preview',
     SESSION_SECRET: sessionSecret,
     NEXT_PUBLIC_APP_URL: 'https://pika-preview.example',
-    WORKOS_MAGIC_AUTH_PILOT: 'true',
+    PIKA_LEGACY_PASSWORD_AUTH: 'false',
     WORKOS_CLIENT_ID: 'client_preview',
     WORKOS_API_KEY: 'sk_test_preview',
     WORKOS_COOKIE_PASSWORD: cookiePassword,

@@ -6,10 +6,10 @@ import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { Input, Button, FormField } from '@/ui'
 
 export function SignupClient({
-  magicAuthEnabled = false,
+  legacyPasswordAuthEnabled = false,
   hasPendingMagicAuthChallenge = false,
 }: {
-  magicAuthEnabled?: boolean
+  legacyPasswordAuthEnabled?: boolean
   hasPendingMagicAuthChallenge?: boolean
 }) {
   const router = useRouter()
@@ -55,12 +55,12 @@ export function SignupClient({
           Sign Up for Pika
         </h1>
         <p className="text-text-muted mb-6">
-          {magicAuthEnabled
+          {!legacyPasswordAuthEnabled
             ? 'Enter your school email. We’ll send a six-digit code to verify and create your account.'
             : 'Enter your email to create an account. We’ll send you a verification code.'}
         </p>
 
-        {magicAuthEnabled ? (
+        {!legacyPasswordAuthEnabled ? (
           <MagicAuthForm
             intent="sign-up"
             initialEmail={email}

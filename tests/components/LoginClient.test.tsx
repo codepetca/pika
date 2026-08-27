@@ -42,6 +42,21 @@ describe('LoginClient', () => {
     cleanup()
   })
 
+  it('defaults to WorkOS email-code login without password controls', () => {
+    render(<LoginClient />)
+
+    expect(screen.getByRole('button', { name: /email me a sign-in code/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/dev quick login/i)).not.toBeInTheDocument()
+  })
+
+  it('shows password login only when the legacy override is explicit', () => {
+    render(<LoginClient legacyPasswordAuthEnabled />)
+
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /email me a sign-in code/i })).not.toBeInTheDocument()
+  })
+
   it('uses a full document navigation after successful login', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
@@ -50,7 +65,7 @@ describe('LoginClient', () => {
     })
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     await waitFor(() => {
@@ -68,7 +83,7 @@ describe('LoginClient', () => {
     })
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     await waitFor(() => {
@@ -85,7 +100,7 @@ describe('LoginClient', () => {
     })
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     await waitFor(() => {
@@ -110,7 +125,7 @@ describe('LoginClient', () => {
       })
 
       const user = userEvent.setup()
-      render(<LoginClient />)
+      render(<LoginClient legacyPasswordAuthEnabled />)
       await submitLogin(user)
 
       await waitFor(() => {
@@ -124,7 +139,7 @@ describe('LoginClient', () => {
       key === 'reason' ? 'session-changed' : '/teacher/calendar'
     ))
 
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
 
     expect(screen.getByRole('status')).toHaveTextContent(SESSION_CHANGED_MESSAGE)
     expect(screen.queryByText(SESSION_EXPIRED_MESSAGE)).not.toBeInTheDocument()
@@ -136,7 +151,7 @@ describe('LoginClient', () => {
       key === 'reason' ? 'unknown' : '/teacher/calendar'
     ))
 
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByLabelText(/school email/i)).not.toHaveAttribute('aria-describedby')
@@ -150,7 +165,7 @@ describe('LoginClient', () => {
     })
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     await waitFor(() => {
@@ -182,7 +197,7 @@ describe('LoginClient', () => {
       json: async () => ({ redirectUrl: '/teacher/calendar?view=month' }),
     })
 
-    render(<LoginClient magicAuthEnabled hasActiveWorkOSSession />)
+    render(<LoginClient hasActiveWorkOSSession />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Restoring your session')
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -202,7 +217,7 @@ describe('LoginClient', () => {
       json: async () => ({ error: 'Account identity conflict' }),
     })
 
-    render(<LoginClient magicAuthEnabled hasActiveWorkOSSession />)
+    render(<LoginClient hasActiveWorkOSSession />)
 
     expect(await screen.findByRole('button', { name: /email me a sign-in code/i })).toBeInTheDocument()
     expect(mockNavigateTo).not.toHaveBeenCalled()
@@ -216,7 +231,7 @@ describe('LoginClient', () => {
     })
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     await waitFor(() => {
@@ -232,7 +247,7 @@ describe('LoginClient', () => {
     fetchMock.mockReturnValueOnce(new Promise((resolve) => { resolveLogin = resolve }))
 
     const user = userEvent.setup()
-    render(<LoginClient />)
+    render(<LoginClient legacyPasswordAuthEnabled />)
     await submitLogin(user)
 
     expect(screen.getByText('Logging in...')).toBeInTheDocument()

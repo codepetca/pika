@@ -30,6 +30,12 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test-key'
 process.env.SUPABASE_SECRET_KEY = 'sb_secret_test-key'
 process.env.ENABLE_MOCK_EMAIL = 'true'
+// The test suite keeps legacy password fixtures available explicitly. Product
+// runtime defaults to WorkOS Magic Auth when this override is absent.
+process.env.PIKA_LEGACY_PASSWORD_AUTH = 'true'
+process.env.WORKOS_CLIENT_ID = 'client_test'
+process.env.WORKOS_API_KEY = 'sk_test_auth'
+process.env.WORKOS_COOKIE_PASSWORD = 'test-workos-cookie-password-32-characters'
 
 // JSDOM doesn't fully implement Range#getClientRects/getBoundingClientRect, but TipTap/ProseMirror uses them.
 if (typeof document !== 'undefined' && typeof Range !== 'undefined') {

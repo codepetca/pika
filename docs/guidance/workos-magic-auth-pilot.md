@@ -1,10 +1,14 @@
-# WorkOS Magic Auth pilot
+# WorkOS Magic Auth
 
-## Goal
+This file retains the original pilot evidence and rollout notes, but the current
+runtime contract is no longer a pilot: WorkOS Magic Auth is Pika's default
+authentication mode.
 
-Prove that Pika can keep its existing `/login` and `/signup` surfaces while
-WorkOS becomes the credential authority for a school-board-compatible email and
-six-digit passcode flow.
+## Current contract
+
+Pika keeps its existing `/login` and `/signup` surfaces while WorkOS is the
+credential authority for a school-board-compatible email and six-digit passcode
+flow.
 
 ## Boundaries
 
@@ -13,16 +17,17 @@ six-digit passcode flow.
 - Pika keeps `public.users.id` as its domain identity. A verified WorkOS user is
   linked through `public.users.workos_user_id`; WorkOS IDs never replace Pika
   ownership IDs.
-- Pika's existing `pika_session` remains a temporary compatibility session so
-  the rest of the application can continue to use `requireAuth()` during the
-  pilot. When the pilot is enabled, every Pika authorization check also
+- Pika's existing `pika_session` remains a compatibility mapping so the rest of
+  the application can continue to use `requireAuth()`. Every Pika authorization check also
   requires a verified WorkOS session with the same normalized email and exact
   WorkOS user id; the Pika cookie is a 180-day internal UUID/role mapping, not
   an independent credential.
-- The pilot is disabled by default and does not change the password flow unless
-  `WORKOS_MAGIC_AUTH_PILOT=true`.
-- This slice does not configure Pika/Bara attendance integration, SSO, or a
-  production rollout.
+- WorkOS Magic Auth is enabled by default. Missing WorkOS credentials never
+  expose password login; the email-code surface remains visible and provider
+  requests fail closed with a configuration error.
+- `PIKA_LEGACY_PASSWORD_AUTH=true` is the only supported rollback/development
+  override. It explicitly re-enables the legacy password pages, APIs, and
+  password-origin sessions.
 
 ## UI change brief
 
@@ -41,20 +46,24 @@ six-digit passcode flow.
 
 ## Acceptance gates
 
-1. With the flag off, existing password login and signup behavior is unchanged.
-2. With the flag on, both existing URLs send a WorkOS-generated passcode and
-   verify it without leaving Pika.
+1. With no auth-mode override, both existing URLs show the WorkOS email-code
+   flow and no password or password-recovery control.
+2. With complete WorkOS credentials, both URLs send a WorkOS-generated passcode
+   and verify it without leaving Pika.
 3. Provider secrets, returned passcodes, Magic Auth IDs, and provider error
    details never reach the browser or logs.
 4. A verified WorkOS identity maps idempotently to one Pika user, and conflicting
    links fail closed.
 5. Successful verification stores both the encrypted WorkOS session and the
    temporary Pika compatibility session, then returns only a safe Pika path.
-6. A legacy or mismatched Pika-only cookie fails closed while the pilot is on,
+6. A legacy or mismatched Pika-only cookie fails closed in the default WorkOS mode,
    preventing a cross-app attendance request from causing a second login.
 7. Automated API, identity, and component tests pass before dashboard changes.
-8. A real school-board account receives and submits the code in a local or
-   preview smoke test before the pilot is considered viable.
+8. A real school-board account receives and submits the code in each target
+   environment before promotion.
+9. Password pages and APIs return only when
+   `PIKA_LEGACY_PASSWORD_AUTH=true`; missing WorkOS credentials are never an
+   implicit fallback.
 
 ## Remembered-session contract
 
@@ -71,9 +80,9 @@ The two cookies have different authority:
 - `pika_session` contains only Pika's internal UUID, role, normalized email,
   explicit authentication source, exact WorkOS user ID when applicable, and
   session-format version.
-- Every protected request fails closed unless the two identities match while
-  the pilot is enabled.
-- If the pilot is disabled, only a current-version Pika session explicitly
+- Every protected request fails closed unless the two identities match in the
+  default WorkOS mode.
+- If the explicit legacy override is enabled, only a current-version Pika session explicitly
   marked as password-origin and carrying no WorkOS user ID remains valid.
   WorkOS mappings and ambiguous legacy sessions fail closed during rollback.
 - If an older or missing Pika cookie accompanies a valid WorkOS session,
@@ -114,11 +123,12 @@ For each environment, verify all of the following before promotion:
 8. Using an environment-scoped test session at or beyond the Dashboard absolute
    cutoff, confirm WorkOS rejects refresh and Pika cannot silently restore it.
 
-If any gate fails, disable `WORKOS_MAGIC_AUTH_PILOT` in that environment and
-redeploy. WorkOS-bound mapping sessions will require a new password login after
-rollback. Ambiguous legacy sessions without explicit provenance also require a
-new password login; neither may become an independent credential. Do not weaken
-the exact-subject check or restore by email.
+If a target environment must roll back, set
+`PIKA_LEGACY_PASSWORD_AUTH=true` explicitly and redeploy. WorkOS-bound mapping
+sessions will require a new password login after rollback. Ambiguous legacy
+sessions without explicit provenance also require a new password login; neither
+may become an independent credential. Do not weaken the exact-subject check or
+restore by email.
 
 ## Brevo delivery staging slice
 
@@ -225,7 +235,7 @@ The cross-application browser handoff was retired. Pika and Bara remain
 separate WorkOS Applications with separate cookies and internal user IDs.
 Native Pika attendance does not create a Bara browser session.
 
-While `WORKOS_MAGIC_AUTH_PILOT=true`, Pika treats its compatibility cookie as
+In the default WorkOS mode, Pika treats its compatibility cookie as
 valid only alongside a verified WorkOS session whose email and WorkOS user id
 match the Pika session binding. For student QR
 check-in, Pika additionally verifies that the WorkOS subject matches the local
@@ -239,14 +249,18 @@ The legacy `PIKA_BARA_AUTH_HANDOFF` flag must remain false. Do not replace the
 server adapter with shared cookies, shared databases, shared internal IDs, or
 an unverified browser assertion.
 
-## Production email canary slice
+## Historical production email canary record
+
+The following section records the pre-migration canary plan and its rollback
+constraints. It is historical evidence, not current local setup guidance.
 
 ### Purpose
 
 Separate the board-mail delivery question from a Pika production rollout. Run
 the existing self-hosted Pika UI and local Supabase against an expiring,
 Pika-scoped WorkOS Production credential so the email uses WorkOS's production
-sender. Do not deploy the pilot or point it at hosted Pika data.
+sender. The canary did not deploy the then-pilot flow or point it at hosted Pika
+data.
 
 ### Why this slice is separate
 
@@ -260,7 +274,8 @@ sender. Do not deploy the pilot or point it at hosted Pika data.
 
 ### Phase A — no-cost production-sender canary
 
-1. Keep Pika local and `WORKOS_MAGIC_AUTH_PILOT=false` in the shared env file.
+1. Keep the shared Pika environment on its then-current legacy authentication
+   mode while supplying WorkOS credentials only to the isolated canary process.
 2. In Codepet Platform Production, set the neutral environment display name to
    `Codepet` because branding applies to both Pika and Bara.
 3. Create the Pika application and a one-hour API key scoped to that application.
@@ -316,8 +331,8 @@ Magic Auth email switch is environment-wide.
 
 If the board message does not arrive or verification fails:
 
-1. Stop the local canary process. The shared Pika env remains on the staging
-   Client ID/key with `WORKOS_MAGIC_AUTH_PILOT=false`.
+1. Stop the local canary process. The shared Pika environment remains on its
+   pre-canary authentication configuration.
 2. Revoke the one-hour Pika production API key immediately rather than waiting
    for expiry.
 3. Disable Magic Auth in Codepet Platform Production, restoring Bara's previous

@@ -2,7 +2,7 @@
 
 Overview of **Pika**: daily journals, attendance, classrooms, and assignments for online high school courses. Students submit work; teachers track attendance and assignments. America/Toronto timezone is authoritative.
 
-**Status**: Classrooms, assignments, password-based auth, and dashboards are implemented. Working toward full test coverage and polish.
+**Status**: Classrooms, assignments, WorkOS Magic Auth, and dashboards are implemented. Working toward full test coverage and polish.
 
 ---
 
@@ -154,7 +154,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Feature Overview
 
-1) **Authentication**: Email verification + password. Endpoints for signup, verify-signup, create-password, login, forgot/reset password.
+1) **Authentication**: WorkOS Magic Auth email plus six-digit verification code. Legacy password signup/login/reset routes remain available only with the explicit rollback/development override.
 
 2) **Daily Journal**: Per-classroom entry with Toronto midnight cutoff; present/absent attendance; history view.
 

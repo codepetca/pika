@@ -1,18 +1,21 @@
 import { Suspense } from 'react'
 import { SignupClient } from './SignupClient'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import {
+  isLegacyPasswordAuthEnabled,
+  shouldUseWorkOSAuthKit,
+} from '@/lib/auth-mode'
 import { hasActivePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
 
 export default async function SignupPage() {
-  const magicAuthEnabled = isWorkOSMagicAuthPilotEnabled()
-  const hasPendingChallenge = magicAuthEnabled
+  const legacyPasswordAuthEnabled = isLegacyPasswordAuthEnabled()
+  const hasPendingChallenge = shouldUseWorkOSAuthKit()
     ? await hasActivePendingWorkOSMagicAuth('sign-up')
     : false
 
   return (
     <Suspense fallback={null}>
       <SignupClient
-        magicAuthEnabled={magicAuthEnabled}
+        legacyPasswordAuthEnabled={legacyPasswordAuthEnabled}
         hasPendingMagicAuthChallenge={hasPendingChallenge}
       />
     </Suspense>

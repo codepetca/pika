@@ -20,11 +20,11 @@ const DEV_CREDENTIALS = {
 }
 
 export function LoginClient({
-  magicAuthEnabled = false,
+  legacyPasswordAuthEnabled = false,
   hasPendingMagicAuthChallenge = false,
   hasActiveWorkOSSession = false,
 }: {
-  magicAuthEnabled?: boolean
+  legacyPasswordAuthEnabled?: boolean
   hasPendingMagicAuthChallenge?: boolean
   hasActiveWorkOSSession?: boolean
 }) {
@@ -35,7 +35,7 @@ export function LoginClient({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [restoringWorkOSSession, setRestoringWorkOSSession] = useState(
-    magicAuthEnabled && hasActiveWorkOSSession,
+    !legacyPasswordAuthEnabled && hasActiveWorkOSSession,
   )
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const sessionMessageId = useId()
@@ -144,13 +144,13 @@ export function LoginClient({
           </div>
         ) : null}
 
-        {magicAuthEnabled && (
+        {!legacyPasswordAuthEnabled && (
           <p className="-mt-4 mb-6 text-text-muted">
             Enter your school email. We&apos;ll send a six-digit sign-in code.
           </p>
         )}
 
-        {!magicAuthEnabled && isDev && (
+        {legacyPasswordAuthEnabled && isDev && (
           <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
             <p className="text-sm font-medium text-text-default mb-3">
               Dev Quick Login
@@ -181,11 +181,13 @@ export function LoginClient({
           </div>
         )}
 
-        {magicAuthEnabled ? (
+        {!legacyPasswordAuthEnabled ? (
           <MagicAuthForm
             intent="sign-in"
             hasPendingChallenge={hasPendingMagicAuthChallenge}
             nextPath={searchParams.get('next')}
+            emailInputRef={emailInputRef}
+            emailAriaDescribedBy={sessionMessage ? sessionMessageId : undefined}
           />
         ) : (
           <form onSubmit={handleSubmit}>

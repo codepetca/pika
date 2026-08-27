@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const workOSMocks = vi.hoisted(() => ({
@@ -21,6 +21,7 @@ const [matcher] = config.matcher
 const matchesPath = (pathname: string) => new RegExp(`^${matcher}$`).test(pathname)
 
 describe('AuthKit middleware matcher', () => {
+  beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.unstubAllEnvs())
 
   it('keeps passive assets out of AuthKit while covering application routes', () => {
@@ -62,7 +63,7 @@ describe('AuthKit middleware matcher', () => {
   })
 
   it('injects a trusted request path and overwrites a spoofed client header', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
     const request = new NextRequest('https://pika.example/teacher/calendar?view=month', {
       headers: { [PIKA_REQUEST_PATH_HEADER]: '/evil' },
     })
@@ -74,8 +75,33 @@ describe('AuthKit middleware matcher', () => {
     expect(workOSMocks.authkit).not.toHaveBeenCalled()
   })
 
+  it('does not silently expose password recovery when WorkOS configuration is missing', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
+    vi.stubEnv('WORKOS_CLIENT_ID', '')
+    vi.stubEnv('WORKOS_API_KEY', '')
+    vi.stubEnv('WORKOS_COOKIE_PASSWORD', '')
+
+    const loginResponse = await middleware(new NextRequest('http://localhost:3000/login'))
+    expect(loginResponse.status).toBe(200)
+    expect(workOSMocks.authkit).not.toHaveBeenCalled()
+
+    const recoveryResponse = await middleware(new NextRequest('http://localhost:3000/forgot-password'))
+    expect(recoveryResponse.status).toBe(307)
+    expect(recoveryResponse.headers.get('location')).toBe('http://localhost:3000/login')
+  })
+
+  it('keeps password recovery reachable only with the explicit legacy override', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
+
+    const response = await middleware(new NextRequest('http://localhost:3000/forgot-password'))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(workOSMocks.authkit).not.toHaveBeenCalled()
+  })
+
   it('preserves AuthKit response headers while forwarding the trusted request path', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
     const request = new NextRequest('https://pika.example/student/history?month=8')
     workOSMocks.authkit.mockResolvedValue({ headers: new Headers() })
     workOSMocks.partitionAuthkitHeaders.mockReturnValue({

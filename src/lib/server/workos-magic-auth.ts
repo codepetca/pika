@@ -1,7 +1,7 @@
 import type { AuthenticationResponse } from '@workos-inc/node'
 import { getWorkOS } from '@workos-inc/authkit-nextjs'
 import { ApiError } from '@/lib/api-error'
-import { getWorkOSPilotConfig } from '@/lib/server/workos-pilot'
+import { getWorkOSConfig } from '@/lib/server/workos-config'
 import {
   deliverWorkOSMagicAuthCode,
   getWorkOSMagicAuthEmailDelivery,
@@ -48,7 +48,7 @@ export async function startWorkOSMagicAuth(email: string, request: Request): Pro
   expiresAt: string
   radarAuthAttemptId?: string
 }> {
-  getWorkOSPilotConfig()
+  getWorkOSConfig()
   const delivery = getWorkOSMagicAuthEmailDelivery()
   try {
     const result = await getWorkOS().userManagement.createMagicAuth({
@@ -75,7 +75,7 @@ export async function verifyWorkOSMagicAuth(input: {
   radarAuthAttemptId?: string
   request: Request
 }): Promise<PikaWorkOSAuthenticationResponse> {
-  const { clientId } = getWorkOSPilotConfig()
+  const { clientId } = getWorkOSConfig()
   try {
     const response = await getWorkOS().userManagement.authenticateWithMagicAuth({
       clientId,

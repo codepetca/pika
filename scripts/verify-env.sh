@@ -80,6 +80,55 @@ if [[ ! -d "node_modules" ]]; then
 fi
 echo "✅ Dependencies installed"
 
+WORKOS_AUTH_STATUS="$(node <<'NODE'
+const fs = require('node:fs')
+
+const environment = { ...process.env }
+if (fs.existsSync('.env.local')) {
+  for (const rawLine of fs.readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
+    const match = rawLine.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+    if (!match || Object.hasOwn(environment, match[1])) continue
+    let value = match[2]
+    if (
+      value.length >= 2
+      && ((value.startsWith('"') && value.endsWith('"'))
+        || (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1)
+    }
+    environment[match[1]] = value
+  }
+}
+
+if (environment.PIKA_LEGACY_PASSWORD_AUTH === 'true') {
+  process.stdout.write('legacy|')
+  process.exit(0)
+}
+
+const missing = []
+if (!environment.WORKOS_CLIENT_ID?.trim().startsWith('client_')) missing.push('WORKOS_CLIENT_ID')
+if (!environment.WORKOS_API_KEY?.trim().startsWith('sk_')) missing.push('WORKOS_API_KEY')
+if ((environment.WORKOS_COOKIE_PASSWORD?.length ?? 0) < 32) missing.push('WORKOS_COOKIE_PASSWORD')
+if ((environment.SESSION_SECRET?.length ?? 0) < 32) missing.push('SESSION_SECRET')
+process.stdout.write(`workos|${missing.join(' ')}`)
+NODE
+)"
+
+AUTH_MODE="${WORKOS_AUTH_STATUS%%|*}"
+MISSING_WORKOS="${WORKOS_AUTH_STATUS#*|}"
+
+if [[ "$AUTH_MODE" == "workos" ]]; then
+  if [[ -n "$MISSING_WORKOS" ]]; then
+    echo "❌ WorkOS Magic Auth is the default, but local configuration is incomplete: $MISSING_WORKOS"
+    echo "   Add dedicated development values to .env.local before starting Pika."
+    echo "   Use PIKA_LEGACY_PASSWORD_AUTH=true only for an intentional rollback or password-specific test."
+    exit 1
+  fi
+  echo "✅ WorkOS Magic Auth configured"
+else
+  echo "⚠️  Legacy password authentication explicitly enabled for this environment"
+fi
+
 if [[ "$MODE" == "--tests" || "$MODE" == "--full" ]]; then
   echo "Running tests..."
   "${PM_CMD[@]}" test

@@ -1,7 +1,7 @@
 import { getWorkOS, withAuth } from '@workos-inc/authkit-nextjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import { shouldUseWorkOSAuthKit } from '@/lib/auth-mode'
 import {
   clearLocalAuthenticationState,
   getPikaLoginUrl,
@@ -17,7 +17,7 @@ export const POST = withErrorHandler('PostWorkOSLogout', async (request: NextReq
   let logoutUrl = returnTo
 
   try {
-    if (isWorkOSMagicAuthPilotEnabled()) {
+    if (shouldUseWorkOSAuthKit()) {
       const { sessionId } = await withAuth()
       if (sessionId) {
         logoutUrl = getWorkOS().userManagement.getLogoutUrl({ sessionId, returnTo })

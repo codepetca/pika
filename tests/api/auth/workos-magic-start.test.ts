@@ -29,7 +29,7 @@ describe('POST /api/auth/workos/magic/start', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
     mockStart.mockResolvedValue({
       expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
       radarAuthAttemptId: 'radar_attempt_1',
@@ -37,12 +37,22 @@ describe('POST /api/auth/workos/magic/start', () => {
     })
   })
 
-  it('is unavailable while the pilot flag is off', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+  it('is unavailable while the explicit legacy password override is on', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
     const response = await POST(request({ email: 'student@example.com' }))
 
     expect(response.status).toBe(404)
     expect(mockStart).not.toHaveBeenCalled()
+  })
+
+  it('fails before requesting a code when the Pika session secret is incomplete', async () => {
+    vi.stubEnv('SESSION_SECRET', 'short')
+
+    const response = await POST(request({ email: 'student@example.com' }))
+
+    expect(response.status).toBe(503)
+    expect(mockStart).not.toHaveBeenCalled()
+    expect(mockSavePending).not.toHaveBeenCalled()
   })
 
   it('normalizes email, stores only pending server state, and never returns the code', async () => {

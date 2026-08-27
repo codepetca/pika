@@ -7,7 +7,7 @@ import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components'
 import { withAuth } from '@workos-inc/authkit-nextjs'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import { shouldUseWorkOSAuthKit } from '@/lib/auth-mode'
 
 export const metadata: Metadata = {
   title: 'Pika',
@@ -48,7 +48,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const workOSInitialAuth = isWorkOSMagicAuthPilotEnabled()
+  const workOSInitialAuth = shouldUseWorkOSAuthKit()
     ? await withAuth().then(({ accessToken: _accessToken, ...auth }) => auth)
     : null
 

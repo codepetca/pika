@@ -4,10 +4,10 @@ This file captures **high-level, long-lived decisions** about Pika’s architect
 It replaces older prompt/spec history artifacts (which are intentionally not kept in the repo).
 
 ## Authentication Model
-- Signup uses **email verification codes**, followed by **password creation**.
-- Login uses **email + password** (code-based login is not used for normal sign-in).
-- Passwords and verification/reset codes are **hashed** (bcrypt).
-- Sessions are stored in **HTTP-only cookies** via `iron-session` (secure in production, SameSite settings enforced).
+- Signup and login use **WorkOS Magic Auth** with an emailed six-digit one-time code.
+- WorkOS owns credential verification and its encrypted browser session. Pika's HTTP-only `iron-session` cookie retains only the local UUID/role mapping and must match the verified WorkOS subject.
+- The former password signup/login/reset implementation is retained temporarily behind `PIKA_LEGACY_PASSWORD_AUTH=true` as an explicit rollback and development override. It is never the implicit fallback for missing WorkOS configuration.
+- Legacy passwords and verification/reset codes remain hashed with bcrypt while that override exists.
 - Teacher vs student is derived by policy (e.g., allowed domains and/or `DEV_TEACHER_EMAILS`).
 
 ## Timezone and Deadlines

@@ -94,7 +94,7 @@ Test password-based flows:
 - `/api/auth/signup` → stores verification code, respects per-hour limit
 - `/api/auth/verify-signup` → attempts/expiry checks, role selection
 - `/api/auth/create-password` → hashes password, creates session
-- `/api/auth/login` → validates credentials, returns session cookie
+- `/api/auth/login` → legacy-override coverage validates credentials and returns a password-origin mapping cookie
 - `/api/auth/forgot-password` → reset code issuance
 - `/api/auth/reset-password/verify` + `/confirm` → code checks + password update
 - Session cookie behavior (httpOnly, secure in prod, SameSite=Lax)
@@ -196,14 +196,14 @@ Test password-based flows:
 Focus on **critical user flows**:
 
 1. **Student flow**:
-   - Signup → verify email → create password → login
+   - Enter email → receive and verify WorkOS six-digit code → open Pika
    - Join classroom via code
    - Submit journal entry
    - Open assignment, autosave content, submit, unsubmit
    - Verify attendance status updates
 
 2. **Teacher flow**:
-   - Login with password
+   - Login with a WorkOS email verification code
    - View attendance dashboard
    - Upload roster CSV, see students appear
    - Create assignment and see student statuses update after submit/unsubmit

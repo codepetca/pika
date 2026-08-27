@@ -3,19 +3,23 @@
 Drive Pika's teacher operations headlessly instead of clicking the UI, so you —
 or an AI agent — can manage curriculum as versioned markdown files.
 
-**No server changes.** The CLI is a second consumer of the existing role-gated
-API routes. It logs in via the same `POST /api/auth/login` the browser uses,
-persists the `pika_session` cookie to `.auth/pika-cli.json` (gitignored), and
-rides the shared `src/lib/test-markdown` contract the editor already uses.
+The CLI predates browser-based WorkOS Magic Auth and currently uses the legacy
+`POST /api/auth/login` route. That route is unavailable by default and must be
+enabled explicitly for a local CLI session. The CLI persists the resulting
+`pika_session` cookie to `.auth/pika-cli.json` (gitignored) and rides the shared
+`src/lib/test-markdown` contract the editor already uses.
 
 ## Setup
 
-1. Start the dev server (local Supabase must be up): `pnpm dev`
+1. Start the dev server with the local-only password override (local Supabase must be up):
+   `PIKA_LEGACY_PASSWORD_AUTH=true pnpm dev`
 2. Log in as the seeded teacher: `pnpm pika login`
 
    - Defaults to `teacher@example.com` / `test1234` (local seed). Override with
      `--email` / `--password`, or `PIKA_EMAIL` / `PIKA_PASSWORD`.
    - Target another host with `PIKA_BASE_URL=...` (defaults to `localhost:3000`).
+   - Do not enable the password override on a shared or hosted environment just
+     to use the CLI. A WorkOS-compatible CLI login is future work.
 
 ## Running it globally (optional)
 

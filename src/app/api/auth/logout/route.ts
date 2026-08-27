@@ -5,13 +5,13 @@ import {
   clearLocalAuthenticationState,
   requireSameOriginPost,
 } from '@/lib/server/workos-logout'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import { shouldUseWorkOSAuthKit } from '@/lib/auth-mode'
 
 export const POST = withErrorHandler('PostLogout', async (request: NextRequest) => {
   requireSameOriginPost(request)
 
   try {
-    if (isWorkOSMagicAuthPilotEnabled()) {
+    if (shouldUseWorkOSAuthKit()) {
       const { sessionId } = await withAuth()
       if (sessionId) {
         await getWorkOS().userManagement.revokeSession({ sessionId })

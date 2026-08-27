@@ -142,7 +142,7 @@ if (new Set([integrationSecret, eventSecret, entryTokenSecret]).size !== 3) {
 
 const nextPikaContents = upsertEnvironment(pikaContents, {
   NEXT_PUBLIC_APP_URL: PIKA_ORIGIN,
-  WORKOS_MAGIC_AUTH_PILOT: 'true',
+  PIKA_LEGACY_PASSWORD_AUTH: 'false',
   WORKOS_COOKIE_NAME: 'pika-wos-session',
   WORKOS_COOKIE_MAX_AGE: String(AUTH_SESSION_MAX_AGE_SECONDS),
   WORKOS_MAGIC_AUTH_EMAIL_DELIVERY: 'brevo',

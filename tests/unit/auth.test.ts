@@ -58,7 +58,7 @@ import {
 describe('auth utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
     workOSMocks.withAuth.mockResolvedValue({ user: null })
     // Reset session user to undefined before each test
     mockSession.user = undefined
@@ -224,7 +224,7 @@ describe('auth utilities', () => {
   // ==========================================================================
 
   describe('getCurrentUser', () => {
-    it('preserves password-origin sessions when the WorkOS pilot is disabled', async () => {
+    it('preserves password-origin sessions with the explicit legacy override', async () => {
       mockSession.user = {
         id: 'user-1',
         email: 'test@student.com',
@@ -244,7 +244,7 @@ describe('auth utilities', () => {
       expect(workOSMocks.withAuth).not.toHaveBeenCalled()
     })
 
-    it('rejects WorkOS-bound mapping sessions when the pilot is disabled', async () => {
+    it('rejects WorkOS-bound mapping sessions with the legacy override', async () => {
       mockSession.user = {
         id: 'user-1',
         email: 'test@student.com',
@@ -258,7 +258,7 @@ describe('auth utilities', () => {
       expect(workOSMocks.withAuth).not.toHaveBeenCalled()
     })
 
-    it('rejects an ambiguous legacy session when the pilot is disabled', async () => {
+    it('rejects an ambiguous legacy session with the legacy override', async () => {
       mockSession.user = {
         id: 'user-1',
         email: 'test@student.com',
@@ -302,8 +302,8 @@ describe('auth utilities', () => {
       })
     })
 
-    it('requires a matching verified WorkOS session when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    it('requires a matching verified WorkOS session in the default mode', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: ' 123456789@GAPPS.YRDSB.CA ',
@@ -325,7 +325,7 @@ describe('auth utilities', () => {
     })
 
     it('rejects a WorkOS session whose subject does not match the Pika session binding', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: 'student@example.com',
@@ -346,7 +346,7 @@ describe('auth utilities', () => {
     })
 
     it('rejects a matching WorkOS subject whose normalized email differs', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: 'student@example.com',
@@ -366,8 +366,8 @@ describe('auth utilities', () => {
       await expect(getCurrentUser()).resolves.toBeNull()
     })
 
-    it('rejects an unbound legacy compatibility session when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    it('rejects an unbound legacy compatibility session in the default WorkOS mode', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: 'student@example.com',
@@ -384,8 +384,8 @@ describe('auth utilities', () => {
       await expect(getCurrentUser()).resolves.toBeNull()
     })
 
-    it('rejects a Pika-only compatibility cookie when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    it('rejects a Pika-only compatibility cookie in the default WorkOS mode', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: '123456789@gapps.yrdsb.ca',
@@ -395,8 +395,8 @@ describe('auth utilities', () => {
       await expect(getCurrentUser()).resolves.toBeNull()
     })
 
-    it('rejects mismatched or unverified WorkOS identities when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    it('rejects mismatched or unverified WorkOS identities in the default mode', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {
         id: 'student-1',
         email: '123456789@gapps.yrdsb.ca',

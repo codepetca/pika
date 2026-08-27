@@ -4,8 +4,10 @@ import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { loginSchema } from '@/lib/validations/auth'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-config'
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, password } = loginSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

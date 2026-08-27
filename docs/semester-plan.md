@@ -38,8 +38,8 @@ For minimal-context sessions, these patterns are critical:
 
 ```
 Auth Flow:
-  signup → verify-signup → create-password → login
-  forgot-password → reset-password/verify → reset-password/confirm
+  email → WorkOS six-digit code → verified WorkOS + Pika mapping sessions
+  legacy only: PIKA_LEGACY_PASSWORD_AUTH=true enables password signup/login/reset
 
 Session:
   iron-session cookie "pika_session", HTTP-only, SameSite=Lax
