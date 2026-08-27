@@ -32,13 +32,13 @@ vi.mock('@/components/editor', () => {
         {children}
       </div>
     ),
-    RichTextEditor: ({ content, onBlur, onChange }: any) => (
+    RichTextEditor: ({ content, editable, onBlur, onChange }: any) => (
       <div>
-        <div data-testid="rich-text-editor">{extractText(content)}</div>
-        <button type="button" onClick={() => onChange(contentDoc('Updated teacher resources'))}>
+        <div data-testid="rich-text-editor" data-editable={String(editable)}>{extractText(content)}</div>
+        <button type="button" disabled={!editable} onClick={() => onChange(contentDoc('Updated teacher resources'))}>
           Change teacher resources
         </button>
-        <button type="button" onClick={() => onBlur?.()}>
+        <button type="button" disabled={!editable} onClick={() => onBlur?.()}>
           Blur resources editor
         </button>
       </div>
@@ -182,6 +182,45 @@ describe('class resources sidebars', () => {
     })
 
     expect(await screen.findByText('Second student resources')).toBeInTheDocument()
+  })
+
+  it('does not expose an empty editable document or save after a failed read, then retries safely', async () => {
+    const writeUrls: string[] = []
+    let readCount = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'PUT') {
+        writeUrls.push(url)
+        return resourceResponse('Unexpected write')
+      }
+
+      readCount += 1
+      if (readCount === 1) {
+        return new Response(JSON.stringify({ error: 'Read failed' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return resourceResponse('Recovered teacher resources')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const sendBeacon = vi.fn()
+    vi.stubGlobal('navigator', { ...navigator, sendBeacon })
+
+    render(<TeacherClassResourcesSidebar classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your existing resources have not been changed')
+    expect(screen.queryByTestId('rich-text-editor')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change teacher resources' })).not.toBeInTheDocument()
+
+    window.dispatchEvent(new Event('beforeunload'))
+    expect(writeUrls).toEqual([])
+    expect(sendBeacon).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('Recovered teacher resources')).toBeInTheDocument()
+    expect(screen.getByTestId('rich-text-editor')).toHaveAttribute('data-editable', 'true')
+    expect(writeUrls).toEqual([])
   })
 
   it('does not save a pending teacher edit to the next classroom after switching', async () => {

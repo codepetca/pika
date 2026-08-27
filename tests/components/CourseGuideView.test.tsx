@@ -11,9 +11,6 @@ const guide: CourseGuideData = {
   classroom: {
     title: 'Computer Science',
     classCode: 'ICS4U',
-    termLabel: 'Semester 1',
-    startDate: '2026-09-03',
-    endDate: '2027-01-29',
   },
   visibility: {
     overview: true,
@@ -26,7 +23,6 @@ const guide: CourseGuideData = {
     lesson_plan_scope: 'current_week',
   },
   overviewMarkdown: 'Learn **software design**.',
-  outlineMarkdown: '## Units\n\n- Programming\n- Projects',
   resourcesContent: {
     type: 'doc',
     content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Course links' }] }],
@@ -52,7 +48,6 @@ const guide: CourseGuideData = {
   }],
   lessonPlans: [{
     key: 'lesson:2026-09-10',
-    date: '2026-09-10',
     contentMarkdown: 'Variables and data types',
   }],
   announcements: [{
@@ -109,7 +104,6 @@ describe('CourseGuideView', () => {
     render(<CourseGuideView guide={{
       ...guide,
       overviewMarkdown: '',
-      outlineMarkdown: '',
       resourcesContent: null,
       assignments: [],
       tests: [],

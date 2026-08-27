@@ -159,9 +159,27 @@ function seedActualSiteSupabase(
             gradebook_weight: 10,
             include_in_final: true,
             is_draft: false,
+            released_at: null,
             position: 0,
           },
-          { id: 'a-2', title: 'Draft Assignment', instructions_markdown: 'Ignore', is_draft: true, position: 1 },
+          { id: 'a-2', title: 'Draft Assignment', instructions_markdown: 'Ignore', is_draft: true, released_at: null, position: 1 },
+          {
+            id: 'a-3',
+            title: 'Scheduled Assignment',
+            instructions_markdown: 'Not yet',
+            is_draft: false,
+            released_at: '2099-01-01T00:00:00.000Z',
+            position: 2,
+          },
+          {
+            id: 'a-4',
+            title: 'Released Assignment',
+            instructions_markdown: 'Available now',
+            is_draft: false,
+            released_at: '2020-01-01T00:00:00.000Z',
+            include_in_final: false,
+            position: 3,
+          },
         ],
         error: null,
       }),
@@ -286,7 +304,10 @@ describe('course-sites server helpers', () => {
       expect.objectContaining({
         ok: true,
         site: expect.objectContaining({
-          assignments: [expect.objectContaining({ title: 'Essay' })],
+          assignments: [
+            expect.objectContaining({ title: 'Essay' }),
+            expect.objectContaining({ title: 'Released Assignment' }),
+          ],
           tests: [expect.objectContaining({ title: 'Unit Test' })],
           grading: expect.objectContaining({
             mode: 'weighted',
@@ -310,10 +331,13 @@ describe('course-sites server helpers', () => {
       expect(result.site.classroom).not.toHaveProperty('teacher_id')
       expect(result.site.classroom).toEqual(expect.objectContaining({
         class_code: 'ICS4U',
-        start_date: '2026-02-01',
-        end_date: '2026-06-30',
       }))
-      expect(result.site.assignments).toHaveLength(1)
+      expect(result.site.classroom).not.toHaveProperty('term_label')
+      expect(result.site.classroom).not.toHaveProperty('start_date')
+      expect(result.site.classroom).not.toHaveProperty('end_date')
+      expect(result.site.classroom).not.toHaveProperty('course_outline_markdown')
+      expect(result.site.assignments).toHaveLength(2)
+      expect(result.site.assignments.map((assignment) => assignment.title)).not.toContain('Scheduled Assignment')
       expect(result.site.assignments[0]).toEqual(expect.objectContaining({
         due_at: '2026-05-01T03:59:00.000Z',
       }))
@@ -333,7 +357,7 @@ describe('course-sites server helpers', () => {
       ok: true,
       site: expect.objectContaining({
         classroom: expect.objectContaining({ id: 'c-1', title: 'CS 11' }),
-        assignments: [expect.objectContaining({ title: 'Essay' })],
+        assignments: expect.arrayContaining([expect.objectContaining({ title: 'Essay' })]),
       }),
     }))
   })

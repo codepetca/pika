@@ -77,12 +77,8 @@ export type PublishedActualCourseSiteData = {
     | 'id'
     | 'title'
     | 'class_code'
-    | 'term_label'
-    | 'start_date'
-    | 'end_date'
     | 'actual_site_config'
     | 'course_overview_markdown'
-    | 'course_outline_markdown'
   >
   resources: ClassroomResources | null
   resources_markdown: string
@@ -338,12 +334,8 @@ async function buildActualCourseSite(
     id: String(classroomRow.id),
     title: String(classroomRow.title || ''),
     class_code: String(classroomRow.class_code || ''),
-    term_label: typeof classroomRow.term_label === 'string' ? classroomRow.term_label : null,
-    start_date: typeof classroomRow.start_date === 'string' ? classroomRow.start_date : null,
-    end_date: typeof classroomRow.end_date === 'string' ? classroomRow.end_date : null,
     actual_site_config: normalizeActualCourseSiteConfig(classroomRow.actual_site_config),
     course_overview_markdown: String(classroomRow.course_overview_markdown || ''),
-    course_outline_markdown: String(classroomRow.course_outline_markdown || ''),
   }
   const sourceResult = await loadPublishedClassroomSource(classroom.id)
   if (!sourceResult.ok) return sourceResult
@@ -375,7 +367,7 @@ async function buildActualCourseSite(
 }
 
 const ACTUAL_COURSE_SITE_CLASSROOM_COLUMNS =
-  'id, title, class_code, term_label, start_date, end_date, actual_site_config, course_overview_markdown, course_outline_markdown'
+  'id, title, class_code, actual_site_config, course_overview_markdown'
 
 export async function getClassroomActualCourseSite(
   classroomId: string,

@@ -1,4 +1,5 @@
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
+import { isAssignmentVisibleToStudents } from '@/lib/assignments'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -28,7 +29,7 @@ export async function loadPublishedClassroomSource(
       .maybeSingle(),
     supabase
       .from('assignments')
-      .select('id, title, instructions_markdown, rich_instructions, description, due_at, points_possible, gradebook_weight, include_in_final, is_draft, position')
+      .select('id, title, instructions_markdown, rich_instructions, description, due_at, released_at, points_possible, gradebook_weight, include_in_final, is_draft, position')
       .eq('classroom_id', classroomId)
       .order('position', { ascending: true }),
     supabase
@@ -89,7 +90,10 @@ export async function loadPublishedClassroomSource(
       resources,
       resources_markdown: resources?.content ? tiptapToMarkdown(resources.content).markdown : '',
       assignments: ((assignmentsResult.data || []) as Array<Record<string, any>>)
-        .filter((assignment) => !assignment.is_draft)
+        .filter((assignment) => isAssignmentVisibleToStudents({
+          is_draft: !!assignment.is_draft,
+          released_at: typeof assignment.released_at === 'string' ? assignment.released_at : null,
+        }))
         .map((assignment) => ({
           title: assignment.title,
           instructions_markdown: getAssignmentInstructionsMarkdown({

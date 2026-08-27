@@ -246,8 +246,8 @@ Course Guide/resources progress:
 
 - “Syllabus” is now “Course Guide” in user-facing navigation, settings, validation, and publishing language; compatibility route, query, database, and feature keys remain unchanged.
 - Teacher, student, and public surfaces share one native responsive Course Guide presentation. The iframe and readiness-message protocol have been removed.
-- The guide is derived live from the published classroom projection and honors overview, outline, resources, assignments, tests, lesson sequence, and announcements controls.
-- Publishing settings expose every section and distinguish ready from missing-address, missing-overview, missing-outline, and no-section states.
+- The guide is derived live from the classroom projection and presents the authored curriculum overview and resources alongside enabled assignments, tests, lesson sequence, and announcements. The legacy outline field remains stored only for compatibility and is not part of the guide.
+- Course Guide controls live in the Course Guide pane. Optional public sharing requires only a public address when enabled; the in-Pika teacher and student document does not require publication.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
@@ -260,7 +260,7 @@ Course Guide/resources progress:
 9. Gradebook: completed explicit recovery, retained snapshots, stale-request isolation, selected-student detail, and direct table keyboard tests; narrow-screen navigation remains deferred.
 10. Course Guide/resources: completed shared native presentation, live classroom projection, all-section rendering, readiness, loading, Retry, unpublished, empty, and public not-found behavior.
 11. Authentication and history utility routes: session-expiry and account-replacement recovery are complete with distinct announced warnings, deterministic email focus, user-ID/role validation, and canonical same-origin return-path preservation. `/student/history` remains the stable URL for the cross-classroom Attendance utility because Today does not preserve its full class-day summary; its dead duplicate tab and duplicated attendance builder are removed, and log details use governed keyboard/dialog behavior. Mobile density remains deferred.
-12. Settings and student grades/profile: completed. The mixed teacher surface is organized into stable General, Access, Course Guide, Class Days, and Reuse sections with existing field/error behavior retained. Aggregate student grades and standalone profile editing are explicitly declined until their disclosure and data-authority contracts are defined.
+12. Settings and student grades/profile: completed. Classroom Settings is organized into stable General, Access, Class Days, and Reuse sections; Course Guide authoring and sharing remain in the guide pane. Aggregate student grades and standalone profile editing are explicitly declined until their disclosure and data-authority contracts are defined.
 
 Each numbered slice is independently releasable and reviewed for both affected roles. Exit evidence: focused component/API/domain tests, explicit error-state coverage, keyboard checks for composite controls, and accepted desktop/mobile screenshots in both themes when the workflow supports them.
 

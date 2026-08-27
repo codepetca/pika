@@ -30,7 +30,6 @@ export type CourseGuideTest = {
 
 export type CourseGuideLessonPlan = {
   key: string
-  date: string
   contentMarkdown: string
 }
 
@@ -45,13 +44,9 @@ export type CourseGuideData = {
   classroom: {
     title: string
     classCode: string
-    termLabel: string | null
-    startDate: string | null
-    endDate: string | null
   }
   visibility: ActualCourseSiteConfig
   overviewMarkdown: string
-  outlineMarkdown: string
   resourcesContent: TiptapContent | null
   assignments: CourseGuideAssignment[]
   tests: CourseGuideTest[]

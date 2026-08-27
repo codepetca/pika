@@ -116,13 +116,9 @@ const guide = {
   classroom: {
     title: classroom.title,
     classCode: classroom.class_code,
-    termLabel: null,
-    startDate: classroom.start_date,
-    endDate: classroom.end_date,
   },
   visibility: classroom.actual_site_config,
   overviewMarkdown: classroom.course_overview_markdown,
-  outlineMarkdown: classroom.course_outline_markdown,
   resourcesContent: null,
   assignments: [],
   tests: [],

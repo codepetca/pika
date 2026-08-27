@@ -7,6 +7,7 @@ const BLUEPRINT_ID = '10000000-0000-4000-8000-000000000101'
 const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
+const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -629,7 +630,10 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByRole('dialog', { name: 'Guide options' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
     await captureCourseGuideState(page, testInfo, 'teacher-options')
-    await page.getByRole('button', { name: 'Share guide publicly' }).click()
+    const publicSharingButton = page.getByRole('button', { name: 'Share guide publicly' })
+    if (await publicSharingButton.getAttribute('aria-pressed') !== 'true') {
+      await publicSharingButton.click()
+    }
     await expect(page.getByLabel('Public page address')).toBeVisible()
     await captureCourseGuideState(page, testInfo, 'teacher-options-public')
     await page.keyboard.press('Escape')
@@ -947,5 +951,50 @@ test.describe('public planned course experience matrix', () => {
       fullPage: true,
       animations: 'disabled',
     })
+  })
+})
+
+test.describe('public Course Guide experience matrix', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    await applyProjectTheme(page, testInfo)
+  })
+
+  test('shows the published classroom guide without an authenticated shell or retired fields', async ({ page }, testInfo) => {
+    const response = await page.goto(`/actual/${PUBLIC_ACTUAL_COURSE_SLUG}`, {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBe(200)
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Test Classroom' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Curriculum overview and expectations' })).toBeVisible()
+    await expect(page.getByText(/practical problem-solving/)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Course outline' })).toHaveCount(0)
+    await expect(page.locator('iframe')).toHaveCount(0)
+
+    const apiResponse = await page.request.get(`/api/public/course-guides/${PUBLIC_ACTUAL_COURSE_SLUG}`)
+    expect(apiResponse.status()).toBe(200)
+    const payload = await apiResponse.json() as { guide: Record<string, unknown> }
+    const serializedGuide = JSON.stringify(payload.guide)
+    for (const retiredField of ['termLabel', 'startDate', 'endDate', 'outlineMarkdown', '"date"']) {
+      expect(serializedGuide).not.toContain(retiredField)
+    }
+
+    await verifyProjectContract(page, testInfo)
+    await captureCourseGuideState(page, testInfo, 'public-read')
+  })
+
+  test('keeps missing or unpublished guides behind the same anonymous not-found boundary', async ({ page }, testInfo) => {
+    const response = await page.goto('/actual/e2e-course-guide-not-published', {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBe(404)
+    await expect(page.getByText('Test Classroom')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
+    await verifyProjectContract(page, testInfo)
+    await captureCourseGuideState(page, testInfo, 'public-not-found')
   })
 })

@@ -69,8 +69,8 @@ describe('getPublishedCourseGuide', () => {
         }],
         grading: {
           items: [
-            { category: 'assignments', title: 'Portfolio', course_weight_percent: 25 },
-            { category: 'tests', title: 'Unit test', course_weight_percent: 75 },
+            { key: 'assignment:0:Portfolio', category: 'assignments', title: 'Portfolio', course_weight_percent: 25 },
+            { key: 'test:0:Unit test', category: 'tests', title: 'Unit test', course_weight_percent: 75 },
           ],
         },
         lesson_plans: [{ date: '2026-09-10', content_markdown: 'Variables' }],
@@ -100,13 +100,18 @@ describe('getPublishedCourseGuide', () => {
             href: 'https://example.com/review',
           }],
         })],
-        lessonPlans: [expect.objectContaining({ date: '2026-09-10' })],
+        lessonPlans: [expect.objectContaining({ contentMarkdown: 'Variables' })],
         announcements: [expect.objectContaining({ title: 'Welcome' })],
       }),
     }))
     expect(JSON.stringify(result)).not.toContain('private answer')
     expect(JSON.stringify(result)).not.toContain('private/file.pdf')
     expect(JSON.stringify(result)).not.toContain('javascript:')
+    expect(JSON.stringify(result)).not.toContain('Semester 1')
+    expect(JSON.stringify(result)).not.toContain('2026-09-03')
+    expect(JSON.stringify(result)).not.toContain('2027-01-29')
+    expect(JSON.stringify(result)).not.toContain('Outline')
+    expect(JSON.stringify(result)).not.toContain('2026-09-10')
   })
 
   it('does not disclose classroom content from disabled guide sections', async () => {
@@ -153,7 +158,6 @@ describe('getPublishedCourseGuide', () => {
       ok: true,
       guide: expect.objectContaining({
         overviewMarkdown: '',
-        outlineMarkdown: '',
         resourcesContent: null,
         assignments: [],
         tests: [],
@@ -162,6 +166,55 @@ describe('getPublishedCourseGuide', () => {
       }),
     })
     expect(JSON.stringify(result)).not.toContain('Hidden')
+  })
+
+  it('matches grading weights by stable item key when titles are duplicated', async () => {
+    mocks.getPublishedActualCourseSite.mockResolvedValue({
+      ok: true,
+      site: {
+        classroom: {
+          title: 'Computer Science',
+          class_code: 'ICS4U',
+          actual_site_config: {
+            overview: false,
+            outline: false,
+            resources: false,
+            assignments: true,
+            tests: false,
+            lesson_plans: false,
+            announcements: false,
+            lesson_plan_scope: 'current_week',
+          },
+          course_overview_markdown: '',
+        },
+        resources: null,
+        assignments: [
+          { title: 'Project', position: 0, points_possible: 10 },
+          { title: 'Project', position: 1, points_possible: 20 },
+        ],
+        tests: [],
+        grading: {
+          items: [
+            { key: 'assignment:0:Project', category: 'assignments', title: 'Project', course_weight_percent: 30 },
+            { key: 'assignment:1:Project', category: 'assignments', title: 'Project', course_weight_percent: 70 },
+          ],
+        },
+        lesson_plans: [],
+        announcements: [],
+      },
+    })
+
+    const result = await getPublishedCourseGuide('computer-science')
+
+    expect(result).toEqual({
+      ok: true,
+      guide: expect.objectContaining({
+        assignments: [
+          expect.objectContaining({ position: 0, courseWeightPercent: 30 }),
+          expect.objectContaining({ position: 1, courseWeightPercent: 70 }),
+        ],
+      }),
+    })
   })
 
   it('preserves the published-site not-found contract', async () => {

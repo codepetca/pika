@@ -13,10 +13,9 @@ import type { TestDocument } from '@/types'
 
 function getGradingItem(
   items: PublishedCourseSiteGradingItem[],
-  category: PublishedCourseSiteGradingItem['category'],
-  title: string,
+  key: string,
 ) {
-  return items.find((item) => item.category === category && item.title === title) ?? null
+  return items.find((item) => item.key === key) ?? null
 }
 
 function getPublicDocumentLinks(
@@ -79,18 +78,15 @@ function buildCourseGuide(site: PublishedActualCourseSiteData): CourseGuideData 
     classroom: {
       title: classroom.title,
       classCode: classroom.class_code,
-      termLabel: classroom.term_label,
-      startDate: classroom.start_date,
-      endDate: classroom.end_date,
     },
     visibility,
     overviewMarkdown: visibility.overview ? classroom.course_overview_markdown : '',
-    outlineMarkdown: visibility.outline ? classroom.course_outline_markdown : '',
     resourcesContent: visibility.resources && resourcesContent && !isEmpty(resourcesContent)
       ? resourcesContent
       : null,
     assignments: visibility.assignments ? assignments.map((assignment, index) => {
-      const gradingItem = getGradingItem(gradingItems, 'assignments', String(assignment.title || ''))
+      const gradingKey = `assignment:${assignment.position ?? index}:${assignment.title}`
+      const gradingItem = getGradingItem(gradingItems, gradingKey)
       return {
         key: `assignment:${assignment.position ?? index}:${assignment.title || index}`,
         title: String(assignment.title || 'Untitled assignment'),
@@ -104,7 +100,8 @@ function buildCourseGuide(site: PublishedActualCourseSiteData): CourseGuideData 
     }) : [],
     tests: visibility.tests ? tests.map((test, index) => {
       const position = Number(test.position ?? index)
-      const gradingItem = getGradingItem(gradingItems, 'tests', String(test.title || ''))
+      const gradingKey = `test:${test.position ?? index}:${test.title}`
+      const gradingItem = getGradingItem(gradingItems, gradingKey)
       return {
         key: `test:${position}:${test.title || index}`,
         title: String(test.title || 'Untitled test'),
@@ -116,8 +113,7 @@ function buildCourseGuide(site: PublishedActualCourseSiteData): CourseGuideData 
       }
     }) : [],
     lessonPlans: visibility.lesson_plans ? lesson_plans.map((lesson, index) => ({
-      key: `lesson:${lesson.date || index}`,
-      date: String(lesson.date || ''),
+      key: `lesson:${index}`,
       contentMarkdown: String(lesson.content_markdown || ''),
     })) : [],
     announcements: visibility.announcements ? announcements.map((announcement, index) => ({

@@ -20,13 +20,9 @@ const guide: CourseGuideData = {
   classroom: {
     title: 'Computer Science',
     classCode: 'ICS4U',
-    termLabel: 'Semester 1',
-    startDate: '2026-09-03',
-    endDate: '2027-01-29',
   },
   visibility: visibleConfig,
   overviewMarkdown: 'Course overview',
-  outlineMarkdown: 'Course outline',
   resourcesContent: {
     type: 'doc',
     content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Course links' }] }],
@@ -52,7 +48,6 @@ const guide: CourseGuideData = {
   }],
   lessonPlans: [{
     key: 'lesson:2026-09-10',
-    date: '2026-09-10',
     contentMarkdown: 'Variables and data types',
   }],
   announcements: [{
@@ -94,7 +89,6 @@ describe('course guide', () => {
     expect(hasCourseGuideContent({
       ...guide,
       overviewMarkdown: '',
-      outlineMarkdown: '',
       resourcesContent: null,
       assignments: [],
       tests: [],
