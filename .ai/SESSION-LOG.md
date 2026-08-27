@@ -946,16 +946,22 @@ authentication, schema, migrations, dependencies, and student UI are unchanged.
 - Retained the approved design target, normalized comparison boards, and the
   complete desktop/mobile light/dark evidence matrix under
   `docs/guidance/ui/evidence/attendance-actions-2026-08-27/`.
-- Durable guidance was not changed because the reusable hierarchy rules were
-  already established by the merged Test grading guidance; the joined date
-  treatment remains scoped until another surface proves it reusable.
+- Added no new durable rule because the reusable hierarchy was already
+  established by the merged Test grading guidance. Corrected stale audit text
+  that still described Attendance selection placement as migration debt; the
+  joined date treatment remains scoped until another surface proves it reusable.
+- One bounded independent review found that shared action-menu rows were shorter
+  than the 44 px interaction target and lacked canonical visible focus. Added
+  `min-h-control`, the inset focus ring, a regression assertion, refreshed the
+  visual evidence, and corrected the stale work-surface audit state.
 - Composite-widget accessibility checklist reviewed: yes; keyboard behavior
   covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
   none.
 
-**Verification:** focused component tests (18/18), responsive Attendance
-Playwright matrix (4/4) after one mobile-overlap correction, TypeScript, lint,
-production build, Pika audit, diff checks, and Product Design comparison pass.
+**Verification:** focused component tests (20/20), responsive Attendance
+Playwright matrix (4/4) after the mobile-overlap correction and again after the
+menu accessibility remediation, TypeScript, lint, production build, Pika audit,
+diff checks, and Product Design comparison pass.
 Visual review covers teacher desktop/mobile in light/dark, default/selected/menu
 states, internal scrolling/sticky headers, tooltips, mobile session actions, and
 Attendance hours. Student UI is n/a because this is a teacher-only surface.
