@@ -324,6 +324,22 @@ describe('auth utilities', () => {
       expect(workOSMocks.withAuth).toHaveBeenCalledOnce()
     })
 
+    it('rejects a Pika mapping before WorkOS lookup when provider configuration is incomplete', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
+      vi.stubEnv('WORKOS_COOKIE_PASSWORD', 'short')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    })
+
     it('rejects a WorkOS session whose subject does not match the Pika session binding', async () => {
       vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       mockSession.user = {

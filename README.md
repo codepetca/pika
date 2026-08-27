@@ -22,7 +22,7 @@ node scripts/features.mjs next
 ## Features
 
 ### For Students
-- Email + password authentication (email verification required)
+- WorkOS email + six-digit code authentication
 - Join classrooms via invite code
 - Daily journal entry per classroom with Toronto-time deadline
 - Attendance history with present/absent indicators
@@ -39,8 +39,8 @@ node scripts/features.mjs next
 
 - **Framework**: Next.js 14 (App Router, TypeScript)
 - **Database**: Supabase (PostgreSQL)
-- **Authentication**: Email verification + password (bcrypt)
-- **Session Management**: iron-session (HTTP-only cookies)
+- **Authentication**: WorkOS Magic Auth email verification codes
+- **Session Management**: WorkOS AuthKit plus an iron-session identity mapping
 - **Styling**: Tailwind CSS
 - **Testing**: Vitest + React Testing Library
 
@@ -103,20 +103,25 @@ Use the URL and keys it prints.
 cp .env.example .env.local
 ```
 
-Only these are **required** for local dev:
+These are **required** for the default local WorkOS flow:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
 SESSION_SECRET=...            # generate with: pnpm run generate:secret
-ENABLE_MOCK_EMAIL=true        # verification codes print to the dev server console
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 DEV_TEACHER_EMAILS=teacher@example.com   # emails that get the teacher role
+PIKA_LEGACY_PASSWORD_AUTH=false
+WORKOS_CLIENT_ID=client_...   # dedicated development WorkOS environment
+WORKOS_API_KEY=sk_test_...    # dedicated development key; never reuse production
+WORKOS_COOKIE_PASSWORD=...    # at least 32 characters and distinct per environment
+WORKOS_COOKIE_NAME=pika-wos-session
+WORKOS_MAGIC_AUTH_EMAIL_DELIVERY=workos
 ```
 
 Everything else in `.env.example` is **optional** and only needed for specific features:
-- `BREVO_*` — real email delivery (mock email covers dev)
+- `BREVO_*` — alternate Magic Auth delivery after WorkOS default email is disabled
 - `OPENAI_API_KEY` — AI grading and log summaries
 - `GRADEX_*` — Gradex grading integration
 - `CRON_SECRET` — Vercel cron endpoints (production concern)
@@ -169,8 +174,8 @@ ENV_FILE=.env.local ALLOW_DB_WIPE=true pnpm run seed:fresh
 # 2) Enable the gallery locally (optional)
 export ENABLE_UI_GALLERY=true
 
-# 3) Start the dev server
-pnpm dev
+# 3) Start the dev server in the explicit password-fixture mode
+PIKA_LEGACY_PASSWORD_AUTH=true pnpm dev
 
 # 4) In another terminal, install browsers once and run snapshots
 pnpm run e2e:install
@@ -199,15 +204,16 @@ pnpm start
 
 ## Authentication (Primary Flow)
 
-1. **Sign up**: user enters email on `/signup`; `/api/auth/signup` stores a verification code and emails/logs it.
-2. **Verify email**: user submits code to `/api/auth/verify-signup`; on success they are directed to create a password.
-3. **Create password**: `/api/auth/create-password` hashes password with bcrypt, creates session, and redirects by role.
-4. **Login**: `/api/auth/login` with email + password (lockout after 5 failed attempts for 15 minutes).
-5. **Forgot password**: `/api/auth/forgot-password` sends reset code; `/api/auth/reset-password/verify` + `/confirm` set a new password.
+1. **Enter email**: the existing `/login` and `/signup` pages request a six-digit WorkOS Magic Auth code.
+2. **Verify code**: the user enters the emailed code on Pika; WorkOS verifies it without a hosted redirect.
+3. **Bind identity**: Pika links the exact verified WorkOS subject to one internal user and rejects conflicting links.
+4. **Create sessions**: AuthKit stores the WorkOS credential session and Pika stores an HTTP-only, SameSite=Lax internal identity/role mapping.
+5. **Restore and logout**: a valid WorkOS session can restore only its exact existing Pika mapping; logout invalidates both sessions.
 
-Session is stored in an HTTP-only, SameSite=Lax cookie via iron-session.
-
-Password-based flow only; code-based login has been removed.
+Email/password signup, reset, and login are rollback/test fixtures only. They
+are available only when the runtime is explicitly started with
+`PIKA_LEGACY_PASSWORD_AUTH=true`; missing WorkOS credentials never enable them
+automatically.
 
 ## Role Determination
 

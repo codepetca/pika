@@ -997,6 +997,10 @@ credential mutation.
   signup, and code-start requests fail before contacting WorkOS when pending
   state cannot be stored. Environment verification now fails fast on incomplete
   default WorkOS configuration instead of reporting the checkout ready.
+- Independent security/architecture review remediation added full coverage for
+  incomplete WorkOS authorization, made the local Pika/Bara configurator abort
+  without writing either environment unless Pika WorkOS auth is complete, and
+  replaced the stale password-first README setup/authentication instructions.
 - Runtime verification covers the default login/signup pages, password-page
   redirects, disabled legacy API, and unavailable unconfigured WorkOS send.
   Visual verification covers login, signup, and code entry on desktop/mobile in
@@ -1004,6 +1008,7 @@ credential mutation.
   because these are shared unauthenticated screens.
 
 **Verification:** full Vitest (5,154/5,154), production build, lint,
+full coverage (including 100% for `src/lib/auth.ts`),
 architecture/design/UI policy checks, Pika audit, configuration fail-fast
 regressions, and responsive Playwright capture review pass. Synthetic complete
 WorkOS and explicit legacy configurations pass environment verification; the

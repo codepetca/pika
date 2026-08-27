@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { chmodSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { isWorkOSAuthKitConfigured } from '../src/lib/auth-mode'
 import { AUTH_SESSION_MAX_AGE_SECONDS } from '../src/lib/auth-session-policy'
 
 const PIKA_ORIGIN = 'http://localhost:3000'
@@ -89,6 +90,12 @@ const pika = parseEnvironment(pikaContents)
 const bara = parseEnvironment(baraContents)
 const brevo = parseEnvironment(brevoContents)
 const refreshBrevo = hasArgument('--refresh-brevo')
+
+if (!isWorkOSAuthKitConfigured(pika)) {
+  throw new Error(
+    'Pika requires WORKOS_CLIENT_ID, WORKOS_API_KEY, WORKOS_COOKIE_PASSWORD, and SESSION_SECRET before WorkOS auth can be enabled.',
+  )
+}
 
 const brevoVariableNames = [
   'BREVO_API_KEY',
