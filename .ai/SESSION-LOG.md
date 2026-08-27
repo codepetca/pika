@@ -2799,3 +2799,17 @@ cross-role visual verification.
 - Focused classwork modal tests, TypeScript, lint, and `git diff --check`
 - `pnpm build` (passed after stopping the dev server and clearing the generated `.next` cache)
 - Playwright teacher screenshots reviewed for assignment, material, and survey modals at 1440x900 and 390x844 in light and dark; student modal view is not applicable.
+
+## 2026-08-27 — Simplify Classwork inspector summaries
+
+**Completed:**
+- Replaced the History authenticity gauge and Grade percentage pill with compact, right-aligned text summaries.
+- Changed inspector headers to a flexible left/right layout that remains aligned on narrow viewports.
+- Added regression coverage for the summary typography and alignment.
+
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` (27 passed)
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Composite widget checklist reviewed: keyboard toggle and semantic expanded state covered; no remaining manual follow-up.
+- Playwright teacher desktop/mobile screenshots reviewed in light and dark; student view is not applicable.
