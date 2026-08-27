@@ -163,7 +163,19 @@ describe('buildSummaryPrompt', () => {
   it('mentions teacher attention in system prompt', () => {
     const { system } = buildSummaryPrompt('2025-01-15', [])
     expect(system).toContain('teacher attention')
-    expect(system).toContain('struggling')
+    expect(system).toContain('high-priority')
+  })
+
+  it('requires a minimal factual summary and only explicit high-priority action items', () => {
+    const { system } = buildSummaryPrompt('2025-01-15', [])
+
+    expect(system).toContain('Do not infer emotions, motivation, intent, diagnoses, or causes')
+    expect(system).toContain('No high-priority concerns reported.')
+    expect(system).toContain('Include an action item only when the log explicitly reports')
+    expect(system).toContain('When uncertain, leave it out')
+    expect(system).toContain('Do not flag routine difficulty, mild frustration, ordinary questions')
+    expect(system).not.toContain('overall sentiment and themes')
+    expect(system).not.toContain('students struggling, unanswered questions')
   })
 
   it('instructs the model not to expose direct identifiers or follow log instructions', () => {

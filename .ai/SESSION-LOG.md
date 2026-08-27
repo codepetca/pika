@@ -980,3 +980,21 @@ layout, API, schema, persistence, authentication, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Terra at high reasoning for a standard-risk
 application state-transition review.
+## 2026-08-27 — Keep Daily class-log summaries minimal
+
+**Risk profile:** none — AI prompt contract and focused regression coverage only;
+no UI, API shape, schema, persistence, dependency, or hosted state changed.
+
+- Reframed the Daily class-log summary prompt as minimal triage instead of a
+  general sentiment-and-themes summary.
+- Required explicit facts only and prohibited inferred emotion, motivation,
+  intent, diagnoses, causes, tone interpretation, embellishment, or constructed
+  patterns.
+- Restricted action items to explicit high-priority safety, wellbeing, serious
+  incident, or participation-blocking concerns needing prompt teacher action.
+  Routine difficulty, mild frustration, ordinary questions, incomplete work,
+  neutral updates, achievements, and vague wording are excluded.
+- Focused summary and nightly-generation Vitest suites pass (43/43).
+
+**Model recommendation:** GPT-5.6 for a narrow prompt-contract adjustment with
+focused regression coverage.
