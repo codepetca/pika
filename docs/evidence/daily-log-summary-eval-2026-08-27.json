@@ -1,18 +1,20 @@
 {
-  "evaluated_at": "2026-08-27T13:17:46.158Z",
-  "model": "gpt-5-nano",
+  "evaluated_at": "2026-08-27T13:24:17.013Z",
+  "requested_model": "gpt-5-nano-2025-08-07",
   "policy_version": "high-priority-v1",
-  "evaluated_source_sha": "e8302a0e37c1177b2238310c7e616e381df44310",
+  "evaluated_source_sha": "01672ea1ba73b7a9eaceabda0234e23e9e65cd98",
   "command": "node --env-file=.env.local --import tsx scripts/evaluate-daily-log-summary-prompt.ts",
   "acceptance": {
     "maximum_false_negatives": 0,
     "maximum_false_positives": 0,
-    "maximum_attribution_or_category_mismatches": 0
+    "maximum_attribution_or_category_mismatches": 0,
+    "required_provider_model": "gpt-5-nano-2025-08-07"
   },
   "observed": {
     "false_negatives": 0,
     "false_positives": 0,
-    "attribution_or_category_mismatches": 0
+    "attribution_or_category_mismatches": 0,
+    "provider_models": ["gpt-5-nano-2025-08-07"]
   },
   "passed": true,
   "cases": [

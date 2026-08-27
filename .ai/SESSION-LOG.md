@@ -972,8 +972,10 @@ dependency, migration, deployment, or hosted state changed.
   payloads fail closed.
 - A committed, reproducible synthetic live-model matrix passed 5/5 explicit
   high-priority cases and 7/7 routine/vague exclusions with zero category or
-  attribution mismatches. A forged log boundary stayed attributed to its
-  submitting log and never to the targeted student.
+  attribution mismatches. The evaluation pins the documented
+  `gpt-5-nano-2025-08-07` snapshot and verifies the provider-returned model.
+  A forged log boundary stayed attributed to its submitting log and never to
+  the targeted student.
 - Focused unit, cron, teacher API, and component suites pass (65/65). Visual
   verification of the teacher unavailable state passed on desktop/mobile in
   light/dark with no overflow; student is n/a because the panel is teacher-only.
