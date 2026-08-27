@@ -1138,15 +1138,18 @@ changed.
   layout overflow menu.
 - Added component coverage for icon-only accessible naming and browser coverage
   for empty visible button text plus the AI Grade hover tooltip.
+- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
+  its fetch mock now matches URL and method instead of depending on concurrent
+  request order. Product code and preview behavior are unchanged.
 - Composite-widget accessibility checklist reviewed: yes; keyboard behavior
   covered: yes (existing split/menu Escape and focus tests remain intact);
   semantic state covered by tests: yes; remaining manual follow-up: none.
 
-**Verification:** full Vitest suite (5,139/5,139), responsive long-roster
-Playwright matrix (4/4), TypeScript, lint, architecture/design/UI policies, Pika
-audit, and diff checks pass. Visual review covers selected desktop/mobile states in
-light/dark and the desktop tooltip hover state. Student UI is n/a because this
-is a teacher-only surface.
+**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
+responsive long-roster Playwright matrix (4/4), TypeScript, lint,
+architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
+covers selected desktop/mobile states in light/dark and the desktop tooltip
+hover state. Student UI is n/a because this is a teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a bounded accessible
 teacher-toolbar refinement.
