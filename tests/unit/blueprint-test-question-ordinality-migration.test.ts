@@ -20,6 +20,13 @@ const databaseContract = readFileSync(
   ),
   'utf8',
 )
+const migrationLifecycleContract = readFileSync(
+  resolve(
+    process.cwd(),
+    'scripts/check-blueprint-question-identity-migration-lifecycle.sh',
+  ),
+  'utf8',
+)
 
 function functionDefinition(name: string): string {
   const start = migration.indexOf(`create or replace function public.${name}(`)
@@ -37,7 +44,7 @@ function expectReadOnlyStableQuestionIdentityValidation(
     /for v_child in\s+select question\.value\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}as question\(value\)/,
   )
   expect(definition).toMatch(
-    /select array_agg\(source_question\.id order by source_question\.id\)[\s\S]{0,260}source_question\.artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.source_artifact_id = \(v_child->>'id'\)::uuid/,
+    /select array_agg\(source_question\.id order by source_question\.id\)[\s\S]{0,300}coalesce\(\s*source_question\.source_artifact_id,\s*source_question\.artifact_id\s*\) = \(v_child->>'id'\)::uuid/,
   )
   expect(definition).toContain(
     'if coalesce(cardinality(v_question_row_ids), 0) > 1 then',
@@ -122,16 +129,22 @@ describe('Blueprint test-question identity migration', () => {
     for (const definition of [saveDefinition, activationDefinition]) {
       expect(definition).toContain('security definer')
       expect(definition).toContain("set search_path = ''")
-      const testLock = definition.indexOf('from public.tests test')
+      const testDiscovery = definition.indexOf('from public.tests test')
       const classroomLock = definition.indexOf('from public.classrooms classroom')
+      const testLock = definition.indexOf('from public.tests test', testDiscovery + 1)
       const draftLock = definition.indexOf('from public.assessment_drafts draft')
-      expect(testLock).toBeGreaterThanOrEqual(0)
-      expect(classroomLock).toBeGreaterThan(testLock)
-      expect(draftLock).toBeGreaterThan(classroomLock)
-      expect(definition.slice(testLock, classroomLock)).toContain('for update;')
-      expect(definition.slice(classroomLock, draftLock)).toContain('for update;')
-      expect(definition.slice(classroomLock, draftLock)).toContain(
-        'classroom.id = v_test.classroom_id',
+      expect(testDiscovery).toBeGreaterThanOrEqual(0)
+      expect(classroomLock).toBeGreaterThan(testDiscovery)
+      expect(testLock).toBeGreaterThan(classroomLock)
+      expect(draftLock).toBeGreaterThan(testLock)
+      expect(definition.slice(testDiscovery, classroomLock)).not.toContain('for update;')
+      expect(definition.slice(classroomLock, testLock)).toContain('for update;')
+      expect(definition.slice(testLock, draftLock)).toContain('for update;')
+      expect(definition.slice(classroomLock, testLock)).toContain(
+        'classroom.id = v_classroom_id',
+      )
+      expect(definition.slice(testLock, draftLock)).toContain(
+        'test.classroom_id = v_classroom_id',
       )
       expect(definition).toMatch(
         /from public\.assessment_drafts draft[\s\S]{0,180}assessment_type = 'test'[\s\S]{0,100}for update;/,
@@ -169,7 +182,7 @@ describe('Blueprint test-question identity migration', () => {
       saveDefinition.indexOf("if v_test.status in ('active', 'closed') then"),
     )
     expect(saveDefinition).toMatch(
-      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id/,
+      /coalesce\(question\.source_artifact_id, question\.artifact_id\)\s+= v_question_id/,
     )
     expect(saveDefinition).not.toContain('question.id = v_question_id')
     expect(saveDefinition).toMatch(
@@ -178,7 +191,7 @@ describe('Blueprint test-question identity migration', () => {
     expect(activationDefinition).toContain("v_test.status is distinct from 'draft'")
     expect(activationDefinition).toContain("message = 'test_not_draft'")
     expect(activationDefinition).toMatch(
-      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id/,
+      /coalesce\(question\.source_artifact_id, question\.artifact_id\)\s+= v_question_id/,
     )
     expect(activationDefinition).not.toContain('question.id = v_question_id')
     expect(activationDefinition).toMatch(
@@ -189,6 +202,30 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(migration).toContain('grant execute on function public.save_test_draft_atomic(')
     expect(migration).toContain('grant execute on function public.activate_test_from_draft_atomic(')
+    expect(saveDefinition).toContain(
+      "p_content->'question_identity_version' is distinct from '1'::jsonb",
+    )
+    expect(saveDefinition).not.toContain(
+      "p_content ? 'question_identity_version'",
+    )
+    expect(activationDefinition).toContain(
+      "v_draft.content->'question_identity_version' is distinct from '1'::jsonb",
+    )
+    expect(migration).toContain(
+      'create unique index if not exists test_questions_test_portable_identity_unique',
+    )
+    expect(migration).toMatch(
+      /on public\.test_questions \(\s*test_id,\s*\(coalesce\(source_artifact_id, artifact_id\)\)\s*\)/,
+    )
+    expect(migration).toMatch(
+      /create unique index if not exists tests_classroom_active_portable_identity_unique[\s\S]{0,220}coalesce\(source_artifact_id, artifact_id\)[\s\S]{0,120}where blueprint_archived_at is null/,
+    )
+    expect(migration).toContain(
+      'assessment_drafts_test_question_identity_version_check',
+    )
+    expect(migration).toContain(
+      "content->'question_identity_version' is not distinct from '1'::jsonb",
+    )
   })
 
   it('freezes materialized questions once student work exists', () => {
@@ -207,6 +244,11 @@ describe('Blueprint test-question identity migration', () => {
       expect(definition).toContain(`'${cacheField}'`)
     }
     expect(definition).toContain('is not distinct from')
+    const classroomLock = definition.indexOf('from public.classrooms classroom')
+    const testLock = definition.indexOf('from public.tests test', classroomLock)
+    expect(classroomLock).toBeGreaterThanOrEqual(0)
+    expect(testLock).toBeGreaterThan(classroomLock)
+    expect(definition.slice(classroomLock, testLock)).toContain('for update;')
     expect(definition).toMatch(
       /from public\.tests test[\s\S]{0,180}for update;/,
     )
@@ -245,7 +287,7 @@ describe('Blueprint test-question identity migration', () => {
       /update public\.assignments[\s\S]{0,420}where classroom_id = p_source_classroom_id\s+and blueprint_archived_at is null\s+and position = v_position/,
     )
     expect(definition).toMatch(
-      /from public\.tests as source_test\s+where source_test\.classroom_id = p_source_classroom_id\s+and source_test\.blueprint_archived_at is null\s+and \(/,
+      /from public\.tests as source_test\s+where source_test\.classroom_id = p_source_classroom_id\s+and source_test\.blueprint_archived_at is null\s+and coalesce\(source_test\.source_artifact_id, source_test\.artifact_id\)/,
     )
     expect(definition).toMatch(
       /from public\.lesson_plans lesson\s+where lesson\.classroom_id = p_source_classroom_id\s+and lesson\.blueprint_archived_at is null/,
@@ -266,6 +308,9 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
     expectReadOnlyStableQuestionIdentityValidation(definition, 'Archived')
+    expect(definition).toMatch(
+      /from public\.tests as source_test\s+where source_test\.classroom_id = p_source_classroom_id\s+and source_test\.blueprint_archived_at is null\s+and coalesce\(source_test\.source_artifact_id, source_test\.artifact_id\)/,
+    )
     expectDurableIdentityFailureLedger(definition)
     const ledgerValidation = definition.indexOf(
       'select *\n  into v_operation\n  from public.course_blueprint_operations',
@@ -417,7 +462,7 @@ describe('Blueprint test-question identity migration', () => {
       /select source_question\.id\s+into v_question_row_id\s+from public\.test_questions as source_question\s+where source_question\.test_id = v_draft\.assessment_id\s+and source_question\.id = v_question_id/,
     )
     expect(migration).toMatch(
-      /if v_question_row_id is null then\s+select array_agg\(source_question\.id order by source_question\.id\)\s+into v_question_row_ids[\s\S]{0,320}source_question\.artifact_id = v_question_id[\s\S]{0,160}source_question\.source_artifact_id = v_question_id/,
+      /if v_question_row_id is null then\s+select array_agg\(source_question\.id order by source_question\.id\)\s+into v_question_row_ids[\s\S]{0,360}coalesce\(\s*source_question\.source_artifact_id,\s*source_question\.artifact_id\s*\) = v_question_id/,
     )
     expect(migration).not.toMatch(
       /source_question\.artifact_id = v_question_id\s+or source_question\.source_artifact_id = v_question_id\s+or source_question\.id = v_question_id/,
@@ -427,6 +472,19 @@ describe('Blueprint test-question identity migration', () => {
   it('runs the rollback and replay database contract in CI', () => {
     expect(ciWorkflow).toContain(
       'bash scripts/check-blueprint-question-ordinal-identity.sh',
+    )
+    expect(ciWorkflow).toContain(
+      'bash scripts/check-blueprint-question-identity-migration-lifecycle.sh',
+    )
+    expect(migrationLifecycleContract).toContain(
+      'supabase db reset --local --version 133 --no-seed',
+    )
+    expect(migrationLifecycleContract).toContain('supabase migration up --local')
+    expect(migrationLifecycleContract).toContain(
+      'Actual 133-to-134 migration did not backfill the collision',
+    )
+    expect(migrationLifecycleContract).toContain(
+      'Migrated collision did not survive save and activation',
     )
     expect(databaseContract).toContain(
       'Non-UUIDv4 draft question identity unexpectedly saved',
@@ -466,6 +524,21 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'Stale archived operation did not reconcile to the winner',
+    )
+    expect(databaseContract).toContain(
+      'create function public.b134_archived_reuse_plan',
+    )
+    expect(databaseContract).toContain(
+      'Archived reuse after save failed',
+    )
+    expect(databaseContract).toContain(
+      'Archived reuse before activation failed',
+    )
+    expect(databaseContract).toContain(
+      'b134_archive_holds_before_save',
+    )
+    expect(databaseContract).toContain(
+      'b134_archive_holds_before_activation',
     )
   })
 })

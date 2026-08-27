@@ -64,9 +64,19 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(
 
 export function validateTestDraftContent(
   input: unknown,
-  options?: { allowEmptyQuestionText?: boolean },
+  options?: {
+    allowEmptyQuestionText?: boolean
+    requirePortableQuestionIdentity?: boolean
+  },
 ): AssessmentDraftValidationResult<TestDraftContent> {
   if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
+
+  if (
+    options?.requirePortableQuestionIdentity === true
+    && input.question_identity_version !== PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+  ) {
+    return { valid: false, error: 'Portable Test question identity is required' }
+  }
 
   if (
     input.question_identity_version !== undefined

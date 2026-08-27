@@ -60,7 +60,7 @@ if [[ "$blocked_writer_status" -eq 0 ]] \
 fi
 
 # Rehearse the application save lock order against the migration fence. A save
-# may already hold Test/Classroom/Draft row locks before its first table write.
+# may already hold Classroom/Test/Draft row locks before its first table write.
 # The migration must wait at the Draft table before it holds the question fence,
 # allowing the save to finish without a lock-upgrade deadlock.
 docker exec -i "$DB_CONTAINER" psql \
@@ -113,7 +113,7 @@ insert into public.assessment_drafts (
   'test',
   'b1348000-0000-4000-8000-000000000011',
   'b1348000-0000-4000-8000-000000000010',
-  '{"title":"Migration lock order","show_results":false,"questions":[{"id":"b1348000-0000-4000-8000-000000000014","question_type":"open_response","question_text":"Migration lock order question","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Migration lock order","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000014","question_type":"open_response","question_text":"Migration lock order question","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   1,
   'b1348000-0000-4000-8000-000000000001',
   'b1348000-0000-4000-8000-000000000001'
@@ -123,13 +123,13 @@ SQL
 docker exec -e PGAPPNAME=b134_save_before_migration_fence -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
-select id
-from public.tests
-where id = 'b1348000-0000-4000-8000-000000000011'
-for update;
 select teacher_id
 from public.classrooms
 where id = 'b1348000-0000-4000-8000-000000000010'
+for update;
+select id
+from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011'
 for update;
 select id
 from public.assessment_drafts
@@ -527,6 +527,9 @@ SQL
 # position, and the backfill must not mutate either persisted question row.
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+alter table public.assessment_drafts
+  drop constraint assessment_drafts_test_question_identity_version_check;
+
 insert into public.users (id, email, role) values (
   'b1349000-0000-4000-8000-000000000001',
   'blueprint-question-legacy-backfill@example.test',
@@ -605,6 +608,13 @@ sed -n '1,/^\$\$;$/p' "$MIGRATION_FILE" \
 
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+alter table public.assessment_drafts
+  add constraint assessment_drafts_test_question_identity_version_check
+  check (
+    assessment_type <> 'test'
+    or content->'question_identity_version' is not distinct from '1'::jsonb
+  );
+
 do $contract$
 begin
   if not exists (
@@ -694,7 +704,7 @@ select public.save_test_draft_atomic(
   'b1349000-0000-4000-8000-000000000001',
   'b1349000-0000-4000-8000-000000000011',
   8,
-  '{"title":"Legacy row-ID precedence","show_results":false,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -822,7 +832,7 @@ insert into public.assessment_drafts (
   'test',
   'b1341000-0000-4000-8000-000000000011',
   'b1341000-0000-4000-8000-000000000010',
-  '{"title":"Question A","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Question A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   1,
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000001'
@@ -831,7 +841,7 @@ insert into public.assessment_drafts (
   'test',
   'b1341000-0000-4000-8000-000000000021',
   'b1341000-0000-4000-8000-000000000010',
-  '{"title":"Rollback Test","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000123","question_type":"open_response","question_text":"Partially changed question","options":[],"correct_option":null,"answer_key":"changed","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false},{"id":"b1341000-0000-4000-8000-000000000124","question_type":"multiple_choice","question_text":"Invalid second question","options":["only one"],"correct_option":0,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Rollback Test","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000123","question_type":"open_response","question_text":"Partially changed question","options":[],"correct_option":null,"answer_key":"changed","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false},{"id":"b1341000-0000-4000-8000-000000000124","question_type":"multiple_choice","question_text":"Invalid second question","options":["only one"],"correct_option":0,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   1,
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000001'
@@ -846,7 +856,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       1,
-      '{"title":"Invalid legacy identity","show_results":false,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Invalid legacy identity","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -886,7 +896,7 @@ select public.save_test_draft_atomic(
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000011',
   1,
-  '{"title":"Question B","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Question B","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -986,7 +996,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       2,
-      '{"title":"Question C","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Question C","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -1064,7 +1074,7 @@ begin
     'b1341000-0000-4000-8000-000000000001',
     'b1341000-0000-4000-8000-000000000011',
     3,
-    '{"title":"Metadata only","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Metadata only","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     false,
     '[]'::jsonb,
     '[]'::jsonb
@@ -1075,7 +1085,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       4,
-      '{"title":"Unsafe question edit","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question D","options":[],"correct_option":null,"answer_key":"D","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Unsafe question edit","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question D","options":[],"correct_option":null,"answer_key":"D","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -1198,7 +1208,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000011',
     'b1342000-0000-4000-8000-000000000010',
-    '{"title":"Save-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Save-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Save-first seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Save-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -1208,7 +1218,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000021',
     'b1342000-0000-4000-8000-000000000020',
-    '{"title":"Archive-first save seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Archive-first save question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Archive-first save seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Archive-first save question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -1218,7 +1228,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000031',
     'b1342000-0000-4000-8000-000000000030',
-    '{"title":"Activation-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Activation-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Activation-first seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Activation-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -1228,11 +1238,59 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000041',
     'b1342000-0000-4000-8000-000000000040',
-    '{"title":"Archive-first activation seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000043","question_type":"open_response","question_text":"Archive-first activation question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Archive-first activation seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000043","question_type":"open_response","question_text":"Archive-first activation question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
   );
+
+create function public.b134_archived_reuse_plan(p_test_id uuid)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $plan$
+  select jsonb_build_object(
+    'blueprint', jsonb_build_object(
+      'title', test.title || ' Blueprint',
+      'subject', '',
+      'grade_level', '',
+      'course_code', '',
+      'term_template', '',
+      'overview_markdown', '',
+      'outline_markdown', '',
+      'resources_markdown', '',
+      'gradebook_use_weights', false,
+      'gradebook_assignments_weight', 70,
+      'gradebook_tests_weight', 30,
+      'planned_site_slug', null,
+      'planned_site_published', false,
+      'planned_site_config', '{}'::jsonb
+    ),
+    'assignments', '[]'::jsonb,
+    'assessments', jsonb_build_array(jsonb_build_object(
+      'artifact_id', coalesce(test.source_artifact_id, test.artifact_id),
+      'assessment_type', 'test',
+      'title', test.title,
+      'content', draft.content,
+      'documents', coalesce(test.documents, '[]'::jsonb),
+      'points_possible', test.points_possible,
+      'gradebook_weight', coalesce(test.gradebook_weight, 10),
+      'include_in_final', test.include_in_final,
+      'position', test.position
+    )),
+    'lesson_templates', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'manifest_version', '3',
+    'source_package_exported_at', null
+  )
+  from public.tests test
+  join public.assessment_drafts draft
+    on draft.assessment_type = 'test'
+    and draft.assessment_id = test.id
+  where test.id = p_test_id;
+$plan$;
 SQL
 
 docker exec -e PGAPPNAME=b134_save_holds_classroom -i "$DB_CONTAINER" psql \
@@ -1242,7 +1300,7 @@ select public.save_test_draft_atomic(
   'b1342000-0000-4000-8000-000000000001',
   'b1342000-0000-4000-8000-000000000011',
   1,
-  '{"title":"Saved before archive","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Saved before archive","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Saved before archive","show_results":true,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Saved before archive","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -1271,9 +1329,33 @@ fi
 
 docker exec -e PGAPPNAME=b134_archive_waits_for_save -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000010';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000010';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000051',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('1', 64),
+    'b1342000-0000-4000-8000-000000000010',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000011')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse after save failed: %', v_result;
+  end if;
+end;
+$contract$;
+commit;
 SQL
 archive_after_save_pid=$!
 archive_waited_for_save=false
@@ -1301,9 +1383,31 @@ wait "$archive_after_save_pid"
 docker exec -e PGAPPNAME=b134_archive_holds_before_save -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000020';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000020';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000052',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('2', 64),
+    'b1342000-0000-4000-8000-000000000020',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000021')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse before save failed: %', v_result;
+  end if;
+end;
+$contract$;
 select pg_sleep(3);
 commit;
 SQL
@@ -1333,7 +1437,7 @@ select public.save_test_draft_atomic(
   'b1342000-0000-4000-8000-000000000001',
   'b1342000-0000-4000-8000-000000000021',
   1,
-  '{"title":"Must not save","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Must not save","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Must not save","show_results":true,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Must not save","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -1382,9 +1486,33 @@ fi
 
 docker exec -e PGAPPNAME=b134_archive_waits_for_activation -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000030';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000030';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000053',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('3', 64),
+    'b1342000-0000-4000-8000-000000000030',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000031')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse after activation failed: %', v_result;
+  end if;
+end;
+$contract$;
+commit;
 SQL
 archive_after_activation_pid=$!
 archive_waited_for_activation=false
@@ -1412,9 +1540,31 @@ wait "$archive_after_activation_pid"
 docker exec -e PGAPPNAME=b134_archive_holds_before_activation -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000040';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000040';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000054',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('4', 64),
+    'b1342000-0000-4000-8000-000000000040',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000041')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse before activation failed: %', v_result;
+  end if;
+end;
+$contract$;
 select pg_sleep(3);
 commit;
 SQL
@@ -1536,6 +1686,8 @@ begin
   end if;
 end;
 $contract$;
+
+drop function public.b134_archived_reuse_plan(uuid);
 
 delete from public.classrooms
 where teacher_id = 'b1342000-0000-4000-8000-000000000001';
@@ -1811,6 +1963,7 @@ begin
       'content', jsonb_build_object(
         'title', 'Active multi-question Test',
         'show_results', false,
+        'question_identity_version', 1,
         'questions', jsonb_build_array(
           jsonb_build_object(
             'id', v_active_question_two_id,
@@ -2073,6 +2226,7 @@ begin
     jsonb_build_object(
       'title', 'Archived multi-question Test',
       'show_results', false,
+      'question_identity_version', 1,
       'questions', jsonb_build_array(
         jsonb_build_object(
           'id', v_archived_question_two_id,

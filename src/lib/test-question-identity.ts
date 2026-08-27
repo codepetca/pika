@@ -46,13 +46,16 @@ export function markPortableTestQuestionIdentity(
 
 export function getTestDraftIdentityResolutionOptions(
   content: Pick<TestDraftContent, 'question_identity_version'>,
-): TestQuestionIdentityResolutionOptions | undefined {
+): TestQuestionIdentityResolutionOptions {
   return usesPortableTestQuestionIdentity(content)
     ? {
         acceptInternalRowIds: false,
         allowDraftOnly: true,
       }
-    : undefined
+    : {
+        acceptInternalRowIds: true,
+        allowDraftOnly: true,
+      }
 }
 
 /**
@@ -74,20 +77,11 @@ export function getPortableTestQuestionIdentity(
 /**
  * Resolve draft identities without positional or content inference.
  *
- * Portable artifact identities are canonical. An exact persisted row-id match
- * is accepted only as a temporary dual-read path for drafts written before the
- * portable-identity backfill. No source identity is assigned or rewritten.
- *
- * TODO(remove after migration 134 has been live in production for one full
- * release cycle with no `question_identity_ambiguous`/row-id-fallback hits in
- * the RPC failure ledger — see docs/guidance/course-blueprint-identity-versioning.md):
- * migration 134's one-time backfill rewrites every existing draft's question
- * ids to portable identity at deploy time, so after that point no legitimately
- * saved draft should ever exercise the row-id branch below again. Until it's
- * removed, it stays a live source of the very ambiguity this module exists to
- * eliminate (see the `matchingRowIds.size > 1` guard a few lines down, which
- * exists specifically to catch this path colliding with the
- * artifact_id/source_artifact_id path).
+ * Portable artifact identities are canonical. Internal row-id matching is off
+ * by default and must be explicitly selected for an unmarked document. Live
+ * unmarked drafts exist only during the application-before-migration rollout
+ * window; after migration 134, the same adapter remains only for cold archived
+ * Classrooms. No source identity is assigned or rewritten.
  */
 export function resolveTestQuestionIdentities(
   inputIds: string[],
@@ -95,24 +89,18 @@ export function resolveTestQuestionIdentities(
   options: TestQuestionIdentityResolutionOptions = {},
 ): { ok: true; identities: ResolvedTestQuestionIdentity[] } | { ok: false } {
   const {
-    acceptInternalRowIds = true,
-    allowDraftOnly = true,
+    acceptInternalRowIds = false,
+    allowDraftOnly = false,
   } = options
   const rowIdsByKnownIdentity = new Map<string, Set<string>>()
   const rowsByInternalId = new Map<string, PersistedTestQuestionIdentity>()
 
   for (const question of persistedQuestions) {
     rowsByInternalId.set(normalizeTestQuestionIdentity(question.id), question)
-
-    for (const identity of new Set([
-      question.source_artifact_id,
-      question.artifact_id,
-    ].filter(Boolean))) {
-      const normalizedIdentity = normalizeTestQuestionIdentity(identity as string)
-      const rowIds = rowIdsByKnownIdentity.get(normalizedIdentity) ?? new Set<string>()
-      rowIds.add(question.id)
-      rowIdsByKnownIdentity.set(normalizedIdentity, rowIds)
-    }
+    const portableIdentity = getPortableTestQuestionIdentity(question)
+    const rowIds = rowIdsByKnownIdentity.get(portableIdentity) ?? new Set<string>()
+    rowIds.add(question.id)
+    rowIdsByKnownIdentity.set(portableIdentity, rowIds)
   }
 
   const seenInputIds = new Set<string>()
@@ -183,7 +171,7 @@ export function projectPortableTestQuestionIds(
   return {
     ok: true,
     content: {
-      ...content,
+      ...markPortableTestQuestionIdentity(content),
       questions: content.questions.map((question, index) => ({
         ...question,
         id: resolved.identities[index]!.portableId,

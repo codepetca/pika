@@ -11,6 +11,7 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { buildTestDraftContentFromRows } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import type {
   Announcement,
   AssignmentSubmissionRequirement,
@@ -271,9 +272,9 @@ export async function loadClassroomBlueprintSource(
     questions.push(question)
     questionsByTestId.set(testId, questions)
   }
-  const draftsByTestId = new Map<string, TestDraftContent>()
+  const draftsByTestId = new Map<string, unknown>()
   for (const draft of draftRows) {
-    draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
+    draftsByTestId.set(String(draft.assessment_id), draft.content)
   }
   const tests: Array<Record<string, any> & { content: TestDraftContent }> = []
   for (const test of testRows) {
@@ -285,14 +286,29 @@ export async function loadClassroomBlueprintSource(
     // Draft JSON is authoritative only while the Test is editable. Once the
     // Test is active or closed, capture the rows materialized by activation so
     // a stale or rejected draft save cannot leak into a Blueprint.
-    const draftContent = test.status === 'draft'
+    let draftContent: TestDraftContent | undefined
+    const storedDraftContent = test.status === 'draft'
       ? draftsByTestId.get(String(test.id))
       : undefined
+    if (storedDraftContent !== undefined) {
+      const validation = validateTestDraftContent(storedDraftContent, {
+        allowEmptyQuestionText: true,
+      })
+      if (!validation.valid) {
+        return {
+          ok: false,
+          status: 409,
+          error: `Test draft cannot be captured: ${validation.error}`,
+        }
+      }
+      draftContent = validation.value
+    }
     const content = draftContent
       ?? buildTestDraftContentFromRows(persistedTestContentSource, questions)
-    // Only actual draft JSON may exercise the temporary legacy row-ID reader.
-    // Row-built content is already canonical, so validate it strictly in the
-    // portable identity domain without treating coincident row UUIDs as aliases.
+    // During the application-before-migration rollout window, only an unmarked
+    // stored draft may use exact legacy row-ID precedence. Migration 134 marks
+    // every live draft and its constraint prevents that path afterward.
+    // Row-built materialized content is always portable-only.
     const projectedContent = projectPortableTestQuestionIds(content, questions.map((question) => ({
       id: String(question.id),
       artifact_id: question.artifact_id ?? null,

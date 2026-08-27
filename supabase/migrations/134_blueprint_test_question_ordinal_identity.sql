@@ -97,10 +97,10 @@ begin
         into v_question_row_ids
         from public.test_questions as source_question
         where source_question.test_id = v_draft.assessment_id
-          and (
-          source_question.artifact_id = v_question_id
-          or source_question.source_artifact_id = v_question_id
-          );
+          and coalesce(
+            source_question.source_artifact_id,
+            source_question.artifact_id
+          ) = v_question_id;
 
         if coalesce(cardinality(v_question_row_ids), 0) > 1 then
           raise exception 'Legacy Test draft question identity backfill is ambiguous'
@@ -174,16 +174,49 @@ begin
 end;
 $$;
 
+-- Within one Test, the portable identity is the immutable source lineage when
+-- present and the locally assigned artifact identity otherwise. Enforce the
+-- exact same source-first rule used by every runtime synchronization path.
+create unique index if not exists test_questions_test_portable_identity_unique
+  on public.test_questions (
+    test_id,
+    (coalesce(source_artifact_id, artifact_id))
+  );
+
+-- Retained archived Test generations may share a portable identity with their
+-- active replacement, but two active rows in one Classroom may not.
+create unique index if not exists tests_classroom_active_portable_identity_unique
+  on public.tests (
+    classroom_id,
+    (coalesce(source_artifact_id, artifact_id))
+  )
+  where blueprint_archived_at is null;
+
+-- Once the legacy drafts above have been converted, every stored Test draft is
+-- self-describing. This prevents an unmarked document from re-entering the
+-- internal row-ID compatibility namespace after the cutover.
+alter table public.assessment_drafts
+  drop constraint if exists assessment_drafts_test_question_identity_version_check;
+
+alter table public.assessment_drafts
+  add constraint assessment_drafts_test_question_identity_version_check
+  check (
+    assessment_type <> 'test'
+    or content->'question_identity_version' is not distinct from '1'::jsonb
+  );
+
 -- Question rows are the student-facing source of truth after activation. Keep
 -- them editable while an active/closed Test has no student work, but freeze the
--- set as soon as an attempt exists. Locking the Test first makes this check
--- serialize with the attempt RPCs from migration 088.
+-- set as soon as an attempt exists. The trigger takes Classroom before Test so
+-- its later structural-revision write cannot invert the global writer order;
+-- the Test lock still serializes with the attempt RPCs from migration 088.
 create or replace function public.lock_test_parent_for_child_mutation()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 declare
+  v_classroom_ids uuid[];
   v_test_id uuid;
   v_test_ids uuid[];
 begin
@@ -232,6 +265,17 @@ begin
     v_test_ids := array[v_test_id];
   end if;
 
+  select array_agg(test.classroom_id order by test.classroom_id)
+  into v_classroom_ids
+  from public.tests test
+  where test.id = any(v_test_ids);
+
+  perform 1
+  from public.classrooms classroom
+  where classroom.id = any(v_classroom_ids)
+  order by classroom.id
+  for update;
+
   perform 1
   from public.tests test
   where test.id = any(v_test_ids)
@@ -270,10 +314,10 @@ begin
 end;
 $$;
 
--- Test authoring writes and activation share the same parent-row lock. This
--- makes their order explicit: a draft save that owns the lock first is included
--- in activation, while stale activation fails its draft-version fence. Saves
--- after activation synchronize the already-materialized rows instead.
+-- Test authoring and activation use one global writer order: Classroom, Test,
+-- Draft, then question rows. A draft save that owns those locks first is
+-- included in activation, while stale activation fails its version fence.
+-- Saves after activation synchronize the already-materialized rows instead.
 create or replace function public.save_test_draft_atomic(
   p_teacher_id uuid,
   p_test_id uuid,
@@ -290,6 +334,7 @@ set search_path = ''
 as $$
 declare
   v_archived_at timestamptz;
+  v_classroom_id uuid;
   v_cleanup_paths jsonb := '[]'::jsonb;
   v_draft public.assessment_drafts%rowtype;
   v_matched_row_id uuid;
@@ -308,10 +353,7 @@ begin
   if jsonb_typeof(p_content) is distinct from 'object'
     or jsonb_typeof(p_content->'questions') is distinct from 'array'
     or jsonb_typeof(p_content->'show_results') is distinct from 'boolean'
-    or (
-      p_content ? 'question_identity_version'
-      and p_content->'question_identity_version' is distinct from '1'::jsonb
-    )
+    or p_content->'question_identity_version' is distinct from '1'::jsonb
     or nullif(btrim(p_content->>'title'), '') is null
   then
     raise exception using errcode = '22023', message = 'invalid_draft_content';
@@ -323,23 +365,25 @@ begin
     raise exception using errcode = '22023', message = 'invalid_documents';
   end if;
 
-  select test.* into v_test
+  -- Discover the parent without retaining a conflicting lock, then follow the
+  -- global Classroom -> Test -> Draft -> questions writer order. Recheck the
+  -- relationship while locking the Test so a concurrent move/delete fails
+  -- closed instead of authoring against the wrong Classroom.
+  select test.classroom_id into v_classroom_id
   from public.tests test
-  where test.id = p_test_id
-  for update;
+  where test.id = p_test_id;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'test_not_found';
   end if;
 
-  -- Keep archive and authoring mutually exclusive through commit. Draft and
-  -- question triggers update this Classroom's structural revision, so take the
-  -- update lock now instead of upgrading a shared lock after another Test save
-  -- in the same Classroom has acquired it.
+  -- Keep archive and authoring mutually exclusive through commit. Every writer
+  -- takes the Classroom first, so archived reuse and Test authoring cannot form
+  -- a Test/Classroom lock cycle.
   select classroom.teacher_id, classroom.archived_at
     into v_owner_id, v_archived_at
   from public.classrooms classroom
-  where classroom.id = v_test.classroom_id
+  where classroom.id = v_classroom_id
   for update;
 
   if not found then
@@ -347,6 +391,16 @@ begin
   end if;
   if v_owner_id is distinct from p_teacher_id then
     raise exception using errcode = '42501', message = 'forbidden';
+  end if;
+
+  select test.* into v_test
+  from public.tests test
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_not_found';
   end if;
 
   if v_archived_at is not null or v_test.blueprint_archived_at is not null then
@@ -441,21 +495,16 @@ begin
         into v_matched_row_ids
       from public.test_questions question
       where question.test_id = p_test_id
-        and (
-          question.artifact_id = v_question_id
-          or question.source_artifact_id = v_question_id
-        );
+        and coalesce(question.source_artifact_id, question.artifact_id)
+          = v_question_id;
 
       if coalesce(cardinality(v_matched_row_ids), 0) > 1 then
         raise exception using errcode = '22023', message = 'question_identity_ambiguous';
       end if;
 
       v_matched_row_id := v_matched_row_ids[1];
-      -- Two distinct incoming ids (one matching a row's artifact_id, the
-      -- other its source_artifact_id) can each independently resolve to a
-      -- single row and pass the ambiguity check above. Reject that here,
-      -- mirroring resolveTestQuestionIdentities' matchedRowIds guard, so a
-      -- second question can't silently collapse into an already-claimed row.
+      -- Defense in depth: never allow two incoming identities to claim one
+      -- materialized row, even if corrupted data bypassed the unique index.
       if v_matched_row_id is not null and v_matched_row_id = any(v_retained_row_ids) then
         raise exception using errcode = '22023', message = 'question_identity_ambiguous';
       end if;
@@ -579,6 +628,7 @@ set search_path = ''
 as $$
 declare
   v_archived_at timestamptz;
+  v_classroom_id uuid;
   v_draft public.assessment_drafts%rowtype;
   v_matched_row_id uuid;
   v_matched_row_ids uuid[];
@@ -594,23 +644,22 @@ begin
     raise exception using errcode = '22023', message = 'invalid_draft_version';
   end if;
 
-  select test.* into v_test
+  -- Discover the parent first, then use the global Classroom -> Test -> Draft
+  -- -> questions writer order. The Test lookup is repeated under lock below.
+  select test.classroom_id into v_classroom_id
   from public.tests test
-  where test.id = p_test_id
-  for update;
+  where test.id = p_test_id;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'test_not_found';
   end if;
 
-  -- Activation uses the same Test -> Classroom -> draft -> questions lock
-  -- order as saving. The update lock both prevents activation from completing
-  -- after a concurrent archive wins and serializes structural-revision writes
-  -- from different Tests in the same Classroom.
+  -- The Classroom lock prevents activation from completing after a concurrent
+  -- archive wins and serializes structural-revision writes across its Tests.
   select classroom.teacher_id, classroom.archived_at
     into v_owner_id, v_archived_at
   from public.classrooms classroom
-  where classroom.id = v_test.classroom_id
+  where classroom.id = v_classroom_id
   for update;
 
   if not found then
@@ -618,6 +667,16 @@ begin
   end if;
   if v_owner_id is distinct from p_teacher_id then
     raise exception using errcode = '42501', message = 'forbidden';
+  end if;
+
+  select test.* into v_test
+  from public.tests test
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_not_found';
   end if;
 
   if v_archived_at is not null or v_test.blueprint_archived_at is not null then
@@ -644,6 +703,7 @@ begin
     or jsonb_typeof(v_draft.content->'questions') is distinct from 'array'
     or jsonb_array_length(v_draft.content->'questions') < 1
     or jsonb_typeof(v_draft.content->'show_results') is distinct from 'boolean'
+    or v_draft.content->'question_identity_version' is distinct from '1'::jsonb
     or nullif(btrim(v_draft.content->>'title'), '') is null
   then
     raise exception using errcode = '22023', message = 'invalid_draft_content';
@@ -681,21 +741,16 @@ begin
       into v_matched_row_ids
     from public.test_questions question
     where question.test_id = p_test_id
-      and (
-        question.artifact_id = v_question_id
-        or question.source_artifact_id = v_question_id
-      );
+      and coalesce(question.source_artifact_id, question.artifact_id)
+        = v_question_id;
 
     if coalesce(cardinality(v_matched_row_ids), 0) > 1 then
       raise exception using errcode = '22023', message = 'question_identity_ambiguous';
     end if;
 
     v_matched_row_id := v_matched_row_ids[1];
-    -- Two distinct incoming ids (one matching a row's artifact_id, the
-    -- other its source_artifact_id) can each independently resolve to a
-    -- single row and pass the ambiguity check above. Reject that here,
-    -- mirroring resolveTestQuestionIdentities' matchedRowIds guard, so a
-    -- second question can't silently collapse into an already-claimed row.
+    -- Defense in depth: never allow two incoming identities to claim one
+    -- materialized row, even if corrupted data bypassed the unique index.
     if v_matched_row_id is not null and v_matched_row_id = any(v_retained_row_ids) then
       raise exception using errcode = '22023', message = 'question_identity_ambiguous';
     end if;
@@ -1011,10 +1066,8 @@ begin
       from public.tests as source_test
       where source_test.classroom_id = p_source_classroom_id
         and source_test.blueprint_archived_at is null
-        and (
-          source_test.artifact_id = (v_item->>'artifact_id')::uuid
-          or source_test.source_artifact_id = (v_item->>'artifact_id')::uuid
-        );
+        and coalesce(source_test.source_artifact_id, source_test.artifact_id)
+          = (v_item->>'artifact_id')::uuid;
       if coalesce(cardinality(v_question_row_ids), 0) <> 1 then
         raise exception 'Captured Test identity mapping failed'
           using errcode = '22023';
@@ -1040,10 +1093,10 @@ begin
         into v_question_row_ids
         from public.test_questions as source_question
         where source_question.test_id = v_parent_id
-          and (
-            source_question.artifact_id = (v_child->>'id')::uuid
-            or source_question.source_artifact_id = (v_child->>'id')::uuid
-          );
+          and coalesce(
+            source_question.source_artifact_id,
+            source_question.artifact_id
+          ) = (v_child->>'id')::uuid;
 
         if coalesce(cardinality(v_question_row_ids), 0) > 1 then
           v_error_code := 'test_question_identity_ambiguous';
@@ -1779,10 +1832,8 @@ begin
     from public.tests as source_test
     where source_test.classroom_id = p_source_classroom_id
       and source_test.blueprint_archived_at is null
-      and (
-        source_test.artifact_id = (v_item->>'artifact_id')::uuid
-        or source_test.source_artifact_id = (v_item->>'artifact_id')::uuid
-      );
+      and coalesce(source_test.source_artifact_id, source_test.artifact_id)
+        = (v_item->>'artifact_id')::uuid;
     if coalesce(cardinality(v_question_row_ids), 0) <> 1 then
       raise exception 'Archived Test identity mapping failed'
         using errcode = '22023';
@@ -1808,10 +1859,10 @@ begin
       into v_question_row_ids
       from public.test_questions as source_question
       where source_question.test_id = v_parent_id
-        and (
-          source_question.artifact_id = (v_child->>'id')::uuid
-          or source_question.source_artifact_id = (v_child->>'id')::uuid
-        );
+        and coalesce(
+          source_question.source_artifact_id,
+          source_question.artifact_id
+        ) = (v_child->>'id')::uuid;
 
       if coalesce(cardinality(v_question_row_ids), 0) > 1 then
         v_error_code := 'test_question_identity_ambiguous';

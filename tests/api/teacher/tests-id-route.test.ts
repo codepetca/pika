@@ -308,6 +308,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         content: {
           title: 'Unit Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [{
             id: '20000000-0000-4000-8000-000000000001',
             question_type: 'multiple_choice',
@@ -347,6 +348,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         content: {
           title: 'Unit Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [{
             id: '20000000-0000-4000-8000-000000000001',
             question_type: 'multiple_choice',

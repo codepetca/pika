@@ -633,6 +633,7 @@ describe('assessment drafts', () => {
       projectContent: (content, rows) => projectPortableTestQuestionIds(
         content,
         rows as Array<{ id: string; artifact_id?: string | null; source_artifact_id?: string | null }>,
+        getTestDraftIdentityResolutionOptions(content),
       ),
     })
 

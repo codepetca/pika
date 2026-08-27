@@ -261,6 +261,11 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       )
     }
 
+    // Before migration 134, an unmarked persisted draft still follows the
+    // legacy activation RPC contract. Migration 134 marks every live draft and
+    // its replacement RPC enforces the marker inside the activation
+    // transaction, so this rollout read can remain compatible without
+    // weakening the post-migration boundary.
     const validatedDraft = validateTestDraftContent(draft.content)
     if (!validatedDraft.valid) {
       return NextResponse.json({ error: validatedDraft.error }, { status: 400 })

@@ -117,6 +117,7 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     { patch: body.patch, content: body.content },
     (input: unknown) => validateTestDraftContent(input, {
       allowEmptyQuestionText: access.test.status === 'draft',
+      requirePortableQuestionIdentity: true,
     })
   )
 

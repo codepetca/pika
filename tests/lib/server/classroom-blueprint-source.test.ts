@@ -58,6 +58,17 @@ function seedSourceSupabase(overrides?: {
     blueprint_source_revision: 1,
     ...overrides?.classroom,
   }
+  const assessmentDrafts = (overrides?.assessmentDrafts || [{
+    assessment_id: 't-1',
+    content: { title: 'Test 1', questions: [] },
+  }]).map((draft) => ({
+    ...draft,
+    content: {
+      show_results: false,
+      question_identity_version: 1,
+      ...draft.content,
+    },
+  }))
   mockSupabase = makeSupabaseFromQueues({
     classrooms: [
       makeQueryBuilder({ data: classroom, error: null }),
@@ -116,10 +127,7 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({
         data: overrides?.assessmentDraftError
           ? null
-          : overrides?.assessmentDrafts || [{
-            assessment_id: 't-1',
-            content: { title: 'Test 1', questions: [] },
-          }],
+          : assessmentDrafts,
         error: overrides?.assessmentDraftError ?? null,
       }),
     ],
@@ -301,7 +309,7 @@ describe('classroom blueprint source loader', () => {
         content: {
           title: 'Draft-backed test',
           questions: [{
-            id: 'question-row-1',
+            id: '20000000-0000-4000-8000-000000000001',
             question_type: 'open_response',
             question_text: 'Explain portable identity.',
             position: 0,
@@ -486,6 +494,7 @@ describe('classroom blueprint source loader', () => {
     const content = {
       title: 'Identity contract',
       show_results: false,
+      question_identity_version: 1 as const,
       questions: [{
         id: '20000000-0000-4000-8000-000000000001',
         question_type: 'open_response' as const,
@@ -515,7 +524,10 @@ describe('classroom blueprint source loader', () => {
       id: 'question-row-1',
       artifact_id: '20000000-0000-4000-8000-000000000001',
       source_artifact_id: null,
-    }])).toEqual({ ok: true, content })
+    }], {
+      acceptInternalRowIds: false,
+      allowDraftOnly: true,
+    })).toEqual({ ok: true, content })
 
     expect(projectPortableTestQuestionIds(content, [{
       id: 'question-row-1',
@@ -525,7 +537,10 @@ describe('classroom blueprint source loader', () => {
       id: 'question-row-2',
       artifact_id: '40000000-0000-4000-8000-000000000001',
       source_artifact_id: '20000000-0000-4000-8000-000000000001',
-    }])).toEqual({ ok: false })
+    }], {
+      acceptInternalRowIds: false,
+      allowDraftOnly: true,
+    })).toEqual({ ok: false })
 
     expect(projectPortableTestQuestionIds({
       ...content,
@@ -538,7 +553,10 @@ describe('classroom blueprint source loader', () => {
       id: 'question-row-2',
       artifact_id: 'question-row-1',
       source_artifact_id: null,
-    }])).toEqual({
+    }], {
+      acceptInternalRowIds: true,
+      allowDraftOnly: true,
+    })).toEqual({
       ok: true,
       content: {
         ...content,
