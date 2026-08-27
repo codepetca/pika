@@ -8,6 +8,9 @@ import type { AssignmentDoc } from '@/types'
 /** Dispatched when class days are updated (created, toggled, etc.) */
 export const CLASS_DAYS_UPDATED_EVENT = 'pika:classDaysUpdated'
 
+/** Dispatched when the shared Pika logo selects the classrooms home destination */
+export const APP_HOME_SELECTED_EVENT = 'pika:appHomeSelected'
+
 /** Dispatched when teacher assignment selection changes */
 export const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
 

@@ -12,6 +12,7 @@ import { Tooltip } from '@/ui'
 import { useFullscreen } from '@/hooks/use-fullscreen'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { getClassroomThemeDefinition, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface AppHeaderProps {
   user?: {
@@ -169,6 +170,17 @@ export function AppHeader({
               const allow = onNavigateHome?.('/classrooms')
               if (allow === false) {
                 event.preventDefault()
+                return
+              }
+
+              if (
+                event.button === 0
+                && !event.metaKey
+                && !event.ctrlKey
+                && !event.shiftKey
+                && !event.altKey
+              ) {
+                window.dispatchEvent(new Event(APP_HOME_SELECTED_EVENT))
               }
             }}
           >

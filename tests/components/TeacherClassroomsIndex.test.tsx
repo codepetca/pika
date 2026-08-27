@@ -8,6 +8,7 @@ import {
 import { TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
 import type { Classroom } from '@/types'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 const push = vi.hoisted(() => vi.fn())
 const createClassroomModalProps = vi.hoisted(() => ({ current: null as any }))
@@ -862,6 +863,40 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('returns the archived classroom view to active when the Pika logo selects home', async () => {
+    const activeClassroom = createMockClassroom({ id: 'active-1', title: 'Active classroom' })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({
+          id: 'archived-1',
+          title: 'Archived classroom',
+          archived_at: '2026-04-01T12:00:00Z',
+        }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+
+    renderTeacherClassroomsIndex([activeClassroom])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    expect(await screen.findByRole('button', { name: /^Archived classroom/ })).toBeInTheDocument()
+
+    fireEvent(window, new Event(APP_HOME_SELECTED_EVENT))
+
+    const classroomView = screen.getByRole('group', { name: 'Classroom view' })
+    expect(within(classroomView).getByRole('button', { name: 'Active' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: /^Active classroom/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Archived classroom/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
   })
 
   it('does not show a Blueprints button in the classroom action bar', async () => {

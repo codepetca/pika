@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { AppHeader } from '@/components/AppHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -18,6 +19,35 @@ function Wrapper({ children }: { children: ReactNode }) {
     </ThemeProvider>
   )
 }
+
+describe('AppHeader home navigation', () => {
+  it('announces a primary Pika logo selection to the current classrooms page', () => {
+    const handleHomeSelected = vi.fn()
+    window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+
+    render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
+    const homeLink = screen.getByRole('link', { name: 'Home' })
+    homeLink.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(homeLink)
+
+    expect(handleHomeSelected).toHaveBeenCalledOnce()
+    window.removeEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+  })
+
+  it('does not announce home when the current workflow blocks navigation', () => {
+    const handleHomeSelected = vi.fn()
+    window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+
+    render(
+      <AppHeader pageTitle="Classrooms" onNavigateHome={() => false} />,
+      { wrapper: Wrapper }
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+
+    expect(handleHomeSelected).not.toHaveBeenCalled()
+    window.removeEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+  })
+})
 
 describe('AppHeader exam mode', () => {
   afterEach(() => {
