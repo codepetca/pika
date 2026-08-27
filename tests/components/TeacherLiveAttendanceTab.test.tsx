@@ -111,7 +111,20 @@ describe('TeacherLiveAttendanceTab', () => {
   })
 
   it('renders the projected roster and enables accessible bulk corrections while open', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView()))
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(attendanceView()))
+      .mockResolvedValueOnce(jsonResponse({
+        policy: {
+          classroomId: classroom.id,
+          timezone: 'America/Toronto',
+          opensLocal: '08:45',
+          closesLocal: '15:15',
+          closeDayOffset: 0,
+          enabled: true,
+          revision: 1,
+          updatedAt: '2026-08-17T12:00:00.000Z',
+        },
+      }))
 
     renderTab()
 
@@ -128,7 +141,19 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
     expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
-    expect(screen.getByRole('button', { name: 'Attendance hours' })).toBeEnabled()
+    const trailingActions = screen.getByTestId('attendance-trailing-actions')
+    expect(trailingActions).toHaveClass('flex')
+    expect(trailingActions).not.toHaveClass('hidden')
+    const attendanceMenu = within(trailingActions).getByRole('button', { name: 'Attendance actions' })
+    expect(attendanceMenu).toBeEnabled()
+    fireEvent.click(attendanceMenu)
+    const attendanceHours = screen.getByRole('menuitem', { name: 'Attendance hours' })
+    expect(attendanceHours).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Refresh attendance' })).toBeEnabled()
+
+    fireEvent.click(attendanceHours)
+    expect(await screen.findByRole('dialog', { name: 'Attendance hours' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.focus(closeAttendance)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')

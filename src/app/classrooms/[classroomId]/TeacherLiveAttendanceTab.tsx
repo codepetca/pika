@@ -8,12 +8,17 @@ import {
   Clock3,
   DoorClosed,
   DoorOpen,
+  EllipsisVertical,
   QrCode as QrCodeIcon,
   RefreshCw,
   UserRoundCheck,
   UserRoundX,
 } from 'lucide-react'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
+import {
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherSelectionBar } from '@/components/teacher-work-surface/TeacherSelectionBar'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
@@ -574,6 +579,22 @@ export function TeacherLiveAttendanceTab({
     : localSessionPending || view?.sync.state === 'pending'
       ? 'Updating…'
       : SESSION_LABELS[sessionState]
+  const utilityActions: TeacherWorkSurfaceActionItem[] = [
+    ...(!isArchived ? [{
+      id: 'attendance-hours',
+      label: 'Attendance hours',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand),
+      onSelect: () => setAttendanceHoursOpen(true),
+    }] : []),
+    {
+      id: 'refresh-attendance',
+      label: 'Refresh attendance',
+      icon: <RefreshCw className="h-4 w-4" aria-hidden="true" />,
+      disabled: loading || refreshing || Boolean(activeCommand),
+      onSelect: () => void loadView(true),
+    },
+  ]
   const actionBar = (
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
@@ -646,8 +667,20 @@ export function TeacherLiveAttendanceTab({
           ) : null}
         </div>
       )}
+      trailingClassName="overflow-visible"
       actions={view?.integration === 'ready' ? (
-        <div className="hidden items-center gap-1 sm:flex">
+        <div className="flex items-center" data-testid="attendance-trailing-actions">
+          <div className="sm:hidden">
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="Attendance actions"
+              tooltip="Attendance actions"
+              variant="ghost"
+              icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+              items={utilityActions}
+              menuAriaLabel="Attendance actions"
+            />
+          </div>
+          <div className="hidden items-center gap-1 sm:flex">
             {!isArchived ? (
               <Tooltip content="Attendance hours">
                 <Button
@@ -676,6 +709,7 @@ export function TeacherLiveAttendanceTab({
                 <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
               </Button>
             </Tooltip>
+          </div>
         </div>
       ) : null}
     />
@@ -915,7 +949,7 @@ export function TeacherLiveAttendanceTab({
   return (
     <>
       <PageLayout className="flex h-full min-h-0 flex-col">
-        <PageActionBar primary={actionBar} className="pb-0" />
+        <PageActionBar primary={actionBar} className="relative z-local-menu pb-0" />
         <PageContent className="flex min-h-0 flex-1 flex-col pb-2 pt-1">
           {content}
         </PageContent>
