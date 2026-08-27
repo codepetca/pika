@@ -147,6 +147,34 @@ begin
     return old;
   end if;
 
+  -- Generated AI references are operational cache data, not authored Test
+  -- content. They remain reusable after student work exists and do not belong
+  -- in Blueprint revisions. Compare the complete records minus that explicit
+  -- allowlist (and the automatic timestamp) so every current or future
+  -- authored/identity field remains frozen by default.
+  if tg_table_name = 'test_questions'
+    and tg_op = 'UPDATE'
+    and (
+      to_jsonb(new) - array[
+        'ai_reference_cache_key',
+        'ai_reference_cache_answers',
+        'ai_reference_cache_model',
+        'ai_reference_cache_generated_at',
+        'updated_at'
+      ]::text[]
+    ) is not distinct from (
+      to_jsonb(old) - array[
+        'ai_reference_cache_key',
+        'ai_reference_cache_answers',
+        'ai_reference_cache_model',
+        'ai_reference_cache_generated_at',
+        'updated_at'
+      ]::text[]
+    )
+  then
+    return new;
+  end if;
+
   if tg_op = 'UPDATE' and old.test_id is distinct from new.test_id then
     v_test_ids := array[old.test_id, new.test_id];
   else

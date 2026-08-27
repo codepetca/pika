@@ -181,6 +181,19 @@ describe('Blueprint test-question identity migration', () => {
   it('freezes materialized questions once student work exists', () => {
     const definition = functionDefinition('lock_test_parent_for_child_mutation')
 
+    expect(definition).toContain("tg_op = 'UPDATE'")
+    expect(definition).toContain('to_jsonb(new) - array[')
+    expect(definition).toContain('to_jsonb(old) - array[')
+    for (const cacheField of [
+      'ai_reference_cache_key',
+      'ai_reference_cache_answers',
+      'ai_reference_cache_model',
+      'ai_reference_cache_generated_at',
+      'updated_at',
+    ]) {
+      expect(definition).toContain(`'${cacheField}'`)
+    }
+    expect(definition).toContain('is not distinct from')
     expect(definition).toMatch(
       /from public\.tests test[\s\S]{0,180}for update;/,
     )
@@ -190,6 +203,12 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain('from public.test_responses response')
     expect(definition).toContain("errcode = '55000'")
     expect(definition).toContain('message = \'test_questions_locked: Test questions cannot be changed after student work exists\'')
+    expect(databaseContract).toContain(
+      'AI reference cache did not persist after student work',
+    )
+    expect(databaseContract).toContain(
+      'AI reference cache changed the Classroom structural revision',
+    )
   })
 
   it('maps active classroom capture questions by stable identity', () => {

@@ -227,6 +227,7 @@ docker exec -i "$DB_CONTAINER" psql \
 do $contract$
 declare
   v_error_message text;
+  v_source_revision bigint;
 begin
   begin
     perform public.activate_test_from_draft_atomic(
@@ -317,6 +318,44 @@ begin
     'b1341000-0000-4000-8000-000000000011',
     'b1341000-0000-4000-8000-000000000001'
   );
+
+  select classroom.blueprint_source_revision
+    into v_source_revision
+  from public.classrooms classroom
+  where classroom.id = 'b1341000-0000-4000-8000-000000000010';
+
+  -- AI grading may populate operational reference caches after responses or
+  -- attempts exist. This must not reopen authored content or create a new
+  -- reusable Classroom revision.
+  update public.test_questions question
+  set
+    ai_reference_cache_key = 'b134-cache-key',
+    ai_reference_cache_answers = '["Reference C"]'::jsonb,
+    ai_reference_cache_model = 'b134-contract-model',
+    ai_reference_cache_generated_at = clock_timestamp()
+  where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+    and question.artifact_id = 'b1341000-0000-4000-8000-000000000013';
+
+  if not exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+      and question.artifact_id = 'b1341000-0000-4000-8000-000000000013'
+      and question.ai_reference_cache_key = 'b134-cache-key'
+      and question.ai_reference_cache_answers = '["Reference C"]'::jsonb
+      and question.ai_reference_cache_model = 'b134-contract-model'
+      and question.ai_reference_cache_generated_at is not null
+  ) then
+    raise exception 'AI reference cache did not persist after student work';
+  end if;
+
+  if (
+    select classroom.blueprint_source_revision
+    from public.classrooms classroom
+    where classroom.id = 'b1341000-0000-4000-8000-000000000010'
+  ) is distinct from v_source_revision then
+    raise exception 'AI reference cache changed the Classroom structural revision';
+  end if;
 
   -- Metadata-only saves remain valid after student work because unchanged
   -- question rows are not rewritten and therefore cannot distort responses.
