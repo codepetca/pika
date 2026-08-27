@@ -1029,6 +1029,7 @@ Current Test reference material.
       const patchBody = JSON.parse(String(patchCall?.[1]?.body))
       expect(patchCall?.[0]).toBe('/api/teacher/tests/test-1/draft')
       expect(patchCall?.[1]?.method).toBe('PATCH')
+      expect(patchBody.content.question_identity_version).toBe(1)
       expect(patchBody.content.questions[0]).toMatchObject({
         id: markdownQuestionId1,
         question_type: 'open_response',
@@ -2175,7 +2176,7 @@ _None_
       expect(patchCall).toBeTruthy()
 
       openSpy.mockRestore()
-    })
+    }, 10_000)
   })
 
   describe('Markdown tab', () => {

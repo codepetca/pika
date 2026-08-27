@@ -59,12 +59,12 @@ const teacherItems: NavItem[] = [
 
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
-  { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Syllabus', icon: BookOpen },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
+  { id: 'achievements', label: 'Achievements', icon: Trophy },
 ]
 
 // ============================================================================
@@ -206,12 +206,13 @@ export function NavItems({
     isCollapsed ? 'justify-center w-full h-12 px-0' : 'gap-3 px-3 h-12 w-full'
 
   return (
-    <nav className="space-y-1">
+    <nav className="flex min-h-0 flex-1 flex-col gap-1">
       {items.map((item) => {
         const isActive = activeTab === item.id
         const Icon = item.icon
         const href = tabHref(classroomId, item.id)
         const layoutClass = getLayoutClass(!showLabels)
+        const pinToBottom = role === 'student' && item.id === 'achievements'
 
         // Regular nav items
         const shouldPulse =
@@ -256,10 +257,14 @@ export function NavItems({
           </a>
         )
 
-        return !showLabels ? (
-          <Tooltip key={item.id} content={item.label}>{navLink}</Tooltip>
-        ) : (
-          <span key={item.id}>{navLink}</span>
+        return (
+          <span key={item.id} className={pinToBottom ? 'mt-auto block' : 'block'}>
+            {!showLabels ? (
+              <Tooltip content={item.label}>{navLink}</Tooltip>
+            ) : (
+              navLink
+            )}
+          </span>
         )
       })}
     </nav>

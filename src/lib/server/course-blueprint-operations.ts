@@ -22,6 +22,7 @@ import type {
   Semester,
   TestDraftContent,
 } from '@/types'
+import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
@@ -567,7 +568,6 @@ export async function createArchivedClassroomBlueprintAtomic(args: {
   const requestSha256 = hashBlueprintOperationRequest({
     operation_type: 'archived_reuse',
     source_classroom_id: args.sourceClassroomId,
-    expected_source_revision: expectedSourceRevision,
     plan,
   })
 
@@ -933,7 +933,9 @@ export function buildInstantiateBlueprintWritePlan(args: {
         assessment.artifact_id,
         `legacy-test:${args.detail.id}:${assessment.position}:${assessment.title}`
       )
-      const draft = assessment.content as unknown as TestDraftContent
+      const draft = markPortableTestQuestionIdentity(
+        assessment.content as unknown as TestDraftContent,
+      )
       return {
         artifact_id: artifactId,
         title: assessment.title,
@@ -1102,7 +1104,9 @@ export function buildClassroomBlueprintUpdateWritePlan(args: {
         response_monospace: question.response_monospace,
         position: index,
       })),
-      draft_content: assessment.content as unknown as Record<string, unknown>,
+      draft_content: markPortableTestQuestionIdentity(
+        assessment.content,
+      ) as unknown as Record<string, unknown>,
     })),
     materials: args.snapshot.materials.map((material) => ({
       artifact_id: material.artifact_id,

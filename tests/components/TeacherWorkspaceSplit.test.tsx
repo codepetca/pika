@@ -140,6 +140,29 @@ describe('TeacherWorkspaceSplit', () => {
     expect(inspectorPane).toHaveStyle('--teacher-workspace-inspector-width: calc(50% - 6px)')
   })
 
+  it('keeps mobile inspector reading order ahead of primary while preserving desktop order', () => {
+    render(
+      <TeacherWorkspaceSplit
+        splitVariant="gapped"
+        primary={<div>Daily Log</div>}
+        mobileInspector={<div>Mobile Today</div>}
+        inspector={<div>Desktop Today</div>}
+        inspectorWidth={34}
+        inspectorCollapsed={false}
+        onInspectorWidthChange={vi.fn()}
+      />,
+    )
+
+    const mobileInspector = screen.getByText('Mobile Today').parentElement
+    const primary = screen.getByText('Daily Log')
+    const desktopInspector = screen.getByText('Desktop Today').parentElement
+
+    expect(mobileInspector).toHaveClass('lg:hidden')
+    expect(desktopInspector).toHaveClass('hidden', 'lg:block')
+    expect(mobileInspector?.compareDocumentPosition(primary)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(primary.compareDocumentPosition(desktopInspector!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
   it('supports keyboard resizing for the shared resize handle', () => {
     const onInspectorWidthChange = vi.fn()
 

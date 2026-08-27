@@ -443,6 +443,7 @@ export function TeacherTestsTab({
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [checkingActivation, setCheckingActivation] = useState(false)
   const [showActivateConfirm, setShowActivateConfirm] = useState(false)
+  const [activationDraftVersion, setActivationDraftVersion] = useState<number | null>(null)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   const testSortSensors = useSensors(
@@ -1730,12 +1731,21 @@ export function TeacherTestsTab({
       setStatusActionError(error?.message || 'Failed to update test')
     } finally {
       setStatusUpdating(false)
+      setActivationDraftVersion(null)
       setShowActivateConfirm(false)
       setShowCloseConfirm(false)
     }
   }
 
   async function handleSelectedTestStatusChange(newStatus: 'active' | 'closed') {
+    if (newStatus === 'active') {
+      if (activationDraftVersion === null) {
+        setStatusActionError('Reload the saved Test draft before activating')
+        return
+      }
+      await patchSelectedTest({ status: newStatus, draft_version: activationDraftVersion })
+      return
+    }
     await patchSelectedTest({ status: newStatus })
   }
 
@@ -1764,6 +1774,11 @@ export function TeacherTestsTab({
       }
 
       const questions = Array.isArray(data.questions) ? data.questions : []
+      const draftVersion = Number(data.draft_version)
+      if (!Number.isInteger(draftVersion) || draftVersion < 1) {
+        setStatusActionError('Test draft version is unavailable. Reload and try again.')
+        return
+      }
       if (questions.length < 1) {
         setStatusActionError('Test must have at least 1 question')
         return
@@ -1777,6 +1792,7 @@ export function TeacherTestsTab({
         }
       }
 
+      setActivationDraftVersion(draftVersion)
       setShowActivateConfirm(true)
     } catch (error: any) {
       setStatusActionError(error?.message || 'Failed to validate test')
@@ -2868,7 +2884,10 @@ export function TeacherTestsTab({
         cancelLabel="Cancel"
         isConfirmDisabled={statusUpdating}
         isCancelDisabled={statusUpdating}
-        onCancel={() => setShowActivateConfirm(false)}
+        onCancel={() => {
+          setActivationDraftVersion(null)
+          setShowActivateConfirm(false)
+        }}
         onConfirm={() => handleSelectedTestStatusChange('active')}
       />
 

@@ -96,4 +96,17 @@ describe('LogSummary', () => {
     expect(screen.getByRole('list', { name: 'Needs attention' })).toBeInTheDocument()
     expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
   })
+
+  it('explains when a legacy broad summary has been retired', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({
+      summary: null,
+      summary_status: 'unavailable',
+    })))
+
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
+
+    expect(await screen.findByText(
+      'A high-priority automated summary is not available for this date.'
+    )).toBeInTheDocument()
+  })
 })

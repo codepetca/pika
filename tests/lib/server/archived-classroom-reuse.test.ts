@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  changedReusableAreas,
   classifyArchivedClassroomReuseSnapshots,
   decideArchivedClassroomReuse,
   prepareArchivedClassroomReuse,
@@ -194,6 +195,73 @@ describe('archived classroom reuse', () => {
       blueprintChanged: false,
       classroomChanged: false,
     }))
+  })
+
+  it('ignores the portable identity marker when comparing a pre-marker Version', () => {
+    const legacyVersion = snapshot({
+      assessments: [{
+        artifact_id: '50000000-0000-4000-8000-000000000001',
+        assessment_type: 'test',
+        title: 'Test',
+        content: {
+          title: 'Test',
+          show_results: false,
+          questions: [{
+            id: '51000000-0000-4000-8000-000000000001',
+            question_type: 'open_response',
+            question_text: 'Question',
+            options: [],
+            correct_option: null,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+        documents: [],
+        points_possible: 100,
+        gradebook_weight: 10,
+        include_in_final: true,
+        position: 0,
+      }],
+    })
+    const markedSnapshot = snapshot({
+      assessments: [{
+        ...legacyVersion.assessments[0],
+        content: {
+          ...legacyVersion.assessments[0].content,
+          question_identity_version: 1,
+        },
+      }],
+    })
+
+    const result = classifyArchivedClassroomReuseSnapshots({
+      baseVersion: legacyVersion,
+      currentBlueprint: markedSnapshot,
+      currentClassroom: markedSnapshot,
+      appliedLessonArtifactIds: new Set(),
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      blueprintChanged: false,
+      classroomChanged: false,
+    }))
+    expect(result.classroomBaseline.assessments[0].content).toEqual(
+      expect.objectContaining({ question_identity_version: 1 }),
+    )
+
+    const unmarkedClassroomChange = snapshot({
+      sections: {
+        ...legacyVersion.sections,
+        overview_markdown: 'Changed only in the Classroom',
+      },
+      assessments: legacyVersion.assessments,
+    })
+    expect(changedReusableAreas(
+      result.classroomBaseline,
+      unmarkedClassroomChange,
+    )).toEqual(['overview'])
   })
 
   it('distinguishes Blueprint-only and classroom-only changes', () => {

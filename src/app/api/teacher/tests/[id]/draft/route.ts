@@ -3,14 +3,19 @@ import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
-import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
   ensureAssessmentDraft,
-  updateAssessmentDraft,
+  getAssessmentDraftByType,
+  saveTestDraftAtomic,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import {
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+  type PersistedTestQuestionIdentity,
+} from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TestDraftContent } from '@/types'
 
@@ -22,10 +27,17 @@ const TEST_DRAFT_CONFIG = {
   questionsTable: 'test_questions',
   questionsForeignKey: 'test_id',
   questionsSelect:
-    'id, question_type, question_text, options, correct_option, answer_key, sample_solution, points, response_max_chars, response_monospace',
+    'id, artifact_id, source_artifact_id, question_type, question_text, options, correct_option, answer_key, sample_solution, points, response_max_chars, response_monospace',
   validateContent: validateTestDraftContent,
   validateOptions: { allowEmptyQuestionText: true },
   buildFromRows: buildTestDraftContentFromRows,
+  projectContent: (content: TestDraftContent, rows: unknown[]) => (
+    projectPortableTestQuestionIds(
+      content,
+      rows as PersistedTestQuestionIdentity[],
+      getTestDraftIdentityResolutionOptions(content),
+    )
+  ),
 }
 
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {
@@ -36,12 +48,12 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
-
   const supabase = getServiceRoleClient()
   const ensured = await ensureAssessmentDraft<TestDraftContent>(supabase, {
     ...TEST_DRAFT_CONFIG,
     assessment: access.test,
     userId: user.id,
+    preferPersistedRows: access.test.status !== 'draft',
   })
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
@@ -72,7 +84,6 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
-
   let nextDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
   if (body?.documents !== undefined) {
     const validation = validateTestDocumentsPayload(body.documents)
@@ -87,6 +98,7 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     ...TEST_DRAFT_CONFIG,
     assessment: access.test,
     userId: user.id,
+    preferPersistedRows: access.test.status !== 'draft',
   })
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
@@ -103,7 +115,10 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
   const nextContentResult = buildNextDraftContent<TestDraftContent>(
     currentDraft.content,
     { patch: body.patch, content: body.content },
-    (input: unknown) => validateTestDraftContent(input, { allowEmptyQuestionText: true })
+    (input: unknown) => validateTestDraftContent(input, {
+      allowEmptyQuestionText: access.test.status === 'draft',
+      requirePortableQuestionIdentity: true,
+    })
   )
 
   if (!nextContentResult.ok) {
@@ -113,50 +128,24 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     )
   }
 
-  const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
-    supabase,
-    currentDraft.id,
-    currentDraft.version + 1,
-    user.id,
-    nextContentResult.content
-  )
-
-  if (updateError || !updatedDraft) {
-    console.error('Error saving test draft:', updateError)
-    return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 })
-  }
-
-  if (nextDocuments?.valid) {
-    const result = await updateTestDocumentsAtomic({
-      supabase,
-      teacherId: user.id,
-      testId,
-      expectedStatus: access.test.status,
-      expectedDocuments: access.test.documents,
-      proposedDocuments: nextDocuments.documents,
-      title: updatedDraft.content.title,
-      showResults: updatedDraft.content.show_results,
-    })
-    if (!result.ok) {
+  const saveResult = await saveTestDraftAtomic(supabase, {
+    teacherId: user.id,
+    testId,
+    expectedDraftVersion: currentDraft.version,
+    content: nextContentResult.content,
+    expectedDocuments: access.test.documents,
+    ...(nextDocuments?.valid ? { documents: nextDocuments.documents } : {}),
+  })
+  if (!saveResult.ok) {
+    if (saveResult.status === 409) {
+      const latest = await getAssessmentDraftByType<TestDraftContent>(supabase, 'test', testId)
       return NextResponse.json(
-        { error: result.error, draft: updatedDraft },
-        { status: result.status },
+        { error: saveResult.error, ...(latest.draft ? { draft: latest.draft } : {}) },
+        { status: saveResult.status },
       )
     }
-  } else {
-    const { error: metaError } = await supabase
-      .from('tests')
-      .update({
-        title: updatedDraft.content.title,
-        show_results: updatedDraft.content.show_results,
-      })
-      .eq('id', testId)
-
-    if (metaError) {
-      console.error('Error syncing test metadata from draft:', metaError)
-      return NextResponse.json({ error: 'Failed to sync assessment metadata' }, { status: 500 })
-    }
+    return NextResponse.json({ error: saveResult.error }, { status: saveResult.status })
   }
 
-  return NextResponse.json({ draft: updatedDraft })
+  return NextResponse.json({ draft: saveResult.draft })
 })

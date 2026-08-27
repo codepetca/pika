@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Code, ExternalLink } from 'lucide-react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
@@ -39,6 +39,8 @@ export function TeacherTestAuthoringDialog({
 }: TeacherTestAuthoringDialogProps) {
   const [authoringView, setAuthoringView] = useState<AuthoringView>('edit')
   const [titlePortalTarget, setTitlePortalTarget] = useState<HTMLDivElement | null>(null)
+  const [isClosing, setIsClosing] = useState(false)
+  const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -46,15 +48,23 @@ export function TeacherTestAuthoringDialog({
     }
   }, [isOpen, test?.id])
 
-  const handleClose = () => {
-    setAuthoringView('edit')
-    onClose()
+  const handleClose = async () => {
+    if (isClosing) return
+    setIsClosing(true)
+    const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
+    if (saved) {
+      setAuthoringView('edit')
+      onClose()
+    }
+    setIsClosing(false)
   }
 
   return (
     <DialogPanel
       isOpen={isOpen}
-      onClose={handleClose}
+      onClose={() => {
+        void handleClose()
+      }}
       ariaLabelledBy="test-authoring-dialog-title"
       maxWidth="max-w-6xl"
       className="h-[85vh] overflow-hidden p-0"
@@ -109,9 +119,12 @@ export function TeacherTestAuthoringDialog({
           type="button"
           variant="secondary"
           size="sm"
-          onClick={handleClose}
+          onClick={() => {
+            void handleClose()
+          }}
+          disabled={isClosing}
         >
-          Close
+          {isClosing ? 'Saving...' : 'Close'}
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -123,6 +136,9 @@ export function TeacherTestAuthoringDialog({
             onDraftSummaryChange={onDraftSummaryChange}
             onTestUpdate={onTestUpdate}
             onPendingMarkdownImportChange={onPendingMarkdownImportChange}
+            onDraftFlushReady={(flush) => {
+              draftFlushRef.current = flush
+            }}
             onRequestTestPreview={onRequestPreview}
             showInlineDeleteAction={false}
             testQuestionLayout={authoringView === 'markdown' ? 'markdown-only' : 'editor-only'}

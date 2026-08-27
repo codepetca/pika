@@ -64,10 +64,22 @@ export function DataTable({
   return density ? <DensityContext.Provider value={density}>{table}</DensityContext.Provider> : table
 }
 
-export function DataTableHead({ children }: { children: ReactNode }) {
+export function DataTableHead({
+  children,
+  sticky = false,
+  className = '',
+}: {
+  children: ReactNode
+  sticky?: boolean
+  className?: string
+}) {
   return (
     <thead
-      className="border-b border-border bg-surface-2"
+      className={[
+        'border-b border-border bg-surface-2',
+        sticky ? 'sticky top-0 z-sticky-table' : '',
+        className,
+      ].filter(Boolean).join(' ')}
     >
       {children}
     </thead>

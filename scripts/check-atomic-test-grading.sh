@@ -169,6 +169,7 @@ declare
   v_ai_basis text;
   v_ai_model text;
   v_status text;
+  v_error_message text;
 begin
   perform set_config('pika.classroom_archive_restore', 'on', true);
   perform set_config('pika.classroom_archive_compaction', 'on', true);
@@ -819,9 +820,27 @@ begin
     raise exception 'Null AI grading basis was accepted';
   end if;
 
-  update public.test_questions
-  set answer_key = 'Question changed during the AI request'
-  where id = 'a9000000-0000-4000-8000-000000000109';
+  -- Migration 134 makes a stale question revision unreachable once student
+  -- work exists. Prove the question edit is rejected, then finalize against
+  -- the unchanged question snapshot.
+  v_rejected := false;
+  begin
+    update public.test_questions
+    set answer_key = 'Question changed during the AI request'
+    where id = 'a9000000-0000-4000-8000-000000000109';
+  exception when sqlstate '55000' then
+    get stacked diagnostics v_error_message = message_text;
+    v_rejected := v_error_message like 'test_questions_locked:%';
+  end;
+  if not v_rejected or exists (
+    select 1
+    from public.test_questions
+    where id = 'a9000000-0000-4000-8000-000000000109'
+      and answer_key = 'Question changed during the AI request'
+  ) then
+    raise exception 'Student work did not freeze the AI grading question';
+  end if;
+
   v_result := public.finalize_test_ai_grading_item_atomic(
     'a9000000-0000-4000-8000-000000000407',
     'a9000000-0000-4000-8000-000000000001',
@@ -834,14 +853,13 @@ begin
   where id = 'a9000000-0000-4000-8000-000000000210';
   select status into v_status
   from public.test_ai_grading_run_items
-  where id = 'a9000000-0000-4000-8000-000000000407'
-    and last_error_code = 'question_revision_conflict';
-  if v_result->>'outcome' <> 'stale'
-    or v_revision <> 1
-    or v_score is not null
-    or v_status <> 'failed'
+  where id = 'a9000000-0000-4000-8000-000000000407';
+  if v_result->>'outcome' <> 'saved'
+    or v_revision <> 2
+    or v_score <> 4
+    or v_status <> 'completed'
   then
-    raise exception 'Question mutation did not fence the stale AI grade: %', v_result;
+    raise exception 'Frozen question did not preserve valid AI finalization: %', v_result;
   end if;
 end;
 $contract$;
@@ -1098,7 +1116,7 @@ select public.save_test_response_grades_atomic(
     'expected_response_revision', 1,
     'clear_grade', false,
     'score', 5,
-    'feedback', 'Serialized after question edit'
+    'feedback', 'Serialized before blocked question edit'
   )),
   '2026-07-14T16:07:50Z'
 );
@@ -1106,12 +1124,16 @@ SQL
 QUESTION_GRADER_PID=$!
 wait_for_application_event atomic-test-grading-question-grader transactionid
 
+set +e
 docker exec -e PGAPPNAME=atomic-test-grading-question-editor -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose \
+  >"$TMP_TWO" 2>&1 <<'SQL'
 update public.test_questions
 set question_text = 'Question edited without a lock cycle'
 where id = 'a9000000-0000-4000-8000-000000000116';
 SQL
+QUESTION_EDITOR_STATUS=$?
+set -e
 wait "$QUESTION_RESPONSE_BLOCKER_PID"
 wait "$QUESTION_GRADER_PID"
 QUESTION_LOCK_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
@@ -1119,8 +1141,12 @@ QUESTION_LOCK_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgr
    from public.test_responses response
    join public.test_questions question on question.id = response.question_id
    where response.id = 'a9000000-0000-4000-8000-000000000216';")"
-if [[ "$QUESTION_LOCK_STATE" != "2:5.00:Question edited without a lock cycle" ]]; then
-  echo "Question mutation deadlocked with grading: $QUESTION_LOCK_STATE" >&2
+if [[ "$QUESTION_EDITOR_STATUS" -eq 0 ]] \
+  || ! grep -q '55000' "$TMP_TWO" \
+  || ! grep -q 'test_questions_locked' "$TMP_TWO" \
+  || [[ "$QUESTION_LOCK_STATE" != "2:5.00:Question lock order response" ]]
+then
+  echo "Question freeze/grading ordering was not preserved: $(cat "$TMP_TWO") / $QUESTION_LOCK_STATE" >&2
   exit 1
 fi
 

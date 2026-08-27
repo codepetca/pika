@@ -5,9 +5,9 @@ import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import {
   buildNextDraftContent,
   ensureAssessmentDraft,
-  updateAssessmentDraft,
+  getAssessmentDraftByType,
+  saveTestDraftAtomic,
 } from '@/lib/server/assessment-drafts'
-import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -28,7 +28,9 @@ vi.mock('@/lib/server/tests', () => ({
       id: 'test-1',
       classroom_id: 'classroom-1',
       title: 'Seed Test',
+      status: 'draft',
       show_results: false,
+      documents: [],
       classrooms: { archived_at: null },
     },
   })),
@@ -42,10 +44,8 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
     questions: [],
   })),
   ensureAssessmentDraft: vi.fn(),
-  updateAssessmentDraft: vi.fn(),
-}))
-vi.mock('@/lib/server/test-document-authoring', () => ({
-  updateTestDocumentsAtomic: vi.fn(),
+  getAssessmentDraftByType: vi.fn(),
+  saveTestDraftAtomic: vi.fn(),
 }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
@@ -64,6 +64,7 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         content: {
           title: 'Seed Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [],
           source_format: 'markdown',
           source_markdown: 'Title: Seed Test',
@@ -81,13 +82,15 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       content: {
         title: 'Updated Test',
         show_results: true,
+        question_identity_version: 1,
         questions: [],
         source_format: 'markdown',
         source_markdown: 'Title: Updated Test',
       },
     } as any)
 
-    vi.mocked(updateAssessmentDraft).mockResolvedValue({
+    vi.mocked(saveTestDraftAtomic).mockResolvedValue({
+      ok: true,
       draft: {
         id: 'draft-1',
         assessment_type: 'test',
@@ -106,16 +109,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         created_at: '2026-03-01T00:00:00.000Z',
         updated_at: '2026-03-02T00:00:00.000Z',
       },
-      error: null,
+      test: { id: 'test-1', status: 'draft' },
     } as any)
-    vi.mocked(updateTestDocumentsAtomic).mockImplementation(async (input) => ({
-      ok: true,
-      cleanupPaths: [],
-      test: {
-        id: 'test-1',
-        documents: input.proposedDocuments,
-      },
-    }))
   })
 
   it('loads the draft through the shared assessment draft helper', async () => {
@@ -146,6 +141,35 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     })
   })
 
+  it('configures marked drafts to ignore coincident internal row IDs', async () => {
+    await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    const config = vi.mocked(ensureAssessmentDraft).mock.calls[0]?.[1] as any
+    const firstRowId = '10000000-0000-4000-8000-000000000001'
+    const firstPortableId = '20000000-0000-4000-8000-000000000001'
+    const secondPortableId = '30000000-0000-4000-8000-000000000001'
+    const content = {
+      title: 'Portable Test',
+      show_results: false,
+      question_identity_version: 1,
+      questions: [firstPortableId, secondPortableId].map((id) => ({ id })),
+    }
+    const rows = [{
+      id: firstRowId,
+      artifact_id: firstPortableId,
+      source_artifact_id: firstPortableId,
+    }, {
+      id: firstPortableId,
+      artifact_id: secondPortableId,
+      source_artifact_id: secondPortableId,
+    }]
+
+    expect(config.projectContent(content, rows)).toEqual({ ok: true, content })
+  })
+
   it('persists validated documents when provided', async () => {
     const documents = [
       {
@@ -167,7 +191,12 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         method: 'PATCH',
         body: JSON.stringify({
           version: 3,
-          content: { title: 'Updated Test', show_results: true, questions: [] },
+          content: {
+            title: 'Updated Test',
+            show_results: true,
+            question_identity_version: 1,
+            questions: [],
+          },
           documents,
         }),
       }),
@@ -176,24 +205,14 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(updateTestDocumentsAtomic).toHaveBeenCalledWith(
+    expect(saveTestDraftAtomic).toHaveBeenCalledWith(
+      mockSupabaseClient,
       expect.objectContaining({
-        expectedDocuments: undefined,
-        proposedDocuments: documents,
-        showResults: true,
+        expectedDocuments: [],
+        documents,
+        expectedDraftVersion: 3,
         teacherId: 'teacher-1',
         testId: 'test-1',
-        title: 'Updated Test',
-      })
-    )
-    expect(updateAssessmentDraft).toHaveBeenCalledWith(
-      mockSupabaseClient,
-      'draft-1',
-      4,
-      'teacher-1',
-      expect.objectContaining({
-        source_format: 'markdown',
-        source_markdown: 'Title: Updated Test',
       })
     )
     expect(data.draft.content.title).toBe('Updated Test')
@@ -222,7 +241,12 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         method: 'PATCH',
         body: JSON.stringify({
           version: 3,
-          content: { title: '  ', show_results: true, questions: [] },
+          content: {
+            title: '  ',
+            show_results: true,
+            question_identity_version: 1,
+            questions: [],
+          },
         }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
@@ -231,7 +255,145 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('Title is required')
-    expect(updateAssessmentDraft).not.toHaveBeenCalled()
+    expect(saveTestDraftAtomic).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unmarked full replacement instead of guessing its identity domain', async () => {
+    vi.mocked(buildNextDraftContent).mockImplementationOnce(
+      ((_currentContent, payload, validate) => {
+        const validation = validate(payload.content)
+        return validation.valid
+          ? { ok: true, content: validation.value }
+          : { ok: false, status: 400, error: validation.error }
+      }) as typeof buildNextDraftContent
+    )
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          content: { title: 'Legacy payload', show_results: false, questions: [] },
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Portable Test question identity is required')
+    expect(saveTestDraftAtomic).not.toHaveBeenCalled()
+  })
+
+  it('bases active Test patches on materialized rows so stale draft questions stay deleted', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Activated Test',
+        status: 'active',
+        show_results: false,
+        classrooms: { archived_at: null },
+      },
+    } as any)
+
+    const loadResponse = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(loadResponse.status).toBe(200)
+    expect(ensureAssessmentDraft).toHaveBeenLastCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({
+        preferPersistedRows: true,
+      }),
+    )
+
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Activated Test',
+        status: 'active',
+        show_results: false,
+        documents: [],
+        classrooms: { archived_at: null },
+      },
+    } as any)
+    const materializedContent = {
+      title: 'Activated Test',
+      show_results: false,
+      questions: [{
+        id: 'artifact-retained',
+        type: 'short_answer',
+        question_text: 'Edited through the row API',
+        points: 2,
+        position: 0,
+      }],
+      source_format: 'markdown',
+      source_markdown: 'Title: Activated Test',
+    }
+    vi.mocked(ensureAssessmentDraft).mockResolvedValueOnce({
+      ok: true,
+      draft: {
+        id: 'draft-1',
+        assessment_type: 'test',
+        assessment_id: 'test-1',
+        classroom_id: 'classroom-1',
+        content: materializedContent,
+        version: 3,
+        created_by: 'teacher-1',
+        updated_by: 'teacher-1',
+        created_at: '2026-03-01T00:00:00.000Z',
+        updated_at: '2026-03-01T00:00:00.000Z',
+      },
+    } as any)
+    vi.mocked(buildNextDraftContent).mockImplementationOnce(
+      ((currentContent) => ({
+        ok: true,
+        content: { ...currentContent, title: 'Active save' },
+      })) as typeof buildNextDraftContent,
+    )
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          patch: [{ op: 'replace', path: '/title', value: 'Active save' }],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(saveTestDraftAtomic).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({
+        content: {
+          ...materializedContent,
+          title: 'Active save',
+        },
+        expectedDraftVersion: 3,
+        teacherId: 'teacher-1',
+        testId: 'test-1',
+      }),
+    )
+    expect(ensureAssessmentDraft).toHaveBeenLastCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({ preferPersistedRows: true }),
+    )
+    expect(buildNextDraftContent).toHaveBeenCalledWith(
+      materializedContent,
+      {
+        patch: [{ op: 'replace', path: '/title', value: 'Active save' }],
+        content: undefined,
+      },
+      expect.any(Function),
+    )
   })
 
   it('returns 400 and blocks save when documents payload is invalid', async () => {
@@ -268,10 +430,18 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
   })
 
   it('returns the saved draft with 409 when document metadata changed concurrently', async () => {
-    vi.mocked(updateTestDocumentsAtomic).mockResolvedValueOnce({
+    vi.mocked(saveTestDraftAtomic).mockResolvedValueOnce({
       ok: false,
       status: 409,
       error: 'The test documents changed elsewhere. Reload and try again.',
+    })
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        version: 4,
+        content: { title: 'Updated Test', show_results: true, questions: [] },
+      } as any,
+      error: null,
     })
 
     const response = await PATCH(

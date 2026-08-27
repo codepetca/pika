@@ -1,11 +1,10 @@
 import { validateTestQuestionCreate } from '@/lib/test-questions'
+import { UUID_V4_PATTERN } from '@/lib/course-blueprint-artifact-identity'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type {
   TestDraftContent,
   TestDraftQuestion,
 } from '@/types'
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export type AssessmentDraftValidationResult<TContent> =
   | { valid: true; value: TContent }
@@ -17,7 +16,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseUuid(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  return UUID_RE.test(value) ? value : null
+  return UUID_V4_PATTERN.test(value) ? value.toLowerCase() : null
 }
 
 function parseTitle(value: unknown): string | null {
@@ -65,9 +64,26 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(
 
 export function validateTestDraftContent(
   input: unknown,
-  options?: { allowEmptyQuestionText?: boolean },
+  options?: {
+    allowEmptyQuestionText?: boolean
+    requirePortableQuestionIdentity?: boolean
+  },
 ): AssessmentDraftValidationResult<TestDraftContent> {
   if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
+
+  if (
+    options?.requirePortableQuestionIdentity === true
+    && input.question_identity_version !== PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+  ) {
+    return { valid: false, error: 'Portable Test question identity is required' }
+  }
+
+  if (
+    input.question_identity_version !== undefined
+    && input.question_identity_version !== PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+  ) {
+    return { valid: false, error: 'Unsupported Test question identity version' }
+  }
 
   const title = parseTitle(input.title)
   if (!title) return { valid: false, error: 'Title is required' }
@@ -119,6 +135,9 @@ export function validateTestDraftContent(
       title,
       show_results: showResults,
       questions,
+      ...(input.question_identity_version === PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+        ? { question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION }
+        : {}),
       ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
       ...(parseOptionalMarkdown(input.source_markdown) !== undefined
         ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }

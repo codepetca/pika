@@ -432,6 +432,7 @@ describe('persisted course blueprint proposals', () => {
       source: {
         classroom: {
           id: '50000000-0000-4000-8000-000000000000',
+          source_blueprint_version_id: '72000000-0000-4000-8000-000000000001',
           title: 'Live classroom',
           course_overview_markdown: 'Live overview',
           course_outline_markdown: 'Live outline',
@@ -450,7 +451,44 @@ describe('persisted course blueprint proposals', () => {
         resources_markdown: '',
         grading: base.grading,
         assignments: [],
-        tests: [],
+        tests: [
+          {
+            artifact_id: '71000000-0000-4000-8000-000000000001',
+            source_artifact_id: null,
+            source_blueprint_version_id: '72000000-0000-4000-8000-000000000001',
+            assessment_type: 'test',
+            title: 'Captured origin Test',
+            content: {
+              title: 'Captured origin Test',
+              show_results: false,
+              question_identity_version: 1,
+              questions: [],
+            },
+            documents: [],
+            points_possible: 100,
+            gradebook_weight: 10,
+            include_in_final: true,
+            position: 0,
+          },
+          {
+            artifact_id: '71000000-0000-4000-8000-000000000002',
+            source_artifact_id: null,
+            source_blueprint_version_id: null,
+            assessment_type: 'test',
+            title: 'Unrelated local Test',
+            content: {
+              title: 'Unrelated local Test',
+              show_results: false,
+              question_identity_version: 1,
+              questions: [],
+            },
+            documents: [],
+            points_possible: 100,
+            gradebook_weight: 10,
+            include_in_final: true,
+            position: 1,
+          },
+        ],
         lesson_templates: [],
         materials: [
           {
@@ -484,6 +522,9 @@ describe('persisted course blueprint proposals', () => {
     expect(snapshot.materials).toEqual([
       expect.objectContaining({ title: 'Tracked material' }),
     ])
+    expect(snapshot.assessments).toEqual([
+      expect.objectContaining({ title: 'Captured origin Test' }),
+    ])
     expect(snapshot).not.toHaveProperty('announcements')
     expect(snapshot).not.toHaveProperty('students')
     expect(snapshot).not.toHaveProperty('submissions')
@@ -507,5 +548,36 @@ describe('persisted course blueprint proposals', () => {
       surveys: [],
     } as any
     expect(countUntrackedClassroomBlueprintArtifacts(source)).toBe(1)
+  })
+
+  it('tracks captured origin Tests by Blueprint Version without source identity', () => {
+    const source = {
+      classroom: {
+        source_blueprint_version_id: '72000000-0000-4000-8000-000000000001',
+      },
+      assignments: [],
+      tests: [
+        {
+          artifact_id: '71000000-0000-4000-8000-000000000001',
+          source_artifact_id: null,
+          source_blueprint_version_id: '72000000-0000-4000-8000-000000000001',
+        },
+        {
+          artifact_id: '71000000-0000-4000-8000-000000000002',
+          source_artifact_id: null,
+          source_blueprint_version_id: null,
+        },
+        {
+          artifact_id: '71000000-0000-4000-8000-000000000003',
+          source_artifact_id: null,
+          source_blueprint_version_id: '72000000-0000-4000-8000-000000000099',
+        },
+      ],
+      lesson_templates: [],
+      materials: [],
+      surveys: [],
+    } as any
+
+    expect(countUntrackedClassroomBlueprintArtifacts(source)).toBe(2)
   })
 })

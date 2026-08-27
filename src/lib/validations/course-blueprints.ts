@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import {
   stripTestDocumentSnapshots,
   validateTestDocumentsPayload,
@@ -153,7 +154,7 @@ const testDraftContentBoundarySchema = z.unknown().transform((value, ctx) => {
     ctx.addIssue({ code: 'custom', message: result.error })
     return z.NEVER
   }
-  return result.value
+  return markPortableTestQuestionIdentity(result.value)
 })
 
 const testDocumentsBoundarySchema = z.unknown().transform((value, ctx) => {

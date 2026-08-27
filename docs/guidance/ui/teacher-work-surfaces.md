@@ -4,14 +4,15 @@ This document is the stable canon for the teacher-side work-surface family:
 
 - teacher assignments
 - teacher tests
+- teacher operational tables such as attendance
 
-It governs how those two tabs should feel, compose, and evolve. It does not govern:
+It governs how those tabs should feel, compose, and evolve. It does not govern:
 
 - the main classroom shell as a whole
-- unrelated teacher tabs such as attendance, roster, settings, gradebook, or calendar
+- unrelated teacher tabs such as settings or calendar
 - the student product
 
-Assignments are the current baseline source of truth for this family because they express the clearest teacher summary-to-workspace progression today. They are not permanent authority. If tests later produce a better family pattern, this canon should be updated and assignments can then follow.
+Assignments are the current baseline for summary-to-workspace progression. Attendance is the reference implementation for compact operational tables with a centered primary control and selection-driven bulk actions. Neither is permanent authority; update this canon when another implementation produces a better shared pattern.
 
 ## Read Order
 
@@ -176,6 +177,52 @@ Advances when:
 - Summary states get a sparse action bar with one clear primary action and minimal surrounding chrome.
 - Workspace states may add contextual controls, but the shell should remain recognizable across nearby states.
 - Workspace-mode controls are justified only when they unlock genuinely different work.
+
+### Operational context bar
+
+For teacher tables where one control defines the active scope (for example a date, range, filter, or selected item), prefer one anchored context row over separate action and summary rows.
+
+Use `TeacherWorkSurfaceContextBar` with this hierarchy:
+
+- leading: quiet informational context such as state and time window
+- center: an elevated action cluster containing the actionable scope control
+  and immediate workflow commands, mathematically centered regardless of side widths
+- trailing: compact metrics followed only by low-priority utilities
+
+The informational slots must not look interactive: avoid filled pills, borders around individual labels, hover treatments, and button-like weight. The center cluster is the clear interactive affordance and must not contain metrics. Keep low-priority utilities visually subordinate. On mobile, preserve the centered control and essential actions while condensing nonessential context instead of wrapping into a second row.
+
+Attendance is the approved reference implementation. The stable composition,
+adoption criteria, and Classwork/Tests mappings are documented in
+[`teacher-operational-tables.md`](./teacher-operational-tables.md).
+
+Migration rule: `TeacherWorkSurfaceContextBar` is the target for refreshed
+teacher top-control rows. Treat existing `TeacherWorkSurfaceActionBar` usage as
+transitional, do not introduce new consumers, and replace it page by page when
+the surrounding workflow is updated and visually verified. Use the adoption
+criteria rather than mechanically changing unrelated authoring surfaces.
+
+### Long operational tables and selection
+
+- Use an internal table scroll region so page-level context remains stable.
+- Keep the operational context row outside that scroll region; scrolling rows
+  must not remove the scope control or immediate workflow commands.
+- Use `DataTableHead sticky` when column meaning would otherwise disappear during a long scroll.
+- Reuse Daily's `SortableHeaderCell` rhythm for scan-heavy identity and metadata
+  columns, including semantic `aria-sort`, keyboard activation, and shared
+  resize handles. Keep the feature's sort comparison logic local.
+- Put lightweight status totals in the status column header when they explain
+  the rows below. If those totals are also sort controls, expose each as a
+  named, pressed-state button that prioritizes its status; do not duplicate the
+  counts in the operational context bar.
+- Do not place an `overflow-hidden` wrapper between a sticky table head and its
+  intended scroll region.
+- Use `TeacherWorkSurfaceTableFrame` to add bottom scroll clearance only while selection actions are visible.
+- Use `TeacherSelectionBar` for a bottom bulk-action surface that appears only after selection.
+- Keep selection commands feature-owned; the shared component owns placement, selected-count context, and clear-selection behavior only.
+- Do not reserve permanent page padding for a toolbar that is usually absent.
+- Treat this as a shared composition, not a universal data-grid component.
+  Features retain their own row model, status vocabulary, comparison logic,
+  commands, permissions, and mutations.
 
 ### Reusable selected-workspace shell template
 
@@ -352,6 +399,7 @@ Stable structural primitives:
 | Component | Use for | Do not put here |
 |---|---|---|
 | `TeacherWorkSurfaceShell` | page layout, summary/workspace state, action bar placement, feedback placement, selected-workspace frame | data loading, routing/query behavior, selection state, grading state, assessment status, return behavior |
+| `TeacherWorkSurfaceContextBar` | one-line quiet context, mathematically centered primary controls, and subordinate trailing utilities | feature statuses, commands, mutations, or row-derived totals that belong in a table header |
 | `TeacherWorkSurfaceModeBar<TMode>` | selected-workspace mode tabs with tab semantics and keyboard movement | domain-specific mode state machines, assessment-specific labels baked into the primitive |
 | `TeacherWorkspaceSplit` | bounded primary/inspector split panes when both panes are active work surfaces | grading behavior, student selection, assignment-specific width policy beyond generic min/max constraints |
 

@@ -1,4 +1,11 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
+import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
+import { removeQueuedTestDocumentSnapshotPath } from '@/lib/server/test-document-snapshot-storage-cleanup'
+import { parseCleanupPaths } from '@/lib/server/test-document-authoring'
+import {
+  getPortableTestQuestionIdentity,
+  PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+} from '@/lib/test-question-identity'
 import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
 import type {
   AssessmentDraftType,
@@ -82,6 +89,8 @@ export function buildNextDraftContent<TContent extends object>(
 
 type TestQuestionRow = {
   id: string
+  artifact_id?: string | null
+  source_artifact_id?: string | null
   question_type: unknown
   question_text: string
   options: unknown
@@ -101,8 +110,11 @@ export function buildTestDraftContentFromRows(
   return {
     title: test.title,
     show_results: test.show_results,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
     questions: (questions || []).map((question) => ({
-      id: question.id,
+      // Draft question IDs are portable artifact identities. Persisted row IDs
+      // are an internal database contract and must not escape into draft JSON.
+      id: getPortableTestQuestionIdentity(question),
       question_type: question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
       question_text: question.question_text,
       options: parseStringArray(question.options) || [],
@@ -191,7 +203,7 @@ export async function createAssessmentDraft<TContent>(
 export async function updateAssessmentDraft<TContent>(
   supabase: SupabaseLike,
   draftId: string,
-  version: number,
+  expectedVersion: number,
   userId: string,
   content: TContent
 ): Promise<{ draft: AssessmentDraftRow<TContent> | null; error: any }> {
@@ -200,10 +212,11 @@ export async function updateAssessmentDraft<TContent>(
       .from('assessment_drafts')
       .update({
         content,
-        version,
+        version: expectedVersion + 1,
         updated_by: userId,
       })
       .eq('id', draftId)
+      .eq('version', expectedVersion)
       .select('*')
       .single()
 
@@ -219,118 +232,180 @@ export async function updateAssessmentDraft<TContent>(
   }
 }
 
-export async function syncTestQuestionsFromDraft(
+type AtomicTestDraftWriteResult =
+  | {
+      ok: true
+      draft: AssessmentDraftRow<TestDraftContent>
+      test: Record<string, unknown>
+    }
+  | { ok: false; status: number; error: string }
+
+type AtomicTestActivationResult =
+  | {
+      ok: true
+      draftVersion: number
+      test: Record<string, unknown>
+    }
+  | { ok: false; status: number; error: string }
+
+function getRpcErrorText(error: {
+  message?: string
+  details?: string | null
+  hint?: string | null
+}): string {
+  return `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+}
+
+function mapTestDraftRpcError(
+  error: { code?: string; message?: string; details?: string | null; hint?: string | null },
+  operation: 'save' | 'activate',
+): { ok: false; status: number; error: string } {
+  const details = getRpcErrorText(error)
+  if (error.code === '42883' || error.code === 'PGRST202') {
+    return {
+      ok: false,
+      status: 503,
+      error: `Atomic Test draft ${operation} requires migration 134 to be applied`,
+    }
+  }
+  if (details.includes('draft_version_conflict')) {
+    return {
+      ok: false,
+      status: 409,
+      error: operation === 'save'
+        ? 'Draft updated elsewhere'
+        : 'The Test changed after activation was requested. Review and try again.',
+    }
+  }
+  if (details.includes('test_not_draft')) {
+    return {
+      ok: false,
+      status: 409,
+      error: operation === 'save'
+        ? 'This Test is no longer a draft'
+        : 'Only draft Tests can be activated',
+    }
+  }
+  if (details.includes('document_conflict')) {
+    return { ok: false, status: 409, error: 'The test documents changed elsewhere. Reload and try again.' }
+  }
+  if (details.includes('test_questions_locked')) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Test questions cannot be changed after student work exists',
+    }
+  }
+  if (details.includes('test_archived')) {
+    return { ok: false, status: 403, error: 'Classroom is archived' }
+  }
+  if (details.includes('forbidden')) {
+    return { ok: false, status: 403, error: 'Forbidden' }
+  }
+  if (details.includes('test_not_found') || details.includes('test_draft_not_found')) {
+    return { ok: false, status: 404, error: 'Test draft not found' }
+  }
+  // Check the specific invalid_draft_* codes before the identity-ambiguity
+  // bucket below: a naive `includes('invalid_draft')` also matches
+  // invalid_draft_version and invalid_draft_content, which are plain
+  // validation failures (missing draft_version, empty title, etc.), not an
+  // identity conflict, and must not surface the "changed elsewhere" /
+  // merge-conflict UI that a 409 with a `draft` payload triggers client-side.
+  if (details.includes('invalid_draft_version')) {
+    return { ok: false, status: 400, error: 'A valid draft version is required' }
+  }
+  if (details.includes('invalid_draft_content')) {
+    return { ok: false, status: 400, error: 'Draft content is invalid' }
+  }
+  if (
+    details.includes('duplicate_question_identity')
+    || details.includes('question_identity_')
+  ) {
+    return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
+  }
+  return {
+    ok: false,
+    status: 500,
+    error: operation === 'save' ? 'Failed to save draft' : 'Failed to activate Test',
+  }
+}
+
+export async function saveTestDraftAtomic(
   supabase: SupabaseLike,
-  testId: string,
-  content: TestDraftContent
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  return syncAssessmentQuestionRowsFromDraft(supabase, {
-    table: 'test_questions',
-    foreignKey: 'test_id',
-    parentId: testId,
-    questions: content.questions,
-    buildUpdatePayload: (question, position) => ({
-      question_type: question.question_type,
-      question_text: question.question_text,
-      options: question.options,
-      correct_option: question.correct_option,
-      answer_key: question.answer_key,
-      sample_solution: question.sample_solution,
-      points: question.points,
-      response_max_chars: question.response_max_chars,
-      response_monospace: question.response_monospace,
-      position,
-    }),
-    buildInsertPayload: (question, position) => ({
-      id: question.id,
-      test_id: testId,
-      question_type: question.question_type,
-      question_text: question.question_text,
-      options: question.options,
-      correct_option: question.correct_option,
-      answer_key: question.answer_key,
-      sample_solution: question.sample_solution,
-      points: question.points,
-      response_max_chars: question.response_max_chars,
-      response_monospace: question.response_monospace,
-      position,
-    }),
-    errorMessages: {
-      load: 'Failed to load test questions for sync',
-      update: 'Failed to update synced test question',
-      insert: 'Failed to insert synced test question',
-      delete: 'Failed to delete removed test question',
-    },
+  input: {
+    teacherId: string
+    testId: string
+    expectedDraftVersion: number
+    content: TestDraftContent
+    expectedDocuments?: unknown
+    documents?: import('@/types').TestDocument[]
+  },
+): Promise<AtomicTestDraftWriteResult> {
+  const updatesDocuments = input.documents !== undefined
+  const documents = updatesDocuments
+    ? preserveCurrentTestDocumentSnapshots(input.expectedDocuments, input.documents || [])
+    : []
+  const { data, error } = await supabase.rpc('save_test_draft_atomic', {
+    p_content: input.content,
+    p_documents: documents,
+    p_expected_documents: input.expectedDocuments ?? [],
+    p_expected_draft_version: input.expectedDraftVersion,
+    p_teacher_id: input.teacherId,
+    p_test_id: input.testId,
+    p_update_documents: updatesDocuments,
   })
-}
 
-type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
-  table: string
-  foreignKey: string
-  parentId: string
-  questions: TQuestion[]
-  buildUpdatePayload: (question: TQuestion, position: number) => Record<string, unknown>
-  buildInsertPayload: (question: TQuestion, position: number) => Record<string, unknown>
-  errorMessages: {
-    load: string
-    update: string
-    insert: string
-    delete: string
+  if (error) return mapTestDraftRpcError(error, 'save')
+
+  const result = data as {
+    cleanup_paths?: unknown
+    draft?: AssessmentDraftRow<TestDraftContent>
+    test?: Record<string, unknown>
+  } | null
+  if (!result?.draft || !result.test) {
+    return { ok: false, status: 500, error: 'Failed to save draft' }
   }
+
+  for (const storagePath of parseCleanupPaths(result.cleanup_paths)) {
+    try {
+      await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath })
+    } catch (cleanupError) {
+      console.error('Failed to run immediate test snapshot cleanup:', {
+        storagePath,
+        cleanupError,
+      })
+    }
+  }
+
+  return { ok: true, draft: result.draft, test: result.test }
 }
 
-async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: string }>(
+export async function activateTestFromDraftAtomic(
   supabase: SupabaseLike,
-  config: SyncAssessmentQuestionRowsConfig<TQuestion>
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { data: existingRows, error: existingError } = await supabase
-    .from(config.table)
-    .select('id')
-    .eq(config.foreignKey, config.parentId)
+  input: {
+    teacherId: string
+    testId: string
+    expectedDraftVersion: number
+  },
+): Promise<AtomicTestActivationResult> {
+  const { data, error } = await supabase.rpc('activate_test_from_draft_atomic', {
+    p_expected_draft_version: input.expectedDraftVersion,
+    p_teacher_id: input.teacherId,
+    p_test_id: input.testId,
+  })
 
-  if (existingError) {
-    return { ok: false, status: 500, error: config.errorMessages.load }
+  if (error) return mapTestDraftRpcError(error, 'activate')
+
+  const result = data as {
+    draft_version?: unknown
+    test?: Record<string, unknown>
+  } | null
+  const draftVersion = Number(result?.draft_version)
+  if (!result?.test || !Number.isInteger(draftVersion) || draftVersion < 1) {
+    return { ok: false, status: 500, error: 'Failed to activate Test' }
   }
 
-  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
-  const nextIds = new Set(config.questions.map((question) => question.id))
-
-  for (const [position, question] of config.questions.entries()) {
-    if (existingIds.has(question.id)) {
-      const { error } = await supabase
-        .from(config.table)
-        .update(config.buildUpdatePayload(question, position))
-        .eq(config.foreignKey, config.parentId)
-        .eq('id', question.id)
-
-      if (error) {
-        return { ok: false, status: 500, error: config.errorMessages.update }
-      }
-      continue
-    }
-
-    const { error } = await supabase.from(config.table).insert(config.buildInsertPayload(question, position))
-
-    if (error) {
-      return { ok: false, status: 500, error: config.errorMessages.insert }
-    }
-  }
-
-  for (const existingId of existingIds) {
-    if (nextIds.has(existingId)) continue
-
-    const { error } = await supabase
-      .from(config.table)
-      .delete()
-      .eq(config.foreignKey, config.parentId)
-      .eq('id', existingId)
-
-    if (error) {
-      return { ok: false, status: 500, error: config.errorMessages.delete }
-    }
-  }
-
-  return { ok: true }
+  return { ok: true, draftVersion, test: result.test }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -361,6 +436,18 @@ export type EnsureDraftConfig<TContent> = {
     assessment: { id: string; classroom_id: string; title: string; show_results: boolean },
     rows: unknown[]
   ) => TContent
+  /** Read-only projection from exact persisted identities into portable draft IDs. */
+  projectContent?: (
+    content: TContent,
+    rows: unknown[],
+  ) => { ok: true; content: TContent } | { ok: false }
+  /**
+   * Treat persisted rows as authoritative when reopening an already materialized
+   * assessment. The returned draft keeps its optimistic-lock version, but its
+   * content is rebuilt from the rows instead of trusting a stale pre-activation
+   * draft snapshot.
+   */
+  preferPersistedRows?: boolean
 }
 
 /**
@@ -377,7 +464,8 @@ export async function ensureAssessmentDraft<TContent>(
   const {
     assessment, assessmentType, userId,
     questionsTable, questionsForeignKey, questionsSelect,
-    validateContent, validateOptions, buildFromRows,
+    validateContent, validateOptions, buildFromRows, projectContent,
+    preferPersistedRows = false,
   } = config
 
   const { draft, error } = await getAssessmentDraftByType<TContent>(
@@ -398,11 +486,11 @@ export async function ensureAssessmentDraft<TContent>(
     return { ok: false, status: 500, error: 'Failed to fetch draft' }
   }
 
-  if (draft) {
-    const valid = validateContent(draft.content, validateOptions)
-    if (valid.valid) {
-      return { ok: true, draft: { ...draft, content: valid.value } }
-    }
+  const validDraft = draft
+    ? validateContent(draft.content, validateOptions)
+    : null
+  if (draft && validDraft?.valid && !projectContent && !preferPersistedRows) {
+    return { ok: true, draft: { ...draft, content: validDraft.value } }
   }
 
   const { data: questions, error: questionsError } = await supabase
@@ -416,11 +504,29 @@ export async function ensureAssessmentDraft<TContent>(
     return { ok: false, status: 500, error: 'Failed to build draft' }
   }
 
+  if (draft && preferPersistedRows) {
+    return {
+      ok: true,
+      draft: {
+        ...draft,
+        content: buildFromRows(assessment, questions || []),
+      },
+    }
+  }
+
+  if (draft && validDraft?.valid && projectContent) {
+    const projected = projectContent(validDraft.value, questions || [])
+    if (!projected.ok) {
+      return { ok: false, status: 409, error: 'Test draft question identity is ambiguous' }
+    }
+    return { ok: true, draft: { ...draft, content: projected.content } }
+  }
+
   const content = buildFromRows(assessment, questions || [])
 
   if (draft) {
     const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
-      supabase, draft.id, draft.version + 1, userId, content
+      supabase, draft.id, draft.version, userId, content
     )
     if (updateError || !updatedDraft) {
       console.error(`Error repairing ${assessmentType} draft:`, updateError)

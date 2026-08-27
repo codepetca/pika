@@ -77,13 +77,20 @@ export type CourseBlueprintProposalTarget =
 export function countUntrackedClassroomBlueprintArtifacts(
   source: ClassroomBlueprintSource,
 ): number {
+  const classroomBlueprintVersionId = source.classroom?.source_blueprint_version_id ?? null
   return [
     ...source.assignments,
-    ...source.tests,
     ...source.lesson_templates,
     ...source.materials,
     ...source.surveys,
   ].filter((artifact) => artifact.source_artifact_id === null).length
+    + source.tests.filter((test) => (
+      test.source_artifact_id === null
+      && (
+        test.source_blueprint_version_id === null
+        || test.source_blueprint_version_id !== classroomBlueprintVersionId
+      )
+    )).length
 }
 
 function parseProposalRpcResult(data: unknown) {
@@ -167,6 +174,14 @@ export function buildClassroomCourseBlueprintSnapshot(args: {
 }): CourseBlueprintSnapshot {
   const includeArtifact = (artifact: { source_artifact_id: string | null }) =>
     !args.trackedOnly || artifact.source_artifact_id !== null
+  const includeTest = (test: ClassroomBlueprintSource['tests'][number]) =>
+    !args.trackedOnly
+    || test.source_artifact_id !== null
+    || (
+      test.source_blueprint_version_id !== null
+      && test.source_blueprint_version_id
+        === args.source.classroom.source_blueprint_version_id
+    )
   const candidateLessonTitles = new Map(
     (args.candidate?.lesson_templates || []).map((lesson) => [
       lesson.artifact_id,
@@ -240,7 +255,7 @@ export function buildClassroomCourseBlueprintSnapshot(args: {
       track_authenticity: assignment.track_authenticity,
       position: assignment.position,
     })),
-    assessments: args.source.tests.filter(includeArtifact).map((test) => ({
+    assessments: args.source.tests.filter(includeTest).map((test) => ({
       artifact_id: test.artifact_id,
       assessment_type: 'test',
       title: test.title,

@@ -52,6 +52,7 @@ The current governed slices are:
 - A dedicated teacher work-surface canon for:
   - teacher assignments
   - teacher tests
+  - teacher operational tables, with Attendance as the approved reference
 
 This is intentionally smaller than the full app.
 
@@ -74,6 +75,7 @@ When a task touches UI/UX, the implementation plan or issue note should declare:
 - [`audit-v1.md`](/docs/guidance/ui/audit-v1.md)
 - [`stable.md`](/docs/guidance/ui/stable.md)
 - [`teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
+- [`teacher-operational-tables.md`](/docs/guidance/ui/teacher-operational-tables.md)
 - [`audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)
 - [`composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md)
 - [`visual-evidence-template.md`](/docs/guidance/ui/visual-evidence-template.md)
