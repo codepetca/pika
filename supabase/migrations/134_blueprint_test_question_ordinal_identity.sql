@@ -862,6 +862,757 @@ grant execute on function public.save_test_draft_atomic(
   jsonb
 ) to service_role;
 
+-- Captured origin Tests keep source_artifact_id null. Replace the migration 112
+-- classroom proposal apply function so Blueprint membership comes from the
+-- immutable source Version while row matching stays in the one source-first
+-- portable identity namespace. Local Tests with no Blueprint provenance remain
+-- outside the proposal and are never archived as collateral.
+create or replace function public.apply_course_blueprint_classroom_proposal_atomic(
+  p_teacher_id uuid,
+  p_proposal_id uuid,
+  p_classroom_plan jsonb,
+  p_classroom_plan_sha256 text
+)
+returns public.course_blueprint_change_proposals
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_proposal public.course_blueprint_change_proposals;
+  v_classroom public.classrooms;
+  v_item jsonb;
+  v_child jsonb;
+  v_parent_id uuid;
+  v_existing_artifact_id uuid;
+  v_logical_id uuid;
+  v_has_runtime boolean;
+  v_content_update boolean;
+  v_rewrite_children boolean;
+  v_result_revision bigint;
+begin
+  if jsonb_typeof(p_classroom_plan) is distinct from 'object'
+    or p_classroom_plan_sha256 !~ '^[a-f0-9]{64}$'
+  then
+    raise exception 'Invalid classroom Blueprint write plan'
+      using errcode = '22023';
+  end if;
+
+  select *
+  into v_proposal
+  from public.course_blueprint_change_proposals
+  where id = p_proposal_id
+    and teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'Classroom Blueprint proposal not found'
+      using errcode = 'P0002';
+  end if;
+  if v_proposal.target_kind <> 'classroom'
+    or v_proposal.target_classroom_id is null
+  then
+    raise exception 'Proposal does not target a classroom' using errcode = '22023';
+  end if;
+  if p_classroom_plan_sha256 is distinct from
+    v_proposal.diff_json->>'classroom_plan_sha256'
+  then
+    raise exception 'Classroom write plan digest changed' using errcode = '22023';
+  end if;
+  if v_proposal.status = 'applied' then return v_proposal; end if;
+  if v_proposal.status in ('rejected', 'conflicted') then
+    raise exception 'Classroom proposal is not applicable' using errcode = '55000';
+  end if;
+
+  select *
+  into v_classroom
+  from public.classrooms
+  where id = v_proposal.target_classroom_id
+    and teacher_id = p_teacher_id
+    and source_blueprint_id = v_proposal.course_blueprint_id
+  for update;
+  if not found then
+    raise exception 'Target classroom not found' using errcode = 'P0002';
+  end if;
+  if v_classroom.blueprint_source_revision
+    <> v_proposal.base_classroom_revision
+  then
+    update public.course_blueprint_change_proposals
+    set status = 'stale', updated_at = now()
+    where id = p_proposal_id
+    returning * into v_proposal;
+    return v_proposal;
+  end if;
+  if v_classroom.start_date::text
+      is distinct from p_classroom_plan->'calendar_guard'->>'start_date'
+    or coalesce(
+      (
+        select jsonb_agg(class_day.date::text order by class_day.date)
+        from public.class_days class_day
+        where class_day.classroom_id = v_classroom.id
+      ),
+      '[]'::jsonb
+    ) is distinct from coalesce(
+      p_classroom_plan->'calendar_guard'->'class_day_dates',
+      '[]'::jsonb
+    )
+  then
+    update public.course_blueprint_change_proposals
+    set status = 'stale', updated_at = now()
+    where id = p_proposal_id
+    returning * into v_proposal;
+    return v_proposal;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_versions
+    where id = v_proposal.base_blueprint_version_id
+      and course_blueprint_id = v_proposal.course_blueprint_id
+      and source_draft_revision = v_proposal.base_blueprint_revision
+  ) then
+    raise exception 'Proposal Blueprint Version is invalid' using errcode = '40001';
+  end if;
+
+  perform set_config('pika.identity_mapping', 'on', true);
+
+  update public.classrooms
+  set
+    course_overview_markdown = coalesce(
+      p_classroom_plan->'sections'->>'overview_markdown',
+      ''
+    ),
+    course_outline_markdown = coalesce(
+      p_classroom_plan->'sections'->>'outline_markdown',
+      ''
+    ),
+    actual_site_config = coalesce(actual_site_config, '{}'::jsonb)
+      || coalesce(
+        p_classroom_plan->'site_visibility_defaults',
+        '{}'::jsonb
+      ),
+    source_blueprint_version_id = v_proposal.base_blueprint_version_id,
+    source_blueprint_origin = source_blueprint_origin || jsonb_build_object(
+      'blueprint_version_id', v_proposal.base_blueprint_version_id,
+      'updated_from_proposal_id', v_proposal.id
+    ),
+    blueprint_source_revision = blueprint_source_revision + 1
+  where id = v_classroom.id
+  returning blueprint_source_revision into v_result_revision;
+
+  insert into public.classroom_resources (classroom_id, content)
+  values (
+    v_classroom.id,
+    coalesce(
+      p_classroom_plan->'resources_content',
+      '{"type":"doc","content":[]}'::jsonb
+    )
+  )
+  on conflict (classroom_id) do update
+  set content = excluded.content;
+
+  insert into public.gradebook_settings (
+    classroom_id,
+    use_weights,
+    assignments_weight,
+    tests_weight
+  )
+  values (
+    v_classroom.id,
+    coalesce((p_classroom_plan->'grading'->>'use_weights')::boolean, false),
+    coalesce((p_classroom_plan->'grading'->>'assignments_weight')::smallint, 70),
+    coalesce((p_classroom_plan->'grading'->>'tests_weight')::smallint, 30)
+  )
+  on conflict (classroom_id) do update set
+    use_weights = excluded.use_weights,
+    assignments_weight = excluded.assignments_weight,
+    tests_weight = excluded.tests_weight;
+
+  update public.assignments
+  set blueprint_archived_at = now()
+  where classroom_id = v_classroom.id
+    and source_artifact_id is not null
+    and blueprint_archived_at is null
+    and not exists (
+      select 1
+      from jsonb_array_elements(
+        coalesce(p_classroom_plan->'assignments', '[]'::jsonb)
+      ) candidate
+      where (candidate->>'artifact_id')::uuid
+        = assignments.source_artifact_id
+    );
+
+  for v_item in
+    select value
+    from jsonb_array_elements(coalesce(p_classroom_plan->'assignments', '[]'::jsonb))
+  loop
+    v_logical_id := (v_item->>'artifact_id')::uuid;
+    v_parent_id := null;
+    v_existing_artifact_id := null;
+    v_rewrite_children := false;
+    select id, artifact_id
+    into v_parent_id, v_existing_artifact_id
+    from public.assignments
+    where classroom_id = v_classroom.id
+      and source_artifact_id = v_logical_id
+      and blueprint_archived_at is null
+    for update;
+
+    v_content_update := exists (
+      select 1
+      from jsonb_array_elements(v_proposal.operations_json) operation
+      where operation->>'collection' = 'assignments'
+        and operation->>'artifact_id' = v_logical_id::text
+        and operation->>'action' = 'update'
+    );
+    v_has_runtime := v_parent_id is not null and exists (
+      select 1 from public.assignment_docs
+      where assignment_id = v_parent_id
+    );
+
+    if v_parent_id is not null and v_content_update and v_has_runtime then
+      update public.assignments
+      set blueprint_archived_at = now()
+      where id = v_parent_id;
+      v_parent_id := null;
+      v_existing_artifact_id := gen_random_uuid();
+    end if;
+
+    if v_parent_id is null then
+      v_rewrite_children := true;
+      insert into public.assignments (
+        classroom_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        title,
+        instructions_markdown,
+        description,
+        rich_instructions,
+        due_at,
+        position,
+        is_draft,
+        released_at,
+        points_possible,
+        gradebook_weight,
+        include_in_final,
+        track_authenticity,
+        created_by
+      )
+      values (
+        v_classroom.id,
+        coalesce(v_existing_artifact_id, v_logical_id),
+        v_logical_id,
+        v_proposal.base_blueprint_version_id,
+        v_item->>'title',
+        coalesce(v_item->>'instructions_markdown', ''),
+        coalesce(v_item->>'description', ''),
+        v_item->'rich_instructions',
+        (v_item->>'due_at')::timestamptz,
+        coalesce((v_item->>'position')::integer, 0),
+        true,
+        null,
+        coalesce((v_item->>'points_possible')::numeric, 30),
+        coalesce((v_item->>'gradebook_weight')::integer, 10),
+        coalesce((v_item->>'include_in_final')::boolean, true),
+        coalesce((v_item->>'track_authenticity')::boolean, false),
+        p_teacher_id
+      )
+      returning id into v_parent_id;
+    else
+      v_rewrite_children := v_content_update;
+      update public.assignments
+      set
+        source_blueprint_version_id = v_proposal.base_blueprint_version_id,
+        title = v_item->>'title',
+        instructions_markdown = coalesce(v_item->>'instructions_markdown', ''),
+        description = coalesce(v_item->>'description', ''),
+        rich_instructions = v_item->'rich_instructions',
+        due_at = (v_item->>'due_at')::timestamptz,
+        position = coalesce((v_item->>'position')::integer, 0),
+        points_possible = coalesce((v_item->>'points_possible')::numeric, 30),
+        gradebook_weight = coalesce((v_item->>'gradebook_weight')::integer, 10),
+        include_in_final = coalesce((v_item->>'include_in_final')::boolean, true),
+        track_authenticity = coalesce(
+          (v_item->>'track_authenticity')::boolean,
+          false
+        )
+      where id = v_parent_id;
+      if v_rewrite_children then
+        delete from public.assignment_submission_requirements
+        where assignment_id = v_parent_id;
+      else
+        update public.assignment_submission_requirements
+        set source_blueprint_version_id = v_proposal.base_blueprint_version_id
+        where assignment_id = v_parent_id;
+      end if;
+    end if;
+
+    if v_rewrite_children then
+      for v_child in
+        select value
+        from jsonb_array_elements(
+          coalesce(v_item->'submission_requirements', '[]'::jsonb)
+        )
+      loop
+        insert into public.assignment_submission_requirements (
+          assignment_id,
+          artifact_id,
+          source_artifact_id,
+          source_blueprint_version_id,
+          type,
+          label,
+          instructions,
+          required,
+          position,
+          validation_policy_json
+        )
+        values (
+          v_parent_id,
+          (v_child->>'artifact_id')::uuid,
+          (v_child->>'artifact_id')::uuid,
+          v_proposal.base_blueprint_version_id,
+          v_child->>'type',
+          v_child->>'label',
+          coalesce(v_child->>'instructions', ''),
+          coalesce((v_child->>'required')::boolean, true),
+          coalesce((v_child->>'position')::integer, 0),
+          coalesce(v_child->'validation_policy_json', '{}'::jsonb)
+        );
+      end loop;
+    end if;
+  end loop;
+
+  update public.tests test
+  set blueprint_archived_at = now()
+  where test.classroom_id = v_classroom.id
+    and test.blueprint_archived_at is null
+    and (
+      test.source_artifact_id is not null
+      or exists (
+        select 1
+        from public.course_blueprint_versions source_version
+        where source_version.id = test.source_blueprint_version_id
+          and source_version.course_blueprint_id = v_proposal.course_blueprint_id
+      )
+    )
+    and not exists (
+      select 1
+      from jsonb_array_elements(coalesce(p_classroom_plan->'tests', '[]'::jsonb))
+        candidate
+      where (candidate->>'artifact_id')::uuid = coalesce(
+        test.source_artifact_id,
+        test.artifact_id
+      )
+    );
+
+  for v_item in
+    select value
+    from jsonb_array_elements(coalesce(p_classroom_plan->'tests', '[]'::jsonb))
+  loop
+    v_logical_id := (v_item->>'artifact_id')::uuid;
+    v_parent_id := null;
+    v_existing_artifact_id := null;
+    v_rewrite_children := false;
+    select test.id, test.artifact_id
+    into v_parent_id, v_existing_artifact_id
+    from public.tests test
+    where test.classroom_id = v_classroom.id
+      and coalesce(test.source_artifact_id, test.artifact_id) = v_logical_id
+      and test.blueprint_archived_at is null
+      and (
+        test.source_artifact_id is not null
+        or exists (
+          select 1
+          from public.course_blueprint_versions source_version
+          where source_version.id = test.source_blueprint_version_id
+            and source_version.course_blueprint_id = v_proposal.course_blueprint_id
+        )
+      )
+    for update;
+    v_content_update := exists (
+      select 1
+      from jsonb_array_elements(v_proposal.operations_json) operation
+      where operation->>'collection' = 'assessments'
+        and operation->>'artifact_id' = v_logical_id::text
+        and operation->>'action' = 'update'
+    );
+    v_has_runtime := v_parent_id is not null and exists (
+      select 1 from public.test_attempts where test_id = v_parent_id
+    );
+    if v_parent_id is not null and v_content_update and v_has_runtime then
+      update public.tests set blueprint_archived_at = now() where id = v_parent_id;
+      v_parent_id := null;
+      v_existing_artifact_id := gen_random_uuid();
+    end if;
+
+    if v_parent_id is null then
+      v_rewrite_children := true;
+      insert into public.tests (
+        classroom_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        title,
+        created_by,
+        position,
+        status,
+        show_results,
+        documents,
+        points_possible,
+        gradebook_weight,
+        include_in_final
+      )
+      values (
+        v_classroom.id,
+        coalesce(v_existing_artifact_id, v_logical_id),
+        v_logical_id,
+        v_proposal.base_blueprint_version_id,
+        v_item->>'title',
+        p_teacher_id,
+        coalesce((v_item->>'position')::integer, 0),
+        'draft',
+        coalesce((v_item->>'show_results')::boolean, false),
+        coalesce(v_item->'documents', '[]'::jsonb),
+        coalesce((v_item->>'points_possible')::numeric, 100),
+        coalesce((v_item->>'gradebook_weight')::integer, 10),
+        coalesce((v_item->>'include_in_final')::boolean, true)
+      )
+      returning id into v_parent_id;
+    else
+      v_rewrite_children := v_content_update;
+      update public.tests
+      set
+        source_blueprint_version_id = v_proposal.base_blueprint_version_id,
+        title = v_item->>'title',
+        position = coalesce((v_item->>'position')::integer, 0),
+        show_results = coalesce((v_item->>'show_results')::boolean, false),
+        documents = coalesce(v_item->'documents', '[]'::jsonb),
+        points_possible = coalesce((v_item->>'points_possible')::numeric, 100),
+        gradebook_weight = coalesce((v_item->>'gradebook_weight')::integer, 10),
+        include_in_final = coalesce((v_item->>'include_in_final')::boolean, true)
+      where id = v_parent_id;
+      if v_rewrite_children then
+        delete from public.test_questions where test_id = v_parent_id;
+      else
+        update public.test_questions
+        set source_blueprint_version_id = v_proposal.base_blueprint_version_id
+        where test_id = v_parent_id;
+      end if;
+    end if;
+
+    if v_rewrite_children then
+      for v_child in
+        select value
+        from jsonb_array_elements(coalesce(v_item->'questions', '[]'::jsonb))
+      loop
+        insert into public.test_questions (
+        test_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        question_type,
+        question_text,
+        options,
+        correct_option,
+        answer_key,
+        sample_solution,
+        points,
+        response_max_chars,
+        response_monospace,
+        position
+      )
+      values (
+        v_parent_id,
+        (v_child->>'artifact_id')::uuid,
+        (v_child->>'artifact_id')::uuid,
+        v_proposal.base_blueprint_version_id,
+        v_child->>'question_type',
+        coalesce(v_child->>'question_text', ''),
+        coalesce(v_child->'options', '[]'::jsonb),
+        (v_child->>'correct_option')::integer,
+        v_child->>'answer_key',
+        v_child->>'sample_solution',
+        coalesce((v_child->>'points')::numeric, 1),
+        coalesce((v_child->>'response_max_chars')::integer, 5000),
+        coalesce((v_child->>'response_monospace')::boolean, false),
+        coalesce((v_child->>'position')::integer, 0)
+        );
+      end loop;
+      insert into public.assessment_drafts (
+      assessment_type,
+      classroom_id,
+      assessment_id,
+      content,
+      version,
+      created_by,
+      updated_by
+    )
+    values (
+      'test',
+      v_classroom.id,
+      v_parent_id,
+      coalesce(v_item->'draft_content', '{}'::jsonb),
+      1,
+      p_teacher_id,
+      p_teacher_id
+    )
+      on conflict (assessment_type, assessment_id) do update
+      set
+        content = excluded.content,
+        version = public.assessment_drafts.version + 1,
+        updated_by = p_teacher_id;
+    end if;
+  end loop;
+
+  update public.classwork_materials
+  set blueprint_archived_at = now()
+  where classroom_id = v_classroom.id
+    and source_artifact_id is not null
+    and blueprint_archived_at is null
+    and not exists (
+      select 1
+      from jsonb_array_elements(
+        coalesce(p_classroom_plan->'materials', '[]'::jsonb)
+      ) candidate
+      where (candidate->>'artifact_id')::uuid
+        = classwork_materials.source_artifact_id
+    );
+  for v_item in
+    select value
+    from jsonb_array_elements(coalesce(p_classroom_plan->'materials', '[]'::jsonb))
+  loop
+    v_logical_id := (v_item->>'artifact_id')::uuid;
+    insert into public.classwork_materials (
+      classroom_id,
+      artifact_id,
+      source_artifact_id,
+      source_blueprint_version_id,
+      title,
+      content,
+      is_draft,
+      released_at,
+      position,
+      created_by
+    )
+    values (
+      v_classroom.id,
+      v_logical_id,
+      v_logical_id,
+      v_proposal.base_blueprint_version_id,
+      v_item->>'title',
+      coalesce(v_item->'content', '{"type":"doc","content":[]}'::jsonb),
+      true,
+      null,
+      coalesce((v_item->>'position')::integer, 0),
+      p_teacher_id
+    )
+    on conflict (classroom_id, artifact_id) do update set
+      source_blueprint_version_id = excluded.source_blueprint_version_id,
+      title = excluded.title,
+      content = excluded.content,
+      position = excluded.position,
+      blueprint_archived_at = null;
+  end loop;
+
+  update public.surveys
+  set blueprint_archived_at = now()
+  where classroom_id = v_classroom.id
+    and source_artifact_id is not null
+    and blueprint_archived_at is null
+    and not exists (
+      select 1
+      from jsonb_array_elements(coalesce(p_classroom_plan->'surveys', '[]'::jsonb))
+        candidate
+      where (candidate->>'artifact_id')::uuid = surveys.source_artifact_id
+    );
+  for v_item in
+    select value
+    from jsonb_array_elements(coalesce(p_classroom_plan->'surveys', '[]'::jsonb))
+  loop
+    v_logical_id := (v_item->>'artifact_id')::uuid;
+    v_parent_id := null;
+    v_existing_artifact_id := null;
+    v_rewrite_children := false;
+    select id, artifact_id
+    into v_parent_id, v_existing_artifact_id
+    from public.surveys
+    where classroom_id = v_classroom.id
+      and source_artifact_id = v_logical_id
+      and blueprint_archived_at is null
+    for update;
+    v_content_update := exists (
+      select 1
+      from jsonb_array_elements(v_proposal.operations_json) operation
+      where operation->>'collection' = 'surveys'
+        and operation->>'artifact_id' = v_logical_id::text
+        and operation->>'action' = 'update'
+    );
+    v_has_runtime := v_parent_id is not null and exists (
+      select 1 from public.survey_responses where survey_id = v_parent_id
+    );
+    if v_parent_id is not null and v_content_update and v_has_runtime then
+      update public.surveys set blueprint_archived_at = now() where id = v_parent_id;
+      v_parent_id := null;
+      v_existing_artifact_id := gen_random_uuid();
+    end if;
+    if v_parent_id is null then
+      v_rewrite_children := true;
+      insert into public.surveys (
+        classroom_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        title,
+        status,
+        opens_at,
+        show_results,
+        dynamic_responses,
+        position,
+        created_by
+      )
+      values (
+        v_classroom.id,
+        coalesce(v_existing_artifact_id, v_logical_id),
+        v_logical_id,
+        v_proposal.base_blueprint_version_id,
+        v_item->>'title',
+        'draft',
+        null,
+        coalesce((v_item->>'show_results')::boolean, true),
+        coalesce((v_item->>'dynamic_responses')::boolean, false),
+        coalesce((v_item->>'position')::integer, 0),
+        p_teacher_id
+      )
+      returning id into v_parent_id;
+    else
+      v_rewrite_children := v_content_update;
+      update public.surveys
+      set
+        source_blueprint_version_id = v_proposal.base_blueprint_version_id,
+        title = v_item->>'title',
+        show_results = coalesce((v_item->>'show_results')::boolean, true),
+        dynamic_responses = coalesce(
+          (v_item->>'dynamic_responses')::boolean,
+          false
+        ),
+        position = coalesce((v_item->>'position')::integer, 0)
+      where id = v_parent_id;
+      if v_rewrite_children then
+        delete from public.survey_questions where survey_id = v_parent_id;
+      else
+        update public.survey_questions
+        set source_blueprint_version_id = v_proposal.base_blueprint_version_id
+        where survey_id = v_parent_id;
+      end if;
+    end if;
+    if v_rewrite_children then
+      for v_child in
+        select value
+        from jsonb_array_elements(coalesce(v_item->'questions', '[]'::jsonb))
+      loop
+        insert into public.survey_questions (
+        survey_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        question_type,
+        question_text,
+        options,
+        response_max_chars,
+        position
+      )
+      values (
+        v_parent_id,
+        (v_child->>'artifact_id')::uuid,
+        (v_child->>'artifact_id')::uuid,
+        v_proposal.base_blueprint_version_id,
+        v_child->>'question_type',
+        v_child->>'question_text',
+        coalesce(v_child->'options', '[]'::jsonb),
+        coalesce((v_child->>'response_max_chars')::integer, 500),
+        coalesce((v_child->>'position')::integer, 0)
+        );
+      end loop;
+    end if;
+  end loop;
+
+  update public.lesson_plans
+  set blueprint_archived_at = now()
+  where classroom_id = v_classroom.id
+    and source_artifact_id is not null
+    and blueprint_archived_at is null
+    and not exists (
+      select 1
+      from jsonb_array_elements(
+        coalesce(p_classroom_plan->'lesson_plans', '[]'::jsonb)
+      ) candidate
+      where (candidate->>'artifact_id')::uuid
+        = lesson_plans.source_artifact_id
+    );
+  for v_item in
+    select value
+    from jsonb_array_elements(coalesce(p_classroom_plan->'lesson_plans', '[]'::jsonb))
+  loop
+    v_logical_id := (v_item->>'artifact_id')::uuid;
+    v_parent_id := null;
+    select id into v_parent_id
+    from public.lesson_plans
+    where classroom_id = v_classroom.id
+      and source_artifact_id = v_logical_id
+      and blueprint_archived_at is null
+    for update;
+    if v_parent_id is null then
+      select id into v_parent_id
+      from public.lesson_plans
+      where classroom_id = v_classroom.id
+        and date = (v_item->>'date')::date
+        and blueprint_archived_at is not null
+      for update;
+    end if;
+    if v_parent_id is null then
+      insert into public.lesson_plans (
+        classroom_id,
+        artifact_id,
+        source_artifact_id,
+        source_blueprint_version_id,
+        date,
+        content_markdown,
+        content
+      )
+      values (
+        v_classroom.id,
+        v_logical_id,
+        v_logical_id,
+        v_proposal.base_blueprint_version_id,
+        (v_item->>'date')::date,
+        coalesce(v_item->>'content_markdown', ''),
+        coalesce(v_item->'content', '{}'::jsonb)
+      );
+    else
+      update public.lesson_plans
+      set
+        source_artifact_id = v_logical_id,
+        source_blueprint_version_id = v_proposal.base_blueprint_version_id,
+        blueprint_archived_at = null,
+        date = (v_item->>'date')::date,
+        content_markdown = coalesce(v_item->>'content_markdown', ''),
+        content = coalesce(v_item->'content', '{}'::jsonb)
+      where id = v_parent_id;
+    end if;
+  end loop;
+
+  perform set_config('pika.identity_mapping', 'off', true);
+  update public.course_blueprint_change_proposals
+  set
+    status = 'applied',
+    applied_classroom_revision = v_result_revision,
+    applied_at = now(),
+    updated_at = now()
+  where id = p_proposal_id
+  returning * into v_proposal;
+  return v_proposal;
+end;
+$$;
+
 revoke all on function public.activate_test_from_draft_atomic(
   uuid,
   uuid,
@@ -891,6 +1642,10 @@ declare
   v_operation public.course_blueprint_operations;
   v_result jsonb;
   v_blueprint_id uuid;
+  v_blueprint_revision bigint;
+  v_version public.course_blueprint_versions;
+  v_version_snapshot jsonb;
+  v_version_sha256 text;
   v_item jsonb;
   v_child jsonb;
   v_parent_id uuid;
@@ -1232,6 +1987,96 @@ begin
       end loop;
     end if;
   end loop;
+
+  if p_operation_type = 'capture' then
+    v_blueprint_revision := (v_result->>'result_content_revision')::bigint;
+    v_version_snapshot :=
+      public.archived_classroom_blueprint_snapshot_from_plan(
+        v_blueprint_id,
+        v_blueprint_revision,
+        p_plan
+      );
+    v_version_sha256 := encode(
+      extensions.digest(
+        convert_to(
+          public.course_blueprint_canonical_jsonb_text(v_version_snapshot),
+          'UTF8'
+        ),
+        'sha256'
+      ),
+      'hex'
+    );
+    select *
+    into v_version
+    from public.save_course_blueprint_version_atomic(
+      p_teacher_id,
+      v_blueprint_id,
+      v_blueprint_revision,
+      2,
+      v_version_snapshot,
+      v_version_sha256,
+      'classroom',
+      jsonb_build_object(
+        'classroom_id', p_source_classroom_id,
+        'operation_id', p_operation_id,
+        'capture_source', 'active_classroom'
+      )
+    );
+
+    -- A captured origin Test keeps its own artifact identity. The immutable
+    -- Version records Blueprint membership separately, so proposal tracking
+    -- never needs to overload source_artifact_id as a membership flag.
+    update public.tests test
+    set source_blueprint_version_id = v_version.id
+    where test.classroom_id = p_source_classroom_id
+      and test.blueprint_archived_at is null
+      and exists (
+        select 1
+        from jsonb_array_elements(
+          coalesce(p_plan->'assessments', '[]'::jsonb)
+        ) item(value)
+        where (item.value->>'artifact_id')::uuid = coalesce(
+          test.source_artifact_id,
+          test.artifact_id
+        )
+      );
+
+    update public.test_questions question
+    set source_blueprint_version_id = v_version.id
+    where exists (
+      select 1
+      from public.tests test
+      join lateral jsonb_array_elements(
+        coalesce(p_plan->'assessments', '[]'::jsonb)
+      ) item(value) on (item.value->>'artifact_id')::uuid = coalesce(
+        test.source_artifact_id,
+        test.artifact_id
+      )
+      join lateral jsonb_array_elements(
+        coalesce(item.value->'content'->'questions', '[]'::jsonb)
+      ) child(value) on (child.value->>'id')::uuid = coalesce(
+        question.source_artifact_id,
+        question.artifact_id
+      )
+      where test.id = question.test_id
+        and test.classroom_id = p_source_classroom_id
+        and test.blueprint_archived_at is null
+    );
+
+    update public.classrooms
+    set
+      source_blueprint_version_id = v_version.id,
+      source_blueprint_origin = coalesce(source_blueprint_origin, '{}'::jsonb)
+        || jsonb_build_object(
+          'blueprint_version_id', v_version.id,
+          'blueprint_version_number', v_version.version_number
+        )
+    where id = p_source_classroom_id;
+
+    v_result := v_result || jsonb_build_object(
+      'source_blueprint_version_id', v_version.id
+    );
+  end if;
 
   v_result := jsonb_set(
     v_result,
@@ -2007,20 +2852,41 @@ begin
       and assignment.classroom_id = p_source_classroom_id
       and assignment.blueprint_archived_at is null
   ) and requirement.source_artifact_id is not null;
-  update public.tests
+  update public.tests test
   set source_blueprint_version_id = v_version.id
-  where classroom_id = p_source_classroom_id
-    and blueprint_archived_at is null
-    and source_artifact_id is not null;
+  where test.classroom_id = p_source_classroom_id
+    and test.blueprint_archived_at is null
+    and exists (
+      select 1
+      from jsonb_array_elements(
+        coalesce(p_plan->'assessments', '[]'::jsonb)
+      ) item(value)
+      where (item.value->>'artifact_id')::uuid = coalesce(
+        test.source_artifact_id,
+        test.artifact_id
+      )
+    );
   update public.test_questions question
   set source_blueprint_version_id = v_version.id
   where exists (
     select 1
     from public.tests test
+    join lateral jsonb_array_elements(
+      coalesce(p_plan->'assessments', '[]'::jsonb)
+    ) item(value) on (item.value->>'artifact_id')::uuid = coalesce(
+      test.source_artifact_id,
+      test.artifact_id
+    )
+    join lateral jsonb_array_elements(
+      coalesce(item.value->'content'->'questions', '[]'::jsonb)
+    ) child(value) on (child.value->>'id')::uuid = coalesce(
+      question.source_artifact_id,
+      question.artifact_id
+    )
     where test.id = question.test_id
       and test.classroom_id = p_source_classroom_id
       and test.blueprint_archived_at is null
-  ) and question.source_artifact_id is not null;
+  );
   update public.lesson_plans
   set source_blueprint_version_id = v_version.id
   where classroom_id = p_source_classroom_id

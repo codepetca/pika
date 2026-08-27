@@ -123,6 +123,13 @@ rubrics, and named resources must adopt the same contract.
 - Blueprint capture reads and validates source identity but does not assign or
   rewrite it. Missing or ambiguous persisted identity fails closed; a question
   with no persisted row is valid only while it remains draft-only.
+- Capturing an origin Classroom saves an immutable baseline Version and records
+  that Version in `source_blueprint_version_id` on the captured Test and its
+  materialized questions. This is Blueprint-membership provenance, not portable
+  identity: origin rows keep `source_artifact_id = null`. Classroom proposal
+  filtering, matching, and removal use that provenance together with the
+  source-first portable identity, so a later Classroom-only Test remains
+  untracked and is never archived as collateral.
 - Legacy draft JSON that contains row IDs is transactionally backfilled once by
   resolving those IDs to persisted portable identity. After the migration,
   live runtime code must not read the internal row-ID namespace.

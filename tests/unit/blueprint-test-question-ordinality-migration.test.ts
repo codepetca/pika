@@ -298,6 +298,40 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toMatch(
       /update public\.surveys[\s\S]{0,340}where classroom_id = p_source_classroom_id\s+and blueprint_archived_at is null\s+and position = coalesce/,
     )
+    expect(definition).toContain(
+      'from public.save_course_blueprint_version_atomic(',
+    )
+    expect(definition).toMatch(
+      /update public\.tests test\s+set source_blueprint_version_id = v_version\.id[\s\S]{0,500}coalesce\(\s*test\.source_artifact_id,\s*test\.artifact_id\s*\)/,
+    )
+    expect(definition).not.toMatch(
+      /update public\.tests\s+set\s+artifact_id/,
+    )
+  })
+
+  it('uses Version provenance for captured-origin Test proposal membership', () => {
+    const definition = functionDefinition(
+      'apply_course_blueprint_classroom_proposal_atomic',
+    )
+
+    expect(definition).toMatch(
+      /test\.source_artifact_id is not null\s+or exists \(\s+select 1\s+from public\.course_blueprint_versions source_version\s+where source_version\.id = test\.source_blueprint_version_id\s+and source_version\.course_blueprint_id = v_proposal\.course_blueprint_id/,
+    )
+    expect(definition).toMatch(
+      /coalesce\(test\.source_artifact_id, test\.artifact_id\) = v_logical_id/,
+    )
+    expect(databaseContract).toContain(
+      'Capture did not record Version membership without rewriting Test identity',
+    )
+    expect(databaseContract).toContain(
+      'Proposal did not update the captured origin Test in place',
+    )
+    expect(databaseContract).toContain(
+      'Proposal archived or adopted the local-only Test',
+    )
+    expect(databaseContract).toContain(
+      'Proposal duplicated the captured portable Test identity',
+    )
   })
 
   it('maps archived classroom reuse questions by stable identity', () => {

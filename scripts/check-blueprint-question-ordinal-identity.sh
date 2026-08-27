@@ -2897,6 +2897,345 @@ begin
 end;
 $contract$;
 
+-- A captured origin Test is a Blueprint member even though capture leaves its
+-- source identity null. Its immutable Version provenance must let a later
+-- Blueprint proposal update the same Test row while preserving a genuinely
+-- new Classroom-only Test.
+do $proposal$
+declare
+  v_teacher_id constant uuid := 'b1340000-0000-4000-8000-000000000001';
+  v_classroom_id constant uuid := 'b1344000-0000-4000-8000-000000000010';
+  v_test_row_id constant uuid := 'b1344000-0000-4000-8000-000000000011';
+  v_question_row_id constant uuid := 'b1344000-0000-4000-8000-000000000012';
+  v_test_artifact_id constant uuid := 'b1344000-0000-4000-8000-000000000111';
+  v_question_artifact_id constant uuid := 'b1344000-0000-4000-8000-000000000112';
+  v_local_test_row_id constant uuid := 'b1344000-0000-4000-8000-000000000021';
+  v_capture_operation_id constant uuid := 'b1344000-0000-4000-8000-000000000201';
+  v_proposal_idempotency_key constant uuid := 'b1344000-0000-4000-8000-000000000202';
+  v_blueprint_id uuid;
+  v_blueprint_revision bigint;
+  v_classroom_revision bigint;
+  v_capture_plan jsonb;
+  v_classroom_plan jsonb;
+  v_result jsonb;
+  v_snapshot jsonb;
+  v_snapshot_sha256 text;
+  v_plan_sha256 text;
+  v_version public.course_blueprint_versions;
+  v_proposal public.course_blueprint_change_proposals;
+  v_count integer;
+begin
+  insert into public.classrooms (
+    id, teacher_id, title, class_code, start_date
+  ) values (
+    v_classroom_id,
+    v_teacher_id,
+    'Captured proposal membership',
+    'B134P4',
+    '2026-09-01'
+  );
+  insert into public.tests (
+    id, classroom_id, artifact_id, title, status, show_results,
+    points_possible, created_by, position
+  ) values (
+    v_test_row_id,
+    v_classroom_id,
+    v_test_artifact_id,
+    'Captured origin Test',
+    'active',
+    false,
+    1,
+    v_teacher_id,
+    0
+  );
+  insert into public.test_questions (
+    id, test_id, artifact_id, question_type, question_text, options,
+    correct_option, points, response_max_chars, response_monospace, position
+  ) values (
+    v_question_row_id,
+    v_test_row_id,
+    v_question_artifact_id,
+    'open_response',
+    'Captured origin question',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    0
+  );
+
+  v_capture_plan := jsonb_build_object(
+    'blueprint', jsonb_build_object(
+      'title', 'Captured proposal Blueprint',
+      'subject', '',
+      'grade_level', '',
+      'course_code', '',
+      'term_template', '',
+      'overview_markdown', '',
+      'outline_markdown', '',
+      'resources_markdown', '',
+      'gradebook_use_weights', false,
+      'gradebook_assignments_weight', 70,
+      'gradebook_tests_weight', 30,
+      'planned_site_slug', null,
+      'planned_site_published', false,
+      'planned_site_config', '{}'::jsonb
+    ),
+    'assignments', '[]'::jsonb,
+    'assessments', jsonb_build_array(jsonb_build_object(
+      'artifact_id', v_test_artifact_id,
+      'assessment_type', 'test',
+      'title', 'Captured origin Test',
+      'content', jsonb_build_object(
+        'title', 'Captured origin Test',
+        'show_results', false,
+        'question_identity_version', 1,
+        'questions', jsonb_build_array(jsonb_build_object(
+          'id', v_question_artifact_id,
+          'question_type', 'open_response',
+          'question_text', 'Captured origin question',
+          'options', '[]'::jsonb,
+          'correct_option', null,
+          'answer_key', null,
+          'sample_solution', null,
+          'points', 1,
+          'response_max_chars', 5000,
+          'response_monospace', false
+        ))
+      ),
+      'documents', '[]'::jsonb,
+      'points_possible', 1,
+      'gradebook_weight', 10,
+      'include_in_final', true,
+      'position', 0
+    )),
+    'lesson_templates', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'manifest_version', '3',
+    'source_package_exported_at', null
+  );
+
+  select blueprint_source_revision
+  into v_classroom_revision
+  from public.classrooms
+  where id = v_classroom_id;
+  v_result := public.create_course_blueprint_atomic_v2(
+    v_capture_operation_id,
+    v_teacher_id,
+    'capture',
+    repeat('4', 64),
+    v_classroom_id,
+    v_classroom_revision,
+    v_capture_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Captured proposal membership seed failed: %', v_result;
+  end if;
+  v_blueprint_id := (v_result->>'blueprint_id')::uuid;
+
+  if not exists (
+    select 1
+    from public.tests test
+    join public.course_blueprint_versions source_version
+      on source_version.id = test.source_blueprint_version_id
+    where test.id = v_test_row_id
+      and test.artifact_id = v_test_artifact_id
+      and test.source_artifact_id is null
+      and source_version.course_blueprint_id = v_blueprint_id
+  ) then
+    raise exception 'Capture did not record Version membership without rewriting Test identity';
+  end if;
+
+  -- This Test was authored after capture and must remain Classroom-only.
+  insert into public.tests (
+    id, classroom_id, title, status, show_results, points_possible,
+    created_by, position
+  ) values (
+    v_local_test_row_id,
+    v_classroom_id,
+    'Local Test after capture',
+    'draft',
+    false,
+    1,
+    v_teacher_id,
+    1
+  );
+
+  v_capture_plan := jsonb_set(
+    jsonb_set(
+      v_capture_plan,
+      '{assessments,0,title}',
+      to_jsonb('Updated from Blueprint'::text)
+    ),
+    '{assessments,0,content,title}',
+    to_jsonb('Updated from Blueprint'::text)
+  );
+  v_capture_plan := jsonb_set(
+    v_capture_plan,
+    '{assessments,0,content,questions,0,question_text}',
+    to_jsonb('Updated Blueprint question'::text)
+  );
+  update public.course_blueprint_assessments
+  set
+    title = 'Updated from Blueprint',
+    content = v_capture_plan->'assessments'->0->'content'
+  where course_blueprint_id = v_blueprint_id
+    and artifact_id = v_test_artifact_id;
+
+  select content_revision
+  into v_blueprint_revision
+  from public.course_blueprints
+  where id = v_blueprint_id;
+  v_snapshot := public.archived_classroom_blueprint_snapshot_from_plan(
+    v_blueprint_id,
+    v_blueprint_revision,
+    v_capture_plan
+  );
+  v_snapshot_sha256 := encode(
+    extensions.digest(
+      convert_to(public.course_blueprint_canonical_jsonb_text(v_snapshot), 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  );
+  select *
+  into v_version
+  from public.save_course_blueprint_version_atomic(
+    v_teacher_id,
+    v_blueprint_id,
+    v_blueprint_revision,
+    2,
+    v_snapshot,
+    v_snapshot_sha256,
+    'pika',
+    jsonb_build_object('reason', 'captured_membership_contract')
+  );
+
+  v_classroom_plan := jsonb_build_object(
+    'calendar_guard', jsonb_build_object(
+      'start_date', '2026-09-01',
+      'class_day_dates', '[]'::jsonb
+    ),
+    'sections', jsonb_build_object(
+      'overview_markdown', '',
+      'outline_markdown', ''
+    ),
+    'site_visibility_defaults', '{}'::jsonb,
+    'resources_content', null,
+    'grading', jsonb_build_object(
+      'use_weights', false,
+      'assignments_weight', 70,
+      'tests_weight', 30
+    ),
+    'assignments', '[]'::jsonb,
+    'tests', jsonb_build_array(jsonb_build_object(
+      'artifact_id', v_test_artifact_id,
+      'title', 'Updated from Blueprint',
+      'position', 0,
+      'show_results', false,
+      'documents', '[]'::jsonb,
+      'points_possible', 1,
+      'gradebook_weight', 10,
+      'include_in_final', true,
+      'questions', jsonb_build_array(jsonb_build_object(
+        'artifact_id', v_question_artifact_id,
+        'question_type', 'open_response',
+        'question_text', 'Updated Blueprint question',
+        'options', '[]'::jsonb,
+        'correct_option', null,
+        'answer_key', null,
+        'sample_solution', null,
+        'points', 1,
+        'response_max_chars', 5000,
+        'response_monospace', false,
+        'position', 0
+      )),
+      'draft_content', v_capture_plan->'assessments'->0->'content'
+    )),
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'lesson_plans', '[]'::jsonb
+  );
+  v_plan_sha256 := encode(
+    extensions.digest(
+      convert_to(
+        public.course_blueprint_canonical_jsonb_text(v_classroom_plan),
+        'UTF8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  );
+  select blueprint_source_revision
+  into v_classroom_revision
+  from public.classrooms
+  where id = v_classroom_id;
+
+  select *
+  into v_proposal
+  from public.create_course_blueprint_classroom_proposal_atomic(
+    v_teacher_id,
+    v_blueprint_id,
+    v_version.id,
+    v_classroom_id,
+    v_blueprint_revision,
+    v_classroom_revision,
+    v_proposal_idempotency_key,
+    jsonb_build_array(jsonb_build_object(
+      'action', 'update',
+      'collection', 'assessments',
+      'artifact_id', v_test_artifact_id
+    )),
+    jsonb_build_object('classroom_plan_sha256', v_plan_sha256),
+    repeat('5', 64)
+  );
+  select *
+  into v_proposal
+  from public.apply_course_blueprint_classroom_proposal_atomic(
+    v_teacher_id,
+    v_proposal.id,
+    v_classroom_plan,
+    v_plan_sha256
+  );
+  if v_proposal.status <> 'applied' then
+    raise exception 'Captured origin Test proposal did not apply: %', v_proposal.status;
+  end if;
+
+  if not exists (
+    select 1
+    from public.tests
+    where id = v_test_row_id
+      and title = 'Updated from Blueprint'
+      and source_artifact_id is null
+      and source_blueprint_version_id = v_version.id
+      and blueprint_archived_at is null
+  ) then
+    raise exception 'Proposal did not update the captured origin Test in place';
+  end if;
+  if not exists (
+    select 1
+    from public.tests
+    where id = v_local_test_row_id
+      and source_artifact_id is null
+      and source_blueprint_version_id is null
+      and blueprint_archived_at is null
+  ) then
+    raise exception 'Proposal archived or adopted the local-only Test';
+  end if;
+  select count(*)
+  into v_count
+  from public.tests
+  where classroom_id = v_classroom_id
+    and coalesce(source_artifact_id, artifact_id) = v_test_artifact_id
+    and blueprint_archived_at is null;
+  if v_count <> 1 then
+    raise exception 'Proposal duplicated the captured portable Test identity';
+  end if;
+end;
+$proposal$;
+
 drop trigger b134_fail_question_rematerialization_once on public.test_questions;
 drop function public.b134_fail_question_rematerialization_once();
 

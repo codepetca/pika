@@ -48,6 +48,7 @@ export type ClassroomBlueprintSource = {
   tests: Array<{
     artifact_id: string
     source_artifact_id: string | null
+    source_blueprint_version_id: string | null
     assessment_type: 'test'
     title: string
     content: TestDraftContent
@@ -409,6 +410,7 @@ export async function loadClassroomBlueprintSource(
       tests: tests.map((test) => ({
           artifact_id: test.source_artifact_id ?? test.artifact_id ?? test.id,
           source_artifact_id: test.source_artifact_id ?? null,
+          source_blueprint_version_id: test.source_blueprint_version_id ?? null,
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,

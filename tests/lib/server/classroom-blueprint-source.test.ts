@@ -394,6 +394,7 @@ describe('classroom blueprint source loader', () => {
     seedSourceSupabase({
       tests: [{
         id: 't-1',
+        source_blueprint_version_id: '40000000-0000-4000-8000-000000000001',
         title: 'Activated Test',
         status: 'active',
         show_results: false,
@@ -426,6 +427,9 @@ describe('classroom blueprint source loader', () => {
       firstPortableId,
       secondPortableId,
     ])
+    expect(result.source.tests[0].source_blueprint_version_id).toBe(
+      '40000000-0000-4000-8000-000000000001',
+    )
   })
 
   it('captures a marked portable draft when its identity collides with another row ID', async () => {
