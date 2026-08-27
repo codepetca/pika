@@ -447,6 +447,15 @@ begin
     raise exception 'Legacy row-ID precedence did not resolve the question-zero identity collision';
   end if;
 
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.content->>'question_identity_version' = '1'
+  ) then
+    raise exception 'Backfill did not mark the canonical portable draft identity version';
+  end if;
+
   if (
     select jsonb_agg(
       jsonb_build_object(
@@ -476,6 +485,34 @@ begin
     )
   ) then
     raise exception 'Legacy row-ID precedence mutated persisted question rows';
+  end if;
+end;
+$contract$;
+SQL
+
+# A successfully marked draft is already in the portable namespace. Replaying
+# the backfill must validate it strictly without treating a coincident row UUID
+# as a legacy alias or advancing its optimistic-lock version again.
+sed -n '1,/^\$\$;$/p' "$MIGRATION_FILE" \
+  | docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.version = 8
+      and draft.content->>'question_identity_version' = '1'
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+  ) then
+    raise exception 'Portable draft replay re-entered the legacy row-ID namespace';
   end if;
 end;
 $contract$;
@@ -515,6 +552,7 @@ begin
         = 'b1349000-0000-4000-8000-000000000021'
       and draft.content->'questions'->1->>'id'
         = 'b1349000-0000-4000-8000-000000000031'
+      and draft.content->>'question_identity_version' = '1'
       and (
         select count(*)
         from public.test_questions question
@@ -2469,6 +2507,18 @@ begin
       )
   ) then
     raise exception 'Version instantiation reused portable identity as row identity';
+  end if;
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test
+      on test.id = draft.assessment_id
+      and draft.assessment_type = 'test'
+    where test.classroom_id = v_instantiated_classroom_id
+      and test.source_artifact_id = v_instantiation_test_id
+      and draft.content->>'question_identity_version' = '1'
+  ) then
+    raise exception 'Instantiated Test draft did not retain the portable identity discriminator';
   end if;
 end;
 $contract$;

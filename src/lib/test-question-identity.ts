@@ -8,6 +8,8 @@ import type { TestDraftContent } from '@/types'
 // accept ids (v1/v2/v3/v5) the rest of the pipeline rejects.
 const UUID_RE = UUID_V4_PATTERN
 
+export const PORTABLE_TEST_QUESTION_IDENTITY_VERSION = 1 as const
+
 export type PersistedTestQuestionIdentity = {
   id: string
   artifact_id?: string | null
@@ -25,6 +27,32 @@ export type TestQuestionIdentityResolutionOptions = {
   acceptInternalRowIds?: boolean
   /** Accept a portable draft identity that has not been materialized yet. */
   allowDraftOnly?: boolean
+}
+
+export function usesPortableTestQuestionIdentity(
+  content: Pick<TestDraftContent, 'question_identity_version'>,
+): boolean {
+  return content.question_identity_version === PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+}
+
+export function markPortableTestQuestionIdentity(
+  content: TestDraftContent,
+): TestDraftContent {
+  return {
+    ...content,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+  }
+}
+
+export function getTestDraftIdentityResolutionOptions(
+  content: Pick<TestDraftContent, 'question_identity_version'>,
+): TestQuestionIdentityResolutionOptions | undefined {
+  return usesPortableTestQuestionIdentity(content)
+    ? {
+        acceptInternalRowIds: false,
+        allowDraftOnly: true,
+      }
+    : undefined
 }
 
 /**
@@ -97,11 +125,15 @@ export function resolveTestQuestionIdentities(
     if (seenInputIds.has(inputId)) return { ok: false }
     seenInputIds.add(inputId)
 
-    const matchingRowIds = new Set(rowIdsByKnownIdentity.get(inputId) ?? [])
-    if (acceptInternalRowIds) {
-      const internalRow = rowsByInternalId.get(inputId)
-      if (internalRow) matchingRowIds.add(internalRow.id)
-    }
+    // Unmarked legacy drafts contractually stored internal row IDs, so an
+    // exact row match wins before portable fallback. Marked drafts disable
+    // this branch and stay entirely in the artifact/source identity domain.
+    const internalRow = acceptInternalRowIds
+      ? rowsByInternalId.get(inputId)
+      : undefined
+    const matchingRowIds = internalRow
+      ? new Set([internalRow.id])
+      : new Set(rowIdsByKnownIdentity.get(inputId) ?? [])
     if (matchingRowIds.size > 1) return { ok: false }
 
     const [matchingRowId] = matchingRowIds

@@ -290,8 +290,10 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain(
       'public.instantiate_course_blueprint_atomic_v2_pre_question_identity(',
     )
+    expect(definition).toContain('source_test.value || jsonb_build_object(')
+    expect(definition).toMatch(/'questions',\s*'\[\]'::jsonb/)
     expect(definition).toMatch(
-      /source_test\.value \|\| jsonb_build_object\('questions', '\[\]'::jsonb\)/,
+      /'draft_content',[\s\S]{0,260}'\{question_identity_version\}',\s*'1'::jsonb/,
     )
     expect(definition).toMatch(
       /public\.instantiate_course_blueprint_atomic_v2_pre_question_identity\([\s\S]{0,300}v_compatibility_plan/,
@@ -383,7 +385,11 @@ describe('Blueprint test-question identity migration', () => {
       /coalesce\(\s*source_question\.source_artifact_id,\s*source_question\.artifact_id,\s*source_question\.id\s*\)/,
     )
     expect(migration).toMatch(
-      /update public\.assessment_drafts\s+set\s+content = jsonb_set\(content, '\{questions\}', v_questions, false\),\s+version = public\.assessment_drafts\.version \+ 1/,
+      /update public\.assessment_drafts\s+set\s+content = jsonb_set\([\s\S]{0,240}'\{question_identity_version\}'[\s\S]{0,120}'1'::jsonb[\s\S]{0,120}version = public\.assessment_drafts\.version \+ 1/,
+    )
+    expect(migration).toContain('if not v_is_portable then')
+    expect(migration).toContain(
+      "raise exception 'Portable Test draft question identity does not match persisted lineage'",
     )
   })
 
@@ -413,10 +419,19 @@ describe('Blueprint test-question identity migration', () => {
       'Legacy row-ID precedence did not resolve the question-zero identity collision',
     )
     expect(databaseContract).toContain(
+      'Backfill did not mark the canonical portable draft identity version',
+    )
+    expect(databaseContract).toContain(
+      'Portable draft replay re-entered the legacy row-ID namespace',
+    )
+    expect(databaseContract).toContain(
       'Legacy row-ID precedence mutated persisted question rows',
     )
     expect(databaseContract).toContain(
       'Post-backfill save and activation did not preserve canonical question identity',
+    )
+    expect(databaseContract).toContain(
+      'Instantiated Test draft did not retain the portable identity discriminator',
     )
     expect(databaseContract).toContain(
       'Migration fence did not wait behind the in-flight draft save',

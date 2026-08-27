@@ -22,6 +22,7 @@ declare
   v_portable_id uuid;
   v_questions jsonb;
   v_changed boolean;
+  v_is_portable boolean;
   v_claimed_row_ids uuid[];
   v_seen_portable_ids uuid[];
 begin
@@ -45,7 +46,17 @@ begin
     where assessment_type = 'test'
   loop
     v_questions := '[]'::jsonb;
-    v_changed := false;
+    if v_draft.content ? 'question_identity_version'
+      and v_draft.content->'question_identity_version' is distinct from '1'::jsonb
+    then
+      raise exception 'Unsupported Test question identity version'
+        using errcode = '22023';
+    end if;
+    v_is_portable := coalesce(
+      v_draft.content->'question_identity_version' = '1'::jsonb,
+      false
+    );
+    v_changed := not v_is_portable;
     v_claimed_row_ids := array[]::uuid[];
     v_seen_portable_ids := array[]::uuid[];
 
@@ -64,6 +75,8 @@ begin
       end if;
       v_question_id := (v_question->>'id')::uuid;
       v_portable_id := v_question_id;
+      v_question_row_id := null;
+      v_question_row_ids := null;
 
       -- Before portable draft identities existed, draft question IDs were the
       -- persisted row IDs. Preserve that exact contract first. Migrations 112
@@ -71,11 +84,13 @@ begin
       -- identity, so combining row and portable matches in one set makes valid
       -- legacy data look ambiguous. This precedence is identity-based: it does
       -- not inspect position or content.
-      select source_question.id
-      into v_question_row_id
-      from public.test_questions as source_question
-      where source_question.test_id = v_draft.assessment_id
-        and source_question.id = v_question_id;
+      if not v_is_portable then
+        select source_question.id
+        into v_question_row_id
+        from public.test_questions as source_question
+        where source_question.test_id = v_draft.assessment_id
+          and source_question.id = v_question_id;
+      end if;
 
       if v_question_row_id is null then
         select array_agg(source_question.id order by source_question.id)
@@ -118,7 +133,10 @@ begin
             using errcode = '22023';
         end if;
 
-        if v_question_id is distinct from v_portable_id then
+        if v_is_portable and v_question_id is distinct from v_portable_id then
+          raise exception 'Portable Test draft question identity does not match persisted lineage'
+            using errcode = '22023';
+        elsif v_question_id is distinct from v_portable_id then
           v_question := jsonb_set(
             v_question,
             '{id}',
@@ -141,7 +159,12 @@ begin
     if v_changed then
       update public.assessment_drafts
       set
-        content = jsonb_set(content, '{questions}', v_questions, false),
+        content = jsonb_set(
+          jsonb_set(content, '{questions}', v_questions, false),
+          '{question_identity_version}',
+          '1'::jsonb,
+          true
+        ),
         version = public.assessment_drafts.version + 1
       where id = v_draft.id;
     end if;
@@ -285,6 +308,10 @@ begin
   if jsonb_typeof(p_content) is distinct from 'object'
     or jsonb_typeof(p_content->'questions') is distinct from 'array'
     or jsonb_typeof(p_content->'show_results') is distinct from 'boolean'
+    or (
+      p_content ? 'question_identity_version'
+      and p_content->'question_identity_version' is distinct from '1'::jsonb
+    )
     or nullif(btrim(p_content->>'title'), '') is null
   then
     raise exception using errcode = '22023', message = 'invalid_draft_content';
@@ -507,7 +534,12 @@ begin
 
   update public.assessment_drafts draft
   set
-    content = p_content,
+    content = jsonb_set(
+      p_content,
+      '{question_identity_version}',
+      '1'::jsonb,
+      true
+    ),
     version = draft.version + 1,
     updated_by = p_teacher_id
   where draft.id = v_draft.id
@@ -1265,8 +1297,9 @@ begin
   -- graph, but its Test-question branch assigns identity by position. Give it
   -- an empty questions array for every Test so it creates neither temporary
   -- question rows nor positional identities. The canonical loop below then
-  -- materializes each question exactly once from its explicit Version ID. Keep
-  -- draft_content intact: it already carries the same portable identities.
+  -- materializes each question exactly once from its explicit Version ID. Mark
+  -- draft_content as portable even for immutable Versions created before this
+  -- discriminator existed; Version question IDs are already canonical.
   select coalesce(
     sum(jsonb_array_length(coalesce(source_test.value->'questions', '[]'::jsonb))),
     0
@@ -1278,7 +1311,17 @@ begin
     'tests',
     coalesce(
       jsonb_agg(
-        source_test.value || jsonb_build_object('questions', '[]'::jsonb)
+        source_test.value || jsonb_build_object(
+          'questions',
+          '[]'::jsonb,
+          'draft_content',
+          jsonb_set(
+            coalesce(source_test.value->'draft_content', '{}'::jsonb),
+            '{question_identity_version}',
+            '1'::jsonb,
+            true
+          )
+        )
         order by source_test.ordinality
       ),
       '[]'::jsonb

@@ -420,6 +420,68 @@ describe('classroom blueprint source loader', () => {
     ])
   })
 
+  it('captures a marked portable draft when its identity collides with another row ID', async () => {
+    const firstRowId = '10000000-0000-4000-8000-000000000001'
+    const firstPortableId = '20000000-0000-4000-8000-000000000001'
+    const secondPortableId = '30000000-0000-4000-8000-000000000001'
+    const question = (id: string, questionText: string) => ({
+      id,
+      question_type: 'open_response',
+      question_text: questionText,
+      options: [],
+      correct_option: null,
+      answer_key: null,
+      sample_solution: null,
+      points: 1,
+      response_max_chars: 5000,
+      response_monospace: false,
+    })
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        title: 'Draft Test',
+        status: 'draft',
+        show_results: false,
+        position: 0,
+      }],
+      testQuestions: [{
+        id: firstRowId,
+        artifact_id: firstPortableId,
+        source_artifact_id: firstPortableId,
+        test_id: 't-1',
+      }, {
+        id: firstPortableId,
+        artifact_id: secondPortableId,
+        source_artifact_id: secondPortableId,
+        test_id: 't-1',
+      }],
+      assessmentDrafts: [{
+        assessment_id: 't-1',
+        content: {
+          title: 'Draft Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [
+            question(firstPortableId, 'First question'),
+            question(secondPortableId, 'Second question'),
+          ],
+        },
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].content).toEqual(expect.objectContaining({
+      question_identity_version: 1,
+      questions: [
+        expect.objectContaining({ id: firstPortableId }),
+        expect.objectContaining({ id: secondPortableId }),
+      ],
+    }))
+  })
+
   it('preserves draft-only identity and fails closed on ambiguous persisted identity', () => {
     const content = {
       title: 'Identity contract',
@@ -476,7 +538,16 @@ describe('classroom blueprint source loader', () => {
       id: 'question-row-2',
       artifact_id: 'question-row-1',
       source_artifact_id: null,
-    }])).toEqual({ ok: false })
+    }])).toEqual({
+      ok: true,
+      content: {
+        ...content,
+        questions: [{
+          ...content.questions[0],
+          id: '20000000-0000-4000-8000-000000000001',
+        }],
+      },
+    })
   })
 
   it('does not carry classroom snapshot ownership into a reusable blueprint', async () => {

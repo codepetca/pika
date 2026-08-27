@@ -11,7 +11,10 @@ import {
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
+import {
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+} from '@/lib/test-question-identity'
 
 const TEST_ID_1 = '33333333-3333-4333-8333-333333333333'
 const ARTIFACT_ID_1 = '55555555-5555-4555-8555-555555555555'
@@ -233,6 +236,7 @@ describe('assessment drafts', () => {
     ).toEqual({
       title: 'Test',
       show_results: false,
+      question_identity_version: 1,
       source_format: 'markdown',
       questions: [
         {
@@ -640,6 +644,96 @@ describe('assessment drafts', () => {
       },
     })
     expect(update).not.toHaveBeenCalled()
+  })
+
+  it('keeps a marked portable draft usable across a row-ID collision', async () => {
+    const firstRowId = TEST_ID_1
+    const firstPortableId = ARTIFACT_ID_1
+    const secondPortableId = '66666666-6666-4666-8666-666666666666'
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: {
+        title: 'Portable Test',
+        show_results: false,
+        question_identity_version: 1 as const,
+        questions: [firstPortableId, secondPortableId].map((id) => ({
+          id,
+          question_type: 'open_response' as const,
+          question_text: 'Portable identity',
+          options: [],
+          correct_option: null,
+          answer_key: null,
+          sample_solution: null,
+          points: 1,
+          response_max_chars: 5000,
+          response_monospace: false,
+        })),
+      },
+      version: 8,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const questionSelect: any = {
+      eq: vi.fn(() => questionSelect),
+      order: vi.fn().mockResolvedValue({
+        data: [{
+          id: firstRowId,
+          artifact_id: firstPortableId,
+          source_artifact_id: firstPortableId,
+        }, {
+          id: firstPortableId,
+          artifact_id: secondPortableId,
+          source_artifact_id: secondPortableId,
+        }],
+        error: null,
+      }),
+    }
+    const supabase = {
+      from: vi.fn((table: string) => table === 'assessment_drafts'
+        ? { select: vi.fn(() => draftSelect) }
+        : { select: vi.fn(() => questionSelect) }),
+    }
+
+    const result = await ensureAssessmentDraft(supabase, {
+      assessmentType: 'test',
+      assessment: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Portable Test',
+        show_results: false,
+      },
+      userId: 'teacher-1',
+      questionsTable: 'test_questions',
+      questionsForeignKey: 'test_id',
+      questionsSelect: 'id, artifact_id, source_artifact_id',
+      validateContent: validateTestDraftContent,
+      buildFromRows: buildTestDraftContentFromRows,
+      projectContent: (content, rows) => projectPortableTestQuestionIds(
+        content,
+        rows as Array<{ id: string; artifact_id?: string | null; source_artifact_id?: string | null }>,
+        getTestDraftIdentityResolutionOptions(content),
+      ),
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      draft: {
+        version: 8,
+        content: {
+          question_identity_version: 1,
+          questions: [{ id: firstPortableId }, { id: secondPortableId }],
+        },
+      },
+    })
   })
 
   it('reopens a materialized Test from persisted rows without changing its draft version', async () => {

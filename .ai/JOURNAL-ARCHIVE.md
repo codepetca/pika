@@ -24138,3 +24138,26 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
   with an exact single-purpose preflight-fence contract and labeled the
   migration-132 rollout sequence as completed audit history rather than future
   operator instructions.
+
+<!-- pika-session-log-archive-batch:63f1e2ee5b86988c46271abe028dc7cde5965c0f755554fbc0d9c8e3e2ba8aaa -->
+## 2026-08-25 — Pin the student Pal companion on iPhone
+
+**Risk profile:** none — student-only Pal companion placement; no academic
+state, API contract, authentication, schema, or reward behavior changed.
+
+**Model recommendation:** GPT-5.6 — localized host-layout work with
+cross-browser verification and a bounded independent review.
+
+- Made the Pika-owned companion host explicitly use a non-interactive
+  bottom-right placement contract backed by Pika spacing/layer tokens and iOS
+  safe-area insets.
+- Added component and stylesheet contract coverage for the placement invariant
+  while preserving the existing test-surface suppression and Pal failure
+  boundary behavior.
+- The focused suites pass (19/19), the full Vitest suite passes
+  (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
+  are clean after rebasing onto current `main`.
+- Playwright visual verification passed for student desktop/mobile in light and
+  dark themes and for an iPhone 13 WebKit profile; teacher desktop/mobile were
+  checked as unaffected. Chromium and WebKit pointer-drag probes both retained
+  the same bottom-right rectangle at 16px from the viewport edges.

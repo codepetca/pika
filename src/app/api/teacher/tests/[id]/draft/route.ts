@@ -12,6 +12,7 @@ import {
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import {
+  getTestDraftIdentityResolutionOptions,
   projectPortableTestQuestionIds,
   type PersistedTestQuestionIdentity,
 } from '@/lib/test-question-identity'
@@ -34,6 +35,7 @@ const TEST_DRAFT_CONFIG = {
     projectPortableTestQuestionIds(
       content,
       rows as PersistedTestQuestionIdentity[],
+      getTestDraftIdentityResolutionOptions(content),
     )
   ),
 }

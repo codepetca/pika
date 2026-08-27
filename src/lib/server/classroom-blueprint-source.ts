@@ -4,7 +4,10 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { stripTestDocumentSnapshots } from '@/lib/test-documents'
-import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
+import {
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+} from '@/lib/test-question-identity'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { buildTestDraftContentFromRows } from '@/lib/server/assessment-drafts'
@@ -295,7 +298,7 @@ export async function loadClassroomBlueprintSource(
       artifact_id: question.artifact_id ?? null,
       source_artifact_id: question.source_artifact_id ?? null,
     })), draftContent
-      ? undefined
+      ? getTestDraftIdentityResolutionOptions(draftContent)
       : {
           acceptInternalRowIds: false,
           allowDraftOnly: false,

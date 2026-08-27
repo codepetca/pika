@@ -123,8 +123,10 @@ rubrics, and named resources must adopt the same contract.
   resolving those IDs to persisted portable identity. Runtime code may detect
   legacy row IDs for a clear failure, but must not silently infer or rewrite
   logical identity.
-- The temporary row-ID compatibility reader is limited to actual legacy draft
-  JSON. Content rebuilt from materialized rows, Blueprint capture, save, and
+- Portable draft JSON carries `question_identity_version: 1`. The temporary
+  row-ID compatibility reader is limited to unmarked legacy draft JSON and
+  gives an exact historical row ID precedence before portable fallback. Marked
+  drafts, content rebuilt from materialized rows, Blueprint capture, save, and
   activation validate only portable artifact/source identity, so coincident
   UUID values cannot merge the internal and portable identity domains.
 
@@ -139,9 +141,11 @@ Roll out the contract in compatibility order:
    historical row-ID match first because legacy drafts stored row IDs. Only
    when no row-ID match exists does it fall back to a unique artifact/source
    UUID match; multiple portable matches abort, and draft-only UUIDv4 identities
-   remain unchanged. This precedence handles the migration 112/114 question-zero
-   stamping defect without position or content inference. Any legacy draft input
-   or resolved portable identity that is not UUIDv4 aborts the whole migration;
+   remain unchanged. It marks every successfully converted Test draft with
+   `question_identity_version: 1`, including drafts whose question IDs did not
+   require a textual rewrite. This precedence handles the migration 112/114
+   question-zero stamping defect without position or content inference. Any
+   legacy draft input or resolved portable identity that is not UUIDv4 aborts the whole migration;
    reconcile that source record explicitly before retrying instead of silently
    generating a replacement identity that could sever immutable lineage. The
    migration fences Draft writers before question writers, waiting behind any

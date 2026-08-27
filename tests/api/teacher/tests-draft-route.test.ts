@@ -139,6 +139,35 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     })
   })
 
+  it('configures marked drafts to ignore coincident internal row IDs', async () => {
+    await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    const config = vi.mocked(ensureAssessmentDraft).mock.calls[0]?.[1] as any
+    const firstRowId = '10000000-0000-4000-8000-000000000001'
+    const firstPortableId = '20000000-0000-4000-8000-000000000001'
+    const secondPortableId = '30000000-0000-4000-8000-000000000001'
+    const content = {
+      title: 'Portable Test',
+      show_results: false,
+      question_identity_version: 1,
+      questions: [firstPortableId, secondPortableId].map((id) => ({ id })),
+    }
+    const rows = [{
+      id: firstRowId,
+      artifact_id: firstPortableId,
+      source_artifact_id: firstPortableId,
+    }, {
+      id: firstPortableId,
+      artifact_id: secondPortableId,
+      source_artifact_id: secondPortableId,
+    }]
+
+    expect(config.projectContent(content, rows)).toEqual({ ok: true, content })
+  })
+
   it('persists validated documents when provided', async () => {
     const documents = [
       {

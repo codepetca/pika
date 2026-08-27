@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Pin the student Pal companion on iPhone
-
-**Risk profile:** none — student-only Pal companion placement; no academic
-state, API contract, authentication, schema, or reward behavior changed.
-
-**Model recommendation:** GPT-5.6 — localized host-layout work with
-cross-browser verification and a bounded independent review.
-
-- Made the Pika-owned companion host explicitly use a non-interactive
-  bottom-right placement contract backed by Pika spacing/layer tokens and iOS
-  safe-area insets.
-- Added component and stylesheet contract coverage for the placement invariant
-  while preserving the existing test-surface suppression and Pal failure
-  boundary behavior.
-- The focused suites pass (19/19), the full Vitest suite passes
-  (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
-  are clean after rebasing onto current `main`.
-- Playwright visual verification passed for student desktop/mobile in light and
-  dark themes and for an iPhone 13 WebKit profile; teacher desktop/mobile were
-  checked as unaffected. Chromium and WebKit pointer-drag probes both retained
-  the same bottom-right rectangle at 16px from the viewport edges.
-
 ## 2026-08-25 — Verify entitled-teacher active-class readiness
 
 **Risk profile:** runtime-platform — read-only production UI and aggregate
@@ -1021,3 +999,29 @@ no production data was changed by migration 134 and no migration retry occurred.
 
 **Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
 that preserves student-linked row identity.
+
+## 2026-08-27 — Version portable Test draft question identity
+
+**Risk profile:** runtime-platform — Test draft identity compatibility and the
+unapplied migration 134 backfill; no database was reset or migrated.
+
+- Added `question_identity_version: 1` as the explicit discriminator for
+  canonical Test draft question IDs. Marked drafts resolve only portable
+  artifact/source identity; unmarked legacy drafts retain exact historical row
+  ID precedence before portable fallback.
+- Migration 134 now marks every successfully converted legacy draft, validates
+  already-marked drafts strictly on replay, and makes Test draft saves preserve
+  the marker. Blueprint capture, immutable Versions, and classroom
+  instantiation also retain or introduce the portable marker at their format
+  boundaries.
+- Added collision regressions across draft GET/PATCH projection, Blueprint
+  capture, migration replay, save, activation, and Version instantiation. The
+  known row-ID/artifact-ID collision remains distinct after conversion instead
+  of re-entering the legacy dual-identity reader.
+- The focused 87-test identity suite, full 5,145-test suite, TypeScript, lint,
+  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
+  validation, session-log validation, and production build pass. The disposable
+  database CI job remains authoritative; migration 134 was not applied locally.
+
+**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
+boundary change, with an independent compatibility review.

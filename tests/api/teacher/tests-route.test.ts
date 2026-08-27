@@ -766,6 +766,7 @@ describe('POST /api/teacher/tests', () => {
         content: {
           title: 'New Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [],
           source_format: 'markdown',
         },

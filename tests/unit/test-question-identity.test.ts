@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getTestDraftIdentityResolutionOptions,
+  PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
   projectPortableTestQuestionIds,
   resolveTestQuestionIdentities,
 } from '@/lib/test-question-identity'
@@ -50,11 +52,44 @@ describe('Test question identity', () => {
     ], [])).toEqual({ ok: false })
   })
 
-  it('fails closed when an internal row ID collides with another portable identity', () => {
-    expect(resolveTestQuestionIdentities([ROW_ID], [
+  it('uses exact row precedence only for unmarked legacy drafts', () => {
+    const nextPortableId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    const rows = [
       { id: ROW_ID, artifact_id: ARTIFACT_ID, source_artifact_id: null },
-      { id: OTHER_ROW_ID, artifact_id: ROW_ID, source_artifact_id: null },
-    ])).toEqual({ ok: false })
+      { id: ARTIFACT_ID, artifact_id: nextPortableId, source_artifact_id: null },
+    ]
+
+    expect(resolveTestQuestionIdentities([ROW_ID, ARTIFACT_ID], rows)).toEqual({
+      ok: true,
+      identities: [{
+        inputId: ROW_ID,
+        portableId: ARTIFACT_ID,
+        matchingRowId: ROW_ID,
+      }, {
+        inputId: ARTIFACT_ID,
+        portableId: nextPortableId,
+        matchingRowId: ARTIFACT_ID,
+      }],
+    })
+
+    expect(resolveTestQuestionIdentities(
+      [ARTIFACT_ID, nextPortableId],
+      rows,
+      getTestDraftIdentityResolutionOptions({
+        question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+      }),
+    )).toEqual({
+      ok: true,
+      identities: [{
+        inputId: ARTIFACT_ID,
+        portableId: ARTIFACT_ID,
+        matchingRowId: ROW_ID,
+      }, {
+        inputId: nextPortableId,
+        portableId: nextPortableId,
+        matchingRowId: ARTIFACT_ID,
+      }],
+    })
   })
 
   it('ignores internal row IDs when validating canonical materialized content', () => {

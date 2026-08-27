@@ -12,6 +12,7 @@ import type {
   TestDocument,
   TestDraftContent,
 } from '@/types'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 export const COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION = 2 as const
@@ -157,6 +158,7 @@ export function buildCourseBlueprintSnapshot(
         content: {
           title: content.title || assessment.title,
           show_results: Boolean(content.show_results),
+          question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
           questions: (content.questions || []).map((question, questionIndex) => ({
             ...question,
             id: registerArtifactId(
