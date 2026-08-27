@@ -1171,7 +1171,11 @@ export interface LogSummary {
   id: string
   classroom_id: string
   date: string
-  summary_items: { overview: string; action_items: { text: string; initials: string }[] }
+  summary_items: {
+    policy_version: string
+    overview: string
+    action_items: { text: string; initials: string }[]
+  }
   initials_map: Record<string, string>
   entry_count: number
   entries_updated_at: string | null

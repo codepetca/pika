@@ -982,8 +982,9 @@ layout, API, schema, persistence, authentication, or hosted state changed.
 application state-transition review.
 ## 2026-08-27 — Keep Daily class-log summaries minimal
 
-**Risk profile:** none — AI prompt contract and focused regression coverage only;
-no UI, API shape, schema, persistence, dependency, or hosted state changed.
+**Risk profile:** runtime-platform — AI summary policy, untrusted-output boundary,
+cached-summary compatibility, and a teacher unavailable state; no schema,
+dependency, migration, deployment, or hosted state changed.
 
 - Reframed the Daily class-log summary prompt as minimal triage instead of a
   general sentiment-and-themes summary.
@@ -994,7 +995,22 @@ no UI, API shape, schema, persistence, dependency, or hosted state changed.
   incident, or participation-blocking concerns needing prompt teacher action.
   Routine difficulty, mild frustration, ordinary questions, incomplete work,
   neutral updates, achievements, and vague wording are excluded.
-- Focused summary and nightly-generation Vitest suites pass (43/43).
+- PR review hardened the boundary: logs are JSON-serialized behind server-issued
+  source references, the Responses API enforces a strict category-only schema,
+  runtime validation rejects unknown/duplicate references and extra fields, and
+  all visible wording is derived server-side.
+- Versioned cached summaries retire legacy broad summaries instead of serving
+  them as current. The teacher sees concise unavailable copy for those dates.
+- A synthetic live-model matrix passed 5/5 explicit high-priority cases and 7/7
+  routine/vague exclusions. A forged log boundary stayed attributed to its
+  submitting log and never to the targeted student.
+- Focused unit, cron, teacher API, and component suites pass (59/59). Visual
+  verification of the teacher unavailable state passed on desktop/mobile in
+  light/dark with no overflow; student is n/a because the panel is teacher-only.
+- Pika audit, lint, architecture, TypeScript, session-log, and diff checks pass.
+  The remediated full suite passed 5,104/5,105 and hit one unrelated
+  `TestDetailPanel` timing failure; that complete 43-test file passed immediately
+  in isolation.
 
-**Model recommendation:** GPT-5.6 for a narrow prompt-contract adjustment with
-focused regression coverage.
+**Model recommendation:** GPT-5.6 Sol for the untrusted AI-output, attribution,
+safety-threshold, cache-compatibility, and review remediation boundary.

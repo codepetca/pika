@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import {
+  LOG_SUMMARY_POLICY_VERSION,
   restoreNames,
   type RawSummaryResponse,
 } from '@/lib/log-summary'
@@ -93,11 +94,14 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
   // Cache hit: fresh if correct format, entry count matches, AND no entries updated since generation
   const rawItems = cached?.summary_items as any
   const isNewFormat = rawItems && typeof rawItems === 'object' && !Array.isArray(rawItems) && 'overview' in rawItems
-  const isCacheFresh =
+  const isCacheContentFresh =
     cached &&
     isNewFormat &&
     cached.entry_count === actualEntryCount &&
     (!maxUpdatedAt || !cached.entries_updated_at || cached.entries_updated_at >= maxUpdatedAt)
+  const isCacheFresh =
+    isCacheContentFresh &&
+    rawItems.policy_version === LOG_SUMMARY_POLICY_VERSION
 
   if (isCacheFresh) {
     const rawSummary: RawSummaryResponse = {
@@ -121,6 +125,10 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
         generated_at: cached.generated_at,
       },
     })
+  }
+
+  if (isCacheContentFresh) {
+    return NextResponse.json({ summary: null, summary_status: 'unavailable' })
   }
 
   return NextResponse.json({ summary: null, summary_status: 'pending' })

@@ -17,7 +17,7 @@ interface SummaryData {
   generated_at: string
 }
 
-type SummaryStatus = 'ready' | 'pending' | 'no_entries'
+type SummaryStatus = 'ready' | 'pending' | 'no_entries' | 'unavailable'
 
 export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProps) {
   const [summary, setSummary] = useState<SummaryData | null>(null)
@@ -104,7 +104,9 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
   if (!summary) {
     const message = summaryStatus === 'pending'
       ? 'Summary will be available after the nightly run.'
-      : 'No student logs for this date.'
+      : summaryStatus === 'unavailable'
+        ? 'A high-priority automated summary is not available for this date.'
+        : 'No student logs for this date.'
 
     return (
       <div className="px-3 pb-4 pt-2">

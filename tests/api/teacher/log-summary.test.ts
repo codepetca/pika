@@ -18,6 +18,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/log-summary', () => ({
+  LOG_SUMMARY_POLICY_VERSION: 'high-priority-v1',
   restoreNames: vi.fn((summary: any) => ({
     overview: summary.overview,
     action_items: [{ text: 'Check in with Alice Brown' }],
@@ -105,6 +106,7 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
+                policy_version: 'high-priority-v1',
                 overview: 'Strong progress',
                 action_items: [{ text: 'Check in with AB', initials: 'AB' }],
               },
@@ -138,6 +140,87 @@ describe('GET /api/teacher/log-summary', () => {
         action_items: [{ text: 'Check in with Alice Brown' }],
         generated_at: '2026-03-15T13:00:00.000Z',
       },
+    })
+  })
+
+  it('retires a fresh cache created by the broader legacy summary policy', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string, options?: Record<string, unknown>) => {
+            if (columns === 'updated_at') {
+              const updatedAtQuery: any = {
+                eq: vi.fn(() => updatedAtQuery),
+                order: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [{ updated_at: '2026-03-15T12:00:00.000Z' }],
+                    error: null,
+                  }),
+                })),
+              }
+              return updatedAtQuery
+            }
+
+            if (options?.head) {
+              const countQuery: any = {
+                eq: vi.fn(() => countQuery),
+                then: vi.fn((resolve: any) =>
+                  Promise.resolve(resolve({ count: 1, error: null }))
+                ),
+              }
+              return countQuery
+            }
+
+            throw new Error(`Unexpected entries select: ${columns}`)
+          }),
+        }
+      }
+
+      if (table === 'log_summaries') {
+        const cacheQuery: any = {
+          eq: vi.fn(() => cacheQuery),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              summary_items: {
+                overview: 'Students seem discouraged by the assignment.',
+                action_items: [{ text: 'A.B. needs help.', initials: 'A.B.' }],
+              },
+              initials_map: { 'A.B.': 'Alice Brown' },
+              entry_count: 1,
+              entries_updated_at: '2026-03-15T12:00:00.000Z',
+              generated_at: '2026-03-15T13:00:00.000Z',
+            },
+            error: null,
+          }),
+        }
+
+        return { select: vi.fn(() => cacheQuery) }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      summary: null,
+      summary_status: 'unavailable',
     })
   })
 
