@@ -138,33 +138,22 @@ async function main() {
     throw new Error('Pre-migration draft save changed materialized question rows before activation')
   }
 
-  const { error: attemptError } = await supabase.from('test_attempts').insert({
-    test_id: TEST_ID,
-    student_id: STUDENT_ID,
-    responses: {},
-  })
-  if (attemptError) throw attemptError
   const blockedActivation = await activateTestFromDraftAtomic(supabase, {
     teacherId: TEACHER_ID,
     testId: TEST_ID,
     expectedDraftVersion: 8,
   })
-  if (blockedActivation.ok || blockedActivation.status !== 409) {
-    throw new Error('Pre-migration activation changed questions after student work existed')
+  if (blockedActivation.ok || blockedActivation.status !== 503) {
+    throw new Error('Pre-migration activation was not held for the atomic migration RPC')
   }
-  const { data: restoredDraftTest, error: restoredDraftTestError } = await supabase
+  const { data: heldDraftTest, error: heldDraftTestError } = await supabase
     .from('tests')
     .select('status')
     .eq('id', TEST_ID)
     .single()
-  if (restoredDraftTestError || restoredDraftTest?.status !== 'draft') {
-    throw restoredDraftTestError ?? new Error('Rejected activation did not restore draft status')
+  if (heldDraftTestError || heldDraftTest?.status !== 'draft') {
+    throw heldDraftTestError ?? new Error('Rejected activation changed draft status')
   }
-  const { error: removeAttemptError } = await supabase
-    .from('test_attempts')
-    .delete()
-    .eq('test_id', TEST_ID)
-  if (removeAttemptError) throw removeAttemptError
 
   const portableContent: TestDraftContent = {
     ...firstPortableContent,
@@ -202,41 +191,22 @@ async function main() {
     throw new Error('Pre-migration save did not preserve the legacy stored identity contract')
   }
 
-  const activated = await activateTestFromDraftAtomic(supabase, {
+  const stillBlocked = await activateTestFromDraftAtomic(supabase, {
     teacherId: TEACHER_ID,
     testId: TEST_ID,
     expectedDraftVersion: 9,
   })
-  if (!activated.ok) {
-    throw new Error(`Pre-migration activation failed: ${activated.status} ${activated.error}`)
+  if (stillBlocked.ok || stillBlocked.status !== 503) {
+    throw new Error('Pre-migration activation bypassed the migration gate')
   }
 
-  const { data: activatedTest, error: activatedTestError } = await supabase
+  // Simulate an already-active Test while a student begins work. The fallback
+  // must reject the graph change without touching either rows or draft state.
+  const { error: activateFixtureError } = await supabase
     .from('tests')
-    .select('status')
+    .update({ status: 'active' })
     .eq('id', TEST_ID)
-    .single()
-  if (activatedTestError || activatedTest?.status !== 'active') {
-    throw activatedTestError ?? new Error('Pre-migration activation did not activate the Test')
-  }
-
-  const { data: rows, error: rowsError } = await supabase
-    .from('test_questions')
-    .select('id, artifact_id')
-    .eq('test_id', TEST_ID)
-    .order('position')
-  if (rowsError) throw rowsError
-  if (
-    rows?.length !== 3
-    || rows[0]?.id !== THIRD_PORTABLE_ID
-    || rows[0]?.artifact_id !== THIRD_PORTABLE_ID
-    || rows[1]?.id !== FIRST_ROW_ID
-    || rows[1]?.artifact_id !== FIRST_PORTABLE_ID
-    || rows[2]?.id !== SECOND_ROW_ID
-    || rows[2]?.artifact_id !== SECOND_PORTABLE_ID
-  ) {
-    throw new Error('Pre-migration activation confused portable identity with row identity')
-  }
+  if (activateFixtureError) throw activateFixtureError
 
   const concurrentEdit: TestDraftContent = {
     ...portableContent,
@@ -270,9 +240,9 @@ async function main() {
     .order('position')
   if (postRaceRowsError) throw postRaceRowsError
   if (
-    postRaceRows?.length !== 3
-    || postRaceRows[0]?.id !== THIRD_PORTABLE_ID
-    || postRaceRows[0]?.question_text !== 'Draft-only addition retained'
+    postRaceRows?.length !== 2
+    || postRaceRows[0]?.id !== FIRST_ROW_ID
+    || postRaceRows[0]?.question_text !== 'Question zero carrying the later row ID'
   ) {
     throw new Error('Concurrent student attempt observed a partial teacher question edit')
   }
@@ -284,7 +254,7 @@ async function main() {
 
   const { error: restoreStatusError } = await supabase
     .from('tests')
-    .update({ status: 'closed' })
+    .update({ status: 'draft' })
     .eq('id', TEST_ID)
   if (restoreStatusError) throw restoreStatusError
 

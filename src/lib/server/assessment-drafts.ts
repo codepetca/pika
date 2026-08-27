@@ -329,89 +329,12 @@ async function buildLegacyTestDraftContent(
   }
 }
 
-async function syncLegacyTestQuestionsFromDraft(
-  supabase: SupabaseLike,
-  testId: string,
-  legacyContent: TestDraftContent,
-  portableContent: TestDraftContent,
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { data: existingRows, error: existingError } = await supabase
-    .from('test_questions')
-    .select('id')
-    .eq('test_id', testId)
-
-  if (existingError) {
-    return { ok: false, status: 500, error: 'Failed to load Test questions for activation' }
-  }
-
-  const existingIds = new Set<string>(
-    (existingRows || []).map((row: { id: string }) => row.id),
-  )
-  const nextIds = new Set(legacyContent.questions.map((question) => question.id))
-
-  for (const [position, question] of legacyContent.questions.entries()) {
-    const portableQuestion = portableContent.questions[position]
-    if (!portableQuestion) {
-      return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
-    }
-    const payload = {
-      question_type: question.question_type,
-      question_text: question.question_text,
-      options: question.options,
-      correct_option: question.correct_option,
-      answer_key: question.answer_key,
-      sample_solution: question.sample_solution,
-      points: question.points,
-      response_max_chars: question.response_max_chars,
-      response_monospace: question.response_monospace,
-      position,
-    }
-    if (existingIds.has(question.id)) {
-      const { error } = await supabase
-        .from('test_questions')
-        .update(payload)
-        .eq('test_id', testId)
-        .eq('id', question.id)
-      if (error) {
-        return { ok: false, status: 500, error: 'Failed to update Test question for activation' }
-      }
-      continue
-    }
-
-    const { error } = await supabase.from('test_questions').insert({
-      id: question.id,
-      test_id: testId,
-      // Migration 112 otherwise generates a fresh artifact UUID here, severing
-      // the draft-created identity before migration 134 can canonicalize it.
-      artifact_id: portableQuestion.id,
-      ...payload,
-    })
-    if (error) {
-      return { ok: false, status: 500, error: 'Failed to insert Test question for activation' }
-    }
-  }
-
-  for (const existingId of existingIds) {
-    if (nextIds.has(existingId)) continue
-    const { error } = await supabase
-      .from('test_questions')
-      .delete()
-      .eq('test_id', testId)
-      .eq('id', existingId)
-    if (error) {
-      return { ok: false, status: 500, error: 'Failed to remove Test question for activation' }
-    }
-  }
-
-  return { ok: true }
-}
-
-async function inspectMaterializedLegacyQuestions(
+async function materializedLegacyQuestionGraphMatches(
   supabase: SupabaseLike,
   testId: string,
   content: TestDraftContent,
 ): Promise<
-  | { ok: true; graphMatches: boolean; hasStudentWork: boolean }
+  | { ok: true; graphMatches: boolean }
   | { ok: false; status: number; error: string }
 > {
   const { data: rows, error: rowsError } = await supabase
@@ -435,19 +358,6 @@ async function inspectMaterializedLegacyQuestions(
     return { ok: false, status: 500, error: 'Failed to load Test questions for save' }
   }
 
-  const [{ count: attemptCount, error: attemptError }, { count: responseCount, error: responseError }] = await Promise.all([
-    supabase
-      .from('test_attempts')
-      .select('id', { count: 'exact', head: true })
-      .eq('test_id', testId),
-    supabase
-      .from('test_responses')
-      .select('id', { count: 'exact', head: true })
-      .eq('test_id', testId),
-  ])
-  if (attemptError || responseError) {
-    return { ok: false, status: 500, error: 'Failed to check Test question usage' }
-  }
   const graphMatches = (rows || []).length === content.questions.length
     && content.questions.every((question, position) => {
       const row = rows?.[position]
@@ -467,7 +377,6 @@ async function inspectMaterializedLegacyQuestions(
   return {
     ok: true,
     graphMatches,
-    hasStudentWork: (attemptCount || 0) > 0 || (responseCount || 0) > 0,
   }
 }
 
@@ -507,7 +416,7 @@ async function saveTestDraftBeforeIdentityMigration(
   }
 
   if (currentTest.status === 'active' || currentTest.status === 'closed') {
-    const inspection = await inspectMaterializedLegacyQuestions(
+    const inspection = await materializedLegacyQuestionGraphMatches(
       supabase,
       input.testId,
       legacy.content,
@@ -515,8 +424,8 @@ async function saveTestDraftBeforeIdentityMigration(
     if (!inspection.ok) return inspection
     // Migration 133 cannot hold the Test/student-work fence across separate
     // PostgREST writes. Keep metadata/document saves available, but require a
-    // reopen before changing the materialized question graph. Activation below
-    // claims the draft Test as closed while it synchronizes that graph.
+    // reopen before changing the materialized question graph. Activation stays
+    // unavailable until migration 134 installs the transactional RPC.
     if (!inspection.graphMatches) {
       return {
         ok: false,
@@ -574,130 +483,6 @@ async function saveTestDraftBeforeIdentityMigration(
     // legacy-compatible. Version is the only authored state that changed.
     draft: { ...updatedDraft, content: input.content },
     test,
-  }
-}
-
-async function activateTestBeforeIdentityMigration(
-  supabase: SupabaseLike,
-  input: {
-    teacherId: string
-    testId: string
-    expectedDraftVersion: number
-  },
-): Promise<AtomicTestActivationResult> {
-  const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
-    supabase,
-    'test',
-    input.testId,
-  )
-  if (draftError || !draft) {
-    return { ok: false, status: 404, error: 'Test draft not found' }
-  }
-  if (draft.version !== input.expectedDraftVersion) {
-    return {
-      ok: false,
-      status: 409,
-      error: 'The Test changed after activation was requested. Review and try again.',
-    }
-  }
-
-  const legacy = await buildLegacyTestDraftContent(supabase, input.testId, draft.content)
-  if (!legacy.ok) return legacy
-
-  // Claim the draft by moving it to the non-attemptable closed state before
-  // inspecting or synchronizing questions. Migration 133 has no RPC capable of
-  // holding the Test row lock across these PostgREST writes; this compare-and-
-  // set prevents another activation or a new student attempt from entering the
-  // gap. Failures below best-effort restore the draft state.
-  const { data: claimedTest, error: claimError } = await supabase
-    .from('tests')
-    .update({ status: 'closed' })
-    .eq('id', input.testId)
-    .eq('status', 'draft')
-    .select('id')
-    .single()
-  if (claimError || !claimedTest) {
-    return { ok: false, status: 409, error: 'Only draft Tests can be activated' }
-  }
-
-  const restoreDraftStatus = async () => {
-    await supabase
-      .from('tests')
-      .update({ status: 'draft' })
-      .eq('id', input.testId)
-      .eq('status', 'closed')
-  }
-
-  const inspection = await inspectMaterializedLegacyQuestions(
-    supabase,
-    input.testId,
-    legacy.content,
-  )
-  if (!inspection.ok) {
-    await restoreDraftStatus()
-    return inspection
-  }
-  if (inspection.hasStudentWork && !inspection.graphMatches) {
-    await restoreDraftStatus()
-    return {
-      ok: false,
-      status: 409,
-      error: 'Test questions cannot be changed after student work exists',
-    }
-  }
-
-  // Keep the persisted draft readable by both old and new application
-  // instances throughout the pre-migration deployment window. This is an
-  // identity-only projection, so it deliberately preserves the draft version.
-  const { data: legacyDraft, error: legacyDraftError } = await supabase
-    .from('assessment_drafts')
-    .update({ content: legacy.content, updated_by: input.teacherId })
-    .eq('id', draft.id)
-    .eq('version', input.expectedDraftVersion)
-    .select('id')
-    .single()
-  if (legacyDraftError || !legacyDraft) {
-    await restoreDraftStatus()
-    return {
-      ok: false,
-      status: 409,
-      error: 'The Test changed after activation was requested. Review and try again.',
-    }
-  }
-
-  if (!inspection.graphMatches) {
-    const synchronized = await syncLegacyTestQuestionsFromDraft(
-      supabase,
-      input.testId,
-      legacy.content,
-      draft.content,
-    )
-    if (!synchronized.ok) {
-      await restoreDraftStatus()
-      return synchronized
-    }
-  }
-
-  const { data: test, error: testError } = await supabase
-    .from('tests')
-    .update({
-      title: legacy.content.title.trim(),
-      show_results: legacy.content.show_results,
-      status: 'active',
-    })
-    .eq('id', input.testId)
-    .eq('status', 'closed')
-    .select()
-    .single()
-  if (testError || !test) {
-    await restoreDraftStatus()
-    return { ok: false, status: 409, error: 'Only draft Tests can be activated' }
-  }
-
-  return {
-    ok: true,
-    draftVersion: input.expectedDraftVersion,
-    test: test as Record<string, unknown>,
   }
 }
 
@@ -853,9 +638,6 @@ export async function activateTestFromDraftAtomic(
   })
 
   if (error) {
-    if (isMissingAtomicTestDraftRpcError(error)) {
-      return activateTestBeforeIdentityMigration(supabase, input)
-    }
     return mapTestDraftRpcError(error, 'activate')
   }
 

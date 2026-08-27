@@ -621,7 +621,7 @@ describe('assessment drafts', () => {
     expect(draftUpdate).not.toHaveBeenCalled()
   })
 
-  it('keeps Test activation usable before migration 134 across a row-ID collision', async () => {
+  it('temporarily refuses Test activation until migration 134 installs the atomic RPC', async () => {
     const collidingPortableId = TEST_ID_1
     const secondRowId = '77777777-7777-4777-8777-777777777777'
     const markedDraft = {
@@ -743,16 +743,11 @@ describe('assessment drafts', () => {
       testId: 'test-1',
       expectedDraftVersion: 8,
     })).resolves.toEqual({
-      ok: true,
-      draftVersion: 8,
-      test: { id: 'test-1', status: 'active' },
+      ok: false,
+      status: 503,
+      error: 'Atomic Test draft activate requires migration 134 to be applied',
     })
-
-    expect(questionUpdateFn).toHaveBeenCalledWith(expect.any(Object))
-    expect(testUpdateFn).toHaveBeenNthCalledWith(1, { status: 'closed' })
-    expect(testUpdateFn).toHaveBeenNthCalledWith(2, expect.objectContaining({ status: 'active' }))
-    expect(questionUpdate.eq).toHaveBeenCalledWith('id', secondRowId)
-    expect(questionDelete.eq).toHaveBeenCalledWith('id', TEST_ID_1)
+    expect(supabase.from).not.toHaveBeenCalled()
   })
 
   it('maps an activation version conflict to a reviewable 409', async () => {

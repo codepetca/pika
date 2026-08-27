@@ -101,6 +101,7 @@ SQL
 # Exercise the real application compatibility path while the database is still
 # at migration 133. The missing atomic RPC must fall back to legacy row-ID
 # persistence without confusing a portable ID that collides with another row.
+# Activation remains unavailable until the migration installs its atomic RPC.
 pnpm exec tsx scripts/check-test-question-identity-pre-migration.ts
 
 supabase migration up --local

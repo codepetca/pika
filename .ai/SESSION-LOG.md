@@ -1169,16 +1169,17 @@ and no hosted state changed.
   closed saves accept metadata/document changes only when the question graph is
   unchanged; question edits require reopening as draft because migration 133
   cannot hold a student-entry fence across multiple application writes.
-  Activation claims the draft as closed while checking student work and
-  synchronizing rows, preserves a draft-only UUID as its artifact identity, and
-  rejects a draft-only/internal-row namespace collision before writing. The
-  fallback becomes unreachable when migration 134's atomic RPCs exist.
+  Pre-migration activation is deliberately unavailable because migration 133
+  has no transactional primitive that can safely synchronize questions while
+  fencing every access override. Draft-only UUIDs remain in the legacy draft
+  until migration 134 backfills them; the atomic RPC then materializes them.
+  Draft-only/internal-row namespace collisions are rejected before writing.
 - Added a real pre-migration integration contract to the disposable CI lifecycle:
-  it runs closed-Test save and activation against migration 133, covers the
+  it runs closed-Test save and activation refusal against migration 133, covers the
   production-shaped row-ID/portable-ID collision plus draft-only collision
   rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
-  sequential student-work rejection, and a concurrent student-attempt race;
-  it then applies migration 134 and verifies the same Test through the
+  explicit pre-migration activation refusal, and a concurrent student-attempt
+  race; it then applies migration 134 and verifies activation through the
   portable-only path.
 - Wrapped student attempt save and submission so both acquire Classroom before
   Test, matching Test authoring, archive, Blueprint reuse, and child mutations.

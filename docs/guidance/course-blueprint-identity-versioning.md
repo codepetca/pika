@@ -161,15 +161,15 @@ Roll out the contract as a finite cutover:
    artifact-ID slots. Migration 133 cannot transactionally fence student entry
    across application-side question synchronization, so active and closed Tests
    accept only metadata/document saves whose question graph is unchanged;
-   question edits require reopening the Test as a draft. Pre-migration
-   activation atomically claims that draft as closed, checks existing student
-   work, synchronizes authoritative rows while student entry is impossible,
-   then activates it. A
+   question edits require reopening the Test as a draft. Test activation is
+   deliberately unavailable during this short application-before-migration
+   window because migration 133 has no transactional activation primitive;
+   once migration 134 is applied, the atomic RPC resumes activation. A
    draft-only portable UUID that already exists anywhere as an internal
    question row ID is rejected before writing because the legacy single-ID
    format cannot represent that namespace collision safely. This narrow
-   fallback keeps Test save and activation usable while migration application
-   remains a separate human action; it is never selected after the RPC exists.
+   fallback keeps Test draft saving usable while migration application remains
+   a separate human action; activation resumes after the RPC exists.
 2. Apply the identity migration as one transaction. It resolves an exact
    historical row-ID match first because legacy drafts stored row IDs. Only
    when no row-ID match exists does it fall back to the one source-first
