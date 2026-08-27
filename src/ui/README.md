@@ -413,7 +413,7 @@ These are NOT part of the `/ui` design system:
 - **Tiptap primitives**: Stay in `tiptap-ui-primitive/`
 - **Textarea**: Use native `<textarea>` wrapped by FormField
 - **Toast stacks**: Use `AppMessage` instead; stacked toasts are intentionally not implemented
-- **App-specific components**: ClassroomDropdown, UserMenu, etc.
+- **App-specific components**: UserMenu and other feature-owned compositions
 
 ---
 

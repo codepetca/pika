@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { StudentTestsTab } from '@/app/classrooms/[classroomId]/StudentTestsTab'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -12,6 +14,15 @@ import { createMockClassroom } from '../helpers/mocks'
 describe('StudentTestsTab exam mode', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>
+
+  it('does not retain the removed titlebar classroom-switch exit source', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/classrooms/[classroomId]/StudentTestsTab.tsx'),
+      'utf8',
+    )
+
+    expect(source).not.toContain("'classroom_switch'")
+  })
 
   beforeEach(() => {
     fetchMock = vi.fn()
