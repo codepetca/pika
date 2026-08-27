@@ -1,7 +1,12 @@
+import { UUID_V4_PATTERN } from '@/lib/course-blueprint-artifact-identity'
 import type { TestDraftContent } from '@/types'
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+// Every test-question id in this system is a v4 UUID (crypto.randomUUID()
+// client-side, gen_random_uuid() as the row default) — reuse the same
+// strict pattern the rest of the Blueprint artifact-identity pipeline
+// validates against, instead of a second, looser UUID regex that would
+// accept ids (v1/v2/v3/v5) the rest of the pipeline rejects.
+const UUID_RE = UUID_V4_PATTERN
 
 export type PersistedTestQuestionIdentity = {
   id: string
@@ -37,6 +42,17 @@ export function getPortableTestQuestionIdentity(
  * Portable artifact identities are canonical. An exact persisted row-id match
  * is accepted only as a temporary dual-read path for drafts written before the
  * portable-identity backfill. No source identity is assigned or rewritten.
+ *
+ * TODO(remove after migration 134 has been live in production for one full
+ * release cycle with no `question_identity_ambiguous`/row-id-fallback hits in
+ * the RPC failure ledger — see docs/architecture/course-blueprint-identity-versioning.md):
+ * migration 134's one-time backfill rewrites every existing draft's question
+ * ids to portable identity at deploy time, so after that point no legitimately
+ * saved draft should ever exercise the row-id branch below again. Until it's
+ * removed, it stays a live source of the very ambiguity this module exists to
+ * eliminate (see the `matchingRowIds.size > 1` guard a few lines down, which
+ * exists specifically to catch this path colliding with the
+ * artifact_id/source_artifact_id path).
  */
 export function resolveTestQuestionIdentities(
   inputIds: string[],
@@ -78,7 +94,10 @@ export function resolveTestQuestionIdentities(
       if (matchedRowIds.has(matchingRowId)) return { ok: false }
       matchedRowIds.add(matchingRowId)
 
-      const matchingRow = persistedQuestions.find((row) => row.id === matchingRowId)
+      // rowsByInternalId already indexes every row by its normalized id
+      // (built above); reuse it instead of a linear scan so resolution stays
+      // O(n) instead of O(n^2) as the number of input/persisted ids grows.
+      const matchingRow = rowsByInternalId.get(normalizeTestQuestionIdentity(matchingRowId))
       if (!matchingRow) return { ok: false }
 
       identities.push({

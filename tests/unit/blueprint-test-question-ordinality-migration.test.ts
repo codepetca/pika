@@ -125,6 +125,15 @@ describe('Blueprint test-question identity migration', () => {
       expect(definition).toMatch(
         /v_matched_row_id := v_matched_row_ids\[1\];\s*(?:--.*\s*)*if v_matched_row_id is not null and v_matched_row_id = any\(v_retained_row_ids\) then\s+raise exception using errcode = '22023', message = 'question_identity_ambiguous';\s+end if;/,
       )
+      // save's reopen branch and activation must validate identically and
+      // skip no-op writes identically — a fix applied to only one of these
+      // two near-duplicate loops is exactly how they drift apart.
+      expect(definition).toMatch(
+        /if nullif\(btrim\(v_question->>'question_text'\), ''\) is null then\s+raise exception using errcode = '22023', message = 'invalid_draft_content';\s+end if;/,
+      )
+      expect(definition).toMatch(
+        /where question\.id = v_matched_row_id\s+and \(\s+question\.question_type is distinct from v_question->>'question_type'/,
+      )
     }
 
     expect(saveDefinition).toMatch(

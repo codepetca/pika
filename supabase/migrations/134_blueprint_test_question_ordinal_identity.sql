@@ -530,6 +530,9 @@ begin
     if v_question_id = any(v_seen_question_ids) then
       raise exception using errcode = '22023', message = 'duplicate_question_identity';
     end if;
+    if nullif(btrim(v_question->>'question_text'), '') is null then
+      raise exception using errcode = '22023', message = 'invalid_draft_content';
+    end if;
     v_seen_question_ids := array_append(v_seen_question_ids, v_question_id);
 
     select array_agg(question.id order by question.id)
@@ -606,7 +609,19 @@ begin
         response_max_chars = (v_question->>'response_max_chars')::integer,
         response_monospace = coalesce((v_question->>'response_monospace')::boolean, false),
         position = (v_question->>'position')::integer
-      where question.id = v_matched_row_id;
+      where question.id = v_matched_row_id
+        and (
+          question.question_type is distinct from v_question->>'question_type'
+          or question.question_text is distinct from btrim(v_question->>'question_text')
+          or question.options is distinct from coalesce(v_question->'options', '[]'::jsonb)
+          or question.correct_option is distinct from (v_question->>'correct_option')::integer
+          or question.answer_key is distinct from nullif(btrim(v_question->>'answer_key'), '')
+          or question.sample_solution is distinct from nullif(btrim(v_question->>'sample_solution'), '')
+          or question.points is distinct from (v_question->>'points')::numeric
+          or question.response_max_chars is distinct from (v_question->>'response_max_chars')::integer
+          or question.response_monospace is distinct from coalesce((v_question->>'response_monospace')::boolean, false)
+          or question.position is distinct from (v_question->>'position')::integer
+        );
     end if;
 
     v_retained_row_ids := array_append(v_retained_row_ids, v_matched_row_id);

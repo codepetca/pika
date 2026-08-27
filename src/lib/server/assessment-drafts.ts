@@ -1,11 +1,8 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
 import { removeQueuedTestDocumentSnapshotPath } from '@/lib/server/test-document-snapshot-storage-cleanup'
-import {
-  getPortableTestQuestionIdentity,
-  resolveTestQuestionIdentities,
-  type PersistedTestQuestionIdentity,
-} from '@/lib/test-question-identity'
+import { parseCleanupPaths } from '@/lib/server/test-document-authoring'
+import { getPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
 import type {
   AssessmentDraftType,
@@ -329,13 +326,6 @@ function mapTestDraftRpcError(
   }
 }
 
-function parseCleanupPaths(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((path): path is string => (
-    typeof path === 'string' && path.startsWith('link-docs/')
-  ))
-}
-
 export async function saveTestDraftAtomic(
   supabase: SupabaseLike,
   input: {
@@ -412,152 +402,6 @@ export async function activateTestFromDraftAtomic(
   }
 
   return { ok: true, draftVersion, test: result.test }
-}
-
-export async function syncTestQuestionsFromDraft(
-  supabase: SupabaseLike,
-  testId: string,
-  content: TestDraftContent
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  return syncAssessmentQuestionRowsFromDraft(supabase, {
-    table: 'test_questions',
-    foreignKey: 'test_id',
-    parentId: testId,
-    questions: content.questions,
-    existingColumns: 'id, artifact_id, source_artifact_id',
-    buildUpdatePayload: (question, position) => ({
-      question_type: question.question_type,
-      question_text: question.question_text,
-      options: question.options,
-      correct_option: question.correct_option,
-      answer_key: question.answer_key,
-      sample_solution: question.sample_solution,
-      points: question.points,
-      response_max_chars: question.response_max_chars,
-      response_monospace: question.response_monospace,
-      position,
-    }),
-    buildInsertPayload: (question, position) => ({
-      test_id: testId,
-      // A new row gets an independent database ID. The draft UUID is the
-      // stable identity carried into Blueprints, Versions, and Classrooms.
-      artifact_id: question.id,
-      question_type: question.question_type,
-      question_text: question.question_text,
-      options: question.options,
-      correct_option: question.correct_option,
-      answer_key: question.answer_key,
-      sample_solution: question.sample_solution,
-      points: question.points,
-      response_max_chars: question.response_max_chars,
-      response_monospace: question.response_monospace,
-      position,
-    }),
-    errorMessages: {
-      load: 'Failed to load test questions for sync',
-      update: 'Failed to update synced test question',
-      insert: 'Failed to insert synced test question',
-      delete: 'Failed to delete removed test question',
-      identity: 'Test draft question identity is ambiguous or requires backfill',
-    },
-  })
-}
-
-type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
-  table: string
-  foreignKey: string
-  parentId: string
-  questions: TQuestion[]
-  existingColumns: string
-  buildUpdatePayload: (question: TQuestion, position: number) => Record<string, unknown>
-  buildInsertPayload: (question: TQuestion, position: number) => Record<string, unknown>
-  errorMessages: {
-    load: string
-    update: string
-    insert: string
-    delete: string
-    identity: string
-  }
-}
-
-async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: string }>(
-  supabase: SupabaseLike,
-  config: SyncAssessmentQuestionRowsConfig<TQuestion>
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { data: existingRows, error: existingError } = await supabase
-    .from(config.table)
-    .select(config.existingColumns)
-    .eq(config.foreignKey, config.parentId)
-
-  if (existingError) {
-    return { ok: false, status: 500, error: config.errorMessages.load }
-  }
-
-  const rows = (existingRows || []) as PersistedTestQuestionIdentity[]
-  const existingIds = new Set<string>(rows.map((row) => row.id))
-  const identityResolution = resolveTestQuestionIdentities(
-    config.questions.map((question) => question.id),
-    rows,
-  )
-  if (!identityResolution.ok) {
-    return { ok: false, status: 409, error: config.errorMessages.identity }
-  }
-
-  const matchedExistingIds = new Set<string>()
-  const resolvedQuestions: Array<{
-    question: TQuestion
-    position: number
-    matchingRowId?: string
-  }> = []
-
-  for (const [position, question] of config.questions.entries()) {
-    const identity = identityResolution.identities[position]!
-    if (identity.matchingRowId) matchedExistingIds.add(identity.matchingRowId)
-    resolvedQuestions.push({
-      question: { ...question, id: identity.portableId },
-      position,
-      matchingRowId: identity.matchingRowId,
-    })
-  }
-
-  // Resolve the complete identity graph before changing content so a later
-  // ambiguity cannot leave earlier rows partially synchronized.
-  for (const { question, position, matchingRowId } of resolvedQuestions) {
-    if (matchingRowId) {
-      const { error } = await supabase
-        .from(config.table)
-        .update(config.buildUpdatePayload(question, position))
-        .eq(config.foreignKey, config.parentId)
-        .eq('id', matchingRowId)
-
-      if (error) {
-        return { ok: false, status: 500, error: config.errorMessages.update }
-      }
-      continue
-    }
-
-    const { error } = await supabase.from(config.table).insert(config.buildInsertPayload(question, position))
-
-    if (error) {
-      return { ok: false, status: 500, error: config.errorMessages.insert }
-    }
-  }
-
-  for (const existingId of existingIds) {
-    if (matchedExistingIds.has(existingId)) continue
-
-    const { error } = await supabase
-      .from(config.table)
-      .delete()
-      .eq(config.foreignKey, config.parentId)
-      .eq('id', existingId)
-
-    if (error) {
-      return { ok: false, status: 500, error: config.errorMessages.delete }
-    }
-  }
-
-  return { ok: true }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
