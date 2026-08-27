@@ -199,7 +199,21 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     const unarchiveButton = await screen.findByRole('button', { name: 'Unarchive' })
-    expect(screen.getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    const reuseButton = screen.getByRole('button', { name: 'Reuse' })
+    expect(reuseButton).toHaveTextContent('')
+    expect(reuseButton.querySelector('svg')).toHaveClass('lucide-copy-plus')
+    expect(unarchiveButton).toHaveTextContent('')
+    expect(unarchiveButton.querySelector('svg')).toHaveClass('lucide-archive-restore')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+
+    fireEvent.pointerMove(reuseButton)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Reuse')
+    fireEvent.pointerLeave(reuseButton)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
+
+    fireEvent.focus(unarchiveButton)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Unarchive')
+    fireEvent.blur(unarchiveButton)
     const purgeButton = screen.getByRole('button', { name: 'Delete permanently' })
     expect(purgeButton).toHaveAttribute('title', 'Delete permanently')
     expect(purgeButton).toHaveTextContent('')
