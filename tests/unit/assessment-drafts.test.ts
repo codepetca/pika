@@ -621,6 +621,105 @@ describe('assessment drafts', () => {
     expect(draftUpdate).not.toHaveBeenCalled()
   })
 
+  it('refuses pre-migration question graph edits while a Test is active', async () => {
+    const content = {
+      title: 'Active Test',
+      show_results: false,
+      question_identity_version: 1 as const,
+      questions: [{
+        id: ARTIFACT_ID_1,
+        question_type: 'open_response' as const,
+        question_text: 'Changed after activation',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content,
+      version: 3,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const statusSelect: any = {
+      eq: vi.fn(() => statusSelect),
+      single: vi.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
+    }
+    const draftUpdate = vi.fn()
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'save_test_draft_atomic is missing' },
+    })
+    const supabase = {
+      rpc,
+      from: vi.fn((table: string) => {
+        if (table === 'assessment_drafts') {
+          return { select: vi.fn(() => draftSelect), update: draftUpdate }
+        }
+        if (table === 'test_questions') {
+          return {
+            select: vi.fn((columns: string) => ({
+              eq: vi.fn(() => columns.includes('question_type')
+                ? {
+                    order: vi.fn().mockResolvedValue({
+                      data: [{
+                        id: TEST_ID_1,
+                        question_type: 'open_response',
+                        question_text: 'Original question',
+                        options: [],
+                        correct_option: null,
+                        answer_key: null,
+                        sample_solution: null,
+                        points: 1,
+                        response_max_chars: 5000,
+                        response_monospace: false,
+                        position: 0,
+                      }],
+                      error: null,
+                    }),
+                  }
+                : Promise.resolve({
+                    data: [{
+                      id: TEST_ID_1,
+                      artifact_id: ARTIFACT_ID_1,
+                      source_artifact_id: null,
+                    }],
+                    error: null,
+                  })),
+            })),
+          }
+        }
+        return { select: vi.fn(() => statusSelect) }
+      }),
+    }
+
+    await expect(saveTestDraftAtomic(supabase, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content,
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Reopen this Test before changing its questions',
+    })
+    expect(draftUpdate).not.toHaveBeenCalled()
+  })
+
   it('temporarily refuses Test activation until migration 134 installs the atomic RPC', async () => {
     const collidingPortableId = TEST_ID_1
     const secondRowId = '77777777-7777-4777-8777-777777777777'
