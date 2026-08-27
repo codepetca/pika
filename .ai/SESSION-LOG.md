@@ -11,6 +11,310 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-20 — Verify public planned-course sites
+
+**Risk profile:** runtime-platform — public content-exposure and publication
+lifecycle behavior; no migration, production operation, dependency, archive
+cleanup, or Gradex change.
+
+**Completed:**
+- Added deterministic published and unpublished planned-course fixtures to the
+  standard local/CI seed path without coupling them to the legacy seed runner.
+- Reworked `/planned/[slug]` into a scan-friendly section layout with semantic
+  headings, keyboard-visible section navigation, responsive containment, and
+  consistent Tests terminology.
+- Added a route-specific generic not-found state so unpublished and unknown
+  slugs share the same privacy-preserving response.
+- Added component and Playwright coverage for publish/unpublish behavior,
+  desktop/mobile light/dark rendering, keyboard focus, overflow, safe resource
+  links, and exclusion of private prompts, answer keys, documents, and IDs.
+
+**Validation:**
+- `pnpm seed` passes with the isolated planned-course fixture runner.
+- Full verification passes 4,616 tests across 507 files, lint, type checking,
+  and the production build. Architecture, UI policy, design policy, Pika audit,
+  and diff checks pass.
+- The final Playwright experience matrix passes 36 tests with 14 intentional
+  project skips. All eight published/not-found desktop/mobile light/dark
+  screenshots were visually reviewed with no overflow or overlap findings.
+- Composite-widget checklist reviewed: keyboard behavior and semantic section
+  navigation are covered; no manual follow-up remains.
+
+**Model recommendation:** Sol with high reasoning for the public content-
+exposure boundary and cross-route publication lifecycle.
+
+**Independent review remediation:**
+- Replaced private database-row React keys with server-only positional keys and
+  expanded the raw-response denylist to every fixture Blueprint, child,
+  embedded-content, and artifact UUID. Direct response inspection confirms all
+  nine identifiers are absent.
+- Added fixed assignment, Test, and lesson artifact identities. Both reserved
+  Blueprints now reconcile all five child tables before inserting the exact
+  fixture set, so stale local fixture content cannot survive a reseed.
+- Added drift-injection idempotency coverage, verified two consecutive real
+  local seeds, and brought `seed:fresh` onto the same planned-course fixture
+  path as `seed`.
+- Changed fixture reconciliation to read the complete canonical state first and
+  perform no writes when it is already exact, preventing unchanged seeds from
+  incrementing Blueprint content revisions. A real-database replay preserved
+  the complete fixture fingerprint and content revision 30.
+- Made drift repair fail closed: the public Blueprint is unpublished before
+  child reconciliation and published only after every canonical write succeeds.
+  An injected child-write failure verifies that the public site remains private.
+- The final targeted review found that subset comparison could miss same-ID
+  drift in grading, submission, authenticity, or nested JSON fields. Fixture
+  rows now project every teacher-editable canonical field and require exact
+  nested JSON equality; same-ID drift correction and fail-closed failure paths
+  are covered directly.
+- Remediated full verification passes 4,616 tests across 507 files, lint, type
+  checking, and the production build. The final browser matrix remains 36
+  passing with 14 intentional skips.
+
+## 2026-08-20 — Streamline Blueprint-to-Classroom creation
+
+**Risk profile:** runtime-platform — Blueprint materialization, immutable
+lineage, and student-visibility defaults; no migration, production operation,
+dependency, deletion endpoint, or archive-lifecycle change.
+
+**Completed:**
+- A Blueprint preselected from `/teacher/blueprints` now moves directly from
+  classroom name to calendar. Dashboard/classroom entry paths without a
+  preselection still require choosing a Blueprint. Back navigation, unsaved
+  editor confirmation, retry idempotency, the post-create handoff, overflow
+  reporting, and assignments-tab navigation remain covered.
+- The real rollover drill now verifies draft/unreleased assignments, Tests,
+  materials, and surveys; an unpublished actual classroom site; authenticated
+  student API denial; immutable Version lineage; complete reusable content;
+  live-data exclusion; and cleanup.
+- The drill exposed a pre-existing nested Test-question lineage defect when a
+  source had no assessment-draft row. Blueprint source loading now normalizes
+  saved-draft and fallback question IDs to portable artifact identities.
+- Current/audit/evidence docs record the reviewed decision: no pre-create
+  preview or teacher-facing Version picker, and no immediate active-classroom
+  deletion. Remaining Phase 5 work is the existing archive/purge lifecycle UI.
+
+**Validation:**
+- Focused component/server/verification coverage passes 64 tests; the real
+  browser/API/database rollover drill passes all 54 checks with clean rollback.
+- Full verification passes 4,620 tests across 507 files, lint, type checking,
+  and the production build. Architecture/UI/design policy checks, Pika audit,
+  and diff checks pass.
+- Teacher desktop/mobile light/dark calendar-step captures were visually
+  reviewed with no picker, overflow, overlap, or legibility findings. Student
+  UI did not change; non-visibility is verified through browser/API/database
+  coverage. Composite-widget checklist reviewed with no remaining follow-up.
+
+**Model recommendation:** Sol with high reasoning for final atomic creation,
+lineage, and student-visibility review; Terra with high reasoning for broad
+compatibility, test, UX, and documentation review.
+
+## 2026-08-20 — Productize hot archive recovery copies
+
+**Risk profile:** data-security — authenticated archive status, revision-fenced
+export, and the existing gated archive operation. Migration 126 adds the atomic
+expected-source-revision fence. Its final reviewed definition is applied to
+shared local only. Nothing was applied to production.
+
+**Completed:**
+- Added a strict teacher-scoped recovery summary for hot archived Classrooms.
+  It exposes only export availability, latest operation state, verified date,
+  compressed size, and retention policy; private paths, checksums, identities,
+  and Classroom content remain server-only.
+- Archived Classroom rows now distinguish database-only, rollout-unavailable,
+  interrupted/retryable, failed, and verified recovery-copy states. Eligible
+  teachers explicitly confirm creation, and retries preserve the durable
+  operation UUID across browser failures and page reloads.
+- Verified recovery copies suppress duplicate creation and show their size and
+  retention policy. Export still retains every hot row and source object; this
+  slice does not compact a Classroom or free database space.
+- Independent review hardened the slice so verified evidence must match the
+  Classroom's current source revision, resumable exports replay their original
+  retention contract, same-lifecycle tabs derive one operation UUID, successful
+  exports retain that UUID until status reconciliation, and a status-only outage
+  cannot hide unarchive, reuse, restore, or purge actions.
+- Targeted review found that an old tab could submit its prior lifecycle UUID
+  after another tab rearchived the Classroom. Migration 126 now locks the
+  Classroom and revision rows, rejects a mismatched expected revision before
+  operation creation, and leaves the existing archive-v2 writer unchanged.
+- Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
+  followed by cold-restore progress and quota/retention policy.
+
+**Validation:**
+- Focused client, API, component, deterministic-ID, retry, stale-revision,
+  malformed-data, and missing-migration coverage passes 59 tests.
+- Full verification passes 4,638 tests across 509 files, lint, type checking,
+  and the production build. Architecture, design/UI policy, Pika audit, and
+  diff checks pass.
+- The focused CI Playwright matrix passes with teacher rollout-unavailable,
+  status-outage, available, confirmation, stale, and verified states at
+  desktop/mobile in light/dark, plus the student absence boundary. Screenshots
+  were visually reviewed with no overflow, overlap, contrast, wrapping, or
+  hierarchy findings.
+- Composite-widget checklist reviewed: existing segmented-control and dialog
+  keyboard/semantic contracts are unchanged and covered; recovery state is
+  text-plus-icon, confirmation uses the canonical dialog, and no manual
+  follow-up remains.
+- Shared local Supabase was reset on this branch and replayed migrations
+  001-126. Review then found and fixed prior-revision operation replay; the final
+  migration replays and passes the live contract in both disposable and shared
+  local 001-126 databases. The concurrent Bara migration is resequenced to 127
+  on its rebased branch.
+- The migration-126 assertions now run only when its RPC exists, so the legacy
+  migration-108 Quiz compatibility database contract continues to pass.
+
+**Model recommendation:** Sol with high reasoning for the final archive
+authorization, idempotency, privacy, and lifecycle-state review.
+
+## 2026-08-20 — Isolate Pika principals and harden attendance recovery
+
+**Risk profile:** high — cross-service identity, idempotency, durable delivery,
+Supabase migration, archive/purge containment, and native attendance behavior.
+The user explicitly authorized discarding and resetting only Pika's local
+Supabase data. No hosted database, dashboard, deployment, flag, or production
+state changed.
+
+**Completed:**
+- Replaced WorkOS subjects in the v1 boundary with random Pika principal refs.
+  Pika still verifies WorkOS locally; Bara namespaces each principal by signed
+  installation and cannot reuse a standalone WorkOS identity or organization.
+- Gave each logical student scan a fresh attempt ID while preserving one stable
+  idempotency key across uncertain transport retries of that attempt.
+- Made retryable teacher delivery uncertainty return durable `pending`, and
+  rebuilt pending session/mark state from the private outbox after reload.
+- Made outbox claims enforce roster-before-schedule and
+  roster/schedule-before-command dependencies rather than creation order.
+- Added classroom/student lineage to the event inbox and projections. Removed
+  service-role delete authority and fail-closed archive compaction, hot purge,
+  and final classroom deletion until a versioned Bara decommission/reseed
+  protocol exists; ordinary soft archive/restore remains intact.
+- Added a CI database regression that proves privileges, all eight delete-guard
+  row families, no-state deletion, early compaction/purge rejection, and
+  reversed-order delivery dependencies on local Supabase.
+
+**Verification:**
+- Local Supabase reset replayed migrations 001–127 cleanly; generated database
+  types match; `pnpm run check:bara-attendance-db` passes.
+- Pika passes 548 files and 4,818 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, database type, shell, and diff checks.
+- The four vendored Pika v1 contract files are byte-identical to Bara.
+
+**Remaining gates:**
+- No hosted staging database exists. Provisioning one, applying migration 127,
+  configuring a frequent hosted recovery trigger, running cross-service
+  teacher/student/tenant-isolation flows, measuring hosted p50/p95/p99, and a
+  canary all remain explicit rollout work. Production stays disabled.
+
+## 2026-08-20 — Close attendance privacy and operator-state review findings
+
+**Risk profile:** high — student privacy deletion, archive schema inventory,
+and permanent cross-service command failures. Only the disposable local Pika
+Supabase database was reset; no hosted or production state changed.
+
+**Completed:**
+- Blocked individual-student purge at both begin and finalization whenever the
+  target has attendance mappings or projections, and rejected new attendance
+  subject state once a student purge fence exists.
+- Serialized attendance writes, purge begin, and purge finalization on the same
+  per-student advisory lock. A two-session database regression proves a writer
+  that started first commits while both competing purge paths wait and then
+  fail closed, eliminating the MVCC check-then-commit race.
+- Classified every attendance FK as provider-owned blocking state so the live
+  schema audit does not treat inbox/projections as portable or rebuildable.
+- Mapped classroom decommission fences to stable 409/non-retryable outcomes.
+- Kept the private classroom-state helper unexposed while making its two
+  fully-qualified, empty-search-path trigger callers security-definer; this
+  preserves the fence for restricted database roles used by existing flows.
+- Split permanent session/mark delivery failures from retryable pending work;
+  teachers see a sanitized previous-failure state and may issue a fresh command.
+- Corrected both repositories' identity documentation to state that WorkOS is
+  verified only in Pika and only an installation-scoped opaque principal ref
+  crosses to Bara.
+
+**Verification:**
+- Local migrations 001–127 replayed cleanly and the database harness proved
+  begin/finalize privacy fences, two-session concurrency serialization,
+  in-flight write rejection, deletion guards, privileges, and dependency
+  ordering.
+- The existing Gradex extract/retention database contract passes with the
+  classroom decommission trigger active under its restricted fixture role.
+- All 4,829 tests across 552 files pass, along with TypeScript, production
+  build, architecture, design-policy, UI-policy, database type parity, feature
+  metadata, shell syntax, and diff checks.
+
+## 2026-08-20 — Keep attendance rollback failures recoverable
+
+**Risk profile:** runtime-platform — cross-service rollback and durable delivery
+classification. No schema, database, environment, or deployment state changed.
+
+**Completed:**
+- Standardized disabled adapters on `503 temporarily_unavailable`, keeping
+  resource-specific and contract-specific 404s as permanent failures.
+- Made disabled Pika attendance event ingress return a retryable
+  `503 temporarily_unavailable`, so Bara retains and replays authoritative
+  events instead of poisoning its outbox during a rollback.
+- Added regressions for both transport directions and proved Pika can reuse the
+  same durable idempotency key after Bara becomes available again.
+- Documented the asymmetric rollback response rules in the native-attendance
+  roadmap.
+
+**Verification:**
+- Focused client, outbox, and event-ingress coverage passes 27 tests.
+- The full test suite, TypeScript, lint, production build, architecture,
+  design-policy, UI-policy, session-log validation, and diff checks pass.
+
+## 2026-08-20 — Align attendance verifiers with migration 127
+
+**Risk profile:** runtime-platform — migration evidence and local rollout
+guarding only. No database, environment, or deployment state changed.
+
+**Completed:**
+- Updated the Bara attendance database guard to require migration 127 rather
+  than the unrelated archive migration 126.
+- Updated local rehearsal evidence to report the complete 001–127 migration
+  range and added a regression that binds both operational verifiers to 127.
+
+**Verification:**
+- Migration filename and focused attendance-migration tests pass; local dry-run
+  identifies only migration 127 as pending.
+
+## 2026-08-20 — Close Pika attendance PR review blockers
+
+**Risk profile:** runtime-platform — durable cross-service ordering, snapshot
+idempotency, migration replay, and scan/load evidence. The user authorized
+discarding Pika's local data. No hosted database, deployment, flag, or secret
+changed; the shared Bara development selectors were restored after local
+Convex startup.
+
+**Completed:**
+- Made roster snapshot retries byte-identical across manual and automated sync
+  by using one persisted-contract display value and enforcing it in migration
+  127.
+- Serialized outbox enqueue commits per classroom and made both exact and batch
+  claims wait for earlier snapshot revisions, session commands, or corrections
+  in the same causal stream.
+- Updated hosted and local load runners for current scan attempt IDs and opaque
+  principal mappings, and corrected the runbook to distinguish the local
+  server-helper path from the hosted HTTP endpoint.
+- Replaced obsolete local load figures with current-contract measurements:
+  30/30 confirmed at p50 91.8 ms, p95 161.8 ms, p99 163.9 ms; 100/100 confirmed
+  at p50 276.7 ms, p95 498.8 ms, p99 513.1 ms.
+
+**Verification:**
+- Reset disposable local Supabase and replayed migrations 001–127; database
+  types, migration dry-run, causal-order/idempotency contract, privacy fences,
+  and two-session purge concurrency checks pass.
+- Guarded loopback rehearsal passed roster/schedule sync, open, student scan and
+  duplicate retry, teacher correction, close, closed scan, duplicate event, and
+  stale reordered event handling.
+- Independent security and architecture re-reviews found no remaining P0–P2
+  issue. Full coverage passes 556 files and 4,862 tests; TypeScript, production
+  build, architecture, design-policy, UI-policy, and diff checks pass.
+
+**Remaining gates:**
+- Hosted preview/database verification, real hosted teacher/student smoke,
+  hosted endpoint latency, scheduler-capacity proof, and canary remain rollout
+  gates. Production integration remains disabled.
+
 ## 2026-08-21 — Stop false local-edit warnings after assignment submission
 
 **Risk profile:** workspace-state — student assignment autosave, recovery, and
@@ -740,6 +1044,28 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
   with an exact single-purpose preflight-fence contract and labeled the
   migration-132 rollout sequence as completed audit history rather than future
   operator instructions.
+
+## 2026-08-25 — Pin the student Pal companion on iPhone
+
+**Risk profile:** none — student-only Pal companion placement; no academic
+state, API contract, authentication, schema, or reward behavior changed.
+
+**Model recommendation:** GPT-5.6 — localized host-layout work with
+cross-browser verification and a bounded independent review.
+
+- Made the Pika-owned companion host explicitly use a non-interactive
+  bottom-right placement contract backed by Pika spacing/layer tokens and iOS
+  safe-area insets.
+- Added component and stylesheet contract coverage for the placement invariant
+  while preserving the existing test-surface suppression and Pal failure
+  boundary behavior.
+- The focused suites pass (19/19), the full Vitest suite passes
+  (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
+  are clean after rebasing onto current `main`.
+- Playwright visual verification passed for student desktop/mobile in light and
+  dark themes and for an iPhone 13 WebKit profile; teacher desktop/mobile were
+  checked as unaffected. Chromium and WebKit pointer-drag probes both retained
+  the same bottom-right rectangle at 16px from the viewport edges.
 
 ## 2026-08-25 — Verify entitled-teacher active-class readiness
 

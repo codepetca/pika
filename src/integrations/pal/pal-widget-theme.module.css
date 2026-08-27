@@ -36,3 +36,11 @@
   --pal-density-comfortable-content-top: var(--density-comfortable-content-top);
   --pal-density-comfortable-stack: var(--density-comfortable-stack-gap);
 }
+
+.bottomRight {
+  position: fixed;
+  right: calc(var(--density-comfortable-gutter) + env(safe-area-inset-right));
+  bottom: calc(var(--density-comfortable-gutter) + env(safe-area-inset-bottom));
+  z-index: var(--layer-floating);
+  pointer-events: none;
+}
