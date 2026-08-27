@@ -127,7 +127,7 @@ describe('atomic test grading contract', () => {
     expect(databaseHarness).toContain('Attempt inserted after preflight was omitted from eligible cohort')
     expect(databaseHarness).toContain('Stale bulk clear erased a newer grade')
     expect(databaseHarness).toContain('Concurrent response insert escaped bulk clear snapshot')
-    expect(databaseHarness).toContain('Question mutation deadlocked with grading')
+    expect(databaseHarness).toContain('Question freeze/grading ordering was not preserved')
     expect(databaseHarness).toContain('Concurrent test deletion deadlocked with grading')
     expect(databaseHarness).toContain('No-op clear advanced an ungraded response revision')
     expect(databaseHarness).toContain("jsonb_object_keys(v_result->'responses'->0)")
@@ -174,7 +174,8 @@ describe('atomic test grading contract', () => {
     expect(databaseHarness).toContain('AI-first clear ordering left incoherent state')
     expect(databaseHarness).toContain('No-op clear fenced an active AI item')
     expect(databaseHarness).toContain('Attempt deletion allowed a delayed grade to resurrect a response')
-    expect(databaseHarness).toContain('Question mutation did not fence the stale AI grade')
+    expect(databaseHarness).toContain('Student work did not freeze the AI grading question')
+    expect(databaseHarness).toContain('Frozen question did not preserve valid AI finalization')
   })
 
   it('fails legacy active runs closed and adapts old archives without changing new snapshots', () => {

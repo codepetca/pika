@@ -1,14 +1,23 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
 import { TooltipProvider } from '@/ui'
 import { createMockTest } from '../helpers/mocks'
 import type { TestAssessmentWithStats } from '@/types'
 
+const draftFlush = vi.hoisted(() => vi.fn(async () => true))
+
 vi.mock('@/components/TestDetailPanel', () => ({
-  TestDetailPanel: ({ testQuestionLayout }: { testQuestionLayout?: string }) => (
-    <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} />
-  ),
+  TestDetailPanel: ({
+    testQuestionLayout,
+    onDraftFlushReady,
+  }: {
+    testQuestionLayout?: string
+    onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
+  }) => {
+    onDraftFlushReady?.(draftFlush)
+    return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} />
+  },
 }))
 
 const test = {
@@ -31,9 +40,11 @@ const test = {
 function renderDialog({
   hasPendingMarkdownImport = false,
   onRequestPreview = vi.fn(),
+  onClose = vi.fn(),
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
+  onClose?: () => void
 } = {}) {
   render(
     <TooltipProvider>
@@ -43,7 +54,7 @@ function renderDialog({
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
         hasPendingMarkdownImport={hasPendingMarkdownImport}
-        onClose={vi.fn()}
+        onClose={onClose}
         onDraftSummaryChange={vi.fn()}
         onTestUpdate={vi.fn()}
         onPendingMarkdownImportChange={vi.fn()}
@@ -52,7 +63,7 @@ function renderDialog({
     </TooltipProvider>,
   )
 
-  return { onRequestPreview }
+  return { onClose, onRequestPreview }
 }
 
 describe('TeacherTestAuthoringDialog', () => {
@@ -91,5 +102,29 @@ describe('TeacherTestAuthoringDialog', () => {
         name: 'Preview',
       }),
     ).toBeDisabled()
+  })
+
+  it('waits for the latest draft save before closing', async () => {
+    let resolveFlush: ((saved: boolean) => void) | null = null
+    draftFlush.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
+      resolveFlush = resolve
+    }))
+    const onClose = vi.fn()
+    renderDialog({ onClose })
+    const dialog = screen.getByRole('dialog', { name: 'Edit test' })
+
+    fireEvent.click(within(dialog).getByRole('button', {
+      name: 'Close',
+    }))
+
+    await waitFor(() => expect(draftFlush).toHaveBeenCalledTimes(1))
+    expect(within(dialog).getByRole('button', { name: 'Saving...' })).toBeDisabled()
+    expect(onClose).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveFlush?.(true)
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

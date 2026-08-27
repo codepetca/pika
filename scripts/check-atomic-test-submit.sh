@@ -653,6 +653,18 @@ if [[ "$ACCESS_STATE" != "closed:0:0" ]]; then
   exit 1
 fi
 
+# The partial-attempt contract above has already verified its persisted state.
+# Remove that fixture before the question/autosave ordering case: migration 134
+# intentionally freezes questions once any student work exists, while this case
+# specifically proves that a question mutation which starts first is visible to
+# a brand-new autosave after it acquires the shared Test lock.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+select public.delete_student_test_attempt_atomic(
+  'e0000000-0000-4000-8000-000000000017',
+  'e0000000-0000-4000-8000-00000000000d'
+);
+SQL
+
 docker exec -e PGAPPNAME=atomic-test-autosave-holder -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
@@ -703,11 +715,16 @@ then
 fi
 
 DRAFT_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select responses from public.test_attempts
-   where test_id = 'e0000000-0000-4000-8000-000000000017'
-     and student_id = 'e0000000-0000-4000-8000-00000000000d';")"
-if [[ "$DRAFT_STATE" != '{"e0000000-0000-4000-8000-00000000010b": {"question_type": "multiple_choice", "selected_option": 0}}' ]]; then
-  echo "Rejected stale autosave changed the preserved draft: $DRAFT_STATE" >&2
+  "select
+     (select count(*) from public.test_attempts
+      where test_id = 'e0000000-0000-4000-8000-000000000017'
+        and student_id = 'e0000000-0000-4000-8000-00000000000d')
+     || ':' ||
+     (select count(*) from public.test_responses
+      where test_id = 'e0000000-0000-4000-8000-000000000017'
+        and student_id = 'e0000000-0000-4000-8000-00000000000d');")"
+if [[ "$DRAFT_STATE" != "0:0" ]]; then
+  echo "Rejected stale autosave created partial student work: $DRAFT_STATE" >&2
   exit 1
 fi
 

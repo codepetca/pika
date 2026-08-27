@@ -567,7 +567,6 @@ export async function createArchivedClassroomBlueprintAtomic(args: {
   const requestSha256 = hashBlueprintOperationRequest({
     operation_type: 'archived_reuse',
     source_classroom_id: args.sourceClassroomId,
-    expected_source_revision: expectedSourceRevision,
     plan,
   })
 

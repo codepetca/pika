@@ -1123,6 +1123,7 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          draft_version: 7,
           questions: [
             {
               id: 'q1',
@@ -1159,7 +1160,10 @@ describe('TeacherTestsTab', () => {
         url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
     )
     expect(patchCall).toBeTruthy()
-    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'active' })
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({
+      status: 'active',
+      draft_version: 7,
+    })
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
@@ -1900,7 +1904,9 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
-    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
     const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
     updateSearchParams.mock.calls[0][0](params)
     expect(params.get('testId')).toBe('test-1')

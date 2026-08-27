@@ -8,12 +8,12 @@ import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import {
+  activateTestFromDraftAtomic,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
-  syncTestQuestionsFromDraft,
-  updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { getPortableTestQuestionIdentity, projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
@@ -37,6 +37,21 @@ type TestQuestionResponse = Omit<
   | 'ai_reference_cache_key'
   | 'ai_reference_cache_model'
 >>
+
+function toTestQuestionResponse(
+  question: Omit<TableRow<'test_questions'>, 'source_blueprint_version_id'>,
+): TestQuestionResponse {
+  const {
+    artifact_id: _artifactId,
+    source_artifact_id: _sourceArtifactId,
+    ...responseQuestion
+  } = question
+  // Report the portable identity, not the internal row id, so this field
+  // means the same thing regardless of Test lifecycle stage (draft tests
+  // below return the portable id via projectPortableTestQuestionIds; the
+  // database row id must stay internal per the canonical identity contract).
+  return { ...responseQuestion, id: getPortableTestQuestionIdentity(question) }
+}
 
 function isMissingCloseTestRpcError(error: {
   code?: string
@@ -72,6 +87,8 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     .select(`
       id,
       test_id,
+      artifact_id,
+      source_artifact_id,
       question_type,
       question_text,
       options,
@@ -99,7 +116,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
 
   let title = test.title
   let showResults = test.show_results
-  let responseQuestions: TestQuestionResponse[] = questions || []
+  let responseQuestions: TestQuestionResponse[] = (questions || []).map(toTestQuestionResponse)
 
   const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
     supabase,
@@ -116,9 +133,20 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
       allowEmptyQuestionText: true,
     })
     if (validated.valid) {
-      title = validated.value.title
-      showResults = validated.value.show_results
-      responseQuestions = validated.value.questions.map((question, index) => ({
+      const projected = projectPortableTestQuestionIds(
+        validated.value,
+        questions || [],
+      )
+      if (!projected.ok) {
+        return NextResponse.json(
+          { error: 'Test draft question identity is ambiguous' },
+          { status: 409 },
+        )
+      }
+
+      title = projected.content.title
+      showResults = projected.content.show_results
+      responseQuestions = projected.content.questions.map((question, index) => ({
         id: question.id,
         test_id: id,
         question_type: question.question_type,
@@ -156,6 +184,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
   return NextResponse.json({
     test: responseTest,
     questions: responseQuestions,
+    draft_version: draft?.version ?? null,
     classroom: test.classrooms,
   })
 })
@@ -173,6 +202,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
   const existing = access.test
   const supabase = getServiceRoleClient()
+  let activatedTest: Record<string, any> | null = null
 
   if (status !== undefined) {
     const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -190,6 +220,21 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
 
   if (status === 'active' && existing.status === 'draft') {
+    if (title !== undefined || show_results !== undefined || documents !== undefined) {
+      return NextResponse.json(
+        { error: 'Save Test draft changes before activation' },
+        { status: 400 },
+      )
+    }
+
+    const expectedDraftVersion = Number(body?.draft_version)
+    if (!Number.isInteger(expectedDraftVersion) || expectedDraftVersion < 1) {
+      return NextResponse.json(
+        { error: 'draft_version is required for activation' },
+        { status: 400 },
+      )
+    }
+
     const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
       supabase,
       'test',
@@ -201,45 +246,22 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       return NextResponse.json({ error: 'Failed to load draft for activation' }, { status: 500 })
     }
 
-    if (draft) {
-      const validatedDraft = validateTestDraftContent(draft.content)
-      if (!validatedDraft.valid) {
-        return NextResponse.json({ error: validatedDraft.error }, { status: 400 })
-      }
-
-      const syncResult = await syncTestQuestionsFromDraft(supabase, id, validatedDraft.value)
-      if (!syncResult.ok) {
-        return NextResponse.json({ error: syncResult.error }, { status: syncResult.status })
-      }
-
-      const { error: metaError } = await supabase
-        .from('tests')
-        .update({
-          title: validatedDraft.value.title,
-          show_results: validatedDraft.value.show_results,
-        })
-        .eq('id', id)
-
-      if (metaError) {
-        console.error('Error syncing test metadata from draft during activation:', metaError)
-        return NextResponse.json({ error: 'Failed to sync test draft metadata' }, { status: 500 })
-      }
+    if (!draft) {
+      return NextResponse.json({ error: 'Test draft not found' }, { status: 404 })
     }
-
-    const { data: questions, error: questionsError } = await supabase
-      .from('test_questions')
-      .select(
-        'id, position, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace'
+    if (draft.version !== expectedDraftVersion) {
+      return NextResponse.json(
+        { error: 'The Test changed after activation was requested. Review and try again.' },
+        { status: 409 },
       )
-      .eq('test_id', id)
-      .order('position', { ascending: true })
-
-    if (questionsError) {
-      console.error('Error fetching test questions for activation:', questionsError)
-      return NextResponse.json({ error: 'Failed to validate test questions' }, { status: 500 })
     }
 
-    const questionList = questions || []
+    const validatedDraft = validateTestDraftContent(draft.content)
+    if (!validatedDraft.valid) {
+      return NextResponse.json({ error: validatedDraft.error }, { status: 400 })
+    }
+
+    const questionList = validatedDraft.value.questions
     const activation = canActivateTest(existing, questionList.length)
     if (!activation.valid) {
       return NextResponse.json({ error: activation.error }, { status: 400 })
@@ -255,6 +277,30 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
         )
       }
     }
+
+    const activationResult = await activateTestFromDraftAtomic(supabase, {
+      teacherId: user.id,
+      testId: id,
+      expectedDraftVersion,
+    })
+    if (!activationResult.ok) {
+      return NextResponse.json(
+        { error: activationResult.error },
+        { status: activationResult.status },
+      )
+    }
+    activatedTest = activationResult.test
+  }
+
+  if (
+    existing.status === 'draft'
+    && status !== 'active'
+    && (title !== undefined || show_results !== undefined)
+  ) {
+    return NextResponse.json(
+      { error: 'Update draft Test content through the draft endpoint' },
+      { status: 400 },
+    )
   }
 
   if (title !== undefined) {
@@ -273,7 +319,11 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   const updates: Record<string, any> = {}
   let validatedDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
   if (title !== undefined) updates.title = title.trim()
-  if (status !== undefined && !shouldFinalizeOnClose) updates.status = status
+  if (
+    status !== undefined
+    && !shouldFinalizeOnClose
+    && !(status === 'active' && existing.status === 'draft')
+  ) updates.status = status
   if (show_results !== undefined) updates.show_results = show_results
   if (documents !== undefined) {
     const validated = validateTestDocumentsPayload(documents)
@@ -284,11 +334,11 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     updates.documents = validated.documents
   }
 
-  if (Object.keys(updates).length === 0 && !shouldFinalizeOnClose) {
+  if (Object.keys(updates).length === 0 && !shouldFinalizeOnClose && !activatedTest) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
   }
 
-  let test: Record<string, any> = existing as Record<string, any>
+  let test: Record<string, any> = activatedTest ?? existing as Record<string, any>
 
   if (Object.keys(updates).length > 0) {
     if (validatedDocuments?.valid) {
@@ -342,46 +392,6 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       return NextResponse.json({ error: 'Failed to finalize test submissions' }, { status: 500 })
     }
     test = { ...test, status: 'closed' }
-  }
-
-  if (title !== undefined || show_results !== undefined) {
-    const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
-      supabase,
-      'test',
-      id
-    )
-
-    if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-      console.error('Error loading test draft for metadata sync:', draftError)
-    }
-
-    if (draft) {
-      const validatedDraft = validateTestDraftContent(draft.content, {
-        allowEmptyQuestionText: true,
-      })
-      if (validatedDraft.valid) {
-        const nextContent = {
-          ...validatedDraft.value,
-          title: title !== undefined ? (updates.title as string) : validatedDraft.value.title,
-          show_results:
-            show_results !== undefined
-              ? (updates.show_results as boolean)
-              : validatedDraft.value.show_results,
-        }
-
-        const { error: draftUpdateError } = await updateAssessmentDraft(
-          supabase,
-          draft.id,
-          draft.version + 1,
-          user.id,
-          nextContent
-        )
-
-        if (draftUpdateError) {
-          console.error('Error syncing test draft metadata after patch:', draftUpdateError)
-        }
-      }
-    }
   }
 
   const responseTest = {

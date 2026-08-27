@@ -30,7 +30,7 @@ export type AtomicDocumentUpdateResult =
       error: string
     }
 
-function parseCleanupPaths(value: unknown): string[] {
+export function parseCleanupPaths(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((path): path is string => (
     typeof path === 'string' && path.startsWith('link-docs/')

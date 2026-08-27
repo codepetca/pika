@@ -22785,50 +22785,6 @@ roles, standalone regression, and concurrent authoritative writes.
   backfill, tenant-isolation/canary proof, and real teacher/student approval
   remain blocked on provisioning an isolated Preview or explicitly approving a
   different non-production target. Production remains disabled.
-
-<!-- pika-session-log-archive-batch:8eccbd405900ce334e8948b5813de04ebe6ffa7f92ef01eebb90c08a2826f082 -->
-## 2026-08-19 — Verify native attendance against disposable local databases
-
-**Risk profile:** runtime-platform and disposable local data. The user
-explicitly authorized resetting and discarding the shared local Pika database.
-No hosted database, WorkOS dashboard, deployment, rollout flag, production
-write, commit, merge, or promotion changed.
-
-**Model recommendation:** frontier reasoning model — this verification spans
-real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
-roles, standalone regression, and concurrent authoritative writes.
-
-**Completed:**
-- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
-  and used distinct staging WorkOS Applications with localhost callbacks.
-- Signed in a real teacher and student through Pika, created and joined a
-  rostered classroom, configured attendance hours, opened automatically,
-  checked in through the native Pika QR path, reconciled the projection,
-  corrected the student to Late, and closed the session without leaving Pika.
-- Signed into standalone Bara through its own WorkOS Application, opened an
-  independent ad-hoc session on the mapped roster, marked the student through
-  Bara's tap UI, and closed it.
-- Added a guarded loopback-only signed-adapter/engine load runner and recorded
-  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
-  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
-  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
-
-**Verification:**
-- Pika passes 542 files and 4,567 tests, TypeScript, production build,
-  architecture, design-policy, UI-policy, and diff checks.
-- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
-  diff checks. The hosted rollout command correctly refuses to run without a
-  named Preview/Production stage and exact HTTPS origins; no staging target
-  exists to satisfy that gate.
-- Browser screenshots were visually checked for native student success,
-  teacher correction and closed state, and standalone Bara attendance.
-
-**Remaining gates:**
-- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
-  backfill, tenant-isolation/canary proof, and real teacher/student approval
-  remain blocked on provisioning an isolated Preview or explicitly approving a
-  different non-production target. Production remains disabled.
-
 <!-- pika-session-log-archive-batch:3fc2b454e9818765198b073c0bfd000d4e45df6ab80cb0bb02552962d29ba40e -->
 ## 2026-08-20 — Verify public planned-course sites
 
@@ -23583,3 +23539,306 @@ runtime, schema, hosted environment, deployment, or database state changed.
 **Verification:**
 - Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
 - Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
+
+<!-- pika-session-log-archive-batch:e736bebdfeb26858f4835aaf17ece10cdb496bcf75ca9afed28670379908150d -->
+## 2026-08-21 — Center the first-login Pal reward
+
+**Risk profile:** none — student-only reward-modal layout and regression coverage;
+no reward timing, acknowledgement behavior, schema, hosted state, or auth changed.
+
+**Completed:**
+- Centered Pal's narrower celebration card inside Pika's wider modal panel while
+  preserving the shared modal root, backdrop, focus, and dismissal behavior.
+- Added a component regression assertion for the centering layout contract.
+
+**Verification:**
+- Full suite passes 4,911 tests across 562 files; TypeScript, lint, production
+  build, design policy, and UI policy pass.
+- Matched Playwright evidence passes on desktop/mobile in light/dark themes:
+  the card moved from 112 px left of center on desktop and 35 px left on mobile
+  to exactly centered in all four variants.
+
+## 2026-08-21 — Enforce the native attendance production canary
+
+**Risk profile:** runtime-platform — teacher/student authorization, signed event
+ingress, unattended delivery/reconciliation workers, opaque QR entry tokens,
+and one additive Supabase migration. No hosted configuration, deployment, or
+database was changed.
+
+**Implemented:**
+- Added a fail-closed exact Pika teacher/classroom scope on top of the global
+  attendance flag. Non-canary reads retain the disabled UI, and mutations stop
+  before WorkOS identity resolution or attendance side effects.
+- Bound the Pika classroom UUID into version-2 encrypted entry tokens and
+  required canonical Base64URL encoding before student identity resolution.
+- Added migration 129 with teacher/classroom-scoped schedule, reconciliation,
+  outbox claim/health, and atomic event-ingress RPCs. Workers cannot lease
+  non-canary work and Bara still receives only opaque contract references.
+- Added the two required rollout variables, preflight validation, generated
+  database types, operator documentation, and production sequence updates.
+- Review remediation split preflight into explicit disabled `pre-enable` and
+  enabled modes, verifies the configured classroom is active and still owned by
+  the configured teacher, and repeats that ownership check before ingress or
+  unattended worker activity.
+- Database claims and event application hold an active-classroom row lock so a
+  concurrent archive cannot race the runtime check; archived QR issuance and
+  archived event application fail before Bara access or projection writes.
+- Archived teacher session reads now return the disabled attendance view and
+  policy reads stop before attendance storage. The rollout contract defines
+  authorization at operation start: already-started work may settle after soft
+  archive, while every new operation is rejected.
+
+**Verification:**
+- Focused canary/API/worker/token coverage passes; the clean local
+  Supabase reset replayed migrations 001–129, generated types match, and the
+  attendance SQL contract passes exact-pair, wrong-teacher, privilege, and
+  cross-classroom checks. The contract behaviorally exercises scoped claims,
+  reconciliation, rejected event atomicity, and a valid atomic event apply.
+- The full repository suite passes all 4,932 tests across 564 files. TypeScript,
+  lint, architecture, design policy, UI policy, and production build pass. The
+  shared environment's non-loopback Bara URL correctly prevents the local-only
+  cross-service rehearsal from running without explicit reconfiguration.
+
+## 2026-08-21 — Retire unscoped attendance service capabilities
+
+**Risk profile:** runtime-platform — production release review, Supabase RPC
+capabilities, and rollout sequencing; attendance remains globally disabled.
+
+**Completed:**
+- Applied reviewed migration 129 to the authorized Pika production project and
+  verified remote history plus the five scoped function/grant definitions.
+- Opened the `main` to `production` release PR with attendance disabled.
+- Added migration 130 to revoke service-role execution of the five superseded
+  unscoped worker/event RPCs while retaining them for scoped security-definer
+  wrappers and migration compatibility. Migration 130 remains unapplied and
+  requires separate exact production authorization.
+- Updated active rollout guidance to record migration 129 as applied, migration
+  130 as the remaining database gate, and the lack of an isolated preview
+  database for hosted load testing.
+- Removed a duplicate production-only timezone mock so the release result
+  matches `main` outside the intentional remediation.
+
+**Verification:**
+- Full Vitest passes 4,939 tests across 565 files, including the UI test that
+  timed out once in the initial release CI run.
+- TypeScript, lint, architecture, production build, focused privilege/docs
+  contracts, and diff checks pass.
+- The database-writing local contract was not run because applying migration
+  130 locally requires separate exact authorization; the release PR's clean
+  ephemeral database job is the required migration replay and privilege proof.
+
+## 2026-08-21 — Route attendance RPC retirement through main
+
+**Risk profile:** runtime-platform — linearizes the reviewed attendance
+privilege migration and rollout guidance onto `main`; no hosted database,
+deployment, environment variable, or attendance flag was changed.
+
+**Completed:**
+- Replayed the two reviewed release-remediation commits onto a dedicated branch
+  from current `origin/main`, excluding the production-only calendar-test
+  parity correction that was already absent from `main`.
+- Preserved migration 130 as an unapplied, separately authorized rollout step
+  and kept attendance globally disabled pending the exact-pair canary audit.
+
+**Verification:**
+- Focused migration and documentation coverage passes 3 tests.
+- Full Vitest passes 4,939 tests across 565 files; TypeScript, lint,
+  architecture boundaries, and the production build pass.
+- The clean release CI already replayed migrations through 130 in an ephemeral
+  Supabase database; no local or production migration application was run.
+
+## 2026-08-21 — Restore the remembered-login contract
+
+**Risk profile:** runtime-platform — Pika and WorkOS session lifetime,
+cross-cookie identity binding, protected-route recovery, middleware headers,
+and browser logout. No hosted configuration or deployment was changed.
+
+**Implemented:**
+- Replaced the WorkOS pilot's 12-hour compatibility cookie with one shared
+  180-day Pika policy and set both the browser `Max-Age` and encrypted
+  `iron-session` seal TTL, avoiding the library's otherwise hidden 14-day TTL.
+- Versioned Pika sessions and bound WorkOS-authenticated sessions to the exact
+  verified WorkOS user ID plus normalized email. Legacy, unbound, mismatched,
+  or Pika-only sessions fail closed while the pilot is enabled.
+- Added read-only silent restoration for an active WorkOS session. It recreates
+  the Pika UUID/role mapping only from the existing exact
+  `public.users.workos_user_id` link and never creates or relinks by email.
+  Restoration explicitly suppresses student login telemetry so it performs no
+  Pal outbox write or delivery attempt.
+- Preserved protected deep links and query strings through reauthentication by
+  injecting a middleware-owned request-path header, stripping inbound spoofed
+  values, and validating every returned internal path.
+- Routed browser logout through a CSRF-protected same-origin POST, Pika cookie
+  destruction, and the WorkOS logout URL so the server-side WorkOS session is
+  invalidated. The retained JSON compatibility endpoint now explicitly revokes
+  the WorkOS session and clears local state even if provider revocation fails.
+- Updated the WorkOS rollout gate and operator guidance for the 180-day cookie,
+  an exact 180-day Dashboard absolute maximum, Preview/Production cutoff
+  verification, and rollback. The local Bara configurator now consumes the
+  shared duration constant instead of reintroducing the former 12-hour value.
+
+**Verification:**
+- Full Vitest passes 4,965 tests across 570 files. The full coverage run also
+  passes and restores `src/lib/auth.ts` to 100% branch coverage. Lint, the clean
+  production build, diff checks, and the Pika audit pass.
+- Playwright verification passes for the normal login and silent-restoration
+  states on desktop/mobile in light/dark themes. The pre-auth surface is shared
+  by teacher and student; both required stored-role captures were run.
+- The account menu now performs a user-activated POST directly, while `/logout`
+  is an explicit confirmation fallback and cannot auto-submit after a
+  cross-origin navigation. Its confirmation state was inspected in teacher
+  desktop, student mobile, teacher mobile, and dark-theme captures with no
+  overflow or readability issues.
+- Live local protected requests preserve full safe paths and query strings in
+  `/login?next=...`. The shared `.env.local` was not modified; the local server
+  used a process-only `WORKOS_COOKIE_MAX_AGE=15552000` override.
+- Composite accessibility checklist reviewed: keyboard behavior remains native
+  and unchanged, the restoration status is exposed through `role=status` with
+  `aria-live`, semantic state is component-tested, and no manual follow-up
+  remains.
+
+## 2026-08-22 — Harden the legacy logout endpoint
+
+**Risk profile:** runtime-platform — authentication logout CSRF protection; no
+hosted configuration, deployment, database, or UI changed.
+
+- Applied the existing exact-origin POST guard to `POST /api/auth/logout`
+  before WorkOS session inspection, provider revocation, or local cookie
+  destruction.
+- Added regression coverage proving a cross-origin request returns 403 without
+  invoking WorkOS or changing Pika and WorkOS authentication state.
+- The test reproduced the prior behavior as a 200 response before the fix.
+  After remediation, the focused authentication suite passes 112 tests across
+  12 files; lint, Pika audit, and diff checks pass. Targeted security re-review
+  reports no remaining blocker in the correction.
+
+## 2026-08-22 — Preserve auth authority during rollback and Preview logout
+
+**Risk profile:** runtime-platform — authentication rollback provenance and
+logout CSRF origin validation; no hosted configuration, deployment, database,
+or UI changed.
+
+- Every new Pika session now records explicit password or WorkOS provenance.
+  When the pilot is disabled, only current password-origin sessions remain
+  valid; WorkOS mappings and ambiguous legacy seals fail closed instead of
+  becoming independent credentials.
+- Same-origin logout validation now trusts the origin serving the request,
+  allowing Preview and custom aliases while retaining the canonical public URL
+  solely for the WorkOS provider return destination.
+- Regression tests reproduced all three prior failures before the fixes and
+  cover password-session preservation, WorkOS-mapping rejection, and both
+  logout endpoints on a non-canonical Preview origin.
+- The focused auth surface passes 154 tests across 16 files. Full Vitest passes
+  4,970 tests across 570 files; lint, architecture boundaries, Pika audit,
+  diff checks, and the production build pass.
+
+## 2026-08-22 — Make attendance recovery and credential smoke fail closed
+
+**Risk profile:** runtime-platform — cross-service authentication, private
+database state, and operator recovery; no hosted data, flags, configuration,
+deployment, or production state changed.
+
+- Normalized literal-null and all-null attendance outbox claim responses to a
+  durable pending result, while sanitizing malformed composite diagnostics.
+- Added migration 131 for private, service-role-only, canary-scoped smoke audit
+  runs and replay nonces with rate limits and bounded nonce cleanup.
+- Added production-only deployed Pika-to-Bara and Bara-to-Pika credential proof
+  routes. The signed exchange is tenant, installation, teacher, classroom, and
+  canary bound; it stores aggregate booleans and never mutates attendance data.
+- Documented recovery invariants, production-only Preview skip rules, rollout
+  ordering, and the explicit authorization boundary for migration/deployment.
+- Local migration reset, generated-type parity, database privilege guard, full
+  4,980-test suite, lint, and production build pass.
+- Independent review corrections classify smoke audit ownership edges, bind
+  callbacks to an active five-minute challenge, reject recovery idempotency
+  drift, derive recovery time server-side, and repair the pre-enable rollout
+  order. The same full verification passed after remediation.
+- A subsequent independent PR review added audited recovery-page continuation
+  so unchanged failures cannot starve later eligible events, and replaced the
+  shared cron bearer with a dedicated smoke credential that is read only after
+  the destination matches the configured canonical Pika production origin.
+
+## 2026-08-22 — Close attendance recovery review-loop gaps
+
+**Risk profile:** runtime-platform — deployed authentication smoke, bounded
+operational state, and tenant deletion behavior; no hosted data, migration,
+deployment, flag, credential, or production state changed.
+
+- Made the deployed operator gate require HTTP 200 as well as a strict passing
+  aggregate body, so pass-shaped 401/409/429/5xx responses cannot authorize
+  rollout expansion.
+- Made Preview reverse callbacks reject before configuration or database access
+  and made the operator route fail closed when its dedicated credential is
+  missing, short, or overlaps cron or either attendance HMAC secret.
+- Bounded smoke-run and nonce retention to 100 expired rows of each kind per
+  new challenge after 24 hours. Smoke-only evidence now cascades with an
+  otherwise-authorized tenant deletion while active five-minute challenges
+  remain protected.
+- Added runtime database-guard coverage for retention cleanup and classroom
+  deletion, plus focused route, runner, migration, and callback regressions.
+
+## 2026-08-22 — Move attendance rollout preflight into deployed runtimes
+
+**Risk profile:** runtime-platform — production cross-service authentication
+and rollout gating; no hosted configuration, flags, deployment, or data changed.
+
+- Made the Pika operator smoke run the complete pinned production environment
+  audit inside Vercel before creating any smoke state, avoiding false evidence
+  from locally downloaded Sensitive values that Vercel intentionally redacts.
+- Bound each operator invocation to an explicit pre-enable or enabled mode and
+  made Bara verify that mode against its deployed Convex integration flag before
+  consuming nonce or callback state.
+- Kept the proof aggregate-only, exact-canary scoped, authenticated, replay
+  resistant, and non-mutating; updated rollout documentation and regression
+  coverage for target drift, mode mismatch, and fail-before-smoke behavior.
+
+## 2026-08-22 — Expose authenticated aggregate preflight diagnostics
+
+**Risk profile:** runtime-platform — operator-only production rollout
+diagnostics; no hosted configuration, flags, deployment, credential, attendance
+event, or production data changed.
+
+- Returned only fixed failed-check identifiers and aggregate pass/total counts
+  after successful dedicated operator authentication when the deployed
+  attendance environment preflight fails.
+- Kept unauthorized responses diagnostic-free and preserved fail-before-state
+  behavior, `no-store`, and `no-referrer` response controls.
+- Normalized missing, short, overlapping, and incorrect operator credentials to
+  the same private unauthorized response, preventing authentication-configuration
+  disclosure before the deployed audit.
+- Aligned the migration gate with hosted evidence that migration 131 is already
+  recorded as applied: operators verify it and stop for fresh authorization if
+  it is absent, but never dry-run or reapply it from this rollout flow.
+- Swept every sibling attendance status, canary, roadmap, completion-audit, and
+  recovery runbook so none still instructs operators to authorize or apply the
+  already-recorded production migration 131; 42 focused documentation and
+  startup guard tests pass.
+- Added route and deployed-runtime regression coverage. The focused 24-test
+  surface and the full 5,008-test suite, typecheck, production build, lint,
+  architecture guard, and diff check pass.
+
+## 2026-08-23 — Add teacher-scoped attendance entitlements
+
+**Risk profile:** runtime-platform — service-only authorization, schedule
+deactivation, cross-service rollout gating, and additive database schema; no
+hosted migration, deployment, flag, entitlement, requeue, or production state
+changed.
+
+- Added an audited, idempotent teacher entitlement boundary keyed by stable
+  Pika user ID. The global attendance flags remain kill switches, while the UI,
+  teacher APIs, workers, outbox, reconciliation, and event ingress share the
+  same fail-closed authorization predicate.
+- Added stateful classroom deactivation: a higher-revision empty schedule
+  cancels future intent, preserves open and historical sessions, and remains
+  resumable until Bara acknowledges it. Expiry clamps future schedule delivery.
+- Kept the existing exact Codepet Labs canary as the non-mutating deployed
+  credential smoke and made the requested rollout scope an authenticated,
+  audited preflight expectation instead of broadening the smoke payload.
+- Added a dry-run-first, operation-id-bound service operator command and rollout
+  documentation for enablement, revocation, rollback, Preview skip behavior,
+  release order, and the production authorization boundary.
+- Bara's 166-test suite, typecheck, and production build pass. Pika's full
+  5,029-test suite, TypeScript check, production build, architecture guard,
+  design guard, UI guard, and diff check pass. Local execution of migration 132
+  and generated-type parity remain intentionally pending exact local-only
+  authorization.

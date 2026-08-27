@@ -95,6 +95,59 @@ questions, Test documents, lesson templates/plans, classwork materials,
 surveys, and survey questions. Future independently editable units, outcomes,
 rubrics, and named resources must adopt the same contract.
 
+### Test question identity boundary
+
+- `TestDraftQuestion.id` is the question's portable Artifact ID. It is assigned
+  when the draft question is created and is preserved by edits and reordering.
+- Creating, editing, deleting, and reordering Test questions are version-fenced
+  draft-document operations. Direct `test_questions` row authoring endpoints
+  are retired so row state cannot diverge from the draft activation consumes.
+- `test_questions.id` is an internal database row ID and is never written into
+  Blueprint, Version, package, or draft content as logical identity.
+- Student attempts and responses are classroom-instance runtime state, not
+  reusable content. Their `question_id` foreign keys and the corresponding
+  classroom student/teacher API keys may use `test_questions.id` so existing
+  attempts and grading history remain attached to the exact materialized row;
+  those row IDs must never cross into drafts, Blueprints, Versions, packages,
+  or cross-classroom lineage.
+- An origin row stores the draft UUID in `artifact_id`. An instantiated row has
+  a new row `id` and stores the originating UUID in `source_artifact_id` (and in
+  `artifact_id` where the existing persistence contract requires it).
+- Activation synchronizes rows by `source_artifact_id`/`artifact_id`, never by
+  array position. A draft-only question inserts a new row with
+  `artifact_id = TestDraftQuestion.id`.
+- Blueprint capture reads and validates source identity but does not assign or
+  rewrite it. Missing or ambiguous persisted identity fails closed; a question
+  with no persisted row is valid only while it remains draft-only.
+- Legacy draft JSON that contains row IDs is transactionally backfilled once by
+  resolving those IDs to persisted portable identity. Runtime code may detect
+  legacy row IDs for a clear failure, but must not silently infer or rewrite
+  logical identity.
+
+### Test question identity rollout and rollback
+
+Roll out the contract in compatibility order:
+
+1. Deploy application code that reads legacy row-ID drafts, projects them to
+   portable identity without mutating source rows, synchronizes canonical
+   drafts by artifact identity, and fails closed on ambiguity.
+2. Apply the identity migration as one transaction. It resolves legacy draft
+   IDs by exact row/artifact/source UUID matches, aborts on multiple matches,
+   and leaves draft-only UUIDv4 identities unchanged. Any legacy draft input or
+   resolved portable identity that is not UUIDv4 aborts the whole migration;
+   reconcile that source record explicitly before retrying instead of silently
+   generating a replacement identity that could sever immutable lineage.
+3. Verify capture, activation, recapture, Version creation, classroom
+   instantiation, and archived reuse before removing the legacy read path.
+
+Before step 2, application rollback is ordinary. A migration failure rolls the
+whole transaction back, including draft backfill and function replacement.
+After step 2 commits, do not roll application code back past the compatibility
+release: older activation code understands only row IDs. Roll forward with a
+corrected compatibility release, or restore the pre-migration database backup
+if the persisted backfill itself must be reversed. Identity columns and draft
+IDs must never be independently rewritten as an ad hoc rollback.
+
 Singleton sections use permanent semantic identities instead of random UUIDs:
 
 - `course.overview`

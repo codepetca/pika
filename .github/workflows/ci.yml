@@ -99,6 +99,9 @@ jobs:
       - name: Verify versioned Blueprint proposals and deletion safety
         run: bash scripts/check-versioned-course-blueprint-database.sh
 
+      - name: Verify Blueprint test-question identity mapping
+        run: bash scripts/check-blueprint-question-ordinal-identity.sh
+
       - name: Verify durable Course Blueprint purge
         run: bash scripts/check-course-blueprint-purge-database.sh
 

@@ -61,6 +61,7 @@ interface Props {
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
+  onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
@@ -162,6 +163,7 @@ export function TestDetailPanel({
   onRequestTestPreview,
   onPendingMarkdownImportChange,
   onSaveStatusChange,
+  onDraftFlushReady,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -231,6 +233,7 @@ export function TestDetailPanel({
       ) => Promise<boolean>)
     | null
   >(null)
+  const saveRequestPromiseRef = useRef<Promise<boolean> | null>(null)
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
@@ -656,7 +659,7 @@ export function TestDetailPanel({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  const saveDraft = useCallback(
+  const persistDraft = useCallback(
     async (
       nextDraft: AssessmentEditorDraft,
       options?: SaveDraftOptions
@@ -689,8 +692,13 @@ export function TestDetailPanel({
           }),
       }
       const nextSerialized = JSON.stringify(contentDraft)
-      const baseSerialized = saveContext?.lastSavedDraft ?? lastSavedDraftRef.current
-      const draftVersion = saveContext?.draftVersion ?? draftVersionRef.current
+      const usesCapturedScope = Boolean(saveContext) && !isCurrentAssessmentScope(saveScope)
+      const baseSerialized = usesCapturedScope
+        ? saveContext!.lastSavedDraft
+        : lastSavedDraftRef.current
+      const draftVersion = usesCapturedScope
+        ? saveContext!.draftVersion
+        : draftVersionRef.current
       if (!options?.forceFull && nextSerialized === baseSerialized) {
         if (shouldApplySaveLocally()) {
           updateSaveStatus('saved')
@@ -812,6 +820,44 @@ export function TestDetailPanel({
       updateSaveStatus,
     ]
   )
+
+  const saveDraft = useCallback(
+    (nextDraft: AssessmentEditorDraft, options?: SaveDraftOptions): Promise<boolean> => {
+      const previousSave = saveRequestPromiseRef.current
+      const nextSave = (previousSave ?? Promise.resolve(true))
+        .catch(() => false)
+        .then(() => persistDraft(nextDraft, options))
+      saveRequestPromiseRef.current = nextSave
+      void nextSave.finally(() => {
+        if (saveRequestPromiseRef.current === nextSave) {
+          saveRequestPromiseRef.current = null
+        }
+      })
+      return nextSave
+    },
+    [persistDraft],
+  )
+
+  const flushPendingDraft = useCallback(async (): Promise<boolean> => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+    if (conflictDraft) return false
+
+    const pendingDraft = pendingDraftRef.current
+    if (!pendingDraft) return true
+    return saveDraft(pendingDraft, { forceFull: true, documents })
+  }, [conflictDraft, documents, saveDraft])
+
+  useEffect(() => {
+    onDraftFlushReady?.(flushPendingDraft)
+    return () => onDraftFlushReady?.(null)
+  }, [flushPendingDraft, onDraftFlushReady])
 
   const scheduleSave = useCallback(
     (
