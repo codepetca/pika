@@ -370,6 +370,18 @@ describe('Blueprint test-question identity migration', () => {
     )
   })
 
+  it('prefers the exact legacy row ID before portable-identity fallback', () => {
+    expect(migration).toMatch(
+      /select source_question\.id\s+into v_question_row_id\s+from public\.test_questions as source_question\s+where source_question\.test_id = v_draft\.assessment_id\s+and source_question\.id = v_question_id/,
+    )
+    expect(migration).toMatch(
+      /if v_question_row_id is null then\s+select array_agg\(source_question\.id order by source_question\.id\)\s+into v_question_row_ids[\s\S]{0,320}source_question\.artifact_id = v_question_id[\s\S]{0,160}source_question\.source_artifact_id = v_question_id/,
+    )
+    expect(migration).not.toMatch(
+      /source_question\.artifact_id = v_question_id\s+or source_question\.source_artifact_id = v_question_id\s+or source_question\.id = v_question_id/,
+    )
+  })
+
   it('runs the rollback and replay database contract in CI', () => {
     expect(ciWorkflow).toContain(
       'bash scripts/check-blueprint-question-ordinal-identity.sh',
@@ -379,6 +391,12 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'Rejected non-UUIDv4 draft identity changed persisted Test state',
+    )
+    expect(databaseContract).toContain(
+      'Legacy row-ID precedence did not resolve the question-zero identity collision',
+    )
+    expect(databaseContract).toContain(
+      'Legacy row-ID precedence mutated persisted question rows',
     )
     expect(databaseContract).toContain(
       'Stale archived request did not retain its failed ledger',

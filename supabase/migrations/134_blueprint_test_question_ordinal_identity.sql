@@ -8,15 +8,16 @@
 -- the archived-Classroom reuse RPC with stable-identity validation. Persisted question
 -- positions can contain gaps after deletion, and saved drafts can add, remove,
 -- or reorder questions before test_questions is synchronized on activation.
--- Backfill legacy draft row IDs once, match existing source rows only by portable
--- identity, and tolerate draft-only questions. Capture validates source identity
--- without assigning or rewriting it.
+-- Backfill legacy draft row IDs once, preferring their exact historical row
+-- identity before portable-identity fallback, and tolerate draft-only questions.
+-- Capture validates source identity without assigning or rewriting it.
 
 do $$
 declare
   v_draft record;
   v_question jsonb;
   v_question_id uuid;
+  v_question_row_id uuid;
   v_question_row_ids uuid[];
   v_portable_id uuid;
   v_questions jsonb;
@@ -56,25 +57,43 @@ begin
       end if;
       v_question_id := (v_question->>'id')::uuid;
       v_portable_id := v_question_id;
-      select array_agg(source_question.id order by source_question.id)
-      into v_question_row_ids
+
+      -- Before portable draft identities existed, draft question IDs were the
+      -- persisted row IDs. Preserve that exact contract first. Migrations 112
+      -- and 114 could stamp question zero with a later row's ID as portable
+      -- identity, so combining row and portable matches in one set makes valid
+      -- legacy data look ambiguous. This precedence is identity-based: it does
+      -- not inspect position or content.
+      select source_question.id
+      into v_question_row_id
       from public.test_questions as source_question
       where source_question.test_id = v_draft.assessment_id
-        and (
+        and source_question.id = v_question_id;
+
+      if v_question_row_id is null then
+        select array_agg(source_question.id order by source_question.id)
+        into v_question_row_ids
+        from public.test_questions as source_question
+        where source_question.test_id = v_draft.assessment_id
+          and (
           source_question.artifact_id = v_question_id
           or source_question.source_artifact_id = v_question_id
-          or source_question.id = v_question_id
-        );
+          );
 
-      if coalesce(cardinality(v_question_row_ids), 0) > 1 then
-        raise exception 'Legacy Test draft question identity backfill is ambiguous'
-          using errcode = '22023';
-      elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
-        if v_question_row_ids[1] = any(v_claimed_row_ids) then
+        if coalesce(cardinality(v_question_row_ids), 0) > 1 then
+          raise exception 'Legacy Test draft question identity backfill is ambiguous'
+            using errcode = '22023';
+        elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
+          v_question_row_id := v_question_row_ids[1];
+        end if;
+      end if;
+
+      if v_question_row_id is not null then
+        if v_question_row_id = any(v_claimed_row_ids) then
           raise exception 'Legacy Test draft question identity backfill reuses one row'
             using errcode = '22023';
         end if;
-        v_claimed_row_ids := array_append(v_claimed_row_ids, v_question_row_ids[1]);
+        v_claimed_row_ids := array_append(v_claimed_row_ids, v_question_row_id);
 
         select coalesce(
           source_question.source_artifact_id,
@@ -83,7 +102,7 @@ begin
         )
         into v_portable_id
         from public.test_questions as source_question
-        where source_question.id = v_question_row_ids[1];
+        where source_question.id = v_question_row_id;
 
         if v_portable_id::text !~*
           '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'

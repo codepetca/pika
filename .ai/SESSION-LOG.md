@@ -1008,3 +1008,28 @@ hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for a contained test-harness
 compatibility correction and exact-workflow verification.
+## 2026-08-27 — Resolve legacy Test-question backfill collisions
+
+**Risk profile:** runtime-platform — production Test draft identity backfill;
+no production data was changed by migration 134 and no migration retry occurred.
+
+- Production already contained migration 133. The first authorized attempt to
+  apply migration 134 failed atomically because 12 legacy draft questions each
+  matched both their historical row ID and a question-zero row carrying that ID
+  as corrupted portable lineage from migrations 112/114. Migration 134 remains
+  unapplied in production.
+- Changed the unapplied migration to resolve the exact historical row ID first,
+  then use a unique artifact/source identity only when no row-ID match exists.
+  The precedence is contractual and does not infer identity from position or
+  content; genuine multiple portable matches still fail closed.
+- Added static coverage and a fresh disposable-database regression that replays
+  the migration's exact backfill statement against the production collision
+  shape, proves both draft IDs resolve to distinct portable identities, and
+  proves neither persisted question row is mutated.
+- A privacy-minimized read-only production rehearsal resolved all 351 questions
+  across 28 drafts: 212 persisted questions would receive portable draft IDs,
+  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
+  portable matches, row reuse, or duplicate portable identities remain.
+
+**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
+that preserves student-linked row identity.

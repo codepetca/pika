@@ -6,6 +6,7 @@ if [[ -z "$DB_CONTAINER" ]]; then
   DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
 fi
 DATABASE_NAME="${BLUEPRINT_ORDINAL_DATABASE_NAME:-postgres}"
+MIGRATION_FILE="${BLUEPRINT_ORDINAL_MIGRATION_FILE:-supabase/migrations/134_blueprint_test_question_ordinal_identity.sql}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
@@ -57,6 +58,151 @@ if [[ "$blocked_writer_status" -eq 0 ]] \
   echo "$blocked_writer_output" >&2
   exit 1
 fi
+
+# Re-run the migration's exact backfill statement against the production
+# collision shape left by migrations 112/114. Legacy drafts stored row IDs,
+# while the broken ordinal mapper could stamp question zero with a later row's
+# ID as portable identity. The row-ID match must win without reading content or
+# position, and the backfill must not mutate either persisted question row.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role) values (
+  'b1349000-0000-4000-8000-000000000001',
+  'blueprint-question-legacy-backfill@example.test',
+  'teacher'
+);
+insert into public.classrooms (
+  id, teacher_id, title, class_code
+) values (
+  'b1349000-0000-4000-8000-000000000010',
+  'b1349000-0000-4000-8000-000000000001',
+  'Legacy question identity backfill',
+  'B134L1'
+);
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values (
+  'b1349000-0000-4000-8000-000000000011',
+  'b1349000-0000-4000-8000-000000000010',
+  'Legacy row-ID precedence',
+  'closed',
+  false,
+  2,
+  'b1349000-0000-4000-8000-000000000001'
+);
+insert into public.test_questions (
+  id, test_id, artifact_id, source_artifact_id, question_type,
+  question_text, options, correct_option, points,
+  response_max_chars, response_monospace, position
+) values
+  (
+    'b1349000-0000-4000-8000-000000000020',
+    'b1349000-0000-4000-8000-000000000011',
+    'b1349000-0000-4000-8000-000000000021',
+    'b1349000-0000-4000-8000-000000000021',
+    'open_response',
+    'Question zero carrying the later row ID',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    0
+  ),
+  (
+    'b1349000-0000-4000-8000-000000000021',
+    'b1349000-0000-4000-8000-000000000011',
+    'b1349000-0000-4000-8000-000000000031',
+    'b1349000-0000-4000-8000-000000000031',
+    'open_response',
+    'Later question whose row ID was reused',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    7
+  );
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values (
+  'b1349000-0000-4000-8000-000000000012',
+  'test',
+  'b1349000-0000-4000-8000-000000000011',
+  'b1349000-0000-4000-8000-000000000010',
+  '{"title":"Legacy row-ID precedence","show_results":false,"questions":[{"id":"b1349000-0000-4000-8000-000000000020","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  7,
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000001'
+);
+SQL
+
+sed -n '1,/^\$\$;$/p' "$MIGRATION_FILE" \
+  | docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.version = 8
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+  ) then
+    raise exception 'Legacy row-ID precedence did not resolve the question-zero identity collision';
+  end if;
+
+  if (
+    select jsonb_agg(
+      jsonb_build_object(
+        'id', question.id,
+        'artifact_id', question.artifact_id,
+        'source_artifact_id', question.source_artifact_id,
+        'position', question.position,
+        'question_text', question.question_text
+      ) order by question.position
+    )
+    from public.test_questions question
+    where question.test_id = 'b1349000-0000-4000-8000-000000000011'
+  ) is distinct from jsonb_build_array(
+    jsonb_build_object(
+      'id', 'b1349000-0000-4000-8000-000000000020',
+      'artifact_id', 'b1349000-0000-4000-8000-000000000021',
+      'source_artifact_id', 'b1349000-0000-4000-8000-000000000021',
+      'position', 0,
+      'question_text', 'Question zero carrying the later row ID'
+    ),
+    jsonb_build_object(
+      'id', 'b1349000-0000-4000-8000-000000000021',
+      'artifact_id', 'b1349000-0000-4000-8000-000000000031',
+      'source_artifact_id', 'b1349000-0000-4000-8000-000000000031',
+      'position', 7,
+      'question_text', 'Later question whose row ID was reused'
+    )
+  ) then
+    raise exception 'Legacy row-ID precedence mutated persisted question rows';
+  end if;
+end;
+$contract$;
+
+delete from public.assessment_drafts
+where id = 'b1349000-0000-4000-8000-000000000012';
+delete from public.test_questions
+where test_id = 'b1349000-0000-4000-8000-000000000011';
+delete from public.tests
+where id = 'b1349000-0000-4000-8000-000000000011';
+delete from public.classrooms
+where id = 'b1349000-0000-4000-8000-000000000010';
+delete from public.users
+where id = 'b1349000-0000-4000-8000-000000000001';
+SQL
 
 # Prove the application ordering contract with two real sessions. The saver
 # owns the Test lock first and deliberately keeps its transaction open;

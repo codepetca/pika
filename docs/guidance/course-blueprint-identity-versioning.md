@@ -131,10 +131,13 @@ Roll out the contract in compatibility order:
 1. Deploy application code that reads legacy row-ID drafts, projects them to
    portable identity without mutating source rows, synchronizes canonical
    drafts by artifact identity, and fails closed on ambiguity.
-2. Apply the identity migration as one transaction. It resolves legacy draft
-   IDs by exact row/artifact/source UUID matches, aborts on multiple matches,
-   and leaves draft-only UUIDv4 identities unchanged. Any legacy draft input or
-   resolved portable identity that is not UUIDv4 aborts the whole migration;
+2. Apply the identity migration as one transaction. It resolves an exact
+   historical row-ID match first because legacy drafts stored row IDs. Only
+   when no row-ID match exists does it fall back to a unique artifact/source
+   UUID match; multiple portable matches abort, and draft-only UUIDv4 identities
+   remain unchanged. This precedence handles the migration 112/114 question-zero
+   stamping defect without position or content inference. Any legacy draft input
+   or resolved portable identity that is not UUIDv4 aborts the whole migration;
    reconcile that source record explicitly before retrying instead of silently
    generating a replacement identity that could sever immutable lineage.
 3. Verify capture, activation, recapture, Version creation, classroom
