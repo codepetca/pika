@@ -222,8 +222,8 @@ criteria rather than mechanically changing unrelated authoring surfaces.
   until selection and labeled with the selected count when enabled.
 - Keep selection commands feature-owned. Escape and table selection controls
   provide clearance without a permanent clear-selection action.
-- Treat `TeacherSelectionBar` as migration support for existing surfaces, not
-  the target for newly refreshed operational tables.
+- Treat `TeacherSelectionBar` as legacy compatibility with no current production
+  owner, not the target for operational tables.
 - Do not reserve permanent page padding for a selection surface.
 - Apply immediate, reversible row state changes inline. Confirm broad global
   changes, destructive mutations, and costly or overwrite-capable actions.

@@ -103,9 +103,9 @@ Do not repeat the same counts in the context row.
   carrier. Do not require confirmation for each row toggle.
 - Confirm broad global state changes and destructive actions. For costly or
   overwrite-capable actions, ask for the meaningful scope at execution time.
-- `TeacherSelectionBar` is transitional support for existing adopters. New or
-  materially refreshed operational tables use the centered persistent menu and
-  do not add bottom selection clearance.
+- `TeacherSelectionBar` remains legacy compatibility with no current production
+  owner. Operational tables use the centered persistent menu and do not add
+  bottom selection clearance.
 
 ## Executable composition
 

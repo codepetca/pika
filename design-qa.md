@@ -31,7 +31,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Image quality and asset fidelity: the work surface requires no photographic or generated product asset. Production Lucide icons replace the generated board's illustrative icons and remain optically consistent with the existing Pika icon family; no handcrafted SVG, CSS art, emoji, or placeholder imagery was introduced.
 - Copy and content: the implementation preserves Attendance-specific terms (`Show QR`, `Open attendance`, `Close attendance`, `Present`, `Late`, `Absent`, `Clear mark`, and `Attendance hours`) and does not import Test terminology. `Show QR` is intentionally more precise than the exploration tooltip's illustrative wording.
 - Icons and affordances: every icon action has an explicit accessible name; desktop icon actions expose tooltips. The selectable date contains no dropdown chevron. The selected-student chevron appears only on the menu trigger at desktop size.
-- Responsiveness and accessibility: desktop/mobile light/dark captures have no document overflow. Composite menu roles, disabled state, initial focus, arrow navigation, Escape dismissal, and focus restoration are covered. Mobile session and utility menus retain all actions.
+- Responsiveness and accessibility: desktop/mobile light/dark captures have no document overflow. Composite menu items meet the 44 px `min-h-control` target and use the canonical inset visible-focus ring. Menu roles, disabled state, initial focus, arrow navigation, Escape dismissal, and focus restoration are covered. Mobile session and utility menus retain all actions.
 - Interaction/runtime check: primary actions, status sorting, internal scrolling/sticky header, selected-student menu, mobile session menu, utilities, and Attendance hours were exercised in Chromium. Browser console and page errors were collected and remained empty in all four projects.
 
 ## Comparison History
@@ -46,7 +46,16 @@ No actionable P0, P1, or P2 mismatch remains.
 
 - The default and selected focused comparison boards show the approved action hierarchy with production Pika tokens and Attendance semantics.
 - The complete desktop/mobile light/dark matrix passed, including geometry assertions for mathematical centering and touching previous/date/next segments.
-- No P0/P1/P2 issue remained.
+- The visual comparison found no P0/P1/P2 issue. A later independent code review identified a shared menu accessibility issue that was not visible at the full-view comparison scale.
+
+### Pass 3 — passed after independent review
+
+- [P1] Shared teacher work-surface menu rows were shorter than the 44 px direct-action target and lacked the canonical visible-focus treatment.
+- Fix: added `min-h-control` and the Pika inset focus-visible ring to the shared menu item, plus a regression assertion for those classes while retaining semantic keyboard tests.
+- [P2] The teacher work-surface audit still described Attendance selection placement as migration debt after this implementation removed the bottom bar.
+- Fix: corrected the affected guidance to list Attendance as a stable adopter and `TeacherSelectionBar` as legacy compatibility with no production owner.
+- Post-fix evidence: refreshed `teacher-desktop-*-selected-menu.png`, `teacher-mobile-*-selected-menu.png`, and `qa-focus-selected-menu.png` show the taller menu rows. The full four-project Playwright matrix passed again with no browser or page errors.
+- No actionable P0/P1/P2 issue remains.
 
 ## Follow-up Polish
 
