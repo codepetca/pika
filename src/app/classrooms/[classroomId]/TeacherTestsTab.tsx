@@ -32,7 +32,6 @@ import {
   TeacherWorkSurfaceIconMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { TeacherSelectionBar } from '@/components/teacher-work-surface/TeacherSelectionBar'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
@@ -2133,7 +2132,6 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            selectionActive={batchSelectedCount > 0}
             className="min-h-0 rounded-md border border-border"
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
@@ -2476,87 +2474,6 @@ export function TeacherTestsTab({
           </TeacherWorkSurfaceTableFrame>
         </KeyboardNavigableTable>
       )}
-      <TeacherSelectionBar
-        selectedCount={batchSelectedCount}
-        onClear={clearBatchSelection}
-        clearDisabled={isCombinedTestActionsBusy}
-        ariaLabel="Selected student Test actions"
-        className="max-w-4xl bg-surface backdrop-blur-none"
-      >
-        <SplitButton
-          label={(
-            <span className="inline-flex items-center gap-2">
-              {getAccessActionIcon(selectedAccessPrimaryState)}
-              <span>{getAccessActionLabel(selectedAccessPrimaryState, 'Selected', batchSelectedCount)}</span>
-            </span>
-          )}
-          onPrimaryClick={() => handleAccessAction(selectedAccessPrimaryState, 'selected')}
-          options={[{
-            id: `${selectedAccessAlternateState}-selected`,
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                {getAccessActionIcon(selectedAccessAlternateState)}
-                <span>{getAccessActionLabel(selectedAccessAlternateState, 'Selected', batchSelectedCount)}</span>
-              </span>
-            ),
-            onSelect: () => handleAccessAction(selectedAccessAlternateState, 'selected'),
-            disabled: selectedAccessAlternateDisabled,
-          }]}
-          variant="secondary"
-          size="sm"
-          toggleAriaLabel="More selected access actions"
-          menuPlacement="up"
-          primaryButtonProps={{
-            'aria-label': getAccessActionLabel(selectedAccessPrimaryState, 'Selected', batchSelectedCount),
-            disabled: isSelectedAccessActionDisabled,
-          }}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={isCombinedTestActionsBusy}
-          onClick={() => setShowBatchGradeModal(true)}
-        >
-          <Check className="h-4 w-4" aria-hidden="true" /> AI Grade
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={batchSelectedSubmittedCount === 0 || isCombinedTestActionsBusy}
-          onClick={() => {
-            setPendingUnsubmitStudent(null)
-            setShowUnsubmitConfirm(true)
-          }}
-        >
-          <RotateCcw className="h-4 w-4" aria-hidden="true" /> Unsubmit
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={isCombinedTestActionsBusy}
-          onClick={() => {
-            if (selectedOpenAccessCount > 0) {
-              setGradingError('Close selected students before returning')
-              return
-            }
-            setShowReturnConfirm(true)
-          }}
-        >
-          <Send className="h-4 w-4" aria-hidden="true" /> Return
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="danger"
-          disabled={isCombinedTestActionsBusy}
-          onClick={() => setPendingDeleteStudentAttemptIds(batchSelectedStudentIds)}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete Work
-        </Button>
-      </TeacherSelectionBar>
     </div>
   )
 
@@ -2647,14 +2564,127 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
+  const selectedStudentUtilityActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'ai-grade-selected',
+      label: 'AI Grade',
+      icon: <Check className="h-4 w-4" aria-hidden="true" />,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => setShowBatchGradeModal(true),
+    },
+    {
+      id: 'unsubmit-selected',
+      label: 'Unsubmit',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      disabled: batchSelectedSubmittedCount === 0 || isCombinedTestActionsBusy,
+      onSelect: () => {
+        setPendingUnsubmitStudent(null)
+        setShowUnsubmitConfirm(true)
+      },
+    },
+    {
+      id: 'return-selected',
+      label: 'Return',
+      icon: <Send className="h-4 w-4" aria-hidden="true" />,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => {
+        if (selectedOpenAccessCount > 0) {
+          setGradingError('Close selected students before returning')
+          return
+        }
+        setShowReturnConfirm(true)
+      },
+    },
+    {
+      id: 'delete-work-selected',
+      label: 'Delete Work',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      destructive: true,
+      disabled: isCombinedTestActionsBusy,
+      onSelect: () => setPendingDeleteStudentAttemptIds(batchSelectedStudentIds),
+    },
+  ]
+
   const selectedTestControls = selectedTestAction ? (
     <div
       data-testid="test-workspace-actionbar-center"
       className="flex min-w-0 items-center justify-center gap-2"
     >
-      <TeacherWorkSurfaceActionCluster>
-        <SplitButton {...selectedTestAction} />
-      </TeacherWorkSurfaceActionCluster>
+      {batchSelectedCount > 0 ? (
+        <div
+          role="toolbar"
+          aria-label="Selected student Test actions"
+          className="flex max-w-full items-center justify-center gap-1"
+        >
+          <span className="hidden px-2 text-sm font-semibold text-text-default sm:inline">
+            {batchSelectedCount} selected
+          </span>
+          <SplitButton
+            label={(
+              <span className="inline-flex items-center gap-2">
+                {getAccessActionIcon(selectedAccessPrimaryState)}
+                <span>{getAccessActionLabel(selectedAccessPrimaryState, 'Selected', batchSelectedCount)}</span>
+              </span>
+            )}
+            onPrimaryClick={() => handleAccessAction(selectedAccessPrimaryState, 'selected')}
+            options={[{
+              id: `${selectedAccessAlternateState}-selected`,
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  {getAccessActionIcon(selectedAccessAlternateState)}
+                  <span>{getAccessActionLabel(selectedAccessAlternateState, 'Selected', batchSelectedCount)}</span>
+                </span>
+              ),
+              onSelect: () => handleAccessAction(selectedAccessAlternateState, 'selected'),
+              disabled: selectedAccessAlternateDisabled,
+            }]}
+            variant="secondary"
+            size="sm"
+            toggleAriaLabel="More selected access actions"
+            menuPlacement="down"
+            primaryButtonProps={{
+              'aria-label': getAccessActionLabel(selectedAccessPrimaryState, 'Selected', batchSelectedCount),
+              disabled: isSelectedAccessActionDisabled,
+            }}
+          />
+          <div className="hidden items-center gap-1 lg:flex">
+            {selectedStudentUtilityActions.map((action) => (
+              <Button
+                key={action.id}
+                type="button"
+                size="sm"
+                variant={action.destructive ? 'danger' : 'secondary'}
+                disabled={action.disabled}
+                onClick={action.onSelect}
+              >
+                {action.icon}{action.label}
+              </Button>
+            ))}
+          </div>
+          <div className="lg:hidden">
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="More selected student actions"
+              tooltip="More selected student actions"
+              variant="ghost"
+              icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+              items={selectedStudentUtilityActions}
+              menuAriaLabel="Selected student actions"
+            />
+          </div>
+          <TeacherWorkSurfaceIconButton
+            ariaLabel="Clear selection"
+            tooltip="Clear selection"
+            variant="ghost"
+            icon={<X className="h-4 w-4" aria-hidden="true" />}
+            onClick={clearBatchSelection}
+            disabled={isCombinedTestActionsBusy}
+          />
+        </div>
+      ) : (
+        <TeacherWorkSurfaceActionCluster>
+          <SplitButton {...selectedTestAction} />
+        </TeacherWorkSurfaceActionCluster>
+      )}
     </div>
   ) : null
 

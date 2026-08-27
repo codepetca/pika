@@ -337,6 +337,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const primaryBox = await primaryControl.boundingBox()
   expect(primaryBox).not.toBeNull()
   expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+  expect(await primaryControl.locator('..').evaluate((element) => getComputedStyle(element).paddingTop)).toBe('0px')
 
   const [contextBox, scrollPaneBox, selectAllBox, firstStudentBox] = await Promise.all([
     contextBar.boundingBox(),
@@ -392,8 +393,20 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   const selectionBar = page.getByRole('toolbar', { name: 'Selected student Test actions' })
   await expect(selectionBar).toContainText('1 selected')
-  await expect(selectionBar.getByRole('button', { name: 'AI Grade' })).toBeVisible()
-  await expect(selectionBar.getByRole('button', { name: 'Delete Work' })).toBeVisible()
+  const selectionBarBox = await selectionBar.boundingBox()
+  const selectedScrollPaneBox = await scrollPane.boundingBox()
+  expect(selectionBarBox).not.toBeNull()
+  expect(selectedScrollPaneBox).not.toBeNull()
+  expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThan(selectedScrollPaneBox!.y)
+  if (viewport === 'desktop') {
+    await expect(selectionBar.getByRole('button', { name: 'AI Grade' })).toBeVisible()
+    await expect(selectionBar.getByRole('button', { name: 'Delete Work' })).toBeVisible()
+  } else {
+    await selectionBar.getByRole('button', { name: 'More selected student actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'AI Grade' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Delete Work' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
 
   await verifyProjectContract(page, testInfo)
   await page.screenshot({

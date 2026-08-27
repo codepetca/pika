@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Verify entitled-teacher active-class readiness
-
-**Risk profile:** runtime-platform — read-only production UI and aggregate
-database verification; no production migration, deployment, entitlement,
-configuration, flag, cleanup, or attendance-data mutation was performed.
-
-- Confirmed the entitled teacher sees Attendance in the sole active production
-  classroom and that its enabled policy plus opaque roster/schedule mapping are
-  fully synced.
-- Added the target-pinned, aggregate-only `attendance:pilot:readiness` operator.
-  It emits no teacher, classroom, roster, or student identifiers and fails
-  closed unless configured and unconfigured active classrooms both exist.
-- The production run correctly reported
-  `requires_at_least_two_active_classrooms` and
-  `requires_unconfigured_active_classroom`; the save-isolation gate therefore
-  remains open until a second intended active classroom exists or an exact
-  temporary setup and restoration is separately authorized.
-- Added focused readiness, service-role read-path, and operator-contract
-  coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
-  production build pass with only the existing WorkOS Edge-runtime warnings.
-- Independent review found that separate REST reads could observe inconsistent
-  states, an unconfigured Class mapping could mask a missing configured-Class
-  mapping, the service-role transport was not operation-read-only, and output
-  could expose unstable error or revision detail.
-- Remediated those findings with proposed, unapplied migration 133: one stable
-  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
-  transport allowlist, stable operator failure codes, and database regression
-  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
-  boundaries, and the production build pass. Production remains through
-  migration 132 and was not modified.
-- Targeted re-review caught and fixed a database-test false positive where the
-  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
-  assertion now requires exactly the eight aggregate keys with numeric values;
-  migration 133 remains unapplied pending exact authorization.
-
 ## 2026-08-25 — Repair Blueprint Test question identity mapping
 
 **Risk profile:** runtime-platform — the initial database RPC replacement was
@@ -1160,3 +1125,35 @@ is a teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a bounded teacher UI
 remediation with responsive visual verification.
+
+## 2026-08-27 — Consolidate Test grading actions at the top
+
+**Risk profile:** UI-only — selected Test grading action placement and shared
+teacher context-bar chrome changed; no grading behavior, permissions, API,
+schema, persistence, authentication, dependency, migration, or student UI
+changed.
+
+- Removed the floating bottom selection bar from Test grading. Selecting rows
+  now replaces the centered whole-Test control with the selected-student action
+  toolbar in the same top command area.
+- Preserved direct bulk actions on wide layouts and kept every action available
+  from a top overflow menu on narrower layouts. Access, clear-selection, action
+  eligibility, confirmations, and terminology are unchanged.
+- Removed the 4px inset from the shared teacher context-bar floating chrome so
+  the chrome hugs the existing 44px buttons instead of making the FAB appear
+  oversized. This also keeps Attendance and Test on the same shared treatment.
+- Removed obsolete bottom scroll clearance after the selection bar moved.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused Test/shared component tests (74/74, then 71/71 after
+the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
+lint, architecture/design/UI policies, Pika audit, diff checks, and live local
+browser inspection pass. Visual review covers default and selected states on
+desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
+while button height remains 44px. Student UI is n/a because this is a
+teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a focused responsive
+teacher-work-surface interaction refinement.

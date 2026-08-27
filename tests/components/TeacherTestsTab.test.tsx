@@ -1752,6 +1752,15 @@ describe('TeacherTestsTab', () => {
       'aria-checked',
       'mixed',
     )
+    const selectedStudentToolbar = screen.getByRole('toolbar', {
+      name: 'Selected student Test actions',
+    })
+    expect(contextBar).toContainElement(selectedStudentToolbar)
+    expect(selectedStudentToolbar).toHaveTextContent('1 selected')
+    expect(within(selectedStudentToolbar).getByRole('button', {
+      name: 'More selected student actions',
+    })).toHaveAttribute('aria-haspopup', 'menu')
+    expect(within(contextBar).queryByRole('button', { name: 'Close All' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Score' }))
     expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
