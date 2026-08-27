@@ -990,12 +990,12 @@ cross-role visual verification.
 - Simplified the Classwork inspector's authenticity and grade summaries, harmonized shared save-status accessibility/copy, and refreshed affected regression tests.
 
 **Validation:**
-- Focused changed-file regressions (227 passed); full suite (5,156 passed)
+- Focused changed-file regressions (227 passed); final rebased full suite (5,151 passed)
 - Review remediation coordinates Survey Code-mode mutations with the parent autosave,
   strictly validates survey/material timestamp and boolean payloads, and synchronizes
   generated survey due-policy types with migration 134.
 - Removed those four hardened routes from the deletion-only API Zod-debt baseline.
-- TypeScript, lint, architecture, UI-control policy, production build,
+- TypeScript, lint, architecture, UI-control policy, design policy, production build,
   `git diff --check`, and Pika audit passed.
 - Teacher inspector and shared modal controls were reviewed on desktop/mobile in
   light and dark with no horizontal overflow; student view is not applicable.

@@ -91,20 +91,20 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 6,
-          "fingerprint": "01999dfccae59d6f",
+          "count": 4,
+          "fingerprint": "1e18c3a6e93dc1a8",
           "reason": "layout-geometry"
         },
         {
           "kind": "raw-color-class",
-          "count": 8,
-          "fingerprint": "d8800159e0354a5f",
+          "count": 4,
+          "fingerprint": "d5c45ef42a8ed4d6",
           "reason": "legacy-visual-value"
         },
         {
           "kind": "raw-z-index",
-          "count": 2,
-          "fingerprint": "556991f875e0acb3",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
           "reason": "special-layer"
         }
       ]
@@ -139,8 +139,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "4085886e79150fbc",
+          "count": 1,
+          "fingerprint": "67d78a17e7f955a5",
           "reason": "layout-geometry"
         },
         {
@@ -397,8 +397,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 24,
-          "fingerprint": "e545d6e91ae94b83",
+          "count": 5,
+          "fingerprint": "f5b919a77c96b5b0",
           "reason": "legacy-visual-value"
         }
       ]
@@ -427,8 +427,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "6558d2be703257cf",
+          "count": 2,
+          "fingerprint": "b2d4dc94a42f9d5a",
           "reason": "layout-geometry"
         }
       ]
@@ -465,6 +465,30 @@
           "kind": "arbitrary-spacing",
           "count": 2,
           "fingerprint": "9f563f4c1d285d37",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/classwork/ClassworkContentModal.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "15ce522f68ddcad9",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/classwork/ClassworkDueFields.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "41553280423348d2",
           "reason": "layout-geometry"
         }
       ]
@@ -644,6 +668,18 @@
       ]
     },
     {
+      "file": "src/components/materials/TeacherMaterialModal.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "c5b730c7cec49589",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
       "file": "src/components/ScheduleDateTimePicker.tsx",
       "reviewBy": "phase-3-scheduling",
       "values": [
@@ -733,8 +769,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "3d2942c28e776924",
+          "count": 2,
+          "fingerprint": "00746f04c04b08da",
           "reason": "layout-geometry"
         }
       ]
