@@ -18,6 +18,8 @@ type EvaluationCase = {
   expected: ExpectedItem[]
 }
 
+const EVALUATION_MODEL = 'gpt-5-nano-2025-08-07'
+
 const cases: EvaluationCase[] = [
   {
     id: 'explicit-abuse',
@@ -93,6 +95,7 @@ const cases: EvaluationCase[] = [
 ]
 
 async function main() {
+  process.env.OPENAI_SUMMARY_MODEL = EVALUATION_MODEL
   const evaluatedAt = new Date().toISOString()
   const evaluatedSourceSha = execFileSync('git', ['rev-parse', 'HEAD'], {
     encoding: 'utf8',
@@ -102,10 +105,12 @@ async function main() {
   let falseNegatives = 0
   let falsePositives = 0
   let attributionOrCategoryMismatches = 0
+  const providerModels = new Set<string>()
 
   for (const testCase of cases) {
     const { system, user, sourceMap } = buildSummaryPrompt('2026-08-27', testCase.logs)
     const response = await callOpenAIForSummary(system, user, sourceMap)
+    providerModels.add(response.provider_model || '<missing>')
     const actual = response.action_items.map((item) => ({
       source_ref: item.source_ref,
       category: item.category,
@@ -134,20 +139,25 @@ async function main() {
     maximum_false_negatives: 0,
     maximum_false_positives: 0,
     maximum_attribution_or_category_mismatches: 0,
+    required_provider_model: EVALUATION_MODEL,
   }
   const observed = {
     false_negatives: falseNegatives,
     false_positives: falsePositives,
     attribution_or_category_mismatches: attributionOrCategoryMismatches,
+    provider_models: [...providerModels],
   }
+  const providerModelMatched =
+    providerModels.size === 1 && providerModels.has(EVALUATION_MODEL)
   const passed =
     falseNegatives <= acceptance.maximum_false_negatives &&
     falsePositives <= acceptance.maximum_false_positives &&
-    attributionOrCategoryMismatches <= acceptance.maximum_attribution_or_category_mismatches
+    attributionOrCategoryMismatches <= acceptance.maximum_attribution_or_category_mismatches &&
+    providerModelMatched
 
   console.log(JSON.stringify({
     evaluated_at: evaluatedAt,
-    model: getSummaryModel(),
+    requested_model: getSummaryModel(),
     policy_version: LOG_SUMMARY_POLICY_VERSION,
     evaluated_source_sha: evaluatedSourceSha,
     acceptance,

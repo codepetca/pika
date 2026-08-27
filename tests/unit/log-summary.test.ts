@@ -299,7 +299,11 @@ describe('callOpenAIForSummary', () => {
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ status: 'completed', output_text: JSON.stringify(mockResponse) }),
+      json: async () => ({
+        status: 'completed',
+        model: 'gpt-5-nano-2025-08-07',
+        output_text: JSON.stringify(mockResponse),
+      }),
     } as Response)
 
     const result = await callOpenAIForSummary(
@@ -308,6 +312,7 @@ describe('callOpenAIForSummary', () => {
       { log_1: 'J.S.' }
     )
     expect(result.overview).toBe('High-priority items were identified by this automated summary.')
+    expect(result.provider_model).toBe('gpt-5-nano-2025-08-07')
     expect(result.action_items).toEqual([
       {
         text: 'J.S. reported an urgent safety or abuse concern.',

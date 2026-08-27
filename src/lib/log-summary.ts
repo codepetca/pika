@@ -117,6 +117,7 @@ Respond with ONLY valid JSON. No markdown, no code blocks.`
 
 export interface RawSummaryResponse {
   overview: string
+  provider_model?: string
   action_items: {
     text: string
     initials: string
@@ -222,6 +223,7 @@ export async function callOpenAIForSummary(
 
   return {
     overview: canonicalOverview(actionItems.length),
+    provider_model: typeof payload.model === 'string' ? payload.model : undefined,
     action_items: actionItems,
   }
 }
