@@ -627,10 +627,9 @@ test.describe('teacher experience matrix', () => {
     const editOverview = page.getByRole('button', {
       name: 'Edit curriculum overview and expectations',
     })
-    await editOverview.evaluate((element) => {
-      element.scrollIntoView({ block: 'center' })
-    })
-    await editOverview.click()
+    await editOverview.focus()
+    await expect(editOverview).toBeFocused()
+    await page.keyboard.press('Enter')
     const overviewEditor = page.getByRole('textbox', {
       name: 'Curriculum overview and expectations',
     })
