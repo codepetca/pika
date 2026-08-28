@@ -132,6 +132,16 @@ export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
     child_columns: ['classroom_id'],
   },
   {
+    child_table: 'attendance_check_in_facts',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_check_in_facts',
+    parent_table: 'users',
+    child_columns: ['student_id'],
+  },
+  {
     child_table: 'attendance_record_projection',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
@@ -140,6 +150,31 @@ export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
     child_table: 'attendance_record_projection',
     parent_table: 'users',
     child_columns: ['student_id'],
+  },
+  {
+    child_table: 'attendance_status_overrides',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_status_overrides',
+    parent_table: 'users',
+    child_columns: ['student_id'],
+  },
+  {
+    child_table: 'attendance_status_override_events',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_status_override_events',
+    parent_table: 'users',
+    child_columns: ['student_id'],
+  },
+  {
+    child_table: 'attendance_override_requests',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
   },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
 

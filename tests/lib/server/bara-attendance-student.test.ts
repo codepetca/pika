@@ -78,14 +78,14 @@ describe('native Pika student attendance check-in', () => {
     const resolveActor = vi.fn().mockResolvedValue(actor)
     const send = vi.fn().mockResolvedValue({
       outcome: 'applied',
-      resultCode: 'present_marked',
+      resultCode: 'check_in_accepted',
       occurrenceRef: 'occurrence_one',
       sessionRevision: 2,
-      record: {
+      checkIn: {
+        checkInRef: 'check_in_one',
         participantRef: 'participant_one',
-        recordRevision: 1,
-        status: 'present',
-        modifiedAt: '2026-09-02T13:01:00.000Z',
+        checkInRevision: 1,
+        acceptedAt: '2026-09-02T13:01:00.000Z',
       },
     })
 
@@ -97,6 +97,7 @@ describe('native Pika student attendance check-in', () => {
       integrationState: 'ready',
       resolveActor,
       send,
+      loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z'),
     })
 
     expect(resolveActor).toHaveBeenCalledWith({ supabase: {}, pikaUser })
@@ -132,7 +133,7 @@ describe('native Pika student attendance check-in', () => {
       .mockRejectedValueOnce(new BaraAttendanceClientError('timeout', 'network_error', true))
       .mockResolvedValueOnce({
         outcome: 'duplicate',
-        resultCode: 'already_present',
+        resultCode: 'already_checked_in',
         occurrenceRef: 'occurrence_one',
         sessionRevision: 2,
       })
@@ -154,7 +155,7 @@ describe('native Pika student attendance check-in', () => {
   it('uses a new idempotency key for each independent scan attempt', async () => {
     const send = vi.fn().mockResolvedValue({
       outcome: 'duplicate',
-      resultCode: 'already_present',
+      resultCode: 'already_checked_in',
       occurrenceRef: 'occurrence_one',
       sessionRevision: 2,
     })
@@ -257,7 +258,7 @@ describe('native Pika student attendance check-in', () => {
   })
 
   it.each([
-    ['session_closed', 'closed'],
+    ['session_not_accepting', 'closed'],
     ['invalid_check_in_token', 'invalid'],
     ['not_on_roster', 'needs_staff'],
   ] as const)('maps %s to a native %s state', async (resultCode, state) => {

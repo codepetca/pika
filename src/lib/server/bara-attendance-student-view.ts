@@ -16,6 +16,7 @@ import type {
 
 const MAX_STUDENT_CLASSROOMS = 50
 const MAX_STUDENT_OCCURRENCES = MAX_STUDENT_CLASSROOMS * 2
+const MAX_STUDENT_CHECK_INS = MAX_STUDENT_OCCURRENCES * 5
 const OPEN_REFRESH_MS = 15_000
 const SCHEDULED_REFRESH_MS = 60_000
 
@@ -43,6 +44,8 @@ const occurrenceRowsSchema = z.array(z.object({
   occurrence_ref: z.string().min(1).max(128),
   opens_at: z.string().datetime({ offset: true }).nullable(),
   closes_at: z.string().datetime({ offset: true }).nullable(),
+  present_through_at: z.string().datetime({ offset: true }).nullable(),
+  absent_at: z.string().datetime({ offset: true }).nullable(),
   desired_state: z.enum(['scheduled', 'cancelled']),
 }).strict()).max(MAX_STUDENT_OCCURRENCES)
 
@@ -53,16 +56,28 @@ const sessionRowsSchema = z.array(z.object({
   closes_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()).max(MAX_STUDENT_OCCURRENCES)
 
-const recordRowsSchema = z.array(z.object({
+const checkInRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
   occurrence_ref: z.string().min(1).max(128),
-  status: z.enum(['unmarked', 'present', 'late', 'absent']),
-  last_event_at: z.string().datetime({ offset: true }),
+  check_in_ref: z.string().min(1).max(128),
+  check_in_revision: z.number().int().positive(),
+  accepted_at: z.string().datetime({ offset: true }),
+  invalidated_at: z.string().datetime({ offset: true }).nullable(),
+}).strict()).max(MAX_STUDENT_CHECK_INS)
+
+const overrideRowsSchema = z.array(z.object({
+  classroom_id: z.string().uuid(),
+  occurrence_ref: z.string().min(1).max(128),
+  status: z.enum(['present', 'late', 'absent']).nullable(),
+  active: z.boolean(),
+  revision: z.number().int().positive(),
+  updated_at: z.string().datetime({ offset: true }),
 }).strict()).max(MAX_STUDENT_OCCURRENCES)
 
 type OccurrenceRow = z.infer<typeof occurrenceRowsSchema>[number]
 type SessionRow = z.infer<typeof sessionRowsSchema>[number]
-type RecordRow = z.infer<typeof recordRowsSchema>[number]
+type CheckInRow = z.infer<typeof checkInRowsSchema>[number]
+type OverrideRow = z.infer<typeof overrideRowsSchema>[number]
 
 export class StudentAttendanceStatusReadError extends Error {
   constructor(readonly code: 'read_failed' | 'invalid_projection') {
@@ -118,17 +133,29 @@ export function buildStudentAttendanceClassroomState(input: {
   classroomId: string
   occurrence: OccurrenceRow | null
   session: SessionRow | null
-  record: RecordRow | null
+  checkIn: CheckInRow | null
+  statusOverride: OverrideRow | null
   now: Date
 }): { state: StudentAttendanceClassroomState; nextRefreshAt: string | null } {
-  const { classroomId, occurrence, session, record, now } = input
-  const ownConfirmedStatus = record?.status === 'present' || record?.status === 'late'
-    ? record.status
+  const { classroomId, occurrence, session, checkIn, statusOverride, now } = input
+  const automaticStatus = checkIn && !checkIn.invalidated_at && occurrence?.present_through_at
+    ? Date.parse(checkIn.accepted_at) <= Date.parse(occurrence.present_through_at)
+      ? 'present' as const
+      : 'late' as const
     : null
+  const ownConfirmedStatus = statusOverride?.active
+    && (statusOverride.status === 'present' || statusOverride.status === 'late')
+    ? statusOverride.status
+    : statusOverride?.active
+      ? null
+      : automaticStatus
+  const confirmedAt = statusOverride?.active
+    ? statusOverride.updated_at
+    : checkIn?.accepted_at ?? null
   const opensAt = session?.opens_at ?? occurrence?.opens_at ?? null
   const closesAt = session?.closes_at ?? occurrence?.closes_at ?? null
 
-  if (record && ownConfirmedStatus) {
+  if (ownConfirmedStatus && confirmedAt) {
     const closesTime = closesAt ? Date.parse(closesAt) : Number.NaN
     const shouldRefreshBeforeClose = Number.isFinite(closesTime) && now.getTime() < closesTime
     const validUntil = confirmedValidityBoundary(occurrence, closesAt, now)
@@ -139,7 +166,7 @@ export function buildStudentAttendanceClassroomState(input: {
         opensAt,
         closesAt,
         attendanceStatus: ownConfirmedStatus,
-        confirmedAt: record.last_event_at,
+        confirmedAt,
         validUntil,
       },
       nextRefreshAt: shouldRefreshBeforeClose
@@ -288,7 +315,7 @@ export async function loadStudentAttendanceStatusView(input: {
   const previousDay = addDaysToDateString(today, -1)
   const occurrenceResult = await input.supabase
     .from('attendance_occurrence_mappings')
-    .select('classroom_id, class_date, occurrence_ref, opens_at, closes_at, desired_state')
+    .select('classroom_id, class_date, occurrence_ref, opens_at, closes_at, present_through_at, absent_at, desired_state')
     .in('classroom_id', readyClassroomIds)
     .in('class_date', [previousDay, today])
     .limit(MAX_STUDENT_OCCURRENCES)
@@ -297,13 +324,14 @@ export async function loadStudentAttendanceStatusView(input: {
   const occurrenceRefs = occurrences.map((row) => row.occurrence_ref)
 
   let sessions: SessionRow[] = []
-  let records: RecordRow[] = []
+  let checkIns: CheckInRow[] = []
+  let overrides: OverrideRow[] = []
   if (occurrenceRefs.length > 0) {
     const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
     if (!/^[A-Za-z0-9._~-]{1,128}$/.test(installationRef)) {
       throw new StudentAttendanceStatusReadError('read_failed')
     }
-    const [sessionResult, recordResult] = await Promise.all([
+    const [sessionResult, checkInResult, overrideResult] = await Promise.all([
       input.supabase
         .from('attendance_session_projection')
         .select('occurrence_ref, status, opens_at, closes_at')
@@ -311,21 +339,37 @@ export async function loadStudentAttendanceStatusView(input: {
         .in('occurrence_ref', occurrenceRefs)
         .limit(MAX_STUDENT_OCCURRENCES),
       input.supabase
-        .from('attendance_record_projection')
-        .select('classroom_id, occurrence_ref, status, last_event_at')
+        .from('attendance_check_in_facts')
+        .select('classroom_id, occurrence_ref, check_in_ref, check_in_revision, accepted_at, invalidated_at')
         .eq('installation_ref', installationRef)
+        .eq('student_id', input.studentId)
+        .in('occurrence_ref', occurrenceRefs)
+        .limit(MAX_STUDENT_CHECK_INS),
+      input.supabase
+        .from('attendance_status_overrides')
+        .select('classroom_id, occurrence_ref, status, active, revision, updated_at')
         .eq('student_id', input.studentId)
         .in('occurrence_ref', occurrenceRefs)
         .limit(MAX_STUDENT_OCCURRENCES),
     ])
     assertRead(sessionResult)
-    assertRead(recordResult)
+    assertRead(checkInResult)
+    assertRead(overrideResult)
     sessions = parseRows(sessionRowsSchema, sessionResult.data)
-    records = parseRows(recordRowsSchema, recordResult.data)
+    checkIns = parseRows(checkInRowsSchema, checkInResult.data)
+    overrides = parseRows(overrideRowsSchema, overrideResult.data)
   }
 
   const sessionByOccurrence = new Map(sessions.map((row) => [row.occurrence_ref, row]))
-  const recordByOccurrence = new Map(records.map((row) => [row.occurrence_ref, row]))
+  const checkInByOccurrence = new Map<string, CheckInRow>()
+  for (const checkIn of checkIns) {
+    if (checkIn.invalidated_at) continue
+    const current = checkInByOccurrence.get(checkIn.occurrence_ref)
+    if (!current || Date.parse(checkIn.accepted_at) > Date.parse(current.accepted_at)) {
+      checkInByOccurrence.set(checkIn.occurrence_ref, checkIn)
+    }
+  }
+  const overrideByOccurrence = new Map(overrides.map((row) => [row.occurrence_ref, row]))
   const occurrencesByClassroom = new Map<string, OccurrenceRow[]>()
   for (const occurrence of occurrences) {
     const rows = occurrencesByClassroom.get(occurrence.classroom_id) ?? []
@@ -344,8 +388,13 @@ export async function loadStudentAttendanceStatusView(input: {
       const effectiveClosesAt = session?.closes_at ?? occurrence.closes_at
       const closesTime = effectiveClosesAt ? Date.parse(effectiveClosesAt) : Number.NaN
       if (!Number.isFinite(closesTime) || now.getTime() >= closesTime) return false
-      const record = recordByOccurrence.get(occurrence.occurrence_ref)
-      return session?.status === 'open' || record?.status === 'present' || record?.status === 'late'
+      const checkIn = checkInByOccurrence.get(occurrence.occurrence_ref) ?? null
+      const statusOverride = overrideByOccurrence.get(occurrence.occurrence_ref) ?? null
+      const derived = buildStudentAttendanceClassroomState({
+        classroomId: classroom.id, occurrence, session: session ?? null,
+        checkIn, statusOverride, now,
+      })
+      return session?.status === 'open' || derived.state.state === 'confirmed'
     })
     const occurrence = overnightOccurrence
       ?? classroomOccurrences.find((row) => row.class_date === today)
@@ -354,7 +403,8 @@ export async function loadStudentAttendanceStatusView(input: {
       classroomId: classroom.id,
       occurrence,
       session: occurrence ? sessionByOccurrence.get(occurrence.occurrence_ref) ?? null : null,
-      record: occurrence ? recordByOccurrence.get(occurrence.occurrence_ref) ?? null : null,
+      checkIn: occurrence ? checkInByOccurrence.get(occurrence.occurrence_ref) ?? null : null,
+      statusOverride: occurrence ? overrideByOccurrence.get(occurrence.occurrence_ref) ?? null : null,
       now,
     })
     nextRefreshAt = minInstant(nextRefreshAt, built.nextRefreshAt)

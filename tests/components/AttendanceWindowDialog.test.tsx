@@ -20,9 +20,13 @@ function savedPolicy(overrides: Record<string, unknown> = {}) {
   return {
     classroomId,
     timezone: 'America/Toronto',
-    opensLocal: '08:45',
-    closesLocal: '09:15',
-    closeDayOffset: 0,
+    sessionStartsLocal: '08:45',
+    sessionEndsLocal: '09:15',
+    sessionEndDayOffset: 0,
+    entryOpensMinutesBefore: 10,
+    presentGraceMinutes: 5,
+    entryClosesMinutesBeforeEnd: 10,
+    absentMinutesBeforeEnd: 0,
     enabled: true,
     revision: 1,
     updatedAt: '2026-08-17T12:00:00.000Z',
@@ -61,7 +65,7 @@ describe('AttendanceWindowDialog', () => {
     vi.unstubAllGlobals()
   })
 
-  it('requires explicit times, saves the policy, and syncs the next 90 days', async () => {
+  it('starts with durable defaults, saves the policy, and syncs the next 90 days', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse({ policy: null }))
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
@@ -71,24 +75,28 @@ describe('AttendanceWindowDialog', () => {
       }))
     const { onSaved, onClose } = renderDialog()
 
-    expect(await screen.findByLabelText('Opens*')).toHaveValue('')
-    expect(screen.getByRole('button', { name: 'Save hours' })).toBeDisabled()
+    expect(await screen.findByLabelText('Session starts*')).toHaveValue('09:00')
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeEnabled()
 
-    fireEvent.change(screen.getByLabelText('Opens*'), { target: { value: '08:45' } })
-    fireEvent.change(screen.getByLabelText('Closes*'), { target: { value: '09:15' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save hours' }))
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '08:45' } })
+    fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '09:15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
     expect(onClose).toHaveBeenCalledOnce()
-    expect(screen.getByText('Attendance hours saved')).toBeInTheDocument()
+    expect(screen.getByText('Attendance timing saved')).toBeInTheDocument()
 
     const policyWrite = vi.mocked(fetch).mock.calls[1]
     expect(policyWrite[0]).toBe('/api/teacher/attendance/policy')
     expect(JSON.parse(String(policyWrite[1]?.body))).toEqual({
       classroom_id: classroomId,
-      opens_local: '08:45',
-      closes_local: '09:15',
-      close_day_offset: 0,
+      session_starts_local: '08:45',
+      session_ends_local: '09:15',
+      session_end_day_offset: 0,
+      entry_opens_minutes_before: 10,
+      present_grace_minutes: 5,
+      entry_closes_minutes_before_end: 10,
+      absent_minutes_before_end: 0,
       enabled: true,
       expected_revision: null,
     })
@@ -107,9 +115,9 @@ describe('AttendanceWindowDialog', () => {
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ revision: 4 }) }))
       .mockResolvedValueOnce(jsonResponse({
         policy: savedPolicy({
-          opensLocal: '23:30',
-          closesLocal: '00:30',
-          closeDayOffset: 1,
+          sessionStartsLocal: '23:30',
+          sessionEndsLocal: '00:30',
+          sessionEndDayOffset: 1,
           revision: 5,
         }),
       }))
@@ -119,17 +127,17 @@ describe('AttendanceWindowDialog', () => {
       }))
     const { onSaved } = renderDialog()
 
-    expect(await screen.findByLabelText('Opens*')).toHaveValue('08:45')
-    fireEvent.change(screen.getByLabelText('Opens*'), { target: { value: '23:30' } })
-    fireEvent.change(screen.getByLabelText('Closes*'), { target: { value: '00:30' } })
-    fireEvent.change(screen.getByLabelText('Closing day'), { target: { value: '1' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save hours' }))
+    expect(await screen.findByLabelText('Session starts*')).toHaveValue('08:45')
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '23:30' } })
+    fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '00:30' } })
+    fireEvent.change(screen.getByLabelText('Session end day'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))).toMatchObject({
-      opens_local: '23:30',
-      closes_local: '00:30',
-      close_day_offset: 1,
+      session_starts_local: '23:30',
+      session_ends_local: '00:30',
+      session_end_day_offset: 1,
       expected_revision: 4,
     })
   })
@@ -203,23 +211,23 @@ describe('AttendanceWindowDialog', () => {
     const { onSaved, onClose } = renderDialog()
 
     await screen.findByDisplayValue('08:45')
-    fireEvent.click(screen.getByRole('button', { name: 'Save hours' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
     expect(onClose).toHaveBeenCalledOnce()
-    expect(screen.getByText('Hours saved; automatic schedule sync will retry')).toBeInTheDocument()
+    expect(screen.getByText('Timing saved; automatic schedule sync will retry')).toBeInTheDocument()
   })
 
   it('blocks an invalid same-day window before any write', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: null }))
     renderDialog()
 
-    await screen.findByLabelText('Opens*')
-    fireEvent.change(screen.getByLabelText('Opens*'), { target: { value: '10:00' } })
-    fireEvent.change(screen.getByLabelText('Closes*'), { target: { value: '09:00' } })
+    await screen.findByLabelText('Session starts*')
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '10:00' } })
+    fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '09:00' } })
 
-    expect(screen.getByText('Closing time must be after opening time.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save hours' })).toBeDisabled()
+    expect(screen.getByText('Session end must be after session start.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeDisabled()
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
   })
 
@@ -233,6 +241,6 @@ describe('AttendanceWindowDialog', () => {
     renderDialog()
 
     expect(await screen.findByRole('heading', { name: 'Attendance hours unavailable' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Opens*')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Session starts*')).not.toBeInTheDocument()
   })
 })

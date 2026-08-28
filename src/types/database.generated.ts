@@ -1133,6 +1133,78 @@ export type Database = {
           },
         ]
       }
+      attendance_check_in_facts: {
+        Row: {
+          accepted_at: string
+          check_in_ref: string
+          check_in_revision: number
+          classroom_id: string
+          created_at: string
+          id: string
+          installation_ref: string
+          invalidated_at: string | null
+          last_event_at: string | null
+          last_event_id: string | null
+          occurrence_ref: string
+          participant_ref: string
+          reason_code: string | null
+          roster_ref: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at: string
+          check_in_ref: string
+          check_in_revision: number
+          classroom_id: string
+          created_at?: string
+          id?: string
+          installation_ref: string
+          invalidated_at?: string | null
+          last_event_at?: string | null
+          last_event_id?: string | null
+          occurrence_ref: string
+          participant_ref: string
+          reason_code?: string | null
+          roster_ref: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string
+          check_in_ref?: string
+          check_in_revision?: number
+          classroom_id?: string
+          created_at?: string
+          id?: string
+          installation_ref?: string
+          invalidated_at?: string | null
+          last_event_at?: string | null
+          last_event_id?: string | null
+          occurrence_ref?: string
+          participant_ref?: string
+          reason_code?: string | null
+          roster_ref?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_check_in_facts_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_check_in_facts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_integration_inbox: {
         Row: {
           classroom_id: string
@@ -1355,6 +1427,7 @@ export type Database = {
       }
       attendance_occurrence_mappings: {
         Row: {
+          absent_at: string | null
           class_date: string
           classroom_id: string
           closes_at: string | null
@@ -1363,11 +1436,17 @@ export type Database = {
           last_reconciled_at: string | null
           occurrence_ref: string
           opens_at: string | null
+          policy_frozen_at: string | null
+          policy_revision: number | null
+          present_through_at: string | null
+          session_ends_at: string | null
+          session_starts_at: string | null
           source_revision: number
           synced_revision: number | null
           updated_at: string
         }
         Insert: {
+          absent_at?: string | null
           class_date: string
           classroom_id: string
           closes_at?: string | null
@@ -1376,11 +1455,17 @@ export type Database = {
           last_reconciled_at?: string | null
           occurrence_ref?: string
           opens_at?: string | null
+          policy_frozen_at?: string | null
+          policy_revision?: number | null
+          present_through_at?: string | null
+          session_ends_at?: string | null
+          session_starts_at?: string | null
           source_revision?: number
           synced_revision?: number | null
           updated_at?: string
         }
         Update: {
+          absent_at?: string | null
           class_date?: string
           classroom_id?: string
           closes_at?: string | null
@@ -1389,6 +1474,11 @@ export type Database = {
           last_reconciled_at?: string | null
           occurrence_ref?: string
           opens_at?: string | null
+          policy_frozen_at?: string | null
+          policy_revision?: number | null
+          present_through_at?: string | null
+          session_ends_at?: string | null
+          session_starts_at?: string | null
           source_revision?: number
           synced_revision?: number | null
           updated_at?: string
@@ -1396,6 +1486,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "attendance_occurrence_mappings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_override_requests: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          request_fingerprint: string
+          request_id: string
+          result: Json
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          request_fingerprint: string
+          request_id: string
+          result: Json
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          request_fingerprint?: string
+          request_id?: string
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_override_requests_classroom_id_fkey"
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
@@ -1667,6 +1789,144 @@ export type Database = {
           },
         ]
       }
+      attendance_status_override_events: {
+        Row: {
+          action: string
+          actor_user_id: string
+          classroom_id: string
+          created_at: string
+          id: string
+          occurrence_ref: string
+          override_id: string
+          reason_code: string | null
+          request_id: string
+          revision: number
+          status: string | null
+          student_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          classroom_id: string
+          created_at?: string
+          id?: string
+          occurrence_ref: string
+          override_id: string
+          reason_code?: string | null
+          request_id: string
+          revision: number
+          status?: string | null
+          student_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          classroom_id?: string
+          created_at?: string
+          id?: string
+          occurrence_ref?: string
+          override_id?: string
+          reason_code?: string | null
+          request_id?: string
+          revision?: number
+          status?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_status_override_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_status_override_events_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_status_override_events_override_id_fkey"
+            columns: ["override_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_status_overrides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_status_override_events_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_status_overrides: {
+        Row: {
+          active: boolean
+          classroom_id: string
+          created_at: string
+          id: string
+          occurrence_ref: string
+          reason_code: string | null
+          revision: number
+          status: string | null
+          student_id: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          active: boolean
+          classroom_id: string
+          created_at?: string
+          id?: string
+          occurrence_ref: string
+          reason_code?: string | null
+          revision?: number
+          status?: string | null
+          student_id: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          active?: boolean
+          classroom_id?: string
+          created_at?: string
+          id?: string
+          occurrence_ref?: string
+          reason_code?: string | null
+          revision?: number
+          status?: string | null
+          student_id?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_status_overrides_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_status_overrides_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_status_overrides_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_teacher_entitlement_audit: {
         Row: {
           actor_ref: string
@@ -1758,35 +2018,47 @@ export type Database = {
       }
       attendance_window_policies: {
         Row: {
+          absent_minutes_before_end: number
           classroom_id: string
           close_day_offset: number
           closes_local: string
           created_at: string
           enabled: boolean
+          entry_closes_minutes_before_end: number
+          entry_opens_minutes_before: number
           opens_local: string
           policy_revision: number
+          present_grace_minutes: number
           timezone: string
           updated_at: string
         }
         Insert: {
+          absent_minutes_before_end?: number
           classroom_id: string
           close_day_offset?: number
           closes_local: string
           created_at?: string
           enabled?: boolean
+          entry_closes_minutes_before_end?: number
+          entry_opens_minutes_before?: number
           opens_local: string
           policy_revision?: number
+          present_grace_minutes?: number
           timezone?: string
           updated_at?: string
         }
         Update: {
+          absent_minutes_before_end?: number
           classroom_id?: string
           close_day_offset?: number
           closes_local?: string
           created_at?: string
           enabled?: boolean
+          entry_closes_minutes_before_end?: number
+          entry_opens_minutes_before?: number
           opens_local?: string
           policy_revision?: number
+          present_grace_minutes?: number
           timezone?: string
           updated_at?: string
         }
@@ -6825,6 +7097,16 @@ export type Database = {
         Args: { p_installation_ref: string; p_snapshot: Json }
         Returns: Json
       }
+      apply_attendance_status_overrides_v1: {
+        Args: {
+          p_class_date: string
+          p_classroom_id: string
+          p_marks: Json
+          p_request_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       apply_course_blueprint_classroom_proposal_atomic: {
         Args: {
           p_classroom_plan: Json
@@ -9567,6 +9849,17 @@ export type Database = {
         }
         Returns: Json
       }
+      stage_attendance_timing_schedule_v1: {
+        Args: {
+          p_at?: string
+          p_classroom_id: string
+          p_cutoffs: Json
+          p_message: Json
+          p_source_token: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       stage_classroom_archive_compaction_objects: {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -9764,6 +10057,23 @@ export type Database = {
           p_enabled: boolean
           p_expected_revision?: number
           p_opens_local: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      upsert_attendance_timing_policy_v1: {
+        Args: {
+          p_absent_minutes_before_end: number
+          p_at?: string
+          p_classroom_id: string
+          p_enabled: boolean
+          p_entry_closes_minutes_before_end: number
+          p_entry_opens_minutes_before: number
+          p_expected_revision?: number
+          p_present_grace_minutes: number
+          p_session_end_day_offset: number
+          p_session_ends_local: string
+          p_session_starts_local: string
           p_teacher_id: string
         }
         Returns: Json
