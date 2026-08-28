@@ -167,6 +167,40 @@ Source grounding:
 - [`scripts/check-ui-policy.ts`](/scripts/check-ui-policy.ts)
 - [`scripts/ui-control-exceptions.json`](/scripts/ui-control-exceptions.json)
 
+### 3f. Teacher operational tables use the shared Attendance/Test composition
+
+- Use one compact context row when a scan-heavy teacher surface has one active
+  scope such as a date, range, collection, or selected work item.
+- Keep informational state quiet at the edges. Put the active scope and its
+  immediate commands in the elevated centered cluster so actions remain
+  visually distinct from information.
+- Keep row-derived status counts in their table header. When a count changes
+  ordering, render it as a named pressed-state control that prioritizes that
+  status; do not duplicate it in the context row.
+- Use Daily's tight table rhythm: separate sortable identity columns, relevant
+  metadata columns, a trailing status column, shared sort indicators, optional
+  persisted resizing, and responsive omission of secondary metadata.
+- Keep the context row outside the table scroller and the header sticky.
+- Keep global scope commands stable while selection changes. When batch actions
+  are available, keep one selection-aware menu visible in the centered cluster:
+  disabled with no selection, then enabled with the selected count. Do not move
+  new batch workflows into a bottom bar or add permanent table clearance.
+- Apply immediate, reversible row state changes inline. Confirm broad global
+  changes, destructive operations, and costly or overwrite-capable actions.
+- Reuse the shared teacher operational-work-surface components. Domain statuses,
+  colors, comparison logic, permissions, and mutations remain feature-owned.
+- Apply this to Classwork, Tests, and nearby teacher sections only when their
+  workflow satisfies the adoption criteria; do not use it for reading,
+  authoring, or passive card-list surfaces merely for visual consistency.
+
+Source grounding:
+
+- [`docs/guidance/ui/teacher-operational-tables.md`](/docs/guidance/ui/teacher-operational-tables.md)
+- [`src/components/teacher-work-surface/TeacherWorkSurfaceContextBar.tsx`](/src/components/teacher-work-surface/TeacherWorkSurfaceContextBar.tsx)
+- [`src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx`](/src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx)
+- [`src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx)
+- [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

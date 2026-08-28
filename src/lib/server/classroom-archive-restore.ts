@@ -22,9 +22,19 @@ import {
 import {
   validateRetiredAssessmentEnvelopeGraph,
 } from '@/lib/server/classroom-retired-assessment-contract'
+import {
+  getPortableTestQuestionIdentity,
+  getTestDraftIdentityResolutionOptions,
+  markPortableTestQuestionIdentity,
+  projectPortableTestQuestionIds,
+  usesPortableTestQuestionIdentity,
+  type PersistedTestQuestionIdentity,
+} from '@/lib/test-question-identity'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import type { TestDraftContent } from '@/types'
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
-  '107_classroom_archive_v2_direct_source' as const
+  '134_blueprint_test_question_ordinal_identity' as const
 
 const managedUrlPattern = /https?:\/\/[^\s<>"'`]+/gi
 const uuidSchema = z.string().uuid()
@@ -83,16 +93,22 @@ type RestoreAdapter = {
 
 const RESTORE_ADAPTERS: RestoreAdapter[] = [
   {
-    id: 'classroom-archive-schema-082-to-107',
+    id: 'classroom-archive-schema-082-to-134',
     source: '082_verified_classroom_archive_exports',
     target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
-    adapt: cloneResources,
+    adapt: normalizeArchivedTestQuestionIdentities,
   },
   {
-    id: 'classroom-archive-schema-105-to-107',
+    id: 'classroom-archive-schema-105-to-134',
     source: '105_classroom_archive_v2_contract',
     target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
-    adapt: cloneResources,
+    adapt: normalizeArchivedTestQuestionIdentities,
+  },
+  {
+    id: 'classroom-archive-schema-107-to-134',
+    source: '107_classroom_archive_v2_direct_source',
+    target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+    adapt: normalizeArchivedTestQuestionIdentities,
   },
 ]
 
@@ -108,6 +124,72 @@ function cloneResources(resources: Record<string, JsonObject[]>): Record<string,
   return Object.fromEntries(
     Object.entries(resources).map(([table, rows]) => [table, cloneJsonValue(rows)]),
   )
+}
+
+function normalizeArchivedTestQuestionIdentities(
+  resources: Record<string, JsonObject[]>,
+): Record<string, JsonObject[]> {
+  const next = cloneResources(resources)
+  const questionsByTestId = new Map<string, PersistedTestQuestionIdentity[]>()
+
+  for (const row of next.test_questions || []) {
+    if (typeof row.id !== 'string' || typeof row.test_id !== 'string') {
+      throw new Error('Archived Test question identity is invalid')
+    }
+    if (typeof row.artifact_id !== 'string' && typeof row.source_artifact_id !== 'string') {
+      row.artifact_id = row.id
+    }
+    const questions = questionsByTestId.get(row.test_id) || []
+    questions.push({
+      id: row.id,
+      artifact_id: typeof row.artifact_id === 'string' ? row.artifact_id : null,
+      source_artifact_id:
+        typeof row.source_artifact_id === 'string' ? row.source_artifact_id : null,
+    })
+    questionsByTestId.set(row.test_id, questions)
+  }
+
+  for (const questions of questionsByTestId.values()) {
+    const portableIds = new Set<string>()
+    for (const question of questions) {
+      const portableId = getPortableTestQuestionIdentity(question)
+      if (portableIds.has(portableId)) {
+        throw new Error('Archived Test question portable identity is duplicated')
+      }
+      portableIds.add(portableId)
+    }
+  }
+
+  for (const draft of next.assessment_drafts || []) {
+    if (draft.assessment_type !== 'test') continue
+    if (typeof draft.assessment_id !== 'string') {
+      throw new Error('Archived Test draft identity is invalid')
+    }
+    const validation = validateTestDraftContent(draft.content, {
+      allowEmptyQuestionText: true,
+    })
+    if (!validation.valid) {
+      throw new Error(`Archived Test draft is invalid: ${validation.error}`)
+    }
+    const content = validation.value
+    const projected = projectPortableTestQuestionIds(
+      content,
+      questionsByTestId.get(draft.assessment_id) || [],
+      getTestDraftIdentityResolutionOptions(content),
+    )
+    if (!projected.ok) {
+      throw new Error('Archived Test draft question identity is ambiguous')
+    }
+    const wasPortable = usesPortableTestQuestionIdentity(content)
+    draft.content = markPortableTestQuestionIdentity(
+      projected.content as TestDraftContent,
+    ) as unknown as JsonObject
+    if (!wasPortable && typeof draft.version === 'number') {
+      draft.version += 1
+    }
+  }
+
+  return next
 }
 
 function discardRetiredQuizResources(

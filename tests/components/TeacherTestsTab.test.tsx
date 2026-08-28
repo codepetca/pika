@@ -839,14 +839,8 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     const editTestButton = screen.getByRole('button', { name: 'Edit Test' })
     expect(editTestButton).toBeEnabled()
-    expect(within(editTestButton).getByText('Edit Test')).toBeVisible()
-
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Edit Test' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
-    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByTestId('test-workspace-trailing-actions')).toContainElement(editTestButton)
+    expect(screen.queryByRole('toolbar', { name: 'Selected student Test actions' })).not.toBeInTheDocument()
 
     editTestButton.focus()
     fireEvent.click(editTestButton)
@@ -925,7 +919,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More Test utilities' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Test' }))
 
     expect(onRequestDelete).toHaveBeenCalledTimes(1)
@@ -1123,6 +1117,7 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          draft_version: 7,
           questions: [
             {
               id: 'q1',
@@ -1159,7 +1154,10 @@ describe('TeacherTestsTab', () => {
         url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
     )
     expect(patchCall).toBeTruthy()
-    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'active' })
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({
+      status: 'active',
+      draft_version: 7,
+    })
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
@@ -1586,14 +1584,14 @@ describe('TeacherTestsTab', () => {
       expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
     })
 
-    const studentScrollPane = screen.getByTestId('test-grading-student-scroll-pane')
-    fireEvent.keyDown(studentScrollPane, { key: 'ArrowDown' })
+    const studentKeyboardRegion = screen.getByRole('region', { name: 'Test grading students' })
+    fireEvent.keyDown(studentKeyboardRegion, { key: 'ArrowDown' })
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-2')
     })
 
-    fireEvent.keyDown(studentScrollPane, { key: 'ArrowUp' })
+    fireEvent.keyDown(studentKeyboardRegion, { key: 'ArrowUp' })
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
@@ -1654,9 +1652,10 @@ describe('TeacherTestsTab', () => {
     expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).toHaveClass('hidden')
     expect(within(row).getByLabelText(/Away time/).closest('td')).toHaveClass('hidden')
 
-    expect(screen.getByRole('columnheader', { name: 'Last' })).toHaveClass('hidden')
-    expect(screen.getByRole('columnheader', { name: 'Exits' })).toHaveClass('lg:table-cell')
-    expect(screen.getByRole('columnheader', { name: 'Away' })).toHaveClass('lg:table-cell')
+    expect(screen.getByRole('columnheader', { name: 'Last' })).not.toHaveClass('hidden')
+    expect(screen.getByRole('columnheader', { name: 'Activity' })).toHaveClass('hidden')
+    expect(screen.getByRole('columnheader', { name: 'Exits' })).toHaveClass('xl:table-cell')
+    expect(screen.getByRole('columnheader', { name: 'Away' })).toHaveClass('xl:table-cell')
   })
 
   it('formats sub-second away telemetry as whole seconds', async () => {
@@ -1711,22 +1710,62 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
 
-    const studentResize = await screen.findByRole('separator', { name: 'Resize Student column' })
-    expect(studentResize).toHaveAttribute('aria-valuenow', '184')
+    const firstResize = await screen.findByRole('separator', { name: 'Resize First column' })
+    const lastResize = screen.getByRole('separator', { name: 'Resize Last column' })
+    expect(firstResize).toHaveAttribute('aria-valuenow', '96')
+    expect(lastResize).toHaveAttribute('aria-valuenow', '120')
     expect(screen.getByRole('separator', { name: 'Resize Status column' })).toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize Access column' })).toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize Score column' })).toBeInTheDocument()
 
-    fireEvent.keyDown(studentResize, { key: 'Home' })
-    expect(studentResize).toHaveAttribute('aria-valuenow', '120')
+    fireEvent.keyDown(firstResize, { key: 'Home' })
+    expect(firstResize).toHaveAttribute('aria-valuenow', '72')
+
+    const contextBar = screen.getByTestId('test-grading-context-bar')
+    expect(contextBar).toHaveTextContent('Active')
+    expect(within(contextBar).getByRole('button', { name: 'Close All' })).toBeEnabled()
+    expect(within(contextBar).getByRole('button', { name: 'Edit Test' })).toBeEnabled()
+    expect(within(contextBar).getByRole('button', { name: 'Open All' })).toBeDisabled()
+    expect(within(contextBar).getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    expect(screen.getByTestId('test-grading-student-scroll-pane').querySelector('thead')).toHaveClass(
+      'sticky',
+      'top-0',
+    )
+
+    const submittedStatusSort = screen.getByRole('button', {
+      name: 'Sort Submitted first, 2 students',
+    })
+    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(submittedStatusSort)
+    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toHaveAttribute('aria-sort', 'other')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
     expect(screen.getByRole('checkbox', { name: 'Select all students' })).toHaveAttribute(
       'aria-checked',
       'mixed',
     )
+    const gradingToolbar = screen.getByRole('toolbar', { name: 'Test grading actions' })
+    const studentActionsButton = within(gradingToolbar).getByRole('button', {
+      name: 'Student actions for 1 selected',
+    })
+    expect(studentActionsButton).toBeEnabled()
+    expect(studentActionsButton).toHaveTextContent('1 selected')
+    expect(within(gradingToolbar).getByRole('button', { name: 'Open All' })).toBeInTheDocument()
+    expect(within(gradingToolbar).getByRole('button', { name: 'Close All' })).toBeInTheDocument()
+    fireEvent.click(studentActionsButton)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'AI Grade',
+      'Unsubmit',
+      'Return',
+      'Delete Work',
+    ])
+    expect(screen.queryByRole('menuitem', { name: /Open selected/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Clear selection/i })).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('columnheader', { name: 'Score' })).toHaveAttribute(
       'aria-sort',
       'ascending',
@@ -1900,7 +1939,9 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
-    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
     const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
     updateSearchParams.mock.calls[0][0](params)
     expect(params.get('testId')).toBe('test-1')
@@ -2490,14 +2531,14 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /Return/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
 
     expect(await screen.findByText('Close selected students before returning')).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/teacher/tests/test-1/return')).toBe(false)
   })
 
-  it('closes access for selected students without submitting their work', async () => {
+  it('keeps global access controls available while students are selected', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -2561,11 +2602,9 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByLabelText(/Access open, inherited from test status/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    expect(screen.getByRole('button', { name: 'Close 1 Selected' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: 'Open 1 Selected' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Close 1 Selected' }))
+    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Open All' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close All' }))
     expect(await screen.findByText(/Saved work stays available for grading/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close Access' }))
 
@@ -2587,7 +2626,7 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByLabelText(/Access closed for this student/)).toBeInTheDocument()
   })
 
-  it('toggles one student access from the row access icon with confirmation', async () => {
+  it('toggles one student access immediately from the row switch', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -2632,9 +2671,10 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText(/Close access for Alice Zephyr/))
-    expect(await screen.findByText('Close access for Alice Zephyr?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close Access' }))
+    const openAccessSwitch = screen.getByRole('switch', { name: /Close access for Alice Zephyr/ })
+    expect(openAccessSwitch).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(openAccessSwitch)
+    expect(screen.queryByText('Close access for Alice Zephyr?')).not.toBeInTheDocument()
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -2650,9 +2690,10 @@ describe('TeacherTestsTab', () => {
       state: 'closed',
     })
 
-    fireEvent.click(await screen.findByLabelText(/Open access for Alice Zephyr/))
-    expect(await screen.findByText('Open access for Alice Zephyr?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Open Access' }))
+    const closedAccessSwitch = await screen.findByRole('switch', { name: /Open access for Alice Zephyr/ })
+    expect(closedAccessSwitch).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(closedAccessSwitch)
+    expect(screen.queryByText('Open access for Alice Zephyr?')).not.toBeInTheDocument()
 
     await waitFor(() => {
       accessCalls = fetchMock.mock.calls.filter(
@@ -2664,6 +2705,10 @@ describe('TeacherTestsTab', () => {
       student_ids: ['student-1'],
       state: 'open',
     })
+    expect(await screen.findByRole('switch', { name: /Close access for Alice Zephyr/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
   })
 
   it('marks selected student attempts unsubmitted without opening access', async () => {
@@ -2751,12 +2796,14 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
     fireEvent.click(screen.getByLabelText('Select Bob Yellow'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: /AI Grade\s+2/ })).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: /Unsubmit Selected\s+1/ })).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: /Return\s+2/ })).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: /Delete Selected\s+2/ })).toBeEnabled()
-    fireEvent.click(screen.getByRole('menuitem', { name: /Unsubmit Selected/ }))
+    const studentActionsButton = screen.getByRole('button', { name: 'Student actions for 2 selected' })
+    expect(studentActionsButton).toHaveTextContent('2 selected')
+    fireEvent.click(studentActionsButton)
+    expect(screen.getByRole('menuitem', { name: 'AI Grade' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Unsubmit' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Return' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Delete Work' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unsubmit' }))
     expect(await screen.findByText('Mark 1 selected attempt unsubmitted?')).toBeInTheDocument()
     expect(await screen.findByText(/Access is unchanged/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Mark Unsubmitted' }))
@@ -2810,9 +2857,8 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-
-    expect(screen.getByRole('menuitem', { name: /Unsubmit Selected\s+0/ })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    expect(screen.getByRole('menuitem', { name: 'Unsubmit' })).toBeDisabled()
   })
 
   it('marks one submitted student unsubmitted from the row submitted icon with confirmation', async () => {
@@ -2897,7 +2943,7 @@ describe('TeacherTestsTab', () => {
     })
   })
 
-  it('clears student selections with Escape while keeping selected-delete in the dropdown', async () => {
+  it('clears student selections with Escape and disables the persistent student actions menu', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -2915,17 +2961,18 @@ describe('TeacherTestsTab', () => {
 
     expect(rowCheckbox.checked).toBe(true)
     expect(screen.queryByRole('button', { name: 'Delete Alice Zephyr test' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeEnabled()
+    expect(screen.getByRole('toolbar', { name: 'Test grading actions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
 
     fireEvent.keyDown(window, { key: 'Escape' })
 
     expect(rowCheckbox.checked).toBe(false)
+    expect(screen.getByRole('toolbar', { name: 'Test grading actions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
 
-  it('deletes selected student test work from the selected test actions dropdown', async () => {
+  it('deletes selected student test work from the selection action bar', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -2971,16 +3018,14 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /Delete Selected/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Work' }))
 
     expect(await screen.findByText('Delete 1 selected test work item?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Work' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -3025,11 +3070,11 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
     fireEvent.click(screen.getByLabelText('Select Bob Yellow'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /Delete Selected/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 2 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Work' }))
 
     expect(await screen.findByText('Delete 2 selected test work items?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete Work' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -3132,9 +3177,11 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /AI Grade/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade' }))
+    expect(await screen.findByRole('button', { name: 'Only ungraded' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Regrade all' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Only ungraded' }))
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent(/grading/i)
@@ -3152,6 +3199,13 @@ describe('TeacherTestsTab', () => {
       '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',
       expect.objectContaining({ method: 'POST' }),
     )
+    const autoGradeCall = fetchMock.mock.calls.find(
+      ([url, init]) => url === '/api/teacher/tests/test-1/auto-grade' && init?.method === 'POST',
+    )
+    expect(JSON.parse(autoGradeCall?.[1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+      grade_scope: 'ungraded',
+    })
   })
 
   it('does not expose the AI prompt or legacy destructive options', async () => {
@@ -3168,18 +3222,18 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByText('Alice Zephyr')
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More Test utilities' }))
 
     expect(screen.queryByRole('menuitem', { name: 'AI Prompt' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
+    expect(screen.queryByRole('menuitem', { name: /Delete Selected/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Clear Open Grades' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()
     expect(screen.queryByText('Grading strategy')).not.toBeInTheDocument()
   })
 
-  it('disables AI Grade until students are selected', async () => {
+  it('keeps student actions visible and disabled until students are selected', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -3192,14 +3246,12 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByText('Alice Zephyr')
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: /AI Grade/ })).toBeDisabled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-
-    expect(screen.getByRole('menuitem', { name: /AI Grade/ })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    expect(screen.getByRole('menuitem', { name: 'AI Grade' })).toBeEnabled()
+    expect(screen.queryByRole('menuitem', { name: /Open selected/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Clear selection/i })).not.toBeInTheDocument()
   })
 
   it('reloads the visible list once when the update event fires', async () => {

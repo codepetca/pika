@@ -255,6 +255,37 @@ Three-panel authoring, grading, and journal workspaces intentionally use the
 named full-width mode. Do not constrain an operational workspace to a reading
 width merely to make it resemble a conventional document page.
 
+### Teacher operational work surfaces
+
+Scan-heavy teacher workflows use a stable action-versus-information hierarchy:
+
+- quiet scope information stays at the edges and must not resemble a control
+- the current scope and its immediate commands form the obvious, elevated,
+  mathematically centered action cluster
+- row-derived totals and sorting live with the columns they describe instead
+  of becoming a competing summary row
+- long row sets scroll beneath a sticky header while the scope actions remain
+  available
+- global scope actions remain stable when rows are selected; selection-aware
+  actions use a persistent, disabled-until-selection menu that becomes a
+  selected-count trigger without moving the primary cluster
+- immediate, reversible row state changes happen inline; broad, destructive,
+  costly, or overwrite-capable actions require confirmation or an explicit
+  scope choice
+
+Attendance is the approved table-density reference. The selected Test grading
+roster is the approved action-scope and selection reference. Classwork,
+Attendance, Tests, and nearby teacher sections should adopt the combined
+composition when they are scan-heavy, have one meaningful active scope, and
+offer real row operations.
+They keep their own statuses, labels, columns, permissions, and mutations.
+Do not force a centered cluster or status chips onto a reading surface, an
+authoring form, or a list whose state does not map directly to its rows.
+
+The stable composition, adoption matrix, and executable owners are documented
+in
+[`teacher-operational-tables.md`](./docs/guidance/ui/teacher-operational-tables.md).
+
 Utility routes should converge on shared application navigation and page-state
 contracts incrementally. Existing utility-shell differences are migration
 evidence, not a new design language to copy.

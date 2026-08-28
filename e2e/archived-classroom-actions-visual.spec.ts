@@ -90,6 +90,19 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       animations: 'disabled',
     })
 
+    await page.getByRole('link', { name: 'Home' }).click()
+    await expect(page.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: 'Archived Biology' })).toHaveCount(0)
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({
+      path: `/tmp/pika-logo-home-active-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+
+    await page.getByRole('button', { name: 'Archived' }).click()
+    await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
+
     await unarchiveButton.click()
     const dialog = page.getByRole('dialog', { name: 'Unarchive Archived Biology?' })
     await expect(dialog).toBeVisible()

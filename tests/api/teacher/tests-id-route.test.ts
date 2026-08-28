@@ -3,7 +3,10 @@ import { NextRequest } from 'next/server'
 import { DELETE, GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
-import { getAssessmentDraftByType } from '@/lib/server/assessment-drafts'
+import {
+  activateTestFromDraftAtomic,
+  getAssessmentDraftByType,
+} from '@/lib/server/assessment-drafts'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 
 vi.mock('@/lib/supabase', () => ({
@@ -45,10 +48,13 @@ vi.mock('@/lib/server/test-document-authoring', () => ({
 }))
 
 vi.mock('@/lib/server/assessment-drafts', () => ({
+  activateTestFromDraftAtomic: vi.fn(async () => ({
+    ok: true,
+    draftVersion: 3,
+    test: { id: 'test-1', status: 'active', title: 'Unit Test', show_results: false },
+  })),
   getAssessmentDraftByType: vi.fn(async () => ({ draft: null, error: null })),
   isMissingAssessmentDraftsError: vi.fn(() => false),
-  syncTestQuestionsFromDraft: vi.fn(async () => ({ ok: true })),
-  updateAssessmentDraft: vi.fn(async () => ({ draft: null, error: null })),
 }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
@@ -145,6 +151,8 @@ describe('PATCH /api/teacher/tests/[id]', () => {
                 {
                   id: 'q-1',
                   test_id: 'test-1',
+                  artifact_id: '20000000-0000-4000-8000-000000000001',
+                  source_artifact_id: '30000000-0000-4000-8000-000000000001',
                   question_type: 'open_response',
                   question_text: 'Canonical question text',
                   options: [],
@@ -178,10 +186,57 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(data.test.show_results).toBe(false)
     expect(data.questions[0].question_text).toBe('Canonical question text')
     expect(data.questions[0].sample_solution).toBe('canonical sample solution')
+    expect(data.questions[0]).not.toHaveProperty('artifact_id')
+    expect(data.questions[0]).not.toHaveProperty('source_artifact_id')
+    // The response id must be the portable identity, matching what draft-status
+    // Tests already return here (and what Blueprint capture/activation treat as
+    // canonical) — never the internal row id — so this field means the same
+    // thing regardless of Test lifecycle stage.
+    expect(data.questions[0].id).toBe('30000000-0000-4000-8000-000000000001')
   })
 
-  it('returns 400 when activating with an incomplete question', async () => {
-    const updateSpy = vi.fn()
+  it('keeps marked portable draft IDs out of the legacy row-ID namespace', async () => {
+    const rowAId = '10000000-0000-4000-8000-000000000001'
+    const portableAId = '20000000-0000-4000-8000-000000000001'
+    const portableBId = '30000000-0000-4000-8000-000000000001'
+
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        content: {
+          title: 'Migrated Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [
+            {
+              id: portableAId,
+              question_type: 'open_response',
+              question_text: 'Question A',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+            },
+            {
+              id: portableBId,
+              question_type: 'open_response',
+              question_text: 'Question B',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+            },
+          ],
+        },
+      } as any,
+      error: null,
+    })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
@@ -191,15 +246,36 @@ describe('PATCH /api/teacher/tests/[id]', () => {
             order: vi.fn().mockResolvedValue({
               data: [
                 {
-                  id: 'q-1',
-                  position: 0,
-                  question_type: 'multiple_choice',
-                  question_text: '   ',
-                  options: ['Option 1', 'Option 2'],
-                  correct_option: 0,
+                  id: rowAId,
+                  test_id: 'test-1',
+                  artifact_id: portableAId,
+                  source_artifact_id: null,
+                  question_type: 'open_response',
+                  question_text: 'Question A',
+                  options: [],
+                  correct_option: null,
+                  answer_key: null,
+                  sample_solution: null,
                   points: 1,
                   response_max_chars: 5000,
                   response_monospace: false,
+                  position: 0,
+                },
+                {
+                  id: portableAId,
+                  test_id: 'test-1',
+                  artifact_id: portableBId,
+                  source_artifact_id: null,
+                  question_type: 'open_response',
+                  question_text: 'Question B',
+                  options: [],
+                  correct_option: null,
+                  answer_key: null,
+                  sample_solution: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                  position: 1,
                 },
               ],
               error: null,
@@ -208,17 +284,52 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         }
       }
 
-      if (table === 'tests') {
-        return { update: updateSpy }
-      }
-
       throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.questions.map((question: { id: string }) => question.id)).toEqual([
+      portableAId,
+      portableBId,
+    ])
+  })
+
+  it('returns 400 when activating with an incomplete question', async () => {
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        version: 3,
+        content: {
+          title: 'Unit Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [{
+            id: '20000000-0000-4000-8000-000000000001',
+            question_type: 'multiple_choice',
+            question_text: '   ',
+            options: ['Option 1', 'Option 2'],
+            correct_option: 0,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+      } as any,
+      error: null,
     })
 
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'active' }),
+        body: JSON.stringify({ status: 'active', draft_version: 3 }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -226,63 +337,39 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('Q1: Question text is required')
-    expect(updateSpy).not.toHaveBeenCalled()
+    expect(activateTestFromDraftAtomic).not.toHaveBeenCalled()
   })
 
   it('activates a draft test when all questions are complete', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'q-1',
-                  position: 0,
-                  question_type: 'multiple_choice',
-                  question_text: 'What is 2 + 2?',
-                  options: ['3', '4'],
-                  correct_option: 1,
-                  points: 1,
-                  response_max_chars: 5000,
-                  response_monospace: false,
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      if (table === 'tests') {
-        return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'test-1',
-                    classroom_id: 'classroom-1',
-                    title: 'Unit Test',
-                    status: 'active',
-                    show_results: false,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        version: 3,
+        content: {
+          title: 'Unit Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [{
+            id: '20000000-0000-4000-8000-000000000001',
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            correct_option: 1,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+      } as any,
+      error: null,
     })
 
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'active' }),
+        body: JSON.stringify({ status: 'active', draft_version: 3 }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -290,6 +377,12 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.test.status).toBe('active')
+    expect(activateTestFromDraftAtomic).toHaveBeenCalledWith(mockSupabaseClient, {
+      expectedDraftVersion: 3,
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('updates test documents when payload is valid', async () => {

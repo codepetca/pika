@@ -24,38 +24,15 @@ function autoResizeTextarea(textarea: HTMLTextAreaElement | null, minHeightPx: n
   textarea.style.height = `${nextHeight}px`
 }
 
-function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
+function AuthenticitySummary({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
-  const displayScore = score ?? 0
-  const color = !hasScore
-    ? 'bg-surface-2'
-    : displayScore >= 70
-      ? 'bg-green-500'
-      : displayScore >= 40
-        ? 'bg-yellow-500'
-        : 'bg-red-500'
-  const textColor = !hasScore
-    ? 'text-text-muted'
-    : displayScore >= 70
-      ? 'text-green-700'
-      : displayScore >= 40
-        ? 'text-yellow-700'
-        : 'text-red-700'
-
-  const bar = (
-    <div className="relative h-5 overflow-hidden rounded-full bg-surface-2">
-      {hasScore && (
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${displayScore}%` }} />
-      )}
-      <span
-        className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${textColor}`}
-      >
-        Authenticity {hasScore ? `${displayScore}%` : '—'}
-      </span>
-    </div>
+  const summary = (
+    <span className="whitespace-nowrap text-xs font-medium tabular-nums text-text-muted">
+      Authenticity {hasScore ? `${score}%` : '—'}
+    </span>
   )
 
-  if (flags.length === 0) return bar
+  if (flags.length === 0) return summary
 
   return (
     <Tooltip
@@ -71,7 +48,7 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
         </div>
       }
     >
-      <div>{bar}</div>
+      <span>{summary}</span>
     </Tooltip>
   )
 }
@@ -198,7 +175,7 @@ function InspectorSection({
         aria-controls={contentId}
         aria-disabled={!visible}
         className={[
-          'grid grid-cols-[minmax(0,1fr)_minmax(0,19rem)] items-center gap-3 p-3',
+          'flex items-center gap-3 p-3',
           visible ? 'cursor-pointer' : 'cursor-default',
         ].join(' ')}
         onClick={(event) => {
@@ -243,10 +220,10 @@ function InspectorSection({
             {title}
           </span>
         </div>
-        <div className="min-w-0">
+        <div className="ml-auto min-w-0 text-right">
           {visible && (summary || (effectiveExpanded && action)) ? (
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-              <div className="min-w-0">{summary}</div>
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              <div className="min-w-0 text-right">{summary}</div>
               {effectiveExpanded && action ? (
                 <div
                   className="shrink-0"
@@ -399,26 +376,10 @@ function AutoGrowFeedbackTextarea({
 }
 
 function GradeSummary({ totalPercent }: { totalPercent: number }) {
-  const tone =
-    totalPercent >= 80
-      ? 'border-green-200 bg-green-100 text-green-700'
-      : totalPercent >= 60
-        ? 'border-yellow-200 bg-yellow-100 text-yellow-700'
-        : totalPercent >= 50
-          ? 'border-orange-200 bg-orange-100 text-orange-700'
-          : 'border-red-200 bg-red-100 text-red-700'
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span
-        className={[
-          'inline-flex h-8 items-center justify-center rounded border px-2.5 text-sm font-medium',
-          tone,
-        ].join(' ')}
-      >
-        {totalPercent}%
-      </span>
-    </div>
+    <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-text-default">
+      {totalPercent}%
+    </span>
   )
 }
 
@@ -523,7 +484,7 @@ export function TeacherWorkInspector({
       id: 'history',
       title: 'History',
       summary: (
-        <AuthenticityGauge
+        <AuthenticitySummary
           score={data.doc?.authenticity_score ?? null}
           flags={data.doc?.authenticity_flags ?? []}
         />

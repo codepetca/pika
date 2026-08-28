@@ -22,6 +22,11 @@ import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
+import {
+  StudentAttendanceStatus,
+  useStudentAttendanceStatusView,
+} from '@/components/StudentAttendanceStatus'
+import type { StudentAttendanceClassroomState } from '@/lib/validations/student-attendance'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
 import {
@@ -305,11 +310,17 @@ function getLastClassHeading(lastClassDate: string | null) {
 }
 
 function StudentTodayPlanSidebar({
+  attendanceState,
+  attendanceRefreshing,
+  attendanceNow,
   todayLessonPlan,
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
 }: {
+  attendanceState: StudentAttendanceClassroomState | undefined
+  attendanceRefreshing: boolean
+  attendanceNow: Date
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
@@ -317,21 +328,22 @@ function StudentTodayPlanSidebar({
 }) {
   const viewerClassName = 'min-h-0 flex-1 overflow-y-auto [&_.simple-viewer-content_.tiptap.ProseMirror.simple-editor]:!p-0'
   const lastClassHeading = getLastClassHeading(lastClassDate)
-  const missingLessonPlanLabel = lastClassHeading === 'Yesterday' ? 'yesterday' : 'last class'
 
   return (
     <div className="flex h-full min-h-0 flex-col divide-y divide-border">
       <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         <h3 className="text-sm font-semibold text-text-default">Today</h3>
+        <StudentAttendanceStatus
+          state={attendanceState}
+          refreshing={attendanceRefreshing}
+          now={attendanceNow}
+          variant="banner"
+        />
         {hasLessonPlanContent(todayLessonPlan) ? (
           <div className={viewerClassName}>
             <RichTextViewer content={todayLessonPlan!.content} chrome="flush" />
           </div>
-        ) : (
-          <p className="text-sm text-text-muted">
-            No lesson plan for today.
-          </p>
-        )}
+        ) : null}
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
@@ -355,11 +367,7 @@ function StudentTodayPlanSidebar({
           <div className={viewerClassName}>
             <RichTextViewer content={lastClassLessonPlan!.content} chrome="flush" />
           </div>
-        ) : (
-          <p className="text-sm text-text-muted">
-            No lesson plan for {missingLessonPlanLabel}.
-          </p>
-        )}
+        ) : null}
       </section>
     </div>
   )
@@ -383,6 +391,22 @@ function StudentTodayWorkspace({
   onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
+  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
+    useStudentAttendanceStatusView(studentId)
+  const attendanceState = attendanceView?.classrooms.find(
+    (item) => item.classroomId === classroom.id,
+  )
+  const planSidebar = (
+    <StudentTodayPlanSidebar
+      attendanceState={attendanceState}
+      attendanceRefreshing={attendanceRefreshing}
+      attendanceNow={attendanceNow}
+      todayLessonPlan={todayLessonPlan}
+      lastClassLessonPlan={lastClassLessonPlan}
+      lastClassDate={lastClassDate}
+      lastClassLoading={lastClassLoading}
+    />
+  )
 
   return (
     <TeacherWorkspaceSplit
@@ -401,19 +425,12 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
-          studentId={studentId}
           layout="pane"
           onLessonPlanLoad={onLessonPlanLoad}
         />
       }
-      inspector={
-        <StudentTodayPlanSidebar
-          todayLessonPlan={todayLessonPlan}
-          lastClassLessonPlan={lastClassLessonPlan}
-          lastClassDate={lastClassDate}
-          lastClassLoading={lastClassLoading}
-        />
-      }
+      mobileInspector={planSidebar}
+      inspector={planSidebar}
     />
   )
 }
@@ -607,17 +624,6 @@ function ClassroomPageContent({
     return requestExamModeNavigation({
       targetLabel: 'home',
       source: 'home_navigation',
-      nextTab: null,
-      navigate: () => {
-        window.location.assign(href)
-      },
-    })
-  }, [requestExamModeNavigation])
-
-  const handleClassroomNavigationAttempt = useCallback((href: string) => {
-    return requestExamModeNavigation({
-      targetLabel: 'another classroom',
-      source: 'classroom_switch',
       nextTab: null,
       navigate: () => {
         window.location.assign(href)
@@ -1251,10 +1257,8 @@ function ClassroomPageContent({
             ]
       }
       currentClassroomId={classroom.id}
-      currentTab={activeTab}
       onOpenSidebar={hideLeftRailForExamMode ? undefined : openLeft}
       onNavigateHome={handleHomeNavigationAttempt}
-      onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
       examModeHeader={examHeaderData}

@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { AppHeader } from '@/components/AppHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -18,6 +19,35 @@ function Wrapper({ children }: { children: ReactNode }) {
     </ThemeProvider>
   )
 }
+
+describe('AppHeader home navigation', () => {
+  it('announces a primary Pika logo selection to the current classrooms page', () => {
+    const handleHomeSelected = vi.fn()
+    window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+
+    render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
+    const homeLink = screen.getByRole('link', { name: 'Home' })
+    homeLink.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(homeLink)
+
+    expect(handleHomeSelected).toHaveBeenCalledOnce()
+    window.removeEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+  })
+
+  it('does not announce home when the current workflow blocks navigation', () => {
+    const handleHomeSelected = vi.fn()
+    window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+
+    render(
+      <AppHeader pageTitle="Classrooms" onNavigateHome={() => false} />,
+      { wrapper: Wrapper }
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'Home' }))
+
+    expect(handleHomeSelected).not.toHaveBeenCalled()
+    window.removeEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
+  })
+})
 
 describe('AppHeader exam mode', () => {
   afterEach(() => {
@@ -76,6 +106,28 @@ describe('AppHeader exam mode', () => {
 })
 
 describe('AppHeader classroom theme', () => {
+  it('renders the current classroom title as static text when multiple classrooms are available', () => {
+    render(
+      <AppHeader
+        classrooms={[
+          { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' },
+          { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' },
+        ]}
+        currentClassroomId="class-2"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const title = screen.getByText('Beta')
+    expect(title).toHaveClass('truncate', 'text-xl', 'font-bold')
+    expect(screen.queryByRole('button', { name: 'Select classroom' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+    fireEvent.click(title)
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
   it('themes the appbar from the current classroom color', () => {
     render(
       <AppHeader
@@ -95,7 +147,7 @@ describe('AppHeader classroom theme', () => {
     expect(header).not.toHaveClass('border')
     expect(header.getAttribute('style')).toContain('--classroom-accent-light')
     expect(header.getAttribute('style')).toContain('--classroom-accent-dark')
-    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('img', { name: 'Pika' })).toHaveClass('pika-logo')
   })
 
   it('gives the classroom name more mobile space and moves home into the drawer', () => {
@@ -113,13 +165,13 @@ describe('AppHeader classroom theme', () => {
     const leftSection = screen.getByRole('button', { name: 'Open classroom navigation' }).parentElement
     expect(leftSection).toHaveClass('col-span-2', 'lg:col-span-1')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('hidden', 'lg:flex')
-    expect(screen.getByText('A Longer Classroom Name').closest('div')).toHaveClass('max-w-full')
+    expect(screen.getByText('A Longer Classroom Name')).toHaveClass('max-w-full')
   })
 
   it('keeps the brand logo on unthemed appbars', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
-    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('img', { name: 'Pika' })).toHaveClass('pika-logo')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
     expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass(
       'hidden',
@@ -136,9 +188,11 @@ describe('AppHeader classroom theme', () => {
 
     expect(logoSource).toContain('pika-logo')
     expect(logoSource).not.toContain('dark:')
-    expect(tokens).toContain('--pika-logo-filter: none;')
-    expect(tokens).toContain('--pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);')
-    expect(tokens).toContain('filter: var(--pika-logo-filter);')
+    expect(tokens).toContain('background-color: var(--color-text-default);')
+    expect(tokens).toContain('--pika-logo-mask-image: url("data:image/png;base64,')
+    expect(tokens).toContain('mask: var(--pika-logo-mask-image) center / contain no-repeat;')
+    expect(tokens).not.toContain("mask: url('/pika.png')")
+    expect(tokens).not.toContain('--pika-logo-filter')
   })
 
   it('keeps appbar classroom theme to the gradient without an accent underline', () => {

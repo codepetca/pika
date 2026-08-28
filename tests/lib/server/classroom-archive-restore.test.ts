@@ -14,6 +14,7 @@ import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive
 import {
   V2_STUDENT_ID,
   V2_TEACHER_ID,
+  V2_CLASSROOM_ID,
 } from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
@@ -241,7 +242,85 @@ describe('classroom archive restore planning', () => {
     })
     expect(plan.sourceContractVersion).toBe(2)
     expect(plan.restoreContractVersion).toBe(2)
-    expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-107'])
+    expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-134'])
+  })
+
+  it('converts unmarked archived Test drafts at the restore boundary', () => {
+    const testId = '72000000-0000-4000-8000-000000000001'
+    const firstRowId = '72000000-0000-4000-8000-000000000002'
+    const secondRowId = '72000000-0000-4000-8000-000000000003'
+    const firstPortableId = secondRowId
+    const secondPortableId = '72000000-0000-4000-8000-000000000004'
+    const fixture = buildClassroomArchiveV2Fixture({
+      resources: {
+        tests: [{
+          id: testId,
+          classroom_id: V2_CLASSROOM_ID,
+          created_by: V2_TEACHER_ID,
+          title: 'Legacy archived Test',
+        }],
+        test_questions: [{
+          id: firstRowId,
+          test_id: testId,
+          artifact_id: firstPortableId,
+          source_artifact_id: firstPortableId,
+        }, {
+          id: secondRowId,
+          test_id: testId,
+          artifact_id: secondPortableId,
+          source_artifact_id: secondPortableId,
+        }],
+        assessment_drafts: [{
+          id: '72000000-0000-4000-8000-000000000005',
+          assessment_type: 'test',
+          assessment_id: testId,
+          classroom_id: V2_CLASSROOM_ID,
+          version: 7,
+          created_by: V2_TEACHER_ID,
+          updated_by: V2_TEACHER_ID,
+          content: {
+            title: 'Legacy archived Test',
+            show_results: false,
+            questions: [firstRowId, secondRowId].map((id) => ({
+              id,
+              question_type: 'open_response',
+              question_text: 'Question',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+            })),
+          },
+        }],
+      },
+    })
+    const verification = verifyClassroomArchiveBundle(fixture.archive)
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
+
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified: verification,
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors: [
+        { id: V2_TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
+        { id: V2_STUDENT_ID, email: 'student@example.test', role: 'student' },
+      ],
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-134'])
+    expect(plan.resources.assessment_drafts[0]).toMatchObject({
+      version: 8,
+      content: {
+        question_identity_version: 1,
+        questions: [{ id: firstPortableId }, { id: secondPortableId }],
+      },
+    })
+    expect(plan.resources.test_questions).toEqual(fixture.resources.test_questions)
   })
 
 
@@ -256,7 +335,7 @@ describe('classroom archive restore planning', () => {
 
     expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION)
     expect(plan.adapterChain).toEqual([
-      'classroom-archive-schema-082-to-107',
+      'classroom-archive-schema-082-to-134',
       'classroom-archive-v1-retired-quiz-discard-v1',
     ])
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_session_id')

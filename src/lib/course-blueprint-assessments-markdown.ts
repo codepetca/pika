@@ -1,5 +1,6 @@
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type { TestDocument, TestDraftContent } from '@/types'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import {
   portableCoursePackageTestDocumentsSchema,
 } from '@/lib/contracts/course-blueprint-portable-test-documents'
@@ -43,6 +44,7 @@ function sanitizeTestContent(
         ? content.title
         : assessment.title,
     show_results: Boolean(content.show_results),
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
     questions: Array.isArray(content.questions) ? content.questions : [],
   }
 }

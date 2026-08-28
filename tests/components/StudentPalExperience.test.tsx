@@ -129,6 +129,21 @@ describe('StudentPalExperience', () => {
     expect(mockCreatePikaPalClient).toHaveBeenCalledWith('https://pal.example.test')
   })
 
+  it('pins the non-interactive companion host to the bottom-right safe area', async () => {
+    renderExperience({
+      getSnapshot: async () => createFixtureSnapshot(),
+      markRewardSeen: async () => undefined,
+    })
+
+    const companion = await screen.findByRole('complementary', {
+      name: /Mystery companion/,
+    })
+    expect(companion.parentElement).toHaveAttribute(
+      'data-pika-pal-placement',
+      'bottom-right',
+    )
+  })
+
   it('acknowledges a backdrop close and removes the modal only after success', async () => {
     const snapshot = withReward()
     let resolveAcknowledgement: (() => void) | undefined

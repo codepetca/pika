@@ -31,10 +31,6 @@ import { useStudentNotifications } from '@/components/StudentNotificationsProvid
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
-import {
-  StudentAttendanceStatus,
-  useStudentAttendanceStatusView,
-} from '@/components/StudentAttendanceStatus'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
@@ -62,63 +58,21 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
-// Daily reflection openers, rotated by calendar date so the whole class sees the
-// same prompt on a given day. 20 prompts at ~5 school days a week means a given
-// prompt comes back around every few weeks.
-const DAILY_REFLECTION_PROMPTS = [
-  "What's one thing you're proud of from last time?",
-  "What's something you figured out recently?",
-  'What went well, and what felt tricky?',
-  'How did your last plan turn out?',
-  "What's a small win from your last session?",
-  'Where did you get stuck last time — and what did you try?',
-  "What's one thing you want to keep doing?",
-  'What would you do differently from last time?',
-  'What surprised you in your recent work?',
-  'What are you curious to dig into more?',
-  "What's starting to click for you lately?",
-  "What's a question you're still sitting with?",
-  'Who or what helped you recently?',
-  'What felt like hard work worth doing?',
-  "What's something you almost gave up on but didn't?",
-  'How are you feeling about your progress so far?',
-  "What's one habit you want to build this week?",
-  'What did a recent mistake teach you?',
-  'What do you want to get better at?',
-  'What are you looking forward to?',
-] as const
-
-// Shown when there's no prior post to reflect on yet.
-const NO_LAST_LOG_PROMPT = 'Fresh start — how are you feeling about today?'
 const DAILY_PLAN_PROMPT = "What's your plan for today?"
-
-// Deterministic day index from a 'YYYY-MM-DD' string (timezone-independent), so
-// every student in the class lands on the same prompt for a given date.
-function getDailyReflectionPrompt(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  if (!year || !month || !day) return DAILY_REFLECTION_PROMPTS[0]
-  const dayIndex = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000)
-  const count = DAILY_REFLECTION_PROMPTS.length
-  return DAILY_REFLECTION_PROMPTS[((dayIndex % count) + count) % count]
-}
 
 
 interface StudentTodayTabProps {
   classroom: Classroom
-  studentId?: string
   layout?: 'page' | 'pane'
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
 }
 
 export function StudentTodayTab({
   classroom,
-  studentId,
   layout = 'page',
   onLessonPlanLoad,
 }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
-  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
-    useStudentAttendanceStatusView(studentId)
   const {
     classDays,
     error: classDaysError,
@@ -673,12 +627,6 @@ export function StudentTodayTab({
   }
 
   const pastHistoryEntries = historyEntries.filter(entry => entry.date !== today)
-  const lastLog = pastHistoryEntries[0] ?? null
-  const hasLastLog =
-    !!lastLog && (!!lastLog.text?.trim() || !isEmpty(resolveEntryContent(lastLog)))
-  const reflectionPrompt = hasLastLog
-    ? getDailyReflectionPrompt(today)
-    : NO_LAST_LOG_PROMPT
 
   function toggleHistoryEntry(entryId: string) {
     setExpandedHistoryIds(prev => {
@@ -694,14 +642,6 @@ export function StudentTodayTab({
 
   const todayContent = (
     <PageStack>
-      {studentId ? (
-        <StudentAttendanceStatus
-          state={attendanceView?.classrooms.find((item) => item.classroomId === classroom.id)}
-          refreshing={attendanceRefreshing}
-          now={attendanceNow}
-          variant="banner"
-        />
-      ) : null}
       {classDaysError && hasClassDaysSnapshot && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
           <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
@@ -726,14 +666,9 @@ export function StudentTodayTab({
         ) : (
           <div className="space-y-4">
             <div className="flex items-start justify-between mb-2">
-              <label className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-text-default">
-                  {reflectionPrompt}
-                </span>
-                <span className="text-sm text-text-muted">
-                  {DAILY_PLAN_PROMPT}
-                </span>
-              </label>
+              <p className="text-sm font-medium text-text-default">
+                {DAILY_PLAN_PROMPT}
+              </p>
               <SaveStatus status={saveStatus} className="text-sm" />
             </div>
             <RichTextEditor

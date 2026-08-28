@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -7,61 +6,21 @@ import { withErrorHandler } from '@/lib/api-handler'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// POST /api/teacher/tests/[id]/questions/reorder
-// body: { question_ids: string[] }
-export const POST = withErrorHandler('ReorderTeacherTestQuestions', async (request, context) => {
+// Reordering is a draft-content edit and must share the draft version fence.
+export const POST = withErrorHandler('ReorderTeacherTestQuestions', async (_request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
-  const body = await request.json()
-  const { question_ids } = body as { question_ids?: string[] }
-
-  if (!Array.isArray(question_ids)) {
-    return NextResponse.json({ error: 'question_ids is required' }, { status: 400 })
-  }
-
-  if (question_ids.some((id: unknown) => typeof id !== 'string' || !id)) {
-    return NextResponse.json({ error: 'question_ids must be non-empty strings' }, { status: 400 })
-  }
-
-  const uniqueIds = Array.from(new Set(question_ids))
-  if (uniqueIds.length !== question_ids.length) {
-    return NextResponse.json({ error: 'question_ids must be unique' }, { status: 400 })
-  }
 
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
-  const supabase = getServiceRoleClient()
-
-  const { data: questions, error: questionsError } = await supabase
-    .from('test_questions')
-    .select('id')
-    .eq('test_id', testId)
-
-  if (questionsError) {
-    console.error('Error verifying test questions:', questionsError)
-    return NextResponse.json({ error: 'Failed to verify questions' }, { status: 500 })
-  }
-
-  const existingIds = new Set((questions || []).map((q) => q.id))
-  if (uniqueIds.length !== existingIds.size || !uniqueIds.every((id) => existingIds.has(id))) {
-    return NextResponse.json({ error: 'question_ids must include all questions in the test' }, { status: 400 })
-  }
-
-  for (const [position, id] of uniqueIds.entries()) {
-    const { error: updateError } = await supabase
-      .from('test_questions')
-      .update({ position })
-      .eq('test_id', testId)
-      .eq('id', id)
-
-    if (updateError) {
-      console.error('Error reordering test questions:', updateError)
-      return NextResponse.json({ error: 'Failed to reorder questions' }, { status: 500 })
-    }
-  }
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json(
+    {
+      error: 'Direct question writes are retired; save the versioned Test draft instead',
+      draft_endpoint: `/api/teacher/tests/${testId}/draft`,
+    },
+    { status: 410 },
+  )
 })

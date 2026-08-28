@@ -94,9 +94,7 @@ function StudentPalHostLayers() {
 
   return (
     <>
-      <PalWidgetThemeBoundary
-        className="pointer-events-none fixed bottom-4 right-4 z-floating"
-      >
+      <PalWidgetThemeBoundary placement="bottom-right">
         <PalCompanion scale={narrowViewport ? 0.4 : 0.55} />
       </PalWidgetThemeBoundary>
 

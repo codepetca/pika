@@ -7,6 +7,7 @@ type Theme = 'light' | 'dark'
 
 const tokensCss = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
 const minimumTextContrast = 4.5
+const minimumNonTextContrast = 3
 const backdropTokens = ['color-page', 'color-surface', 'color-surface-2'] as const
 
 const neutralBackgrounds = [
@@ -49,6 +50,16 @@ const solidFillContracts = [
   ['color-text-inverse', 'color-success-solid-hover'],
   ['color-text-inverse', 'color-danger-solid'],
   ['color-text-inverse', 'color-danger-solid-hover'],
+  ['color-attendance-present-text', 'color-attendance-present'],
+  ['color-attendance-late-text', 'color-attendance-late'],
+  ['color-attendance-absent-text', 'color-attendance-absent'],
+] as const
+
+const graphicalContracts = [
+  {
+    foreground: 'color-attendance-dot-halo',
+    backgrounds: ['color-surface', 'color-surface-hover', 'color-info-bg', 'color-info-bg-hover'],
+  },
 ] as const
 
 function parseThemeTokens(theme: Theme) {
@@ -166,6 +177,24 @@ describe.each<Theme>(['light', 'dark'])('%s semantic token contrast', (theme) =>
         ratio,
         `${theme}: --${foregroundToken} on --${backgroundToken} (${ratio.toFixed(2)}:1)`
       ).toBeGreaterThanOrEqual(minimumTextContrast)
+    }
+  })
+
+  it('keeps graphical status boundaries visible on supported row surfaces', () => {
+    for (const contract of graphicalContracts) {
+      for (const backgroundToken of contract.backgrounds) {
+        for (const backdropToken of backdropTokens) {
+          const backdrop = getColor(tokens, backdropToken)
+          const background = composite(getColor(tokens, backgroundToken), backdrop)
+          const foreground = composite(getColor(tokens, contract.foreground), background)
+          const ratio = contrastRatio(foreground, background)
+
+          expect(
+            ratio,
+            `${theme}: --${contract.foreground} on --${backgroundToken} over --${backdropToken} (${ratio.toFixed(2)}:1)`,
+          ).toBeGreaterThanOrEqual(minimumNonTextContrast)
+        }
+      }
     }
   })
 })

@@ -21,7 +21,9 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Archive,
+  ArchiveRestore,
   CircleDot,
+  CopyPlus,
   DatabaseBackup,
   LoaderCircle,
   Plus,
@@ -35,7 +37,7 @@ import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl } from '@/ui'
+import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
@@ -52,6 +54,7 @@ import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { classroomArchiveOperationId } from '@/lib/classroom-archive-operation-id'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -283,10 +286,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [loadArchived, view])
 
   useEffect(() => {
-    function clearEditMode() {
-      setIsEditingClassrooms(false)
+    function showActiveClassrooms() {
       setDraggingClassroomId(null)
       setView('active')
+    }
+
+    function clearEditMode() {
+      setIsEditingClassrooms(false)
+      showActiveClassrooms()
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -297,10 +304,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('pageshow', clearEditMode)
+    window.addEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('pageshow', clearEditMode)
+      window.removeEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
     }
   }, [])
 
@@ -779,28 +788,44 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                         )}
                       </button>
                       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="xs"
-                          onClick={() => prepareArchivedClassroomAgain(c)}
-                          loading={reusingClassroomId === c.id}
-                          disabled={
-                            openingClassroomId !== null
-                            || (reusingClassroomId !== null && reusingClassroomId !== c.id)
-                          }
-                        >
-                          {reusingClassroomId === c.id ? 'Preparing' : 'Reuse'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="surface"
-                          size="xs"
-                          onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
-                          disabled={openingClassroomId !== null || reusingClassroomId !== null}
-                        >
-                          Unarchive
-                        </Button>
+                        <Tooltip content="Reuse">
+                          <span className="inline-flex">
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="xs"
+                              className="p-0"
+                              aria-label="Reuse"
+                              aria-busy={reusingClassroomId === c.id || undefined}
+                              onClick={() => prepareArchivedClassroomAgain(c)}
+                              disabled={
+                                openingClassroomId !== null
+                                || reusingClassroomId !== null
+                              }
+                            >
+                              {reusingClassroomId === c.id ? (
+                                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <CopyPlus className="h-4 w-4" aria-hidden="true" />
+                              )}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                        <Tooltip content="Unarchive">
+                          <span className="inline-flex">
+                            <Button
+                              type="button"
+                              variant="surface"
+                              size="xs"
+                              className="p-0"
+                              aria-label="Unarchive"
+                              onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
+                              disabled={openingClassroomId !== null || reusingClassroomId !== null}
+                            >
+                              <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                          </span>
+                        </Tooltip>
                         {!verifiedArchive && recovery && exportCanStart ? (
                           <Button
                             type="button"

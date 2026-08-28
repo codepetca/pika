@@ -6747,6 +6747,14 @@ export type Database = {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
       }
+      activate_test_from_draft_atomic: {
+        Args: {
+          p_expected_draft_version: number
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       apply_archived_classroom_blueprint_proposal_atomic: {
         Args: {
           p_candidate_sha256: string
@@ -8841,6 +8849,18 @@ export type Database = {
         }
         Returns: Json
       }
+      instantiate_course_blueprint_atomic_v2_pre_question_identity: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       is_classroom_archive_maintenance_mode: {
         Args: { p_mode: string }
         Returns: boolean
@@ -9416,6 +9436,18 @@ export type Database = {
       }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_test_draft_atomic: {
+        Args: {
+          p_content: Json
+          p_documents: Json
+          p_expected_documents: Json
+          p_expected_draft_version: number
+          p_teacher_id: string
+          p_test_id: string
+          p_update_documents: boolean
+        }
         Returns: Json
       }
       save_test_response_grades_atomic: {

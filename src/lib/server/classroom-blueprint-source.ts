@@ -4,8 +4,14 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+} from '@/lib/test-question-identity'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { buildTestDraftContentFromRows } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import type {
   Announcement,
   AssignmentSubmissionRequirement,
@@ -42,6 +48,7 @@ export type ClassroomBlueprintSource = {
   tests: Array<{
     artifact_id: string
     source_artifact_id: string | null
+    source_blueprint_version_id: string | null
     assessment_type: 'test'
     title: string
     content: TestDraftContent
@@ -87,6 +94,8 @@ export type ClassroomBlueprintSource = {
 type LoadClassroomBlueprintSourceOptions = {
   lessonTemplateTitleMode?: 'dated' | 'generic'
 }
+
+export { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 
 function getSupabase() {
   return getServiceRoleClient()
@@ -264,35 +273,66 @@ export async function loadClassroomBlueprintSource(
     questions.push(question)
     questionsByTestId.set(testId, questions)
   }
-  const draftsByTestId = new Map<string, TestDraftContent>()
+  const draftsByTestId = new Map<string, unknown>()
   for (const draft of draftRows) {
-    draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
+    draftsByTestId.set(String(draft.assessment_id), draft.content)
   }
-  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => {
+  const tests: Array<Record<string, any> & { content: TestDraftContent }> = []
+  for (const test of testRows) {
     const questions = questionsByTestId.get(String(test.id)) || []
-    const portableQuestionIds = new Map(
-      questions.map((question) => [
-        String(question.id),
-        question.source_artifact_id ?? question.artifact_id ?? question.id,
-      ])
-    )
-    const content = draftsByTestId.get(String(test.id)) ?? {
-      title: test.title,
-      show_results: !!test.show_results,
-      questions: questions as TestDraftContent['questions'],
+    const persistedTestContentSource = {
+      title: String(test.title || ''),
+      show_results: test.show_results === true,
+    }
+    // Draft JSON is authoritative only while the Test is editable. Once the
+    // Test is active or closed, capture the rows materialized by activation so
+    // a stale or rejected draft save cannot leak into a Blueprint.
+    let draftContent: TestDraftContent | undefined
+    const storedDraftContent = test.status === 'draft'
+      ? draftsByTestId.get(String(test.id))
+      : undefined
+    if (storedDraftContent !== undefined) {
+      const validation = validateTestDraftContent(storedDraftContent, {
+        allowEmptyQuestionText: true,
+      })
+      if (!validation.valid) {
+        return {
+          ok: false,
+          status: 409,
+          error: `Test draft cannot be captured: ${validation.error}`,
+        }
+      }
+      draftContent = validation.value
+    }
+    const content = draftContent
+      ?? buildTestDraftContentFromRows(persistedTestContentSource, questions)
+    // During the application-before-migration rollout window, only an unmarked
+    // stored draft may use exact legacy row-ID precedence. Migration 134 marks
+    // every live draft and its constraint prevents that path afterward.
+    // Row-built materialized content is always portable-only.
+    const projectedContent = projectPortableTestQuestionIds(content, questions.map((question) => ({
+      id: String(question.id),
+      artifact_id: question.artifact_id ?? null,
+      source_artifact_id: question.source_artifact_id ?? null,
+    })), draftContent
+      ? getTestDraftIdentityResolutionOptions(draftContent)
+      : {
+          acceptInternalRowIds: false,
+          allowDraftOnly: false,
+        })
+    if (!projectedContent.ok) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Test question identity is ambiguous; resolve it before creating a Blueprint',
+      }
     }
 
-    return {
+    tests.push({
       ...test,
-      content: {
-        ...content,
-        questions: content.questions.map((question) => ({
-          ...question,
-          id: portableQuestionIds.get(String(question.id)) ?? question.id,
-        })),
-      },
-    }
-  })
+      content: projectedContent.content,
+    })
+  }
 
   const surveyRows = (surveysResult.data || []) as Array<Record<string, any>>
   const surveyIds = surveyRows.map((survey) => String(survey.id))
@@ -370,6 +410,7 @@ export async function loadClassroomBlueprintSource(
       tests: tests.map((test) => ({
           artifact_id: test.source_artifact_id ?? test.artifact_id ?? test.id,
           source_artifact_id: test.source_artifact_id ?? null,
+          source_blueprint_version_id: test.source_blueprint_version_id ?? null,
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,

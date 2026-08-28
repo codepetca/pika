@@ -200,7 +200,15 @@ function seedActualSiteSupabase(
       }),
     ],
     test_questions: [
-      makeQueryBuilder({ data: [{ id: 'tq-1', test_id: 't-1', prompt: 'T1' }], error: null }),
+      makeQueryBuilder({
+        data: [{
+          id: 'tq-1',
+          artifact_id: '20000000-0000-4000-8000-000000000001',
+          test_id: 't-1',
+          prompt: 'T1',
+        }],
+        error: null,
+      }),
     ],
     assessment_drafts: [
       makeQueryBuilder({ data: [{ assessment_id: 't-1', content: { title: 'Unit Test', questions: [{ id: 'tq-1' }] } }], error: null }),

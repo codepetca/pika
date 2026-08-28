@@ -95,6 +95,128 @@ questions, Test documents, lesson templates/plans, classwork materials,
 surveys, and survey questions. Future independently editable units, outcomes,
 rubrics, and named resources must adopt the same contract.
 
+### Test question identity boundary
+
+- `TestDraftQuestion.id` is the question's portable Artifact ID. It is assigned
+  when the draft question is created and is preserved by edits and reordering.
+- Creating, editing, deleting, and reordering Test questions are version-fenced
+  draft-document operations. Direct `test_questions` row authoring endpoints
+  are retired so row state cannot diverge from the draft activation consumes.
+- `test_questions.id` is an internal database row ID and is never written into
+  Blueprint, Version, package, or draft content as logical identity.
+- Student attempts and responses are classroom-instance runtime state, not
+  reusable content. Their `question_id` foreign keys and the corresponding
+  classroom student/teacher API keys may use `test_questions.id` so existing
+  attempts and grading history remain attached to the exact materialized row;
+  those row IDs must never cross into drafts, Blueprints, Versions, packages,
+  or cross-classroom lineage.
+- An origin row stores the draft UUID in `artifact_id`. An instantiated row has
+  a new row `id` and stores the originating UUID in `source_artifact_id` (and in
+  `artifact_id` where the existing persistence contract requires it).
+- The canonical persisted portable identity is
+  `coalesce(source_artifact_id, artifact_id)` (source first), unique within one
+  Test. `artifact_id` and `source_artifact_id` are lineage fields, not two
+  interchangeable aliases.
+- Activation synchronizes rows by that single portable identity, never by
+  array position. A draft-only question inserts a new row with
+  `artifact_id = TestDraftQuestion.id`.
+- Blueprint capture reads and validates source identity but does not assign or
+  rewrite it. Missing or ambiguous persisted identity fails closed; a question
+  with no persisted row is valid only while it remains draft-only.
+- Capturing an origin Classroom saves an immutable baseline Version and records
+  that Version in `source_blueprint_version_id` on the captured Test and its
+  materialized questions. This is Blueprint-membership provenance, not portable
+  identity: origin rows keep `source_artifact_id = null`. Classroom proposal
+  filtering, matching, and removal use that provenance together with the
+  source-first portable identity, so a later Classroom-only Test remains
+  untracked and is never archived as collateral.
+- Legacy draft JSON that contains row IDs is transactionally backfilled once by
+  resolving those IDs to persisted portable identity. After the migration,
+  live runtime code must not read the internal row-ID namespace.
+- Portable draft JSON carries `question_identity_version: 1`. The marker is
+  required on every Test-draft write and enforced at rest. Marked drafts,
+  content rebuilt from materialized rows, Blueprint capture, save, and
+  activation validate only the single source-first portable identity.
+- Cold archived-Classroom payloads are the only retained compatibility
+  boundary. Restore adapts an unmarked archived draft to portable identity in
+  memory before writing it into the current schema. Immutable Blueprint Version
+  rows are never rewritten; older snapshot shapes are normalized in memory at
+  their read/instantiation boundary.
+- Every writer that can touch this graph locks in one order: Classroom, Test,
+  Draft, then question rows. Archive reuse and student attempt save/submission
+  follow the same parent-first order, preventing a Classroom/Test lock cycle.
+
+### Test question identity rollout and rollback
+
+Roll out the contract as a finite cutover:
+
+1. Deploy the compatibility application. It assigns portable identity at
+   question creation, marks every projected response and save, treats marked
+   documents as portable-only, and gives exact row-ID precedence only to an
+   unmarked live draft during this pre-migration window. When the migration RPC
+   is not installed yet, the server projects marked portable IDs back to the
+   exact legacy row IDs before persistence, while returning the
+   portable representation to the client. Draft-only UUIDs remain unchanged
+   and are materialized with that same UUID in both the legacy row-ID and
+   artifact-ID slots. Migration 133 cannot transactionally fence student entry
+   across application-side question synchronization, so active and closed Tests
+   accept only metadata/document saves whose question graph is unchanged;
+   question edits require reopening the Test as a draft. Test activation is
+   deliberately unavailable during this short application-before-migration
+   window because migration 133 has no transactional activation primitive;
+   once migration 134 is applied, the atomic RPC resumes activation. A
+   draft-only portable UUID that already exists anywhere as an internal
+   question row ID is rejected before writing because the legacy single-ID
+   format cannot represent that namespace collision safely. This narrow
+   fallback keeps Test draft saving usable while migration application remains
+   a separate human action; activation resumes after the RPC exists.
+2. Apply the identity migration as one transaction. It resolves an exact
+   historical row-ID match first because legacy drafts stored row IDs. Only
+   when no row-ID match exists does it fall back to the one source-first
+   portable UUID match; multiple matches abort, and draft-only UUIDv4 identities
+   remain unchanged. It marks every successfully converted Test draft with
+   `question_identity_version: 1`, including drafts whose question IDs did not
+   require a textual rewrite. This precedence handles the migration 112/114
+   question-zero stamping defect without position or content inference. Any
+   legacy draft input or resolved portable identity that is not UUIDv4 aborts the whole migration;
+   reconcile that source record explicitly before retrying instead of silently
+   generating a replacement identity that could sever immutable lineage. The
+   migration fences Draft writers before question writers, waiting behind any
+   in-flight save before it holds the question-table fence. The draft rewrite
+   runs under the transaction-local identity-mapping guard because replacing a
+   legacy row ID with its portable identity is not an authored Test change and
+   must not advance the Classroom structural revision or introduce a reverse
+   Classroom/Draft lock dependency. The same transaction adds the portable
+   uniqueness index, the stored-draft marker constraint, and portable-only
+   runtime functions.
+
+   Run this cutover in an idle application window. Immediately before the
+   authorized push, verify that production has migrations 001–133 applied and
+   only 134 pending, confirm the dry run contains only
+   `134_blueprint_test_question_ordinal_identity.sql`, and check for old active
+   transactions with a read-only `pg_stat_activity` query. The migration uses
+   a 10-second lock timeout and a 15-minute per-statement timeout, so an
+   unexpected writer or slow backfill fails the transaction instead of waiting
+   indefinitely. On either timeout, confirm 134 is still pending, inspect and
+   clear the blocker without terminating unrelated sessions, then obtain fresh
+   one-time authorization before repeating the full preflight and push. Do not
+   repair migration history or paste partial SQL as a retry.
+3. Verify save, activation, capture, recapture, Version creation, classroom
+   instantiation, and archived reuse, including the production-shaped row-ID /
+   portable-ID collision and concurrent archive reuse. The marker constraint
+   makes the live unmarked compatibility branch unreachable after this point;
+   remove that pre-migration caller in a later cleanup after production
+   verification, while retaining the cold-archive adapter. Remove the
+   pre-migration application fallback in the same cleanup pass.
+
+Before step 2, application rollback is ordinary. A migration failure rolls the
+whole transaction back, including draft backfill, constraints, indexes, and
+function replacement. After step 2 commits, do not roll application code back
+to a release that writes row IDs into drafts. Roll forward with a corrected
+portable-only release, or restore the pre-migration database backup if the
+persisted backfill itself must be reversed. Identity columns and draft IDs must
+never be independently rewritten as an ad hoc rollback.
+
 Singleton sections use permanent semantic identities instead of random UUIDs:
 
 - `course.overview`

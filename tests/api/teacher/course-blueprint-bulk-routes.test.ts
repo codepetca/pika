@@ -83,9 +83,13 @@ describe('teacher course blueprint bulk routes', () => {
       .resolves.toHaveProperty('status', 200)
 
     expect(mockSyncAssignments).toHaveBeenCalledWith('teacher-1', 'blueprint-1', [assignment])
-    expect(mockSyncAssessments).toHaveBeenCalledWith('teacher-1', 'blueprint-1', [assessment], {
-      replaceTypes: ['test'],
-    })
+    expect(mockSyncAssessments).toHaveBeenCalledWith('teacher-1', 'blueprint-1', [{
+      ...assessment,
+      content: {
+        ...assessment.content,
+        question_identity_version: 1,
+      },
+    }], { replaceTypes: ['test'] })
     expect(mockSyncLessons).toHaveBeenCalledWith('teacher-1', 'blueprint-1', [lesson])
   })
 

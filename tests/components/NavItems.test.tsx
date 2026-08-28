@@ -115,8 +115,18 @@ describe('NavItems notification dots', () => {
         palEnabled
       />
     )
-    expect(screen.getByRole('link', { name: 'Achievements' }))
-      .toHaveAttribute('aria-current', 'page')
+    const achievementsLink = screen.getByRole('link', { name: 'Achievements' })
+    expect(achievementsLink).toHaveAttribute('aria-current', 'page')
+    expect(achievementsLink.parentElement).toHaveClass('mt-auto')
+    expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Today',
+      'Classwork',
+      'Tests',
+      'Calendar',
+      'Syllabus',
+      'Announcements',
+      'Achievements',
+    ])
   })
 
   it('uses dot path for student assignments nav item', () => {

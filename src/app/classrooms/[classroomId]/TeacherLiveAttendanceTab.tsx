@@ -8,18 +8,24 @@ import {
   Clock3,
   DoorClosed,
   DoorOpen,
+  EllipsisVertical,
   QrCode as QrCodeIcon,
   RefreshCw,
   UserRoundCheck,
   UserRoundX,
-  X,
 } from 'lucide-react'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
-import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import { CountBadge } from '@/components/StudentCountBadge'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TeacherSelectionBar } from '@/components/teacher-work-surface/TeacherSelectionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
+import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { useTableSelection } from '@/hooks/useTableSelection'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { fetchJSON } from '@/lib/request-cache'
+import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { getTodayInToronto } from '@/lib/timezone'
 import type {
   TeacherAttendanceStatus,
@@ -43,7 +49,7 @@ import {
   PageState,
   QrCode,
   RefreshingIndicator,
-  TableCard,
+  SortableHeaderCell,
   TableSelectionCell,
   TableSelectionHeaderCell,
   Tooltip,
@@ -58,6 +64,15 @@ interface TeacherLiveAttendanceTabProps {
 }
 
 type SessionCommand = 'open' | 'close'
+type SortColumn = 'first_name' | 'last_name' | 'source' | 'status'
+type StatusSort = Exclude<TeacherAttendanceStatus, 'unmarked'>
+type ResizableColumn = 'first' | 'last' | 'source'
+
+const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number; max: number }> = {
+  first: { defaultWidth: 72, min: 60, max: 160 },
+  last: { defaultWidth: 72, min: 60, max: 160 },
+  source: { defaultWidth: 96, min: 72, max: 180 },
+}
 
 const STATUS_LABELS: Record<TeacherAttendanceStatus, string> = {
   unmarked: 'Unmarked',
@@ -67,10 +82,58 @@ const STATUS_LABELS: Record<TeacherAttendanceStatus, string> = {
 }
 
 const STATUS_DOT_CLASSES: Record<TeacherAttendanceStatus, string> = {
-  unmarked: 'bg-border-strong',
-  present: 'bg-success-solid',
-  late: 'bg-warning',
-  absent: 'bg-danger-solid',
+  unmarked: 'bg-attendance-unmarked',
+  present: 'bg-attendance-present',
+  late: 'bg-attendance-late',
+  absent: 'bg-attendance-absent',
+}
+
+const STATUS_CHIP_CLASSES: Record<StatusSort, string> = {
+  present: 'bg-attendance-present text-attendance-present-text',
+  late: 'bg-attendance-late text-attendance-late-text',
+  absent: 'bg-attendance-absent text-attendance-absent-text',
+}
+
+const SORTABLE_STATUSES: StatusSort[] = ['present', 'late', 'absent']
+
+function AttendanceStatusSortChip({
+  status,
+  count,
+  active,
+  onClick,
+}: {
+  status: StatusSort
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  const label = STATUS_LABELS[status]
+  const studentLabel = count === 1 ? 'student' : 'students'
+
+  return (
+    <Tooltip content={`${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        className="rounded-badge px-0 py-0"
+        aria-label={`Sort ${label} first, ${count} ${studentLabel}`}
+        aria-pressed={active}
+        onClick={onClick}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'inline-flex h-6 min-w-6 items-center justify-center rounded-badge px-2 text-sm font-semibold',
+            STATUS_CHIP_CLASSES[status],
+            active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
+          )}
+        >
+          {count}
+        </span>
+      </Button>
+    </Tooltip>
+  )
 }
 
 const SESSION_LABELS: Record<TeacherAttendanceView['session']['state'], string> = {
@@ -81,12 +144,12 @@ const SESSION_LABELS: Record<TeacherAttendanceView['session']['state'], string> 
   cancelled: 'Cancelled',
 }
 
-const SESSION_TONE_CLASSES: Record<TeacherAttendanceView['session']['state'], string> = {
-  not_scheduled: 'border-border bg-surface-2 text-text-muted',
-  scheduled: 'border-info bg-info-bg text-text-default',
-  open: 'border-success bg-success-bg text-success',
-  closed: 'border-border bg-surface-2 text-text-muted',
-  cancelled: 'border-danger bg-danger-bg text-danger',
+const SESSION_DOT_CLASSES: Record<TeacherAttendanceView['session']['state'], string> = {
+  not_scheduled: 'bg-border-strong',
+  scheduled: 'bg-primary',
+  open: 'bg-success-solid',
+  closed: 'bg-border-strong',
+  cancelled: 'bg-danger-solid',
 }
 
 function attendanceUrl(classroomId: string, classDate: string) {
@@ -160,6 +223,15 @@ export function TeacherLiveAttendanceTab({
   const [qrError, setQrError] = useState('')
   const [qrPresentation, setQrPresentation] = useState<TeacherAttendanceQrPresentation | null>(null)
   const [attendanceHoursOpen, setAttendanceHoursOpen] = useState(false)
+  const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
+    column: SortColumn
+    direction: 'asc' | 'desc'
+    status: StatusSort | null
+  }>({ column: 'last_name', direction: 'asc', status: null })
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-live-attendance:v1',
+    columns: COLUMN_LIMITS,
+  })
   const requestSequenceRef = useRef(0)
   const mountedRef = useRef(true)
   const currentViewKeyRef = useRef(`${classroom.id}:${selectedDate}`)
@@ -234,12 +306,36 @@ export function TeacherLiveAttendanceTab({
     }
   }, [qrPresentation])
 
-  const students = useMemo(
-    () => [...(view?.students ?? [])].sort((a, b) => (
-      a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
-    )),
-    [view?.students],
-  )
+  const students = useMemo(() => view?.students ?? [], [view?.students])
+  const rows = useMemo(() => [...students].sort((a, b) => {
+    const compareNames = (
+      column: 'first_name' | 'last_name' = 'last_name',
+      direction: 'asc' | 'desc' = 'asc',
+    ) => compareByNameFields(
+      { firstName: a.firstName, lastName: a.lastName, id: a.studentId },
+      { firstName: b.firstName, lastName: b.lastName, id: b.studentId },
+      column,
+      direction,
+    )
+
+    if (sortColumn === 'status') {
+      if (!sortStatus) return compareNames()
+      const statusRank = Number(b.status === sortStatus) - Number(a.status === sortStatus)
+      return statusRank || compareNames()
+    }
+    if (sortColumn === 'source') {
+      const sourceComparison = compareNullableStrings(sourceLabel(a.source), sourceLabel(b.source))
+      return applyDirection(sourceComparison, sortDirection) || compareNames()
+    }
+    return compareNames(sortColumn, sortDirection)
+  }), [sortColumn, sortDirection, sortStatus, students])
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusSort, number> = { present: 0, late: 0, absent: 0 }
+    for (const student of students) {
+      if (student.status !== 'unmarked') counts[student.status] += 1
+    }
+    return counts
+  }, [students])
   const selectableStudentIds = useMemo(
     () => students.filter((student) => !student.pendingCommand).map((student) => student.studentId),
     [students],
@@ -253,17 +349,6 @@ export function TeacherLiveAttendanceTab({
     clearSelection,
     selectedCount,
   } = useTableSelection(selectableStudentIds)
-
-  const counts = useMemo(() => {
-    const result: Record<TeacherAttendanceStatus, number> = {
-      unmarked: 0,
-      present: 0,
-      late: 0,
-      absent: 0,
-    }
-    for (const student of students) result[student.status] += 1
-    return result
-  }, [students])
 
   const isArchived = Boolean(classroom.archived_at)
   const sessionState = view?.session.state ?? 'not_scheduled'
@@ -283,6 +368,14 @@ export function TeacherLiveAttendanceTab({
     () => students.filter((student) => student.commandFailed).length,
     [students],
   )
+
+  function handleSort(column: Exclude<SortColumn, 'status'>) {
+    setSortState((current) => ({ ...toggleSort(current, column), status: null }))
+  }
+
+  function handleStatusSort(status: StatusSort) {
+    setSortState({ column: 'status', direction: 'asc', status })
+  }
 
   async function pollForConfirmation(
     viewKey: string,
@@ -477,10 +570,56 @@ export function TeacherLiveAttendanceTab({
         : null
     : null
 
+  const windowLabel = view?.integration === 'ready' ? sessionWindow(view) : null
+  const hasUnconfirmedView = view?.integration === 'ready' && (
+    view.sync.state === 'stale' || view.sync.state === 'unavailable'
+  )
+  const sessionContextLabel = hasUnconfirmedView
+    ? 'Last confirmed'
+    : localSessionPending || view?.sync.state === 'pending'
+      ? 'Updating…'
+      : SESSION_LABELS[sessionState]
+  const utilityActions: TeacherWorkSurfaceActionItem[] = [
+    ...(!isArchived ? [{
+      id: 'attendance-hours',
+      label: 'Attendance hours',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand),
+      onSelect: () => setAttendanceHoursOpen(true),
+    }] : []),
+    {
+      id: 'refresh-attendance',
+      label: 'Refresh attendance',
+      icon: <RefreshCw className="h-4 w-4" aria-hidden="true" />,
+      disabled: loading || refreshing || Boolean(activeCommand),
+      onSelect: () => void loadView(true),
+    },
+  ]
   const actionBar = (
-    <TeacherWorkSurfaceActionBar
-      center={(
-        <div className="flex items-center gap-1" data-testid="attendance-center-fab">
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Attendance controls and summary"
+      testId="attendance-context-bar"
+      context={view?.integration === 'ready' ? (
+        <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+          <span
+            className={cn(
+              'h-2 w-2 shrink-0 rounded-full',
+              hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
+            )}
+            aria-hidden="true"
+          />
+          <span className="truncate">{sessionContextLabel}</span>
+          {hasUnconfirmedView ? (
+            <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
+          ) : null}
+          {windowLabel ? <span className="hidden truncate xl:inline">· {windowLabel}</span> : null}
+          {localSessionPending || view.sync.state === 'pending' ? (
+            <span className="hidden truncate xl:inline">· Waiting for confirmation</span>
+          ) : null}
+        </div>
+      ) : null}
+      primary={(
+        <div className="flex items-center gap-1" data-testid="attendance-primary-control">
           <CalendarDateNavigator
             label={formatDay(selectedDate)}
             onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
@@ -489,7 +628,7 @@ export function TeacherLiveAttendanceTab({
             labelAriaLabel="Go to today"
             prevAriaLabel="Previous day"
             nextAriaLabel="Next day"
-            labelClassName="px-0"
+            labelClassName="px-1"
           />
           {sessionState === 'open' ? (
             <Tooltip content="Show QR">
@@ -497,86 +636,82 @@ export function TeacherLiveAttendanceTab({
                 type="button"
                 size="sm"
                 variant="primary"
-                className="w-9 px-0 sm:w-auto sm:px-3"
+                className="h-9 w-9 px-0"
                 aria-label="Show QR"
                 disabled={Boolean(activeCommand) || localSessionPending}
                 onClick={openQrPresentation}
               >
                 <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Show QR</span>
               </Button>
             </Tooltip>
           ) : null}
           {sessionAction ? (
-            sessionAction.command === 'open' ? (
-              <Tooltip content={sessionAction.label}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="primary"
-                  className="h-9 w-9 px-0"
-                  aria-label={sessionAction.label}
-                  loading={activeCommand === 'session:open'}
-                  disabled={Boolean(activeCommand) || localSessionPending}
-                  onClick={() => void submitSessionCommand('open')}
-                >
+            <Tooltip content={sessionAction.label}>
+              <Button
+                type="button"
+                size="sm"
+                variant={sessionAction.command === 'open' ? 'primary' : 'secondary'}
+                className="h-9 w-9 px-0"
+                aria-label={sessionAction.label}
+                loading={activeCommand === `session:${sessionAction.command}`}
+                disabled={Boolean(activeCommand) || localSessionPending}
+                onClick={() => void submitSessionCommand(sessionAction.command)}
+              >
+                {sessionAction.command === 'open' ? (
                   <DoorOpen className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </Tooltip>
-            ) : (
-              <Tooltip content={sessionAction.label}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="w-9 px-0 sm:w-auto sm:px-3"
-                  aria-label={sessionAction.label}
-                  loading={activeCommand === 'session:close'}
-                  disabled={Boolean(activeCommand) || localSessionPending}
-                  onClick={() => void submitSessionCommand('close')}
-                >
+                ) : (
                   <DoorClosed className="h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">{sessionAction.label}</span>
-                </Button>
-              </Tooltip>
-            )
+                )}
+              </Button>
+            </Tooltip>
           ) : null}
         </div>
       )}
-      centerPlacement="floating"
-      centerClassName="top-24 sm:top-14"
-      trailing={(
-        <div className="flex items-center gap-1">
-          {!isArchived ? (
-            <Tooltip content="Attendance hours">
+      trailingClassName="overflow-visible"
+      actions={view?.integration === 'ready' ? (
+        <div className="flex items-center" data-testid="attendance-trailing-actions">
+          <div className="sm:hidden">
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="Attendance actions"
+              tooltip="Attendance actions"
+              variant="ghost"
+              icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+              items={utilityActions}
+              menuAriaLabel="Attendance actions"
+            />
+          </div>
+          <div className="hidden items-center gap-1 sm:flex">
+            {!isArchived ? (
+              <Tooltip content="Attendance hours">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-9 w-9 px-0"
+                  aria-label="Attendance hours"
+                  disabled={Boolean(activeCommand)}
+                  onClick={() => setAttendanceHoursOpen(true)}
+                >
+                  <Clock3 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            ) : null}
+            <Tooltip content="Refresh attendance">
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 className="h-9 w-9 px-0"
-                aria-label="Attendance hours"
-                disabled={Boolean(activeCommand)}
-                onClick={() => setAttendanceHoursOpen(true)}
+                aria-label="Refresh attendance"
+                disabled={loading || refreshing || Boolean(activeCommand)}
+                onClick={() => void loadView(true)}
               >
-                <Clock3 className="h-4 w-4" aria-hidden="true" />
+                <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
               </Button>
             </Tooltip>
-          ) : null}
-          <Tooltip content="Refresh attendance">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-9 w-9 px-0"
-              aria-label="Refresh attendance"
-              disabled={loading || refreshing || Boolean(activeCommand)}
-              onClick={() => void loadView(true)}
-            >
-              <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
-            </Button>
-          </Tooltip>
+          </div>
         </div>
-      )}
+      ) : null}
     />
   )
 
@@ -614,7 +749,6 @@ export function TeacherLiveAttendanceTab({
       />
     )
   } else {
-    const windowLabel = sessionWindow(view)
     content = (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {refreshing ? <RefreshingIndicator label="Refreshing attendance" /> : null}
@@ -630,101 +764,167 @@ export function TeacherLiveAttendanceTab({
               : `${failedStudentCount} previous attendance ${failedStudentCount === 1 ? 'update' : 'updates'} failed. Select the affected ${failedStudentCount === 1 ? 'student' : 'students'} to try again.`}
           </div>
         ) : null}
-        <section aria-label="Attendance session" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-surface px-3 py-2">
-          <span className={cn('inline-flex items-center rounded-badge border px-2 py-1 text-sm font-semibold', SESSION_TONE_CLASSES[sessionState])}>
-            {SESSION_LABELS[sessionState]}
-          </span>
-          {windowLabel ? <span className="text-sm text-text-muted">{windowLabel}</span> : null}
-          {localSessionPending || view.sync.state === 'pending' ? (
-            <span className="text-sm text-text-muted">Waiting for confirmation…</span>
-          ) : null}
-          {view.session.commandFailed && !localSessionPending ? (
-            <span className="text-sm text-warning">Previous session update failed</span>
-          ) : null}
-          {view.sync.state === 'stale' || view.sync.state === 'unavailable' ? (
-            <span className="text-sm text-warning">Last confirmed attendance shown</span>
-          ) : null}
-          <span className="ml-auto flex flex-wrap items-center gap-1" aria-label={`${counts.present} present, ${counts.late} late, ${counts.absent} absent, ${counts.unmarked} unmarked`}>
-            <CountBadge count={counts.present} tooltip={`${counts.present} present`} variant="success" />
-            <CountBadge count={counts.late} tooltip={`${counts.late} late`} variant="neutral" />
-            <CountBadge count={counts.absent} tooltip={`${counts.absent} absent`} variant="danger" />
-            <CountBadge count={counts.unmarked} tooltip={`${counts.unmarked} unmarked`} variant="neutral" />
-          </span>
-        </section>
-
-        <div className="min-h-48 flex-1 overflow-auto rounded-lg bg-surface">
-          <TableCard chrome="flush">
-            <DataTable density="compact">
-              <caption className="sr-only">Student attendance for {formatFullDay(selectedDate)}</caption>
-              <DataTableHead>
-                <DataTableRow>
-                  <TableSelectionHeaderCell
-                    checked={allSelected}
-                    indeterminate={someSelected}
-                    onChange={toggleSelectAll}
-                    ariaLabel="Select all students"
-                    disabled={!canMark || Boolean(activeCommand) || selectableStudentIds.length === 0}
-                  />
-                  <DataTableHeaderCell>Student</DataTableHeaderCell>
-                  <DataTableHeaderCell>Status</DataTableHeaderCell>
-                  <DataTableHeaderCell className="hidden sm:table-cell">Source</DataTableHeaderCell>
-                </DataTableRow>
-              </DataTableHead>
-              <DataTableBody>
-                {students.map((student) => {
-                  const pending = pendingStudentIds.has(student.studentId)
-                  const selectable = canMark && !pending && !activeCommand
-                  const selected = selectedIds.has(student.studentId)
-                  const studentSource = sourceLabel(student.source)
-                  return (
-                    <DataTableRow
-                      key={student.studentId}
-                      aria-selected={selected}
-                      className={cn(
-                        'transition-colors',
-                        selectable && 'cursor-pointer hover:bg-surface-hover',
-                        selected && 'bg-info-bg hover:bg-info-bg-hover',
-                      )}
-                      onClick={() => {
-                        if (selectable) toggleSelect(student.studentId)
-                      }}
+        <TeacherWorkSurfaceTableFrame selectionActive={selectedCount > 0}>
+          <DataTable density="tight" className="table-fixed">
+            <caption className="sr-only">Student attendance for {formatFullDay(selectedDate)}</caption>
+            <colgroup>
+              <col className="w-10" />
+              <col style={{ width: `${columnWidths.first}px` }} />
+              <col style={{ width: `${columnWidths.last}px` }} />
+              <col
+                className="hidden md:table-column"
+                style={{ width: `${columnWidths.source}px` }}
+              />
+              <col />
+            </colgroup>
+            <DataTableHead sticky>
+              <DataTableRow>
+                <TableSelectionHeaderCell
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={toggleSelectAll}
+                  ariaLabel="Select all students"
+                  disabled={!canMark || Boolean(activeCommand) || selectableStudentIds.length === 0}
+                />
+                <SortableHeaderCell
+                  label="First"
+                  isActive={sortColumn === 'first_name'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('first_name')}
+                  buttonClassName="!pl-2 !pr-5"
+                  resize={{
+                    value: columnWidths.first,
+                    min: COLUMN_LIMITS.first.min,
+                    max: COLUMN_LIMITS.first.max,
+                    onChange: (width) => setColumnWidth('first', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Last"
+                  isActive={sortColumn === 'last_name'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('last_name')}
+                  buttonClassName="!pl-2 !pr-5"
+                  resize={{
+                    value: columnWidths.last,
+                    min: COLUMN_LIMITS.last.min,
+                    max: COLUMN_LIMITS.last.max,
+                    onChange: (width) => setColumnWidth('last', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Source"
+                  isActive={sortColumn === 'source'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('source')}
+                  buttonClassName="!pl-2 !pr-5"
+                  className="hidden md:table-cell"
+                  resize={{
+                    value: columnWidths.source,
+                    min: COLUMN_LIMITS.source.min,
+                    max: COLUMN_LIMITS.source.max,
+                    onChange: (width) => setColumnWidth('source', width),
+                  }}
+                />
+                <DataTableHeaderCell
+                  className="!p-0"
+                  aria-sort={sortColumn === 'status' ? 'other' : 'none'}
+                >
+                  <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
+                    <span className="hidden shrink-0 lg:inline">Status</span>
+                    <span
+                      role="group"
+                      aria-label="Sort attendance by status"
+                      className="flex min-w-0 items-center"
                     >
-                      <TableSelectionCell
-                        checked={selected}
-                        onChange={() => toggleSelect(student.studentId)}
-                        ariaLabel={`Select ${student.firstName} ${student.lastName}`}
-                        disabled={!selectable}
-                      />
-                      <DataTableCell>
-                        <span className="font-medium">{student.lastName}, {student.firstName}</span>
-                      </DataTableCell>
-                      <DataTableCell>
-                        <span className="inline-flex items-center gap-2">
-                          <span className={cn('h-2.5 w-2.5 rounded-full', STATUS_DOT_CLASSES[student.status])} aria-hidden="true" />
-                          <span>{STATUS_LABELS[student.status]}</span>
-                          {pending ? <span className="text-text-muted">Updating…</span> : null}
-                          {!pending && student.commandFailed ? (
-                            <span className="text-warning">Previous update failed</span>
-                          ) : null}
-                        </span>
-                      </DataTableCell>
-                      <DataTableCell className="hidden text-text-muted sm:table-cell">
+                      {SORTABLE_STATUSES.map((status) => (
+                        <AttendanceStatusSortChip
+                          key={status}
+                          status={status}
+                          count={statusCounts[status]}
+                          active={sortColumn === 'status' && sortStatus === status}
+                          onClick={() => handleStatusSort(status)}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                </DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {rows.map((student) => {
+                const pending = pendingStudentIds.has(student.studentId)
+                const selectable = canMark && !pending && !activeCommand
+                const selected = selectedIds.has(student.studentId)
+                const studentSource = sourceLabel(student.source)
+                return (
+                  <DataTableRow
+                    key={student.studentId}
+                    aria-selected={selected}
+                    className={cn(
+                      'transition-colors',
+                      selectable && 'cursor-pointer hover:bg-surface-hover',
+                      selected && 'bg-info-bg hover:bg-info-bg-hover',
+                    )}
+                    onClick={() => {
+                      if (selectable) toggleSelect(student.studentId)
+                    }}
+                  >
+                    <TableSelectionCell
+                      checked={selected}
+                      onChange={() => toggleSelect(student.studentId)}
+                      ariaLabel={`Select ${student.firstName} ${student.lastName}`}
+                      disabled={!selectable}
+                    />
+                    <DataTableCell className="min-w-0">
+                      <span className="block truncate" title={student.firstName || undefined}>
+                        {student.firstName || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="min-w-0">
+                      <span className="block truncate" title={student.lastName || undefined}>
+                        {student.lastName || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="hidden min-w-0 text-text-muted md:table-cell">
+                      <span className="block truncate" title={studentSource ?? undefined}>
                         {studentSource ?? '—'}
-                      </DataTableCell>
-                    </DataTableRow>
-                  )
-                })}
-                {students.length === 0 ? (
-                  <EmptyStateRow colSpan={4} message="No students enrolled" />
-                ) : null}
-              </DataTableBody>
-            </DataTable>
-          </TableCard>
-        </div>
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <span className="inline-flex items-center gap-2">
+                        <Tooltip content={STATUS_LABELS[student.status]}>
+                          <span
+                            role="img"
+                            aria-label={STATUS_LABELS[student.status]}
+                            className={cn(
+                              'inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-attendance-dot-halo',
+                              STATUS_DOT_CLASSES[student.status],
+                            )}
+                          />
+                        </Tooltip>
+                        {pending ? <span className="text-text-muted">Updating…</span> : null}
+                        {!pending && student.commandFailed ? (
+                          <span className="text-warning">Previous update failed</span>
+                        ) : null}
+                      </span>
+                    </DataTableCell>
+                  </DataTableRow>
+                )
+              })}
+              {rows.length === 0 ? (
+                <EmptyStateRow colSpan={5} message="No students enrolled" />
+              ) : null}
+            </DataTableBody>
+          </DataTable>
+        </TeacherWorkSurfaceTableFrame>
 
-        {selectedCount > 0 ? (
-          <FloatingActionCluster placement="bottom" className="flex flex-wrap items-center justify-center gap-1" role="toolbar" aria-label="Bulk attendance actions">
-            <span className="px-2 text-sm font-semibold text-text-default">{selectedCount} selected</span>
+        <TeacherSelectionBar
+          selectedCount={selectedCount}
+          onClear={clearSelection}
+          clearDisabled={Boolean(activeCommand)}
+          ariaLabel="Bulk attendance actions"
+        >
             <Button type="button" size="sm" variant="success" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:present'} onClick={() => void submitMarks('present')}>
               <UserRoundCheck className="h-4 w-4" aria-hidden="true" /> Present
             </Button>
@@ -737,11 +937,7 @@ export function TeacherLiveAttendanceTab({
             <Button type="button" size="sm" variant="ghost" disabled={Boolean(activeCommand)} loading={activeCommand === 'marks:unmarked'} onClick={() => void submitMarks('unmarked')}>
               <Check className="h-4 w-4" aria-hidden="true" /> Clear mark
             </Button>
-            <Button type="button" size="sm" variant="ghost" disabled={Boolean(activeCommand)} onClick={clearSelection} aria-label="Clear selection">
-              <X className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </FloatingActionCluster>
-        ) : null}
+        </TeacherSelectionBar>
       </div>
     )
   }
@@ -753,8 +949,8 @@ export function TeacherLiveAttendanceTab({
   return (
     <>
       <PageLayout className="flex h-full min-h-0 flex-col">
-        <PageActionBar primary={actionBar} className="pb-24 sm:pb-2" />
-        <PageContent className="flex min-h-0 flex-1 flex-col pb-24">
+        <PageActionBar primary={actionBar} className="relative z-local-menu pb-0" />
+        <PageContent className="flex min-h-0 flex-1 flex-col pb-2 pt-1">
           {content}
         </PageContent>
       </PageLayout>

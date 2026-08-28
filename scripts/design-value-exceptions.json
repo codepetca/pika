@@ -397,8 +397,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 24,
-          "fingerprint": "e545d6e91ae94b83",
+          "count": 5,
+          "fingerprint": "f5b919a77c96b5b0",
           "reason": "legacy-visual-value"
         }
       ]
@@ -466,30 +466,6 @@
           "count": 2,
           "fingerprint": "9f563f4c1d285d37",
           "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
-      "file": "src/components/ClassroomDropdown.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "451b7b47ec4cd7be",
-          "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "dd7dae98312857f9",
-          "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "3eef1ce97dba458a",
-          "reason": "special-layer"
         }
       ]
     },

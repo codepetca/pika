@@ -651,6 +651,7 @@ describe('GET /api/teacher/tests', () => {
             content: {
               title: 'Draft Overlay Title',
               show_results: true,
+              question_identity_version: 1,
               questions: [],
             },
           },
@@ -659,6 +660,7 @@ describe('GET /api/teacher/tests', () => {
             content: {
               title: 'Stale Draft Title',
               show_results: true,
+              question_identity_version: 1,
               questions: [],
             },
           },
@@ -766,6 +768,7 @@ describe('POST /api/teacher/tests', () => {
         content: {
           title: 'New Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [],
           source_format: 'markdown',
         },

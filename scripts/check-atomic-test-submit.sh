@@ -653,6 +653,123 @@ if [[ "$ACCESS_STATE" != "closed:0:0" ]]; then
   exit 1
 fi
 
+# The partial-attempt contract above has already verified its persisted state.
+# Remove that fixture before the question/autosave ordering case: migration 134
+# intentionally freezes questions once any student work exists, while this case
+# specifically proves that a question mutation which starts first is visible to
+# a brand-new autosave after it acquires the shared Test lock.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+select public.delete_student_test_attempt_atomic(
+  'e0000000-0000-4000-8000-000000000017',
+  'e0000000-0000-4000-8000-00000000000d'
+);
+SQL
+
+# Race a Classroom-first question mutation against both student attempt RPCs.
+# While the mutation owns Classroom and pauses before asking for Test, the
+# student call must wait on Classroom without retaining Test. A third session
+# can therefore lock Test immediately; the old joined Test->Classroom plan
+# timed out here and then deadlocked the first two sessions with SQLSTATE 40P01.
+run_parent_order_race() {
+  local operation="$1"
+  local next_limit="$2"
+  local teacher_name="atomic-test-parent-${operation}-teacher"
+  local student_name="atomic-test-parent-${operation}-student"
+
+  docker exec -e PGAPPNAME="$teacher_name" -i "$DB_CONTAINER" \
+    psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v next_limit="$next_limit" >/dev/null <<'SQL' &
+begin;
+select 1
+from public.classrooms
+where id = 'e0000000-0000-4000-8000-000000000010'
+for update;
+select pg_sleep(3);
+update public.test_questions
+set response_max_chars = :next_limit
+where id = 'e0000000-0000-4000-8000-00000000010c';
+commit;
+SQL
+  local teacher_pid=$!
+  wait_for_application_event "$teacher_name" PgSleep
+
+  if [[ "$operation" == "save" ]]; then
+    docker exec -e PGAPPNAME="$student_name" -i "$DB_CONTAINER" \
+      psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
+      "select public.save_test_attempt_atomic(
+        'e0000000-0000-4000-8000-000000000017',
+        'e0000000-0000-4000-8000-00000000000d',
+        jsonb_build_object(
+          'e0000000-0000-4000-8000-00000000010c',
+          jsonb_build_object('question_type', 'open_response', 'response_text', 'ordered')
+        )
+      );" >"$TMP_ONE" 2>&1 &
+  else
+    docker exec -e PGAPPNAME="$student_name" -i "$DB_CONTAINER" \
+      psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
+      "select public.submit_test_attempt_atomic(
+        'e0000000-0000-4000-8000-000000000017',
+        'e0000000-0000-4000-8000-00000000000d',
+        jsonb_build_object(
+          'e0000000-0000-4000-8000-00000000010b',
+          jsonb_build_object('question_type', 'multiple_choice', 'selected_option', 1),
+          'e0000000-0000-4000-8000-00000000010c',
+          jsonb_build_object('question_type', 'open_response', 'response_text', 'ordered')
+        ),
+        '2026-07-14T15:02:30Z'
+      );" >"$TMP_ONE" 2>&1 &
+  fi
+  local student_pid=$!
+  wait_for_lock_waiters "$student_name" 1
+
+  set +e
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X \
+    -v ON_ERROR_STOP=1 -v VERBOSITY=verbose >/dev/null 2>"$TMP_TWO" <<'SQL'
+set lock_timeout = '500ms';
+begin;
+select 1
+from public.tests
+where id = 'e0000000-0000-4000-8000-000000000017'
+for update;
+rollback;
+SQL
+  local probe_status=$?
+  set -e
+
+  if [[ "$probe_status" -ne 0 ]]; then
+    echo "$operation attempt held Test while waiting for Classroom: $(cat "$TMP_TWO")" >&2
+    kill "$teacher_pid" "$student_pid" 2>/dev/null || true
+    wait "$teacher_pid" 2>/dev/null || true
+    wait "$student_pid" 2>/dev/null || true
+    exit 1
+  fi
+
+  wait "$teacher_pid"
+  set +e
+  wait "$student_pid"
+  local student_status=$?
+  set -e
+  if [[ "$student_status" -ne 0 ]] || grep -q '40P01' "$TMP_ONE"; then
+    echo "$operation attempt deadlocked with Classroom-first question authoring: $(cat "$TMP_ONE")" >&2
+    exit 1
+  fi
+
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X \
+    -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+select public.delete_student_test_attempt_atomic(
+  'e0000000-0000-4000-8000-000000000017',
+  'e0000000-0000-4000-8000-00000000000d'
+);
+SQL
+}
+
+run_parent_order_race save 41
+run_parent_order_race submit 42
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -c \
+  "update public.test_questions
+   set response_max_chars = 40
+   where id = 'e0000000-0000-4000-8000-00000000010c';" >/dev/null
+
 docker exec -e PGAPPNAME=atomic-test-autosave-holder -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
@@ -703,11 +820,16 @@ then
 fi
 
 DRAFT_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select responses from public.test_attempts
-   where test_id = 'e0000000-0000-4000-8000-000000000017'
-     and student_id = 'e0000000-0000-4000-8000-00000000000d';")"
-if [[ "$DRAFT_STATE" != '{"e0000000-0000-4000-8000-00000000010b": {"question_type": "multiple_choice", "selected_option": 0}}' ]]; then
-  echo "Rejected stale autosave changed the preserved draft: $DRAFT_STATE" >&2
+  "select
+     (select count(*) from public.test_attempts
+      where test_id = 'e0000000-0000-4000-8000-000000000017'
+        and student_id = 'e0000000-0000-4000-8000-00000000000d')
+     || ':' ||
+     (select count(*) from public.test_responses
+      where test_id = 'e0000000-0000-4000-8000-000000000017'
+        and student_id = 'e0000000-0000-4000-8000-00000000000d');")"
+if [[ "$DRAFT_STATE" != "0:0" ]]; then
+  echo "Rejected stale autosave created partial student work: $DRAFT_STATE" >&2
   exit 1
 fi
 
