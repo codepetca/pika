@@ -78,12 +78,23 @@ describe('Pika attendance derivation', () => {
         updatedAt: '2026-09-02T13:20:00.000Z',
       }],
     })
-    expect(result.students[0]).toMatchObject({ status: 'absent', checkInRef: null })
+    expect(result.students[0]).toMatchObject({ status: 'absent', hasQrCheckIn: false })
   })
 
   it('does not expose provider references in the browser contract', () => {
-    const result = build()
+    const result = build({
+      checkInFacts: [{
+        studentId: students[0].studentId,
+        checkInRef: 'check_in_private_reference',
+        revision: 1,
+        acceptedAt: '2026-09-02T13:01:00.000Z',
+        invalidatedAt: null,
+        updatedAt: '2026-09-02T13:01:00.000Z',
+      }],
+    })
+    expect(result.students[0]).toMatchObject({ hasQrCheckIn: true })
     expect(JSON.stringify(result)).not.toContain('occurrence_one')
     expect(JSON.stringify(result)).not.toContain('participant_')
+    expect(JSON.stringify(result)).not.toContain('check_in_private_reference')
   })
 })

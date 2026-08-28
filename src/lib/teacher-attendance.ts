@@ -45,7 +45,7 @@ export interface TeacherAttendanceView {
     source: TeacherAttendanceSource | null
     checkedInAt: string | null
     revision: number | null
-    checkInRef: string | null
+    hasQrCheckIn: boolean
     hasManualOverride: boolean
     pendingCommand: boolean
     commandFailed: boolean

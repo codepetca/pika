@@ -1194,6 +1194,22 @@ eight desktop/mobile light/dark cases with no browser or page errors. Visual
 comparison passed for default, selection menu, timing dialog, and dark/mobile
 states. Final policy, lint, audit, independent review, and PR merge gates follow.
 
+### Final-review privacy correction
+
+- Independent review identified a merge-blocking provider-boundary leak: the
+  timing integration exposed Bara's opaque `check_in_ref` in the Pika-owned
+  teacher browser contract even though the UI only needed existence state.
+- Replaced the public reference with provider-neutral `hasQrCheckIn`, retained
+  `pendingCommand` separately, and updated selection filtering, removal
+  confirmation polling, and per-row automatic-status Undo.
+- Updated the typed session-route fixture, privacy assertions, builder tests,
+  durable teacher-surface contract, and visual evidence record. Serialized view
+  tests now explicitly reject private check-in references.
+
+**Verification:** TypeScript and six focused Attendance test files pass (48
+tests). The targeted browser matrix, policy gates, audit, targeted independent
+confirmation, and GitHub checks follow before merge.
+
 ## 2026-08-28 — Define configurable Attendance timing semantics
 
 **Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,

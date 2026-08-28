@@ -180,7 +180,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
       source,
       checkedInAt,
       revision: status === 'unmarked' ? null : 1,
-      checkInRef: checkedInAt ? `check_in_${ordinal}` : null,
+      hasQrCheckIn: Boolean(checkedInAt),
       hasManualOverride: source === 'staff',
       pendingCommand: false,
       commandFailed: false,

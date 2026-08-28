@@ -546,7 +546,7 @@ export function TeacherLiveAttendanceTab({
   async function resetCheckIns(studentIds: string[]) {
     if (!view || activeCommand || studentIds.length === 0) return
     const ids = studentIds.filter((studentId) =>
-      view.students.some((student) => student.studentId === studentId && student.checkInRef),
+      view.students.some((student) => student.studentId === studentId && student.hasQrCheckIn),
     )
     if (ids.length === 0) {
       showMessage({ text: 'No selected students have a QR check-in', tone: 'info' })
@@ -570,7 +570,7 @@ export function TeacherLiveAttendanceTab({
         errorMessage: 'QR check-ins could not be removed',
       })
       const confirmed = await pollForConfirmation(commandViewKey, (next) => ids.every((studentId) =>
-        next.students.find((student) => student.studentId === studentId)?.checkInRef === null,
+        next.students.find((student) => student.studentId === studentId)?.hasQrCheckIn === false,
       ))
       if (confirmed) {
         setLocalPendingStudentIds((current) => {
@@ -1056,7 +1056,7 @@ export function TeacherLiveAttendanceTab({
                 const checkInTime = formatTime(student.checkedInAt)
                 const canUndoQrCorrection = Boolean(
                   student.hasManualOverride
-                  && student.checkInRef,
+                  && student.hasQrCheckIn,
                 )
                 return (
                   <DataTableRow
