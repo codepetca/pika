@@ -11,61 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Move student check-in status into Today side card
-
-**Risk profile:** none — student Today-tab composition only; no attendance
-logic, API, schema, persistence, authentication, or hosted state changed.
-
-- Moved the existing `StudentAttendanceStatus` banner from above the daily-log
-  editor into the right-side lesson-plan card's `Today` section. The signed-in
-  student identity and classroom-scoped status selection remain unchanged.
-- Kept the open state as the one-line `Scan QR for Attendance` prompt and
-  simplified confirmation to one line: `Checked in at 9:07 AM`. The visible
-  Present/Late taxonomy, timezone suffix, and secondary confirmation line were
-  removed from this student surface.
-- Added focused coverage proving the attendance hook receives the signed-in
-  student and the rendered status is contained by the `Today` side-card
-  section. A dedicated mobile inspector keeps the side card before the Daily
-  Log in both visual and assistive-technology reading order below `lg`, while
-  desktop keeps the Daily Log before the right-side inspector. Attendance
-  status and Today-history regressions remain covered.
-- Focused Vitest passes (82/82), lint and design policy pass. Playwright
-  captures of the real component and side-card markup cover QR-open and
-  confirmed states on desktop/mobile in light/dark with no banner overflow,
-  wrapping, or legibility issues. The temporary visual
-  fixture was removed; the authenticated app matrix was unavailable because
-  the shared local environment has no Supabase URL or keys. Teacher UI is n/a
-  because this composition renders only for the student Today workspace. A
-  focused responsive-order capture also confirms Today-first stacking on
-  mobile and the unchanged right-side placement on desktop.
-
-**Model recommendation:** current model for a localized React composition and
-visual-verification change.
-
-## 2026-08-26 — Prevent the mobile Pika logo from flashing blank
-
-**Risk profile:** none — shared brand rendering only; no navigation behavior,
-layout, API, schema, persistence, dependency, or hosted state changed.
-
-- Replaced the network-backed `/pika.png` CSS mask with the existing compact
-  brand image embedded as a shared CSS data-URI token. This preserves semantic
-  light/dark coloring while making the mask available on the first drawer paint.
-- Added regression coverage for the inline mask contract and explicitly rejects
-  restoring the delayed external mask.
-- Full Vitest passes (5,097/5,097); focused header/sidebar tests pass (11/11).
-  Lint, architecture, design policy, UI policy, Pika audit, diff checks, and the
-  production build pass (with existing WorkOS Edge-runtime warnings).
-- Playwright visual verification passed for teacher and student at desktop/mobile
-  in light/dark. The mobile drawer was captured immediately after opening; the
-  Pika mark is present in all four cold-open mobile captures with correct theme
-  color and no overflow.
-- PR CI exposed stale attendance-matrix assertions from the preceding Today-card
-  merge. The test now targets the visible responsive inspector and the current
-  one-line confirmation copy; its desktop/mobile, light/dark matrix passes (6/6).
-
-**Model recommendation:** current frontier coding model for a narrow visual-load
-regression with cross-role and cross-theme verification.
-
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1086,6 +1031,40 @@ state changed.
 **Model recommendation:** GPT-5.6 Sol for migration and concurrency changes;
 GPT-5.6 Terra for bounded compatibility review.
 
+## 2026-08-28 — Repair post-134 database lint findings
+
+**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
+individual-student purge failure path and the legacy archive snapshot engine;
+no persistent local, staging, or production migration was applied.
+
+- Added migration 135. `fail_student_purge_object` now qualifies the joined
+  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
+  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
+  runtime by the existing rollback regression; its lint finding was a
+  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
+  `pg_temp`-scoped dynamic references while preserving archive behavior.
+- Extended the rollback-only student-purge database fixture through the real
+  storage-deletion failure path. It now proves object/operation failure state,
+  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
+  and a fresh retry lease before successful completion.
+- Independent high-risk review found and remediation added operation-first row
+  locking plus post-lock live-lease validation, preventing a deadlock or stale
+  failure write when an expired lease is reclaimed concurrently. A disposable
+  two-session regression now proves the stale reporter waits, loses authority,
+  and cannot overwrite the replacement lease or operation retry state.
+- The disposable race harness accepts only its reserved database-name prefix
+  and drops the database only after a successful create, so an unsafe override
+  or pre-existing database cannot be removed during failed setup.
+- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
+  project. Error-level database lint reports zero findings and is now an
+  all-schema, fail-on-error CI gate; focused student
+  purge and archive database contracts, generated database types, 5,172-test
+  coverage, TypeScript, lint, architecture/UI/design policies, migration
+  lineage, diff/shell checks, the Pika audit, and the production build pass.
+
+**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
+static-analysis/runtime reconciliation.
+
 ## 2026-08-28 — Preserve linked Tests during Blueprint purge
 
 **Risk profile:** runtime-platform — pending migration 134 trigger semantics;
@@ -1104,3 +1083,26 @@ no migration was applied, no database was reset, and no hosted state changed.
 
 **Model recommendation:** current frontier coding model for the bounded
 PostgreSQL trigger and deletion-contract fix.
+
+## 2026-08-28 — Complete Blueprint identity and database-lint rollout
+
+**Risk profile:** runtime-platform — protected production release, hosted
+migrations 134–135, and authenticated production Blueprint verification.
+
+- Merged the reviewed Test-question identity and Blueprint purge corrections
+  through production, then applied migration 134 after an exact clean preflight.
+  Production migration history matched local through 134 and the production
+  Blueprint capture/reuse smoke passed with a real disposable student attempt.
+- The smoke verified portable Test-question identity and ordering across initial
+  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
+  student enrollment, attempts, responses, submissions, grades, and activity did
+  not. The source submission remained intact.
+- Merged PR #1097 and applied migration 135 after a sole-migration production
+  dry run. Production now matches local through 135, a second dry run is empty,
+  and error-level database lint reports zero findings.
+- Full PR CI covered migration replay, Test identity rehearsal, student-purge
+  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
+  TypeScript, and the production build.
+
+**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
+verification; GPT-5.6 Terra for release compatibility and continuity review.
