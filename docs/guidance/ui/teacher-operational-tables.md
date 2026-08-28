@@ -63,6 +63,13 @@ scope/actions and condense edge information instead of wrapping another row.
   other non-color carrier, and compact color marks need a semantic boundary
   that remains visible against default, hovered, and selected row surfaces in
   both themes.
+- For a mutually exclusive inline status group, keep inactive choices available
+  but visually subordinate. The selected choice combines domain color with its
+  semantic pressed state and a non-color boundary such as a ring or outline;
+  do not rely on color or opacity alone.
+- A compact visible status mark may sit inside a larger interaction target. Keep
+  the shared 44px target and focus treatment even when dense table rhythm calls
+  for a smaller visible circle, icon, or badge.
 
 Daily provides the column and sorting rhythm. Attendance provides the approved
 density and table composition. Selected Test grading provides the approved
