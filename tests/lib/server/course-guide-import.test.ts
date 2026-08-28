@@ -1,9 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { extractCourseGuideImportDraft } from '@/lib/server/course-guide-import'
 
+const mocks = vi.hoisted(() => ({
+  fetchSafeExternalDocument: vi.fn(),
+}))
+
+vi.mock('@/lib/server/safe-external-document', () => ({
+  fetchSafeExternalDocument: mocks.fetchSafeExternalDocument,
+}))
+
 describe('course guide curriculum extraction', () => {
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-key'
+    mocks.fetchSafeExternalDocument.mockResolvedValue({
+      body: Buffer.from('%PDF-1.7 curriculum'),
+      finalUrl: 'https://example.ca/curriculum.pdf',
+      headers: new Headers({ 'content-type': 'application/pdf' }),
+      status: 200,
+    })
   })
 
   afterEach(() => {
@@ -52,7 +66,7 @@ describe('course guide curriculum extraction', () => {
     })
   })
 
-  it('passes public URLs as file inputs without Pika fetching them', async () => {
+  it('fetches public URLs through the bounded external-document path', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       status: 'completed',
       output_text: JSON.stringify({
@@ -65,13 +79,30 @@ describe('course guide curriculum extraction', () => {
 
     await extractCourseGuideImportDraft({ type: 'url', url: 'https://example.ca/curriculum.pdf' })
 
+    expect(mocks.fetchSafeExternalDocument).toHaveBeenCalledWith(
+      'https://example.ca/curriculum.pdf',
+      4 * 1024 * 1024,
+    )
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))
     expect(body.input[1].content[1]).toEqual({
       type: 'input_file',
-      file_url: 'https://example.ca/curriculum.pdf',
+      filename: 'curriculum.pdf',
+      file_data: expect.stringMatching(/^data:application\/pdf;base64,/),
       detail: 'low',
     })
+  })
+
+  it('rejects oversized public URL content before calling OpenAI', async () => {
+    mocks.fetchSafeExternalDocument.mockRejectedValue(new Error('Document is too large to sync'))
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(extractCourseGuideImportDraft({
+      type: 'url',
+      url: 'https://example.ca/curriculum.pdf',
+    })).rejects.toThrow('Document is too large to sync')
+
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('fails closed when the model response is incomplete or invalid', async () => {

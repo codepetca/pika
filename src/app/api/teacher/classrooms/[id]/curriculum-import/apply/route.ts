@@ -47,6 +47,8 @@ export const POST = withErrorHandler('PostApplyCourseGuideCurriculumImport', asy
       updated_at: new Date().toISOString(),
     })
     .eq('id', classroomId)
+    .eq('teacher_id', user.id)
+    .is('archived_at', null)
     .eq('course_overview_markdown', input.expectedOverviewMarkdown)
     .select()
     .maybeSingle()

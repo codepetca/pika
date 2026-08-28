@@ -1,8 +1,10 @@
 import { buildCourseGuideImportDraft, type CourseGuideImportDraft } from '@/lib/course-guide-import'
 import {
   curriculumImportModelResponseSchema,
+  COURSE_GUIDE_IMPORT_MAX_FILE_BYTES,
   type CourseGuideImportSource,
 } from '@/lib/validations/course-guide-import'
+import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
 
 const DEFAULT_MODEL = 'gpt-5-mini'
 const EXTRACTION_TIMEOUT_MS = 45_000
@@ -67,24 +69,63 @@ function extractOutputText(payload: unknown): string | null {
   return null
 }
 
+function hasPdfHeader(bytes: Uint8Array): boolean {
+  const header = [0x25, 0x50, 0x44, 0x46, 0x2d]
+  const scanLimit = Math.min(bytes.length - header.length, 1019)
+  return Array.from({ length: Math.max(scanLimit + 1, 0) }).some((_, index) => (
+    header.every((byte, offset) => bytes[index + offset] === byte)
+  ))
+}
+
+function sourceFilenameFromUrl(value: string): string {
+  try {
+    const segment = new URL(value).pathname.split('/').filter(Boolean).at(-1) || ''
+    const filename = decodeURIComponent(segment)
+    if (filename.toLowerCase().endsWith('.pdf')) return filename.slice(0, 255)
+  } catch {
+    // The route schema already validates the URL. Use a safe provider label.
+  }
+  return 'curriculum.pdf'
+}
+
+async function buildFileInput(source: CourseGuideImportSource) {
+  if (source.type === 'file') {
+    return {
+      type: 'input_file',
+      filename: source.filename,
+      file_data: source.dataUrl,
+      detail: 'low',
+    }
+  }
+
+  const document = await fetchSafeExternalDocument(
+    source.url,
+    COURSE_GUIDE_IMPORT_MAX_FILE_BYTES,
+  )
+  if (
+    document.status < 200
+    || document.status >= 300
+    || new URL(document.finalUrl).protocol !== 'https:'
+    || !hasPdfHeader(document.body)
+  ) {
+    throw new Error('The curriculum source is not a valid public PDF')
+  }
+
+  return {
+    type: 'input_file',
+    filename: sourceFilenameFromUrl(document.finalUrl),
+    file_data: `data:application/pdf;base64,${document.body.toString('base64')}`,
+    detail: 'low',
+  }
+}
+
 export async function extractCourseGuideImportDraft(
   source: CourseGuideImportSource,
 ): Promise<CourseGuideImportDraft> {
   const apiKey = getOpenAIKey()
   if (!apiKey) throw new Error('Curriculum import is not configured')
 
-  const fileInput = source.type === 'file'
-    ? {
-        type: 'input_file',
-        filename: source.filename,
-        file_data: source.dataUrl,
-        detail: 'low',
-      }
-    : {
-        type: 'input_file',
-        file_url: source.url,
-        detail: 'low',
-      }
+  const fileInput = await buildFileInput(source)
 
   let response: Response
   try {

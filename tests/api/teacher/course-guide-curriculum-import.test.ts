@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST as createDraft } from '@/app/api/teacher/classrooms/[id]/curriculum-import/draft/route'
 import { POST as applyDraft } from '@/app/api/teacher/classrooms/[id]/curriculum-import/apply/route'
+import { ApiError } from '@/lib/api-handler'
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   hydrateClassroomRecord: vi.fn((value) => value),
   createProvenanceToken: vi.fn(() => 'p'.repeat(80)),
   verifyProvenanceToken: vi.fn(),
+  acquireExtractionSlot: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
@@ -24,6 +26,9 @@ vi.mock('@/lib/server/course-guide-import', () => ({
 vi.mock('@/lib/server/course-guide-import-provenance', () => ({
   createCourseGuideImportProvenanceToken: mocks.createProvenanceToken,
   verifyCourseGuideImportProvenanceToken: mocks.verifyProvenanceToken,
+}))
+vi.mock('@/lib/server/course-guide-import-rate-limit', () => ({
+  acquireCourseGuideImportExtractionSlot: mocks.acquireExtractionSlot,
 }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.getServiceRoleClient }))
 
@@ -41,6 +46,7 @@ beforeEach(() => {
   mocks.verifyProvenanceToken.mockReturnValue({
     citationMarkdown: 'Source: Ontario curriculum — curriculum.pdf',
   })
+  mocks.acquireExtractionSlot.mockReturnValue(vi.fn())
 })
 
 describe('POST curriculum import draft', () => {
@@ -78,6 +84,46 @@ describe('POST curriculum import draft', () => {
       classroomId: 'classroom-1',
       draft,
     }))
+    expect(mocks.acquireExtractionSlot).toHaveBeenCalledWith({
+      teacherId: 'teacher-1',
+      classroomId: 'classroom-1',
+    })
+  })
+
+  it('returns 429 before extraction when the teacher has exhausted the bounded slot', async () => {
+    mocks.acquireExtractionSlot.mockImplementation(() => {
+      throw new ApiError(429, 'Too many curriculum import attempts. Try again in a few minutes.')
+    })
+    const formData = new FormData()
+    formData.set('sourceType', 'url')
+    formData.set('sourceUrl', 'https://example.ca/curriculum.pdf')
+    const request = new NextRequest(
+      'http://localhost/api/teacher/classrooms/classroom-1/curriculum-import/draft',
+      { method: 'POST', body: formData },
+    )
+
+    const response = await createDraft(request, context())
+
+    expect(response.status).toBe(429)
+    expect(mocks.extractCourseGuideImportDraft).not.toHaveBeenCalled()
+  })
+
+  it('releases the bounded extraction slot when the provider fails', async () => {
+    const release = vi.fn()
+    mocks.acquireExtractionSlot.mockReturnValue(release)
+    mocks.extractCourseGuideImportDraft.mockRejectedValue(new Error('provider failed'))
+    const formData = new FormData()
+    formData.set('sourceType', 'url')
+    formData.set('sourceUrl', 'https://example.ca/curriculum.pdf')
+    const request = new NextRequest(
+      'http://localhost/api/teacher/classrooms/classroom-1/curriculum-import/draft',
+      { method: 'POST', body: formData },
+    )
+
+    const response = await createDraft(request, context())
+
+    expect(response.status).toBe(422)
+    expect(release).toHaveBeenCalledTimes(1)
   })
 
   it('does not extract when the teacher cannot mutate the classroom', async () => {
@@ -103,6 +149,7 @@ describe('POST curriculum import apply', () => {
     const query: Record<string, ReturnType<typeof vi.fn>> = {}
     query.update = vi.fn(() => query)
     query.eq = vi.fn(() => query)
+    query.is = vi.fn(() => query)
     query.select = vi.fn(() => query)
     query.maybeSingle = vi.fn().mockResolvedValue(result)
     const supabase = { from: vi.fn(() => query) }
@@ -135,6 +182,8 @@ describe('POST curriculum import apply', () => {
       course_overview_markdown: 'Teacher content\n\n---\n\nReviewed draft\n\nSource: Ontario curriculum — curriculum.pdf',
     }))
     expect(query.eq).toHaveBeenCalledWith('course_overview_markdown', 'Teacher content')
+    expect(query.eq).toHaveBeenCalledWith('teacher_id', 'teacher-1')
+    expect(query.is).toHaveBeenCalledWith('archived_at', null)
     await expect(response.json()).resolves.toEqual({ classroom: updatedClassroom })
   })
 
