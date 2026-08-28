@@ -3031,6 +3031,7 @@ export type Database = {
           classroom_id: string
           content: Json
           id: string
+          save_revision: number
           updated_at: string
           updated_by: string | null
         }
@@ -3038,6 +3039,7 @@ export type Database = {
           classroom_id: string
           content?: Json
           id?: string
+          save_revision?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -3045,6 +3047,7 @@ export type Database = {
           classroom_id?: string
           content?: Json
           id?: string
+          save_revision?: number
           updated_at?: string
           updated_by?: string | null
         }
@@ -6747,14 +6750,6 @@ export type Database = {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
       }
-      activate_test_from_draft_atomic: {
-        Args: {
-          p_expected_draft_version: number
-          p_teacher_id: string
-          p_test_id: string
-        }
-        Returns: Json
-      }
       apply_archived_classroom_blueprint_proposal_atomic: {
         Args: {
           p_candidate_sha256: string
@@ -9436,18 +9431,6 @@ export type Database = {
       }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
-        Returns: Json
-      }
-      save_test_draft_atomic: {
-        Args: {
-          p_content: Json
-          p_documents: Json
-          p_expected_documents: Json
-          p_expected_draft_version: number
-          p_teacher_id: string
-          p_test_id: string
-          p_update_documents: boolean
-        }
         Returns: Json
       }
       save_test_response_grades_atomic: {

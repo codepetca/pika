@@ -982,17 +982,16 @@ test.describe('public Course Guide experience matrix', () => {
     const classroomsResponse = await teacherRequest.get('/api/teacher/classrooms')
     expect(classroomsResponse.ok()).toBe(true)
     const payload = await classroomsResponse.json() as {
-      classrooms?: Array<{
-        id: string
-        title: string
-        course_overview_markdown: string
-        actual_site_slug: string | null
-        actual_site_published: boolean
-        actual_site_config: Record<string, unknown>
-      }>
+      classrooms?: Array<{ id: string; title: string }>
     }
-    originalClassroom = payload.classrooms?.find((item) => item.title === 'Test Classroom') ?? null
-    if (!originalClassroom) throw new Error('Teacher browser fixture is missing Test Classroom')
+    const classroomSummary = payload.classrooms?.find((item) => item.title === 'Test Classroom') ?? null
+    if (!classroomSummary) throw new Error('Teacher browser fixture is missing Test Classroom')
+
+    const classroomResponse = await teacherRequest.get(`/api/teacher/classrooms/${classroomSummary.id}`)
+    expect(classroomResponse.ok()).toBe(true)
+    const classroomPayload = await classroomResponse.json() as { classroom: typeof originalClassroom }
+    originalClassroom = classroomPayload.classroom
+    if (!originalClassroom) throw new Error('Teacher browser fixture details could not be loaded')
 
     const guideResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
       data: {

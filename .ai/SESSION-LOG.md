@@ -1106,11 +1106,13 @@ migrations 134–135, and authenticated production Blueprint verification.
 
 **Model recommendation:** GPT-5.6 Sol for production migration and concurrency
 verification; GPT-5.6 Terra for release compatibility and continuity review.
+
 ## 2026-08-27 — Course Guide Phase 1
 
 **Risk profile:** cross-role UI plus authenticated and public-read APIs — a
-classroom-backed guide, optional public sharing, and teacher-managed guide
-content; no schema or migration changes.
+classroom-backed guide, optional public sharing, teacher-managed guide content,
+and one resource-save ordering migration applied to local only; staging and
+production remain unchanged.
 
 - Replaced user-facing Syllabus terminology with Course Guide while preserving
   the existing internal `syllabus` feature key and `/actual/[slug]` route for
@@ -1166,3 +1168,18 @@ content; no schema or migration changes.
   with Attendance. The Course Guide floating shell has no inset padding, so its
   shadow hugs the action edges. Focused tests and the 10-case cross-role browser
   matrix remain green.
+- PR review removed the classroom join credential from every public/shared guide
+  path, filtered future scheduled assignments, corrected duplicate-title grade
+  matching, added unload-beacon POST support, made resource load failures
+  non-editable/retryable, and restored the shared E2E classroom fixture after
+  anonymous public-guide coverage.
+- Final concurrency remediation adds migration 136 with a persisted
+  monotonic resource `save_revision`, rejects stale PUT/beacon writes in the
+  database, serializes and generation-fences client autosaves across classroom
+  switches, and snapshots fixture state from the full classroom endpoint. The
+  final local gate passes 5,191 tests across 594 files, lint, architecture,
+  production build, and the Pika audit.
+- With explicit one-time authorization, migrations 135 and 136 were applied to
+  the local database only. Migration history now matches through 136, and the
+  generated Supabase types were regenerated from and checked against that local
+  schema. No hosted environment was touched.

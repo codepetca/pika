@@ -19,6 +19,8 @@ const AUTOSAVE_DEBOUNCE_MS = 2000
 type PendingResourceDraft = {
   classroomId: string
   content: TiptapContent
+  generation: number
+  saveRevision: number
 }
 
 interface Props {
@@ -39,16 +41,20 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingContentRef = useRef<PendingResourceDraft | null>(null)
   const lastSavedContentRef = useRef<string>('')
+  const nextSaveRevisionRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   const loadedClassroomIdRef = useRef<string | null>(null)
   const loadRequestIdRef = useRef(0)
+  const loadGenerationRef = useRef(0)
   const isArchived = !!classroom.archived_at
   currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
     async function loadResources() {
       const requestId = loadRequestIdRef.current + 1
+      const generation = loadGenerationRef.current + 1
       loadRequestIdRef.current = requestId
+      loadGenerationRef.current = generation
       loadedClassroomIdRef.current = null
       setLoadedClassroomId(null)
       pendingContentRef.current = null
@@ -60,10 +66,14 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
       setLoadError(null)
       setLoading(true)
       try {
-        const loadedContent = await fetchTeacherClassResources(classroom.id) ?? EMPTY_DOC
-        if (loadRequestIdRef.current !== requestId) return
+        await saveQueueRef.current
+        if (loadRequestIdRef.current !== requestId || loadGenerationRef.current !== generation) return
+        const snapshot = await fetchTeacherClassResources(classroom.id)
+        if (loadRequestIdRef.current !== requestId || loadGenerationRef.current !== generation) return
+        const loadedContent = snapshot.content ?? EMPTY_DOC
         setContent(loadedContent)
         lastSavedContentRef.current = JSON.stringify(loadedContent)
+        nextSaveRevisionRef.current = snapshot.saveRevision
         setSaveStatus('saved')
         setLoadedClassroomId(classroom.id)
         loadedClassroomIdRef.current = classroom.id
@@ -82,17 +92,27 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
     loadResources()
   }, [classroom.id, loadAttempt])
 
-  const saveContent = useCallback((newContent: TiptapContent) => {
-    const saveClassroomId = classroom.id
-    if (loadedClassroomIdRef.current !== saveClassroomId) return Promise.resolve()
+  const saveContent = useCallback((draft: PendingResourceDraft) => {
+    const { classroomId: saveClassroomId, content: newContent, generation, saveRevision } = draft
+    if (
+      loadedClassroomIdRef.current !== saveClassroomId
+      || loadGenerationRef.current !== generation
+    ) return Promise.resolve()
     const newContentStr = JSON.stringify(newContent)
     const publicGuideSlug = classroom.actual_site_slug
 
     const saveTask = saveQueueRef.current.then(async () => {
+      if (
+        loadGenerationRef.current !== generation
+        || loadedClassroomIdRef.current !== saveClassroomId
+      ) {
+        return
+      }
       const latestPending = pendingContentRef.current
       if (
         latestPending?.classroomId === saveClassroomId
-        && JSON.stringify(latestPending.content) !== newContentStr
+        && latestPending.generation === generation
+        && latestPending.saveRevision > saveRevision
       ) {
         return
       }
@@ -115,7 +135,7 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
         const res = await fetch(`/api/teacher/classrooms/${saveClassroomId}/resources`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: newContent }),
+          body: JSON.stringify({ content: newContent, saveRevision }),
         })
 
         if (!res.ok) {
@@ -127,7 +147,10 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
         if (publicGuideSlug) {
           invalidateCachedJSON(`public-course-guide:${publicGuideSlug}`)
         }
-        if (currentClassroomIdRef.current !== saveClassroomId) {
+        if (
+          currentClassroomIdRef.current !== saveClassroomId
+          || loadGenerationRef.current !== generation
+        ) {
           return
         }
 
@@ -135,14 +158,19 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
         onSaved?.(newContent)
         const pending = pendingContentRef.current
         const pendingMatchesSavedDraft =
-          pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr
+          pending?.classroomId === saveClassroomId
+          && pending.generation === generation
+          && pending.saveRevision === saveRevision
         if (!pending || pendingMatchesSavedDraft) {
           pendingContentRef.current = null
           setSaveStatus('saved')
         }
       } catch (err) {
         console.error('Error saving resources:', err)
-        if (currentClassroomIdRef.current === saveClassroomId) {
+        if (
+          currentClassroomIdRef.current === saveClassroomId
+          && loadGenerationRef.current === generation
+        ) {
           setSaveStatus('unsaved')
         }
       }
@@ -150,15 +178,19 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
 
     saveQueueRef.current = saveTask
     return saveTask
-  }, [classroom.id, classroom.actual_site_slug, onSaved])
+  }, [classroom.actual_site_slug, onSaved])
 
   const handleContentChange = useCallback((newContent: TiptapContent) => {
     if (loadedClassroomIdRef.current !== classroom.id) return
+    const saveRevision = nextSaveRevisionRef.current + 1
+    nextSaveRevisionRef.current = saveRevision
     setContent(newContent)
     setSaveStatus('unsaved')
     pendingContentRef.current = {
       classroomId: classroom.id,
       content: newContent,
+      generation: loadGenerationRef.current,
+      saveRevision,
     }
 
     if (saveTimeoutRef.current) {
@@ -166,7 +198,10 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      saveContent(newContent)
+      const pending = pendingContentRef.current
+      if (pending?.classroomId === classroom.id && pending.saveRevision === saveRevision) {
+        saveContent(pending)
+      }
     }, AUTOSAVE_DEBOUNCE_MS)
   }, [classroom.id, saveContent])
 
@@ -178,7 +213,7 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
         clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = null
       }
-      saveContent(pending.content)
+      saveContent(pending)
     }
   }, [classroom.id, saveStatus, saveContent])
 
@@ -190,7 +225,9 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
         if (contentStr !== lastSavedContentRef.current) {
           navigator.sendBeacon(
             `/api/teacher/classrooms/${pending.classroomId}/resources`,
-            new Blob([JSON.stringify({ content: pending.content })], { type: 'application/json' }),
+            new Blob([
+              JSON.stringify({ content: pending.content, saveRevision: pending.saveRevision }),
+            ], { type: 'application/json' }),
           )
         }
       }

@@ -52,11 +52,19 @@ async function upsertClassroomResources(
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
-  const { content } = body as { content: TiptapContent }
+  const { content, saveRevision } = body as {
+    content: TiptapContent
+    saveRevision: number
+  }
 
-  if (!content || content.type !== 'doc') {
+  if (
+    !content
+    || content.type !== 'doc'
+    || !Number.isSafeInteger(saveRevision)
+    || saveRevision < 1
+  ) {
     return NextResponse.json(
-      { error: 'Invalid content format' },
+      { error: 'Invalid resource save payload' },
       { status: 400 }
     )
   }
@@ -78,6 +86,7 @@ async function upsertClassroomResources(
       {
         classroom_id: classroomId,
         content,
+        save_revision: saveRevision,
         updated_at: new Date().toISOString(),
         updated_by: user.id,
       },
@@ -86,13 +95,20 @@ async function upsertClassroomResources(
       }
     )
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error upserting resources:', error)
     return NextResponse.json(
       { error: 'Failed to save resources' },
       { status: 500 }
+    )
+  }
+
+  if (!resources) {
+    return NextResponse.json(
+      { error: 'A newer resource draft has already been saved' },
+      { status: 409 },
     )
   }
 

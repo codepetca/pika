@@ -97,7 +97,7 @@ function contentDoc(text: string): TiptapContent {
   }
 }
 
-function resourceResponse(text: string | null): Response {
+function resourceResponse(text: string | null, saveRevision = 0): Response {
   return new Response(
     JSON.stringify({
       resources: text
@@ -105,6 +105,7 @@ function resourceResponse(text: string | null): Response {
             id: `resources-${text}`,
             classroom_id: classroom.id,
             content: contentDoc(text),
+            save_revision: saveRevision,
           }
         : null,
     }),
@@ -148,6 +149,8 @@ describe('class resources sidebars', () => {
     view.rerender(<TeacherClassResourcesSidebar classroom={secondClassroom} />)
 
     expect(screen.queryByText('First teacher resources')).not.toBeInTheDocument()
+
+    await waitFor(() => expect(resolveSecondRead).not.toBeNull())
 
     await act(async () => {
       resolveSecondRead?.(resourceResponse('Second teacher resources'))
@@ -258,6 +261,8 @@ describe('class resources sidebars', () => {
 
     expect(writeUrls).toEqual([])
 
+    await waitFor(() => expect(resolveSecondRead).not.toBeNull())
+
     await act(async () => {
       resolveSecondRead?.(resourceResponse('Second teacher resources'))
     })
@@ -303,12 +308,14 @@ describe('class resources sidebars', () => {
     })
 
     view.rerender(<TeacherClassResourcesSidebar classroom={secondClassroom} />)
-    await screen.findByText('Second teacher resources')
-    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources' }))
+    expect(screen.queryByText('Second teacher resources')).not.toBeInTheDocument()
 
     await act(async () => {
       resolveFirstSave?.()
     })
+
+    await screen.findByText('Second teacher resources')
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
 
@@ -367,6 +374,49 @@ describe('class resources sidebars', () => {
     await waitFor(() => {
       expect(onSaved).toHaveBeenLastCalledWith(contentDoc('Newest teacher resources'))
     })
+  })
+
+  it('reloads after an A to B to A switch instead of accepting an old save generation', async () => {
+    let resolveOldSave: (() => void) | null = null
+    let firstClassroomReadCount = 0
+    const onSaved = vi.fn()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'PUT') {
+        return new Promise<Response>((resolve) => {
+          resolveOldSave = () => resolve(resourceResponse('Old in-flight draft', 6))
+        })
+      }
+
+      if (url.includes(secondClassroom.id)) {
+        return resourceResponse('Second classroom resources', 2)
+      }
+
+      firstClassroomReadCount += 1
+      return firstClassroomReadCount === 1
+        ? resourceResponse('Initial classroom resources', 5)
+        : resourceResponse('Fresh classroom resources', 6)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+    await screen.findByText('Initial classroom resources')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await waitFor(() => expect(resolveOldSave).not.toBeNull())
+
+    view.rerender(<TeacherClassResourcesSidebar classroom={secondClassroom} onSaved={onSaved} />)
+    view.rerender(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+
+    await act(async () => resolveOldSave?.())
+
+    expect(await screen.findByText('Fresh classroom resources')).toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(firstClassroomReadCount).toBe(2)
+    expect(fetchMock.mock.calls.some(([input, init]) => (
+      String(input).includes(secondClassroom.id) && !init?.method
+    ))).toBe(false)
   })
 
   it('invalidates teacher and student resource caches after a teacher save', async () => {
