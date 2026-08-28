@@ -8,10 +8,10 @@ const script = readFileSync(resolve(
 ), 'utf8')
 
 describe('Classroom/Blueprint purge concurrency fixture', () => {
-  it('refuses an unexpected database and requires migration 136', () => {
+  it('refuses an unexpected database and requires migration 137', () => {
     expect(script).toContain('com.supabase.cli.project')
     expect(script).toContain('PROJECT_LABEL" != "pika"')
-    expect(script).toContain("version = '136'")
+    expect(script).toContain("version = '137'")
   })
 
   it('starts synchronized two-session races for every indirect lineage shape', () => {

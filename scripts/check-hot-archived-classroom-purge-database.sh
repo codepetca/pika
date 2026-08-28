@@ -228,7 +228,7 @@ insert into public.course_blueprint_change_proposals (
   clock_timestamp()
 );
 
--- Exercise migration-136 upgrade repair for the two legacy lineage shapes
+-- Exercise migration-137 upgrade repair for the two legacy lineage shapes
 -- that do not require a Classroom.source_blueprint_id or proposal row.
 insert into public.classrooms (id, teacher_id, title, class_code) values
   ('b1800000-0000-4000-8000-000000000012',
@@ -299,7 +299,7 @@ insert into public.course_blueprint_purge_operations (
 do $upgrade_repair$
 begin
   if private.repair_linked_course_blueprint_purge_failures() <> 2 then
-    raise exception 'Migration-136 repair missed a canonical lineage shape';
+    raise exception 'Migration-137 repair missed a canonical lineage shape';
   end if;
   if (select count(*) from public.course_blueprint_purge_operations
       where id in (
@@ -309,7 +309,7 @@ begin
         and retryable is true
         and error_code = 'course_blueprint_purge_waiting_for_classroom_purge'
     ) <> 2
-  then raise exception 'Migration-136 repair did not retain retry evidence'; end if;
+  then raise exception 'Migration-137 repair did not retain retry evidence'; end if;
 end;
 $upgrade_repair$;
 
@@ -643,7 +643,7 @@ begin
 end;
 $begin_purge$;
 
--- Reproduce a purge pair that was interleaved before migration 136 added the
+-- Reproduce a purge pair that was interleaved before migration 137 added the
 -- cross-purge ordering check. The Classroom finalizer must be able to detach
 -- its own lineage while the retained Blueprint fence waits.
 insert into public.course_blueprint_purge_operations (

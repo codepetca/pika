@@ -21,11 +21,11 @@ begin
   if not exists (
     select 1 from supabase_migrations.schema_migrations where version = '122'
   ) or not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '136'
+    select 1 from supabase_migrations.schema_migrations where version = '137'
   ) or to_regprocedure(
     'public.begin_cold_archived_classroom_purge(uuid,uuid,uuid,uuid,text,jsonb)'
   ) is null
-  then raise exception 'Migrations 122 and 136 are not applied to the local database'; end if;
+  then raise exception 'Migrations 122 and 137 are not applied to the local database'; end if;
 end;
 $migration$;
 

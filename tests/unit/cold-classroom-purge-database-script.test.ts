@@ -12,8 +12,8 @@ describe('cold Classroom purge database fixture', () => {
     expect(script).toContain('com.supabase.cli.project')
     expect(script).toContain('PROJECT_LABEL" != "pika"')
     expect(script).toContain("version = '122'")
-    expect(script).toContain("version = '136'")
-    expect(script).toContain('Migrations 122 and 136 are not applied')
+    expect(script).toContain("version = '137'")
+    expect(script).toContain('Migrations 122 and 137 are not applied')
   })
 
   it('keeps destructive evidence inside a rollback-only transaction', () => {

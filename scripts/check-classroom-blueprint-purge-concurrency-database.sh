@@ -74,8 +74,8 @@ psql_local <<'SQL'
 do $migration$
 begin
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '136'
-  ) then raise exception 'Migration 136 is not applied to the local database'; end if;
+    select 1 from supabase_migrations.schema_migrations where version = '137'
+  ) then raise exception 'Migration 137 is not applied to the local database'; end if;
 end;
 $migration$;
 

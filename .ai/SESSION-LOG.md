@@ -1164,14 +1164,14 @@ production remain unchanged.
   schema. No hosted environment was touched.
 ## 2026-08-28 — Repair Classroom and Blueprint purge finalization
 
-**Risk profile:** runtime-platform — migration 136 changes trusted purge trigger
+**Risk profile:** runtime-platform — migration 137 changes trusted purge trigger
 semantics, cross-purge ordering, and retained retry evidence; production remains
-unchanged and migration 136 is not authorized for hosted application.
+unchanged and migration 137 is not authorized for hosted application.
 
 - Reproduced the retained smoke failure against a production-schema clone. Hot
   Classroom purge deleted `test_questions` before `test_attempts`, so migration
   134's student-work freeze correctly rejected the direct question deletion.
-- Migration 136 permits only owner-run whole-Classroom finalization to delete
+- Migration 137 permits only owner-run whole-Classroom finalization to delete
   those questions; ordinary authored Test changes remain frozen. The database
   regression now includes a closed Test, question, submitted attempt, and
   response and proves the complete Classroom graph is deleted.
@@ -1188,12 +1188,15 @@ unchanged and migration 136 is not authorized for hosted application.
   links and is covered by a database fixture for both omitted upgrade shapes.
 - Expanded both rollback-only purge contracts for linked versions, completed
   capture lineage, applied proposals, retained fences, and worker-role access.
-  A clean 001-136 replay, all four database contracts, 5,181 tests, lint, build,
-  and database lint passed; lint reported only established warning-level findings.
+  Before the rebase/resequence, a clean 001-136 replay, all four database
+  contracts, 5,181 tests, lint, build, and database lint passed; lint reported
+  only established warning-level findings. CI will replay the resequenced
+  migration 137 after main's new migration 136.
 - During the isolated replay, `supabase db reset --db-url` recognized the local
   container and recreated its default local database rather than the named
   disposable database. No hosted database was touched. The local database is
-  now a clean 001-136 replay of this branch.
+  was a clean replay of the pre-resequence branch through its former migration
+  136. No hosted environment was changed.
 
 **Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
 deletion review; GPT-5.6 Terra for compatibility and operability review.
