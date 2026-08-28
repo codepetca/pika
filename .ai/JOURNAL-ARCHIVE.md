@@ -24466,3 +24466,50 @@ layout, API, schema, persistence, dependency, or hosted state changed.
 
 **Model recommendation:** current frontier coding model for a narrow visual-load
 regression with cross-role and cross-theme verification.
+
+<!-- pika-session-log-archive-batch:cede677572a40b0ecd0e1622fa531969c0aa51eb820e29e3b9f588d7f17fb9d0 -->
+## 2026-08-26 — Adopt Pal widget alpha.5
+
+**Risk profile:** none — pinned widget package and compatibility assertions only;
+no schema, API, persistence, authentication, or production state changed.
+
+- Published and installed the immutable registry release
+  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
+  and the regenerated lockfile records its npm registry integrity rather than a
+  temporary tarball path.
+- Updated the package pin and compatibility assertions for concealed achievement
+  titles and collectible-focused story celebrations. The Pika-owned reward modal
+  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
+  `Story Keeper` title.
+- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
+  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
+  boundaries, and the production build pass.
+- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
+  remains centered and responsive with the collectible-only presentation. The
+  temporary unauthenticated review route was removed; teacher review is n/a
+  because the integration is student-only.
+
+## 2026-08-26 — Canonicalize Test-question identity from draft creation
+
+**Risk profile:** runtime-platform — application identity synchronization,
+transactional migration/backfill, immutable-Version instantiation, and database
+contract changes; no hosted migration, deployment, or merge occurred.
+
+- Defined `TestDraftQuestion.id` as the portable Artifact ID assigned when the
+  question is created; `test_questions.id` remains an internal row identity.
+  New persisted questions now store the draft UUID in `artifact_id`, and draft
+  reconstruction prefers source/artifact identity over row identity.
+- Made activation preflight and synchronize by artifact/source identity without
+  positional matching or partial updates on identity ambiguity. Blueprint
+  capture and archived reuse now validate source identity read-only; draft-only
+  IDs remain portable without creating or rewriting source rows.
+- Migration 134 transactionally backfills legacy row-ID draft JSON, fails closed
+  on ambiguous matches, and rematerializes newly instantiated Version questions
+  with explicit artifact/source IDs rather than inferring them by position.
+- Rebased the worktree onto PR #1066 head `cc7c14d7` while retaining the
+  separately completed durable failure-ledger remediation. The authorized local
+  database was reset without seed to replay the final migration; hosted state
+  was untouched.
+- The canonical identity and broader Versioned Blueprint database contracts
+  pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
+  build, generated Supabase type checks, diff checks, and the Pika audit.
