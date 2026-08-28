@@ -139,6 +139,15 @@ describe('Blueprint test-question identity migration', () => {
     expect(firstMigrationBlock).toBeGreaterThan(statementTimeout)
     expect(resetLockTimeout).toBeGreaterThan(lastGrant)
     expect(resetStatementTimeout).toBeGreaterThan(resetLockTimeout)
+    expect(migrationLifecycleContract).toContain(
+      'Migration 134 did not fail with the bounded lock timeout.',
+    )
+    expect(migrationLifecycleContract).toContain(
+      'Timed-out migration 134 was incorrectly recorded as applied.',
+    )
+    expect(migrationLifecycleContract).toMatch(
+      /blocked_migration_output="\$\(supabase migration up --local 2>&1\)"[\s\S]{0,700}supabase migration up --local/,
+    )
   })
 
   it('serializes draft saves before version-bound activation', () => {
