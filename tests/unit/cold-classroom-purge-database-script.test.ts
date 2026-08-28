@@ -8,11 +8,12 @@ const script = readFileSync(resolve(
 ), 'utf8')
 
 describe('cold Classroom purge database fixture', () => {
-  it('refuses an unexpected database target and requires migration 122', () => {
+  it('refuses an unexpected database target and requires the final guard', () => {
     expect(script).toContain('com.supabase.cli.project')
     expect(script).toContain('PROJECT_LABEL" != "pika"')
     expect(script).toContain("version = '122'")
-    expect(script).toContain('Migration 122 is not applied to the local database')
+    expect(script).toContain("version = '137'")
+    expect(script).toContain('Migrations 122 and 137 are not applied')
   })
 
   it('keeps destructive evidence inside a rollback-only transaction', () => {
@@ -24,6 +25,7 @@ describe('cold Classroom purge database fixture', () => {
   it('covers ownership, conflict, lease, retry, archive-last, and preservation boundaries', () => {
     expect(script).toContain('Non-owner learned cold purge inventory')
     expect(script).toContain('Active restore did not block cold purge')
+    expect(script).toContain('Lifecycle guard crossed the cold purge fence')
     expect(script).toContain('Live lease was claimed concurrently')
     expect(script).toContain('Retryable Storage failure was not recorded')
     expect(script).toContain('Authoritative recovery archive was not claimed last')

@@ -11,52 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Adopt Pal widget alpha.5
-
-**Risk profile:** none — pinned widget package and compatibility assertions only;
-no schema, API, persistence, authentication, or production state changed.
-
-- Published and installed the immutable registry release
-  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
-  and the regenerated lockfile records its npm registry integrity rather than a
-  temporary tarball path.
-- Updated the package pin and compatibility assertions for concealed achievement
-  titles and collectible-focused story celebrations. The Pika-owned reward modal
-  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
-  `Story Keeper` title.
-- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
-  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
-  boundaries, and the production build pass.
-- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
-  remains centered and responsive with the collectible-only presentation. The
-  temporary unauthenticated review route was removed; teacher review is n/a
-  because the integration is student-only.
-
-## 2026-08-26 — Canonicalize Test-question identity from draft creation
-
-**Risk profile:** runtime-platform — application identity synchronization,
-transactional migration/backfill, immutable-Version instantiation, and database
-contract changes; no hosted migration, deployment, or merge occurred.
-
-- Defined `TestDraftQuestion.id` as the portable Artifact ID assigned when the
-  question is created; `test_questions.id` remains an internal row identity.
-  New persisted questions now store the draft UUID in `artifact_id`, and draft
-  reconstruction prefers source/artifact identity over row identity.
-- Made activation preflight and synchronize by artifact/source identity without
-  positional matching or partial updates on identity ambiguity. Blueprint
-  capture and archived reuse now validate source identity read-only; draft-only
-  IDs remain portable without creating or rewriting source rows.
-- Migration 134 transactionally backfills legacy row-ID draft JSON, fails closed
-  on ambiguous matches, and rematerializes newly instantiated Version questions
-  with explicit artifact/source IDs rather than inferring them by position.
-- Rebased the worktree onto PR #1066 head `cc7c14d7` while retaining the
-  separately completed durable failure-ledger remediation. The authorized local
-  database was reset without seed to replay the final migration; hosted state
-  was untouched.
-- The canonical identity and broader Versioned Blueprint database contracts
-  pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
-  build, generated Supabase type checks, diff checks, and the Pika audit.
-
 ## 2026-08-26 — Make Blueprint question identity capture draft-safe
 
 **Risk profile:** runtime-platform — proposed migration and rollback-only test
@@ -1031,82 +985,6 @@ state changed.
 **Model recommendation:** GPT-5.6 Sol for migration and concurrency changes;
 GPT-5.6 Terra for bounded compatibility review.
 
-## 2026-08-28 — Repair post-134 database lint findings
-
-**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
-individual-student purge failure path and the legacy archive snapshot engine;
-no persistent local, staging, or production migration was applied.
-
-- Added migration 135. `fail_student_purge_object` now qualifies the joined
-  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
-  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
-  runtime by the existing rollback regression; its lint finding was a
-  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
-  `pg_temp`-scoped dynamic references while preserving archive behavior.
-- Extended the rollback-only student-purge database fixture through the real
-  storage-deletion failure path. It now proves object/operation failure state,
-  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
-  and a fresh retry lease before successful completion.
-- Independent high-risk review found and remediation added operation-first row
-  locking plus post-lock live-lease validation, preventing a deadlock or stale
-  failure write when an expired lease is reclaimed concurrently. A disposable
-  two-session regression now proves the stale reporter waits, loses authority,
-  and cannot overwrite the replacement lease or operation retry state.
-- The disposable race harness accepts only its reserved database-name prefix
-  and drops the database only after a successful create, so an unsafe override
-  or pre-existing database cannot be removed during failed setup.
-- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
-  project. Error-level database lint reports zero findings and is now an
-  all-schema, fail-on-error CI gate; focused student
-  purge and archive database contracts, generated database types, 5,172-test
-  coverage, TypeScript, lint, architecture/UI/design policies, migration
-  lineage, diff/shell checks, the Pika audit, and the production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
-static-analysis/runtime reconciliation.
-
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
-no migration was applied, no database was reset, and no hosted state changed.
-
-- Extended the owner-only provenance exception so Blueprint purge finalization
-  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
-  after student work exists. Authored Test content and identity remain frozen.
-- Added a transactional database regression covering an active linked Test,
-  question, submitted attempt, and response. The old trigger fails purge
-  permanently; the revised trigger completes purge while preserving all Test
-  and student-work records and clearing only Blueprint lineage.
-- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
-  lint, the production build, SQL diff validation, and transaction-only local
-  before/after database proofs. Migration 134 remains unapplied to production.
-
-**Model recommendation:** current frontier coding model for the bounded
-PostgreSQL trigger and deletion-contract fix.
-
-## 2026-08-28 — Complete Blueprint identity and database-lint rollout
-
-**Risk profile:** runtime-platform — protected production release, hosted
-migrations 134–135, and authenticated production Blueprint verification.
-
-- Merged the reviewed Test-question identity and Blueprint purge corrections
-  through production, then applied migration 134 after an exact clean preflight.
-  Production migration history matched local through 134 and the production
-  Blueprint capture/reuse smoke passed with a real disposable student attempt.
-- The smoke verified portable Test-question identity and ordering across initial
-  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
-  student enrollment, attempts, responses, submissions, grades, and activity did
-  not. The source submission remained intact.
-- Merged PR #1097 and applied migration 135 after a sole-migration production
-  dry run. Production now matches local through 135, a second dry run is empty,
-  and error-level database lint reports zero findings.
-- Full PR CI covered migration replay, Test identity rehearsal, student-purge
-  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
-  TypeScript, and the production build.
-
-**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
-verification; GPT-5.6 Terra for release compatibility and continuity review.
-
 ## 2026-08-27 — Course Guide Phase 1
 
 **Risk profile:** cross-role UI plus authenticated and public-read APIs — a
@@ -1183,3 +1061,121 @@ production remain unchanged.
   the local database only. Migration history now matches through 136, and the
   generated Supabase types were regenerated from and checked against that local
   schema. No hosted environment was touched.
+
+## 2026-08-28 — Repair post-134 database lint findings
+
+**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
+individual-student purge failure path and the legacy archive snapshot engine;
+no persistent local, staging, or production migration was applied.
+
+- Added migration 135. `fail_student_purge_object` now qualifies the joined
+  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
+  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
+  runtime by the existing rollback regression; its lint finding was a
+  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
+  `pg_temp`-scoped dynamic references while preserving archive behavior.
+- Extended the rollback-only student-purge database fixture through the real
+  storage-deletion failure path. It now proves object/operation failure state,
+  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
+  and a fresh retry lease before successful completion.
+- Independent high-risk review found and remediation added operation-first row
+  locking plus post-lock live-lease validation, preventing a deadlock or stale
+  failure write when an expired lease is reclaimed concurrently. A disposable
+  two-session regression now proves the stale reporter waits, loses authority,
+  and cannot overwrite the replacement lease or operation retry state.
+- The disposable race harness accepts only its reserved database-name prefix
+  and drops the database only after a successful create, so an unsafe override
+  or pre-existing database cannot be removed during failed setup.
+- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
+  project. Error-level database lint reports zero findings and is now an
+  all-schema, fail-on-error CI gate; focused student
+  purge and archive database contracts, generated database types, 5,172-test
+  coverage, TypeScript, lint, architecture/UI/design policies, migration
+  lineage, diff/shell checks, the Pika audit, and the production build pass.
+
+**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
+static-analysis/runtime reconciliation.
+
+## 2026-08-28 — Preserve linked Tests during Blueprint purge
+
+**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
+no migration was applied, no database was reset, and no hosted state changed.
+
+- Extended the owner-only provenance exception so Blueprint purge finalization
+  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
+  after student work exists. Authored Test content and identity remain frozen.
+- Added a transactional database regression covering an active linked Test,
+  question, submitted attempt, and response. The old trigger fails purge
+  permanently; the revised trigger completes purge while preserving all Test
+  and student-work records and clearing only Blueprint lineage.
+- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
+  lint, the production build, SQL diff validation, and transaction-only local
+  before/after database proofs. Migration 134 remains unapplied to production.
+
+**Model recommendation:** current frontier coding model for the bounded
+PostgreSQL trigger and deletion-contract fix.
+
+## 2026-08-28 — Complete Blueprint identity and database-lint rollout
+
+**Risk profile:** runtime-platform — protected production release, hosted
+migrations 134–135, and authenticated production Blueprint verification.
+
+- Merged the reviewed Test-question identity and Blueprint purge corrections
+  through production, then applied migration 134 after an exact clean preflight.
+  Production migration history matched local through 134 and the production
+  Blueprint capture/reuse smoke passed with a real disposable student attempt.
+- The smoke verified portable Test-question identity and ordering across initial
+  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
+  student enrollment, attempts, responses, submissions, grades, and activity did
+  not. The source submission remained intact.
+- Merged PR #1097 and applied migration 135 after a sole-migration production
+  dry run. Production now matches local through 135, a second dry run is empty,
+  and error-level database lint reports zero findings.
+- Full PR CI covered migration replay, Test identity rehearsal, student-purge
+  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
+  TypeScript, and the production build.
+
+**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
+verification; GPT-5.6 Terra for release compatibility and continuity review.
+
+## 2026-08-28 — Repair Classroom and Blueprint purge finalization
+
+**Risk profile:** runtime-platform — migration 137 changes trusted purge trigger
+semantics, cross-purge ordering, and retained retry evidence; production remains
+unchanged and migration 137 is not authorized for hosted application.
+
+- Reproduced the retained smoke failure against a production-schema clone. Hot
+  Classroom purge deleted `test_questions` before `test_attempts`, so migration
+  134's student-work freeze correctly rejected the direct question deletion.
+- Migration 137 permits only owner-run whole-Classroom finalization to delete
+  those questions; ordinary authored Test changes remain frozen. The database
+  regression now includes a closed Test, question, submitted attempt, and
+  response and proves the complete Classroom graph is deleted.
+- Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
+  the second deletion from starting. One canonical lineage relation now covers
+  direct, proposal, operation, and editing-session links for atomic advisory
+  locking, conflict detection, and upgrade repair. Three synchronized two-session
+  database races prove exactly one purge installs a fence for indirect links.
+  The fixture identifies each backend, proves the coordinator owns the pair
+  lock and both contenders are waiting before release, and runs in the CI
+  Architecture Database Contracts job.
+- Preserved the cold-Classroom lifecycle fence that migration 122 added. A
+  rollback database regression proves both the shared guard and cold tombstone
+  trigger still reject mutations while a cold purge is active.
+- Legacy interleaved operations drain in Classroom-then-Blueprint order. The
+  retained-failure repair now includes operation-only and editing-session-only
+  links and is covered by a database fixture for both omitted upgrade shapes.
+- Expanded both rollback-only purge contracts for linked versions, completed
+  capture lineage, applied proposals, retained fences, and worker-role access.
+  Before the rebase/resequence, a clean 001-136 replay, all four database
+  contracts, 5,181 tests, lint, build, and database lint passed; lint reported
+  only established warning-level findings. CI will replay the resequenced
+  migration 137 after main's new migration 136.
+- During the isolated replay, `supabase db reset --db-url` recognized the local
+  container and recreated its default local database rather than the named
+  disposable database. No hosted database was touched. The local database was
+  a clean replay of the pre-resequence branch through its former migration
+  136. No hosted environment was changed.
+
+**Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
+deletion review; GPT-5.6 Terra for compatibility and operability review.
