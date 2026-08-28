@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import {
-  Check,
   ChevronDown,
   ClipboardCopy,
   Clock3,
@@ -14,7 +13,6 @@ import {
   RotateCcw,
   UserRoundCheck,
   UserRoundX,
-  X,
 } from 'lucide-react'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import {
@@ -98,12 +96,6 @@ const STATUS_BUTTON_CLASSES: Record<StatusSort, string> = {
   absent: 'border-transparent bg-attendance-absent text-attendance-absent-text hover:bg-attendance-absent',
 }
 
-const STATUS_ICONS: Record<StatusSort, ReactNode> = {
-  present: <Check className="h-4 w-4" aria-hidden="true" />,
-  late: <Clock3 className="h-4 w-4" aria-hidden="true" />,
-  absent: <X className="h-4 w-4" aria-hidden="true" />,
-}
-
 function AttendanceStatusSortChip({
   status,
   count,
@@ -163,9 +155,8 @@ function AttendanceStatusControl({
       options={SORTABLE_STATUSES.map((optionStatus) => ({
         value: optionStatus,
         label: STATUS_LABELS[optionStatus],
-        icon: STATUS_ICONS[optionStatus],
         disabled,
-        className: STATUS_BUTTON_CLASSES[optionStatus],
+        className: cn('rounded-full', STATUS_BUTTON_CLASSES[optionStatus]),
         activeClassName: 'opacity-100 shadow-sm',
         inactiveClassName: 'opacity-40 hover:opacity-70',
       }))}

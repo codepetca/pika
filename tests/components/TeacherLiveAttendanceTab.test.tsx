@@ -229,6 +229,11 @@ describe('TeacherLiveAttendanceTab', () => {
       'bg-attendance-absent',
       'text-attendance-absent-text',
     )
+    for (const label of ['Present', 'Late', 'Absent']) {
+      const statusButton = within(graceStatus).getByRole('button', { name: label })
+      expect(statusButton).toHaveClass('rounded-full')
+      expect(statusButton.querySelector('svg')).not.toBeInTheDocument()
+    }
     expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
 
     const statusGroup = screen.getByRole('group', { name: 'Sort attendance by status' })

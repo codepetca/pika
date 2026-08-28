@@ -299,6 +299,21 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const firstStudentStatus = page.getByRole('group', {
     name: 'Attendance status for Student 01 Alpha01',
   })
+  for (const label of ['Present', 'Late', 'Absent']) {
+    const statusButton = firstStudentStatus.getByRole('button', { name: label })
+    await expect(statusButton.locator('svg')).toHaveCount(0)
+    const geometry = await statusButton.evaluate((element) => {
+      const styles = window.getComputedStyle(element)
+      const bounds = element.getBoundingClientRect()
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        radius: Number.parseFloat(styles.borderTopLeftRadius),
+      }
+    })
+    expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
+    expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
+  }
   await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
   await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
   await expect(page.getByRole('button', {

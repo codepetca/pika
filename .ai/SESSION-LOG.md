@@ -11,6 +11,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-26 — Canonicalize Test-question identity from draft creation
+
+**Risk profile:** runtime-platform — application identity synchronization,
+transactional migration/backfill, immutable-Version instantiation, and database
+contract changes; no hosted migration, deployment, or merge occurred.
+
+- Defined `TestDraftQuestion.id` as the portable Artifact ID assigned when the
+  question is created; `test_questions.id` remains an internal row identity.
+  New persisted questions now store the draft UUID in `artifact_id`, and draft
+  reconstruction prefers source/artifact identity over row identity.
+- Made activation preflight and synchronize by artifact/source identity without
+  positional matching or partial updates on identity ambiguity. Blueprint
+  capture and archived reuse now validate source identity read-only; draft-only
+  IDs remain portable without creating or rewriting source rows.
+- Migration 134 transactionally backfills legacy row-ID draft JSON, fails closed
+  on ambiguous matches, and rematerializes newly instantiated Version questions
+  with explicit artifact/source IDs rather than inferring them by position.
+- Rebased the worktree onto PR #1066 head `cc7c14d7` while retaining the
+  separately completed durable failure-ledger remediation. The authorized local
+  database was reset without seed to replay the final migration; hosted state
+  was untouched.
+- The canonical identity and broader Versioned Blueprint database contracts
+  pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
+  build, generated Supabase type checks, diff checks, and the Pika audit.
+
 ## 2026-08-26 — Make Blueprint question identity capture draft-safe
 
 **Risk profile:** runtime-platform — proposed migration and rollback-only test
@@ -1310,3 +1335,28 @@ teacher-only surface.
 **Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
 of requirements coverage, selection behavior, accessibility, evidence, and
 responsive regression risk.
+
+## 2026-08-28 — Refine Attendance row status targets
+
+**Risk profile:** low visual/composite-widget refinement — only the appearance
+of the existing teacher row status targets changed; status semantics, commands,
+permissions, selection, QR Undo, API/schema behavior, and student UI are
+unchanged.
+
+- Removed the check, clock, and x icons from each row's Present/Late/Absent
+  targets and changed the three 44 x 44 targets from rounded squares to circles.
+- Preserved fixed Present/Late/Absent order, semantic attendance colors,
+  tooltips, named `aria-pressed` buttons, and roving Arrow/Home/End keyboard
+  behavior.
+- Added component and browser assertions for icon absence and circular geometry,
+  then refreshed desktop/mobile light/dark default, selected-menu,
+  manual-with-Undo, and hours evidence plus before/after comparison boards.
+- No durable guidance changed because the treatment is Attendance-specific.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state, tooltip naming, icon absence, and geometry
+  covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** focused component/UI tests (20/20), responsive Attendance
+Playwright matrix (4/4) with no browser/page errors, TypeScript, lint, Pika
+audit, diff checks, and combined source/rendered Product Design comparison pass.
+Student UI is n/a because this remains a teacher-only surface.
