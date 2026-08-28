@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Adopt Pal widget alpha.5
-
-**Risk profile:** none — pinned widget package and compatibility assertions only;
-no schema, API, persistence, authentication, or production state changed.
-
-- Published and installed the immutable registry release
-  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
-  and the regenerated lockfile records its npm registry integrity rather than a
-  temporary tarball path.
-- Updated the package pin and compatibility assertions for concealed achievement
-  titles and collectible-focused story celebrations. The Pika-owned reward modal
-  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
-  `Story Keeper` title.
-- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
-  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
-  boundaries, and the production build pass.
-- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
-  remains centered and responsive with the collectible-only presentation. The
-  temporary unauthenticated review route was removed; teacher review is n/a
-  because the integration is student-only.
-
 ## 2026-08-26 — Canonicalize Test-question identity from draft creation
 
 **Risk profile:** runtime-platform — application identity synchronization,
@@ -1183,3 +1162,31 @@ production remain unchanged.
   the local database only. Migration history now matches through 136, and the
   generated Supabase types were regenerated from and checked against that local
   schema. No hosted environment was touched.
+## 2026-08-28 — Repair Classroom and Blueprint purge finalization
+
+**Risk profile:** runtime-platform — migration 136 changes trusted purge trigger
+semantics, cross-purge ordering, and retained retry evidence; production remains
+unchanged and migration 136 is not authorized for hosted application.
+
+- Reproduced the retained smoke failure against a production-schema clone. Hot
+  Classroom purge deleted `test_questions` before `test_attempts`, so migration
+  134's student-work freeze correctly rejected the direct question deletion.
+- Migration 136 permits only owner-run whole-Classroom finalization to delete
+  those questions; ordinary authored Test changes remain frozen. The database
+  regression now includes a closed Test, question, submitted attempt, and
+  response and proves the complete Classroom graph is deleted.
+- Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
+  the second deletion from starting, legacy interleaved operations drain in
+  Classroom-then-Blueprint order, and a retained generic Blueprint failure is
+  made retryable only when a live linked Classroom fence proves that cause.
+- Expanded both rollback-only purge contracts for linked versions, completed
+  capture lineage, applied proposals, retained fences, and worker-role access.
+  A clean 001-136 replay, both database contracts, 5,177 tests, lint, build, and
+  database lint passed; lint reported only established warning-level findings.
+- During the isolated replay, `supabase db reset --db-url` recognized the local
+  container and recreated its default local database rather than the named
+  disposable database. No hosted database was touched. The local database is
+  now a clean 001-136 replay of this branch.
+
+**Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
+deletion review; GPT-5.6 Terra for compatibility and operability review.

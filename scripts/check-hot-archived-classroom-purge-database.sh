@@ -141,6 +141,30 @@ insert into public.tests (id, classroom_id, title, status, created_by) values (
   'Purged test', 'closed',
   'b1800000-0000-4000-8000-000000000001'
 );
+insert into public.test_questions (
+  id, test_id, question_type, question_text, points, position
+) values (
+  'b1800000-0000-4000-8000-000000000036',
+  'b1800000-0000-4000-8000-000000000035',
+  'open_response', 'Purged question with student work', 1, 0
+);
+insert into public.test_attempts (
+  id, test_id, student_id, responses, is_submitted, submitted_at
+) values (
+  'b1800000-0000-4000-8000-000000000037',
+  'b1800000-0000-4000-8000-000000000035',
+  'b1800000-0000-4000-8000-000000000002',
+  '{"answer":"purged"}'::jsonb, true, clock_timestamp()
+);
+insert into public.test_responses (
+  id, test_id, question_id, student_id, response_text, submitted_at
+) values (
+  'b1800000-0000-4000-8000-000000000038',
+  'b1800000-0000-4000-8000-000000000035',
+  'b1800000-0000-4000-8000-000000000036',
+  'b1800000-0000-4000-8000-000000000002',
+  'Purged response', clock_timestamp()
+);
 insert into public.assignment_doc_save_operations (
   id, assignment_doc_id, save_session_id, save_sequence, metric_session_id,
   paste_word_count, keystroke_count, content_sha256, document_updated_at
@@ -155,6 +179,53 @@ insert into public.course_blueprints (id, teacher_id, title) values (
   'b1800000-0000-4000-8000-000000000020',
   'b1800000-0000-4000-8000-000000000001',
   'Preserved Blueprint'
+);
+insert into public.course_blueprint_versions (
+  id, course_blueprint_id, version_number, source_draft_revision,
+  snapshot_json, snapshot_sha256, created_by
+) values (
+  'b1800000-0000-4000-8000-000000000021',
+  'b1800000-0000-4000-8000-000000000020', 1, 1,
+  '{}'::jsonb, repeat('9', 64),
+  'b1800000-0000-4000-8000-000000000001'
+);
+update public.classrooms
+set source_blueprint_id = 'b1800000-0000-4000-8000-000000000020',
+    source_blueprint_version_id = 'b1800000-0000-4000-8000-000000000021',
+    source_blueprint_origin = jsonb_build_object(
+      'blueprint_id', 'b1800000-0000-4000-8000-000000000020',
+      'blueprint_version_id', 'b1800000-0000-4000-8000-000000000021'
+    )
+where id = 'b1800000-0000-4000-8000-000000000010';
+update public.tests
+set source_blueprint_version_id = 'b1800000-0000-4000-8000-000000000021'
+where id = 'b1800000-0000-4000-8000-000000000035';
+insert into public.course_blueprint_operations (
+  id, teacher_id, operation_type, request_sha256, status,
+  source_classroom_id, result_blueprint_id, result
+) values (
+  'b1800000-0000-4000-8000-000000000022',
+  'b1800000-0000-4000-8000-000000000001',
+  'capture', repeat('8', 64), 'completed',
+  'b1800000-0000-4000-8000-000000000010',
+  'b1800000-0000-4000-8000-000000000020',
+  jsonb_build_object(
+    'blueprint_id', 'b1800000-0000-4000-8000-000000000020',
+    'classroom_id', 'b1800000-0000-4000-8000-000000000010'
+  )
+);
+insert into public.course_blueprint_change_proposals (
+  id, teacher_id, course_blueprint_id, source_classroom_id, target_kind,
+  source_kind, status, base_blueprint_revision, base_classroom_revision,
+  request_sha256, idempotency_key, applied_blueprint_revision, applied_at
+) values (
+  'b1800000-0000-4000-8000-000000000023',
+  'b1800000-0000-4000-8000-000000000001',
+  'b1800000-0000-4000-8000-000000000020',
+  'b1800000-0000-4000-8000-000000000010',
+  'blueprint', 'classroom', 'applied', 1, 1,
+  repeat('7', 64), 'b1800000-0000-4000-8000-000000000024', 1,
+  clock_timestamp()
 );
 
 -- Five classroom buckets plus one interrupted upload and one Blueprint file.
@@ -487,6 +558,37 @@ begin
 end;
 $begin_purge$;
 
+-- Reproduce a purge pair that was interleaved before migration 136 added the
+-- cross-purge ordering check. The Classroom finalizer must be able to detach
+-- its own lineage while the retained Blueprint fence waits.
+insert into public.course_blueprint_purge_operations (
+  id, course_blueprint_id, teacher_id, course_blueprint_title,
+  request_sha256, inventory_sha256, finalization_sha256, source_revision,
+  status, retryable, error_code
+) values (
+  'b1800000-0000-4000-8000-000000000225',
+  'b1800000-0000-4000-8000-000000000020',
+  'b1800000-0000-4000-8000-000000000001', 'Preserved Blueprint',
+  repeat('6', 64), repeat('5', 64), repeat('4', 64), 1,
+  'failed', true, 'course_blueprint_purge_waiting_for_classroom_purge'
+);
+insert into public.course_blueprint_purge_fences (
+  course_blueprint_id, operation_id
+) values (
+  'b1800000-0000-4000-8000-000000000020',
+  'b1800000-0000-4000-8000-000000000225'
+);
+do $cross_purge_order$
+begin
+  if public.classroom_purge_conflict(
+    'b1800000-0000-4000-8000-000000000010'
+  ) <> 'linked_course_blueprint_purge_active'
+  then
+    raise exception 'Linked Blueprint purge did not order Classroom deletion';
+  end if;
+end;
+$cross_purge_order$;
+
 do $cleanup_ledger_fence$
 begin
   begin
@@ -607,6 +709,13 @@ begin
       where id = 'b1800000-0000-4000-8000-000000000002')
     or not exists (select 1 from public.course_blueprints
       where id = 'b1800000-0000-4000-8000-000000000020')
+    or not exists (select 1 from public.course_blueprint_change_proposals
+      where id = 'b1800000-0000-4000-8000-000000000023'
+        and source_classroom_id is null)
+    or not exists (select 1 from public.course_blueprint_operations
+      where id = 'b1800000-0000-4000-8000-000000000022'
+        and source_classroom_id is null
+        and result_blueprint_id = 'b1800000-0000-4000-8000-000000000020')
     or not exists (select 1 from public.managed_storage_objects
       where id = 'b1800000-0000-4000-8000-000000000107')
     or not exists (select 1 from storage.objects

@@ -24466,3 +24466,25 @@ layout, API, schema, persistence, dependency, or hosted state changed.
 
 **Model recommendation:** current frontier coding model for a narrow visual-load
 regression with cross-role and cross-theme verification.
+
+<!-- pika-session-log-archive-batch:d5fd30b409b824a7a364ce83f629cc57733bc0ce646eaac1a4ed3f68eac8bba8 -->
+## 2026-08-26 — Adopt Pal widget alpha.5
+
+**Risk profile:** none — pinned widget package and compatibility assertions only;
+no schema, API, persistence, authentication, or production state changed.
+
+- Published and installed the immutable registry release
+  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
+  and the regenerated lockfile records its npm registry integrity rather than a
+  temporary tarball path.
+- Updated the package pin and compatibility assertions for concealed achievement
+  titles and collectible-focused story celebrations. The Pika-owned reward modal
+  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
+  `Story Keeper` title.
+- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
+  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
+  boundaries, and the production build pass.
+- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
+  remains centered and responsive with the collectible-only presentation. The
+  temporary unauthenticated review route was removed; teacher review is n/a
+  because the integration is student-only.
