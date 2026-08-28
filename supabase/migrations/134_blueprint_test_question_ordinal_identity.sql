@@ -282,6 +282,33 @@ begin
   order by test.id
   for update;
 
+  -- Blueprint capture records immutable Version membership on the source
+  -- question; it does not change authored Test content or student work. Permit
+  -- that provenance-only write after taking the normal parent locks, but only
+  -- inside the owner-run identity-mapping routines. An API caller can set a
+  -- custom GUC, so the owner check is part of this trust boundary.
+  if tg_table_name = 'test_questions'
+    and tg_op = 'UPDATE'
+    and current_user = 'postgres'
+    and coalesce(
+      current_setting('pika.identity_mapping', true),
+      'off'
+    ) = 'on'
+    and (
+      to_jsonb(new) - array[
+        'source_blueprint_version_id',
+        'updated_at'
+      ]::text[]
+    ) is not distinct from (
+      to_jsonb(old) - array[
+        'source_blueprint_version_id',
+        'updated_at'
+      ]::text[]
+    )
+  then
+    return new;
+  end if;
+
   if tg_table_name = 'test_questions'
     and exists (
       select 1

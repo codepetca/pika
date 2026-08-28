@@ -252,6 +252,30 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toMatch(
       /from public\.tests test[\s\S]{0,180}for update;/,
     )
+    const provenanceBypass = definition.indexOf(
+      "'source_blueprint_version_id'",
+      testLock,
+    )
+    const studentWorkFence = definition.indexOf(
+      "test.status in ('active', 'closed')",
+    )
+    expect(provenanceBypass).toBeGreaterThan(testLock)
+    expect(studentWorkFence).toBeGreaterThan(provenanceBypass)
+    expect(definition.slice(testLock, studentWorkFence)).toContain(
+      "current_user = 'postgres'",
+    )
+    expect(definition.slice(testLock, studentWorkFence)).toContain(
+      "current_setting('pika.identity_mapping', true)",
+    )
+    expect(definition.slice(testLock, studentWorkFence)).toContain(
+      "'source_blueprint_version_id'",
+    )
+    expect(definition.slice(testLock, studentWorkFence)).toContain(
+      "'updated_at'",
+    )
+    expect(definition.slice(testLock, studentWorkFence)).not.toContain(
+      "'question_text'",
+    )
     expect(definition).toContain("tg_table_name = 'test_questions'")
     expect(definition).toContain("test.status in ('active', 'closed')")
     expect(definition).toContain('from public.test_attempts attempt')
@@ -263,6 +287,18 @@ describe('Blueprint test-question identity migration', () => {
     )
     expect(databaseContract).toContain(
       'AI reference cache changed the Classroom structural revision',
+    )
+    expect(databaseContract).toContain(
+      'Active capture changed student work',
+    )
+    expect(databaseContract).toContain(
+      'Archived reuse changed student work',
+    )
+    expect(databaseContract).toContain(
+      'Authored active question update bypassed the student-work freeze',
+    )
+    expect(databaseContract).toContain(
+      'Authored archived question update bypassed the student-work freeze',
     )
     expect(databaseContract).toContain(
       'Concurrent Test saves did not serialize at the Classroom row',
