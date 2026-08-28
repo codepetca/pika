@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Harden PR 1066 identity compatibility and migration fencing
-
-**Risk profile:** runtime-platform — draft/API identity compatibility,
-transactional migration backfill, and browser-contract regression updates; the
-authorized local database was reset, while hosted state remained untouched.
-
-- Centralized Test-question identity resolution so draft reads, activation, and
-  Blueprint capture use the same exact portable-ID and legacy row-ID contract.
-  UUIDs are normalized to PostgreSQL-compatible lowercase semantics, ambiguous
-  or colliding matches fail before writes, and no positional/content heuristic
-  is used.
-- Preserved draft-created UUIDs as `artifact_id` during activation and added a
-  capture-to-activation-to-reconstruction regression. Blueprint projection is a
-  read-only compatibility operation and does not assign or mutate source IDs.
-- Made migration 134 lock the draft table during its scan/backfill and increment
-  each changed draft's version so stale clients are fenced after deployment.
-  A clean local reset replayed migrations 001–134 and the Blueprint identity
-  database contract passed.
-- Updated the browser matrix to select the visible responsive attendance status
-  and assert the current post-check-in copy. The full matrix passes (40 passed,
-  14 intentionally skipped), as do the full Vitest suite (5,114/5,114), focused
-  identity tests, lint, TypeScript, the Pika audit, and the production build.
-
 ## 2026-08-26 — Close PR 1066 active-generation and ledger replay blockers
 
 **Risk profile:** runtime-platform — migration function selection, operation
@@ -1238,3 +1215,15 @@ classroom synchronization and no schema or hosted-state change.
 - Recorded `epic-gradebook-general-breakdown` as separate future work for a
   general Attendance, Term Work, and Final breakdown; no mark breakdown was
   added to the Course Guide.
+
+## 2026-08-28 — Stop feature branches from consuming Vercel deployments
+
+**Risk profile:** runtime-platform — repository deployment-trigger configuration
+only; no application behavior, database, or hosted state changed.
+
+- Replaced the single-segment `*` deployment exclusion with recursive `**`, so
+  slash-containing feature branches such as `codex/*` and `claude/*` are
+  rejected before Vercel creates a deployment. `main` preview and `production`
+  release deployments remain explicitly enabled.
+- Added a regression test that locks the exact three-rule deployment policy.
+  The focused test, lint, JSON policy assertion, and diff validation pass.
