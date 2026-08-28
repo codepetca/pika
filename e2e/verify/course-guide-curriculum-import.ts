@@ -10,20 +10,14 @@ const guide = {
   classroom: { title: 'Computer Studies 11' },
   visibility: {
     overview: true,
-    outline: false,
     resources: true,
     assignments: true,
     tests: true,
-    lesson_plans: true,
-    announcements: true,
-    lesson_plan_scope: 'current_week',
   },
   overviewMarkdown: 'Teacher-authored course purpose and local classroom context.',
   resourcesContent: null,
-  assignments: [],
-  tests: [],
-  lessonPlans: [],
-  announcements: [],
+  assignments: [{ key: 'assignment:0', title: 'Design portfolio' }],
+  tests: [{ key: 'test:0', title: 'Programming concepts test' }],
 }
 
 const draft = {
@@ -62,10 +56,13 @@ async function configureThemeAndViewport(
   }, theme)
 }
 
-async function openImport(page: Page, baseUrl: string) {
+async function openOptions(page: Page, baseUrl: string) {
   await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Edit guide' }).click()
   await page.getByRole('button', { name: 'Guide options' }).click()
+}
+
+async function openImport(page: Page) {
   await page.getByRole('button', { name: 'Import curriculum' }).click()
   await page.getByRole('dialog', { name: 'Import curriculum' }).waitFor()
 }
@@ -104,8 +101,17 @@ export const courseGuideCurriculumImport: VerificationScript = {
       })
     })
 
-    await openImport(page, baseUrl)
+    await openOptions(page, baseUrl)
     await configureThemeAndViewport(page, 'light', 'desktop')
+    checks.push({
+      name: 'Teacher options keep the guide focused on orientation sections',
+      passed: await page.getByText(/compact title lists/i).isVisible()
+        && await page.getByRole('button', { name: /Lesson sequence/ }).count() === 0
+        && await page.getByRole('button', { name: /Announcements/ }).count() === 0,
+    })
+    artifacts.push(await capture(page, 'teacher-desktop-light-options.png'))
+
+    await openImport(page)
     checks.push({
       name: 'Teacher source step is visible on desktop',
       passed: await page.getByText(/one-time draft/i).isVisible(),
@@ -159,10 +165,24 @@ export const courseGuideCurriculumImport: VerificationScript = {
       waitUntil: 'domcontentloaded',
     })
     await configureThemeAndViewport(page, 'light', 'desktop')
+    await page.getByRole('heading', { name: 'Assignments', exact: true }).waitFor()
     checks.push({
       name: 'Student guide has no teacher import controls',
       passed: await page.getByRole('button', { name: 'Import curriculum' }).count() === 0
         && await page.getByRole('button', { name: 'Edit guide' }).count() === 0,
+    })
+    checks.push({
+      name: 'Student guide shows the compact assignment title',
+      passed: await page.locator('li:visible').filter({ hasText: 'Design portfolio' }).count() > 0,
+    })
+    checks.push({
+      name: 'Student guide shows the compact test title',
+      passed: await page.locator('li:visible').filter({ hasText: 'Programming concepts test' }).count() > 0,
+    })
+    checks.push({
+      name: 'Student guide omits Lesson sequence and Announcements',
+      passed: await page.getByRole('heading', { name: 'Lesson sequence', exact: true }).count() === 0
+        && await page.getByRole('heading', { name: 'Announcements', exact: true }).count() === 0,
     })
     artifacts.push(await capture(page, 'student-desktop-light-guide.png'))
 
@@ -172,6 +192,19 @@ export const courseGuideCurriculumImport: VerificationScript = {
       passed: await page.getByRole('button', { name: 'Import curriculum' }).count() === 0,
     })
     artifacts.push(await capture(page, 'student-mobile-dark-guide.png'))
+
+    await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import?role=public`, {
+      waitUntil: 'domcontentloaded',
+    })
+    await configureThemeAndViewport(page, 'light', 'desktop')
+    checks.push({
+      name: 'Public guide uses the same title-only orientation presentation',
+      passed: await page.getByText('Design portfolio').isVisible()
+        && await page.getByText('Programming concepts test').isVisible()
+        && await page.getByRole('heading', { name: 'Lesson sequence' }).count() === 0
+        && await page.getByRole('heading', { name: 'Announcements' }).count() === 0,
+    })
+    artifacts.push(await capture(page, 'public-desktop-light-guide.png'))
 
     return {
       scenario: 'course-guide-curriculum-import',

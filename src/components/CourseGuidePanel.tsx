@@ -10,7 +10,7 @@ import {
 } from '@/components/CourseGuideView'
 import { MarkdownContentEditor } from '@/components/editor'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import type { CourseGuideData } from '@/lib/course-guide'
+import { toCourseGuideVisibility, type CourseGuideData } from '@/lib/course-guide'
 import {
   normalizeActualCourseSiteConfig,
   slugifyCourseSiteValue,
@@ -258,7 +258,10 @@ export function CourseGuidePanel({
       const persisted = data.classroom ? optionsFromClassroom(data.classroom) : nextOptions
       setSavedOptions(persisted)
       setDraftOptions(persisted)
-      updateReadyGuide((guide) => ({ ...guide, visibility: persisted.config }))
+      updateReadyGuide((guide) => ({
+        ...guide,
+        visibility: toCourseGuideVisibility(persisted.config),
+      }))
       if (!persisted.config.overview && activeEditor === 'overview') setActiveEditor(null)
       if (!persisted.config.resources && activeEditor === 'resources') setActiveEditor(null)
       if (data.classroom) onClassroomUpdated?.(data.classroom)

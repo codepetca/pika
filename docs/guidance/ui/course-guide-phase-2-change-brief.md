@@ -6,8 +6,9 @@
   continuing through the `Import curriculum` assistant.
 - **Reference:** the existing Course Guide options dialog, authored-content
   field, page-state, and confirmation patterns.
-- **Affected roles:** teacher. Student Course Guide presentation is unchanged
-  and must not expose import controls.
+- **Affected roles:** teacher import flow plus the shared teacher, student, and
+  public Course Guide presentation. Student/public views must not expose import
+  controls.
 - **Required viewports:** desktop and mobile.
 - **Required themes:** light and dark.
 - **Key states:** Guide options entry, PDF source, public URL source,
@@ -17,7 +18,8 @@
   clearly labeled source citation and one final apply action.
 - **Must not add:** Blueprint/classroom synchronization, persistent imported
   drafts, automatic apply, silent replacement of teacher content, a Settings
-  duplicate, hosted migrations, raw theme classes, or new visual language.
+  duplicate, hosted migrations, raw theme classes, new visual language, an
+  activity feed, or a mark breakdown.
 - **Composite widget accessibility review needed:** yes. The assistant uses the
   shared dialog focus/keyboard contract, exposes source choice with
   `aria-pressed`, names the source group, exposes the current step, and keeps
@@ -47,15 +49,23 @@
   untouched and provide bounded retry guidance.
 - The live classroom remains the Course Guide source of truth. No Blueprint or
   external-source synchronization is created.
+- The Course Guide remains a high-level orientation document. It keeps the
+  curriculum overview/expectations and resources, renders Assignments and Tests
+  as compact title-only lists, and excludes Lesson sequence and Announcements
+  from the display model and Guide options. Assignment/test descriptions,
+  instructions, dates, due dates, scores, statuses, documents, grading weights,
+  and other item detail are not sent or rendered.
+- A general Gradebook breakdown such as Attendance, Term Work, and Final is a
+  separately recorded future feature and is not part of this phase.
 
 ## Verification matrix
 
 | Dimension | Required coverage |
 | --- | --- |
-| Role | teacher import flow; student isolation |
+| Role | teacher import flow; teacher/student/public orientation contract |
 | Viewport | desktop `1440x900`, mobile `390x844` |
 | Theme | light and dark |
-| States | source, review, confirm, extraction failure, student guide |
+| States | options, source, review, confirm, extraction failure, student guide, public guide |
 
 Stable guidance followed: yes. Experimental guidance introduced: no. Human
 promotion needed: no. Global tokens or canonical primitives changed: no.

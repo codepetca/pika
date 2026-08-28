@@ -1257,12 +1257,20 @@ classroom synchronization and no schema or hosted-state change.
 - Preserved existing teacher content by appending the reviewed import, and used
   an expected-overview compare guard to return a conflict instead of silently
   overwriting a Course Guide changed during review.
+- Applied the owner refinement that the Course Guide is orientation, not an
+  activity feed. The shared teacher/student/public display model now contains
+  only overview/resources visibility plus title-only Assignment and Test
+  records. Lesson sequence, Announcements, instructions, dates, scores,
+  statuses, documents, and grading details are absent from the payload and UI;
+  their classroom features remain unchanged. Guide options exposes only the
+  four orientation sections.
 - Added domain, provider-boundary, API authorization/concurrency, component,
   fixture, and regression coverage. All 5,223 tests pass, along with lint,
   architecture, design/UI policy checks, production build, Pika audit, and diff
   validation.
-- Visual verification passed eight teacher/student checks across desktop and
-  mobile, light and dark, covering source, editable cited review, confirmation,
+- Visual verification passed 13 teacher/student/public checks across desktop
+  and mobile, light and dark, covering the narrowed options, title-only lists,
+  removed activity sections, source, editable cited review, confirmation,
   extraction failure, overflow, and absence of teacher controls for students.
 - Independent review remediation lowered PDF uploads to the hosting-safe 4 MB
   boundary; added extraction timeout/output limits; moved apply authorization
@@ -1277,3 +1285,6 @@ classroom synchronization and no schema or hosted-state change.
   commit 530d444a with migrations through 136 applied and zero error-level
   database lint findings. No migration was added or applied, and nothing was
   merged or deployed.
+- Recorded `epic-gradebook-general-breakdown` as separate future work for a
+  general Attendance, Term Work, and Final breakdown; no mark breakdown was
+  added to the Course Guide.

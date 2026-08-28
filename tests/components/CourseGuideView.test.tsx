@@ -13,13 +13,9 @@ const guide: CourseGuideData = {
   },
   visibility: {
     overview: true,
-    outline: true,
     resources: true,
     assignments: true,
     tests: true,
-    lesson_plans: true,
-    announcements: true,
-    lesson_plan_scope: 'current_week',
   },
   overviewMarkdown: 'Learn **software design**.',
   resourcesContent: {
@@ -29,36 +25,15 @@ const guide: CourseGuideData = {
   assignments: [{
     key: 'assignment:0',
     title: 'Portfolio',
-    instructionsMarkdown: 'Build a portfolio.',
-    dueAt: '2026-10-15T03:59:00.000Z',
-    pointsPossible: 30,
-    includeInFinal: true,
-    courseWeightPercent: 25,
-    position: 0,
   }],
   tests: [{
     key: 'test:0',
     title: 'Programming Test',
-    pointsPossible: 50,
-    includeInFinal: true,
-    courseWeightPercent: 75,
-    position: 0,
-    documents: [{ key: 'document:0', title: 'Review sheet', href: 'https://example.com/review' }],
-  }],
-  lessonPlans: [{
-    key: 'lesson:2026-09-10',
-    contentMarkdown: 'Variables and data types',
-  }],
-  announcements: [{
-    key: 'announcement:1',
-    title: 'Welcome',
-    content: 'Bring your **laptop**.',
-    publishedAt: '2026-09-01T14:00:00.000Z',
   }],
 }
 
 describe('CourseGuideView', () => {
-  it('renders classroom content without a separate outline or course dates', () => {
+  it('renders orientation content with compact title-only assessment lists', () => {
     render(<CourseGuideView guide={guide} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Computer Science' })).toBeInTheDocument()
@@ -74,29 +49,23 @@ describe('CourseGuideView', () => {
     expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Assignments' })).toBeInTheDocument()
     expect(screen.getByText('Portfolio')).toBeInTheDocument()
-    expect(screen.getByText('Due Wed Oct 14')).toBeInTheDocument()
-    expect(screen.getByText('30 points')).toBeInTheDocument()
-    expect(screen.getByText('25% of course')).toBeInTheDocument()
-    expect(screen.getByText('Build a portfolio.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Tests' })).toBeInTheDocument()
     expect(screen.getByText('Programming Test')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Review sheet' })).toHaveAttribute('href', 'https://example.com/review')
-    expect(screen.getByRole('heading', { name: 'Lesson sequence' })).toBeInTheDocument()
-    expect(screen.queryByText('Thu Sep 10')).toBeNull()
-    expect(screen.getByText('Variables and data types')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Announcements' })).toBeInTheDocument()
-    expect(screen.getByText('Welcome')).toBeInTheDocument()
-    expect(screen.getByText(/Bring your/)).toBeInTheDocument()
+    expect(screen.getAllByRole('list')).toHaveLength(2)
+    expect(screen.queryByText(/Due /)).toBeNull()
+    expect(screen.queryByText(/points?/)).toBeNull()
+    expect(screen.queryByText(/% of course/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Lesson sequence' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Announcements' })).toBeNull()
   })
 
-  it('does not render a disabled section even when data exists', () => {
+  it('does not render a disabled guide section', () => {
     render(<CourseGuideView guide={{
       ...guide,
-      visibility: { ...guide.visibility, resources: false, lesson_plans: false },
+      visibility: { ...guide.visibility, resources: false },
     }} />)
 
     expect(screen.queryByRole('heading', { name: 'Resources' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Lesson sequence' })).toBeNull()
   })
 
   it('shows a calm published-empty state instead of a blank page', () => {
@@ -106,8 +75,6 @@ describe('CourseGuideView', () => {
       resourcesContent: null,
       assignments: [],
       tests: [],
-      lessonPlans: [],
-      announcements: [],
     }} />)
 
     expect(screen.getByText('Course guide details are being prepared.')).toBeInTheDocument()

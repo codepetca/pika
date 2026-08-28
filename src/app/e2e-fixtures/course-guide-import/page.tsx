@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 import { CourseGuidePanel } from '@/components/CourseGuidePanel'
+import { CourseGuideView } from '@/components/CourseGuideView'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
+import type { CourseGuideData } from '@/lib/course-guide'
 import type { Classroom } from '@/types'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
@@ -33,6 +35,20 @@ const classroom: Classroom = {
   updated_at: '2026-08-28T12:00:00.000Z',
 }
 
+const publicGuide: CourseGuideData = {
+  classroom: { title: classroom.title },
+  visibility: {
+    overview: true,
+    resources: true,
+    assignments: true,
+    tests: true,
+  },
+  overviewMarkdown: classroom.course_overview_markdown || '',
+  resourcesContent: null,
+  assignments: [{ key: 'assignment:0', title: 'Design portfolio' }],
+  tests: [{ key: 'test:0', title: 'Programming concepts test' }],
+}
+
 export default function CourseGuideImportFixturePage({
   searchParams,
 }: {
@@ -40,6 +56,9 @@ export default function CourseGuideImportFixturePage({
 }) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
+  }
+  if (searchParams.role === 'public') {
+    return <CourseGuideView guide={publicGuide} />
   }
   const role = searchParams.role === 'student' ? 'student' : 'teacher'
 

@@ -122,13 +122,16 @@ const guide = {
   classroom: {
     title: classroom.title,
   },
-  visibility: classroom.actual_site_config,
+  visibility: {
+    overview: true,
+    resources: true,
+    assignments: true,
+    tests: true,
+  },
   overviewMarkdown: classroom.course_overview_markdown,
   resourcesContent: null,
   assignments: [],
   tests: [],
-  lessonPlans: [],
-  announcements: [],
 }
 
 function fetchResult(value: unknown, ok = true) {

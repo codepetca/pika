@@ -86,24 +86,33 @@ describe('getPublishedCourseGuide', () => {
 
     const result = await getPublishedCourseGuide('computer-science')
 
-    expect(result).toEqual(expect.objectContaining({
+    expect(result).toEqual({
       ok: true,
-      guide: expect.objectContaining({
+      guide: {
         classroom: { title: 'Computer Science' },
-        assignments: [expect.objectContaining({ title: 'Portfolio', courseWeightPercent: 25 })],
-        tests: [expect.objectContaining({
-          title: 'Unit test',
-          courseWeightPercent: 75,
-          documents: [{
-            key: 'test-document:0:d1',
-            title: 'Review',
-            href: 'https://example.com/review',
-          }],
-        })],
-        lessonPlans: [expect.objectContaining({ contentMarkdown: 'Variables' })],
-        announcements: [expect.objectContaining({ title: 'Welcome' })],
-      }),
-    }))
+        visibility: {
+          overview: true,
+          resources: true,
+          assignments: true,
+          tests: true,
+        },
+        overviewMarkdown: 'Overview',
+        resourcesContent: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ministry link' }] }],
+        },
+        assignments: [{ key: 'assignment:0', title: 'Portfolio' }],
+        tests: [{ key: 'test:0', title: 'Unit test' }],
+      },
+    })
+    expect(JSON.stringify(result)).not.toContain('Build it.')
+    expect(JSON.stringify(result)).not.toContain('2026-10-15')
+    expect(JSON.stringify(result)).not.toContain('points_possible')
+    expect(JSON.stringify(result)).not.toContain('course_weight_percent')
+    expect(JSON.stringify(result)).not.toContain('Review')
+    expect(JSON.stringify(result)).not.toContain('Variables')
+    expect(JSON.stringify(result)).not.toContain('Welcome')
+    expect(JSON.stringify(result)).not.toContain('Bring your laptop')
     expect(JSON.stringify(result)).not.toContain('private answer')
     expect(JSON.stringify(result)).not.toContain('private/file.pdf')
     expect(JSON.stringify(result)).not.toContain('javascript:')
@@ -162,14 +171,12 @@ describe('getPublishedCourseGuide', () => {
         resourcesContent: null,
         assignments: [],
         tests: [],
-        lessonPlans: [],
-        announcements: [],
       }),
     })
     expect(JSON.stringify(result)).not.toContain('Hidden')
   })
 
-  it('matches grading weights by stable item key when titles are duplicated', async () => {
+  it('keeps duplicate assessment titles as independent title-only entries', async () => {
     mocks.getPublishedActualCourseSite.mockResolvedValue({
       ok: true,
       site: {
@@ -211,11 +218,12 @@ describe('getPublishedCourseGuide', () => {
       ok: true,
       guide: expect.objectContaining({
         assignments: [
-          expect.objectContaining({ position: 0, courseWeightPercent: 30 }),
-          expect.objectContaining({ position: 1, courseWeightPercent: 70 }),
+          { key: 'assignment:0', title: 'Project' },
+          { key: 'assignment:1', title: 'Project' },
         ],
       }),
     })
+    expect(JSON.stringify(result)).not.toContain('courseWeightPercent')
   })
 
   it('preserves the published-site not-found contract', async () => {
