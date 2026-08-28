@@ -1462,6 +1462,24 @@ select public.activate_test_from_draft_atomic(
   'b1342000-0000-4000-8000-000000000031',
   1
 );
+insert into public.test_attempts (id, test_id, student_id)
+values (
+  'b1342000-0000-4000-8000-000000000055',
+  'b1342000-0000-4000-8000-000000000031',
+  'b1342000-0000-4000-8000-000000000001'
+);
+insert into public.test_responses (
+  id, test_id, question_id, student_id, response_text
+)
+select
+  'b1342000-0000-4000-8000-000000000056',
+  question.test_id,
+  question.id,
+  'b1342000-0000-4000-8000-000000000001',
+  'Archived response must remain unchanged'
+from public.test_questions question
+where question.test_id = 'b1342000-0000-4000-8000-000000000031'
+  and question.artifact_id = 'b1342000-0000-4000-8000-000000000033';
 select pg_sleep(3);
 commit;
 SQL
@@ -1610,6 +1628,8 @@ fi
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 do $contract$
+declare
+  v_error_message text;
 begin
   if not exists (
     select 1
@@ -1665,6 +1685,37 @@ begin
   ) then
     raise exception 'Activation-first ordering did not commit before archive';
   end if;
+
+  if not exists (
+    select 1
+    from public.test_questions question
+    join public.test_responses response
+      on response.question_id = question.id
+    join public.test_attempts attempt
+      on attempt.test_id = question.test_id
+      and attempt.student_id = response.student_id
+    where question.test_id = 'b1342000-0000-4000-8000-000000000031'
+      and question.artifact_id = 'b1342000-0000-4000-8000-000000000033'
+      and question.question_text = 'Activation-first question'
+      and question.source_blueprint_version_id is not null
+      and response.id = 'b1342000-0000-4000-8000-000000000056'
+      and response.response_text = 'Archived response must remain unchanged'
+      and attempt.id = 'b1342000-0000-4000-8000-000000000055'
+  ) then
+    raise exception 'Archived reuse changed student work';
+  end if;
+  begin
+    update public.test_questions
+    set question_text = 'Unsafe archived authored change'
+    where test_id = 'b1342000-0000-4000-8000-000000000031'
+      and artifact_id = 'b1342000-0000-4000-8000-000000000033';
+    raise exception 'Authored archived question update bypassed the student-work freeze';
+  exception when sqlstate '55000' then
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message not like 'test_questions_locked:%' then
+      raise;
+    end if;
+  end;
 
   if not exists (
     select 1
@@ -1898,6 +1949,7 @@ declare
   v_active_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000010';
   v_archived_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000020';
   v_active_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000200';
+  v_active_student_work_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000204';
   v_archived_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000220';
   v_active_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000111';
   v_active_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000112';
@@ -1925,6 +1977,7 @@ declare
   v_archived_revision bigint;
   v_active_plan jsonb;
   v_active_failure_plan jsonb;
+  v_active_student_work_plan jsonb;
   v_archived_plan jsonb;
   v_archived_failure_plan jsonb;
   v_instantiation_plan jsonb;
@@ -1937,6 +1990,7 @@ declare
   v_blueprint_question_ids uuid[];
   v_content jsonb;
   v_count integer;
+  v_error_message text;
 begin
   v_active_plan := jsonb_build_object(
     'blueprint', jsonb_build_object(
@@ -2222,6 +2276,109 @@ begin
   if v_count <> 1 then
     raise exception 'Active same-key replay created duplicate Blueprints';
   end if;
+
+  -- Once the Test is active, capture must validate against its materialized
+  -- question graph. Recapture with student work records only immutable Version
+  -- provenance and must preserve attempts, responses, identity, and content.
+  v_active_student_work_plan := jsonb_set(
+    jsonb_set(
+      v_active_plan,
+      '{blueprint,title}',
+      to_jsonb('Active capture with student work'::text)
+    ),
+    '{assessments,0,content,questions}',
+    jsonb_build_array(
+      jsonb_build_object(
+        'id', v_active_question_two_id,
+        'question_type', 'open_response',
+        'question_text', 'Active question two',
+        'options', '[]'::jsonb,
+        'correct_option', null,
+        'answer_key', 'A concise explanation',
+        'sample_solution', null,
+        'points', 1,
+        'response_max_chars', 5000,
+        'response_monospace', false
+      ),
+      jsonb_build_object(
+        'id', v_active_question_one_id,
+        'question_type', 'multiple_choice',
+        'question_text', 'Active question one',
+        'options', '["A","B"]'::jsonb,
+        'correct_option', 0,
+        'answer_key', null,
+        'sample_solution', null,
+        'points', 1,
+        'response_max_chars', 5000,
+        'response_monospace', false
+      )
+    )
+  );
+  update public.tests
+  set status = 'active'
+  where id = 'b1340000-0000-4000-8000-000000000011';
+  insert into public.test_attempts (id, test_id, student_id)
+  values (
+    'b1340000-0000-4000-8000-000000000401',
+    'b1340000-0000-4000-8000-000000000011',
+    v_teacher_id
+  );
+  insert into public.test_responses (
+    id, test_id, question_id, student_id, response_text
+  ) values (
+    'b1340000-0000-4000-8000-000000000402',
+    'b1340000-0000-4000-8000-000000000011',
+    'b1340000-0000-4000-8000-000000000013',
+    v_teacher_id,
+    'Active response must remain unchanged'
+  );
+  select blueprint_source_revision
+  into v_active_revision
+  from public.classrooms
+  where id = v_active_classroom_id;
+  v_result := public.create_course_blueprint_atomic_v2(
+    v_active_student_work_operation_id,
+    v_teacher_id,
+    'capture',
+    repeat('4', 64),
+    v_active_classroom_id,
+    v_active_revision,
+    v_active_student_work_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Active capture with student work failed: %', v_result;
+  end if;
+  if not exists (
+    select 1
+    from public.test_questions question
+    join public.test_responses response
+      on response.question_id = question.id
+    join public.test_attempts attempt
+      on attempt.test_id = question.test_id
+      and attempt.student_id = response.student_id
+    where question.id = 'b1340000-0000-4000-8000-000000000013'
+      and question.artifact_id = v_active_question_two_id
+      and question.source_artifact_id is null
+      and question.question_text = 'Active question two'
+      and question.source_blueprint_version_id =
+        (v_result->>'source_blueprint_version_id')::uuid
+      and response.id = 'b1340000-0000-4000-8000-000000000402'
+      and response.response_text = 'Active response must remain unchanged'
+      and attempt.id = 'b1340000-0000-4000-8000-000000000401'
+  ) then
+    raise exception 'Active capture changed student work';
+  end if;
+  begin
+    update public.test_questions
+    set question_text = 'Unsafe active authored change'
+    where id = 'b1340000-0000-4000-8000-000000000013';
+    raise exception 'Authored active question update bypassed the student-work freeze';
+  exception when sqlstate '55000' then
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message not like 'test_questions_locked:%' then
+      raise;
+    end if;
+  end;
 
   v_archived_plan := jsonb_set(
     jsonb_set(

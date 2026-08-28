@@ -12,6 +12,12 @@
 -- identity before portable-identity fallback, and tolerate draft-only questions.
 -- Capture validates source identity without assigning or rewriting it.
 
+-- Production cutover is expected to run in an idle window, but do not wait
+-- indefinitely for either source-table fence or an unexpectedly slow backfill.
+-- Any timeout aborts this migration transaction without a partial cutover.
+set lock_timeout = '10s';
+set statement_timeout = '15min';
+
 do $$
 declare
   v_draft record;
@@ -281,6 +287,33 @@ begin
   where test.id = any(v_test_ids)
   order by test.id
   for update;
+
+  -- Blueprint capture records immutable Version membership on the source
+  -- question; it does not change authored Test content or student work. Permit
+  -- that provenance-only write after taking the normal parent locks, but only
+  -- inside the owner-run identity-mapping routines. An API caller can set a
+  -- custom GUC, so the owner check is part of this trust boundary.
+  if tg_table_name = 'test_questions'
+    and tg_op = 'UPDATE'
+    and current_user = 'postgres'
+    and coalesce(
+      current_setting('pika.identity_mapping', true),
+      'off'
+    ) = 'on'
+    and (
+      to_jsonb(new) - array[
+        'source_blueprint_version_id',
+        'updated_at'
+      ]::text[]
+    ) is not distinct from (
+      to_jsonb(old) - array[
+        'source_blueprint_version_id',
+        'updated_at'
+      ]::text[]
+    )
+  then
+    return new;
+  end if;
 
   if tg_table_name = 'test_questions'
     and exists (
@@ -3155,3 +3188,6 @@ grant execute on function public.create_archived_classroom_blueprint_atomic(
   bigint,
   jsonb
 ) to service_role;
+
+reset lock_timeout;
+reset statement_timeout;
