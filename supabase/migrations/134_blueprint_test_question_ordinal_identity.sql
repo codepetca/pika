@@ -12,6 +12,12 @@
 -- identity before portable-identity fallback, and tolerate draft-only questions.
 -- Capture validates source identity without assigning or rewriting it.
 
+-- Production cutover is expected to run in an idle window, but do not wait
+-- indefinitely for either source-table fence or an unexpectedly slow backfill.
+-- Any timeout aborts this migration transaction without a partial cutover.
+set lock_timeout = '10s';
+set statement_timeout = '15min';
+
 do $$
 declare
   v_draft record;
@@ -3182,3 +3188,6 @@ grant execute on function public.create_archived_classroom_blueprint_atomic(
   bigint,
   jsonb
 ) to service_role;
+
+reset lock_timeout;
+reset statement_timeout;

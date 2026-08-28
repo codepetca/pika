@@ -122,6 +122,25 @@ function expectDurableIdentityFailureLedger(definition: string) {
 }
 
 describe('Blueprint test-question identity migration', () => {
+  it('bounds the production cutover and restores session timeouts', () => {
+    const firstMigrationBlock = migration.indexOf('\ndo $$')
+    const lastGrant = migration.lastIndexOf(') to service_role;')
+    const lockTimeout = migration.indexOf("set lock_timeout = '10s';")
+    const statementTimeout = migration.indexOf(
+      "set statement_timeout = '15min';",
+    )
+    const resetLockTimeout = migration.lastIndexOf('reset lock_timeout;')
+    const resetStatementTimeout = migration.lastIndexOf(
+      'reset statement_timeout;',
+    )
+
+    expect(lockTimeout).toBeGreaterThanOrEqual(0)
+    expect(statementTimeout).toBeGreaterThan(lockTimeout)
+    expect(firstMigrationBlock).toBeGreaterThan(statementTimeout)
+    expect(resetLockTimeout).toBeGreaterThan(lastGrant)
+    expect(resetStatementTimeout).toBeGreaterThan(resetLockTimeout)
+  })
+
   it('serializes draft saves before version-bound activation', () => {
     const saveDefinition = functionDefinition('save_test_draft_atomic')
     const activationDefinition = functionDefinition('activate_test_from_draft_atomic')
