@@ -136,7 +136,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByText('Lovelace')).toBeInTheDocument()
     expect(screen.getByText('Grace')).toBeInTheDocument()
     expect(screen.getByText('Hopper')).toBeInTheDocument()
-    expect(screen.getAllByText('8:50 a.m.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('8:50 AM').length).toBeGreaterThan(0)
     const contextBar = screen.getByTestId('attendance-context-bar')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
@@ -218,20 +218,21 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveAttribute('aria-pressed', 'false')
     expect(within(graceStatus).getByRole('button', { name: 'Absent' })).toHaveAttribute('aria-pressed', 'false')
     expect(within(graceStatus).getByRole('button', { name: 'Present' })).toHaveClass(
-      'bg-attendance-present',
-      'text-attendance-present-text',
+      'after:bg-attendance-present',
+      'after:opacity-100',
+      'after:ring-2',
     )
     expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveClass(
-      'bg-attendance-late',
-      'text-attendance-late-text',
+      'after:bg-attendance-late',
+      'after:opacity-35',
     )
     expect(within(graceStatus).getByRole('button', { name: 'Absent' })).toHaveClass(
-      'bg-attendance-absent',
-      'text-attendance-absent-text',
+      'after:bg-attendance-absent',
+      'after:opacity-35',
     )
     for (const label of ['Present', 'Late', 'Absent']) {
       const statusButton = within(graceStatus).getByRole('button', { name: label })
-      expect(statusButton).toHaveClass('rounded-full')
+      expect(statusButton).toHaveClass('rounded-full', 'after:h-9', 'after:w-9', 'after:rounded-full')
       expect(statusButton.querySelector('svg')).not.toBeInTheDocument()
     }
     expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
@@ -555,7 +556,7 @@ describe('TeacherLiveAttendanceTab', () => {
     const undo = await screen.findByRole('button', {
       name: 'Undo manual attendance change for Grace Hopper',
     })
-    expect(screen.getAllByText('8:50 a.m.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('8:50 AM').length).toBeGreaterThan(0)
     fireEvent.click(undo)
 
     await waitFor(() => expect(screen.queryByRole('button', {

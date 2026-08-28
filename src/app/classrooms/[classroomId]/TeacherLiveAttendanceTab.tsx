@@ -91,9 +91,9 @@ const STATUS_CHIP_CLASSES: Record<StatusSort, string> = {
 const SORTABLE_STATUSES: StatusSort[] = ['present', 'late', 'absent']
 
 const STATUS_BUTTON_CLASSES: Record<StatusSort, string> = {
-  present: 'border-transparent bg-attendance-present text-attendance-present-text hover:bg-attendance-present',
-  late: 'border-transparent bg-attendance-late text-attendance-late-text hover:bg-attendance-late',
-  absent: 'border-transparent bg-attendance-absent text-attendance-absent-text hover:bg-attendance-absent',
+  present: 'bg-transparent hover:bg-transparent after:bg-attendance-present',
+  late: 'bg-transparent hover:bg-transparent after:bg-attendance-late',
+  absent: 'bg-transparent hover:bg-transparent after:bg-attendance-absent',
 }
 
 function AttendanceStatusSortChip({
@@ -156,9 +156,12 @@ function AttendanceStatusControl({
         value: optionStatus,
         label: STATUS_LABELS[optionStatus],
         disabled,
-        className: cn('rounded-full', STATUS_BUTTON_CLASSES[optionStatus]),
-        activeClassName: 'opacity-100 shadow-sm',
-        inactiveClassName: 'opacity-40 hover:opacity-70',
+        className: cn(
+          "relative rounded-full after:pointer-events-none after:absolute after:h-9 after:w-9 after:rounded-full after:content-['']",
+          STATUS_BUTTON_CLASSES[optionStatus],
+        ),
+        activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',
+        inactiveClassName: 'after:opacity-35 hover:after:opacity-65',
       }))}
       onChange={(nextStatus) => {
         if (nextStatus !== 'unmarked') onChange(nextStatus)
@@ -207,10 +210,11 @@ function formatFullDay(date: string) {
 
 function formatTime(instant: string | null) {
   if (!instant) return null
-  return new Intl.DateTimeFormat('en-CA', {
+  return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Toronto',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   }).format(new Date(instant))
 }
 

@@ -250,6 +250,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
   const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
   await expect(contextBar).toContainText('Open')
+  await expect(contextBar).toContainText('8:45 AM–9:15 AM')
   if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
   else await expect(trailingActions).toBeVisible()
   await expect(page.getByRole('checkbox')).toHaveCount(46)
@@ -299,20 +300,30 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const firstStudentStatus = page.getByRole('group', {
     name: 'Attendance status for Student 01 Alpha01',
   })
-  for (const label of ['Present', 'Late', 'Absent']) {
+  for (const [label, selected] of [['Present', true], ['Late', false], ['Absent', false]] as const) {
     const statusButton = firstStudentStatus.getByRole('button', { name: label })
     await expect(statusButton.locator('svg')).toHaveCount(0)
     const geometry = await statusButton.evaluate((element) => {
       const styles = window.getComputedStyle(element)
+      const indicatorStyles = window.getComputedStyle(element, '::after')
       const bounds = element.getBoundingClientRect()
       return {
         width: bounds.width,
         height: bounds.height,
         radius: Number.parseFloat(styles.borderTopLeftRadius),
+        indicatorWidth: Number.parseFloat(indicatorStyles.width),
+        indicatorHeight: Number.parseFloat(indicatorStyles.height),
+        indicatorOpacity: Number.parseFloat(indicatorStyles.opacity),
+        indicatorShadow: indicatorStyles.boxShadow,
       }
     })
     expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
     expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
+    expect(geometry.indicatorWidth).toBe(36)
+    expect(geometry.indicatorHeight).toBe(36)
+    expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
+    expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.35)
+    expect(geometry.indicatorShadow === 'none').toBe(!selected)
   }
   await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
   await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
