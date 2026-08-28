@@ -11,101 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Generalize the Attendance work-surface hierarchy
-
-**Risk profile:** none — teacher UI composition, reusable layout primitives,
-and guidance only; no attendance business logic, API, schema, persistence,
-authentication, dependency, or hosted state changed.
-
-- Replaced Attendance's floating date cluster plus separate session-summary row
-  with one anchored context bar: quiet session context on the left, an exactly
-  centered date navigator, and compact counts/actions on the right.
-- Added shared `TeacherWorkSurfaceContextBar`, `TeacherSelectionBar`, and
-  `TeacherWorkSurfaceTableFrame` primitives. Attendance now uses a sticky table
-  header and reserves bottom scroll clearance only while selection actions are
-  visible, keeping more names on screen during normal use.
-- Added the reusable change brief, expanded teacher work-surface canon, and AI
-  routing so later Classwork and Tests passes can adopt the hierarchy without
-  moving feature business logic into shared components.
-- Full Vitest passes (5,102/5,102); lint, production build, startup-doc budget,
-  and diff checks pass. The build retains existing WorkOS Edge-runtime warnings.
-- Playwright verification passed for the teacher surface at desktop/mobile in
-  light/dark, including default, long-scroll, and selected states; the date was
-  programmatically checked for exact centering and captures had no horizontal
-  overflow. At the prior 1280×659 audit size the denser layout shows roughly
-  three additional compact rows. A temporary local verification route was
-  removed after capture because the shared env lacks Supabase configuration.
-  Student UI is n/a because these primitives and their first consumer are
-  teacher-only.
-
-**Model recommendation:** GPT-5.6 Sol for shared UI architecture plus visual
-verification and reusable AI guidance.
-
-## 2026-08-26 — Restore the Attendance center-action affordance
-
-**Risk profile:** none — refinement of the pending teacher Attendance layout
-and its reusable guidance only; no business logic, API, schema, persistence,
-authentication, dependency, or hosted state changed.
-
-- Responded to visual review by grouping the date navigator, QR action, and
-  open/close command into one elevated center action cluster. Removed the outer
-  card chrome so session state and counts read as quiet information rather than
-  controls; hours and refresh remain subordinate utilities.
-- Updated the reusable component contract, canon, change brief, and regressions
-  so later Classwork/Tests adoption preserves the distinction between immediate
-  centered actions and peripheral information.
-- Focused component coverage and lint pass. The production build passes.
-  Playwright review covers teacher desktop/mobile in light/dark plus default,
-  selected, and scrolled states; the center cluster is exactly centered, all
-  five immediate controls are present, and captures have no horizontal overflow.
-  Student UI is n/a because the revised component and consumer are teacher-only.
-
-**Model recommendation:** GPT-5.6 Sol for judgment-sensitive shared UI
-hierarchy and responsive visual verification.
-
-## 2026-08-26 — Tighten Attendance spacing and scroll hierarchy
-
-**Risk profile:** none — refinement of the pending teacher Attendance layout
-and shared operational-table guidance only; no business logic, API, schema,
-persistence, authentication, dependency, or hosted state changed.
-
-- Reduced the operational context-to-roster gap to 4px so the center action
-  cluster and table read as one compact work surface.
-- Removed the redundant `overflow-hidden` table wrapper that captured the
-  sticky header. The operational context remains outside the internal roster
-  scroller, the column header stays pinned, and only student rows scroll.
-- Increased selected-state bottom scroll clearance on mobile, where the bulk
-  action bar wraps to two rows, so the final student remains fully reachable.
-- Full Vitest (5,102/5,102), lint, and the production build pass. Playwright verification covers
-  teacher desktop/mobile in light/dark, default, deep-scroll, and selected
-  states; it measures a 4px gap, confirms the context position is stable, the
-  header is pinned, the final row clears the toolbar, and no horizontal
-  overflow appears. Student UI is n/a because this surface is teacher-only.
-
-**Model recommendation:** current GPT-5 coding model for a contained teacher
-UI and scroll-behavior refinement.
-
-## 2026-08-27 — Replace archived Classroom action labels with icons
-
-**Risk profile:** none — teacher archived-Classroom action presentation only;
-no workflow, API, schema, persistence, dependency, or hosted state changed.
-
-- Replaced the visible `Reuse` label with the Lucide copy-plus icon and the
-  visible `Unarchive` label with the archive-restore icon. Both actions retain
-  their accessible names and expose the original labels through shared
-  hover/focus tooltips.
-- Preserved primary/surface action hierarchy, loading feedback, disabled state,
-  focus treatment, and the shared 44px minimum target.
-- Focused component coverage passes (31/31), including icon identity, absence
-  of visible label text, and tooltip behavior. Lint and design policy pass.
-- Playwright visual verification passed for teacher desktop/mobile in
-  light/dark, including hover and keyboard-focus tooltips, with no horizontal
-  overflow. Student desktop/mobile light/dark captures confirm the actions
-  remain absent. A temporary visual route was removed after capture because the
-  shared local environment has no Supabase URL or keys.
-
-**Model recommendation:** current model for a narrow, accessible UI refinement.
-
 ## 2026-08-27 — Return Pika logo navigation to active classrooms
 
 **Risk profile:** none — localized teacher classroom-list state transition; no
@@ -971,6 +876,54 @@ production remain unchanged.
   the local database only. Migration history now matches through 136, and the
   generated Supabase types were regenerated from and checked against that local
   schema. No hosted environment was touched.
+
+## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
+
+**Risk profile:** standard application behavior — teacher Attendance interaction,
+read-model projection, and shared segmented-control styling API changed; existing
+authorization, session/mark commands, confirmation polling, schema, migrations,
+dependencies, authentication, and student UI are unchanged.
+
+- Removed Attendance row-selection checkboxes and the selected-student actions
+  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
+  to the centered cluster; each opens an explicit scope confirmation before
+  posting marks for all enrolled students.
+- Replaced static row statuses with an accessible three-state segmented control.
+  Row corrections are immediate and reversible, use icons plus `aria-pressed`
+  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
+  keyboard navigation through the shared `SegmentedControl` primitive.
+- Replaced Source with QR Check-in time. The teacher read model validates Pika's
+  existing signed `attendance.record.changed` inbox events and projects the
+  earliest QR-origin time/status per student, so a later staff correction can
+  expose Restore QR check-in without losing durable provenance. No provider
+  reference or raw integration payload is returned to the browser.
+- Preserved Attendance-specific permissions, archived/closed states, session
+  actions, command failures, status-count sorting, column resizing, internal
+  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
+- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
+  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
+  stale Attendance-specific durable guidance; generic selection guidance remains
+  conditional on selection feeding real batch actions.
+- One bounded independent review found that QR inbox history was filtered by
+  classroom/occurrence but not the active installation. Added query-level and
+  defensive payload installation checks plus a rotation regression fixture, so
+  an old provider installation cannot supply the Check-in time or Undo target.
+  The same remediation batch historicalized a stale Test evidence note that
+  still described the now-removed Attendance selection bar as active debt.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused API/server/component/UI tests (43/43), responsive
+Attendance Playwright matrix (4/4), TypeScript, lint, production build,
+architecture check, design-policy check, Pika audit, diff checks, and visual
+reference comparison pass. Student UI is n/a because this remains a teacher-only
+surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, QR provenance projection, accessibility, and
+responsive regression risk.
+
 ## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
 
 **Risk profile:** standard application behavior — teacher Attendance interaction,
@@ -1135,52 +1088,6 @@ unchanged and migration 137 is not authorized for hosted application.
 
 **Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
 deletion review; GPT-5.6 Terra for compatibility and operability review.
-## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
-
-**Risk profile:** standard application behavior — teacher Attendance interaction,
-read-model projection, and shared segmented-control styling API changed; existing
-authorization, session/mark commands, confirmation polling, schema, migrations,
-dependencies, authentication, and student UI are unchanged.
-
-- Removed Attendance row-selection checkboxes and the selected-student actions
-  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
-  to the centered cluster; each opens an explicit scope confirmation before
-  posting marks for all enrolled students.
-- Replaced static row statuses with an accessible three-state segmented control.
-  Row corrections are immediate and reversible, use icons plus `aria-pressed`
-  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
-  keyboard navigation through the shared `SegmentedControl` primitive.
-- Replaced Source with QR Check-in time. The teacher read model validates Pika's
-  existing signed `attendance.record.changed` inbox events and projects the
-  earliest QR-origin time/status per student, so a later staff correction can
-  expose Restore QR check-in without losing durable provenance. No provider
-  reference or raw integration payload is returned to the browser.
-- Preserved Attendance-specific permissions, archived/closed states, session
-  actions, command failures, status-count sorting, column resizing, internal
-  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
-- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
-  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
-  stale Attendance-specific durable guidance; generic selection guidance remains
-  conditional on selection feeding real batch actions.
-- One bounded independent review found that QR inbox history was filtered by
-  classroom/occurrence but not the active installation. Added query-level and
-  defensive payload installation checks plus a rotation regression fixture, so
-  an old provider installation cannot supply the Check-in time or Undo target.
-  The same remediation batch historicalized a stale Test evidence note that
-  still described the now-removed Attendance selection bar as active debt.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused API/server/component/UI tests (43/43), responsive
-Attendance Playwright matrix (4/4), TypeScript, lint, production build,
-architecture check, design-policy check, Pika audit, diff checks, and visual
-reference comparison pass. Student UI is n/a because this remains a teacher-only
-surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, QR provenance projection, accessibility, and
-responsive regression risk.
 
 ## 2026-08-28 — Preserve linked Tests during Blueprint purge
 
@@ -1355,3 +1262,28 @@ student behavior changed.
 Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
 architecture, design policy, UI policy, Pika audit, diff checks, and same-view
 source/implementation Product Design comparison pass. Student UI is n/a.
+
+## 2026-08-28 — Center Attendance time and further compact row controls
+
+**Risk profile:** low teacher-only visual/composite-widget refinement — no
+Attendance commands, permissions, session state, QR provenance, API/schema, or
+student behavior changed.
+
+- Moved the content-sized Attendance time control into the centered primary
+  action cluster immediately after the joined date navigator.
+- Removed the visible `Open` label and status dot. The open state now uses a
+  subtle semantic success background while the accessible name still announces
+  the state; mobile hours access remains in the condensed action menu.
+- Reduced each row Present/Late/Absent target from 36 px to 32 px and its visible
+  disc from 32 px to 28 px. Matched count-pill width and QR Undo to the compact
+  treatment while preserving pressed state, focus rings, tooltips, and keyboard
+  behavior.
+- Refreshed the live Open Design mock, approved reference, change brief, Product
+  Design QA, and desktop/mobile light/dark evidence. No durable shared guidance
+  changed because the adjustments remain Attendance-specific.
+
+**Verification:** focused component tests (18/18) and responsive Attendance
+Playwright matrix (4/4) pass; same-viewport Product Design source and production
+captures were reviewed together. Student UI is n/a because this remains a
+teacher-only surface. TypeScript, lint, policy checks, Pika audit, independent
+review, PR CI, and final diff checks remain before handoff.

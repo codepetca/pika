@@ -163,12 +163,13 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Clear mark' })).toBeEnabled()
     fireEvent.keyDown(window, { key: 'Escape' })
-    const attendanceHours = within(contextBar).getByRole('button', {
+    const attendanceHours = within(primaryControl).getByRole('button', {
       name: 'Attendance hours, Open, 8:45 AM to 9:15 AM',
     })
     expect(attendanceHours).toBeEnabled()
-    expect(attendanceHours).toHaveTextContent('Open· 8:45 AM - 9:15 AM')
-    expect(attendanceHours).toHaveClass('w-fit', 'justify-start', 'text-left')
+    expect(attendanceHours).toHaveTextContent('8:45 AM - 9:15 AM')
+    expect(attendanceHours).not.toHaveTextContent('Open')
+    expect(attendanceHours).toHaveClass('w-fit', 'bg-success-bg')
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
@@ -240,13 +241,13 @@ describe('TeacherLiveAttendanceTab', () => {
     for (const label of ['Present', 'Late', 'Absent']) {
       const statusButton = within(graceStatus).getByRole('button', { name: label })
       expect(statusButton).toHaveClass(
-        'h-9',
-        'w-9',
-        'min-h-9',
-        'min-w-9',
+        'h-8',
+        'w-8',
+        'min-h-8',
+        'min-w-8',
         'rounded-full',
-        'after:h-8',
-        'after:w-8',
+        'after:h-7',
+        'after:w-7',
         'after:rounded-full',
       )
       expect(statusButton.querySelector('svg')).not.toBeInTheDocument()
@@ -270,17 +271,17 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(presentSort.firstElementChild).toHaveClass(
       'bg-attendance-present',
       'text-attendance-present-text',
-      'w-8',
+      'w-7',
     )
     expect(lateSort.firstElementChild).toHaveClass(
       'bg-attendance-late',
       'text-attendance-late-text',
-      'w-8',
+      'w-7',
     )
     expect(absentSort.firstElementChild).toHaveClass(
       'bg-attendance-absent',
       'text-attendance-absent-text',
-      'w-8',
+      'w-7',
     )
 
     fireEvent.click(lateSort)
@@ -316,7 +317,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(attendanceHours.querySelector('svg')).toBeInTheDocument()
   })
 
-  it('keeps the longest attendance window left-aligned and content-sized', async () => {
+  it('keeps the longest attendance window content-sized in the primary controls', async () => {
     const base = attendanceView()
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       session: {
@@ -332,8 +333,10 @@ describe('TeacherLiveAttendanceTab', () => {
     const attendanceHours = screen.getByRole('button', {
       name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
     })
-    expect(attendanceHours).toHaveTextContent('Open· 12:45 AM - 10:34 PM')
-    expect(attendanceHours).toHaveClass('w-fit', 'justify-start', 'text-left')
+    expect(attendanceHours).toHaveTextContent('12:45 AM - 10:34 PM')
+    expect(attendanceHours).not.toHaveTextContent('Open')
+    expect(attendanceHours).toHaveClass('w-fit', 'bg-success-bg')
+    expect(screen.getByTestId('attendance-primary-control')).toContainElement(attendanceHours)
     expect(attendanceHours).not.toHaveClass('w-full')
   })
 
@@ -668,7 +671,7 @@ describe('TeacherLiveAttendanceTab', () => {
     ).getByRole('button', { name: 'Present' })).toBeEnabled()
   })
 
-  it('keeps an unconfirmed projection warning visible in the quiet context slot', async () => {
+  it('keeps an unconfirmed projection warning on the centered attendance-hours control', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       sync: { state: 'stale', confirmedAt: '2026-08-17T12:45:00.000Z' },
     })))
@@ -676,9 +679,13 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab()
     await screen.findByText('Ada')
 
-    const contextBar = screen.getByTestId('attendance-context-bar')
-    expect(within(contextBar).getByText('Last confirmed')).toBeInTheDocument()
-    expect(within(contextBar).getByText(/Open/)).toHaveClass('hidden')
+    const attendanceHours = within(screen.getByTestId('attendance-primary-control')).getByRole('button', {
+      name: 'Attendance hours, Last confirmed, 8:45 AM to 9:15 AM',
+    })
+    expect(attendanceHours).toHaveTextContent('8:45 AM - 9:15 AM')
+    expect(attendanceHours).not.toHaveTextContent('Last confirmed')
+    expect(attendanceHours).not.toHaveTextContent('Open')
+    expect(attendanceHours).toHaveClass('bg-warning-bg')
   })
 
   it('does not let a command response for one date replace the newly selected date', async () => {

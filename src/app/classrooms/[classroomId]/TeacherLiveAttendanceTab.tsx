@@ -124,7 +124,7 @@ function AttendanceStatusSortChip({
         <span
           aria-hidden="true"
           className={cn(
-            'inline-flex h-6 w-8 items-center justify-center rounded-badge px-0 text-xs font-semibold tabular-nums',
+            'inline-flex h-5 w-7 items-center justify-center rounded-badge px-0 text-xs font-semibold tabular-nums',
             STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
@@ -158,7 +158,7 @@ function AttendanceStatusControl({
         label: STATUS_LABELS[optionStatus],
         disabled,
         className: cn(
-          "relative h-9 w-9 min-h-9 min-w-9 rounded-full after:pointer-events-none after:absolute after:h-8 after:w-8 after:rounded-full after:content-['']",
+          "relative h-8 w-8 min-h-8 min-w-8 rounded-full after:pointer-events-none after:absolute after:h-7 after:w-7 after:rounded-full after:content-['']",
           STATUS_BUTTON_CLASSES[optionStatus],
         ),
         activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',
@@ -177,14 +177,6 @@ const SESSION_LABELS: Record<TeacherAttendanceView['session']['state'], string> 
   open: 'Open',
   closed: 'Closed',
   cancelled: 'Cancelled',
-}
-
-const SESSION_DOT_CLASSES: Record<TeacherAttendanceView['session']['state'], string> = {
-  not_scheduled: 'bg-border-strong',
-  scheduled: 'bg-primary',
-  open: 'bg-success-solid',
-  closed: 'bg-border-strong',
-  cancelled: 'bg-danger-solid',
 }
 
 function attendanceUrl(classroomId: string, classDate: string) {
@@ -691,66 +683,6 @@ export function TeacherLiveAttendanceTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
       testId="attendance-context-bar"
-      context={view && view.integration !== 'disabled' ? (
-        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
-          {!isArchived ? (
-            <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
-              <Button
-                type="button"
-                size="xs"
-                variant="surface"
-                className={cn(
-                  'h-9 w-fit max-w-full justify-start gap-1.5 px-2.5 text-left text-text-muted hover:text-text-default',
-                  !windowLabel && 'w-9 justify-center px-0',
-                )}
-                aria-label={windowLabel
-                  ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
-                  : 'Set attendance hours'}
-                disabled={Boolean(activeCommand)}
-                onClick={() => setAttendanceHoursOpen(true)}
-              >
-                {windowLabel ? (
-                  <>
-                    <span
-                      className={cn(
-                        'h-2 w-2 shrink-0 rounded-full',
-                        hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
-                      )}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">{sessionContextLabel}</span>
-                    {hasUnconfirmedView ? (
-                      <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
-                    ) : null}
-                    <span className="hidden tabular-nums lg:inline">
-                      · {windowLabel}
-                    </span>
-                    {localSessionPending || view.sync.state === 'pending' ? (
-                      <span className="hidden truncate 2xl:inline">· Waiting for confirmation</span>
-                    ) : null}
-                  </>
-                ) : (
-                  <Clock3 className="h-4 w-4" aria-hidden="true" />
-                )}
-              </Button>
-            </Tooltip>
-          ) : windowLabel ? (
-            <div className="flex min-w-0 items-center gap-1.5 px-2.5">
-              <span
-                className={cn(
-                  'h-2 w-2 shrink-0 rounded-full',
-                  hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
-                )}
-                aria-hidden="true"
-              />
-              <span className="truncate">{sessionContextLabel}</span>
-              <span className="hidden tabular-nums lg:inline">
-                · {windowLabel}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
       primary={(
         <div className="flex items-center gap-1" data-testid="attendance-primary-control">
           <CalendarDateNavigator
@@ -764,6 +696,41 @@ export function TeacherLiveAttendanceTab({
             labelClassName="min-w-16 px-2 sm:min-w-20 sm:px-3"
             joined
           />
+          {view?.integration === 'ready' ? (
+            !isArchived ? (
+              <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="surface"
+                  className={cn(
+                    'hidden h-9 w-fit max-w-full whitespace-nowrap px-2.5 tabular-nums text-text-muted hover:text-text-default sm:inline-flex',
+                    !windowLabel && 'w-9 justify-center px-0',
+                    windowLabel && sessionState === 'open' && !hasUnconfirmedView
+                      && !localSessionPending && view.sync.state !== 'pending'
+                      && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
+                    (hasUnconfirmedView || localSessionPending || view.sync.state === 'pending')
+                      && 'bg-warning-bg hover:bg-warning-bg',
+                  )}
+                  aria-label={windowLabel
+                    ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
+                    : 'Set attendance hours'}
+                  disabled={Boolean(activeCommand)}
+                  onClick={() => setAttendanceHoursOpen(true)}
+                >
+                  {windowLabel ? (
+                    <span>{windowLabel}</span>
+                  ) : (
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </Button>
+              </Tooltip>
+            ) : windowLabel ? (
+              <span className="hidden h-9 items-center whitespace-nowrap rounded-control bg-surface px-2.5 text-xs tabular-nums text-text-muted sm:inline-flex">
+                {windowLabel}
+              </span>
+            ) : null
+          ) : null}
           {mobileSessionActions.length > 0 ? (
             <div className="sm:hidden">
               <TeacherWorkSurfaceIconMenuButton
@@ -1074,7 +1041,7 @@ export function TeacherLiveAttendanceTab({
                               type="button"
                               variant="ghost"
                               size="xs"
-                              className="h-9 w-9 min-h-9 min-w-9 px-0 py-0"
+                              className="h-8 w-8 min-h-8 min-w-8 px-0 py-0"
                               aria-label={`Undo manual attendance change for ${studentName}`}
                               disabled={!editable}
                               onClick={() => void submitMarks(

@@ -250,22 +250,23 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
   const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
   const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
-  await expect(contextBar).toContainText('Open')
-  const attendanceHours = contextBar.getByRole('button', {
+  const attendanceHours = primaryControl.getByRole('button', {
     name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
   })
   if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
   else {
-    await expect(attendanceHours).toContainText('12:45 AM - 10:34 PM')
+    await expect(attendanceHours).toHaveText('12:45 AM - 10:34 PM')
+    await expect(attendanceHours).not.toContainText('Open')
+    await expect(attendanceHours).toHaveClass(/bg-success-bg/)
     await expect(trailingActions).toBeVisible()
-    const [contextBox, attendanceHoursBox] = await Promise.all([
-      contextBar.boundingBox(),
+    const [dateBox, attendanceHoursBox] = await Promise.all([
+      dateButton.boundingBox(),
       attendanceHours.boundingBox(),
     ])
-    expect(contextBox).not.toBeNull()
+    expect(dateBox).not.toBeNull()
     expect(attendanceHoursBox).not.toBeNull()
-    expect(attendanceHoursBox!.x - contextBox!.x).toBeLessThan(24)
-    expect(attendanceHoursBox!.width).toBeLessThan(contextBox!.width / 3)
+    expect(attendanceHoursBox!.x).toBeGreaterThan(dateBox!.x + dateBox!.width)
+    expect(attendanceHoursBox!.width).toBeLessThan(190)
   }
   await expect(page.getByRole('checkbox')).toHaveCount(46)
   await expect(primaryControl.getByRole('button', {
@@ -279,8 +280,8 @@ test('keeps the Attendance roster compact with inline status controls', async ({
       .locator('span')
       .evaluate((element) => element.getBoundingClientRect().width),
   ])
-  expect(firstStudentRowHeight).toBeLessThanOrEqual(46)
-  expect(presentCountWidth).toBeCloseTo(32, 1)
+  expect(firstStudentRowHeight).toBeLessThanOrEqual(45)
+  expect(presentCountWidth).toBeCloseTo(28, 1)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' }).locator('xpath=ancestor::th')).not.toContainText('Status')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
@@ -339,12 +340,12 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         indicatorShadow: indicatorStyles.boxShadow,
       }
     })
-    expect(geometry.width).toBeCloseTo(36, 1)
-    expect(geometry.height).toBeCloseTo(36, 1)
+    expect(geometry.width).toBeCloseTo(32, 1)
+    expect(geometry.height).toBeCloseTo(32, 1)
     expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
     expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
-    expect(geometry.indicatorWidth).toBe(32)
-    expect(geometry.indicatorHeight).toBe(32)
+    expect(geometry.indicatorWidth).toBe(28)
+    expect(geometry.indicatorHeight).toBe(28)
     expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
     expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.12)
     expect(geometry.indicatorShadow === 'none').toBe(!selected)
