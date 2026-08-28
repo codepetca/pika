@@ -1258,6 +1258,12 @@ dependencies, authentication, and student UI are unchanged.
   manual-with-Undo, whole-roster confirmation, and hours states. Updated only
   stale Attendance-specific durable guidance; generic selection guidance remains
   conditional on selection feeding real batch actions.
+- One bounded independent review found that QR inbox history was filtered by
+  classroom/occurrence but not the active installation. Added query-level and
+  defensive payload installation checks plus a rotation regression fixture, so
+  an old provider installation cannot supply the Check-in time or Undo target.
+  The same remediation batch historicalized a stale Test evidence note that
+  still described the now-removed Attendance selection bar as active debt.
 - Composite-widget accessibility checklist reviewed: yes; keyboard behavior
   covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
   none.

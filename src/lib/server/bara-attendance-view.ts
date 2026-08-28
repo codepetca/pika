@@ -256,6 +256,7 @@ export async function loadTeacherAttendanceView(input: {
       'payload',
       [
         ['classroom_id', input.classroomId],
+        ['installation_ref', installationRef],
         ['occurrence_ref', occurrence.occurrence_ref],
         ['event_type', 'attendance.record.changed'],
       ],
@@ -286,6 +287,7 @@ export async function loadTeacherAttendanceView(input: {
     const event = validation.value
     if (
       event.event_type !== 'attendance.record.changed'
+      || event.installation_ref !== installationRef
       || event.occurrence_ref !== occurrence.occurrence_ref
       || event.metadata.source !== 'student_qr'
     ) {

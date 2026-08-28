@@ -223,12 +223,17 @@ describe('buildTeacherAttendanceView', () => {
 })
 
 function projectionClient(results: Record<string, { data: unknown; error: any }>) {
+  const eqCalls: Array<{ table: string; column: string; value: string }> = []
   return {
+    eqCalls,
     from: vi.fn((table: string) => ({
       select: vi.fn(() => {
         const result = Promise.resolve(results[table] ?? { data: [], error: null })
         const query: any = {
-          eq: vi.fn(() => query),
+          eq: vi.fn((column: string, value: string) => {
+            eqCalls.push({ table, column, value })
+            return query
+          }),
           in: vi.fn(() => query),
           maybeSingle: vi.fn(() => result),
           then: result.then.bind(result),
@@ -316,6 +321,27 @@ describe('loadTeacherAttendanceView', () => {
         data: [{
           payload: {
             schema_version: 1,
+            event_id: 'event_qr_check_in_old_install',
+            idempotency_key: 'event:qr:check-in:old-install',
+            correlation_ref: 'correlation_qr_check_in_old_install',
+            event_type: 'attendance.record.changed',
+            occurred_at: '2026-09-08T12:50:00.000Z',
+            installation_ref: 'installation_rotated_out',
+            roster_ref: 'roster_test',
+            occurrence_ref: 'occurrence_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            session_revision: 2,
+            metadata: {
+              participant_ref: 'participant_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              record_revision: 1,
+              from_status: 'unmarked',
+              to_status: 'late',
+              source: 'student_qr',
+              actor_type: 'student',
+            },
+          },
+        }, {
+          payload: {
+            schema_version: 1,
             event_id: 'event_qr_check_in',
             idempotency_key: 'event:qr:check-in',
             correlation_ref: 'correlation_qr_check_in',
@@ -386,6 +412,11 @@ describe('loadTeacherAttendanceView', () => {
       }],
     })
     expect(JSON.stringify(view)).not.toMatch(/participant_|occurrence_|installation_/)
+    expect(supabase.eqCalls).toContainEqual({
+      table: 'attendance_integration_inbox',
+      column: 'installation_ref',
+      value: 'installation_test',
+    })
   })
 
   it('surfaces permanent session and mark failures without leaving commands pending', async () => {
