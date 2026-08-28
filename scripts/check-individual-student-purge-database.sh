@@ -2,6 +2,9 @@
 set -euo pipefail
 
 DB_CONTAINER="${STUDENT_PURGE_DB_CONTAINER:-supabase_db_pika}"
+DB_NAME="${STUDENT_PURGE_DB_NAME:-postgres}"
+EXPECTED_PROJECT_LABEL="${STUDENT_PURGE_DB_PROJECT_LABEL:-pika}"
+EXPECTED_DB_PORT="${STUDENT_PURGE_DB_PORT:-54322}"
 if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
   echo "Local Pika Supabase database container is not running." >&2
   exit 2
@@ -10,12 +13,13 @@ fi
 PROJECT_LABEL="$(docker inspect "$DB_CONTAINER" \
   --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$DB_CONTAINER" 5432/tcp 2>/dev/null || true)"
-if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; then
+if [[ "$PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL" ]] \
+  || ! grep -q ":${EXPECTED_DB_PORT}$" <<<"$DB_BINDING"; then
   echo "Refusing non-local or unexpected Supabase database target." >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 do $migration$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '123')
@@ -411,6 +415,132 @@ begin
   );
 end;
 $fence$;
+
+do $storage_delete_failure_retry$
+declare
+  v_claim jsonb;
+  v_retry_claim jsonb;
+  v_object jsonb;
+  v_result jsonb;
+  v_object_row public.student_purge_objects;
+  v_operation public.student_purge_operations;
+  v_failed_at timestamptz;
+begin
+  v_claim := public.claim_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001'
+  );
+  v_object := v_claim->'object';
+  if v_object is null then
+    raise exception 'Student purge did not provide an object for failure-path coverage: %', v_claim;
+  end if;
+
+  v_failed_at := clock_timestamp();
+  v_result := public.fail_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001',
+    (v_object->>'id')::uuid,
+    (v_object->>'lease_token')::uuid,
+    'fixture_storage_delete_failed'
+  );
+  if not coalesce((v_result->>'ok')::boolean, false)
+    or v_result->>'operation_status' <> 'failed'
+    or not coalesce((v_result->>'retryable')::boolean, false)
+  then
+    raise exception 'Student purge storage failure was not recorded as retryable: %', v_result;
+  end if;
+
+  select * into strict v_object_row
+  from public.student_purge_objects
+  where id = (v_object->>'id')::uuid;
+  select * into strict v_operation
+  from public.student_purge_operations
+  where id = 'd1230000-0000-4000-8000-000000000100';
+  if v_object_row.status <> 'failed'
+    or v_object_row.attempt_count <> 1
+    or v_object_row.lease_token is not null
+    or v_object_row.lease_expires_at is not null
+    or v_object_row.last_error_code <> 'fixture_storage_delete_failed'
+    or v_object_row.next_attempt_at <= v_failed_at + interval '1 second'
+    or v_object_row.next_attempt_at > clock_timestamp() + interval '3 seconds'
+    or v_operation.status <> 'failed'
+    or v_operation.retryable is distinct from true
+    or v_operation.error_code <> 'student_purge_storage_delete_failed'
+  then
+    raise exception 'Student purge failure evidence, backoff, or lease cleanup is incomplete';
+  end if;
+
+  v_result := public.fail_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001',
+    (v_object->>'id')::uuid,
+    (v_object->>'lease_token')::uuid,
+    'stale_failure_replay'
+  );
+  if v_result->>'error_code' <> 'student_purge_object_lease_lost'
+    or not coalesce((v_result->>'retryable')::boolean, false)
+  then
+    raise exception 'Cleared student purge lease accepted a stale failure: %', v_result;
+  end if;
+
+  -- Hold unrelated objects so this claim isolates the failed object's backoff.
+  update public.student_purge_objects
+  set next_attempt_at = clock_timestamp() + interval '10 minutes'
+  where operation_id = 'd1230000-0000-4000-8000-000000000100'
+    and id <> (v_object->>'id')::uuid
+    and status in ('pending', 'failed');
+  v_retry_claim := public.claim_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001'
+  );
+  if v_retry_claim->'object' is not null
+    or not coalesce((v_retry_claim->>'waiting_for_storage')::boolean, false)
+  then
+    raise exception 'Student purge object bypassed deletion retry backoff: %', v_retry_claim;
+  end if;
+
+  update public.student_purge_objects
+  set next_attempt_at = clock_timestamp()
+  where id = (v_object->>'id')::uuid;
+  v_retry_claim := public.claim_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001'
+  );
+  if v_retry_claim->'object'->>'id' <> v_object->>'id'
+    or v_retry_claim->'object'->>'lease_token' = v_object->>'lease_token'
+  then
+    raise exception 'Student purge failed object was not safely retryable: %', v_retry_claim;
+  end if;
+  select * into strict v_object_row
+  from public.student_purge_objects
+  where id = (v_object->>'id')::uuid;
+  if v_object_row.status <> 'processing'
+    or v_object_row.attempt_count <> 2
+    or v_object_row.lease_token is null
+    or v_object_row.lease_expires_at is null
+    or v_object_row.last_error_code is not null
+  then
+    raise exception 'Student purge retry did not issue a clean second lease';
+  end if;
+
+  delete from storage.objects
+  where bucket_id = v_retry_claim->'object'->>'storage_bucket'
+    and name = v_retry_claim->'object'->>'storage_path';
+  v_result := public.complete_student_purge_object(
+    'd1230000-0000-4000-8000-000000000100',
+    'd1230000-0000-4000-8000-000000000001',
+    (v_retry_claim->'object'->>'id')::uuid,
+    (v_retry_claim->'object'->>'lease_token')::uuid
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Retried student purge object did not complete: %', v_result;
+  end if;
+  update public.student_purge_objects
+  set next_attempt_at = clock_timestamp()
+  where operation_id = 'd1230000-0000-4000-8000-000000000100'
+    and status in ('pending', 'failed');
+end;
+$storage_delete_failure_retry$;
 
 do $storage_delete$
 declare v_claim jsonb; v_object jsonb; v_result jsonb;

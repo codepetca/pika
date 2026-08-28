@@ -19,6 +19,9 @@ describe('CI workflow', () => {
     expect(workflow).toContain('name: Architecture Database Contracts')
     expect(workflow).toContain('name: Test & Build')
     expect(workflow).toContain('name: Browser Experience Matrix')
+    expect(workflow).toContain(
+      'supabase db lint --local --level error --fail-on error',
+    )
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {
