@@ -2815,6 +2815,11 @@ authentication, dependency, migration, deployment, or hosted state changed.
   light/dark, daily/save zoom states, hover fit, pinned reading size, keyboard
   focus, empty/single-save states, and 44 px zoom targets with no mobile
   overflow. The review is recorded in `design-qa.md`.
+- Independent PR review found three interaction gaps. Remediation now disables
+  transient chart hover while a save is pinned, clears transient hover before
+  choosing a zoom anchor, and supports Up/Down alongside Left/Right/Home/End.
+  The regression-focused gallery, teacher, student, and graph suite passes
+  92/92.
 
 **Model recommendation:** GPT-5.6 Sol for a shared compact visualization with
 semantic zoom, proportional scaling, cross-role interaction, and visual QA.

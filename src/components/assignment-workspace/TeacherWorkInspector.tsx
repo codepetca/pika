@@ -508,6 +508,7 @@ export function TeacherWorkInspector({
                 onEntryHover={onEntryHover}
                 audience="teacher"
                 showHeading={false}
+                hoverEnabled={!isPreviewLocked}
               />
             )}
           </div>

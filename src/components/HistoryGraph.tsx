@@ -25,6 +25,7 @@ export interface HistoryGraphProps {
   audience?: 'teacher' | 'student'
   showHeading?: boolean
   variant?: 'desktop' | 'mobile'
+  hoverEnabled?: boolean
 }
 
 const TZ = 'America/Toronto'
@@ -64,6 +65,7 @@ export function HistoryGraph({
   audience = 'student',
   showHeading = true,
   variant = 'desktop',
+  hoverEnabled = true,
 }: HistoryGraphProps) {
   const diffs = useMemo(() => computeCharDiffs(entries), [entries])
   const fullWindow = useMemo(() => computeActivityWindow(entries), [entries])
@@ -72,6 +74,7 @@ export function HistoryGraph({
   const [zoomIndex, setZoomIndex] = useState(0)
   const [zoomAnchorMs, setZoomAnchorMs] = useState<number | null>(null)
   const lastHoveredEntryIdRef = useRef<string | null>(null)
+  const previousActiveEntryIdRef = useRef<string | null>(activeEntryId)
   const zoomStatusId = useId()
   const historyKey = `${entries[0]?.id ?? 'empty'}:${entries[entries.length - 1]?.id ?? 'empty'}:${entries.length}`
 
@@ -82,8 +85,24 @@ export function HistoryGraph({
     lastHoveredEntryIdRef.current = null
   }, [historyKey])
 
+  useEffect(() => {
+    if (!hoverEnabled) {
+      setHoveredEntryId(null)
+      lastHoveredEntryIdRef.current = null
+    }
+  }, [hoverEnabled])
+
+  useEffect(() => {
+    if (previousActiveEntryIdRef.current !== null && activeEntryId === null) {
+      setZoomAnchorMs(null)
+    }
+    previousActiveEntryIdRef.current = activeEntryId
+  }, [activeEntryId])
+
   const activeIndex = diffs.findIndex((entry) => entry.entry.id === activeEntryId)
-  const hoveredIndex = diffs.findIndex((entry) => entry.entry.id === hoveredEntryId)
+  const hoveredIndex = hoverEnabled
+    ? diffs.findIndex((entry) => entry.entry.id === hoveredEntryId)
+    : -1
   const selectedIndex = hoveredIndex >= 0
     ? hoveredIndex
     : activeIndex >= 0
@@ -186,19 +205,21 @@ export function HistoryGraph({
       event.currentTarget.getBoundingClientRect()
     )
     if (!entry) return
-    setZoomAnchorMs(Date.parse(entry.entry.created_at))
 
     if (select) {
+      setZoomAnchorMs(Date.parse(entry.entry.created_at))
       onEntryClick(entry.entry)
       return
     }
+
+    if (!hoverEnabled) return
 
     if (entry.entry.id !== lastHoveredEntryIdRef.current) {
       lastHoveredEntryIdRef.current = entry.entry.id
       setHoveredEntryId(entry.entry.id)
       onEntryHover?.(entry.entry)
     }
-  }, [findNearestEntry, onEntryClick, onEntryHover])
+  }, [findNearestEntry, hoverEnabled, onEntryClick, onEntryHover])
 
   if (entries.length === 0 || !fullWindow || !visibleWindow || !selectedEntry) {
     return (
@@ -225,6 +246,7 @@ export function HistoryGraph({
 
   const setZoom = (nextIndex: number) => {
     const boundedIndex = Math.max(0, Math.min(zoomDurations.length - 1, nextIndex))
+    setZoomAnchorMs(selectedEntryMs)
     setZoomIndex(boundedIndex)
   }
 
@@ -245,7 +267,9 @@ export function HistoryGraph({
           aria-describedby={zoomStatusId}
           data-view-mode={isOverview ? 'daily' : 'saves'}
           preserveAspectRatio="none"
-          onMouseMove={variant === 'desktop' ? (event) => handlePointer(event, false) : undefined}
+          onMouseMove={variant === 'desktop' && hoverEnabled
+            ? (event) => handlePointer(event, false)
+            : undefined}
           onMouseLeave={() => {
             lastHoveredEntryIdRef.current = null
             setHoveredEntryId(null)
@@ -255,7 +279,13 @@ export function HistoryGraph({
             if (event.key === 'ArrowLeft') {
               event.preventDefault()
               selectByIndex(selectedIndex - 1)
+            } else if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              selectByIndex(selectedIndex - 1)
             } else if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              selectByIndex(selectedIndex + 1)
+            } else if (event.key === 'ArrowUp') {
               event.preventDefault()
               selectByIndex(selectedIndex + 1)
             } else if (event.key === 'Home') {

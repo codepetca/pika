@@ -26,12 +26,16 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries, onEntryClick, onEntryHover, ...props }: any) => (
-    <div data-testid="history-list" data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}>
+  HistoryList: ({ entries, hoverEnabled = true, onEntryClick, onEntryHover, ...props }: any) => (
+    <div
+      data-testid="history-list"
+      data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}
+      data-hover-enabled={hoverEnabled ? 'yes' : 'no'}
+    >
       {entries[0] && (
         <button
           type="button"
-          onMouseEnter={() => onEntryHover?.(entries[0])}
+          onMouseEnter={() => hoverEnabled && onEntryHover?.(entries[0])}
           onClick={() => onEntryClick(entries[0])}
         >
           Select saved version
@@ -3321,6 +3325,13 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Restored answer')
 
     await user.click(savedVersionButtons[0])
+    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('locked')
+    expect(
+      screen.getAllByTestId('history-list').every((element) => element.dataset.hoverEnabled === 'no'),
+    ).toBe(true)
+
+    await user.unhover(savedVersionButtons[0])
+    await user.hover(savedVersionButtons[0])
     expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('locked')
 
     await user.click(screen.getAllByRole('button', { name: 'Cancel' })[0])

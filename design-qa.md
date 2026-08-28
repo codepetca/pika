@@ -244,8 +244,8 @@ and the first/last activity dates.
   chart height, with a small non-zero visibility floor.
 - Must not add: a permanent legend, activity judgments, assignment/due
   boundaries, a second chart, pan controls, or explanatory body copy.
-- Composite widget accessibility review: yes. The save-history slider retains
-  Arrow/Home/End behavior and labelled zoom buttons expose the view change.
+- Composite widget accessibility review: yes. The save-history slider supports
+  Left/Right/Up/Down/Home/End and labelled zoom buttons expose the view change.
 
 The teacher surface removes the redundant visible `Student activity` heading
 while retaining the section's accessible name. The student keeps its existing
@@ -259,6 +259,11 @@ role-owned heading.
   100-save final-day crunch, a single save, and empty history.
 - Reviewed the long-document hover fit, 14-day individual-save zoom, pinned
   reading-size preview, and visible keyboard focus.
+- Rechecked the review remediation in the rendered teacher gallery: clicking
+  pinned the selected save at reading size, moving across the chart left the
+  same save and slider value selected, and the Exit preview affordance remained
+  visible. The post-remediation capture was visually reviewed with no layout
+  regression.
 - The zoom controls measured 44 × 44 px. Additions and deletions remain visibly
   distinct and share one proportional linear character scale.
 - No P0, P1, or P2 visual or interaction findings remain.
@@ -266,7 +271,7 @@ role-owned heading.
 ### Composite-widget accessibility checklist
 
 - Checklist reviewed: yes.
-- Keyboard behavior covered: yes; Arrow keys, Home, and End retain save
+- Keyboard behavior covered: yes; Left/Right/Up/Down, Home, and End retain save
   navigation, and zoom controls are ordinary keyboard-reachable buttons.
 - Semantic state covered by tests: yes; slider values/text, daily/save view
   changes, zoom button state, accessible group naming, and hidden-heading region

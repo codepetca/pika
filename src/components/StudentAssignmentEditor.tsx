@@ -1552,6 +1552,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                     onEntryHover={handlePreviewHover}
                     audience="student"
                     showHeading={false}
+                    hoverEnabled={!isPreviewLocked}
                   />
                 )}
               </div>
@@ -1608,6 +1609,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   audience="student"
                   showHeading={false}
                   variant="mobile"
+                  hoverEnabled={!isPreviewLocked}
                 />
               )}
               {isPreviewLocked && previewEntry && (

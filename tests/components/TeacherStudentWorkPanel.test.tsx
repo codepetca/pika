@@ -20,17 +20,18 @@ vi.mock('@/components/editor', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries, onEntryClick, onEntryHover, ...props }: any) => (
+  HistoryList: ({ entries, onEntryClick, onEntryHover, hoverEnabled = true, ...props }: any) => (
     <div
       data-testid="history-list"
       data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}
       data-show-heading={props.showHeading === false ? 'no' : 'yes'}
+      data-hover-enabled={hoverEnabled ? 'yes' : 'no'}
     >
       {entries.map((entry: any) => (
         <button
           key={entry.id}
           type="button"
-          onMouseEnter={() => onEntryHover?.(entry)}
+          onMouseEnter={() => hoverEnabled && onEntryHover?.(entry)}
           onClick={() => onEntryClick(entry)}
         >
           {entry.id}
@@ -1466,6 +1467,9 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'history-older' }))
 
     expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'locked')
+    expect(screen.getByTestId('history-list')).toHaveAttribute('data-hover-enabled', 'no')
+    await user.hover(screen.getByRole('button', { name: 'history-newer' }))
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Older saved work')
     await user.click(screen.getByRole('button', { name: 'Exit preview' }))
     expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'current')
     expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Work for student-1')

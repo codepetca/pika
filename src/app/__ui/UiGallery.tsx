@@ -249,6 +249,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
             activeEntryId={activeEntryId}
             audience={role}
             showHeading={false}
+            hoverEnabled={previewMode !== 'locked'}
             onEntryHover={(entry) => {
               if (previewMode === 'locked') return
               setActiveEntryId(entry.id)

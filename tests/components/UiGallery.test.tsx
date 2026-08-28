@@ -17,13 +17,14 @@ const historyEntry = {
 }
 
 vi.mock('@/components/HistoryGraph', () => ({
-  HistoryGraph: ({ entries, onEntryClick, onEntryHover, showHeading }: any) => (
+  HistoryGraph: ({ entries, hoverEnabled = true, onEntryClick, onEntryHover, showHeading }: any) => (
     <button
       type="button"
       aria-label="History point"
       data-entry-count={entries.length}
+      data-hover-enabled={hoverEnabled ? 'yes' : 'no'}
       data-show-heading={showHeading === false ? 'no' : 'yes'}
-      onMouseEnter={() => onEntryHover?.(historyEntry)}
+      onMouseEnter={() => hoverEnabled && onEntryHover?.(historyEntry)}
       onClick={() => onEntryClick(historyEntry)}
     >
       Saved point
@@ -74,6 +75,10 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('fit')
 
     await user.click(previewPoint)
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
+    expect(previewPoint).toHaveAttribute('data-hover-enabled', 'no')
+
+    fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
 
     await user.click(screen.getByRole('button', { name: 'Exit preview' }))

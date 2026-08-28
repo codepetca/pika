@@ -125,7 +125,7 @@ describe('HistoryGraph', () => {
     expect(screen.queryByRole('heading', { name: 'Version history' })).not.toBeInTheDocument()
   })
 
-  it('supports arrow, Home, and End navigation across the complete history', () => {
+  it('supports horizontal and vertical arrows, Home, and End navigation', () => {
     const onEntryClick = vi.fn()
     render(
       <HistoryGraph
@@ -141,6 +141,12 @@ describe('HistoryGraph', () => {
 
     fireEvent.keyDown(slider, { key: 'ArrowRight' })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'second' }))
+
+    fireEvent.keyDown(slider, { key: 'ArrowUp' })
+    expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'second' }))
+
+    fireEvent.keyDown(slider, { key: 'ArrowDown' })
+    expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'first' }))
 
     fireEvent.keyDown(slider, { key: 'End' })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
@@ -180,6 +186,74 @@ describe('HistoryGraph', () => {
 
     fireEvent.click(chart, { clientX: 990 })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
+  })
+
+  it('keeps a pinned save stable on hover while still allowing a new click', () => {
+    const onEntryClick = vi.fn()
+    const onEntryHover = vi.fn()
+    render(
+      <HistoryGraph
+        entries={entries}
+        activeEntryId="second"
+        hoverEnabled={false}
+        onEntryClick={onEntryClick}
+        onEntryHover={onEntryHover}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+
+    fireEvent.mouseMove(chart, { clientX: 990 })
+    expect(onEntryHover).not.toHaveBeenCalled()
+    expect(chart).toHaveAttribute('aria-valuenow', '2')
+
+    fireEvent.click(chart, { clientX: 990 })
+    expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
+  })
+
+  it('centers zoom on the latest save after a transient hover ends', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+
+    fireEvent.mouseMove(chart, { clientX: 10 })
+    fireEvent.mouseLeave(chart)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+
+    expect(chart).toHaveAttribute('data-view-mode', 'saves')
+    expect(screen.getByText('Jan 4')).toBeInTheDocument()
+    expect(screen.queryByText('Jan 1')).not.toBeInTheDocument()
   })
 
   it('does not carry a hovered position into a replacement history', () => {
