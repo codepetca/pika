@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ExternalLink, Pencil, SlidersHorizontal } from 'lucide-react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
+import { CourseGuideImportDialog } from '@/components/CourseGuideImportDialog'
 import {
   CourseGuideView,
   type CourseGuideEditableSection,
 } from '@/components/CourseGuideView'
 import { MarkdownContentEditor } from '@/components/editor'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import type { CourseGuideData } from '@/lib/course-guide'
+import { toCourseGuideVisibility, type CourseGuideData } from '@/lib/course-guide'
 import {
   normalizeActualCourseSiteConfig,
   slugifyCourseSiteValue,
@@ -77,7 +78,10 @@ export function CourseGuidePanel({
   >({ status: 'loading' })
   const [editMode, setEditMode] = useState(false)
   const [activeEditor, setActiveEditor] = useState<CourseGuideEditableSection | null>(null)
+  const activeEditorRef = useRef<CourseGuideEditableSection | null>(null)
+  activeEditorRef.current = activeEditor
   const [overviewDraft, setOverviewDraft] = useState(classroom.course_overview_markdown || '')
+  const [overviewSavedValue, setOverviewSavedValue] = useState(classroom.course_overview_markdown || '')
   const [overviewSaving, setOverviewSaving] = useState(false)
   const [overviewError, setOverviewError] = useState('')
   const [discardTarget, setDiscardTarget] = useState<DiscardTarget>(null)
@@ -86,6 +90,7 @@ export function CourseGuidePanel({
   const [draftOptions, setDraftOptions] = useState<SavedGuideOptions>(() => optionsFromClassroom(classroom))
   const [optionsSaving, setOptionsSaving] = useState(false)
   const [optionsError, setOptionsError] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -116,6 +121,7 @@ export function CourseGuidePanel({
     setEditMode(false)
     setActiveEditor(null)
     setOverviewDraft(classroom.course_overview_markdown || '')
+    setOverviewSavedValue(classroom.course_overview_markdown || '')
     setOverviewSaving(false)
     setOverviewError('')
     setDiscardTarget(null)
@@ -124,20 +130,20 @@ export function CourseGuidePanel({
     setDraftOptions(nextOptions)
     setOptionsSaving(false)
     setOptionsError('')
+    setImportOpen(false)
   }, [classroom])
 
   useEffect(() => {
-    if (activeEditor !== 'overview') {
-      setOverviewDraft(classroom.course_overview_markdown || '')
+    const nextOverview = classroom.course_overview_markdown || ''
+    setOverviewSavedValue(nextOverview)
+    if (activeEditorRef.current !== 'overview') {
+      setOverviewDraft(nextOverview)
     }
-  }, [activeEditor, classroom.course_overview_markdown])
+  }, [classroom.course_overview_markdown])
 
   const publicGuideAvailable = savedOptions.published && !!savedOptions.slug
   const siteHref = publicGuideAvailable ? `/actual/${savedOptions.slug}` : ''
   const isArchived = !!classroom.archived_at
-  const overviewSavedValue = state.status === 'ready'
-    ? state.guide.overviewMarkdown
-    : classroom.course_overview_markdown || ''
   const overviewDirty = overviewDraft !== overviewSavedValue
 
   function updateReadyGuide(update: (guide: CourseGuideData) => CourseGuideData) {
@@ -210,6 +216,7 @@ export function CourseGuidePanel({
       invalidateCachedJSON(getCacheKey(classroomId))
       if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
       updateReadyGuide((guide) => ({ ...guide, overviewMarkdown: nextOverview }))
+      setOverviewSavedValue(nextOverview)
       if (data.classroom) onClassroomUpdated?.(data.classroom)
       setActiveEditor(null)
       showMessage({ text: 'Curriculum overview saved', tone: 'success' })
@@ -251,7 +258,10 @@ export function CourseGuidePanel({
       const persisted = data.classroom ? optionsFromClassroom(data.classroom) : nextOptions
       setSavedOptions(persisted)
       setDraftOptions(persisted)
-      updateReadyGuide((guide) => ({ ...guide, visibility: persisted.config }))
+      updateReadyGuide((guide) => ({
+        ...guide,
+        visibility: toCourseGuideVisibility(persisted.config),
+      }))
       if (!persisted.config.overview && activeEditor === 'overview') setActiveEditor(null)
       if (!persisted.config.resources && activeEditor === 'resources') setActiveEditor(null)
       if (data.classroom) onClassroomUpdated?.(data.classroom)
@@ -443,12 +453,40 @@ export function CourseGuidePanel({
           const draftHref = draftOptions.slug ? `/actual/${draftOptions.slug}` : ''
           if (draftHref) window.open(draftHref, '_blank', 'noopener,noreferrer')
         }}
+        onImportCurriculum={() => {
+          if (activeEditor === 'overview' && overviewDirty) {
+            setOptionsError('Save or cancel your overview edits before importing curriculum.')
+            return
+          }
+          setDraftOptions(savedOptions)
+          setOptionsError('')
+          setOptionsOpen(false)
+          setImportOpen(true)
+        }}
         onSave={saveOptions}
         onClose={() => {
           setDraftOptions(savedOptions)
           setOptionsError('')
           setOptionsOpen(false)
         }}
+      />
+
+      <CourseGuideImportDialog
+        isOpen={importOpen}
+        classroom={{ ...classroom, course_overview_markdown: overviewSavedValue }}
+        onApplied={(updatedClassroom) => {
+          invalidateCachedJSON(getCacheKey(classroom.id))
+          if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
+          updateReadyGuide((guide) => ({
+            ...guide,
+            overviewMarkdown: updatedClassroom.course_overview_markdown || '',
+          }))
+          setOverviewSavedValue(updatedClassroom.course_overview_markdown || '')
+          setOverviewDraft(updatedClassroom.course_overview_markdown || '')
+          onClassroomUpdated?.(updatedClassroom)
+          showMessage({ text: 'Reviewed curriculum draft added', tone: 'success' })
+        }}
+        onClose={() => setImportOpen(false)}
       />
 
       <ConfirmDialog

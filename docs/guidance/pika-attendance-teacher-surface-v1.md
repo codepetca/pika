@@ -72,6 +72,10 @@ type TeacherAttendanceView = {
     state: 'not_scheduled' | 'scheduled' | 'open' | 'closed' | 'cancelled'
     opensAt: string | null
     closesAt: string | null
+    sessionStartsAt: string | null
+    sessionEndsAt: string | null
+    presentThroughAt: string | null
+    absentAt: string | null
     revision: number | null
     commandFailed: boolean
   }
@@ -85,7 +89,10 @@ type TeacherAttendanceView = {
     lastName: string
     status: 'unmarked' | 'present' | 'absent' | 'late'
     source: 'student_qr' | 'staff' | 'system' | null
+    checkedInAt: string | null
     revision: number | null
+    hasQrCheckIn: boolean
+    hasManualOverride: boolean
     pendingCommand: boolean
     commandFailed: boolean
   }>
@@ -98,10 +105,18 @@ occurrence mappings before calling Bara. Neither those opaque references nor a
 Convex identifier is returned in this view, so contract or provider changes
 stay behind the server adapter.
 
+`checkedInAt` and `hasQrCheckIn` are provider-neutral QR-origin provenance.
+They retain the original check-in time and expose only whether a resettable QR
+check-in exists when a later staff correction changes `status`.
+`hasManualOverride` tells the client whether `Use automatic` can clear a staff
+correction and reveal the timing-derived result. None of these fields exposes a
+provider identifier or opaque cross-service reference.
+
 The command surface should also be Pika-owned:
 
 - `POST /api/teacher/attendance/session` for open/close overrides;
 - `POST /api/teacher/attendance/marks` for bounded bulk marks/corrections;
+- `POST /api/teacher/attendance/check-ins` for confirmed QR check-in removal;
 - `GET /api/teacher/attendance/qr` for a currently open session's safe QR
   presentation payload;
 - `POST /api/teacher/attendance/reconcile` for an explicit recovery attempt.

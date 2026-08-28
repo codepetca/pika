@@ -1,56 +1,29 @@
-import { formatInTimeZone } from 'date-fns-tz'
 import type { ActualCourseSiteConfig, TiptapContent } from '@/types'
 
-export type CourseGuideDocumentLink = {
-  key: string
-  title: string
-  href: string
-}
+export type CourseGuideVisibility = Pick<
+  ActualCourseSiteConfig,
+  'overview' | 'resources' | 'assignments' | 'tests'
+>
 
 export type CourseGuideAssignment = {
   key: string
   title: string
-  instructionsMarkdown: string
-  dueAt: string | null
-  pointsPossible: number | null
-  includeInFinal: boolean
-  courseWeightPercent: number | null
-  position: number
 }
 
 export type CourseGuideTest = {
   key: string
   title: string
-  pointsPossible: number | null
-  includeInFinal: boolean
-  courseWeightPercent: number | null
-  position: number
-  documents: CourseGuideDocumentLink[]
-}
-
-export type CourseGuideLessonPlan = {
-  key: string
-  contentMarkdown: string
-}
-
-export type CourseGuideAnnouncement = {
-  key: string
-  title: string | null
-  content: string
-  publishedAt: string
 }
 
 export type CourseGuideData = {
   classroom: {
     title: string
   }
-  visibility: ActualCourseSiteConfig
+  visibility: CourseGuideVisibility
   overviewMarkdown: string
   resourcesContent: TiptapContent | null
   assignments: CourseGuideAssignment[]
   tests: CourseGuideTest[]
-  lessonPlans: CourseGuideLessonPlan[]
-  announcements: CourseGuideAnnouncement[]
 }
 
 export type CourseGuidePublicSharingReadiness = {
@@ -74,14 +47,17 @@ export function hasCourseGuideContent(guide: CourseGuideData): boolean {
     (guide.visibility.overview && guide.overviewMarkdown.trim())
     || (guide.visibility.resources && guide.resourcesContent)
     || (guide.visibility.assignments && guide.assignments.length > 0)
-    || (guide.visibility.tests && guide.tests.length > 0)
-    || (guide.visibility.lesson_plans && guide.lessonPlans.length > 0)
-    || (guide.visibility.announcements && guide.announcements.length > 0),
+    || (guide.visibility.tests && guide.tests.length > 0),
   )
 }
 
-export function formatCourseGuideDueDate(value: string): string {
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return formatInTimeZone(parsed, 'America/Toronto', 'EEE MMM d')
+export function toCourseGuideVisibility(
+  config: ActualCourseSiteConfig,
+): CourseGuideVisibility {
+  return {
+    overview: config.overview,
+    resources: config.resources,
+    assignments: config.assignments,
+    tests: config.tests,
+  }
 }

@@ -356,6 +356,39 @@ declare
   v_fenced boolean := false;
   v_recreated boolean := false;
 begin
+  insert into public.classroom_purge_operations (
+    id, teacher_id, classroom_id, classroom_title, request_sha256,
+    status, source_revision, impact_summary, retryable, error_code
+  )
+  select
+    'c1200000-0000-4000-8000-000000000090',
+    'c1200000-0000-4000-8000-000000000001', classroom.id,
+    classroom.title, repeat('9', 64), 'failed', revision.revision,
+    '{}'::jsonb, true, 'database_finalize_failed'
+  from public.classrooms classroom
+  join public.classroom_archive_revisions revision
+    on revision.classroom_id = classroom.id
+  where classroom.id = 'c1200000-0000-4000-8000-000000000030';
+  insert into public.classroom_purge_fences (
+    classroom_id, operation_id, teacher_id
+  ) values (
+    'c1200000-0000-4000-8000-000000000030',
+    'c1200000-0000-4000-8000-000000000090',
+    'c1200000-0000-4000-8000-000000000001'
+  );
+  v_impact := public.get_course_blueprint_purge_inventory(
+    'c1200000-0000-4000-8000-000000000001',
+    'c1200000-0000-4000-8000-000000000010'
+  );
+  if v_impact->>'conflicting_operation' <> 'linked_classroom_purge_active'
+    or coalesce((v_impact->>'deletion_available')::boolean, true)
+  then
+    raise exception 'Linked Classroom purge did not order Blueprint deletion: %',
+      v_impact;
+  end if;
+  delete from public.classroom_purge_operations
+  where id = 'c1200000-0000-4000-8000-000000000090';
+
   v_impact := public.get_course_blueprint_purge_inventory(
     'c1200000-0000-4000-8000-000000000001',
     'c1200000-0000-4000-8000-000000000010'

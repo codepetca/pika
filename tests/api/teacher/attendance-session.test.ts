@@ -4,6 +4,7 @@ import { GET, POST } from '@/app/api/teacher/attendance/session/route'
 import { TeacherAttendanceViewReadError } from '@/lib/server/bara-attendance-view'
 import { TeacherAttendanceIdentityError } from '@/lib/server/bara-attendance-teacher'
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
+import type { TeacherAttendanceView } from '@/lib/teacher-attendance'
 
 const {
   requireRole,
@@ -96,12 +97,60 @@ describe('GET /api/teacher/attendance/session', () => {
   })
 
   it('authenticates and authorizes before returning the closed Pika view model', async () => {
+    getBaraAttendanceIntegrationState.mockReturnValue('ready')
+    const teacherView: TeacherAttendanceView = {
+      classroomId,
+      classDate: '2026-09-08',
+      integration: 'ready',
+      session: {
+        state: 'open',
+        opensAt: '2026-09-08T12:45:00.000Z',
+        closesAt: '2026-09-08T14:15:00.000Z',
+        sessionStartsAt: '2026-09-08T13:00:00.000Z',
+        sessionEndsAt: '2026-09-08T14:00:00.000Z',
+        presentThroughAt: '2026-09-08T13:05:00.000Z',
+        absentAt: '2026-09-08T14:00:00.000Z',
+        revision: 2,
+        commandFailed: false,
+      },
+      sync: { state: 'current', confirmedAt: '2026-09-08T13:01:00.000Z' },
+      students: [{
+        studentId: '30000000-0000-4000-8000-000000000003',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        status: 'late',
+        source: 'staff',
+        checkedInAt: '2026-09-08T13:01:00.000Z',
+        revision: 3,
+        hasQrCheckIn: true,
+        hasManualOverride: true,
+        pendingCommand: false,
+        commandFailed: false,
+      }],
+    }
+    loadTeacherAttendanceView.mockResolvedValueOnce(teacherView)
     const response = await GET(new NextRequest(
       `http://localhost/api/teacher/attendance/session?classroom_id=${classroomId}&date=2026-09-08`,
     ))
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ integration: 'disabled', students: [] })
+    const body = await response.json()
+    expect(body).toMatchObject({
+      integration: 'ready',
+      session: {
+        sessionStartsAt: '2026-09-08T13:00:00.000Z',
+        sessionEndsAt: '2026-09-08T14:00:00.000Z',
+        presentThroughAt: '2026-09-08T13:05:00.000Z',
+        absentAt: '2026-09-08T14:00:00.000Z',
+      },
+      students: [{
+        studentId: '30000000-0000-4000-8000-000000000003',
+        checkedInAt: '2026-09-08T13:01:00.000Z',
+        hasQrCheckIn: true,
+        hasManualOverride: true,
+      }],
+    })
+    expect(JSON.stringify(body)).not.toMatch(/participant_|occurrence_|roster_|convex|check_in_|checkInRef/i)
     expect(requireRole).toHaveBeenCalledWith('teacher')
     expect(assertTeacherOwnsClassroom).toHaveBeenCalledWith(
       'teacher-1', classroomId, { supabase },
@@ -110,7 +159,7 @@ describe('GET /api/teacher/attendance/session', () => {
       supabase,
       classroomId,
       classDate: '2026-09-08',
-      integration: 'disabled',
+      integration: 'ready',
     }))
   })
 

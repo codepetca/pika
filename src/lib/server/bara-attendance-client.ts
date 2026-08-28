@@ -1,6 +1,6 @@
 import { createV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
 import type {
-  V1AttendanceMarks,
+  V1CheckInInvalidate,
   V1CheckInPresentationRequest,
   V1RosterSnapshot,
   V1ScheduleSnapshot,
@@ -46,7 +46,7 @@ export interface BaraSessionCommandResult {
   sessionRevision: number
 }
 
-export interface BaraAttendanceMarksResult {
+export interface BaraCheckInInvalidationResult {
   outcome: 'applied' | 'duplicate'
   occurrenceRef: string
   sessionRevision: number
@@ -64,21 +64,21 @@ export interface BaraCheckInPresentationResult {
 export interface BaraStudentCheckInResult {
   outcome: 'applied' | 'duplicate' | 'rejected'
   resultCode:
-    | 'present_marked'
-    | 'already_present'
-    | 'already_late'
-    | 'review_needed'
+    | 'check_in_accepted'
+    | 'already_checked_in'
     | 'not_on_roster'
-    | 'session_closed'
+    | 'session_not_accepting'
     | 'invalid_check_in_token'
     | 'not_authorized'
   occurrenceRef: string
   sessionRevision: number
-  record?: {
+  checkIn?: {
+    checkInRef: string
     participantRef: string
-    recordRevision: number
-    status: 'unmarked' | 'present' | 'late' | 'absent'
-    modifiedAt: string
+    checkInRevision: number
+    acceptedAt: string
+    invalidatedAt?: string
+    reasonCode?: string
   }
 }
 
@@ -250,7 +250,7 @@ function parseSessionCommandSuccess(value: unknown): BaraSessionCommandResult | 
   }
 }
 
-function parseAttendanceMarksSuccess(value: unknown): BaraAttendanceMarksResult | null {
+function parseCheckInInvalidationSuccess(value: unknown): BaraCheckInInvalidationResult | null {
   if (!isPlainObject(value)) return null
   const expectedKeys = [
     'ok',
@@ -322,20 +322,20 @@ function parseStudentCheckInSuccess(value: unknown): BaraStudentCheckInResult | 
     'result_code',
     'occurrence_ref',
     'session_revision',
-    'record',
+    'check_in',
   ]
+  const requiredKeys = expectedKeys.filter((key) => key !== 'check_in')
   const resultCodes = new Set([
-    'present_marked',
-    'already_present',
-    'already_late',
-    'review_needed',
+    'check_in_accepted',
+    'already_checked_in',
     'not_on_roster',
-    'session_closed',
+    'session_not_accepting',
     'invalid_check_in_token',
     'not_authorized',
   ])
   if (
     Object.keys(value).some((key) => !expectedKeys.includes(key)) ||
+    requiredKeys.some((key) => !(key in value)) ||
     value.ok !== true ||
     value.schema_version !== 1 ||
     (value.outcome !== 'applied' && value.outcome !== 'duplicate' && value.outcome !== 'rejected') ||
@@ -348,30 +348,35 @@ function parseStudentCheckInSuccess(value: unknown): BaraStudentCheckInResult | 
     return null
   }
 
-  let record: BaraStudentCheckInResult['record']
-  if (value.record !== undefined) {
-    if (!isPlainObject(value.record)) return null
-    const recordValue = value.record
-    const recordKeys = ['participant_ref', 'record_revision', 'status', 'modified_at']
+  let checkIn: BaraStudentCheckInResult['checkIn']
+  if (value.check_in !== undefined) {
+    if (!isPlainObject(value.check_in)) return null
+    const recordValue = value.check_in
+    const recordKeys = [
+      'check_in_ref', 'participant_ref', 'check_in_revision', 'accepted_at',
+      'invalidated_at', 'reason_code',
+    ]
     if (
       Object.keys(recordValue).some((key) => !recordKeys.includes(key)) ||
-      recordKeys.some((key) => !(key in recordValue)) ||
+      ['check_in_ref', 'participant_ref', 'check_in_revision', 'accepted_at']
+        .some((key) => !(key in recordValue)) ||
+      !isOpaqueRef(recordValue.check_in_ref) ||
       !isOpaqueRef(recordValue.participant_ref) ||
-      !Number.isInteger(recordValue.record_revision) ||
-      (recordValue.record_revision as number) < 1 ||
-      (recordValue.status !== 'unmarked' &&
-        recordValue.status !== 'present' &&
-        recordValue.status !== 'late' &&
-        recordValue.status !== 'absent') ||
-      !isUtcInstant(recordValue.modified_at)
+      !Number.isInteger(recordValue.check_in_revision) ||
+      (recordValue.check_in_revision as number) < 1 ||
+      !isUtcInstant(recordValue.accepted_at) ||
+      (recordValue.invalidated_at !== undefined && !isUtcInstant(recordValue.invalidated_at)) ||
+      (recordValue.reason_code !== undefined && !isOpaqueRef(recordValue.reason_code))
     ) {
       return null
     }
-    record = {
+    checkIn = {
+      checkInRef: recordValue.check_in_ref,
       participantRef: recordValue.participant_ref,
-      recordRevision: recordValue.record_revision as number,
-      status: recordValue.status,
-      modifiedAt: recordValue.modified_at,
+      checkInRevision: recordValue.check_in_revision as number,
+      acceptedAt: recordValue.accepted_at,
+      ...(recordValue.invalidated_at ? { invalidatedAt: recordValue.invalidated_at } : {}),
+      ...(recordValue.reason_code ? { reasonCode: recordValue.reason_code } : {}),
     }
   }
 
@@ -380,7 +385,7 @@ function parseStudentCheckInSuccess(value: unknown): BaraStudentCheckInResult | 
     resultCode: value.result_code as BaraStudentCheckInResult['resultCode'],
     occurrenceRef: value.occurrence_ref,
     sessionRevision: value.session_revision as number,
-    ...(record ? { record } : {}),
+    ...(checkIn ? { checkIn } : {}),
   }
 }
 
@@ -405,9 +410,9 @@ function parseSessionSnapshot(value: unknown): V1SessionSnapshot | null {
     'roster_ref',
     'session_revision',
     'status',
-    'opens_at',
-    'closes_at',
-    'records',
+    'accepts_at',
+    'stops_accepting_at',
+    'check_ins',
   ]
   if (
     Object.keys(value).some((key) => !expectedKeys.includes(key)) ||
@@ -422,53 +427,40 @@ function parseSessionSnapshot(value: unknown): V1SessionSnapshot | null {
       value.status !== 'open' &&
       value.status !== 'closed' &&
       value.status !== 'cancelled') ||
-    !isUtcInstant(value.opens_at) ||
-    !isUtcInstant(value.closes_at) ||
-    Date.parse(value.opens_at) >= Date.parse(value.closes_at) ||
-    !Array.isArray(value.records) ||
-    value.records.length > 1000
+    !isUtcInstant(value.accepts_at) ||
+    !isUtcInstant(value.stops_accepting_at) ||
+    Date.parse(value.accepts_at) >= Date.parse(value.stops_accepting_at) ||
+    !Array.isArray(value.check_ins) ||
+    value.check_ins.length > 1000
   ) {
     return null
   }
 
-  const records: V1SessionSnapshot['records'] = []
-  const participantRefs = new Set<string>()
-  for (const record of value.records) {
+  const checkIns: V1SessionSnapshot['check_ins'] = []
+  const checkInRefs = new Set<string>()
+  for (const record of value.check_ins) {
     if (!isPlainObject(record)) return null
     const recordKeys = [
-      'participant_ref',
-      'record_revision',
-      'status',
-      'source',
-      'actor_type',
-      'modified_at',
+      'check_in_ref', 'participant_ref', 'check_in_revision', 'accepted_at',
+      'invalidated_at', 'reason_code',
     ]
     if (
       Object.keys(record).some((key) => !recordKeys.includes(key)) ||
-      recordKeys.some((key) => !(key in record)) ||
+      ['check_in_ref', 'participant_ref', 'check_in_revision', 'accepted_at']
+        .some((key) => !(key in record)) ||
+      !isOpaqueRef(record.check_in_ref) ||
       !isOpaqueRef(record.participant_ref) ||
-      participantRefs.has(record.participant_ref) ||
-      !Number.isInteger(record.record_revision) ||
-      (record.record_revision as number) < 1 ||
-      (record.status !== 'unmarked' &&
-        record.status !== 'present' &&
-        record.status !== 'late' &&
-        record.status !== 'absent') ||
-      (record.source !== 'student_qr' &&
-        record.source !== 'staff_manual' &&
-        record.source !== 'system_finalize') ||
-      (record.actor_type !== 'student' &&
-        record.actor_type !== 'staff' &&
-        record.actor_type !== 'system') ||
-      (record.source === 'student_qr' && record.actor_type !== 'student') ||
-      (record.source === 'staff_manual' && record.actor_type !== 'staff') ||
-      (record.source === 'system_finalize' && record.actor_type !== 'system') ||
-      !isUtcInstant(record.modified_at)
+      checkInRefs.has(record.check_in_ref) ||
+      !Number.isInteger(record.check_in_revision) ||
+      (record.check_in_revision as number) < 1 ||
+      !isUtcInstant(record.accepted_at) ||
+      (record.invalidated_at !== undefined && !isUtcInstant(record.invalidated_at)) ||
+      (record.reason_code !== undefined && !isOpaqueRef(record.reason_code))
     ) {
       return null
     }
-    participantRefs.add(record.participant_ref)
-    records.push(record as unknown as V1SessionSnapshot['records'][number])
+    checkInRefs.add(record.check_in_ref)
+    checkIns.push(record as unknown as V1SessionSnapshot['check_ins'][number])
   }
 
   return {
@@ -477,9 +469,9 @@ function parseSessionSnapshot(value: unknown): V1SessionSnapshot | null {
     roster_ref: value.roster_ref,
     session_revision: value.session_revision as number,
     status: value.status,
-    opens_at: value.opens_at,
-    closes_at: value.closes_at,
-    records,
+    accepts_at: value.accepts_at,
+    stops_accepting_at: value.stops_accepting_at,
+    check_ins: checkIns,
   }
 }
 
@@ -646,23 +638,23 @@ export async function postBaraSessionCommand(
   return result
 }
 
-export async function postBaraAttendanceMarks(
-  payload: V1AttendanceMarks,
+export async function postBaraCheckInInvalidations(
+  payload: V1CheckInInvalidate,
   options: ClientOptions = {},
-): Promise<BaraAttendanceMarksResult> {
+): Promise<BaraCheckInInvalidationResult> {
   const config = configuration()
   const validation = validateV1Message(payload)
-  if (!validation.ok || validation.value.message_type !== 'attendance.marks') {
-    throw new BaraAttendanceClientError('Invalid Bara attendance marks', 'invalid_payload', false)
+  if (!validation.ok || validation.value.message_type !== 'check_in.invalidate') {
+    throw new BaraAttendanceClientError('Invalid Bara check-in invalidation', 'invalid_payload', false)
   }
   if (validation.value.installation_ref !== config.installationRef) {
-    throw new BaraAttendanceClientError('Invalid Bara attendance marks', 'resource_mismatch', false)
+    throw new BaraAttendanceClientError('Invalid Bara check-in invalidation', 'resource_mismatch', false)
   }
 
-  const path = `/api/integrations/pika/v1/sessions/${validation.value.occurrence_ref}/marks`
+  const path = `/api/integrations/pika/v1/sessions/${validation.value.occurrence_ref}/check-in-invalidations`
   const body = JSON.stringify(validation.value)
   const { parsed, status } = await signedRequest(config, 'POST', path, body, options)
-  const result = parseAttendanceMarksSuccess(parsed)
+  const result = parseCheckInInvalidationSuccess(parsed)
   if (!result || result.occurrenceRef !== validation.value.occurrence_ref) {
     throw new BaraAttendanceClientError(
       'Bara returned an invalid attendance response',

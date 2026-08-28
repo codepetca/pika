@@ -2,7 +2,11 @@ import { z } from 'zod'
 
 import { deliverBaraAttendanceMessage } from '@/lib/server/bara-attendance-outbox'
 import { buildBaraRosterSnapshot } from '@/lib/server/bara-attendance-roster'
-import { buildBaraScheduleSnapshot } from '@/lib/server/bara-attendance-schedule'
+import {
+  buildBaraScheduleSnapshot,
+  materializeBaraAttendanceSchedule,
+  type BaraAttendanceCutoffSnapshot,
+} from '@/lib/server/bara-attendance-schedule'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
 import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
@@ -19,9 +23,13 @@ const preparationSchema = z.object({
   schedule_revision: z.number().int().safe().positive(),
   policy: z.object({
     timezone: z.literal('America/Toronto'),
-    opens_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
-    closes_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
-    close_day_offset: z.union([z.literal(0), z.literal(1)]),
+    session_starts_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    session_ends_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    session_end_day_offset: z.union([z.literal(0), z.literal(1)]),
+    entry_opens_minutes_before: z.number().int().min(0).max(720),
+    present_grace_minutes: z.number().int().min(0).max(720),
+    entry_closes_minutes_before_end: z.number().int().min(0).max(720),
+    absent_minutes_before_end: z.number().int().min(0).max(720),
     enabled: z.boolean(),
     policy_revision: z.number().int().safe().positive(),
   }).strict(),
@@ -71,6 +79,19 @@ const stagedSchema = z.object({
   idempotency_key: z.string().min(1).max(200),
   revision: z.number().int().safe().positive(),
   status: z.enum(['pending', 'processing', 'delivered', 'non_retryable']),
+}).strict()
+
+const occurrenceCutoffRowSchema = z.object({
+  occurrence_ref: z.string(),
+  class_date: z.string().date(),
+  opens_at: z.string().datetime({ offset: true }).nullable(),
+  closes_at: z.string().datetime({ offset: true }).nullable(),
+  session_starts_at: z.string().datetime({ offset: true }).nullable(),
+  session_ends_at: z.string().datetime({ offset: true }).nullable(),
+  present_through_at: z.string().datetime({ offset: true }).nullable(),
+  absent_at: z.string().datetime({ offset: true }).nullable(),
+  policy_revision: z.number().int().safe().positive().nullable(),
+  policy_frozen_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()
 
 export class BaraAttendanceSyncError extends Error {
@@ -180,9 +201,14 @@ export async function syncTeacherAttendanceSources(input: {
       attendanceTitle: `${deactivation.data.title} attendance`,
       policy: {
         timezone: deactivation.data.policy.timezone,
-        opensAtLocal: deactivation.data.policy.opens_local,
-        closesAtLocal: deactivation.data.policy.closes_local,
-        closeDayOffset: deactivation.data.policy.close_day_offset,
+        sessionStartsAtLocal: deactivation.data.policy.opens_local,
+        sessionEndsAtLocal: deactivation.data.policy.closes_local,
+        sessionEndDayOffset: deactivation.data.policy.close_day_offset,
+        entryOpensMinutesBefore: 0,
+        presentGraceMinutes: 0,
+        entryClosesMinutesBeforeEnd: 0,
+        absentMinutesBeforeEnd: 0,
+        policyRevision: deactivation.data.policy.policy_revision,
       },
       classDays: [],
     })
@@ -249,7 +275,37 @@ export async function syncTeacherAttendanceSources(input: {
     'schedule',
     prepared.data.schedule_revision,
   )
-  const schedule = buildBaraScheduleSnapshot({
+  const now = new Date()
+  const { data: cutoffRows, error: cutoffError } = await input.supabase
+    .from('attendance_occurrence_mappings')
+    .select('occurrence_ref, class_date, opens_at, closes_at, session_starts_at, session_ends_at, present_through_at, absent_at, policy_revision, policy_frozen_at')
+    .eq('classroom_id', input.classroomId)
+    .gte('class_date', input.windowStart)
+    .lte('class_date', windowEnd)
+  if (cutoffError) mapRpcError(cutoffError)
+  const parsedCutoffRows = z.array(occurrenceCutoffRowSchema).safeParse(cutoffRows ?? [])
+  if (!parsedCutoffRows.success) throw new BaraAttendanceSyncError('invalid_source')
+  const cutoffsByRef = new Map<string, BaraAttendanceCutoffSnapshot>()
+  for (const row of parsedCutoffRows.data) {
+    if (row.opens_at !== null && row.closes_at !== null
+      && row.session_starts_at !== null && row.session_ends_at !== null
+      && row.present_through_at !== null && row.absent_at !== null
+      && row.policy_revision !== null
+      && (row.policy_frozen_at !== null || Date.parse(row.opens_at) <= now.getTime())) {
+      cutoffsByRef.set(row.occurrence_ref, {
+        occurrence_ref: row.occurrence_ref,
+        date: row.class_date,
+        accepts_at: row.opens_at,
+        stops_accepting_at: row.closes_at,
+        session_starts_at: row.session_starts_at,
+        session_ends_at: row.session_ends_at,
+        present_through_at: row.present_through_at,
+        absent_at: row.absent_at,
+        policy_revision: row.policy_revision,
+      })
+    }
+  }
+  const materializedSchedule = materializeBaraAttendanceSchedule({
     installationRef,
     rosterRef: prepared.data.roster_ref,
     revision: prepared.data.schedule_revision,
@@ -259,16 +315,25 @@ export async function syncTeacherAttendanceSources(input: {
     attendanceTitle: `${prepared.data.title} attendance`,
     policy: {
       timezone: prepared.data.policy.timezone,
-      opensAtLocal: prepared.data.policy.opens_local,
-      closesAtLocal: prepared.data.policy.closes_local,
-      closeDayOffset: prepared.data.policy.close_day_offset,
+      sessionStartsAtLocal: prepared.data.policy.session_starts_local,
+      sessionEndsAtLocal: prepared.data.policy.session_ends_local,
+      sessionEndDayOffset: prepared.data.policy.session_end_day_offset,
+      entryOpensMinutesBefore: prepared.data.policy.entry_opens_minutes_before,
+      presentGraceMinutes: prepared.data.policy.present_grace_minutes,
+      entryClosesMinutesBeforeEnd: prepared.data.policy.entry_closes_minutes_before_end,
+      absentMinutesBeforeEnd: prepared.data.policy.absent_minutes_before_end,
+      policyRevision: prepared.data.policy.policy_revision,
     },
     classDays: prepared.data.class_days.map((classDay) => ({
       date: classDay.date,
       isClassDay: prepared.data.policy.enabled && classDay.is_class_day,
       occurrenceRef: classDay.occurrence_ref ?? 'occurrence_inactive',
+      frozenCutoffs: classDay.occurrence_ref
+        ? cutoffsByRef.get(classDay.occurrence_ref)
+        : undefined,
     })),
   })
+  const schedule = materializedSchedule.schedule
 
   const stagedRosterResult = await rpc(input.supabase,
     scopeMode === 'teacher_entitlements'
@@ -284,17 +349,14 @@ export async function syncTeacherAttendanceSources(input: {
   })
   const stagedScheduleResult = await rpc(
     input.supabase,
-    scopeMode === 'teacher_entitlements'
-      ? 'stage_attendance_schedule_snapshot_v2'
-      : 'stage_attendance_schedule_snapshot_v1',
+    'stage_attendance_timing_schedule_v1',
     {
       p_teacher_id: input.teacherId,
       p_classroom_id: input.classroomId,
       p_source_token: prepared.data.schedule_source_token,
       p_message: schedule,
-      ...(scopeMode === 'teacher_entitlements'
-        ? { p_at: new Date().toISOString() }
-        : {}),
+      p_cutoffs: materializedSchedule.cutoffs,
+      p_at: now.toISOString(),
     },
   )
   const stagedRoster = stagedSchema.safeParse(stagedRosterResult)

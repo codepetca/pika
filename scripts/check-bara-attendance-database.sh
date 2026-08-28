@@ -73,6 +73,15 @@ begin
   ) is null then
     raise exception 'Migration 133 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '138'
+  ) or to_regprocedure(
+    'public.stage_attendance_timing_schedule_v1(uuid,uuid,text,jsonb,jsonb,timestamptz)'
+  ) is null or to_regprocedure(
+    'public.apply_attendance_status_overrides_v1(uuid,uuid,date,uuid,jsonb)'
+  ) is null then
+    raise exception 'Migration 138 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -242,6 +251,69 @@ insert into public.attendance_occurrence_mappings (
   'a1260000-0000-4000-8000-000000000012', '2026-09-12',
   'occurrence_12600000000000000000000000000012'
 );
+
+-- Exercise the migration-138 backfill expression against every short legacy
+-- shape that was valid before timing snapshots existed. In particular, a
+-- sub-minute acceptance window must clamp at opens_at rather than before it.
+insert into public.attendance_occurrence_mappings (
+  classroom_id, class_date, occurrence_ref, opens_at, closes_at
+) values
+  (
+    'a1260000-0000-4000-8000-000000000020', '2099-01-01',
+    'occurrence_12600000000000000000000000000101',
+    '2099-01-01T13:00:00Z', '2099-01-01T13:00:30Z'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', '2099-01-02',
+    'occurrence_12600000000000000000000000000102',
+    '2099-01-02T13:00:00Z', '2099-01-02T13:01:00Z'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', '2099-01-03',
+    'occurrence_12600000000000000000000000000103',
+    '2099-01-03T13:00:00Z', '2099-01-03T13:10:00Z'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', '2099-01-04',
+    'occurrence_12600000000000000000000000000104',
+    '2099-01-04T13:00:00Z', '2099-01-04T13:15:00Z'
+  );
+
+update public.attendance_occurrence_mappings
+set session_starts_at = greatest(
+      opens_at,
+      least(opens_at + interval '10 minutes', closes_at - interval '1 minute')
+    ),
+    session_ends_at = closes_at + interval '10 minutes',
+    present_through_at = greatest(
+      opens_at,
+      least(opens_at + interval '15 minutes', closes_at - interval '1 minute')
+    ),
+    absent_at = closes_at + interval '10 minutes',
+    policy_revision = 1
+where occurrence_ref like 'occurrence_1260000000000000000000000000010%';
+
+do $short_legacy_occurrences$
+begin
+  if exists (
+    select 1 from public.attendance_occurrence_mappings
+    where occurrence_ref like 'occurrence_1260000000000000000000000000010%'
+      and not (
+        opens_at <= session_starts_at
+        and session_starts_at <= present_through_at
+        and present_through_at < closes_at
+        and closes_at <= absent_at
+        and absent_at <= session_ends_at
+      )
+  ) or (
+    select session_starts_at <> opens_at or present_through_at <> opens_at
+    from public.attendance_occurrence_mappings
+    where occurrence_ref = 'occurrence_12600000000000000000000000000101'
+  ) then
+    raise exception 'Migration 138 short legacy occurrence backfill is invalid';
+  end if;
+end;
+$short_legacy_occurrences$;
 insert into public.attendance_window_policies (
   classroom_id, opens_local, closes_local
 ) values (
@@ -1212,23 +1284,23 @@ insert into public.attendance_integration_outbox (
     ), clock_timestamp() - interval '3 seconds'
   ),
   (
-    'a1260000-0000-4000-8000-000000000020', 'marks:ordered:1',
-    'attendance.marks', jsonb_build_object(
-      'schema_version', 1, 'message_type', 'attendance.marks',
-      'idempotency_key', 'marks:ordered:1', 'correlation_ref', 'marks_ordered_1',
+    'a1260000-0000-4000-8000-000000000020', 'invalidate:ordered:1',
+    'check_in.invalidate', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'check_in.invalidate',
+      'idempotency_key', 'invalidate:ordered:1', 'correlation_ref', 'invalidate_ordered_1',
       'installation_ref', 'installation_dependency',
       'roster_ref', 'roster_12600000000000000000000000000020',
-      'occurrence_ref', 'occurrence_ordered', 'marks', '[]'::jsonb
+      'occurrence_ref', 'occurrence_ordered', 'invalidations', '[]'::jsonb
     ), clock_timestamp() - interval '2 seconds'
   ),
   (
-    'a1260000-0000-4000-8000-000000000020', 'marks:ordered:2',
-    'attendance.marks', jsonb_build_object(
-      'schema_version', 1, 'message_type', 'attendance.marks',
-      'idempotency_key', 'marks:ordered:2', 'correlation_ref', 'marks_ordered_2',
+    'a1260000-0000-4000-8000-000000000020', 'invalidate:ordered:2',
+    'check_in.invalidate', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'check_in.invalidate',
+      'idempotency_key', 'invalidate:ordered:2', 'correlation_ref', 'invalidate_ordered_2',
       'installation_ref', 'installation_dependency',
       'roster_ref', 'roster_12600000000000000000000000000020',
-      'occurrence_ref', 'occurrence_ordered', 'marks', '[]'::jsonb
+      'occurrence_ref', 'occurrence_ordered', 'invalidations', '[]'::jsonb
     ), clock_timestamp() - interval '1 second'
   );
 
@@ -1264,7 +1336,7 @@ begin
   select array_agg(claim.idempotency_key order by claim.idempotency_key)
   into v_claimed
   from public.claim_attendance_outbox_batch_v1(20, 60) claim;
-  if v_claimed <> array['marks:ordered:1', 'session:ordered:open']::text[] then
+  if v_claimed <> array['invalidate:ordered:1', 'session:ordered:open']::text[] then
     raise exception 'First command claim reordered messages: %', v_claimed;
   end if;
   for v_row in select * from public.attendance_integration_outbox where status = 'processing' loop
@@ -1276,7 +1348,7 @@ begin
   select array_agg(claim.idempotency_key order by claim.idempotency_key)
   into v_claimed
   from public.claim_attendance_outbox_batch_v1(20, 60) claim;
-  if v_claimed <> array['marks:ordered:2', 'session:ordered:close']::text[] then
+  if v_claimed <> array['invalidate:ordered:2', 'session:ordered:close']::text[] then
     raise exception 'Second command claim did not preserve order: %', v_claimed;
   end if;
 end;

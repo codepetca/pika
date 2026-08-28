@@ -29,9 +29,13 @@ const prepared = {
   schedule_revision: 4,
   policy: {
     timezone: 'America/Toronto',
-    opens_local: '23:30',
-    closes_local: '00:15',
-    close_day_offset: 1,
+    session_starts_local: '23:40',
+    session_ends_local: '00:25',
+    session_end_day_offset: 1,
+    entry_opens_minutes_before: 10,
+    present_grace_minutes: 5,
+    entry_closes_minutes_before_end: 10,
+    absent_minutes_before_end: 0,
     enabled: true,
     policy_revision: 3,
   },
@@ -59,6 +63,14 @@ const prepared = {
     },
     { date: '2026-11-03', is_class_day: false, occurrence_ref: null },
   ],
+}
+
+function client(rpc: ReturnType<typeof vi.fn>, rows: unknown[] = []) {
+  const lte = vi.fn().mockResolvedValue({ data: rows, error: null })
+  const gte = vi.fn(() => ({ lte }))
+  const eq = vi.fn(() => ({ gte }))
+  const select = vi.fn(() => ({ eq }))
+  return { rpc, from: vi.fn(() => ({ select })) }
 }
 
 describe('Pika attendance source snapshot sync', () => {
@@ -91,14 +103,14 @@ describe('Pika attendance source snapshot sync', () => {
           error: null,
         }
       }
-      if (name === 'stage_attendance_schedule_snapshot_v1') {
+      if (name === 'stage_attendance_timing_schedule_v1') {
         expect(args.p_message).toMatchObject({
           message_type: 'schedule.snapshot',
           revision: 4,
           occurrences: [{
             occurrence_ref: 'occurrence_44444444444444444444444444444444',
-            opens_at: '2026-11-03T04:30:00.000Z',
-            closes_at: '2026-11-03T05:15:00.000Z',
+            accepts_at: '2026-11-03T04:30:00.000Z',
+            stops_accepting_at: '2026-11-03T05:15:00.000Z',
           }],
         })
         return {
@@ -139,7 +151,7 @@ describe('Pika attendance source snapshot sync', () => {
       })
 
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -153,7 +165,7 @@ describe('Pika attendance source snapshot sync', () => {
     expect(order).toEqual([
       'prepare_attendance_snapshot_v1',
       'stage_attendance_roster_snapshot_v1',
-      'stage_attendance_schedule_snapshot_v1',
+      'stage_attendance_timing_schedule_v1',
       'deliver:roster.snapshot',
       'deliver:schedule.snapshot',
     ])
@@ -166,7 +178,7 @@ describe('Pika attendance source snapshot sync', () => {
     }))
 
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -194,7 +206,7 @@ describe('Pika attendance source snapshot sync', () => {
           error: null,
         }
       }
-      if (name === 'stage_attendance_schedule_snapshot_v1') {
+      if (name === 'stage_attendance_timing_schedule_v1') {
         return {
           data: {
             outbox_id: outboxTwo,
@@ -229,7 +241,7 @@ describe('Pika attendance source snapshot sync', () => {
     )
 
     const common = {
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -250,7 +262,7 @@ describe('Pika attendance source snapshot sync', () => {
   it('fails before mapping reads when the integration is disabled', async () => {
     const rpc = vi.fn()
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -269,7 +281,7 @@ describe('Pika attendance source snapshot sync', () => {
       }
     })
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -292,7 +304,10 @@ describe('Pika attendance source snapshot sync', () => {
             schedule_revision: 5,
             window_start: '2026-11-02',
             window_end: '2026-11-03',
-            policy: { ...prepared.policy, enabled: false },
+            policy: {
+              timezone: 'America/Toronto', opens_local: '00:00', closes_local: '00:01',
+              close_day_offset: 0, enabled: false, policy_revision: 1,
+            },
             class_days: [],
           },
           error: null,
@@ -329,7 +344,7 @@ describe('Pika attendance source snapshot sync', () => {
     })
 
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc },
+      supabase: client(rpc),
       teacherId,
       classroomId,
       windowStart: '2026-11-02',
@@ -366,7 +381,7 @@ describe('Pika attendance source snapshot sync', () => {
           status: 'pending',
         }, error: null }
       }
-      if (name === 'stage_attendance_schedule_snapshot_v2') {
+      if (name === 'stage_attendance_timing_schedule_v1') {
         expect(args.p_message).toMatchObject({ window_end: '2026-11-02', occurrences: [] })
         return { data: {
           outbox_id: outboxTwo,
@@ -388,7 +403,7 @@ describe('Pika attendance source snapshot sync', () => {
       })
 
     await expect(syncTeacherAttendanceSources({
-      supabase: { rpc }, teacherId, classroomId,
+      supabase: client(rpc), teacherId, classroomId,
       windowStart: '2026-11-02', windowEnd: '2026-11-30',
       scheduleThrough: '2026-11-02',
       integrationState: 'ready', scopeMode: 'teacher_entitlements',

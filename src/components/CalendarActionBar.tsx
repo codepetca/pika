@@ -33,6 +33,7 @@ interface CalendarDateNavigatorProps {
   nextAriaLabel?: string
   className?: string
   labelClassName?: string
+  joined?: boolean
 }
 
 export function getCalendarHeaderLabel(
@@ -63,15 +64,25 @@ export function CalendarDateNavigator({
   nextAriaLabel = 'Next',
   className = '',
   labelClassName = '',
+  joined = false,
 }: CalendarDateNavigatorProps) {
   return (
-    <div className={`flex min-w-0 items-center gap-1 sm:gap-2 ${className}`}>
+    <div className={cn(
+      'flex min-w-0 items-center',
+      joined
+        ? 'overflow-hidden rounded-control border border-border-strong bg-surface'
+        : 'gap-1 sm:gap-2',
+      className,
+    )}>
       {showNavigation && (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-9 w-9 px-0"
+          className={cn(
+            'h-9 w-9 px-0',
+            joined && 'rounded-none border-0 border-r border-border',
+          )}
           onClick={onPrev}
           aria-label={prevAriaLabel}
         >
@@ -83,13 +94,21 @@ export function CalendarDateNavigator({
         <button
           type="button"
           onClick={onLabelClick}
-          className={cn('min-w-0 truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base', labelClassName)}
+          className={cn(
+            'min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base',
+            joined ? 'min-h-control rounded-none' : 'rounded-control',
+            labelClassName,
+          )}
           aria-label={labelAriaLabel}
         >
           {label}
         </button>
       ) : (
-        <span className={cn('min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base', labelClassName)}>
+        <span className={cn(
+          'min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base',
+          joined && 'flex min-h-control items-center',
+          labelClassName,
+        )}>
           {label}
         </span>
       )}
@@ -99,7 +118,10 @@ export function CalendarDateNavigator({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-9 w-9 px-0"
+          className={cn(
+            'h-9 w-9 px-0',
+            joined && 'rounded-none border-0 border-l border-border',
+          )}
           onClick={onNext}
           aria-label={nextAriaLabel}
         >

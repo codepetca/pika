@@ -18,7 +18,7 @@ export const teacherAttendanceSessionCommandSchema = attendanceCommandBaseSchema
 export const teacherAttendanceMarksSchema = attendanceCommandBaseSchema.extend({
   marks: z.array(z.object({
     student_id: z.string().uuid(),
-    status: z.enum(['unmarked', 'present', 'late', 'absent']),
+    status: z.enum(['automatic', 'present', 'late', 'absent']),
     reason_code: z.enum([
       'staff_correction',
       'late_arrival',
@@ -38,6 +38,16 @@ export const teacherAttendanceMarksSchema = attendanceCommandBaseSchema.extend({
     }
     seen.add(mark.student_id)
   })
+})
+
+export const teacherAttendanceCheckInInvalidationSchema = attendanceCommandBaseSchema.extend({
+  student_ids: z.array(z.string().uuid()).min(1).max(200),
+}).strict().superRefine((value, context) => {
+  if (new Set(value.student_ids).size !== value.student_ids.length) {
+    context.addIssue({
+      code: 'custom', path: ['student_ids'], message: 'Each student may be reset once per request',
+    })
+  }
 })
 
 export const teacherAttendanceSyncSchema = z.object({
