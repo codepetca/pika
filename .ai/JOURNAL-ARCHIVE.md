@@ -24488,3 +24488,29 @@ no schema, API, persistence, authentication, or production state changed.
   remains centered and responsive with the collectible-only presentation. The
   temporary unauthenticated review route was removed; teacher review is n/a
   because the integration is student-only.
+
+<!-- pika-session-log-archive-batch:350858b512fbdf9281027fbd2143112c39b22fc5a1c76e1829558ecbfbd6755c -->
+## 2026-08-26 — Canonicalize Test-question identity from draft creation
+
+**Risk profile:** runtime-platform — application identity synchronization,
+transactional migration/backfill, immutable-Version instantiation, and database
+contract changes; no hosted migration, deployment, or merge occurred.
+
+- Defined `TestDraftQuestion.id` as the portable Artifact ID assigned when the
+  question is created; `test_questions.id` remains an internal row identity.
+  New persisted questions now store the draft UUID in `artifact_id`, and draft
+  reconstruction prefers source/artifact identity over row identity.
+- Made activation preflight and synchronize by artifact/source identity without
+  positional matching or partial updates on identity ambiguity. Blueprint
+  capture and archived reuse now validate source identity read-only; draft-only
+  IDs remain portable without creating or rewriting source rows.
+- Migration 134 transactionally backfills legacy row-ID draft JSON, fails closed
+  on ambiguous matches, and rematerializes newly instantiated Version questions
+  with explicit artifact/source IDs rather than inferring them by position.
+- Rebased the worktree onto PR #1066 head `cc7c14d7` while retaining the
+  separately completed durable failure-ledger remediation. The authorized local
+  database was reset without seed to replay the final migration; hosted state
+  was untouched.
+- The canonical identity and broader Versioned Blueprint database contracts
+  pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
+  build, generated Supabase type checks, diff checks, and the Pika audit.
