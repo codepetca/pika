@@ -100,7 +100,7 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
-    expect(currentContext).toContain('Prod 001-135 applied; database lint clean')
+    expect(currentContext).toContain('Prod 001-136 applied; database lint clean')
     expect(currentContext).toContain('Attendance enabled in teacher_entitlements')
     expect(currentContext).toContain('signed smoke 4/4 passed 2026-08-24')
     expect(operationalRecovery).toContain('records Pika migrations through 132')

@@ -248,6 +248,7 @@ Course Guide/resources progress:
 - Teacher, student, and public surfaces share one native responsive Course Guide presentation. The iframe and readiness-message protocol have been removed.
 - The guide is derived live from the classroom projection and presents the authored curriculum overview and resources alongside enabled assignments, tests, lesson sequence, and announcements. The legacy outline field remains stored only for compatibility and is not part of the guide.
 - Course Guide controls live in the Course Guide pane. Optional public sharing requires only a public address when enabled; the in-Pika teacher and student document does not require publication.
+- Guide options now offers a one-time teacher curriculum import assistant for bounded PDFs or public HTTPS document links. It creates a cited, editable draft and requires a separate confirmation before append-only apply; the live classroom remains authoritative and no Blueprint synchronization is created.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import { Check, ExternalLink, Minus } from 'lucide-react'
+import { Check, ExternalLink, FileInput, Minus } from 'lucide-react'
 import { getCourseGuidePublicSharingReadiness } from '@/lib/course-guide'
 import type { ActualCourseSiteConfig } from '@/types'
 import { Button, ContentDialog, FormField, Input, Select, cn } from '@/ui'
@@ -33,6 +33,7 @@ type CourseGuideOptionsDialogProps = {
   onConfigChange: (config: ActualCourseSiteConfig) => void
   onGenerateSlug: () => void
   onOpenPublicGuide: () => void
+  onImportCurriculum: () => void
   onSave: () => void
   onClose: () => void
 }
@@ -49,6 +50,7 @@ export function CourseGuideOptionsDialog({
   onConfigChange,
   onGenerateSlug,
   onOpenPublicGuide,
+  onImportCurriculum,
   onSave,
   onClose,
 }: CourseGuideOptionsDialogProps) {
@@ -66,7 +68,30 @@ export function CourseGuideOptionsDialog({
       showFooterClose={false}
     >
       <div className="space-y-4">
-        <section aria-labelledby="guide-sharing-heading" className="space-y-3">
+        <section aria-labelledby="guide-import-heading" className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 id="guide-import-heading" className="text-sm font-semibold text-text-default">
+                Curriculum import
+              </h4>
+              <p className="mt-1 text-sm text-text-muted">
+                Create a reviewable draft from one PDF or public document link.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={saving}
+              onClick={onImportCurriculum}
+              className="shrink-0"
+            >
+              <FileInput className="h-4 w-4" aria-hidden="true" />
+              Import curriculum
+            </Button>
+          </div>
+        </section>
+
+        <section aria-labelledby="guide-sharing-heading" className="space-y-3 border-t border-border pt-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h4 id="guide-sharing-heading" className="text-sm font-semibold text-text-default">

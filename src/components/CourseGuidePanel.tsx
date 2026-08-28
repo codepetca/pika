@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ExternalLink, Pencil, SlidersHorizontal } from 'lucide-react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
+import { CourseGuideImportDialog } from '@/components/CourseGuideImportDialog'
 import {
   CourseGuideView,
   type CourseGuideEditableSection,
@@ -86,6 +87,7 @@ export function CourseGuidePanel({
   const [draftOptions, setDraftOptions] = useState<SavedGuideOptions>(() => optionsFromClassroom(classroom))
   const [optionsSaving, setOptionsSaving] = useState(false)
   const [optionsError, setOptionsError] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -124,6 +126,7 @@ export function CourseGuidePanel({
     setDraftOptions(nextOptions)
     setOptionsSaving(false)
     setOptionsError('')
+    setImportOpen(false)
   }, [classroom])
 
   useEffect(() => {
@@ -443,12 +446,39 @@ export function CourseGuidePanel({
           const draftHref = draftOptions.slug ? `/actual/${draftOptions.slug}` : ''
           if (draftHref) window.open(draftHref, '_blank', 'noopener,noreferrer')
         }}
+        onImportCurriculum={() => {
+          if (activeEditor === 'overview' && overviewDirty) {
+            setOptionsError('Save or cancel your overview edits before importing curriculum.')
+            return
+          }
+          setDraftOptions(savedOptions)
+          setOptionsError('')
+          setOptionsOpen(false)
+          setImportOpen(true)
+        }}
         onSave={saveOptions}
         onClose={() => {
           setDraftOptions(savedOptions)
           setOptionsError('')
           setOptionsOpen(false)
         }}
+      />
+
+      <CourseGuideImportDialog
+        isOpen={importOpen}
+        classroom={{ ...classroom, course_overview_markdown: overviewSavedValue }}
+        onApplied={(updatedClassroom) => {
+          invalidateCachedJSON(getCacheKey(classroom.id))
+          if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
+          updateReadyGuide((guide) => ({
+            ...guide,
+            overviewMarkdown: updatedClassroom.course_overview_markdown || '',
+          }))
+          setOverviewDraft(updatedClassroom.course_overview_markdown || '')
+          onClassroomUpdated?.(updatedClassroom)
+          showMessage({ text: 'Reviewed curriculum draft added', tone: 'success' })
+        }}
+        onClose={() => setImportOpen(false)}
       />
 
       <ConfirmDialog

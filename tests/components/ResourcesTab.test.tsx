@@ -46,6 +46,11 @@ vi.mock('@/components/CourseGuideView', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  ContentField: ({ label, hint, children }: {
+    label: string
+    hint?: string
+    children: ReactNode
+  }) => <div><span>{label}</span>{children}{hint ? <span>{hint}</span> : null}</div>,
   MarkdownContentEditor: ({ markdown, onMarkdownChange, 'aria-label': ariaLabel }: {
     markdown: string
     onMarkdownChange: (value: string) => void
@@ -258,6 +263,7 @@ describe('Course Guide classroom tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
 
     expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import curriculum' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share guide publicly' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Hide Assignments' }))
     expect(screen.getByRole('button', { name: 'Show Assignments' })).toHaveAttribute('aria-pressed', 'false')
@@ -289,6 +295,30 @@ describe('Course Guide classroom tabs', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull())
     expect(optionsButton).toHaveFocus()
+  })
+
+  it('opens curriculum import from Guide options only when overview edits are saved', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+
+    expect(screen.getByRole('dialog', { name: 'Import curriculum' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
+    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+      target: { value: 'Unsaved overview' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Save or cancel your overview edits before importing curriculum.',
+    )
+    expect(screen.queryByRole('dialog', { name: 'Import curriculum' })).toBeNull()
   })
 
   it('keeps the overview editor open and announces a failed save', async () => {

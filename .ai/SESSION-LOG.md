@@ -1240,3 +1240,31 @@ mode.
 
 **Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
 cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
+## 2026-08-28 — Course Guide Phase 2 curriculum import
+
+**Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
+extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
+classroom synchronization and no schema or hosted-state change.
+
+- Added an Import curriculum assistant to Guide options with explicit Source,
+  Review, and Confirm steps. Teachers can upload a validated PDF up to 20 MB or
+  provide a public HTTPS document URL, then edit the extracted overview,
+  expectations, and useful links before anything is applied.
+- Added a server-side structured Responses API extraction boundary with
+  non-stored requests, untrusted-document instructions, bounded validated
+  output, safe failures, and source provenance. The confirmed apply path always
+  attaches the citation server-side so review edits cannot remove it.
+- Preserved existing teacher content by appending the reviewed import, and used
+  an expected-overview compare guard to return a conflict instead of silently
+  overwriting a Course Guide changed during review.
+- Added domain, provider-boundary, API authorization/concurrency, component,
+  fixture, and regression coverage. All 5,214 tests pass, along with lint,
+  architecture, design/UI policy checks, production build, Pika audit, and diff
+  validation.
+- Visual verification passed eight teacher/student checks across desktop and
+  mobile, light and dark, covering source, editable cited review, confirmation,
+  extraction failure, overflow, and absence of teacher controls for students.
+- Updated production continuity to the user-confirmed baseline: production
+  commit 530d444a with migrations through 136 applied and zero error-level
+  database lint findings. No migration was added or applied, and nothing was
+  merged or deployed.
