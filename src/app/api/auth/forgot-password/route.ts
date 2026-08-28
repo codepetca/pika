@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
 import { sendPasswordResetCode } from '@/lib/email'
 import { withErrorHandler } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { forgotPasswordSchema } from '@/lib/validations/auth'
 
 const MAX_CODES_PER_HOUR = 3
@@ -15,6 +16,7 @@ const SUCCESS_RESPONSE = {
 }
 
 export const POST = withErrorHandler('ForgotPassword', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail } = forgotPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

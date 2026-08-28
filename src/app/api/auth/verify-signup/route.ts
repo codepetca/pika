@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { verifySignupSchema } from '@/lib/validations/auth'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
 
 export const POST = withErrorHandler('VerifySignup', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, code: normalizedCode } = verifySignupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

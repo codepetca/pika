@@ -3,9 +3,11 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { createPasswordSchema } from '@/lib/validations/auth'
 
 export const POST = withErrorHandler('CreatePassword', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, password, handoffToken } = createPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
