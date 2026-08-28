@@ -5,8 +5,10 @@ import { z } from 'zod'
 export const COURSE_GUIDE_IMPORT_MAX_FILE_BYTES = 4 * 1024 * 1024
 
 const blockedHostnames = new Set(['localhost', 'localhost.localdomain'])
+const controlOrFormatCharacter = /[\p{Cc}\p{Cf}]/u
 
 function isPublicDocumentUrl(value: string): boolean {
+  if (controlOrFormatCharacter.test(value)) return false
   let parsed: URL
   try {
     parsed = new URL(value)
@@ -15,6 +17,7 @@ function isPublicDocumentUrl(value: string): boolean {
   }
 
   if (parsed.protocol !== 'https:') return false
+  if (parsed.username || parsed.password) return false
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/, '')
   if (
     blockedHostnames.has(hostname)
@@ -40,7 +43,8 @@ export const courseGuideImportMetadataSchema = z.discriminatedUnion('sourceType'
       .trim()
       .min(1, 'Add a public document URL')
       .max(2048, 'The document URL is too long')
-      .refine(isPublicDocumentUrl, 'Use a public HTTPS document URL'),
+      .refine(isPublicDocumentUrl, 'Use a public HTTPS document URL')
+      .transform((value) => new URL(value).href),
   }).strict(),
 ])
 

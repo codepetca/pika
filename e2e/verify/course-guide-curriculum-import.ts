@@ -44,7 +44,7 @@ const draft = {
     '## Source links',
     '- [Ontario curriculum landing page](https://example.ca/curriculum)',
   ].join('\n\n'),
-  citationMarkdown: 'Source: [The Ontario Curriculum, Grades 10 to 12: Computer Studies](https://example.ca/ontario-computer-studies.pdf)',
+  citationMarkdown: 'Source: The Ontario Curriculum, Grades 10 to 12: Computer Studies — https://example.ca/ontario-computer-studies.pdf',
 }
 
 async function configureThemeAndViewport(

@@ -1247,7 +1247,7 @@ extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
 classroom synchronization and no schema or hosted-state change.
 
 - Added an Import curriculum assistant to Guide options with explicit Source,
-  Review, and Confirm steps. Teachers can upload a validated PDF up to 20 MB or
+  Review, and Confirm steps. Teachers can upload a validated PDF up to 4 MB or
   provide a public HTTPS document URL, then edit the extracted overview,
   expectations, and useful links before anything is applied.
 - Added a server-side structured Responses API extraction boundary with
@@ -1258,7 +1258,7 @@ classroom synchronization and no schema or hosted-state change.
   an expected-overview compare guard to return a conflict instead of silently
   overwriting a Course Guide changed during review.
 - Added domain, provider-boundary, API authorization/concurrency, component,
-  fixture, and regression coverage. All 5,222 tests pass, along with lint,
+  fixture, and regression coverage. All 5,223 tests pass, along with lint,
   architecture, design/UI policy checks, production build, Pika audit, and diff
   validation.
 - Visual verification passed eight teacher/student checks across desktop and
@@ -1269,7 +1269,10 @@ classroom synchronization and no schema or hosted-state change.
   before body parsing; signed source provenance to the teacher/classroom;
   normalized and previewed the locked citation; preserved existing overview
   bytes; used raw classroom content when visibility is off; and cancelled stale
-  client operations across classroom switches.
+  client operations across classroom switches. Final hardening canonicalized
+  public URLs, rejected credentials and control/format characters, emitted the
+  locked citation as safe plain text, and removed redundant provenance-token
+  fields so maximum valid inputs still fit the apply contract.
 - Updated production continuity to the user-confirmed baseline: production
   commit 530d444a with migrations through 136 applied and zero error-level
   database lint findings. No migration was added or applied, and nothing was

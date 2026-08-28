@@ -337,7 +337,7 @@ describe('Course Guide classroom tabs', () => {
       expectationsMarkdown: '',
       sourceLinks: [],
       draftMarkdown: '## Curriculum overview\n\nImported overview',
-      citationMarkdown: 'Source: [Ontario curriculum](https://example.ca/curriculum.pdf)',
+      citationMarkdown: 'Source: Ontario curriculum — https://example.ca/curriculum.pdf',
     }
     const updatedClassroom = {
       ...classroom,

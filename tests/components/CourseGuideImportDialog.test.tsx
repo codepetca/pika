@@ -35,7 +35,7 @@ const draft = {
   expectationsMarkdown: '- A1. Plan a project.',
   sourceLinks: [{ title: 'Source', url: 'https://example.ca/source' }],
   draftMarkdown: '## Curriculum overview\n\nImported overview',
-  citationMarkdown: 'Source: [Ontario Computer Studies curriculum](https://example.ca/curriculum.pdf)',
+  citationMarkdown: 'Source: Ontario Computer Studies curriculum — https://example.ca/curriculum.pdf',
 }
 
 function response(value: unknown, ok = true) {

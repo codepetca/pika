@@ -19,6 +19,7 @@ export type CourseGuideImportDraft = {
 
 function normalizeProvenanceText(value: string, fallback: string): string {
   const normalized = value
+    .replace(/[\p{Cc}\p{Cf}]/gu, ' ')
     .replace(/\s+/g, ' ')
     .replace(/[\\[\]()*_`<>#|]/g, '')
     .replace(/\s+/g, ' ')
@@ -26,16 +27,19 @@ function normalizeProvenanceText(value: string, fallback: string): string {
   return normalized || fallback
 }
 
-function markdownUrl(value: string): string {
-  return value.replaceAll('(', '%28').replaceAll(')', '%29')
-}
-
-function isSafeLink(value: string): boolean {
+function limitedMarkdownUrl(value: string): string | null {
+  if (/[\p{Cc}\p{Cf}]/u.test(value)) return null
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:'
+    if (
+      (url.protocol !== 'https:' && url.protocol !== 'http:')
+      || url.username
+      || url.password
+    ) return null
+    const escaped = url.href.replaceAll('(', '%28').replaceAll(')', '%29')
+    return escaped.length <= 2048 ? escaped : null
   } catch {
-    return false
+    return null
   }
 }
 
@@ -45,14 +49,16 @@ export function buildCourseGuideImportDraft(args: {
   sourceFilename: string | null
 }): CourseGuideImportDraft {
   const links = args.model.source_links
-    .filter((link) => isSafeLink(link.url))
+    .map((link) => ({ ...link, url: limitedMarkdownUrl(link.url) }))
+    .filter((link): link is { title: string; url: string } => !!link.url)
     .filter((link, index, all) => all.findIndex((candidate) => candidate.url === link.url) === index)
   const sourceTitle = normalizeProvenanceText(args.model.document_title, 'Curriculum source')
   const sourceFilename = args.sourceFilename
     ? normalizeProvenanceText(args.sourceFilename, 'uploaded PDF')
     : null
-  const sourceLabel = args.sourceUrl
-    ? `[${sourceTitle}](${markdownUrl(args.sourceUrl)})`
+  const sourceUrl = args.sourceUrl ? new URL(args.sourceUrl).href : null
+  const sourceLabel = sourceUrl
+    ? `${sourceTitle} — ${sourceUrl}`
     : `${sourceTitle} — ${sourceFilename || 'uploaded PDF'}`
   const sections = [
     '## Curriculum overview',
@@ -65,12 +71,12 @@ export function buildCourseGuideImportDraft(args: {
   if (links.length > 0) {
     sections.push(
       '## Source links',
-      links.map((link) => `- [${normalizeProvenanceText(link.title, 'Source link')}](${markdownUrl(link.url)})`).join('\n'),
+      links.map((link) => `- [${normalizeProvenanceText(link.title, 'Source link')}](${link.url})`).join('\n'),
     )
   }
   return {
     sourceTitle,
-    sourceUrl: args.sourceUrl,
+    sourceUrl,
     sourceFilename,
     sourceLabel,
     overviewMarkdown: args.model.overview_markdown.trim(),

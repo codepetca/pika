@@ -6,20 +6,14 @@ const TOKEN_TTL_MS = 30 * 60 * 1000
 
 const payloadSchema = z.object({
   v: z.literal(1),
-  teacher_id: z.string().min(1),
-  classroom_id: z.string().min(1),
-  source_title: z.string().min(1).max(300),
-  source_url: z.string().url().max(2048).nullable(),
-  source_filename: z.string().min(1).max(255).nullable(),
+  teacher_id: z.string().min(1).max(128),
+  classroom_id: z.string().min(1).max(128),
   citation_markdown: z.string().min(1).max(2600),
   issued_at_ms: z.number().int().nonnegative(),
   expires_at_ms: z.number().int().positive(),
 }).strict()
 
 export type CourseGuideImportProvenance = {
-  sourceTitle: string
-  sourceUrl: string | null
-  sourceFilename: string | null
   citationMarkdown: string
 }
 
@@ -46,9 +40,6 @@ export function createCourseGuideImportProvenanceToken(args: {
     v: 1,
     teacher_id: args.teacherId,
     classroom_id: args.classroomId,
-    source_title: args.draft.sourceTitle,
-    source_url: args.draft.sourceUrl,
-    source_filename: args.draft.sourceFilename,
     citation_markdown: args.draft.citationMarkdown,
     issued_at_ms: nowMs,
     expires_at_ms: nowMs + TOKEN_TTL_MS,
@@ -82,9 +73,6 @@ export function verifyCourseGuideImportProvenanceToken(args: {
       || parsed.data.classroom_id !== args.classroomId
     ) return null
     return {
-      sourceTitle: parsed.data.source_title,
-      sourceUrl: parsed.data.source_url,
-      sourceFilename: parsed.data.source_filename,
       citationMarkdown: parsed.data.citation_markdown,
     }
   } catch {

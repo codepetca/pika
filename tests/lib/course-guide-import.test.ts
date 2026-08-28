@@ -4,6 +4,7 @@ import {
   appendCourseGuideImport,
   buildCourseGuideImportDraft,
 } from '@/lib/course-guide-import'
+import { parseLimitedMarkdownBlocks } from '@/lib/limited-markdown'
 import {
   COURSE_GUIDE_IMPORT_MAX_FILE_BYTES,
   courseGuideImportMetadataSchema,
@@ -40,17 +41,16 @@ describe('course guide curriculum import', () => {
   it('adds a source citation after the reviewed content', () => {
     expect(addCourseGuideImportCitation({
       reviewedDraftMarkdown: 'Teacher-reviewed draft',
-      sourceTitle: 'Ontario Computer Studies',
-      citationMarkdown: 'Source: [Ontario Computer Studies](https://example.ca/document_%28final%29.pdf)',
+      citationMarkdown: 'Source: Ontario Computer Studies — https://example.ca/document_(final).pdf',
     })).toBe(
-      'Teacher-reviewed draft\n\nSource: [Ontario Computer Studies](https://example.ca/document_%28final%29.pdf)',
+      'Teacher-reviewed draft\n\nSource: Ontario Computer Studies — https://example.ca/document_(final).pdf',
     )
   })
 
-  it('normalizes hostile provenance and makes parentheses safe for LimitedMarkdown links', () => {
+  it('normalizes hostile provenance into one safe LimitedMarkdown paragraph', () => {
     const draft = buildCourseGuideImportDraft({
       model: {
-        document_title: 'Official curriculum\n\n# *Unreviewed* [directive]',
+        document_title: 'Official\u202e curriculum\n\n# *Unreviewed* [directive]',
         overview_markdown: 'Overview',
         expectations_markdown: '',
         source_links: [],
@@ -61,9 +61,26 @@ describe('course guide curriculum import', () => {
 
     expect(draft.sourceTitle).toBe('Official curriculum Unreviewed directive')
     expect(draft.citationMarkdown).toBe(
-      'Source: [Official curriculum Unreviewed directive](https://example.ca/document_%28final%29.pdf)',
+      'Source: Official curriculum Unreviewed directive — https://example.ca/document_(final).pdf',
     )
     expect(draft.citationMarkdown).not.toContain('\n')
+    expect(parseLimitedMarkdownBlocks(draft.citationMarkdown)).toEqual([{
+      type: 'paragraph',
+      text: draft.citationMarkdown,
+    }])
+
+    const uploaded = buildCourseGuideImportDraft({
+      model: {
+        document_title: 'Official curriculum',
+        overview_markdown: 'Overview',
+        expectations_markdown: '',
+        source_links: [],
+      },
+      sourceUrl: null,
+      sourceFilename: 'curriculum\u202Efdp.pdf\n# heading',
+    })
+    expect(uploaded.sourceFilename).toBe('curriculum fdp.pdf heading')
+    expect(uploaded.citationMarkdown).not.toMatch(/[\n\u202E]/u)
   })
 
   it('appends a reviewed draft without replacing teacher content', () => {
@@ -128,5 +145,17 @@ describe('course guide curriculum import', () => {
       sourceType: 'url',
       sourceUrl: 'https://127.0.0.1/curriculum.pdf',
     }).success).toBe(false)
+    expect(courseGuideImportMetadataSchema.safeParse({
+      sourceType: 'url',
+      sourceUrl: 'https://user:secret@example.ca/curriculum.pdf',
+    }).success).toBe(false)
+    expect(courseGuideImportMetadataSchema.safeParse({
+      sourceType: 'url',
+      sourceUrl: 'https://example.ca/a\n\n# locked-heading',
+    }).success).toBe(false)
+    expect(courseGuideImportMetadataSchema.parse({
+      sourceType: 'url',
+      sourceUrl: 'https://EXAMPLE.ca/curriculum page.pdf',
+    }).sourceUrl).toBe('https://example.ca/curriculum%20page.pdf')
   })
 })
