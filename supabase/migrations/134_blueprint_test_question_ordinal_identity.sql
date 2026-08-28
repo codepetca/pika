@@ -291,15 +291,22 @@ begin
   -- Blueprint capture records immutable Version membership on the source
   -- question; it does not change authored Test content or student work. Permit
   -- that provenance-only write after taking the normal parent locks, but only
-  -- inside the owner-run identity-mapping routines. An API caller can set a
-  -- custom GUC, so the owner check is part of this trust boundary.
+  -- inside the owner-run identity-mapping or Blueprint-purge finalization
+  -- routines. An API caller can set a custom GUC, so the owner check and the
+  -- exact changed-column allowlist are both part of this trust boundary.
   if tg_table_name = 'test_questions'
     and tg_op = 'UPDATE'
     and current_user = 'postgres'
-    and coalesce(
-      current_setting('pika.identity_mapping', true),
-      'off'
-    ) = 'on'
+    and (
+      coalesce(
+        current_setting('pika.identity_mapping', true),
+        'off'
+      ) = 'on'
+      or coalesce(
+        current_setting('pika.course_blueprint_purge_finalize', true),
+        'off'
+      ) = 'on'
+    )
     and (
       to_jsonb(new) - array[
         'source_blueprint_version_id',

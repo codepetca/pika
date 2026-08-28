@@ -296,6 +296,9 @@ describe('Blueprint test-question identity migration', () => {
       "current_setting('pika.identity_mapping', true)",
     )
     expect(definition.slice(testLock, studentWorkFence)).toContain(
+      "current_setting('pika.course_blueprint_purge_finalize', true)",
+    )
+    expect(definition.slice(testLock, studentWorkFence)).toContain(
       "'source_blueprint_version_id'",
     )
     expect(definition.slice(testLock, studentWorkFence)).toContain(

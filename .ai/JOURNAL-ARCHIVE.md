@@ -24387,3 +24387,25 @@ data, loading behavior, API, schema, persistence, or teacher UI changed.
   sidebar is student-only.
 
 **Model recommendation:** GPT-5.6 for a narrow, copy-only UI refinement.
+
+<!-- pika-session-log-archive-batch:3885e8439dae54235ef77d80808c6a35979f52a444c29f1c3fdc92589d427974 -->
+## 2026-08-26 — Pin student Achievements navigation to the bottom
+
+**Risk profile:** none — student classroom navigation ordering and layout only;
+no API, schema, persistence, dependency, or hosted state changed.
+
+- Moved the student-only Achievements destination out of the primary classroom
+  navigation cluster and pinned it to the bottom of the desktop sidebar and
+  mobile navigation drawer. Teacher navigation remains unchanged.
+- Added regression coverage for the complete student navigation order, active
+  `aria-current` state, and the bottom-placement class.
+- Full Vitest passes (5,096/5,096). Focused navigation/sidebar tests pass
+  (16/16), lint, design policy, Pika audit, and diff checks pass.
+- Playwright visual verification passed for student and teacher, desktop and
+  mobile, light and dark. The active Achievements link stays inside the viewport
+  at the bottom edge with no horizontal overflow.
+- Composite-widget checklist reviewed: keyboard behavior is unchanged; semantic
+  active state is covered by tests; remaining manual follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for the small shared-shell layout change
+and bounded PR review.
