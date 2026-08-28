@@ -1076,9 +1076,12 @@ no persistent local, staging, or production migration was applied.
   failure write when an expired lease is reclaimed concurrently. A disposable
   two-session regression now proves the stale reporter waits, loses authority,
   and cannot overwrite the replacement lease or operation retry state.
+- The disposable race harness accepts only its reserved database-name prefix
+  and drops the database only after a successful create, so an unsafe override
+  or pre-existing database cannot be removed during failed setup.
 - Replayed migrations 001-135 from scratch in a disposable isolated Supabase
   project. Error-level database lint reports zero findings and is now an
-  all-schema CI gate; focused student
+  all-schema, fail-on-error CI gate; focused student
   purge and archive database contracts, generated database types, 5,172-test
   coverage, TypeScript, lint, architecture/UI/design policies, migration
   lineage, diff/shell checks, the Pika audit, and the production build pass.

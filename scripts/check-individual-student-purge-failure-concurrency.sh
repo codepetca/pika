@@ -21,6 +21,12 @@ if [[ "$PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL" ]] \
 fi
 
 TMP_DB="${STUDENT_PURGE_CONCURRENCY_DATABASE_NAME:-pika_student_purge_concurrency_${RANDOM}_$$}"
+if [[ ! "$TMP_DB" =~ ^pika_student_purge_concurrency_[A-Za-z0-9_]+$ ]]; then
+  echo "Refusing unsafe disposable student-purge database name." >&2
+  exit 2
+fi
+
+DB_CREATED=false
 WORK_DIR="$(mktemp -d)"
 CLAIMER_PID=""
 FAILURE_PID=""
@@ -33,10 +39,12 @@ cleanup() {
     kill "$FAILURE_PID" >/dev/null 2>&1 || true
     wait "$FAILURE_PID" >/dev/null 2>&1 || true
   fi
-  if [[ "${KEEP_STUDENT_PURGE_CONCURRENCY_DATABASE:-false}" == "true" ]]; then
-    echo "Kept disposable student-purge database: $TMP_DB"
-  else
-    docker exec "$DB_CONTAINER" dropdb -U postgres --if-exists --force "$TMP_DB" >/dev/null 2>&1 || true
+  if [[ "$DB_CREATED" == "true" ]]; then
+    if [[ "${KEEP_STUDENT_PURGE_CONCURRENCY_DATABASE:-false}" == "true" ]]; then
+      echo "Kept disposable student-purge database: $TMP_DB"
+    else
+      docker exec "$DB_CONTAINER" dropdb -U postgres --if-exists --force "$TMP_DB" >/dev/null 2>&1 || true
+    fi
   fi
   rm -rf "$WORK_DIR"
 }
@@ -85,6 +93,7 @@ wait_for_failure_contention() {
 }
 
 docker exec "$DB_CONTAINER" createdb -U postgres "$TMP_DB"
+DB_CREATED=true
 docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c '
   drop schema public;
   create schema extensions;

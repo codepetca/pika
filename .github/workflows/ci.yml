@@ -49,7 +49,7 @@ jobs:
         run: pnpm run db:types:check
 
       - name: Lint all database functions at error level
-        run: supabase db lint --local --level error
+        run: supabase db lint --local --level error --fail-on error
 
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
