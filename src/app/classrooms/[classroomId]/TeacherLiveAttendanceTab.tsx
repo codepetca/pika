@@ -158,7 +158,7 @@ function AttendanceStatusControl({
         label: STATUS_LABELS[optionStatus],
         disabled,
         className: cn(
-          "relative h-8 w-8 min-h-8 min-w-8 rounded-full after:pointer-events-none after:absolute after:h-7 after:w-7 after:rounded-full after:content-['']",
+          "relative h-11 w-11 min-h-11 min-w-11 rounded-full after:pointer-events-none after:absolute after:h-7 after:w-7 after:rounded-full after:content-['']",
           STATUS_BUTTON_CLASSES[optionStatus],
         ),
         activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',
@@ -1004,13 +1004,14 @@ export function TeacherLiveAttendanceTab({
                       onChange={() => toggleSelect(student.studentId)}
                       ariaLabel={`Select ${studentName}`}
                       disabled={!editable}
+                      className="!py-0"
                     />
-                    <DataTableCell className="min-w-0">
+                    <DataTableCell className="min-w-0 !py-0">
                       <span className="block truncate" title={student.firstName || undefined}>
                         {student.firstName || '—'}
                       </span>
                     </DataTableCell>
-                    <DataTableCell className="min-w-0">
+                    <DataTableCell className="min-w-0 !py-0">
                       <span className="block truncate" title={student.lastName || undefined}>
                         {student.lastName || '—'}
                       </span>
@@ -1020,10 +1021,10 @@ export function TeacherLiveAttendanceTab({
                         </span>
                       ) : null}
                     </DataTableCell>
-                    <DataTableCell className="hidden min-w-0 text-text-muted md:table-cell">
+                    <DataTableCell className="hidden min-w-0 !py-0 text-text-muted md:table-cell">
                       {checkInTime ? <span>{checkInTime}</span> : <span className="sr-only">No QR check-in</span>}
                     </DataTableCell>
-                    <DataTableCell>
+                    <DataTableCell className="!py-0">
                       <div className="flex items-center gap-1">
                         <AttendanceStatusControl
                           studentName={studentName}
@@ -1041,7 +1042,7 @@ export function TeacherLiveAttendanceTab({
                               type="button"
                               variant="ghost"
                               size="xs"
-                              className="h-8 w-8 min-h-8 min-w-8 px-0 py-0"
+                              className="h-11 w-11 min-h-11 min-w-11 px-0 py-0"
                               aria-label={`Undo manual attendance change for ${studentName}`}
                               disabled={!editable}
                               onClick={() => void submitMarks(

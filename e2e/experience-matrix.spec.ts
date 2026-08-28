@@ -280,7 +280,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
       .locator('span')
       .evaluate((element) => element.getBoundingClientRect().width),
   ])
-  expect(firstStudentRowHeight).toBeLessThanOrEqual(45)
+  expect(firstStudentRowHeight).toBeLessThanOrEqual(46)
   expect(presentCountWidth).toBeCloseTo(28, 1)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' }).locator('xpath=ancestor::th')).not.toContainText('Status')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
@@ -340,8 +340,8 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         indicatorShadow: indicatorStyles.boxShadow,
       }
     })
-    expect(geometry.width).toBeCloseTo(32, 1)
-    expect(geometry.height).toBeCloseTo(32, 1)
+    expect(geometry.width).toBeCloseTo(44, 1)
+    expect(geometry.height).toBeCloseTo(44, 1)
     expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
     expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
     expect(geometry.indicatorWidth).toBe(28)
@@ -352,9 +352,14 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   }
   await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
   await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
-  await expect(page.getByRole('button', {
+  const undoQrCorrection = page.getByRole('button', {
     name: 'Undo manual attendance change for Student 01 Alpha01',
-  })).toBeVisible()
+  })
+  await expect(undoQrCorrection).toBeVisible()
+  const undoBounds = await undoQrCorrection.boundingBox()
+  expect(undoBounds).not.toBeNull()
+  expect(undoBounds!.width).toBeCloseTo(44, 1)
+  expect(undoBounds!.height).toBeCloseTo(44, 1)
   await expect(page.getByTestId('app-message-overlay')).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   const selectedActions = primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })

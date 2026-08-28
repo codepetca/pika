@@ -1274,10 +1274,9 @@ student behavior changed.
 - Removed the visible `Open` label and status dot. The open state now uses a
   subtle semantic success background while the accessible name still announces
   the state; mobile hours access remains in the condensed action menu.
-- Reduced each row Present/Late/Absent target from 36 px to 32 px and its visible
-  disc from 32 px to 28 px. Matched count-pill width and QR Undo to the compact
-  treatment while preserving pressed state, focus rings, tooltips, and keyboard
-  behavior.
+- Reduced each row's visible Present/Late/Absent disc from 32 px to 28 px and
+  matched the count-pill width. Preserved 44 px status and QR Undo hit targets,
+  pressed state, focus rings, tooltips, and keyboard behavior.
 - Refreshed the live Open Design mock, approved reference, change brief, Product
   Design QA, and desktop/mobile light/dark evidence. No durable shared guidance
   changed because the adjustments remain Attendance-specific.
@@ -1286,4 +1285,5 @@ student behavior changed.
 Playwright matrix (4/4) pass; same-viewport Product Design source and production
 captures were reviewed together. Student UI is n/a because this remains a
 teacher-only surface. TypeScript, lint, policy checks, Pika audit, independent
-review, PR CI, and final diff checks remain before handoff.
+  review found and prompted correction of a 32 px hit-target regression; targeted
+  re-review, PR CI, and final diff checks remain before handoff.

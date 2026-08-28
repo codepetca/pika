@@ -241,10 +241,10 @@ describe('TeacherLiveAttendanceTab', () => {
     for (const label of ['Present', 'Late', 'Absent']) {
       const statusButton = within(graceStatus).getByRole('button', { name: label })
       expect(statusButton).toHaveClass(
-        'h-8',
-        'w-8',
-        'min-h-8',
-        'min-w-8',
+        'h-11',
+        'w-11',
+        'min-h-11',
+        'min-w-11',
         'rounded-full',
         'after:h-7',
         'after:w-7',
@@ -618,6 +618,7 @@ describe('TeacherLiveAttendanceTab', () => {
     const undo = await screen.findByRole('button', {
       name: 'Undo manual attendance change for Grace Hopper',
     })
+    expect(undo).toHaveClass('h-11', 'w-11', 'min-h-11', 'min-w-11')
     expect(screen.getAllByText('8:50 AM').length).toBeGreaterThan(0)
     fireEvent.click(undo)
 
