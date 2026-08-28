@@ -1397,7 +1397,10 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
-                      <TeacherResourcesTab classroom={classroom} />
+                      <TeacherResourcesTab
+                        classroom={classroom}
+                        onClassroomUpdated={onClassroomUpdated}
+                      />
                     </TabContentTransition>
                   )}
                   {mountedTabs.announcements && (

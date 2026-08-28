@@ -1106,3 +1106,80 @@ migrations 134–135, and authenticated production Blueprint verification.
 
 **Model recommendation:** GPT-5.6 Sol for production migration and concurrency
 verification; GPT-5.6 Terra for release compatibility and continuity review.
+
+## 2026-08-27 — Course Guide Phase 1
+
+**Risk profile:** cross-role UI plus authenticated and public-read APIs — a
+classroom-backed guide, optional public sharing, teacher-managed guide content,
+and one resource-save ordering migration applied to local only; staging and
+production remain unchanged.
+
+- Replaced user-facing Syllabus terminology with Course Guide while preserving
+  the existing internal `syllabus` feature key and `/actual/[slug]` route for
+  compatibility.
+- Added one safe Course Guide projection and shared presentation for the
+  authenticated teacher/student tab and optional public course webpage. The
+  in-Pika guide is always available to the teacher and enrolled students; a
+  public slug or publication state is no longer required. Removed the iframe
+  preview and its message protocol.
+- Published configured classroom sections: curriculum overview and
+  expectations, resources, assignments, tests, lesson sequence, and
+  announcements. Test questions/private uploads are excluded and document
+  links are restricted to public HTTP(S) URLs; disabled sections are omitted
+  from the public API payload.
+- Added one consolidated curriculum overview and expectations editor plus the
+  existing autosaving rules/links/reference resources editor directly inside
+  the guide. Teacher-authored section headings become keyboard-clickable in
+  edit mode, while derived assignments, tests, lesson sequence, and
+  announcements remain read-only projections of the live classroom.
+- Moved section visibility, lesson-sequence scope, and optional public sharing
+  into an accessible Guide options dialog launched from the guide's focused
+  floating action cluster. Removed the visible Course Guide Settings subtab;
+  legacy `section=syllabus` URLs fall back to General while stored compatibility
+  fields and APIs remain intact.
+- Removed the redundant `Course Guide` page title from the guide content area;
+  the classroom title now leads the document while teacher actions remain in
+  the action bar.
+- Removed the internal section jump links and kept all enabled guide sections
+  in one continuous document with an explicit desktop scroll container inside
+  the constrained classroom shell. Reduced doubled horizontal rules so only
+  major-section and between-item separators remain.
+- Removed course date ranges, term labels, and per-lesson dates from the guide.
+  Retired the separate outline setting, visibility control, and rendered
+  section while preserving its stored compatibility field. Seeded the local
+  demo classroom overview with two Lorem Ipsum paragraphs for visual review.
+- Added domain, server projection, authenticated/public API, component,
+  settings, navigation, focus, mutation-failure, and regression tests. The full
+  suite passes 5,146 tests across 591 files; lint, TypeScript, the production
+  build, design/UI policy checks, and the Pika audit pass.
+- Visual verification passed for teacher and student at desktop/mobile in
+  light/dark, including read, edit, overview editor, resources editor, private
+  and public options, saving, and save-error states. Semantic coverage also
+  verifies loading, empty, retry, unpublished, archived read-only, unsaved
+  discard, dialog focus/Escape/return, and section pressed states. No course
+  dates added by the guide, outline section, second narrative editor, iframe,
+  settings duplicate, or horizontal overflow remains. The local fixture stays
+  private.
+- Follow-up density pass reduced the guide header, section, assessment,
+  lesson, announcement, and options spacing; shortened both authored editor
+  canvases; and replaced the tall empty-resources checklist with one compact
+  prompt. The title band is now slimmer, and the edit toggle plus its contextual
+  Guide options/Done controls use the top-centred floating action position shared
+  with Attendance. The Course Guide floating shell has no inset padding, so its
+  shadow hugs the action edges. Focused tests and the 10-case cross-role browser
+  matrix remain green.
+- PR review removed the classroom join credential from every public/shared guide
+  path, filtered future scheduled assignments, corrected duplicate-title grade
+  matching, added unload-beacon POST support, made resource load failures
+  non-editable/retryable, and restored the shared E2E classroom fixture after
+  anonymous public-guide coverage.
+- Final concurrency remediation adds migration 136 with a persisted
+  monotonic resource `save_revision`, rejects stale PUT/beacon writes in the
+  database, serializes and generation-fences client autosaves across classroom
+  switches, and snapshots fixture state from the full classroom endpoint. The
+  final local gate passes 5,191 tests across 594 files, lint, architecture,
+  production build, and the Pika audit.
+- With explicit one-time authorization, migrations 135 and 136 were applied to
+  the local database only. Migration history now matches through 136, and the
+  generated Supabase types were regenerated from and checked against that local
+  schema. No hosted environment was touched.

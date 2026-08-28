@@ -1,12 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render as renderTestingLibrary, screen, waitFor } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
-import { SyllabusPreview } from '@/components/SyllabusPreview'
-import { SYLLABUS_PREVIEW_READY } from '@/lib/syllabus-preview-messages'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
+import type { ReactNode } from 'react'
 
 const mockPush = vi.fn()
 
@@ -14,12 +15,48 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
-  TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
+vi.mock('@/components/CourseGuideView', () => ({
+  CourseGuideView: ({
+    guide,
+    editMode,
+    activeEditor,
+    onEditSection,
+    overviewEditor,
+    resourcesEditor,
+  }: {
+    guide: { classroom: { title: string } }
+    editMode?: boolean
+    activeEditor?: 'overview' | 'resources' | null
+    onEditSection?: (section: 'overview' | 'resources') => void
+    overviewEditor?: ReactNode
+    resourcesEditor?: ReactNode
+  }) => (
+    <div data-testid="course-guide-view">
+      Guide for {guide.classroom.title}
+      {editMode ? (
+        <>
+          <button type="button" onClick={() => onEditSection?.('overview')}>Edit curriculum overview and expectations</button>
+          <button type="button" onClick={() => onEditSection?.('resources')}>Edit resources</button>
+        </>
+      ) : null}
+      {activeEditor === 'overview' ? overviewEditor : null}
+      {activeEditor === 'resources' ? resourcesEditor : null}
+    </div>
+  ),
 }))
 
-vi.mock('@/app/classrooms/[classroomId]/StudentClassResourcesSidebar', () => ({
-  StudentClassResourcesSidebar: () => <div>Student resources content</div>,
+vi.mock('@/components/editor', () => ({
+  MarkdownContentEditor: ({ markdown, onMarkdownChange, 'aria-label': ariaLabel }: {
+    markdown: string
+    onMarkdownChange: (value: string) => void
+    'aria-label'?: string
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={markdown}
+      onChange={(event) => onMarkdownChange(event.target.value)}
+    />
+  ),
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsSection', () => ({
@@ -40,6 +77,18 @@ const classroom = {
   created_at: '2026-04-14T00:00:00.000Z',
   updated_at: '2026-04-14T00:00:00.000Z',
   allow_enrollment: true,
+  join_policy: 'roster',
+  feature_visibility: {
+    attendance: true,
+    classwork: true,
+    tests: true,
+    gradebook: true,
+    calendar: true,
+    syllabus: true,
+    announcements: true,
+    achievements: true,
+  },
+  blueprint_source_revision: 0,
   start_date: '2026-02-01',
   end_date: '2026-06-30',
   archived_at: null,
@@ -59,213 +108,221 @@ const classroom = {
     announcements: true,
     lesson_plan_scope: 'current_week',
   },
-  course_overview_markdown: '',
-  course_outline_markdown: '',
-} as const
+  course_overview_markdown: 'Course overview',
+  course_outline_markdown: 'Course outline',
+} as Classroom
 
-const resourceTabCases = [
-  {
-    role: 'teacher',
-    renderTab: (value: Classroom) => <TeacherResourcesTab classroom={value} />,
+const guide = {
+  classroom: {
+    title: classroom.title,
   },
-  {
-    role: 'student',
-    renderTab: (value: Classroom) => <StudentResourcesTab classroom={value} />,
-  },
-] as const
+  visibility: classroom.actual_site_config,
+  overviewMarkdown: classroom.course_overview_markdown,
+  resourcesContent: null,
+  assignments: [],
+  tests: [],
+  lessonPlans: [],
+  announcements: [],
+}
 
-describe('ResourcesTab', () => {
-  it('renders teacher resources as a syllabus entry point', () => {
-    render(<TeacherResourcesTab classroom={classroom} />)
+function fetchResult(value: unknown, ok = true) {
+  return Promise.resolve({
+    ok,
+    json: () => Promise.resolve(value),
+  } as Response)
+}
 
-    const preview = screen.getByTitle('Test Classroom syllabus preview')
-    expect(preview).toHaveAttribute('src', '/actual/test-classroom')
-    expect(preview).toHaveAttribute('tabindex', '-1')
-    expect(screen.getByRole('heading', { name: 'Syllabus' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
-      'href',
-      '/actual/test-classroom',
-    )
-    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-    fireEvent.load(preview)
-    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-    act(() => {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: {
-          type: SYLLABUS_PREVIEW_READY,
-          href: `${window.location.origin}/actual/test-classroom`,
-        },
-        origin: window.location.origin,
-        source: (preview as HTMLIFrameElement).contentWindow,
-      }))
-    })
-    expect(screen.queryByText('Loading syllabus')).toBeNull()
-    expect(preview).toHaveAttribute('tabindex', '0')
-    expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByRole('button', { name: /syllabus settings/i })).toBeNull()
-    expect(screen.queryByRole('link', { name: '/actual/test-classroom' })).toBeNull()
-    expect(screen.queryByText('Teacher announcements content')).toBeNull()
+function render(ui: ReactNode) {
+  return renderTestingLibrary(
+    <AppMessageProvider>
+      <TooltipProvider>{ui}</TooltipProvider>
+    </AppMessageProvider>,
+  )
+}
+
+beforeEach(() => {
+  mockPush.mockClear()
+  invalidateCachedJSONMatching('public-course-guide:')
+  invalidateCachedJSONMatching('classroom-course-guide:')
+  vi.restoreAllMocks()
+})
+
+describe('Course Guide classroom tabs', () => {
+  it.each([
+    ['teacher', (value: Classroom) => <TeacherResourcesTab classroom={value} />],
+    ['student', (value: Classroom) => <StudentResourcesTab classroom={value} />],
+  ] as const)('loads the shared classroom guide for the %s view without an iframe', async (_role, renderTab) => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(renderTab(classroom))
+
+    expect(screen.getByText('Loading course guide')).toBeInTheDocument()
+    expect(screen.queryByTitle(/preview/i)).toBeNull()
+    expect(await screen.findByTestId('course-guide-view')).toHaveTextContent('Guide for Test Classroom')
+    expect(screen.getByTestId('course-guide-view').closest('.overflow-y-auto')).not.toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Course Guide' })).toBeNull()
+    if (_role === 'teacher') {
+      const editGuide = screen.getByRole('button', { name: 'Edit guide' })
+      expect(editGuide).toBeInTheDocument()
+      fireEvent.click(editGuide)
+      expect(screen.getByRole('button', { name: 'Guide options' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+      expect(mockPush).not.toHaveBeenCalled()
+    } else {
+      expect(screen.getByRole('link', { name: 'Open public guide' })).toHaveAttribute(
+        'href',
+        '/actual/test-classroom',
+      )
+    }
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/classrooms/classroom-1/course-guide', undefined)
   })
 
-  it('ignores readiness messages from another frame or URL', () => {
-    render(
-      <SyllabusPreview
-        classroomTitle="Test Classroom"
-        siteHref="/actual/test-classroom"
-      />,
-    )
+  it('shows a retryable error and refetches the classroom guide', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ error: 'Unavailable' }, false))
+      .mockReturnValueOnce(fetchResult({ guide }))
 
-    const preview = screen.getByTitle('Test Classroom syllabus preview')
-    const sendReady = (source: MessageEventSource | null, href: string) => {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: SYLLABUS_PREVIEW_READY, href },
-        origin: window.location.origin,
-        source,
-      }))
-    }
+    render(<TeacherResourcesTab classroom={classroom} />)
 
-    act(() => {
-      sendReady(window, `${window.location.origin}/actual/test-classroom`)
-      sendReady(
-        (preview as HTMLIFrameElement).contentWindow,
-        `${window.location.origin}/actual/another-classroom`,
-      )
-    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Course guide unavailable')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
-    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-    expect(preview).toHaveAttribute('tabindex', '-1')
+    expect(await screen.findByTestId('course-guide-view')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it.each([
-    ['fragment', `${window.location.origin}/actual/test-classroom#other`],
-    ['trailing query marker', `${window.location.origin}/actual/test-classroom?`],
-  ])('requires the exact syllabus URL and rejects a %s', (_caseName, href) => {
-    render(
-      <SyllabusPreview
-        classroomTitle="Test Classroom"
-        siteHref="/actual/test-classroom"
-      />,
-    )
+    ['teacher', (value: Classroom) => <TeacherResourcesTab classroom={value} />],
+    ['student', (value: Classroom) => <StudentResourcesTab classroom={value} />],
+  ] as const)('keeps the in-Pika guide available privately for the %s view', async (_role, renderTab) => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(renderTab({
+      ...classroom,
+      actual_site_published: false,
+      actual_site_slug: null,
+      course_overview_markdown: '',
+    }))
 
-    const preview = screen.getByTitle('Test Classroom syllabus preview')
-    act(() => {
-      window.dispatchEvent(new MessageEvent('message', {
-        data: { type: SYLLABUS_PREVIEW_READY, href },
-        origin: window.location.origin,
-        source: (preview as HTMLIFrameElement).contentWindow,
+    expect(await screen.findByTestId('course-guide-view')).toBeInTheDocument()
+    expect(screen.queryByText(/coming soon|not published/i)).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Open public guide' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open public guide' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Course Guide' })).toBeNull()
+    if (_role === 'teacher') {
+      fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+      expect(screen.getByRole('button', { name: 'Guide options' })).toBeInTheDocument()
+      expect(mockPush).not.toHaveBeenCalled()
+    }
+  })
+
+  it('edits and saves the curriculum overview within the guide pane', async () => {
+    const onClassroomUpdated = vi.fn()
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(fetchResult({
+        classroom: { ...classroom, course_overview_markdown: 'Updated overview' },
       }))
+
+    render(<TeacherResourcesTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
+    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+      target: { value: 'Updated overview' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Save overview' }))
 
-    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-    expect(preview).toHaveAttribute('tabindex', '-1')
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/teacher/classrooms/classroom-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ courseOverviewMarkdown: 'Updated overview' }),
+      }),
+    ))
+    expect(onClassroomUpdated).toHaveBeenCalledWith(expect.objectContaining({
+      course_overview_markdown: 'Updated overview',
+    }))
   })
 
-  it.each(resourceTabCases)('returns a changed syllabus URL to protected loading state for $role resources', ({ renderTab }) => {
-    vi.useFakeTimers()
-    try {
-      const { rerender } = render(renderTab(classroom))
-      const originalPreview = screen.getByTitle('Test Classroom syllabus preview')
-      const originalWindow = (originalPreview as HTMLIFrameElement).contentWindow
-
-      act(() => {
-        window.dispatchEvent(new MessageEvent('message', {
-          data: {
-            type: SYLLABUS_PREVIEW_READY,
-            href: `${window.location.origin}/actual/test-classroom`,
-          },
-          origin: window.location.origin,
-          source: originalWindow,
-        }))
-      })
-      expect(originalPreview).toHaveAttribute('tabindex', '0')
-
-      rerender(renderTab({ ...classroom, actual_site_slug: 'replacement-classroom' }))
-      const replacementPreview = screen.getByTitle('Test Classroom syllabus preview')
-      expect(replacementPreview).toHaveAttribute('src', '/actual/replacement-classroom')
-      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
-      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-
-      act(() => {
-        window.dispatchEvent(new MessageEvent('message', {
-          data: {
-            type: SYLLABUS_PREVIEW_READY,
-            href: `${window.location.origin}/actual/replacement-classroom`,
-          },
-          origin: window.location.origin,
-          source: originalWindow,
-        }))
-        vi.advanceTimersByTime(15_000)
-      })
-
-      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
-      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
-    } finally {
-      vi.useRealTimers()
+  it('owns visibility and public sharing in the accessible Guide options dialog', async () => {
+    const updatedClassroom = {
+      ...classroom,
+      actual_site_config: { ...classroom.actual_site_config, assignments: false },
     }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(fetchResult({ classroom: updatedClassroom }))
+
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+
+    expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share guide publicly' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Assignments' }))
+    expect(screen.getByRole('button', { name: 'Show Assignments' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Save options' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/teacher/classrooms/classroom-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    ))
+    const request = fetchMock.mock.calls.at(-1)?.[1] as RequestInit
+    expect(JSON.parse(String(request.body))).toMatchObject({
+      actualSitePublished: true,
+      actualSiteSlug: 'test-classroom',
+      actualSiteConfig: { assignments: false, outline: true },
+    })
   })
 
-  it('renders student resources as a syllabus entry point', () => {
-    render(<StudentResourcesTab classroom={classroom} />)
+  it('focuses, closes, and restores focus for Guide options with the keyboard', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    const optionsButton = screen.getByRole('button', { name: 'Guide options' })
+    optionsButton.focus()
+    fireEvent.click(optionsButton)
 
-    expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
-    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
-      'target',
-      '_blank',
-    )
-    expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByText('Student announcements content')).toBeNull()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus())
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull())
+    expect(optionsButton).toHaveFocus()
   })
 
-  it('shows a retryable error when the published syllabus cannot load', () => {
-    vi.useFakeTimers()
-    try {
-      render(<TeacherResourcesTab classroom={classroom} />)
+  it('keeps the overview editor open and announces a failed save', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide }))
+      .mockReturnValueOnce(fetchResult({ error: 'Could not save overview' }, false))
 
-      act(() => {
-        vi.advanceTimersByTime(15_000)
-      })
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
+    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+      target: { value: 'Unsaved overview' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save overview' }))
 
-      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
-      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-
-      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
-      expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute(
-        'src',
-        '/actual/test-classroom?previewAttempt=1',
-      )
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not save overview')
+    expect(screen.getByLabelText('Curriculum overview and expectations')).toHaveValue('Unsaved overview')
   })
 
-  it('shows unpublished state for students when the site is private', () => {
-    render(<StudentResourcesTab classroom={{ ...classroom, actual_site_published: false }} />)
+  it('keeps archived classroom guides read-only', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(<TeacherResourcesTab classroom={{ ...classroom, archived_at: '2026-08-27T00:00:00Z' }} />)
 
-    expect(screen.getByText('No syllabus yet')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
-    expect(screen.queryByTitle('Test Classroom syllabus preview')).toBeNull()
+    await screen.findByTestId('course-guide-view')
+    expect(screen.getByText('Archived classroom · Course Guide is read-only.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit guide' })).toBeNull()
   })
 
-  it('opens the syllabus settings section from the unpublished teacher state', () => {
-    mockPush.mockClear()
-    render(<TeacherResourcesTab classroom={{ ...classroom, actual_site_published: false }} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Syllabus Settings' }))
-
-    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=settings&section=syllabus')
-  })
-
-  it('renders teacher announcements in the announcements tab', () => {
-    render(<TeacherAnnouncementsTab classroom={classroom} />)
-
+  it('keeps announcements in their dedicated teacher and student tabs', () => {
+    const { rerender } = render(<TeacherAnnouncementsTab classroom={classroom} />)
     expect(screen.getByText('Teacher announcements content')).toBeInTheDocument()
-    expect(screen.queryByText('Teacher resources content')).toBeNull()
-  })
 
-  it('renders student announcements in the announcements tab', () => {
-    render(<StudentAnnouncementsTab classroom={classroom} />)
-
+    rerender(<StudentAnnouncementsTab classroom={classroom} />)
     expect(screen.getByText('Student announcements content')).toBeInTheDocument()
-    expect(screen.queryByText('Student resources content')).toBeNull()
   })
 })
