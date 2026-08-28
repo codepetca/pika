@@ -3,6 +3,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { extractCourseGuideImportDraft } from '@/lib/server/course-guide-import'
+import { createCourseGuideImportProvenanceToken } from '@/lib/server/course-guide-import-provenance'
 import {
   courseGuideImportMetadataSchema,
   decodeCourseGuideImportFormData,
@@ -29,7 +30,12 @@ export const POST = withErrorHandler('PostCourseGuideCurriculumImportDraft', asy
   const source = await decodeCourseGuideImportFormData(formData, metadata)
   try {
     const draft = await extractCourseGuideImportDraft(source)
-    return NextResponse.json({ draft })
+    const provenanceToken = createCourseGuideImportProvenanceToken({
+      teacherId: user.id,
+      classroomId,
+      draft,
+    })
+    return NextResponse.json({ draft, provenanceToken })
   } catch (error) {
     console.error('Course guide curriculum extraction failed:', error instanceof Error ? error.message : error)
     return NextResponse.json({

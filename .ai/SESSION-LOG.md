@@ -1258,12 +1258,18 @@ classroom synchronization and no schema or hosted-state change.
   an expected-overview compare guard to return a conflict instead of silently
   overwriting a Course Guide changed during review.
 - Added domain, provider-boundary, API authorization/concurrency, component,
-  fixture, and regression coverage. All 5,214 tests pass, along with lint,
+  fixture, and regression coverage. All 5,222 tests pass, along with lint,
   architecture, design/UI policy checks, production build, Pika audit, and diff
   validation.
 - Visual verification passed eight teacher/student checks across desktop and
   mobile, light and dark, covering source, editable cited review, confirmation,
   extraction failure, overflow, and absence of teacher controls for students.
+- Independent review remediation lowered PDF uploads to the hosting-safe 4 MB
+  boundary; added extraction timeout/output limits; moved apply authorization
+  before body parsing; signed source provenance to the teacher/classroom;
+  normalized and previewed the locked citation; preserved existing overview
+  bytes; used raw classroom content when visibility is off; and cancelled stale
+  client operations across classroom switches.
 - Updated production continuity to the user-confirmed baseline: production
   commit 530d444a with migrations through 136 applied and zero error-level
   database lint findings. No migration was added or applied, and nothing was

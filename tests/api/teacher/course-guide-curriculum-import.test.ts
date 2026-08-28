@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   extractCourseGuideImportDraft: vi.fn(),
   getServiceRoleClient: vi.fn(),
   hydrateClassroomRecord: vi.fn((value) => value),
+  createProvenanceToken: vi.fn(() => 'p'.repeat(80)),
+  verifyProvenanceToken: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
@@ -18,6 +20,10 @@ vi.mock('@/lib/server/classrooms', () => ({
 }))
 vi.mock('@/lib/server/course-guide-import', () => ({
   extractCourseGuideImportDraft: mocks.extractCourseGuideImportDraft,
+}))
+vi.mock('@/lib/server/course-guide-import-provenance', () => ({
+  createCourseGuideImportProvenanceToken: mocks.createProvenanceToken,
+  verifyCourseGuideImportProvenanceToken: mocks.verifyProvenanceToken,
 }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.getServiceRoleClient }))
 
@@ -32,6 +38,9 @@ beforeEach(() => {
     ok: true,
     classroom: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
   })
+  mocks.verifyProvenanceToken.mockReturnValue({
+    citationMarkdown: 'Source: Ontario curriculum — curriculum.pdf',
+  })
 })
 
 describe('POST curriculum import draft', () => {
@@ -41,6 +50,7 @@ describe('POST curriculum import draft', () => {
       sourceUrl: null,
       sourceFilename: 'curriculum.pdf',
       draftMarkdown: 'Reviewed draft',
+      citationMarkdown: 'Source: Ontario curriculum — curriculum.pdf',
     }
     mocks.extractCourseGuideImportDraft.mockResolvedValue(draft)
     const formData = new FormData()
@@ -57,11 +67,16 @@ describe('POST curriculum import draft', () => {
     const response = await createDraft(request, context())
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ draft })
+    await expect(response.json()).resolves.toEqual({ draft, provenanceToken: 'p'.repeat(80) })
     expect(mocks.assertTeacherCanMutateClassroom).toHaveBeenCalledWith('teacher-1', 'classroom-1')
     expect(mocks.extractCourseGuideImportDraft).toHaveBeenCalledWith(expect.objectContaining({
       type: 'file',
       filename: 'curriculum.pdf',
+    }))
+    expect(mocks.createProvenanceToken).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: 'teacher-1',
+      classroomId: 'classroom-1',
+      draft,
     }))
   })
 
@@ -98,7 +113,7 @@ describe('POST curriculum import apply', () => {
   it('appends only after confirmation and compares the expected teacher content', async () => {
     const updatedClassroom = {
       id: 'classroom-1',
-      course_overview_markdown: 'Teacher content\n\n---\n\nReviewed draft\n\nSource: Ontario curriculum (curriculum.pdf)',
+      course_overview_markdown: 'Teacher content\n\n---\n\nReviewed draft\n\nSource: Ontario curriculum — curriculum.pdf',
     }
     const { query } = setupUpdate({ data: updatedClassroom, error: null })
     const request = new NextRequest(
@@ -108,9 +123,7 @@ describe('POST curriculum import apply', () => {
         body: JSON.stringify({
           draftMarkdown: 'Reviewed draft',
           expectedOverviewMarkdown: 'Teacher content',
-          sourceTitle: 'Ontario curriculum',
-          sourceUrl: null,
-          sourceFilename: 'curriculum.pdf',
+          provenanceToken: 'p'.repeat(80),
         }),
       },
     )
@@ -119,7 +132,7 @@ describe('POST curriculum import apply', () => {
 
     expect(response.status).toBe(200)
     expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
-      course_overview_markdown: 'Teacher content\n\n---\n\nReviewed draft\n\nSource: Ontario curriculum (curriculum.pdf)',
+      course_overview_markdown: 'Teacher content\n\n---\n\nReviewed draft\n\nSource: Ontario curriculum — curriculum.pdf',
     }))
     expect(query.eq).toHaveBeenCalledWith('course_overview_markdown', 'Teacher content')
     await expect(response.json()).resolves.toEqual({ classroom: updatedClassroom })
@@ -134,9 +147,7 @@ describe('POST curriculum import apply', () => {
         body: JSON.stringify({
           draftMarkdown: 'Reviewed draft',
           expectedOverviewMarkdown: 'Stale teacher content',
-          sourceTitle: 'Ontario curriculum',
-          sourceUrl: 'https://example.ca/curriculum.pdf',
-          sourceFilename: null,
+          provenanceToken: 'p'.repeat(80),
         }),
       },
     )
@@ -147,5 +158,44 @@ describe('POST curriculum import apply', () => {
     await expect(response.json()).resolves.toEqual({
       error: 'The Course Guide changed while you were reviewing. Reopen the import assistant and try again.',
     })
+  })
+
+  it('authorizes before parsing the apply body', async () => {
+    setupUpdate({ data: null, error: null })
+    mocks.assertTeacherCanMutateClassroom.mockResolvedValue({
+      ok: false,
+      status: 403,
+      error: 'Classroom is archived',
+    })
+    const request = new NextRequest(
+      'http://localhost/api/teacher/classrooms/classroom-1/curriculum-import/apply',
+      { method: 'POST', body: '{' },
+    )
+
+    const response = await applyDraft(request, context())
+
+    expect(response.status).toBe(403)
+    expect(mocks.verifyProvenanceToken).not.toHaveBeenCalled()
+  })
+
+  it('rejects tampered or expired provenance before updating the classroom', async () => {
+    const { query } = setupUpdate({ data: null, error: null })
+    mocks.verifyProvenanceToken.mockReturnValue(null)
+    const request = new NextRequest(
+      'http://localhost/api/teacher/classrooms/classroom-1/curriculum-import/apply',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          draftMarkdown: 'Reviewed draft',
+          expectedOverviewMarkdown: 'Teacher content',
+          provenanceToken: 'x'.repeat(80),
+        }),
+      },
+    )
+
+    const response = await applyDraft(request, context())
+
+    expect(response.status).toBe(409)
+    expect(query.update).not.toHaveBeenCalled()
   })
 })

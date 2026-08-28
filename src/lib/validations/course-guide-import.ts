@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const COURSE_GUIDE_IMPORT_MAX_FILE_BYTES = 20 * 1024 * 1024
+// Vercel Functions reject request bodies above 4.5 MB. Keep enough room for
+// multipart boundaries and the remaining form fields.
+export const COURSE_GUIDE_IMPORT_MAX_FILE_BYTES = 4 * 1024 * 1024
 
 const blockedHostnames = new Set(['localhost', 'localhost.localdomain'])
 
@@ -48,18 +50,8 @@ export const applyCourseGuideImportSchema = z.object({
     .min(1, 'The reviewed draft is empty')
     .max(60_000, 'The reviewed draft is too long'),
   expectedOverviewMarkdown: z.string().max(100_000),
-  sourceTitle: z.string().trim().min(1).max(300),
-  sourceUrl: z.string().trim().url().max(2048).refine(isPublicDocumentUrl).nullable(),
-  sourceFilename: z.string().trim().min(1).max(255).nullable(),
-}).strict().superRefine((value, context) => {
-  if (!value.sourceUrl && !value.sourceFilename) {
-    context.addIssue({
-      code: 'custom',
-      path: ['sourceFilename'],
-      message: 'The curriculum source is required',
-    })
-  }
-})
+  provenanceToken: z.string().min(80).max(4096),
+}).strict()
 
 export const curriculumImportModelResponseSchema = z.object({
   document_title: z.string().trim().min(1).max(300),
@@ -99,7 +91,7 @@ export async function decodeCourseGuideImportFormData(
     throw new z.ZodError([{
       code: 'custom',
       path: ['file'],
-      message: 'The PDF must be 20 MB or smaller',
+      message: 'The PDF must be 4 MB or smaller',
     }])
   }
   if (file.type !== 'application/pdf' || !file.name.toLowerCase().endsWith('.pdf')) {

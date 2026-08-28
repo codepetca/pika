@@ -4,6 +4,7 @@ import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResou
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
+import { CourseGuidePanel } from '@/components/CourseGuidePanel'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
@@ -319,6 +320,65 @@ describe('Course Guide classroom tabs', () => {
       'Save or cancel your overview edits before importing curriculum.',
     )
     expect(screen.queryByRole('dialog', { name: 'Import curriculum' })).toBeNull()
+  })
+
+  it('imports against raw teacher content when overview visibility is off', async () => {
+    const hiddenGuide = {
+      ...guide,
+      visibility: { ...guide.visibility, overview: false },
+      overviewMarkdown: '',
+    }
+    const importDraft = {
+      sourceTitle: 'Ontario curriculum',
+      sourceUrl: 'https://example.ca/curriculum.pdf',
+      sourceFilename: null,
+      sourceLabel: '[Ontario curriculum](https://example.ca/curriculum.pdf)',
+      overviewMarkdown: 'Imported overview',
+      expectationsMarkdown: '',
+      sourceLinks: [],
+      draftMarkdown: '## Curriculum overview\n\nImported overview',
+      citationMarkdown: 'Source: [Ontario curriculum](https://example.ca/curriculum.pdf)',
+    }
+    const updatedClassroom = {
+      ...classroom,
+      course_overview_markdown: 'Course overview\n\n---\n\nImported overview',
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide: hiddenGuide }))
+      .mockReturnValueOnce(fetchResult({
+        draft: importDraft,
+        provenanceToken: 'p'.repeat(80),
+      }))
+      .mockReturnValueOnce(fetchResult({ classroom: updatedClassroom }))
+
+    render(
+      <CourseGuidePanel
+        role="teacher"
+        classroom={{
+          ...classroom,
+          actual_site_config: { ...classroom.actual_site_config, overview: false },
+        }}
+      />,
+    )
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Public URL' }))
+    fireEvent.change(screen.getByLabelText('Public document URL'), {
+      target: { value: 'https://example.ca/curriculum.pdf' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }))
+    await screen.findByLabelText('Imported curriculum draft')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to confirmation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add reviewed draft' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const applyRequest = fetchMock.mock.calls[2]?.[1] as RequestInit
+    expect(JSON.parse(String(applyRequest.body))).toMatchObject({
+      expectedOverviewMarkdown: 'Course overview',
+      provenanceToken: 'p'.repeat(80),
+    })
   })
 
   it('keeps the overview editor open and announces a failed save', async () => {

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileUp, Link as LinkIcon } from 'lucide-react'
 import { ContentField, MarkdownContentEditor } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import type { CourseGuideImportDraft } from '@/lib/course-guide-import'
 import { Button, ContentDialog, FormField, Input, cn } from '@/ui'
 import type { Classroom } from '@/types'
@@ -19,6 +20,7 @@ type Props = {
 
 type DraftResponse = {
   draft?: CourseGuideImportDraft
+  provenanceToken?: string
   error?: string
 }
 
@@ -33,22 +35,34 @@ export function CourseGuideImportDialog({
   const [file, setFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
   const [draft, setDraft] = useState<CourseGuideImportDraft | null>(null)
+  const [provenanceToken, setProvenanceToken] = useState('')
   const [reviewedMarkdown, setReviewedMarkdown] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState('')
+  const requestGenerationRef = useRef(0)
+  const activeRequestRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
+    requestGenerationRef.current += 1
+    activeRequestRef.current?.abort()
+    activeRequestRef.current = null
     if (!isOpen) return
     setStep('source')
     setSourceType('file')
     setFile(null)
     setSourceUrl('')
     setDraft(null)
+    setProvenanceToken('')
     setReviewedMarkdown('')
     setExtracting(false)
     setApplying(false)
     setError('')
+    return () => {
+      requestGenerationRef.current += 1
+      activeRequestRef.current?.abort()
+      activeRequestRef.current = null
+    }
   }, [isOpen, classroom.id])
 
   const busy = extracting || applying
@@ -73,29 +87,45 @@ export function CourseGuideImportDialog({
     formData.set('sourceUrl', sourceType === 'url' ? sourceUrl.trim() : '')
     if (sourceType === 'file' && file) formData.set('file', file)
 
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    const generation = requestGenerationRef.current + 1
+    requestGenerationRef.current = generation
+    activeRequestRef.current = controller
     setExtracting(true)
     setError('')
     try {
       const response = await fetch(
         `/api/teacher/classrooms/${encodeURIComponent(classroom.id)}/curriculum-import/draft`,
-        { method: 'POST', body: formData },
+        { method: 'POST', body: formData, signal: controller.signal },
       )
       const data = await response.json().catch(() => ({})) as DraftResponse
-      if (!response.ok || !data.draft) {
+      if (requestGenerationRef.current !== generation) return
+      if (!response.ok || !data.draft || !data.provenanceToken) {
         throw new Error(data.error || 'Pika could not extract this curriculum source.')
       }
       setDraft(data.draft)
+      setProvenanceToken(data.provenanceToken)
       setReviewedMarkdown(data.draft.draftMarkdown)
       setStep('review')
     } catch (caught) {
+      if (controller.signal.aborted || requestGenerationRef.current !== generation) return
       setError(caught instanceof Error ? caught.message : 'Pika could not extract this curriculum source.')
     } finally {
-      setExtracting(false)
+      if (requestGenerationRef.current === generation) {
+        activeRequestRef.current = null
+        setExtracting(false)
+      }
     }
   }
 
   async function applyDraft() {
-    if (!draft || applying) return
+    if (!draft || !provenanceToken || applying) return
+    activeRequestRef.current?.abort()
+    const controller = new AbortController()
+    const generation = requestGenerationRef.current + 1
+    requestGenerationRef.current = generation
+    activeRequestRef.current = controller
     setApplying(true)
     setError('')
     try {
@@ -104,25 +134,29 @@ export function CourseGuideImportDialog({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             draftMarkdown: reviewedMarkdown,
             expectedOverviewMarkdown: classroom.course_overview_markdown || '',
-            sourceTitle: draft.sourceTitle,
-            sourceUrl: draft.sourceUrl,
-            sourceFilename: draft.sourceFilename,
+            provenanceToken,
           }),
         },
       )
       const data = await response.json().catch(() => ({})) as { classroom?: Classroom; error?: string }
+      if (requestGenerationRef.current !== generation) return
       if (!response.ok || !data.classroom) {
         throw new Error(data.error || 'The reviewed curriculum draft could not be added.')
       }
       onApplied(data.classroom)
       onClose()
     } catch (caught) {
+      if (controller.signal.aborted || requestGenerationRef.current !== generation) return
       setError(caught instanceof Error ? caught.message : 'The reviewed curriculum draft could not be added.')
     } finally {
-      setApplying(false)
+      if (requestGenerationRef.current === generation) {
+        activeRequestRef.current = null
+        setApplying(false)
+      }
     }
   }
 
@@ -192,9 +226,10 @@ export function CourseGuideImportDialog({
             {sourceType === 'file' ? (
               <FormField
                 label="Curriculum PDF"
-                hint="PDF only, up to 20 MB. Scanned pages may take longer to extract."
+                hint="PDF only, up to 4 MB. Scanned pages may take longer to extract."
               >
                 <Input
+                  key="curriculum-file"
                   type="file"
                   accept="application/pdf,.pdf"
                   disabled={extracting}
@@ -210,6 +245,7 @@ export function CourseGuideImportDialog({
                 hint="Use a direct HTTPS link to a public curriculum page or document."
               >
                 <Input
+                  key="curriculum-url"
                   type="url"
                   value={sourceUrl}
                   placeholder="https://www.example.ca/curriculum.pdf"
@@ -227,17 +263,8 @@ export function CourseGuideImportDialog({
         {step === 'review' && draft ? (
           <>
             <div className="rounded-control border border-primary bg-primary-subtle px-3 py-2 text-sm text-text-default">
-              <span className="font-medium">Extracted from:</span>{' '}
-              {draft.sourceUrl ? (
-                <a
-                  href={draft.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline underline-offset-2"
-                >
-                  {draft.sourceTitle}
-                </a>
-              ) : `${draft.sourceTitle} (uploaded PDF)`}
+              <span className="font-medium">Citation added on confirmation</span>
+              <LimitedMarkdown content={draft.citationMarkdown} className="mt-1 [&_p]:leading-5" />
             </div>
             <ContentField
               label="Imported curriculum draft"
@@ -249,7 +276,7 @@ export function CourseGuideImportDialog({
                 editable
                 toolbarPreset="none"
                 aria-label="Imported curriculum draft"
-                className="min-h-48 max-h-80 overflow-y-auto sm:max-h-96"
+                className="min-h-48 max-h-80 overflow-y-auto"
               />
             </ContentField>
             <p className="text-sm text-text-muted">
@@ -266,7 +293,9 @@ export function CourseGuideImportDialog({
             <dl className="grid gap-3 rounded-control border border-border bg-surface-2 px-3 py-3 text-sm sm:grid-cols-2">
               <div>
                 <dt className="font-medium text-text-default">Source</dt>
-                <dd className="mt-1 text-text-muted">{draft.sourceTitle}</dd>
+                <dd className="mt-1 text-text-muted">
+                  <LimitedMarkdown content={draft.citationMarkdown} className="[&_p]:leading-5" />
+                </dd>
               </div>
               <div>
                 <dt className="font-medium text-text-default">Current guide</dt>

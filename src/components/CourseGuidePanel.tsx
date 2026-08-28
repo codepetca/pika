@@ -78,7 +78,10 @@ export function CourseGuidePanel({
   >({ status: 'loading' })
   const [editMode, setEditMode] = useState(false)
   const [activeEditor, setActiveEditor] = useState<CourseGuideEditableSection | null>(null)
+  const activeEditorRef = useRef<CourseGuideEditableSection | null>(null)
+  activeEditorRef.current = activeEditor
   const [overviewDraft, setOverviewDraft] = useState(classroom.course_overview_markdown || '')
+  const [overviewSavedValue, setOverviewSavedValue] = useState(classroom.course_overview_markdown || '')
   const [overviewSaving, setOverviewSaving] = useState(false)
   const [overviewError, setOverviewError] = useState('')
   const [discardTarget, setDiscardTarget] = useState<DiscardTarget>(null)
@@ -118,6 +121,7 @@ export function CourseGuidePanel({
     setEditMode(false)
     setActiveEditor(null)
     setOverviewDraft(classroom.course_overview_markdown || '')
+    setOverviewSavedValue(classroom.course_overview_markdown || '')
     setOverviewSaving(false)
     setOverviewError('')
     setDiscardTarget(null)
@@ -130,17 +134,16 @@ export function CourseGuidePanel({
   }, [classroom])
 
   useEffect(() => {
-    if (activeEditor !== 'overview') {
-      setOverviewDraft(classroom.course_overview_markdown || '')
+    const nextOverview = classroom.course_overview_markdown || ''
+    setOverviewSavedValue(nextOverview)
+    if (activeEditorRef.current !== 'overview') {
+      setOverviewDraft(nextOverview)
     }
-  }, [activeEditor, classroom.course_overview_markdown])
+  }, [classroom.course_overview_markdown])
 
   const publicGuideAvailable = savedOptions.published && !!savedOptions.slug
   const siteHref = publicGuideAvailable ? `/actual/${savedOptions.slug}` : ''
   const isArchived = !!classroom.archived_at
-  const overviewSavedValue = state.status === 'ready'
-    ? state.guide.overviewMarkdown
-    : classroom.course_overview_markdown || ''
   const overviewDirty = overviewDraft !== overviewSavedValue
 
   function updateReadyGuide(update: (guide: CourseGuideData) => CourseGuideData) {
@@ -213,6 +216,7 @@ export function CourseGuidePanel({
       invalidateCachedJSON(getCacheKey(classroomId))
       if (savedOptions.slug) invalidateCachedJSON(`public-course-guide:${savedOptions.slug}`)
       updateReadyGuide((guide) => ({ ...guide, overviewMarkdown: nextOverview }))
+      setOverviewSavedValue(nextOverview)
       if (data.classroom) onClassroomUpdated?.(data.classroom)
       setActiveEditor(null)
       showMessage({ text: 'Curriculum overview saved', tone: 'success' })
@@ -474,6 +478,7 @@ export function CourseGuidePanel({
             ...guide,
             overviewMarkdown: updatedClassroom.course_overview_markdown || '',
           }))
+          setOverviewSavedValue(updatedClassroom.course_overview_markdown || '')
           setOverviewDraft(updatedClassroom.course_overview_markdown || '')
           onClassroomUpdated?.(updatedClassroom)
           showMessage({ text: 'Reviewed curriculum draft added', tone: 'success' })

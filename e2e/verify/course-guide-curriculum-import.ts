@@ -44,6 +44,7 @@ const draft = {
     '## Source links',
     '- [Ontario curriculum landing page](https://example.ca/curriculum)',
   ].join('\n\n'),
+  citationMarkdown: 'Source: [The Ontario Curriculum, Grades 10 to 12: Computer Studies](https://example.ca/ontario-computer-studies.pdf)',
 }
 
 async function configureThemeAndViewport(
@@ -99,7 +100,7 @@ export const courseGuideCurriculumImport: VerificationScript = {
         contentType: 'application/json',
         body: JSON.stringify(draftShouldFail
           ? { error: 'Pika could not extract this curriculum source. Try another PDF or link.' }
-          : { draft }),
+          : { draft, provenanceToken: 'p'.repeat(80) }),
       })
     })
 
@@ -118,7 +119,7 @@ export const courseGuideCurriculumImport: VerificationScript = {
     await configureThemeAndViewport(page, 'dark', 'desktop')
     checks.push({
       name: 'Teacher review shows an editable cited draft',
-      passed: await page.getByText(/Extracted from:/).isVisible()
+      passed: await page.getByText(/Citation added on confirmation/).isVisible()
         && await page.getByText(/Nothing has been added/).isVisible(),
     })
     artifacts.push(await capture(page, 'teacher-desktop-dark-review.png'))

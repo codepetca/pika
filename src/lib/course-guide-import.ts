@@ -14,10 +14,20 @@ export type CourseGuideImportDraft = {
   expectationsMarkdown: string
   sourceLinks: CourseGuideImportLink[]
   draftMarkdown: string
+  citationMarkdown: string
 }
 
-function escapeMarkdownLabel(value: string): string {
-  return value.replaceAll('[', '').replaceAll(']', '').trim()
+function normalizeProvenanceText(value: string, fallback: string): string {
+  const normalized = value
+    .replace(/\s+/g, ' ')
+    .replace(/[\\[\]()*_`<>#|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return normalized || fallback
+}
+
+function markdownUrl(value: string): string {
+  return value.replaceAll('(', '%28').replaceAll(')', '%29')
 }
 
 function isSafeLink(value: string): boolean {
@@ -37,10 +47,13 @@ export function buildCourseGuideImportDraft(args: {
   const links = args.model.source_links
     .filter((link) => isSafeLink(link.url))
     .filter((link, index, all) => all.findIndex((candidate) => candidate.url === link.url) === index)
-  const sourceTitle = args.model.document_title.trim()
+  const sourceTitle = normalizeProvenanceText(args.model.document_title, 'Curriculum source')
+  const sourceFilename = args.sourceFilename
+    ? normalizeProvenanceText(args.sourceFilename, 'uploaded PDF')
+    : null
   const sourceLabel = args.sourceUrl
-    ? `[${escapeMarkdownLabel(sourceTitle)}](${args.sourceUrl})`
-    : `${escapeMarkdownLabel(sourceTitle)} (${args.sourceFilename || 'uploaded PDF'})`
+    ? `[${sourceTitle}](${markdownUrl(args.sourceUrl)})`
+    : `${sourceTitle} — ${sourceFilename || 'uploaded PDF'}`
   const sections = [
     '## Curriculum overview',
     args.model.overview_markdown.trim(),
@@ -52,39 +65,34 @@ export function buildCourseGuideImportDraft(args: {
   if (links.length > 0) {
     sections.push(
       '## Source links',
-      links.map((link) => `- [${escapeMarkdownLabel(link.title)}](${link.url})`).join('\n'),
+      links.map((link) => `- [${normalizeProvenanceText(link.title, 'Source link')}](${markdownUrl(link.url)})`).join('\n'),
     )
   }
   return {
     sourceTitle,
     sourceUrl: args.sourceUrl,
-    sourceFilename: args.sourceFilename,
+    sourceFilename,
     sourceLabel,
     overviewMarkdown: args.model.overview_markdown.trim(),
     expectationsMarkdown: args.model.expectations_markdown.trim(),
     sourceLinks: links,
     draftMarkdown: sections.join('\n\n'),
+    citationMarkdown: `Source: ${sourceLabel}`,
   }
 }
 
 export function addCourseGuideImportCitation(args: {
   reviewedDraftMarkdown: string
-  sourceTitle: string
-  sourceUrl: string | null
-  sourceFilename: string | null
+  citationMarkdown: string
 }): string {
-  const title = escapeMarkdownLabel(args.sourceTitle)
-  const source = args.sourceUrl
-    ? `[${title}](<${args.sourceUrl}>)`
-    : `${title} (${escapeMarkdownLabel(args.sourceFilename || 'uploaded PDF')})`
-  return `${args.reviewedDraftMarkdown.trim()}\n\nSource: ${source}`
+  return `${args.reviewedDraftMarkdown.trim()}\n\n${args.citationMarkdown}`
 }
 
 export function appendCourseGuideImport(
   currentOverviewMarkdown: string,
   reviewedDraftMarkdown: string,
 ): string {
-  const current = currentOverviewMarkdown.trim()
+  const hasCurrent = currentOverviewMarkdown.trim().length > 0
   const draft = reviewedDraftMarkdown.trim()
-  return current ? `${current}\n\n---\n\n${draft}` : draft
+  return hasCurrent ? `${currentOverviewMarkdown}\n\n---\n\n${draft}` : draft
 }

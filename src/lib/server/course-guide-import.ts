@@ -5,6 +5,8 @@ import {
 } from '@/lib/validations/course-guide-import'
 
 const DEFAULT_MODEL = 'gpt-5-mini'
+const EXTRACTION_TIMEOUT_MS = 45_000
+const MAX_OUTPUT_TOKENS = 8_000
 
 const responseJsonSchema = {
   type: 'object',
@@ -84,38 +86,48 @@ export async function extractCourseGuideImportDraft(
         detail: 'low',
       }
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_CURRICULUM_IMPORT_MODEL?.trim() || DEFAULT_MODEL,
-      store: false,
-      input: [
-        {
-          role: 'system',
-          content: [{ type: 'input_text', text: systemPrompt }],
-        },
-        {
-          role: 'user',
-          content: [
-            { type: 'input_text', text: 'Extract a draft from this curriculum source.' },
-            fileInput,
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'course_guide_curriculum_import',
-          strict: true,
-          schema: responseJsonSchema,
-        },
+  let response: Response
+  try {
+    response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    }),
-  })
+      signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS),
+      body: JSON.stringify({
+        model: process.env.OPENAI_CURRICULUM_IMPORT_MODEL?.trim() || DEFAULT_MODEL,
+        store: false,
+        max_output_tokens: MAX_OUTPUT_TOKENS,
+        input: [
+          {
+            role: 'system',
+            content: [{ type: 'input_text', text: systemPrompt }],
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'input_text', text: 'Extract a draft from this curriculum source.' },
+              fileInput,
+            ],
+          },
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'course_guide_curriculum_import',
+            strict: true,
+            schema: responseJsonSchema,
+          },
+        },
+      }),
+    })
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+      throw new Error('The curriculum extraction timed out')
+    }
+    throw new Error('The curriculum source could not be extracted')
+  }
 
   if (!response.ok) {
     await response.text().catch(() => '')

@@ -5,6 +5,7 @@ import {
   buildCourseGuideImportDraft,
 } from '@/lib/course-guide-import'
 import {
+  COURSE_GUIDE_IMPORT_MAX_FILE_BYTES,
   courseGuideImportMetadataSchema,
   decodeCourseGuideImportFormData,
 } from '@/lib/validations/course-guide-import'
@@ -40,11 +41,29 @@ describe('course guide curriculum import', () => {
     expect(addCourseGuideImportCitation({
       reviewedDraftMarkdown: 'Teacher-reviewed draft',
       sourceTitle: 'Ontario Computer Studies',
+      citationMarkdown: 'Source: [Ontario Computer Studies](https://example.ca/document_%28final%29.pdf)',
+    })).toBe(
+      'Teacher-reviewed draft\n\nSource: [Ontario Computer Studies](https://example.ca/document_%28final%29.pdf)',
+    )
+  })
+
+  it('normalizes hostile provenance and makes parentheses safe for LimitedMarkdown links', () => {
+    const draft = buildCourseGuideImportDraft({
+      model: {
+        document_title: 'Official curriculum\n\n# *Unreviewed* [directive]',
+        overview_markdown: 'Overview',
+        expectations_markdown: '',
+        source_links: [],
+      },
       sourceUrl: 'https://example.ca/document_(final).pdf',
       sourceFilename: null,
-    })).toBe(
-      'Teacher-reviewed draft\n\nSource: [Ontario Computer Studies](<https://example.ca/document_(final).pdf>)',
+    })
+
+    expect(draft.sourceTitle).toBe('Official curriculum Unreviewed directive')
+    expect(draft.citationMarkdown).toBe(
+      'Source: [Official curriculum Unreviewed directive](https://example.ca/document_%28final%29.pdf)',
     )
+    expect(draft.citationMarkdown).not.toContain('\n')
   })
 
   it('appends a reviewed draft without replacing teacher content', () => {
@@ -52,6 +71,9 @@ describe('course guide curriculum import', () => {
       'Teacher-authored overview\n\n---\n\nImported draft',
     )
     expect(appendCourseGuideImport('', 'Imported draft')).toBe('Imported draft')
+    expect(appendCourseGuideImport('  indented teacher content\n', 'Imported draft')).toBe(
+      '  indented teacher content\n\n\n---\n\nImported draft',
+    )
   })
 
   it('accepts a real PDF upload and rejects spoofed PDFs', async () => {
@@ -81,6 +103,15 @@ describe('course guide curriculum import', () => {
     }))
     await expect(decodeCourseGuideImportFormData(spoofed, metadata)).rejects.toThrow(
       'The selected file is not a valid PDF',
+    )
+
+    const oversized = new FormData()
+    oversized.set('file', new File([
+      '%PDF-',
+      new Uint8Array(COURSE_GUIDE_IMPORT_MAX_FILE_BYTES),
+    ], 'curriculum.pdf', { type: 'application/pdf' }))
+    await expect(decodeCourseGuideImportFormData(oversized, metadata)).rejects.toThrow(
+      'The PDF must be 4 MB or smaller',
     )
   })
 

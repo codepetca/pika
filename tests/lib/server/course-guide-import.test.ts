@@ -33,13 +33,18 @@ describe('course guide curriculum extraction', () => {
     expect(result.sourceLabel).toContain('curriculum.pdf')
     expect(result.sourceFilename).toBe('curriculum.pdf')
     expect(result.draftMarkdown).not.toContain('Source:')
+    expect(result.citationMarkdown).toBe(
+      'Source: Computer Studies, Grades 10 to 12 — curriculum.pdf',
+    )
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit
     const body = JSON.parse(String(request.body))
     expect(body).toMatchObject({
       model: 'gpt-5-mini',
       store: false,
+      max_output_tokens: 8000,
       text: { format: { type: 'json_schema', strict: true } },
     })
+    expect(request.signal).toBeInstanceOf(AbortSignal)
     expect(body.input[1].content[1]).toMatchObject({
       type: 'input_file',
       filename: 'curriculum.pdf',
@@ -79,5 +84,16 @@ describe('course guide curriculum extraction', () => {
       type: 'url',
       url: 'https://example.ca/curriculum.pdf',
     })).rejects.toThrow('The curriculum extraction was incomplete')
+  })
+
+  it('maps provider timeouts to a bounded extraction failure', async () => {
+    const timeout = new Error('timed out')
+    timeout.name = 'TimeoutError'
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(timeout)
+
+    await expect(extractCourseGuideImportDraft({
+      type: 'url',
+      url: 'https://example.ca/curriculum.pdf',
+    })).rejects.toThrow('The curriculum extraction timed out')
   })
 })

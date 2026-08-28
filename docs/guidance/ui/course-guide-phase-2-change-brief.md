@@ -27,16 +27,21 @@
 
 - The import is a one-time assistant. Pika does not retain the uploaded file or
   create a synchronization relationship with the source.
-- A teacher may upload a bounded PDF or provide a public HTTPS document URL.
-  The server authorizes classroom mutation before reading the source metadata.
+- A teacher may upload a PDF up to 4 MB (below the hosting request limit) or
+  provide a public HTTPS document URL. The server authorizes classroom mutation
+  before reading the source metadata.
 - Extraction produces only an in-memory, schema-validated draft containing a
   curriculum overview, expectations, useful source links, and source
-  provenance. The source is treated as untrusted content.
+  provenance. The source is treated as untrusted content; extraction has an
+  application deadline and output cap.
 - The teacher must reach an editable review state and a separate confirmation
   state before apply is available.
 - Apply appends the reviewed draft below the classroom's current overview. It
   compares the expected current overview before writing and returns a conflict
   if another edit landed during review.
+- Source provenance is normalized to one line and bound to the teacher and
+  classroom with an expiring signed token. The exact locked citation is shown
+  during review and confirmation, then attached server-side on apply.
 - Extraction, validation, or apply failures leave the classroom Course Guide
   untouched and provide bounded retry guidance.
 - The live classroom remains the Course Guide source of truth. No Blueprint or

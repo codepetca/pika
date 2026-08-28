@@ -34,7 +34,8 @@ const draft = {
   overviewMarkdown: 'Imported overview',
   expectationsMarkdown: '- A1. Plan a project.',
   sourceLinks: [{ title: 'Source', url: 'https://example.ca/source' }],
-  draftMarkdown: '## Curriculum overview\n\nImported overview\n\nSource: curriculum',
+  draftMarkdown: '## Curriculum overview\n\nImported overview',
+  citationMarkdown: 'Source: [Ontario Computer Studies curriculum](https://example.ca/curriculum.pdf)',
 }
 
 function response(value: unknown, ok = true) {
@@ -57,7 +58,7 @@ describe('CourseGuideImportDialog', () => {
       course_overview_markdown: 'Teacher-authored overview\n\n---\n\nReviewed import',
     }
     const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockReturnValueOnce(response({ draft }))
+      .mockReturnValueOnce(response({ draft, provenanceToken: 'p'.repeat(80) }))
       .mockReturnValueOnce(response({ classroom: updatedClassroom }))
 
     render(
@@ -91,9 +92,7 @@ describe('CourseGuideImportDialog', () => {
     expect(JSON.parse(String((applyCall?.[1] as RequestInit).body))).toEqual({
       draftMarkdown: 'Reviewed import',
       expectedOverviewMarkdown: 'Teacher-authored overview',
-      sourceTitle: 'Ontario Computer Studies curriculum',
-      sourceUrl: 'https://example.ca/curriculum.pdf',
-      sourceFilename: null,
+      provenanceToken: 'p'.repeat(80),
     })
     expect(onClose).toHaveBeenCalled()
   })
@@ -119,5 +118,39 @@ describe('CourseGuideImportDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Source could not be read')
     expect(screen.queryByRole('button', { name: 'Add reviewed draft' })).toBeNull()
     expect(onApplied).not.toHaveBeenCalled()
+  })
+
+  it('does not carry a pending extraction draft into a different classroom', async () => {
+    let resolveDraft!: (value: Response) => void
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise((resolve) => {
+      resolveDraft = resolve
+    }))
+    const { rerender } = render(
+      <CourseGuideImportDialog
+        isOpen
+        classroom={classroom}
+        onApplied={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Public URL' }))
+    fireEvent.change(screen.getByLabelText('Public document URL'), {
+      target: { value: 'https://example.ca/curriculum.pdf' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }))
+
+    rerender(
+      <CourseGuideImportDialog
+        isOpen
+        classroom={{ ...classroom, id: 'classroom-2', title: 'Different classroom' }}
+        onApplied={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    resolveDraft(await response({ draft, provenanceToken: 'p'.repeat(80) }))
+
+    await waitFor(() => expect(screen.getByText(/one-time draft/i)).toBeInTheDocument())
+    expect(screen.queryByText('Imported curriculum draft')).toBeNull()
+    expect(screen.queryByText('Ontario Computer Studies curriculum')).toBeNull()
   })
 })
