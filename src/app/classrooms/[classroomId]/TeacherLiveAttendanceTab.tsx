@@ -124,7 +124,7 @@ function AttendanceStatusSortChip({
         <span
           aria-hidden="true"
           className={cn(
-            'inline-flex h-6 min-w-6 items-center justify-center rounded-badge px-2 text-sm font-semibold',
+            'inline-flex h-7 w-9 items-center justify-center rounded-badge px-0 text-sm font-semibold tabular-nums',
             STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
@@ -152,6 +152,7 @@ function AttendanceStatusControl({
       ariaLabel={`Attendance status for ${studentName}`}
       value={status}
       iconOnly
+      className="gap-0 bg-transparent p-0"
       options={SORTABLE_STATUSES.map((optionStatus) => ({
         value: optionStatus,
         label: STATUS_LABELS[optionStatus],
@@ -161,7 +162,7 @@ function AttendanceStatusControl({
           STATUS_BUTTON_CLASSES[optionStatus],
         ),
         activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',
-        inactiveClassName: 'after:opacity-35 hover:after:opacity-65',
+        inactiveClassName: 'after:opacity-[0.12] hover:after:opacity-40',
       }))}
       onChange={(nextStatus) => {
         if (nextStatus !== 'unmarked') onChange(nextStatus)
@@ -222,7 +223,7 @@ function sessionWindow(view: TeacherAttendanceView) {
   const opensAt = formatTime(view.session.opensAt)
   const closesAt = formatTime(view.session.closesAt)
   if (!opensAt || !closesAt) return null
-  return `${opensAt}–${closesAt}`
+  return `${opensAt} - ${closesAt}`
 }
 
 function requestId() {
@@ -621,7 +622,7 @@ export function TeacherLiveAttendanceTab({
     : localSessionPending || view?.sync.state === 'pending'
       ? 'Updating…'
       : SESSION_LABELS[sessionState]
-  const utilityActions: TeacherWorkSurfaceActionItem[] = [
+  const mobileUtilityActions: TeacherWorkSurfaceActionItem[] = [
     ...(!isArchived ? [{
       id: 'attendance-hours',
       label: 'Attendance hours',
@@ -654,7 +655,7 @@ export function TeacherLiveAttendanceTab({
       disabled: Boolean(activeCommand) || localSessionPending,
       onSelect: () => void submitSessionCommand(sessionAction.command),
     }] : []),
-    ...utilityActions,
+    ...mobileUtilityActions,
   ]
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
@@ -690,22 +691,64 @@ export function TeacherLiveAttendanceTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
       testId="attendance-context-bar"
-      context={view?.integration === 'ready' ? (
-        <div className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap sm:flex">
-          <span
-            className={cn(
-              'h-2 w-2 shrink-0 rounded-full',
-              hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
-            )}
-            aria-hidden="true"
-          />
-          <span className="truncate">{sessionContextLabel}</span>
-          {hasUnconfirmedView ? (
-            <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
-          ) : null}
-          {windowLabel ? <span className="hidden truncate xl:inline">· {windowLabel}</span> : null}
-          {localSessionPending || view.sync.state === 'pending' ? (
-            <span className="hidden truncate xl:inline">· Waiting for confirmation</span>
+      contextClassName="w-full"
+      context={view && view.integration !== 'disabled' ? (
+        <div className="hidden w-full min-w-0 items-center justify-end whitespace-nowrap sm:flex">
+          {!isArchived ? (
+            <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
+              <Button
+                type="button"
+                size="xs"
+                variant="surface"
+                className={cn(
+                  'h-9 max-w-full justify-end gap-1.5 px-2.5 text-text-muted hover:text-text-default',
+                  !windowLabel && 'w-9 px-0',
+                )}
+                aria-label={windowLabel
+                  ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
+                  : 'Set attendance hours'}
+                disabled={Boolean(activeCommand)}
+                onClick={() => setAttendanceHoursOpen(true)}
+              >
+                {windowLabel ? (
+                  <>
+                    <span
+                      className={cn(
+                        'h-2 w-2 shrink-0 rounded-full',
+                        hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{sessionContextLabel}</span>
+                    {hasUnconfirmedView ? (
+                      <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
+                    ) : null}
+                    <span className="hidden min-w-[9.5rem] text-right tabular-nums lg:inline">
+                      · {windowLabel}
+                    </span>
+                    {localSessionPending || view.sync.state === 'pending' ? (
+                      <span className="hidden truncate 2xl:inline">· Waiting for confirmation</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <Clock3 className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+            </Tooltip>
+          ) : windowLabel ? (
+            <div className="flex min-w-0 items-center gap-1.5 px-2.5">
+              <span
+                className={cn(
+                  'h-2 w-2 shrink-0 rounded-full',
+                  hasUnconfirmedView ? 'bg-warning' : SESSION_DOT_CLASSES[sessionState],
+                )}
+                aria-hidden="true"
+              />
+              <span className="truncate">{sessionContextLabel}</span>
+              <span className="hidden min-w-[9.5rem] text-right tabular-nums lg:inline">
+                · {windowLabel}
+              </span>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -806,21 +849,6 @@ export function TeacherLiveAttendanceTab({
       actions={view?.integration === 'ready' ? (
         <div className="flex items-center" data-testid="attendance-trailing-actions">
           <div className="flex items-center gap-1">
-            {!isArchived ? (
-              <Tooltip content="Attendance hours">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-9 w-9 px-0"
-                  aria-label="Attendance hours"
-                  disabled={Boolean(activeCommand)}
-                  onClick={() => setAttendanceHoursOpen(true)}
-                >
-                  <Clock3 className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </Tooltip>
-            ) : null}
             <Tooltip content="Refresh attendance">
               <Button
                 type="button"

@@ -163,6 +163,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   await applyProjectTheme(page, testInfo)
 
   const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
+  let hasAttendanceWindow = true
   let attendanceStudents = Array.from({ length: 45 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const status = attendanceStatuses[index % attendanceStatuses.length]
@@ -193,9 +194,9 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         classDate: '2026-08-17',
         integration: 'ready',
         session: {
-          state: 'open',
-          opensAt: '2026-08-17T12:45:00.000Z',
-          closesAt: '2026-08-17T13:15:00.000Z',
+          state: hasAttendanceWindow ? 'open' : 'not_scheduled',
+          opensAt: hasAttendanceWindow ? '2026-08-17T12:45:00.000Z' : null,
+          closesAt: hasAttendanceWindow ? '2026-08-17T13:15:00.000Z' : null,
           revision: 1,
           commandFailed: false,
         },
@@ -250,9 +251,14 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
   const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
   await expect(contextBar).toContainText('Open')
-  await expect(contextBar).toContainText('8:45 AM–9:15 AM')
+  const attendanceHours = contextBar.getByRole('button', {
+    name: 'Attendance hours, Open, 8:45 AM to 9:15 AM',
+  })
   if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
-  else await expect(trailingActions).toBeVisible()
+  else {
+    await expect(attendanceHours).toContainText('8:45 AM - 9:15 AM')
+    await expect(trailingActions).toBeVisible()
+  }
   await expect(page.getByRole('checkbox')).toHaveCount(46)
   await expect(primaryControl.getByRole('button', {
     name: 'Student actions (select students to enable)',
@@ -324,7 +330,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     expect(geometry.indicatorWidth).toBe(36)
     expect(geometry.indicatorHeight).toBe(36)
     expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
-    expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.35)
+    expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.12)
     expect(geometry.indicatorShadow === 'none').toBe(!selected)
   }
   await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
@@ -367,13 +373,23 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     await page.getByRole('menuitem', { name: 'Attendance hours' }).click()
   } else {
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
-    await trailingActions.getByRole('button', { name: 'Attendance hours' }).click()
+    await attendanceHours.click()
   }
   await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
     animations: 'disabled',
   })
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  if (viewport === 'desktop') {
+    hasAttendanceWindow = false
+    await nextDayButton.click()
+    await expect(contextBar.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-no-hours.png'),
+      animations: 'disabled',
+    })
+  }
   expect(browserErrors).toEqual([])
 })
 

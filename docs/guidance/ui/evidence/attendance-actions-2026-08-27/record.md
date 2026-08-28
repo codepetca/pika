@@ -2,7 +2,7 @@
 
 ## Provenance
 
-- Implementation commit: `d6575cafe46c55af8a64394d0d5fb5aab4954bfe`
+- Implementation commit: `5798c621fa09960b70b8275188eb45be0385f5a5`
 - Capture date: 2026-08-28
 - Capture tool: Playwright Chromium through `e2e/experience-matrix.spec.ts`
 - Base URL or environment: local `PIKA_E2E_FIXTURES=true` Next.js development server backed by the local ephemeral Supabase environment
@@ -14,7 +14,7 @@
 
 | Artifact | Role | Viewport | Theme | State | Reference surface |
 |---|---|---:|---|---|---|
-| `approved-design-reference.png` | teacher | 1486 x 1059 image board | light | initial default and selected menu | approved Option 1 exploration, superseded only where the user later revised interaction details |
+| `approved-design-reference.png` | teacher | 1440 x 900 | light | approved always-editable default | final Product Design exploration with right-justified session time |
 | `teacher-desktop-light-default.png` | teacher | 1440 x 900 | light | 45-student default roster | teacher Attendance |
 | `teacher-desktop-light-manual-with-undo.png` | teacher | 1440 x 900 | light | QR check-in manually corrected; Undo visible; one row selected | teacher Attendance |
 | `teacher-desktop-light-selected-menu.png` | teacher | 1440 x 900 | light | one checked student; selected-student menu open | teacher Attendance |
@@ -23,6 +23,8 @@
 | `teacher-desktop-dark-manual-with-undo.png` | teacher | 1440 x 900 | dark | QR check-in manually corrected; Undo visible; one row selected | teacher Attendance |
 | `teacher-desktop-dark-selected-menu.png` | teacher | 1440 x 900 | dark | one checked student; selected-student menu open | teacher Attendance |
 | `teacher-desktop-dark-hours-dialog.png` | teacher | 1440 x 900 | dark | Attendance hours dialog | teacher Attendance |
+| `teacher-desktop-light-no-hours.png` | teacher | 1440 x 900 | light | no session time; clock fallback | teacher Attendance |
+| `teacher-desktop-dark-no-hours.png` | teacher | 1440 x 900 | dark | no session time; clock fallback | teacher Attendance |
 | `teacher-mobile-light-default.png` | teacher | 390 x 844 | light | 45-student default roster | teacher Attendance |
 | `teacher-mobile-light-manual-with-undo.png` | teacher | 390 x 844 | light | QR check-in manually corrected; Undo visible; one row selected | teacher Attendance |
 | `teacher-mobile-light-selected-menu.png` | teacher | 390 x 844 | light | one checked student; selected-student menu open | teacher Attendance |
@@ -44,7 +46,7 @@ the superseded whole-roster action direction and are no longer conformance evide
 ## Assessment
 
 - Design claim being checked: the date and session context stay quiet at the edges, while the joined date navigator, session actions, and persistent selected-student menu form the dominant centered cluster above an internally scrolling roster with checkbox selection and inline row corrections.
-- Confirmed invariants: previous/date/next controls are contiguous; the selectable date has no dropdown chevron; each student has a checkbox and the header has a select-all checkbox; the selected-student menu stays visible but disabled with no selection and exposes the selected count when enabled; whole-roster status buttons are absent; per-student controls expose three named pressed states in fixed Present/Late/Absent order as 36 px icon-free visible circles inside retained 44 px hit targets; the selected status has a semantic ring while inactive states remain visible at lower emphasis; the trailing header shows sortable Present/Late/Absent counts without a visible `Status` label; QR-origin corrections expose Undo; Check-in shows the QR time or remains visually empty; all visible Attendance times use uppercase AM/PM; mobile session actions collapse without losing QR/open/close/hours/refresh access; utilities remain reachable; the roster scrolls internally with sticky sortable/resizable headers; there is no page overflow or action overlap.
+- Confirmed invariants: previous/date/next controls are contiguous; the selectable date has no dropdown chevron; each student has a checkbox and the header has a select-all checkbox; the selected-student menu stays visible but disabled with no selection and exposes the selected count when enabled; whole-roster status buttons and a manual-editing mode toggle are absent; per-student controls always expose three named pressed states in fixed Present/Late/Absent order as 36 px icon-free visible circles inside retained 44 px hit targets; the selected status has a semantic blue ring while inactive states remain visible at 12% opacity; 36 px count pills align with the status discs; the trailing header shows sortable Present/Late/Absent counts without a visible `Status` label; QR-origin corrections expose Undo; Check-in shows the QR time or remains visually empty; the right-justified clickable session range uses uppercase AM/PM and spaces around the dash; the old trailing hours icon is absent and a clock control appears when no range exists; mobile session actions collapse without losing QR/open/close/hours/refresh access; utilities remain reachable; the roster scrolls internally with sticky sortable/resizable headers; there is no page overflow or action overlap.
 - Inconsistencies or migration debt: none identified for this scope.
 - Intentional differences: the implementation retains Attendance terminology, existing QR/session command rules, Pika typography/tokens, real command-confirmation polling, and existing permission gates. It projects the original QR check-in time/status from Pika's signed integration inbox so a later staff correction does not erase the provenance needed by Undo. Mobile condenses session context and utilities while preserving the centered date/session/selection hierarchy at 390 px.
 - Limitations or dimensions not covered: no separate tablet viewport; student view is not applicable because this is a teacher-only work surface; backend integration behavior remains covered by existing component/API tests rather than the visual fixture.

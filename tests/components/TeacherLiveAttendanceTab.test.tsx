@@ -163,11 +163,16 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Clear mark' })).toBeEnabled()
     fireEvent.keyDown(window, { key: 'Escape' })
+    const attendanceHours = within(contextBar).getByRole('button', {
+      name: 'Attendance hours, Open, 8:45 AM to 9:15 AM',
+    })
+    expect(attendanceHours).toBeEnabled()
+    expect(attendanceHours).toHaveTextContent('Open· 8:45 AM - 9:15 AM')
+    expect(attendanceHours).toHaveClass('justify-end')
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
-    const attendanceHours = within(trailingActions).getByRole('button', { name: 'Attendance hours' })
-    expect(attendanceHours).toBeEnabled()
+    expect(within(trailingActions).queryByRole('button', { name: /attendance hours/i })).not.toBeInTheDocument()
     expect(within(trailingActions).getByRole('button', { name: 'Refresh attendance' })).toBeEnabled()
 
     fireEvent.click(attendanceHours)
@@ -213,6 +218,8 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab()
     await screen.findByText('Ada')
 
+    expect(screen.queryByRole('button', { name: /manual attendance/i })).not.toBeInTheDocument()
+
     const graceStatus = screen.getByRole('group', { name: 'Attendance status for Grace Hopper' })
     expect(within(graceStatus).getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveAttribute('aria-pressed', 'false')
@@ -224,11 +231,11 @@ describe('TeacherLiveAttendanceTab', () => {
     )
     expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveClass(
       'after:bg-attendance-late',
-      'after:opacity-35',
+      'after:opacity-[0.12]',
     )
     expect(within(graceStatus).getByRole('button', { name: 'Absent' })).toHaveClass(
       'after:bg-attendance-absent',
-      'after:opacity-35',
+      'after:opacity-[0.12]',
     )
     for (const label of ['Present', 'Late', 'Absent']) {
       const statusButton = within(graceStatus).getByRole('button', { name: label })
@@ -254,14 +261,17 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(presentSort.firstElementChild).toHaveClass(
       'bg-attendance-present',
       'text-attendance-present-text',
+      'w-9',
     )
     expect(lateSort.firstElementChild).toHaveClass(
       'bg-attendance-late',
       'text-attendance-late-text',
+      'w-9',
     )
     expect(absentSort.firstElementChild).toHaveClass(
       'bg-attendance-absent',
       'text-attendance-absent-text',
+      'w-9',
     )
 
     fireEvent.click(lateSort)
@@ -276,6 +286,25 @@ describe('TeacherLiveAttendanceTab', () => {
 
     fireEvent.click(presentSort)
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('GraceHopper')
+  })
+
+  it('uses a clock control when the selected date has no attendance time', async () => {
+    const base = attendanceView()
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      session: {
+        ...base.session,
+        state: 'not_scheduled',
+        opensAt: null,
+        closesAt: null,
+      },
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    const attendanceHours = screen.getByRole('button', { name: 'Set attendance hours' })
+    expect(attendanceHours).toHaveClass('w-9', 'justify-end')
+    expect(attendanceHours.querySelector('svg')).toBeInTheDocument()
   })
 
   it('matches Daily sortable identity columns, check-in sorting, and resize semantics', async () => {

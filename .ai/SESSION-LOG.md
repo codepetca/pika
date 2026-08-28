@@ -11,47 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Make Blueprint question identity capture draft-safe
-
-**Risk profile:** runtime-platform — proposed migration and rollback-only test
-coverage; no staging or production migration, deployment, or merge occurred.
-
-- Replaced ordinal row lookup in proposed migration 134 with stable identity
-  matching across physical, artifact, and source-artifact IDs. Missing rows are
-  accepted for draft-only additions; multiple matching rows fail closed with
-  SQLSTATE `22023`.
-- Added active and archived regressions for deleted and reordered questions,
-  draft-only additions, ambiguity after an earlier identity write, atomic
-  rollback, successful capture/reuse, and idempotent replay.
-- The ambiguity fixture now requires the exact active/archived error message and
-  verifies active classroom Blueprint linkage, operation, Blueprint, and source
-  identity writes all roll back.
-- Rebasing onto `origin/main` preserved migration number 134 because main ends
-  at 133. Continuity-history conflicts were resolved without restoring the
-  duplicate archived attendance entry.
-- Focused Blueprint tests (30/30), lint, architecture boundaries, generated
-  database types, and the production build pass. The installed local function
-  is an earlier 134 revision, so fresh-database CI remains the authoritative SQL
-  replay gate; local migration state was not changed without new authorization.
-
-## 2026-08-26 — Preserve Blueprint identity failure evidence
-
-**Risk profile:** runtime-platform — proposed migration and transactional
-database regression changes only; no local, staging, or production migration,
-deployment, or merge occurred.
-
-- Wrapped the active-capture and archived-reuse identity writes in an outer
-  ledger-owned transaction boundary. Identity ambiguity now rolls back the full
-  Blueprint graph while retaining a structured failed operation with stable
-  `test_question_identity_ambiguous` code and SQLSTATE `22023`.
-- Strengthened the database contract to assert the failed ledger, rolled-back
-  domain writes, a successful same-key retry after repairing the source
-  collision, and idempotent replay for both active and archived sources.
-- The full Vitest suite passes (5,093/5,093), as do lint, architecture
-  boundaries, generated database types, the Pika audit, and the production
-  build. The database regression still requires fresh-database CI because the
-  installed local function is an earlier migration 134 revision.
-
 ## 2026-08-26 — Keep archived Blueprint repair retries idempotent
 
 **Risk profile:** runtime-platform — application request hashing and regression
@@ -1278,6 +1237,25 @@ surface.
 of requirements coverage, QR provenance projection, accessibility, and
 responsive regression risk.
 
+## 2026-08-28 — Preserve linked Tests during Blueprint purge
+
+**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
+no migration was applied, no database was reset, and no hosted state changed.
+
+- Extended the owner-only provenance exception so Blueprint purge finalization
+  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
+  after student work exists. Authored Test content and identity remain frozen.
+- Added a transactional database regression covering an active linked Test,
+  question, submitted attempt, and response. The old trigger fails purge
+  permanently; the revised trigger completes purge while preserving all Test
+  and student-work records and clearing only Blueprint lineage.
+- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
+  lint, the production build, SQL diff validation, and transaction-only local
+  before/after database proofs. Migration 134 remains unapplied to production.
+
+**Model recommendation:** current frontier coding model for the bounded
+PostgreSQL trigger and deletion-contract fix.
+
 ## 2026-08-28 — Restore selected-student Attendance actions
 
 **Risk profile:** standard application behavior — teacher Attendance selection
@@ -1365,3 +1343,39 @@ API/schema behavior, and student UI are unchanged.
 matrix (4/4) pass; TypeScript, lint, Pika audit, and diff checks pass; CI and
 bounded independent re-review are pending before handoff. Student UI is n/a
 because this remains a teacher-only surface.
+
+## 2026-08-28 — Finalize approved always-editable Attendance controls
+
+**Risk profile:** low visual/composite-widget refinement — teacher Attendance
+presentation and interaction placement changed without changing API/schema,
+session/mark permissions, command polling, QR provenance, or student UI.
+
+- Made the per-student Present/Late/Absent controls permanently visible within
+  existing Attendance permission gates, removed their segmented track, and
+  reduced inactive discs to 12% opacity while retaining the full-color selected
+  disc and semantic blue ring.
+- Aligned the three 36 px count pills with the three 36 px row discs on a fixed
+  44 px target grid; retained accessible names, pressed state, tooltips, and
+  keyboard movement.
+- Replaced the trailing Attendance hours icon with a right-justified clickable
+  session range using uppercase AM/PM and spaced-dash formatting. Added the
+  approved clock fallback for dates without a session range and retained mobile
+  hours access in the condensed action menu.
+- Preserved checkboxes, the persistent disabled-until-selection Student actions
+  menu, Check-in time, QR correction Undo, sticky sortable/resizable headers,
+  compact internal roster scrolling, and Attendance-specific terminology.
+- Refreshed the approved Product Design reference and desktop/mobile light/dark
+  evidence for default, selection, menu, Undo, hours-dialog, and no-hours states.
+  Durable design guidance did not change because the reusable work-surface rules
+  already cover the shared hierarchy.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic selection, pressed state, 44 px hit targets, 36 px
+  status/count alignment, inactive opacity, time-control naming, and no-time
+  fallback are covered by component/browser checks; remaining manual follow-up:
+  none.
+
+**Verification:** focused component tests (17/17), responsive Attendance
+Playwright matrix (4/4), TypeScript, lint, architecture boundaries, Pika audit,
+diff checks, and same-viewport source/implementation Product Design comparison
+pass. Student UI is n/a because this remains a teacher-only surface. Bounded
+independent review and PR CI remain before handoff.
