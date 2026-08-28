@@ -6,7 +6,7 @@ import type {
   TeacherAttendanceStatus,
   TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
-import { validateV1Message } from '@/vendor/attendance-contract/v1/validate'
+import { validateV1Event, validateV1Message } from '@/vendor/attendance-contract/v1/validate'
 
 export type {
   TeacherAttendanceSessionState,
@@ -46,6 +46,12 @@ interface RecordProjectionInput {
   updatedAt: string
 }
 
+interface QrCheckInInput {
+  participantRef: string
+  status: TeacherAttendanceStatus
+  recordedAt: string
+}
+
 export interface BuildTeacherAttendanceViewInput {
   classroomId: string
   classDate: string
@@ -55,6 +61,7 @@ export interface BuildTeacherAttendanceViewInput {
   occurrence: OccurrenceInput | null
   sessionProjection: SessionProjectionInput | null
   recordProjections: RecordProjectionInput[]
+  qrCheckIns?: QrCheckInInput[]
   pendingStudentIds: string[]
   pendingSessionCommand?: boolean
   failedStudentIds?: string[]
@@ -96,6 +103,10 @@ const recordProjectionRowsSchema = z.array(z.object({
   source: z.enum(['student_qr', 'staff_manual', 'system_finalize']),
   record_revision: positiveRevisionSchema,
   updated_at: instantSchema,
+}).strict())
+
+const integrationInboxRowsSchema = z.array(z.object({
+  payload: z.unknown(),
 }).strict())
 
 const unresolvedOutboxRowsSchema = z.array(z.object({
@@ -226,7 +237,7 @@ export async function loadTeacherAttendanceView(input: {
     })
   }
 
-  const [sessionResult, recordResult, outboxResult] = await Promise.all([
+  const [sessionResult, recordResult, inboxResult, outboxResult] = await Promise.all([
     selectMaybeOne(
       input.supabase,
       'attendance_session_projection',
@@ -239,6 +250,16 @@ export async function loadTeacherAttendanceView(input: {
       'participant_ref, status, source, record_revision, updated_at',
       [['installation_ref', installationRef], ['occurrence_ref', occurrence.occurrence_ref]],
     ),
+    selectMany(
+      input.supabase,
+      'attendance_integration_inbox',
+      'payload',
+      [
+        ['classroom_id', input.classroomId],
+        ['occurrence_ref', occurrence.occurrence_ref],
+        ['event_type', 'attendance.record.changed'],
+      ],
+    ),
     input.supabase
       .from('attendance_integration_outbox')
       .select('message_type, payload, status, lease_expires_at, updated_at')
@@ -247,13 +268,37 @@ export async function loadTeacherAttendanceView(input: {
   ])
   if (sessionResult.error) readError(sessionResult.error)
   if (recordResult.error) readError(recordResult.error)
+  if (inboxResult.error) readError(inboxResult.error)
   if (outboxResult.error) readError(outboxResult.error)
 
   const sessionParsed = sessionProjectionRowSchema.safeParse(sessionResult.data ?? null)
   const recordsParsed = recordProjectionRowsSchema.safeParse(recordResult.data ?? [])
+  const inboxParsed = integrationInboxRowsSchema.safeParse(inboxResult.data ?? [])
   const outboxParsed = unresolvedOutboxRowsSchema.safeParse(outboxResult.data ?? [])
-  if (!sessionParsed.success || !recordsParsed.success || !outboxParsed.success) {
+  if (!sessionParsed.success || !recordsParsed.success || !inboxParsed.success || !outboxParsed.success) {
     throw new TeacherAttendanceViewReadError('invalid_projection')
+  }
+
+  const qrCheckInByParticipantRef = new Map<string, QrCheckInInput>()
+  for (const row of inboxParsed.data) {
+    const validation = validateV1Event(row.payload)
+    if (!validation.ok) throw new TeacherAttendanceViewReadError('invalid_projection')
+    const event = validation.value
+    if (
+      event.event_type !== 'attendance.record.changed'
+      || event.occurrence_ref !== occurrence.occurrence_ref
+      || event.metadata.source !== 'student_qr'
+    ) {
+      continue
+    }
+    const existing = qrCheckInByParticipantRef.get(event.metadata.participant_ref)
+    if (!existing || Date.parse(event.occurred_at) < Date.parse(existing.recordedAt)) {
+      qrCheckInByParticipantRef.set(event.metadata.participant_ref, {
+        participantRef: event.metadata.participant_ref,
+        status: event.metadata.to_status,
+        recordedAt: event.occurred_at,
+      })
+    }
   }
 
   const studentIdByParticipantRef = new Map(
@@ -344,6 +389,7 @@ export async function loadTeacherAttendanceView(input: {
       revision: row.record_revision,
       updatedAt: row.updated_at,
     })),
+    qrCheckIns: [...qrCheckInByParticipantRef.values()],
     pendingStudentIds: [...pendingStudentIds],
     pendingSessionCommand,
     failedStudentIds: [...failedStudentIds],
@@ -381,6 +427,17 @@ export function buildTeacherAttendanceView(
   )
   const recordByParticipantRef = new Map(
     input.recordProjections.map((record) => [record.participantRef, record]),
+  )
+  const currentQrCheckIns = input.recordProjections
+      .filter((record) => record.source === 'student_qr')
+      .map((record) => ({
+        participantRef: record.participantRef,
+        status: record.status,
+        recordedAt: record.updatedAt,
+      }))
+  const qrCheckInByParticipantRef = new Map<string, QrCheckInInput>(
+    [...currentQrCheckIns, ...(input.qrCheckIns ?? [])]
+      .map((checkIn): [string, QrCheckInInput] => [checkIn.participantRef, checkIn]),
   )
 
   const projectionMatchesOccurrence = Boolean(
@@ -435,12 +492,15 @@ export function buildTeacherAttendanceView(
     students: input.students.map((student) => {
       const participantRef = participantRefByStudentId.get(student.studentId)
       const record = participantRef ? recordByParticipantRef.get(participantRef) : undefined
+      const qrCheckIn = participantRef ? qrCheckInByParticipantRef.get(participantRef) : undefined
       return {
         studentId: student.studentId,
         firstName: student.firstName,
         lastName: student.lastName,
         status: record?.status ?? 'unmarked',
         source: record ? normalizeSource(record.source) : null,
+        checkedInAt: qrCheckIn?.recordedAt ?? null,
+        checkedInStatus: qrCheckIn?.status ?? null,
         revision: record?.revision ?? null,
         pendingCommand: pendingStudentIds.has(student.studentId),
         commandFailed: failedStudentIds.has(student.studentId),

@@ -49,6 +49,8 @@ describe('buildTeacherAttendanceView', () => {
           lastName: 'Hopper',
           status: 'unmarked',
           source: null,
+          checkedInAt: null,
+          checkedInStatus: null,
           revision: null,
           pendingCommand: false,
           commandFailed: false,
@@ -59,6 +61,8 @@ describe('buildTeacherAttendanceView', () => {
           lastName: 'Lovelace',
           status: 'unmarked',
           source: null,
+          checkedInAt: null,
+          checkedInStatus: null,
           revision: null,
           pendingCommand: false,
           commandFailed: false,
@@ -107,6 +111,11 @@ describe('buildTeacherAttendanceView', () => {
           updatedAt: '2026-09-08T13:02:00.000Z',
         },
       ],
+      qrCheckIns: [{
+        participantRef: 'participant_grace',
+        status: 'present',
+        recordedAt: '2026-09-08T12:58:00.000Z',
+      }],
       pendingStudentIds: ['student-2'],
     })
 
@@ -124,11 +133,13 @@ describe('buildTeacherAttendanceView', () => {
     expect(view.students).toEqual([
       expect.objectContaining({
         studentId: 'student-2', status: 'late', source: 'staff', pendingCommand: true,
-        commandFailed: false,
+        commandFailed: false, checkedInAt: '2026-09-08T12:58:00.000Z',
+        checkedInStatus: 'present',
       }),
       expect.objectContaining({
         studentId: 'student-1', status: 'present', source: 'student_qr', pendingCommand: false,
-        commandFailed: false,
+        commandFailed: false, checkedInAt: '2026-09-08T13:01:00.000Z',
+        checkedInStatus: 'present',
       }),
     ])
     expect(JSON.stringify(view)).not.toContain('participant_')
@@ -301,6 +312,31 @@ describe('loadTeacherAttendanceView', () => {
         }],
         error: null,
       },
+      attendance_integration_inbox: {
+        data: [{
+          payload: {
+            schema_version: 1,
+            event_id: 'event_qr_check_in',
+            idempotency_key: 'event:qr:check-in',
+            correlation_ref: 'correlation_qr_check_in',
+            event_type: 'attendance.record.changed',
+            occurred_at: '2026-09-08T12:59:00.000Z',
+            installation_ref: 'installation_test',
+            roster_ref: 'roster_test',
+            occurrence_ref: 'occurrence_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            session_revision: 3,
+            metadata: {
+              participant_ref: 'participant_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              record_revision: 1,
+              from_status: 'unmarked',
+              to_status: 'present',
+              source: 'student_qr',
+              actor_type: 'student',
+            },
+          },
+        }],
+        error: null,
+      },
       attendance_integration_outbox: {
         data: [{
           message_type: 'attendance.marks',
@@ -340,7 +376,14 @@ describe('loadTeacherAttendanceView', () => {
       integration: 'ready',
       session: { state: 'open', revision: 3 },
       sync: { state: 'pending', confirmedAt: '2026-09-08T13:01:00.000Z' },
-      students: [{ status: 'present', source: 'student_qr', revision: 2, pendingCommand: true }],
+      students: [{
+        status: 'present',
+        source: 'student_qr',
+        checkedInAt: '2026-09-08T12:59:00.000Z',
+        checkedInStatus: 'present',
+        revision: 2,
+        pendingCommand: true,
+      }],
     })
     expect(JSON.stringify(view)).not.toMatch(/participant_|occurrence_|installation_/)
   })

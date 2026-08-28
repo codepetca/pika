@@ -153,7 +153,7 @@ async function mockBlueprintRollover(page: Page) {
   })
 }
 
-test('keeps the Attendance roster compact and selection-driven', async ({ page }, testInfo) => {
+test('keeps the Attendance roster compact with inline status controls', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   const browserErrors: string[] = []
   page.on('console', (message) => {
@@ -163,15 +163,21 @@ test('keeps the Attendance roster compact and selection-driven', async ({ page }
   await applyProjectTheme(page, testInfo)
 
   const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
-  const attendanceStudents = Array.from({ length: 45 }, (_, index) => {
+  let attendanceStudents = Array.from({ length: 45 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const status = attendanceStatuses[index % attendanceStatuses.length]
+    const source = index === 1 ? 'staff' : index % 3 === 0 ? 'student_qr' : index % 3 === 1 ? 'staff' : null
+    const checkedInAt = source === 'student_qr' || index === 1
+      ? `2026-08-17T12:${String(48 + (index % 12)).padStart(2, '0')}:00.000Z`
+      : null
     return {
       studentId: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
       firstName: `Student ${ordinal}`,
       lastName: `Alpha${ordinal}`,
       status,
-      source: index % 3 === 0 ? 'student_qr' : index % 3 === 1 ? 'staff' : null,
+      source,
+      checkedInAt,
+      checkedInStatus: checkedInAt ? 'present' : null,
       revision: status === 'unmarked' ? null : 1,
       pendingCommand: false,
       commandFailed: false,
@@ -196,6 +202,23 @@ test('keeps the Attendance roster compact and selection-driven', async ({ page }
         sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
         students: attendanceStudents,
       }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/marks', async (route) => {
+    const body = route.request().postDataJSON() as {
+      marks: Array<{ student_id: string; status: typeof attendanceStatuses[number] }>
+    }
+    const statusByStudentId = new Map(body.marks.map((mark) => [mark.student_id, mark.status]))
+    attendanceStudents = attendanceStudents.map((student) => {
+      const status = statusByStudentId.get(student.studentId)
+      return status
+        ? { ...student, status, source: 'staff' as const, revision: (student.revision ?? 0) + 1 }
+        : student
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outcome: 'applied', appliedCount: body.marks.length }),
     })
   })
   await page.route('**/api/teacher/attendance/policy?**', async (route) => {
@@ -226,12 +249,14 @@ test('keeps the Attendance roster compact and selection-driven', async ({ page }
   const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
   const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
   const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
-  const studentActionsButton = primaryControl.getByRole('button', {
-    name: 'Student actions (select students to enable)',
-  })
   await expect(contextBar).toContainText('Open')
-  await expect(trailingActions).toBeVisible()
-  await expect(studentActionsButton).toBeDisabled()
+  if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
+  else await expect(trailingActions).toBeVisible()
+  await expect(primaryControl.getByRole('button', { name: 'Mark all present' })).toBeVisible()
+  await expect(primaryControl.getByRole('button', { name: 'Mark all late' })).toBeVisible()
+  await expect(primaryControl.getByRole('button', { name: 'Mark all absent' })).toBeVisible()
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   await expect(dateButton.locator('svg')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
@@ -259,47 +284,47 @@ test('keeps the Attendance roster compact and selection-driven', async ({ page }
   })
 
   if (viewport === 'mobile') {
-    await primaryControl.getByRole('button', { name: 'Attendance session actions' }).click()
-    const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance session actions' })
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance actions' })
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show QR' })).toBeVisible()
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Close attendance' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
     await page.keyboard.press('Escape')
   } else {
     await primaryControl.getByRole('button', { name: 'Show QR' }).hover()
     await expect(page.getByRole('tooltip', { name: 'Show QR' })).toBeVisible()
   }
 
-  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
-  const selectedActionsButton = primaryControl.getByRole('button', {
-    name: 'Student actions for 1 selected',
+  const firstStudentStatus = page.getByRole('group', {
+    name: 'Attendance status for Student 01 Alpha01',
   })
-  await expect(selectedActionsButton).toBeEnabled()
+  await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
+  await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
+  await expect(page.getByRole('button', {
+    name: 'Undo manual attendance change for Student 01 Alpha01',
+  })).toBeVisible()
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-selected.png`),
+    path: testInfo.outputPath(`attendance-${viewport}-manual-with-undo.png`),
     animations: 'disabled',
   })
-  await selectedActionsButton.click()
-  const selectedActionsMenu = page.getByRole('menu', {
-    name: 'Selected student attendance actions',
-  })
-  for (const action of ['Present', 'Late', 'Absent', 'Clear mark']) {
-    await expect(selectedActionsMenu.getByRole('menuitem', { name: action })).toBeVisible()
-  }
+  await primaryControl.getByRole('button', { name: 'Mark all absent' }).click()
+  await expect(page.getByRole('dialog', { name: 'Mark all students absent?' })).toBeVisible()
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
+    path: testInfo.outputPath(`attendance-${viewport}-bulk-confirmation.png`),
     animations: 'disabled',
   })
-  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Cancel' }).click()
 
   await scrollPane.evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
   await expect(scrollPane.locator('thead')).toBeVisible()
-  await page.getByRole('button', { name: 'Sort Present first, 12 students' }).click()
-  await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Sort Present first, 11 students' }).click()
+  await expect(page.getByRole('button', { name: 'Sort Present first, 11 students' })).toHaveAttribute('aria-pressed', 'true')
 
   if (viewport === 'mobile') {
-    const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
+    const attendanceMenu = primaryControl.getByRole('button', { name: 'Attendance actions' })
     await expect(attendanceMenu).toBeVisible()
     await attendanceMenu.click()
     await expect(page.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()

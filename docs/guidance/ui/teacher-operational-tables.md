@@ -125,7 +125,8 @@ Do not repeat the same counts in the context row.
 ```
 
 The shared components own layout, responsive hierarchy, and scroll containment.
-The feature-owned action cluster owns command placement and selected-count context.
+The feature-owned action cluster owns command placement and, when applicable,
+selected-count context.
 Features own labels, dates, statuses, semantic status colors, row data,
 comparisons, column limits, loading, permissions, commands, and mutations.
 
@@ -148,7 +149,7 @@ the overall composition fits.
 
 | Section/state | Centered action focus | Table adaptation | Status-chip rule |
 | --- | --- | --- | --- |
-| Attendance | Date plus QR/open/close commands; migrate selection actions into the centered persistent menu | First, Last, Source, Status | Present/Late/Absent; Unmarked has no chip |
+| Attendance | Date plus QR/open/close commands and confirmed whole-roster Present/Late/Absent actions | First, Last, Check-in, Status with inline three-state corrections | Present/Late/Absent; Unmarked has no chip |
 | Classwork operational list | Active collection, range, or selected assignment plus immediate commands | Title or student identity, relevant dates/metadata, Status | Use only for a small set of row states teachers actively triage |
 | Tests summary | Active filter/scope and immediate create or management command | Test title, availability, response metadata, Status | Use only when counts map to visible test rows |
 | Selected Test grading roster | Persistent Open All/Close All icons plus the disabled-until-selection student-actions menu | First, Last, Access, score/activity metadata, Status | Suitable for a small mutually meaningful set such as submission/review states |

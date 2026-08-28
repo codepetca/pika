@@ -49,6 +49,8 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         lastName: 'Lovelace',
         status: 'unmarked',
         source: null,
+        checkedInAt: null,
+        checkedInStatus: null,
         revision: null,
         pendingCommand: false,
         commandFailed: false,
@@ -59,6 +61,8 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         lastName: 'Hopper',
         status: 'present',
         source: 'student_qr',
+        checkedInAt: '2026-08-17T12:50:00.000Z',
+        checkedInStatus: 'present',
         revision: 1,
         pendingCommand: false,
         commandFailed: false,
@@ -110,7 +114,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
-  it('renders the projected roster and enables accessible bulk corrections while open', async () => {
+  it('renders QR check-in time, confirmed whole-roster actions, and no selection controls', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(attendanceView()))
       .mockResolvedValueOnce(jsonResponse({
@@ -132,7 +136,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByText('Lovelace')).toBeInTheDocument()
     expect(screen.getByText('Grace')).toBeInTheDocument()
     expect(screen.getByText('Hopper')).toBeInTheDocument()
-    expect(screen.getByText('QR check-in')).toBeInTheDocument()
+    expect(screen.getAllByText('8:50 a.m.').length).toBeGreaterThan(0)
     const contextBar = screen.getByTestId('attendance-context-bar')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
@@ -141,19 +145,17 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
     expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
-    const studentActions = within(primaryControl).getByRole('button', {
-      name: 'Student actions (select students to enable)',
-    })
-    expect(studentActions).toBeDisabled()
+    expect(within(primaryControl).getByRole('button', { name: 'Mark all present' })).toBeEnabled()
+    expect(within(primaryControl).getByRole('button', { name: 'Mark all late' })).toBeEnabled()
+    expect(within(primaryControl).getByRole('button', { name: 'Mark all absent' })).toBeEnabled()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /student actions/i })).not.toBeInTheDocument()
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
-    const attendanceMenu = within(trailingActions).getByRole('button', { name: 'Attendance actions' })
-    expect(attendanceMenu).toBeEnabled()
-    fireEvent.click(attendanceMenu)
-    const attendanceHours = screen.getByRole('menuitem', { name: 'Attendance hours' })
+    const attendanceHours = within(trailingActions).getByRole('button', { name: 'Attendance hours' })
     expect(attendanceHours).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: 'Refresh attendance' })).toBeEnabled()
+    expect(within(trailingActions).getByRole('button', { name: 'Refresh attendance' })).toBeEnabled()
 
     fireEvent.click(attendanceHours)
     expect(await screen.findByRole('dialog', { name: 'Attendance hours' })).toBeInTheDocument()
@@ -162,26 +164,13 @@ describe('TeacherLiveAttendanceTab', () => {
     fireEvent.focus(closeAttendance)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-
-    const selectedStudentActions = within(primaryControl).getByRole('button', {
-      name: 'Student actions for 1 selected',
-    })
-    expect(selectedStudentActions).toBeEnabled()
-    fireEvent.click(selectedStudentActions)
-    const presentAction = screen.getByRole('menuitem', { name: 'Present' })
-    const lateAction = screen.getByRole('menuitem', { name: 'Late' })
-    expect(presentAction).toBeEnabled()
-    expect(screen.getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
-    await waitFor(() => expect(presentAction).toHaveFocus())
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
-    expect(lateAction).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(selectedStudentActions).toHaveFocus()
-    expect(screen.queryByRole('menu', { name: 'Selected student attendance actions' })).not.toBeInTheDocument()
+    fireEvent.click(within(primaryControl).getByRole('button', { name: 'Mark all absent' }))
+    const confirm = screen.getByRole('dialog', { name: 'Mark all students absent?' })
+    expect(confirm).toHaveTextContent('all 2 students')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
   })
 
-  it('uses Daily-style status dots and sortable count chips without adding context-bar counts', async () => {
+  it('uses accessible three-state row controls and sortable count chips without context-bar counts', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       students: [
         ...attendanceView().students,
@@ -191,6 +180,8 @@ describe('TeacherLiveAttendanceTab', () => {
           lastName: 'Johnson',
           status: 'late',
           source: 'staff',
+          checkedInAt: null,
+          checkedInStatus: null,
           revision: 1,
           pendingCommand: false,
           commandFailed: false,
@@ -201,6 +192,8 @@ describe('TeacherLiveAttendanceTab', () => {
           lastName: 'Vaughan',
           status: 'absent',
           source: 'staff',
+          checkedInAt: null,
+          checkedInStatus: null,
           revision: 1,
           pendingCommand: false,
           commandFailed: false,
@@ -211,32 +204,23 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab()
     await screen.findByText('Ada')
 
-    for (const status of ['Present', 'Late', 'Absent', 'Unmarked']) {
-      expect(screen.getByRole('img', { name: status })).toHaveClass(
-        'h-3',
-        'w-3',
-        'rounded-full',
-        'ring-1',
-        'ring-attendance-dot-halo',
-      )
-    }
-    expect(screen.getByRole('img', { name: 'Present' })).toHaveClass('bg-attendance-present')
-    expect(screen.getByRole('img', { name: 'Late' })).toHaveClass('bg-attendance-late')
-    expect(screen.getByRole('img', { name: 'Absent' })).toHaveClass('bg-attendance-absent')
-    expect(screen.getByRole('img', { name: 'Unmarked' })).toHaveClass('bg-attendance-unmarked')
-
-    expect(screen.queryByText('Present')).not.toBeInTheDocument()
-    expect(screen.queryByText('Late')).not.toBeInTheDocument()
-    expect(screen.queryByText('Absent')).not.toBeInTheDocument()
-    expect(screen.queryByText('Unmarked')).not.toBeInTheDocument()
-    expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
-    const selectedRow = screen.getByText('Grace').closest('tr')
-    expect(selectedRow).toHaveClass('bg-info-bg')
-    expect(within(selectedRow!).getByRole('img', { name: 'Present' })).toHaveClass(
-      'ring-attendance-dot-halo',
+    const graceStatus = screen.getByRole('group', { name: 'Attendance status for Grace Hopper' })
+    expect(within(graceStatus).getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(graceStatus).getByRole('button', { name: 'Absent' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(graceStatus).getByRole('button', { name: 'Present' })).toHaveClass(
+      'bg-attendance-present',
+      'text-attendance-present-text',
     )
+    expect(within(graceStatus).getByRole('button', { name: 'Late' })).toHaveClass(
+      'bg-attendance-late',
+      'text-attendance-late-text',
+    )
+    expect(within(graceStatus).getByRole('button', { name: 'Absent' })).toHaveClass(
+      'bg-attendance-absent',
+      'text-attendance-absent-text',
+    )
+    expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
 
     const statusGroup = screen.getByRole('group', { name: 'Sort attendance by status' })
     const statusHeader = statusGroup.closest('th')
@@ -278,7 +262,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('GraceHopper')
   })
 
-  it('matches Daily sortable identity columns, source sorting, and resize semantics', async () => {
+  it('matches Daily sortable identity columns, check-in sorting, and resize semantics', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       students: [
         ...attendanceView().students,
@@ -288,6 +272,8 @@ describe('TeacherLiveAttendanceTab', () => {
           lastName: 'Johnson',
           status: 'late',
           source: 'staff',
+          checkedInAt: null,
+          checkedInStatus: null,
           revision: 1,
           pendingCommand: false,
           commandFailed: false,
@@ -300,7 +286,7 @@ describe('TeacherLiveAttendanceTab', () => {
 
     const firstHeader = screen.getByRole('columnheader', { name: 'First' })
     const lastHeader = screen.getByRole('columnheader', { name: 'Last' })
-    const sourceHeader = screen.getByRole('columnheader', { name: 'Source' })
+    const checkInHeader = screen.getByRole('columnheader', { name: 'Check-in' })
     expect(lastHeader).toHaveAttribute('aria-sort', 'ascending')
 
     fireEvent.click(within(firstHeader).getByRole('button', { name: 'First' }))
@@ -312,8 +298,8 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(firstHeader).toHaveAttribute('aria-sort', 'descending')
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('KatherineJohnson')
 
-    fireEvent.click(within(sourceHeader).getByRole('button', { name: 'Source' }))
-    expect(sourceHeader).toHaveAttribute('aria-sort', 'ascending')
+    fireEvent.click(within(checkInHeader).getByRole('button', { name: 'Check-in' }))
+    expect(checkInHeader).toHaveAttribute('aria-sort', 'ascending')
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('GraceHopper')
 
     expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
@@ -321,7 +307,7 @@ describe('TeacherLiveAttendanceTab', () => {
       '72',
     )
     expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()
-    expect(screen.getByRole('separator', { name: 'Resize Source column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Check-in column' })).toBeInTheDocument()
   })
 
   it('groups the date and immediate session command in the center action cluster', async () => {
@@ -469,18 +455,14 @@ describe('TeacherLiveAttendanceTab', () => {
 
     renderTab()
     await screen.findByText('Ada')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Present' }))
+    const adaStatus = screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' })
+    fireEvent.click(within(adaStatus).getByRole('button', { name: 'Present' }))
 
     await waitFor(() => {
-      const adaRow = screen.getByText('Ada').closest('tr')
-      expect(within(adaRow!).getByLabelText('Present')).toHaveClass('bg-attendance-present')
-      expect(adaRow).toHaveTextContent('Teacher')
+      expect(within(
+        screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
+      ).getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
     })
-    expect(screen.getByRole('button', {
-      name: 'Student actions (select students to enable)',
-    })).toBeDisabled()
 
     const post = vi.mocked(fetch).mock.calls[1]
     expect(post[0]).toBe('/api/teacher/attendance/marks')
@@ -494,6 +476,80 @@ describe('TeacherLiveAttendanceTab', () => {
         reason_code: 'staff_correction',
       }],
     })
+  })
+
+  it('confirms and applies whole-roster marks to every student', async () => {
+    const initial = attendanceView()
+    const confirmed = attendanceView({
+      students: initial.students.map((student) => ({
+        ...student,
+        status: 'absent',
+        source: 'staff',
+        revision: (student.revision ?? 0) + 1,
+      })),
+    })
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(initial))
+      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied', appliedCount: 2 }))
+      .mockResolvedValueOnce(jsonResponse(confirmed))
+
+    renderTab()
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all absent' }))
+    const confirm = screen.getByRole('dialog', { name: 'Mark all students absent?' })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Mark all absent' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', {
+      name: 'Mark all students absent?',
+    })).not.toBeInTheDocument())
+    const post = vi.mocked(fetch).mock.calls[1]
+    const body = JSON.parse(String(post[1]?.body))
+    expect(body.marks).toEqual(initial.students.map((student) => ({
+      student_id: student.studentId,
+      status: 'absent',
+      reason_code: 'staff_correction',
+    })))
+  })
+
+  it('keeps QR check-in time after a manual change and offers a durable status undo', async () => {
+    const initial = attendanceView()
+    const manuallyChanged = attendanceView({
+      students: initial.students.map((student) => student.firstName === 'Grace'
+        ? { ...student, status: 'late', source: 'staff', revision: 2 }
+        : student),
+    })
+    const restored = attendanceView({
+      students: initial.students.map((student) => student.firstName === 'Grace'
+        ? { ...student, status: 'present', source: 'staff', revision: 3 }
+        : student),
+    })
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(initial))
+      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied', appliedCount: 1 }))
+      .mockResolvedValueOnce(jsonResponse(manuallyChanged))
+      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied', appliedCount: 1 }))
+      .mockResolvedValueOnce(jsonResponse(restored))
+
+    renderTab()
+    await screen.findByText('Grace')
+    const graceStatus = screen.getByRole('group', { name: 'Attendance status for Grace Hopper' })
+    fireEvent.click(within(graceStatus).getByRole('button', { name: 'Late' }))
+
+    const undo = await screen.findByRole('button', {
+      name: 'Undo manual attendance change for Grace Hopper',
+    })
+    expect(screen.getAllByText('8:50 a.m.').length).toBeGreaterThan(0)
+    fireEvent.click(undo)
+
+    await waitFor(() => expect(screen.queryByRole('button', {
+      name: 'Undo manual attendance change for Grace Hopper',
+    })).not.toBeInTheDocument())
+    const undoPost = JSON.parse(String(vi.mocked(fetch).mock.calls[3]?.[1]?.body))
+    expect(undoPost.marks).toEqual([{
+      student_id: '20000000-0000-4000-8000-000000000002',
+      status: 'present',
+      reason_code: 'staff_correction',
+    }])
   })
 
   it('allows audited corrections after close without offering an unsupported reopen command', async () => {
@@ -511,8 +567,9 @@ describe('TeacherLiveAttendanceTab', () => {
     await screen.findByText('Ada')
 
     expect(screen.queryByRole('button', { name: /reopen attendance/i })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+    expect(within(
+      screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
+    ).getByRole('button', { name: 'Present' })).toBeEnabled()
   })
 
   it('shows permanent command failures while allowing a fresh correction', async () => {
@@ -529,7 +586,9 @@ describe('TeacherLiveAttendanceTab', () => {
 
     expect(screen.getAllByText(/previous session update failed/i)).toHaveLength(1)
     expect(screen.getByText('Previous update failed')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeEnabled()
+    expect(within(
+      screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
+    ).getByRole('button', { name: 'Present' })).toBeEnabled()
   })
 
   it('keeps an unconfirmed projection warning visible in the quiet context slot', async () => {
@@ -570,9 +629,9 @@ describe('TeacherLiveAttendanceTab', () => {
 
     renderTab()
     await screen.findByText('Ada')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Present' }))
+    fireEvent.click(within(
+      screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
+    ).getByRole('button', { name: 'Present' }))
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true))
 
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
@@ -594,6 +653,9 @@ describe('TeacherLiveAttendanceTab', () => {
     await screen.findByText('Ada')
 
     expect(screen.queryByRole('button', { name: 'Close attendance' })).not.toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeDisabled()
+    expect(within(
+      screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
+    ).getByRole('button', { name: 'Present' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Mark all present' })).toBeDisabled()
   })
 })

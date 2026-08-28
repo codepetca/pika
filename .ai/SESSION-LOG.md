@@ -1231,3 +1231,43 @@ unchanged and migration 137 is not authorized for hosted application.
 
 **Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
 deletion review; GPT-5.6 Terra for compatibility and operability review.
+## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
+
+**Risk profile:** standard application behavior — teacher Attendance interaction,
+read-model projection, and shared segmented-control styling API changed; existing
+authorization, session/mark commands, confirmation polling, schema, migrations,
+dependencies, authentication, and student UI are unchanged.
+
+- Removed Attendance row-selection checkboxes and the selected-student actions
+  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
+  to the centered cluster; each opens an explicit scope confirmation before
+  posting marks for all enrolled students.
+- Replaced static row statuses with an accessible three-state segmented control.
+  Row corrections are immediate and reversible, use icons plus `aria-pressed`
+  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
+  keyboard navigation through the shared `SegmentedControl` primitive.
+- Replaced Source with QR Check-in time. The teacher read model validates Pika's
+  existing signed `attendance.record.changed` inbox events and projects the
+  earliest QR-origin time/status per student, so a later staff correction can
+  expose Restore QR check-in without losing durable provenance. No provider
+  reference or raw integration payload is returned to the browser.
+- Preserved Attendance-specific permissions, archived/closed states, session
+  actions, command failures, status-count sorting, column resizing, internal
+  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
+- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
+  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
+  stale Attendance-specific durable guidance; generic selection guidance remains
+  conditional on selection feeding real batch actions.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused API/server/component/UI tests (43/43), responsive
+Attendance Playwright matrix (4/4), TypeScript, lint, production build,
+architecture check, design-policy check, Pika audit, diff checks, and visual
+reference comparison pass. Student UI is n/a because this remains a teacher-only
+surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, QR provenance projection, accessibility, and
+responsive regression risk.

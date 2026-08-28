@@ -12,7 +12,7 @@ It governs how those tabs should feel, compose, and evolve. It does not govern:
 - unrelated teacher tabs such as settings or calendar
 - the student product
 
-Assignments are the current baseline for summary-to-workspace progression. Attendance is the reference implementation for compact operational tables with a centered primary control and selection-driven bulk actions. Neither is permanent authority; update this canon when another implementation produces a better shared pattern.
+Assignments are the current baseline for summary-to-workspace progression. Attendance is the reference implementation for compact operational tables with a centered primary control, inline row corrections, and confirmed whole-roster actions. Neither is permanent authority; update this canon when another implementation produces a better shared pattern.
 
 ## Read Order
 
@@ -217,9 +217,11 @@ criteria rather than mechanically changing unrelated authoring surfaces.
   counts in the operational context bar.
 - Do not place an `overflow-hidden` wrapper between a sticky table head and its
   intended scroll region.
-- Keep global scope commands stable as selection changes.
-- Keep a selection-aware menu visible in the centered action cluster, disabled
-  until selection and labeled with the selected count when enabled.
+- When row selection feeds real batch actions, keep global scope commands stable
+  as selection changes.
+- In that selection-driven case, keep one selection-aware menu visible in the
+  centered action cluster, disabled until selection and labeled with the
+  selected count when enabled.
 - Keep selection commands feature-owned. Escape and table selection controls
   provide clearance without a permanent clear-selection action.
 - Treat `TeacherSelectionBar` as legacy compatibility with no current production
