@@ -85,6 +85,8 @@ type TeacherAttendanceView = {
     lastName: string
     status: 'unmarked' | 'present' | 'absent' | 'late'
     source: 'student_qr' | 'staff' | 'system' | null
+    checkedInAt: string | null
+    checkedInStatus: 'present' | 'absent' | 'late' | null
     revision: number | null
     pendingCommand: boolean
     commandFailed: boolean
@@ -97,6 +99,11 @@ server resolves them through private durable roster, participant, and
 occurrence mappings before calling Bara. Neither those opaque references nor a
 Convex identifier is returned in this view, so contract or provider changes
 stay behind the server adapter.
+
+`checkedInAt` and `checkedInStatus` are Pika-owned QR-origin provenance. They
+retain the original check-in time and derived status when a later staff
+correction changes `status`; they do not expose a provider identifier or opaque
+cross-service reference.
 
 The command surface should also be Pika-owned:
 

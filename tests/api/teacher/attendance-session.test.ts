@@ -96,12 +96,47 @@ describe('GET /api/teacher/attendance/session', () => {
   })
 
   it('authenticates and authorizes before returning the closed Pika view model', async () => {
+    getBaraAttendanceIntegrationState.mockReturnValue('ready')
+    loadTeacherAttendanceView.mockResolvedValueOnce({
+      classroomId,
+      classDate: '2026-09-08',
+      integration: 'ready',
+      session: {
+        state: 'open',
+        opensAt: '2026-09-08T12:45:00.000Z',
+        closesAt: '2026-09-08T14:15:00.000Z',
+        revision: 2,
+        commandFailed: false,
+      },
+      sync: { state: 'current', confirmedAt: '2026-09-08T13:01:00.000Z' },
+      students: [{
+        studentId: '30000000-0000-4000-8000-000000000003',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        status: 'late',
+        source: 'staff',
+        checkedInAt: '2026-09-08T13:01:00.000Z',
+        checkedInStatus: 'present',
+        revision: 3,
+        pendingCommand: false,
+        commandFailed: false,
+      }],
+    })
     const response = await GET(new NextRequest(
       `http://localhost/api/teacher/attendance/session?classroom_id=${classroomId}&date=2026-09-08`,
     ))
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ integration: 'disabled', students: [] })
+    const body = await response.json()
+    expect(body).toMatchObject({
+      integration: 'ready',
+      students: [{
+        studentId: '30000000-0000-4000-8000-000000000003',
+        checkedInAt: '2026-09-08T13:01:00.000Z',
+        checkedInStatus: 'present',
+      }],
+    })
+    expect(JSON.stringify(body)).not.toMatch(/participant_|occurrence_|roster_|convex/i)
     expect(requireRole).toHaveBeenCalledWith('teacher')
     expect(assertTeacherOwnsClassroom).toHaveBeenCalledWith(
       'teacher-1', classroomId, { supabase },
@@ -110,7 +145,7 @@ describe('GET /api/teacher/attendance/session', () => {
       supabase,
       classroomId,
       classDate: '2026-09-08',
-      integration: 'disabled',
+      integration: 'ready',
     }))
   })
 

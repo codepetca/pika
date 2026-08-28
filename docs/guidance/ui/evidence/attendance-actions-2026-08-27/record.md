@@ -35,13 +35,16 @@
 | `teacher-mobile-dark-hours-dialog.png` | teacher | 390 x 844 | dark | Attendance hours dialog | teacher Attendance |
 | `qa-circle-controls-desktop.png` | teacher | 2880 x 900 comparison | light | preceding icon-bearing row controls beside revised icon-free circular controls | teacher Attendance |
 | `qa-circle-controls-mobile.png` | teacher | 780 x 844 comparison | dark | preceding icon-bearing row controls beside revised icon-free circular controls | teacher Attendance |
-| `qa-smaller-selected-controls-desktop.png` | teacher | 2880 x 900 comparison | light | preceding full-size filled discs beside revised 36 px visible discs with selected rings | teacher Attendance |
-| `qa-smaller-selected-controls-mobile.png` | teacher | 780 x 844 comparison | dark | preceding full-size filled discs beside revised 36 px visible discs with selected rings and uppercase AM/PM | teacher Attendance |
 
 The `*-selected.png` captures mirror the current manually corrected selected-row
 state. The `*-selected-menu.png` captures are the authoritative selected-action
 state for this revision. The removed `*-bulk-confirmation.png` captures described
 the superseded whole-roster action direction and are no longer conformance evidence.
+
+`qa-smaller-selected-controls-desktop.png` and
+`qa-smaller-selected-controls-mobile.png` are superseded historical comparison
+artifacts from the earlier 36 px-disc pass. They are not evidence for the final
+28 px visual-disc geometry.
 
 ## Assessment
 

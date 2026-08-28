@@ -1284,6 +1284,11 @@ student behavior changed.
 **Verification:** focused component tests (18/18) and responsive Attendance
 Playwright matrix (4/4) pass; same-viewport Product Design source and production
 captures were reviewed together. Student UI is n/a because this remains a
-teacher-only surface. TypeScript, lint, policy checks, Pika audit, independent
-  review found and prompted correction of a 32 px hit-target regression; targeted
-  re-review, PR CI, and final diff checks remain before handoff.
+teacher-only surface. TypeScript, lint, policy checks, Pika audit, and PR CI
+pass. Bounded independent review found and prompted correction of a 32 px
+hit-target regression, then confirmed the 44 px target/28 px visual treatment.
+The final integration pass found no behavior blocker and identified two P3
+documentation gaps: the teacher-view contract now records QR-origin provenance
+fields with a route assertion, and superseded 36 px comparison captures are
+explicitly marked historical. One targeted documentation confirmation remains
+before handoff.
