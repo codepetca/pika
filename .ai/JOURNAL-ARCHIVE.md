@@ -24557,3 +24557,74 @@ deployment, or merge occurred.
   boundaries, generated database types, the Pika audit, and the production
   build. The database regression still requires fresh-database CI because the
   installed local function is an earlier migration 134 revision.
+
+<!-- pika-session-log-archive-batch:1c26b36a41965a16a4a601c8bb0e9dbfff3523648dd5a56e9a0f983c2f08247e -->
+## 2026-08-26 — Keep archived Blueprint repair retries idempotent
+
+**Risk profile:** runtime-platform — application request hashing and regression
+coverage only; no migration application, deployment, or merge occurred.
+
+- Removed the archived source revision from the stable Blueprint operation
+  request hash while retaining it as the RPC stale-read precondition. The UI's
+  retained operation key can now retry after an identity-only source repair
+  advances the Classroom revision.
+- Added a server regression proving revision-only retries send the new expected
+  revision with the original request hash. The database fixture now proves the
+  repair advances the source revision before its same-key retry.
+- Focused Blueprint tests (20/20), architecture boundaries, the Pika audit, and
+  the production build pass. Fresh-database CI remains the authoritative SQL
+  replay gate because the installed local function is an earlier migration 134
+  revision.
+
+## 2026-08-26 — Harden PR 1066 identity compatibility and migration fencing
+
+**Risk profile:** runtime-platform — draft/API identity compatibility,
+transactional migration backfill, and browser-contract regression updates; the
+authorized local database was reset, while hosted state remained untouched.
+
+- Centralized Test-question identity resolution so draft reads, activation, and
+  Blueprint capture use the same exact portable-ID and legacy row-ID contract.
+  UUIDs are normalized to PostgreSQL-compatible lowercase semantics, ambiguous
+  or colliding matches fail before writes, and no positional/content heuristic
+  is used.
+- Preserved draft-created UUIDs as `artifact_id` during activation and added a
+  capture-to-activation-to-reconstruction regression. Blueprint projection is a
+  read-only compatibility operation and does not assign or mutate source IDs.
+- Made migration 134 lock the draft table during its scan/backfill and increment
+  each changed draft's version so stale clients are fenced after deployment.
+  A clean local reset replayed migrations 001–134 and the Blueprint identity
+  database contract passed.
+- Updated the browser matrix to select the visible responsive attendance status
+  and assert the current post-check-in copy. The full matrix passes (40 passed,
+  14 intentionally skipped), as do the full Vitest suite (5,114/5,114), focused
+  identity tests, lint, TypeScript, the Pika audit, and the production build.
+
+## 2026-08-26 — Close PR 1066 active-generation and ledger replay blockers
+
+**Risk profile:** runtime-platform — migration function selection, operation
+idempotency/recovery, and rollback-only database contracts; no database was
+reset or migrated and no hosted state was changed.
+
+- Rebased the dedicated PR worktree onto current `origin/main`; migration 134
+  remains sequential after main's 133 with no duplicate migration prefixes.
+- Restricted active Blueprint capture to non-archived assignment, Test, lesson,
+  material, and survey generations. Added a real database fixture with an
+  archived Test generation and active replacement sharing portable identity and
+  position, including a colliding archived question identity.
+- Moved archived Classroom operation identity validation ahead of the winner
+  shortcut. A same-key/different-hash replay now returns
+  `idempotency_conflict`, while a compatible retained failed operation is
+  reconciled to the winner Blueprint and completed ledger evidence.
+- Independent SQL review found two structural gaps in the same lifecycle. The
+  migration backfill now fences `test_questions` before `assessment_drafts`,
+  matching question-before-Draft synchronization order, and its database
+  contract rehearses that a concurrent question writer blocks.
+- Instantiation now seeds and validates its operation ledger outside the
+  question-rematerialization savepoint. A forced post-base failure proves the
+  Classroom graph rolls back while the failed ledger survives, then the same
+  operation key retries successfully and replays the completed result.
+- Full Vitest passes 5,114 tests across 586 files. Focused migration guards,
+  lint, TypeScript, architecture boundaries, generated database type parity,
+  shell syntax, diff checks, and the production build pass. The revised SQL
+  fixture remains for fresh-database CI because migration application/reset was
+  explicitly prohibited for this task.

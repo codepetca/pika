@@ -11,76 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Keep archived Blueprint repair retries idempotent
-
-**Risk profile:** runtime-platform — application request hashing and regression
-coverage only; no migration application, deployment, or merge occurred.
-
-- Removed the archived source revision from the stable Blueprint operation
-  request hash while retaining it as the RPC stale-read precondition. The UI's
-  retained operation key can now retry after an identity-only source repair
-  advances the Classroom revision.
-- Added a server regression proving revision-only retries send the new expected
-  revision with the original request hash. The database fixture now proves the
-  repair advances the source revision before its same-key retry.
-- Focused Blueprint tests (20/20), architecture boundaries, the Pika audit, and
-  the production build pass. Fresh-database CI remains the authoritative SQL
-  replay gate because the installed local function is an earlier migration 134
-  revision.
-
-## 2026-08-26 — Harden PR 1066 identity compatibility and migration fencing
-
-**Risk profile:** runtime-platform — draft/API identity compatibility,
-transactional migration backfill, and browser-contract regression updates; the
-authorized local database was reset, while hosted state remained untouched.
-
-- Centralized Test-question identity resolution so draft reads, activation, and
-  Blueprint capture use the same exact portable-ID and legacy row-ID contract.
-  UUIDs are normalized to PostgreSQL-compatible lowercase semantics, ambiguous
-  or colliding matches fail before writes, and no positional/content heuristic
-  is used.
-- Preserved draft-created UUIDs as `artifact_id` during activation and added a
-  capture-to-activation-to-reconstruction regression. Blueprint projection is a
-  read-only compatibility operation and does not assign or mutate source IDs.
-- Made migration 134 lock the draft table during its scan/backfill and increment
-  each changed draft's version so stale clients are fenced after deployment.
-  A clean local reset replayed migrations 001–134 and the Blueprint identity
-  database contract passed.
-- Updated the browser matrix to select the visible responsive attendance status
-  and assert the current post-check-in copy. The full matrix passes (40 passed,
-  14 intentionally skipped), as do the full Vitest suite (5,114/5,114), focused
-  identity tests, lint, TypeScript, the Pika audit, and the production build.
-
-## 2026-08-26 — Close PR 1066 active-generation and ledger replay blockers
-
-**Risk profile:** runtime-platform — migration function selection, operation
-idempotency/recovery, and rollback-only database contracts; no database was
-reset or migrated and no hosted state was changed.
-
-- Rebased the dedicated PR worktree onto current `origin/main`; migration 134
-  remains sequential after main's 133 with no duplicate migration prefixes.
-- Restricted active Blueprint capture to non-archived assignment, Test, lesson,
-  material, and survey generations. Added a real database fixture with an
-  archived Test generation and active replacement sharing portable identity and
-  position, including a colliding archived question identity.
-- Moved archived Classroom operation identity validation ahead of the winner
-  shortcut. A same-key/different-hash replay now returns
-  `idempotency_conflict`, while a compatible retained failed operation is
-  reconciled to the winner Blueprint and completed ledger evidence.
-- Independent SQL review found two structural gaps in the same lifecycle. The
-  migration backfill now fences `test_questions` before `assessment_drafts`,
-  matching question-before-Draft synchronization order, and its database
-  contract rehearses that a concurrent question writer blocks.
-- Instantiation now seeds and validates its operation ledger outside the
-  question-rematerialization savepoint. A forced post-base failure proves the
-  Classroom graph rolls back while the failed ledger survives, then the same
-  operation key retries successfully and replays the completed result.
-- Full Vitest passes 5,114 tests across 586 files. Focused migration guards,
-  lint, TypeScript, architecture boundaries, generated database type parity,
-  shell syntax, diff checks, and the production build pass. The revised SQL
-  fixture remains for fresh-database CI because migration application/reset was
-  explicitly prohibited for this task.
-
 ## 2026-08-26 — Serialize Test draft saves with activation
 
 **Risk profile:** runtime-platform — Test authoring/activation transactions,
@@ -1072,6 +1002,52 @@ production remain unchanged.
   the local database only. Migration history now matches through 136, and the
   generated Supabase types were regenerated from and checked against that local
   schema. No hosted environment was touched.
+## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
+
+**Risk profile:** standard application behavior — teacher Attendance interaction,
+read-model projection, and shared segmented-control styling API changed; existing
+authorization, session/mark commands, confirmation polling, schema, migrations,
+dependencies, authentication, and student UI are unchanged.
+
+- Removed Attendance row-selection checkboxes and the selected-student actions
+  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
+  to the centered cluster; each opens an explicit scope confirmation before
+  posting marks for all enrolled students.
+- Replaced static row statuses with an accessible three-state segmented control.
+  Row corrections are immediate and reversible, use icons plus `aria-pressed`
+  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
+  keyboard navigation through the shared `SegmentedControl` primitive.
+- Replaced Source with QR Check-in time. The teacher read model validates Pika's
+  existing signed `attendance.record.changed` inbox events and projects the
+  earliest QR-origin time/status per student, so a later staff correction can
+  expose Restore QR check-in without losing durable provenance. No provider
+  reference or raw integration payload is returned to the browser.
+- Preserved Attendance-specific permissions, archived/closed states, session
+  actions, command failures, status-count sorting, column resizing, internal
+  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
+- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
+  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
+  stale Attendance-specific durable guidance; generic selection guidance remains
+  conditional on selection feeding real batch actions.
+- One bounded independent review found that QR inbox history was filtered by
+  classroom/occurrence but not the active installation. Added query-level and
+  defensive payload installation checks plus a rotation regression fixture, so
+  an old provider installation cannot supply the Check-in time or Undo target.
+  The same remediation batch historicalized a stale Test evidence note that
+  still described the now-removed Attendance selection bar as active debt.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused API/server/component/UI tests (43/43), responsive
+Attendance Playwright matrix (4/4), TypeScript, lint, production build,
+architecture check, design-policy check, Pika audit, diff checks, and visual
+reference comparison pass. Student UI is n/a because this remains a teacher-only
+surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, QR provenance projection, accessibility, and
+responsive regression risk.
 
 ## 2026-08-28 — Repair post-134 database lint findings
 
@@ -1373,9 +1349,13 @@ session/mark permissions, command polling, QR provenance, or student UI.
   status/count alignment, inactive opacity, time-control naming, and no-time
   fallback are covered by component/browser checks; remaining manual follow-up:
   none.
+- One bounded independent review found no actionable issues. After rebasing onto
+  the latest `main`, CI's governed-design check rejected an arbitrary minimum
+  width; replaced it with the standard `min-w-40` token and confirmed design/UI
+  policy checks locally.
 
 **Verification:** focused component tests (17/17), responsive Attendance
 Playwright matrix (4/4), TypeScript, lint, architecture boundaries, Pika audit,
 diff checks, and same-viewport source/implementation Product Design comparison
 pass. Student UI is n/a because this remains a teacher-only surface. Bounded
-independent review and PR CI remain before handoff.
+independent review passed; rerun PR CI remains before handoff.

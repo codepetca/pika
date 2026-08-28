@@ -723,7 +723,7 @@ export function TeacherLiveAttendanceTab({
                     {hasUnconfirmedView ? (
                       <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
                     ) : null}
-                    <span className="hidden min-w-[9.5rem] text-right tabular-nums lg:inline">
+                    <span className="hidden min-w-40 text-right tabular-nums lg:inline">
                       · {windowLabel}
                     </span>
                     {localSessionPending || view.sync.state === 'pending' ? (
@@ -745,7 +745,7 @@ export function TeacherLiveAttendanceTab({
                 aria-hidden="true"
               />
               <span className="truncate">{sessionContextLabel}</span>
-              <span className="hidden min-w-[9.5rem] text-right tabular-nums lg:inline">
+              <span className="hidden min-w-40 text-right tabular-nums lg:inline">
                 · {windowLabel}
               </span>
             </div>
