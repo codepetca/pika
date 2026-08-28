@@ -155,7 +155,7 @@ Roll out the contract as a finite cutover:
    documents as portable-only, and gives exact row-ID precedence only to an
    unmarked live draft during this pre-migration window. When the migration RPC
    is not installed yet, the server projects marked portable IDs back to the
-   exact legacy row IDs before persistence and activation, while returning the
+   exact legacy row IDs before persistence, while returning the
    portable representation to the client. Draft-only UUIDs remain unchanged
    and are materialized with that same UUID in both the legacy row-ID and
    artifact-ID slots. Migration 133 cannot transactionally fence student entry
@@ -189,6 +189,18 @@ Roll out the contract as a finite cutover:
    Classroom/Draft lock dependency. The same transaction adds the portable
    uniqueness index, the stored-draft marker constraint, and portable-only
    runtime functions.
+
+   Run this cutover in an idle application window. Immediately before the
+   authorized push, verify that production has migrations 001–133 applied and
+   only 134 pending, confirm the dry run contains only
+   `134_blueprint_test_question_ordinal_identity.sql`, and check for old active
+   transactions with a read-only `pg_stat_activity` query. The migration uses
+   a 10-second lock timeout and a 15-minute per-statement timeout, so an
+   unexpected writer or slow backfill fails the transaction instead of waiting
+   indefinitely. On either timeout, confirm 134 is still pending, inspect and
+   clear the blocker without terminating unrelated sessions, then obtain fresh
+   one-time authorization before repeating the full preflight and push. Do not
+   repair migration history or paste partial SQL as a retry.
 3. Verify save, activation, capture, recapture, Version creation, classroom
    instantiation, and archived reuse, including the production-shaped row-ID /
    portable-ID collision and concurrent archive reuse. The marker constraint

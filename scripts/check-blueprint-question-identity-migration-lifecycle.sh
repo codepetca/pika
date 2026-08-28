@@ -104,6 +104,53 @@ SQL
 # Activation remains unavailable until the migration installs its atomic RPC.
 pnpm exec tsx scripts/check-test-question-identity-pre-migration.ts
 
+# Prove the bounded production cutover fails atomically behind an unexpected
+# writer, leaves migration history untouched, and succeeds after the blocker is
+# gone. The retry here is CI-only; a real target requires fresh authorization.
+docker exec -e PGAPPNAME=b134_rollout_lock_blocker -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+lock table public.assessment_drafts in row exclusive mode;
+select pg_sleep(12);
+rollback;
+SQL
+rollout_lock_pid=$!
+rollout_lock_ready=false
+for _attempt in {1..40}; do
+  held_rollout_lock="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_locks l join pg_catalog.pg_class relation on relation.oid = l.relation join pg_catalog.pg_stat_activity activity on activity.pid = l.pid where activity.application_name = 'b134_rollout_lock_blocker' and relation.relname = 'assessment_drafts' and l.mode = 'RowExclusiveLock' and l.granted")"
+  if [[ "$held_rollout_lock" == "1" ]]; then
+    rollout_lock_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$rollout_lock_ready" != "true" ]]; then
+  kill "$rollout_lock_pid" 2>/dev/null || true
+  wait "$rollout_lock_pid" 2>/dev/null || true
+  echo "Migration 134 timeout rehearsal did not acquire its blocker lock." >&2
+  exit 1
+fi
+
+set +e
+blocked_migration_output="$(supabase migration up --local 2>&1)"
+blocked_migration_status=$?
+set -e
+wait "$rollout_lock_pid"
+if [[ "$blocked_migration_status" -eq 0 ]] \
+  || [[ "$blocked_migration_output" != *"lock timeout"* ]]; then
+  echo "Migration 134 did not fail with the bounded lock timeout." >&2
+  echo "$blocked_migration_output" >&2
+  exit 1
+fi
+if [[ "$(docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -Atqc \
+  "select count(*) from supabase_migrations.schema_migrations where version = '134'")" != "0" ]]; then
+  echo "Timed-out migration 134 was incorrectly recorded as applied." >&2
+  exit 1
+fi
+
 supabase migration up --local
 
 docker exec -i "$DB_CONTAINER" psql \
