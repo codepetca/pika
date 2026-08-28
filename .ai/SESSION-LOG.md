@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Prevent the mobile Pika logo from flashing blank
-
-**Risk profile:** none — shared brand rendering only; no navigation behavior,
-layout, API, schema, persistence, dependency, or hosted state changed.
-
-- Replaced the network-backed `/pika.png` CSS mask with the existing compact
-  brand image embedded as a shared CSS data-URI token. This preserves semantic
-  light/dark coloring while making the mask available on the first drawer paint.
-- Added regression coverage for the inline mask contract and explicitly rejects
-  restoring the delayed external mask.
-- Full Vitest passes (5,097/5,097); focused header/sidebar tests pass (11/11).
-  Lint, architecture, design policy, UI policy, Pika audit, diff checks, and the
-  production build pass (with existing WorkOS Edge-runtime warnings).
-- Playwright visual verification passed for teacher and student at desktop/mobile
-  in light/dark. The mobile drawer was captured immediately after opening; the
-  Pika mark is present in all four cold-open mobile captures with correct theme
-  color and no overflow.
-- PR CI exposed stale attendance-matrix assertions from the preceding Today-card
-  merge. The test now targets the visible responsive inspector and the current
-  one-line confirmation copy; its desktop/mobile, light/dark matrix passes (6/6).
-
-**Model recommendation:** current frontier coding model for a narrow visual-load
-regression with cross-role and cross-theme verification.
-
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1107,3 +1083,26 @@ no migration was applied, no database was reset, and no hosted state changed.
 
 **Model recommendation:** current frontier coding model for the bounded
 PostgreSQL trigger and deletion-contract fix.
+
+## 2026-08-28 — Complete Blueprint identity and database-lint rollout
+
+**Risk profile:** runtime-platform — protected production release, hosted
+migrations 134–135, and authenticated production Blueprint verification.
+
+- Merged the reviewed Test-question identity and Blueprint purge corrections
+  through production, then applied migration 134 after an exact clean preflight.
+  Production migration history matched local through 134 and the production
+  Blueprint capture/reuse smoke passed with a real disposable student attempt.
+- The smoke verified portable Test-question identity and ordering across initial
+  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
+  student enrollment, attempts, responses, submissions, grades, and activity did
+  not. The source submission remained intact.
+- Merged PR #1097 and applied migration 135 after a sole-migration production
+  dry run. Production now matches local through 135, a second dry run is empty,
+  and error-level database lint reports zero findings.
+- Full PR CI covered migration replay, Test identity rehearsal, student-purge
+  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
+  TypeScript, and the production build.
+
+**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
+verification; GPT-5.6 Terra for release compatibility and continuity review.

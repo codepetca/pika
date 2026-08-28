@@ -24441,3 +24441,28 @@ logic, API, schema, persistence, authentication, or hosted state changed.
 
 **Model recommendation:** current model for a localized React composition and
 visual-verification change.
+
+<!-- pika-session-log-archive-batch:c8cf469d46d9270c2ede290f9f6b1f60cf29046158f735ca0f204848758f1da9 -->
+## 2026-08-26 — Prevent the mobile Pika logo from flashing blank
+
+**Risk profile:** none — shared brand rendering only; no navigation behavior,
+layout, API, schema, persistence, dependency, or hosted state changed.
+
+- Replaced the network-backed `/pika.png` CSS mask with the existing compact
+  brand image embedded as a shared CSS data-URI token. This preserves semantic
+  light/dark coloring while making the mask available on the first drawer paint.
+- Added regression coverage for the inline mask contract and explicitly rejects
+  restoring the delayed external mask.
+- Full Vitest passes (5,097/5,097); focused header/sidebar tests pass (11/11).
+  Lint, architecture, design policy, UI policy, Pika audit, diff checks, and the
+  production build pass (with existing WorkOS Edge-runtime warnings).
+- Playwright visual verification passed for teacher and student at desktop/mobile
+  in light/dark. The mobile drawer was captured immediately after opening; the
+  Pika mark is present in all four cold-open mobile captures with correct theme
+  color and no overflow.
+- PR CI exposed stale attendance-matrix assertions from the preceding Today-card
+  merge. The test now targets the visible responsive inspector and the current
+  one-line confirmation copy; its desktop/mobile, light/dark matrix passes (6/6).
+
+**Model recommendation:** current frontier coding model for a narrow visual-load
+regression with cross-role and cross-theme verification.
