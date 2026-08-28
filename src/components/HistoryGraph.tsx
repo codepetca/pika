@@ -323,6 +323,17 @@ export function HistoryGraph({
                 return (
                   <g key={group.day} data-activity-day={group.day}>
                     <title>{`${formatDate(group.midpointMs)}: +${group.additions}, -${group.deletions} characters`}</title>
+                    {isSelected && (group.additions > 0 || group.deletions > 0) && (
+                      <circle
+                        cx={x}
+                        cy={BASELINE_Y}
+                        r={4}
+                        fill="var(--color-surface)"
+                        stroke="var(--color-text-default)"
+                        strokeWidth={2}
+                        data-selected-day="true"
+                      />
+                    )}
                     {group.additions > 0 && (
                       <>
                         <line
@@ -381,17 +392,6 @@ export function HistoryGraph({
                         strokeWidth={isSelected ? 2 : undefined}
                         data-change-direction="none"
                         data-change-value={0}
-                      />
-                    )}
-                    {isSelected && (group.additions > 0 || group.deletions > 0) && (
-                      <circle
-                        cx={x}
-                        cy={BASELINE_Y}
-                        r={4}
-                        fill="var(--color-surface)"
-                        stroke="var(--color-text-default)"
-                        strokeWidth={2}
-                        data-selected-day="true"
                       />
                     )}
                   </g>

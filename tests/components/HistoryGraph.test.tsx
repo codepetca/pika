@@ -132,6 +132,32 @@ describe('HistoryGraph', () => {
     expect(selectedDay).toHaveAttribute('stroke', 'var(--color-text-default)')
   })
 
+  it('renders a selected-day ring behind a tiny directional marker', () => {
+    const selectedTinyEntries = [
+      entry('selected-tiny', '2025-01-10T16:00:00Z', 220, 1101),
+      entry('large-change', '2025-01-05T16:00:00Z', 220, 1100),
+      entry('baseline', '2025-01-01T16:00:00Z', 20, 100),
+    ]
+    render(
+      <HistoryGraph
+        entries={selectedTinyEntries}
+        activeEntryId="selected-tiny"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const selectedGroup = chart.querySelector('[data-activity-day="2025-01-10"]')
+    const selectedRing = selectedGroup?.querySelector('[data-selected-day="true"]')
+    const tinyMarker = selectedGroup?.querySelector('[data-small-change-marker="up"]')
+    const children = Array.from(selectedGroup?.children ?? [])
+
+    expect(selectedRing).toBeInTheDocument()
+    expect(tinyMarker).toBeInTheDocument()
+    expect(children.indexOf(selectedRing!)).toBeLessThan(children.indexOf(tinyMarker!))
+  })
+
   it('distinguishes the baseline from a later save with no character-count change', () => {
     const zeroChangeEntries = [
       entry('unchanged', '2025-01-20T02:00:00Z', 20, 120),

@@ -270,6 +270,10 @@ role-owned heading.
   240 px student and 256 px teacher widths. The mixed multi-day fixture also
   shows a direction-neutral selection ring on the zero line rather than implying
   that the selected save was an addition or deletion.
+- Rechecked selection layering after targeted review: the neutral ring is behind
+  the daily stems and dots, so the selected final-day deletion remains visibly
+  red in both teacher and student compact charts. The refreshed capture has no
+  console errors or layout regression.
 - The zoom controls measured 44 × 44 px. Additions and deletions remain visibly
   distinct and share one proportional linear character scale.
 - No P0, P1, or P2 visual or interaction findings remain.

@@ -2825,6 +2825,10 @@ authentication, dependency, migration, deployment, or hosted state changed.
   made daily selection direction-neutral, and distinguishes the first save from
   later saves with no character-count change in slider announcements. The full
   focused history and caller suite passes 130/130 after this batch.
+- Targeted re-review found that the neutral selection ring could cover a tiny
+  directional dot. The ring now renders behind the exact-scale stem and marker;
+  a selected-day layering regression and refreshed browser capture confirm the
+  red/green activity signal stays visible.
 
 **Model recommendation:** GPT-5.6 Sol for a shared compact visualization with
 semantic zoom, proportional scaling, cross-role interaction, and visual QA.
