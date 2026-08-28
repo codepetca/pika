@@ -624,9 +624,13 @@ test.describe('teacher experience matrix', () => {
     await expect(resourcesEditor).toBeVisible()
     await captureCourseGuideState(page, testInfo, 'teacher-resources-editor')
 
-    await page.getByRole('button', {
+    const editOverview = page.getByRole('button', {
       name: 'Edit curriculum overview and expectations',
-    }).click()
+    })
+    await editOverview.evaluate((element) => {
+      element.scrollIntoView({ block: 'center' })
+    })
+    await editOverview.click()
     const overviewEditor = page.getByRole('textbox', {
       name: 'Curriculum overview and expectations',
     })
@@ -742,9 +746,8 @@ test.describe('student experience matrix', () => {
     const classroomId = await enterSeededClassroom(page, 'student')
     await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
 
-    await expect(page.getByRole('heading', {
-      name: 'Curriculum overview and expectations',
-    })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Assignments' })).toBeVisible()
+    await expect(page.getByText('Add curriculum context and classroom expectations.')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
     await expect(page.locator('iframe')).toHaveCount(0)
