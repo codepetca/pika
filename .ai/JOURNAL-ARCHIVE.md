@@ -24268,3 +24268,122 @@ staging or production migration was applied.
 - Lint, architecture boundaries, generated database types, focused Blueprint
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.
+
+<!-- pika-session-log-archive-batch:93d2336d26786cc22b7b9d278354d90b00482b9518ee0277e6ad18590429dc4c -->
+## 2026-08-26 — Adopt Pal widget alpha.5
+
+**Risk profile:** none — pinned widget package and compatibility assertions only;
+no schema, API, persistence, authentication, or production state changed.
+
+- Published and installed the immutable registry release
+  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
+  and the regenerated lockfile records its npm registry integrity rather than a
+  temporary tarball path.
+- Updated the package pin and compatibility assertions for concealed achievement
+  titles and collectible-focused story celebrations. The Pika-owned reward modal
+  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
+  `Story Keeper` title.
+- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
+  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
+  boundaries, and the production build pass.
+- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
+  remains centered and responsive with the collectible-only presentation. The
+  temporary unauthenticated review route was removed; teacher review is n/a
+  because the integration is student-only.
+
+## 2026-08-26 — Stabilize unsaved-grade action test
+
+**Risk profile:** none — test synchronization only; no application behavior,
+schema, API, persistence, authentication, or production state changed.
+
+- Confirmed the intermittent `TeacherClassroomView` failure was an assertion
+  race: the mocked grading panel renders before its passive effect reports the
+  pending-grade state to the parent.
+- Moved the panel predicate and all three disabled-action assertions into one
+  `waitFor`, so the test awaits the observable contract instead of assuming
+  effect timing.
+- The focused test passes 20/20 repetitions, all 50 tests in the component file
+  pass under coverage, the full 5,090-test coverage suite passes, and lint is
+  clean.
+
+**Model recommendation:** GPT-5.6 Sol for precise React effect and async-test
+reasoning.
+
+## 2026-08-26 — Improve mobile classroom navigation
+
+**Risk profile:** none — shared classroom-shell navigation and responsive
+presentation only; no API, schema, persistence, dependency, or hosted state changed.
+
+- Added Pika's home affordance to the mobile classroom drawer as a distinct
+  `All classrooms` navigation row beneath the `Navigation` heading, with its
+  own surface, hover state, and focus ring. The desktop header logo is unchanged.
+- Reclaimed the unused mobile header center column for the classroom selector,
+  so the seeded `Test Classroom` label renders in full instead of collapsing to
+  its first character.
+- Added regression coverage for mobile layout ownership, drawer home navigation,
+  blocked navigation, the Pika brand link, and active student exam mode hiding
+  the mobile navigation while rejecting direct home-exit attempts.
+- Full Vitest passes (5,096/5,096), lint, design policy, UI policy, and diff
+  checks pass. Playwright visual verification passed for teacher and student,
+  desktop and mobile, light and dark, including drawer-open and keyboard-focus
+  states. Mobile captures had no horizontal overflow, and both roles navigated
+  from the drawer to `/classrooms`.
+
+## 2026-08-26 — Simplify the student Daily Log prompt
+
+**Risk profile:** none — student-facing prompt copy and hierarchy only; no
+editor, API, persistence, authentication, or teacher behavior changed.
+
+- Removed the rotating reflection opener and fresh-start copy so the Daily Log
+  shows only `What's your plan for today?` as its primary prompt.
+- Kept the existing rich-text writing area, placeholder, focus behavior, and
+  save state unchanged, per product direction.
+- Focused Daily Log coverage passes 22/22; lint and UI policy pass. Playwright
+  visual verification passed for student desktop/mobile in light/dark and for
+  the unchanged teacher desktop/mobile views.
+
+**Model recommendation:** GPT-5.6 for small, judgment-sensitive UI refinements.
+
+## 2026-08-26 — Match the Pika logo to theme text
+
+**Risk profile:** none — shared brand presentation only; no layout, API, schema,
+persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the logo's warm dark-mode image filter with a semantic mask colored
+  by `--color-text-default`, so the mark exactly matches primary text in light
+  and dark themes.
+- Preserved the logo's accessible image name and existing dimensions while
+  updating shared-header regression coverage for the semantic token contract.
+- Focused component and semantic-token tests pass (19/19); lint, design policy,
+  diff checks, and the production build pass (with existing WorkOS Edge-runtime
+  warnings).
+- Playwright screenshots were visually reviewed for teacher and student
+  contexts at desktop/mobile in light/dark. Authenticated routes were unavailable
+  because the shared env lacks Supabase configuration, so the real shared header
+  and logo were rendered in a temporary local verification route that was removed
+  after capture.
+
+- PR #1072 independent review found no implementation blockers. Initial CI
+  exposed one stale `getByAltText` assertion in the mobile sidebar test; it now
+  verifies the preserved accessible image role and name, and the focused header
+  plus sidebar suite passes (11/11).
+
+**Model recommendation:** GPT-5.6 Sol for exact semantic-theme and visual review.
+
+## 2026-08-26 — Leave missing student Today lesson plans blank
+
+**Risk profile:** none — student-facing empty-state copy only; no lesson-plan
+data, loading behavior, API, schema, persistence, or teacher UI changed.
+
+- Removed the `No lesson plan for today` and missing previous-class lesson-plan
+  messages from the student Today sidebar while preserving its Today/Yesterday
+  headings, dates, real lesson content, loading state, and no-previous-class copy.
+- Updated the classroom-page regression coverage to assert both empty lesson
+  messages remain absent after a classroom route change.
+- The focused 30-test component suite, lint, and environment verification pass.
+  Playwright review of the exact sidebar component passed at desktop/mobile in
+  light/dark with no overflow or browser console errors; the temporary review
+  route was removed after capture. Teacher review is n/a because the changed
+  sidebar is student-only.
+
+**Model recommendation:** GPT-5.6 for a narrow, copy-only UI refinement.
