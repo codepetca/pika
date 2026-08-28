@@ -45,10 +45,12 @@ function formatTime(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'h:mm a')
 }
 
-function entryLabel(entry: EntryWithDiff): string {
-  const change = entry.charDiff === 0
+function entryLabel(entry: EntryWithDiff, isBaseline: boolean): string {
+  const change = isBaseline
     ? 'first save'
-    : `${entry.charDiff > 0 ? '+' : ''}${entry.charDiff} characters since previous`
+    : entry.charDiff === 0
+      ? 'no character-count change since previous'
+      : `${entry.charDiff > 0 ? '+' : ''}${entry.charDiff} characters since previous`
   return `${formatDate(Date.parse(entry.entry.created_at))}, ${formatTime(Date.parse(entry.entry.created_at))}, ${change}`
 }
 
@@ -263,7 +265,7 @@ export function HistoryGraph({
           aria-valuemin={1}
           aria-valuemax={diffs.length}
           aria-valuenow={selectedIndex + 1}
-          aria-valuetext={entryLabel(selectedEntry)}
+          aria-valuetext={entryLabel(selectedEntry, selectedIndex === 0)}
           aria-describedby={zoomStatusId}
           data-view-mode={isOverview ? 'daily' : 'saves'}
           preserveAspectRatio="none"
@@ -313,42 +315,61 @@ export function HistoryGraph({
                 const isSelected = group.entries.some(
                   (entry) => entry.entry.id === selectedEntry.entry.id
                 )
-                const dominantChange = group.additions >= group.deletions
-                  ? group.additions
-                  : -group.deletions
-                const selectedY = pointY(dominantChange, maxAbsChange)
-                const selectedColor = dominantChange >= 0
-                  ? 'var(--color-success)'
-                  : 'var(--color-danger)'
+                const additionIsTiny = group.additions > 0
+                  && Math.abs(additionY - BASELINE_Y) < 2
+                const deletionIsTiny = group.deletions > 0
+                  && Math.abs(deletionY - BASELINE_Y) < 2
 
                 return (
                   <g key={group.day} data-activity-day={group.day}>
                     <title>{`${formatDate(group.midpointMs)}: +${group.additions}, -${group.deletions} characters`}</title>
                     {group.additions > 0 && (
-                      <line
-                        x1={x}
-                        y1={BASELINE_Y}
-                        x2={x}
-                        y2={additionY}
-                        stroke="var(--color-success)"
-                        strokeWidth={isSelected ? 4 : 3}
-                        strokeLinecap="round"
-                        data-change-direction="up"
-                        data-change-value={group.additions}
-                      />
+                      <>
+                        <line
+                          x1={x}
+                          y1={BASELINE_Y}
+                          x2={x}
+                          y2={additionY}
+                          stroke="var(--color-success)"
+                          strokeWidth={isSelected ? 4 : 3}
+                          strokeLinecap="round"
+                          data-change-direction="up"
+                          data-change-value={group.additions}
+                        />
+                        {additionIsTiny && (
+                          <circle
+                            cx={x}
+                            cy={additionY}
+                            r={2}
+                            fill="var(--color-success)"
+                            data-small-change-marker="up"
+                          />
+                        )}
+                      </>
                     )}
                     {group.deletions > 0 && (
-                      <line
-                        x1={x}
-                        y1={BASELINE_Y}
-                        x2={x}
-                        y2={deletionY}
-                        stroke="var(--color-danger)"
-                        strokeWidth={isSelected ? 4 : 3}
-                        strokeLinecap="round"
-                        data-change-direction="down"
-                        data-change-value={group.deletions}
-                      />
+                      <>
+                        <line
+                          x1={x}
+                          y1={BASELINE_Y}
+                          x2={x}
+                          y2={deletionY}
+                          stroke="var(--color-danger)"
+                          strokeWidth={isSelected ? 4 : 3}
+                          strokeLinecap="round"
+                          data-change-direction="down"
+                          data-change-value={group.deletions}
+                        />
+                        {deletionIsTiny && (
+                          <circle
+                            cx={x}
+                            cy={deletionY}
+                            r={2}
+                            fill="var(--color-danger)"
+                            data-small-change-marker="down"
+                          />
+                        )}
+                      </>
                     )}
                     {group.additions === 0 && group.deletions === 0 && (
                       <circle
@@ -362,14 +383,15 @@ export function HistoryGraph({
                         data-change-value={0}
                       />
                     )}
-                    {isSelected && dominantChange !== 0 && (
+                    {isSelected && (group.additions > 0 || group.deletions > 0) && (
                       <circle
                         cx={x}
-                        cy={selectedY}
+                        cy={BASELINE_Y}
                         r={4}
-                        fill={selectedColor}
-                        stroke="var(--color-surface)"
+                        fill="var(--color-surface)"
+                        stroke="var(--color-text-default)"
                         strokeWidth={2}
+                        data-selected-day="true"
                       />
                     )}
                   </g>
@@ -379,15 +401,17 @@ export function HistoryGraph({
                 const x = positions[index]
                 const y = pointY(entry.charDiff, maxAbsChange)
                 const isSelected = entry.entry.id === selectedEntry.entry.id
+                const isBaseline = entry.entry.id === diffs[0]?.entry.id
                 const direction = entry.charDiff > 0 ? 'up' : entry.charDiff < 0 ? 'down' : 'none'
                 const color = entry.charDiff > 0
                   ? 'var(--color-success)'
                   : entry.charDiff < 0
                     ? 'var(--color-danger)'
                     : 'var(--color-text-muted)'
+                const isTiny = entry.charDiff !== 0 && Math.abs(y - BASELINE_Y) < 2
                 return (
                   <g key={entry.entry.id} data-change-direction={direction}>
-                    <title>{entryLabel(entry)}</title>
+                    <title>{entryLabel(entry, isBaseline)}</title>
                     <line
                       x1={x}
                       y1={BASELINE_Y}
@@ -398,6 +422,15 @@ export function HistoryGraph({
                       strokeLinecap="round"
                       data-change-value={Math.abs(entry.charDiff)}
                     />
+                    {isTiny && (
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={2}
+                        fill={color}
+                        data-small-change-marker={direction}
+                      />
+                    )}
                     {entry.charDiff === 0 && !isSelected && (
                       <circle
                         cx={x}

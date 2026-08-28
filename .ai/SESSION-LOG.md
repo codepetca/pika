@@ -2802,8 +2802,8 @@ authentication, dependency, migration, deployment, or hosted state changed.
   or latest save while preserving hover preview and click-to-pin behavior.
 - Replaced square-root height scaling with a shared linear character domain for
   additions and deletions. The domain recalculates for the current daily or
-  individual-save view, uses the available vertical height, and retains a small
-  non-zero visibility floor.
+  individual-save view and uses the available vertical height. Tiny exact-scale
+  stems receive a separate dot so they remain visible without distorting length.
 - Removed the redundant visible teacher `Student activity` heading while
   retaining the section's accessible name. Added a reachable, gated
   `/ui-gallery` alias plus a 40-paragraph preview and deterministic dense-history
@@ -2820,6 +2820,11 @@ authentication, dependency, migration, deployment, or hosted state changed.
   choosing a zoom anchor, and supports Up/Down alongside Left/Right/Home/End.
   The regression-focused gallery, teacher, student, and graph suite passes
   92/92.
+- Final cumulative review caught three broader edge cases. The second fix batch
+  restored strictly proportional stem lengths with separate tiny-change dots,
+  made daily selection direction-neutral, and distinguishes the first save from
+  later saves with no character-count change in slider announcements. The full
+  focused history and caller suite passes 130/130 after this batch.
 
 **Model recommendation:** GPT-5.6 Sol for a shared compact visualization with
 semantic zoom, proportional scaling, cross-role interaction, and visual QA.

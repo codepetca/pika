@@ -224,11 +224,11 @@ describe('activity days and sessions', () => {
     })
   })
 
-  it('uses a shared linear character scale while keeping non-zero edits visible', () => {
+  it('uses a strictly proportional shared linear character scale', () => {
     expect(computeLinearChangeHeight(400, 400, 28)).toBe(28)
     expect(computeLinearChangeHeight(-200, 400, 28)).toBe(14)
     expect(computeLinearChangeHeight(100, 400, 28)).toBe(7)
-    expect(computeLinearChangeHeight(1, 400, 28)).toBe(2)
+    expect(computeLinearChangeHeight(1, 400, 28)).toBeCloseTo(0.07)
     expect(computeLinearChangeHeight(0, 400, 28)).toBe(0)
   })
 })

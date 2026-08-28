@@ -241,7 +241,7 @@ and the first/last activity dates.
 - Primary signal: the fit-all view aggregates additions and deletions by activity
   day; zooming reveals individual saves. Both directions share one linear
   character scale that recalculates for the visible range and uses the available
-  chart height, with a small non-zero visibility floor.
+  chart height. Tiny exact-scale stems use a separate dot for visibility.
 - Must not add: a permanent legend, activity judgments, assignment/due
   boundaries, a second chart, pan controls, or explanatory body copy.
 - Composite widget accessibility review: yes. The save-history slider supports
@@ -264,6 +264,12 @@ role-owned heading.
   same save and slider value selected, and the Exit preview affordance remained
   visible. The post-remediation capture was visually reviewed with no layout
   regression.
+- Reviewed the extreme large-paste fixture after removing the stem-height floor:
+  the +530-character stem remains dominant, 20–30-character edits retain their
+  exact proportional height, and their separate dots remain clear at both the
+  240 px student and 256 px teacher widths. The mixed multi-day fixture also
+  shows a direction-neutral selection ring on the zero line rather than implying
+  that the selected save was an addition or deletion.
 - The zoom controls measured 44 × 44 px. Additions and deletions remain visibly
   distinct and share one proportional linear character scale.
 - No P0, P1, or P2 visual or interaction findings remain.

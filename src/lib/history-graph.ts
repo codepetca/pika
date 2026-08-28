@@ -270,21 +270,14 @@ export function computeHistoryZoomWindow(
   return { startMs, endMs: startMs + durationMs }
 }
 
-/**
- * Scale character changes linearly inside the current view. A two-pixel floor
- * keeps non-zero edits visible without changing the shared additions/deletions domain.
- */
+/** Scale character changes linearly inside the current view. */
 export function computeLinearChangeHeight(
   change: number,
   maxAbsChange: number,
-  maxHeight: number,
-  minVisibleHeight: number = 2
+  maxHeight: number
 ): number {
   if (change === 0 || maxAbsChange <= 0 || maxHeight <= 0) return 0
-  return Math.min(
-    maxHeight,
-    Math.max(minVisibleHeight, (Math.abs(change) / maxAbsChange) * maxHeight)
-  )
+  return Math.min(maxHeight, (Math.abs(change) / maxAbsChange) * maxHeight)
 }
 
 /**

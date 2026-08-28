@@ -86,6 +86,84 @@ describe('HistoryGraph', () => {
       .toBe(7)
   })
 
+  it('keeps tiny changes proportional and adds a separate visibility marker', () => {
+    const proportionalEntries = [
+      entry('tiny', '2025-01-20T03:00:00Z', 51, 301),
+      ...entries,
+    ]
+    render(
+      <HistoryGraph
+        entries={proportionalEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const tinyChange = chart.querySelector('[data-change-value="1"]')
+    const tinyHeight = Number(tinyChange?.getAttribute('y1'))
+      - Number(tinyChange?.getAttribute('y2'))
+
+    expect(tinyHeight).toBeCloseTo(28 / 240)
+    expect(chart.querySelector('[data-small-change-marker="up"]')).toBeInTheDocument()
+  })
+
+  it('uses a direction-neutral selection marker for a mixed daily overview', () => {
+    const mixedDayEntries = [
+      entry('selected-deletion', '2025-01-10T17:00:00Z', 42, 250),
+      entry('large-addition', '2025-01-10T16:00:00Z', 84, 500),
+      entry('baseline', '2025-01-01T16:00:00Z', 20, 100),
+    ]
+    render(
+      <HistoryGraph
+        entries={mixedDayEntries}
+        activeEntryId="selected-deletion"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const selectedDay = chart.querySelector('[data-selected-day="true"]')
+
+    expect(chart).toHaveAttribute('data-view-mode', 'daily')
+    expect(selectedDay).toHaveAttribute('cy', '39')
+    expect(selectedDay).toHaveAttribute('stroke', 'var(--color-text-default)')
+  })
+
+  it('distinguishes the baseline from a later save with no character-count change', () => {
+    const zeroChangeEntries = [
+      entry('unchanged', '2025-01-20T02:00:00Z', 20, 120),
+      entry('baseline', '2025-01-20T01:00:00Z', 20, 120),
+    ]
+    const { rerender } = render(
+      <HistoryGraph
+        entries={zeroChangeEntries}
+        activeEntryId="baseline"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    expect(chart).toHaveAttribute('aria-valuetext', expect.stringContaining('first save'))
+
+    rerender(
+      <HistoryGraph
+        entries={zeroChangeEntries}
+        activeEntryId="unchanged"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+    expect(chart).toHaveAttribute(
+      'aria-valuetext',
+      expect.stringContaining('no character-count change since previous')
+    )
+    expect(chart).not.toHaveAttribute('aria-valuetext', expect.stringContaining('first save'))
+  })
+
   it('fits multi-week work by day and zooms into individual saves', () => {
     render(
       <HistoryGraph
