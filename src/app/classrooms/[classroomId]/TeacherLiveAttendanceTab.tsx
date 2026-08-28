@@ -15,7 +15,7 @@ import {
   UserRoundCheck,
   UserRoundX,
 } from 'lucide-react'
-import { CalendarDateNavigator } from '@/components/CalendarActionBar'
+import { DateNavigator } from '@/components/DateNavigator'
 import {
   TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
@@ -790,7 +790,7 @@ export function TeacherLiveAttendanceTab({
       ) : null}
       primary={(
         <div className="flex items-center gap-1" data-testid="attendance-primary-control">
-          <CalendarDateNavigator
+          <DateNavigator
             label={formatDay(selectedDate)}
             onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
             onNext={() => setSelectedDate((current) => nextDate(current, 1))}

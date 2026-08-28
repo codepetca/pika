@@ -435,6 +435,8 @@ describe('TeacherAttendanceTab', () => {
 
     await screen.findByRole('columnheader', { name: /^Log/ })
 
+    const contextBar = screen.getByRole('region', { name: 'Daily controls' })
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     const lastClassButton = screen.getByRole('button', { name: 'Go to last class' })
     const todayButton = screen.getByRole('button', { name: 'Go to today' })
     expect(lastClassButton).toBeEnabled()

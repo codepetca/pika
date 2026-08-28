@@ -5,7 +5,7 @@ import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
 import { Button, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
@@ -485,9 +485,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         </div>
       ) : null}
       {!isReadOnly && (
-        <TeacherWorkSurfaceActionBar
+        <TeacherWorkSurfaceContextBar
+          ariaLabel="Announcement controls"
           testId="announcements-actionbar-center"
-          center={
+          primary={
             <TeacherWorkSurfaceActionCluster>
               <Button
                 type="button"
@@ -514,7 +515,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
               />
             </TeacherWorkSurfaceActionCluster>
           }
-          centerPlacement="floating"
         />
       )}
 
