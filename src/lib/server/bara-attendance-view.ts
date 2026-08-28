@@ -331,7 +331,7 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
         source: hasOverride ? 'staff' : fact ? 'student_qr' : automaticStatus === 'absent' ? 'system' : null,
         revision: hasOverride ? override!.revision : fact?.revision ?? null,
         checkedInAt: fact?.acceptedAt ?? null,
-        checkInRef: fact?.checkInRef ?? null,
+        hasQrCheckIn: Boolean(fact),
         hasManualOverride: hasOverride,
         pendingCommand: fact ? pendingRefs.has(fact.checkInRef) : false,
         commandFailed: false,

@@ -56,6 +56,45 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('button', { name: 'Grid view' })).toHaveClass('h-11', 'w-11')
   })
 
+  it('supports feature-owned semantic option colors without changing composite behavior', () => {
+    render(
+      <TooltipProvider>
+        <SegmentedControl
+          ariaLabel="Attendance status"
+          value="present"
+          iconOnly
+          options={[
+            {
+              value: 'present',
+              label: 'Present',
+              className: 'bg-attendance-present text-attendance-present-text',
+              activeClassName: 'ring-foundation ring-focus',
+              inactiveClassName: 'opacity-40',
+            },
+            {
+              value: 'absent',
+              label: 'Absent',
+              className: 'bg-attendance-absent text-attendance-absent-text',
+              activeClassName: 'ring-foundation ring-focus',
+              inactiveClassName: 'opacity-40',
+            },
+          ]}
+          onChange={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Present' })).toHaveClass(
+      'bg-attendance-present',
+      'ring-foundation',
+      'ring-focus',
+    )
+    expect(screen.getByRole('button', { name: 'Absent' })).toHaveClass(
+      'bg-attendance-absent',
+      'opacity-40',
+    )
+  })
+
   it('uses roving arrow, Home, and End navigation while skipping disabled options', () => {
     const onChange = vi.fn()
     render(

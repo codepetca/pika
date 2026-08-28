@@ -43,9 +43,9 @@ export interface TeacherAttendanceView {
     lastName: string
     status: TeacherAttendanceStatus
     source: TeacherAttendanceSource | null
-    revision: number | null
     checkedInAt: string | null
-    checkInRef: string | null
+    revision: number | null
+    hasQrCheckIn: boolean
     hasManualOverride: boolean
     pendingCommand: boolean
     commandFailed: boolean

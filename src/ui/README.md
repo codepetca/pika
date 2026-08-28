@@ -192,7 +192,9 @@ base controls and shell styling follow the `@/ui` contracts.
   automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
   and 44px targets. Panels with interactive descendants are not additional tab stops.
 - Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
-  state and the same roving arrow/first/last keyboard behavior.
+  state and the same roving arrow/first/last keyboard behavior. Options may provide semantic
+  `className`, `activeClassName`, and `inactiveClassName` overrides when the feature's established
+  status colors carry domain meaning; the shared control continues to own targets, focus, and keys.
 - Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
   from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
   row IDs so keyboard selection can move focus to the active row.

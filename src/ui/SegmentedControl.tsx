@@ -9,6 +9,9 @@ export interface SegmentedControlOption<TValue extends string> {
   label: string
   icon?: ReactNode
   disabled?: boolean
+  className?: string
+  activeClassName?: string
+  inactiveClassName?: string
 }
 
 export interface SegmentedControlProps<TValue extends string> {
@@ -98,6 +101,8 @@ export function SegmentedControl<TValue extends string>({
               isActive
                 ? 'bg-info-bg text-primary'
                 : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+              option.className,
+              isActive ? option.activeClassName : option.inactiveClassName,
               option.disabled ? 'cursor-not-allowed opacity-50 hover:bg-transparent hover:text-text-muted' : '',
             )}
             onClick={() => onChange(option.value)}
