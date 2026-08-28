@@ -136,11 +136,11 @@ describe('TeacherLiveAttendanceTab', () => {
     const contextBar = screen.getByTestId('attendance-context-bar')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
-    const closeAttendance = within(contextBar).getByRole('button', { name: 'Close attendance' })
+    const closeAttendance = within(contextBar).getByRole('button', { name: 'Stop QR check-in' })
     expect(showQr).toBeEnabled()
     expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
-    expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
+    expect(within(primaryControl).getByRole('button', { name: 'Stop QR check-in' })).toBe(closeAttendance)
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
@@ -152,11 +152,11 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByRole('menuitem', { name: 'Refresh attendance' })).toBeEnabled()
 
     fireEvent.click(attendanceHours)
-    expect(await screen.findByRole('dialog', { name: 'Attendance hours' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Attendance timing' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.focus(closeAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Stop QR check-in')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
 
@@ -339,14 +339,14 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(primaryControl).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
     expect(within(primaryControl).getByRole('button', { name: 'Next day' })).toBeEnabled()
 
-    const openAttendance = within(contextBar).getByRole('button', { name: 'Open attendance' })
+    const openAttendance = within(contextBar).getByRole('button', { name: 'Open QR check-in' })
     expect(openAttendance).toBeEnabled()
     expect(openAttendance).toHaveTextContent('')
-    expect(within(primaryControl).getByRole('button', { name: 'Open attendance' })).toBe(openAttendance)
-    expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
+    expect(within(primaryControl).getByRole('button', { name: 'Open QR check-in' })).toBe(openAttendance)
+    expect(screen.queryByText('Open QR check-in')).not.toBeInTheDocument()
 
     fireEvent.focus(openAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open attendance')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open QR check-in')
     fireEvent.click(openAttendance)
 
     await waitFor(() => expect(screen.getByText('Attendance opened')).toBeInTheDocument())
@@ -578,7 +578,7 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab({ ...classroom, archived_at: '2026-08-18T00:00:00Z' })
     await screen.findByText('Ada')
 
-    expect(screen.queryByRole('button', { name: 'Close attendance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop QR check-in' })).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeDisabled()
   })
 })

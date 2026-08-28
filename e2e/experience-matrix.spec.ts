@@ -169,6 +169,10 @@ test('keeps Attendance hours reachable across the responsive context bar', async
           state: 'open',
           opensAt: '2026-08-17T12:45:00.000Z',
           closesAt: '2026-08-17T13:15:00.000Z',
+          sessionStartsAt: '2026-08-17T12:55:00.000Z',
+          sessionEndsAt: '2026-08-17T13:25:00.000Z',
+          presentThroughAt: '2026-08-17T13:00:00.000Z',
+          absentAt: '2026-08-17T13:25:00.000Z',
           revision: 1,
           commandFailed: false,
         },
@@ -181,6 +185,9 @@ test('keeps Attendance hours reachable across the responsive context bar', async
             status: 'present',
             source: 'student_qr',
             revision: 1,
+            checkedInAt: '2026-08-17T12:57:00.000Z',
+            checkInRef: 'check_in_ada',
+            hasManualOverride: false,
             pendingCommand: false,
             commandFailed: false,
           },
@@ -196,9 +203,13 @@ test('keeps Attendance hours reachable across the responsive context bar', async
         policy: {
           classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
           timezone: 'America/Toronto',
-          opensLocal: '08:45',
-          closesLocal: '15:15',
-          closeDayOffset: 0,
+          sessionStartsLocal: '09:00',
+          sessionEndsLocal: '10:00',
+          sessionEndDayOffset: 0,
+          entryOpensMinutesBefore: 10,
+          presentGraceMinutes: 5,
+          entryClosesMinutesBeforeEnd: 10,
+          absentMinutesBeforeEnd: 0,
           enabled: true,
           revision: 1,
           updatedAt: '2026-08-17T12:00:00.000Z',
@@ -218,6 +229,16 @@ test('keeps Attendance hours reachable across the responsive context bar', async
     animations: 'disabled',
   })
 
+  const adaSelection = page.getByRole('checkbox', { name: 'Select Ada Lovelace' })
+  await adaSelection.click()
+  await expect(page.getByRole('button', { name: /Remove QR check-in/ })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-check-in.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await adaSelection.click()
+
   if (viewport === 'mobile') {
     const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
     await expect(attendanceMenu).toBeVisible()
@@ -228,9 +249,32 @@ test('keeps Attendance hours reachable across the responsive context bar', async
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
     await trailingActions.getByRole('button', { name: 'Attendance hours' }).click()
   }
-  await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Attendance timing' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  if (viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Save timing' }).scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: testInfo.outputPath(`attendance-${viewport}-hours-dialog-actions.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+})
+
+test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.goto('/e2e-fixtures/student-attendance', { waitUntil: 'domcontentloaded' })
+
+  await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+  await expect(page.getByText('Checked in at 9:07 AM')).toBeVisible()
+  await expect(page.getByText('Late', { exact: true })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-attendance-${getExperienceMetadata(testInfo).viewport}.png`),
     fullPage: true,
     animations: 'disabled',
   })

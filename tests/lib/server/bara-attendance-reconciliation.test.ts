@@ -18,15 +18,14 @@ const snapshotResponse = {
   roster_ref: 'roster_one',
   session_revision: 3,
   status: 'closed',
-  opens_at: '2026-09-02T12:50:00.000Z',
-  closes_at: '2026-09-02T13:20:00.000Z',
-  records: [{
+  accepts_at: '2026-09-02T12:50:00.000Z',
+  stops_accepting_at: '2026-09-02T13:20:00.000Z',
+  check_ins: [{
+    check_in_ref: 'check_in_one',
     participant_ref: 'participant_one',
-    record_revision: 2,
-    status: 'absent',
-    source: 'staff_manual',
-    actor_type: 'staff',
-    modified_at: '2026-09-02T13:25:00.000Z',
+    check_in_revision: 2,
+    accepted_at: '2026-09-02T13:01:00.000Z',
+    invalidated_at: '2026-09-02T13:25:00.000Z',
   }],
 }
 
@@ -52,7 +51,7 @@ describe('Bara attendance reconciliation', () => {
       data: {
         applied: true,
         session_projection_applied: true,
-        record_projection_count: 1,
+        check_in_projection_count: 1,
       },
       error: null,
     })
@@ -64,7 +63,7 @@ describe('Bara attendance reconciliation', () => {
     })).resolves.toEqual({
       occurrenceRef: 'occurrence_one',
       sessionProjectionApplied: true,
-      recordProjectionCount: 1,
+      checkInProjectionCount: 1,
     })
 
     expect(rpc).toHaveBeenCalledWith('apply_attendance_session_snapshot_v1', {
@@ -75,9 +74,9 @@ describe('Bara attendance reconciliation', () => {
         roster_ref: 'roster_one',
         session_revision: 3,
         status: 'closed',
-        opens_at: '2026-09-02T12:50:00.000Z',
-        closes_at: '2026-09-02T13:20:00.000Z',
-        records: snapshotResponse.records,
+        accepts_at: '2026-09-02T12:50:00.000Z',
+        stops_accepting_at: '2026-09-02T13:20:00.000Z',
+        check_ins: snapshotResponse.check_ins,
       },
     })
   })
@@ -101,7 +100,7 @@ describe('Bara attendance reconciliation', () => {
       data: {
         applied: true,
         session_projection_applied: true,
-        record_projection_count: 1,
+        check_in_projection_count: 1,
       },
       error: null,
     })

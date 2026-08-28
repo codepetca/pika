@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import {
   BaraAttendanceClientError,
-  type BaraAttendanceMarksResult,
+  type BaraCheckInInvalidationResult,
   type BaraSessionCommandResult,
 } from '@/lib/server/bara-attendance-client'
 import {
@@ -9,8 +9,7 @@ import {
   deliverBaraAttendanceMessage,
 } from '@/lib/server/bara-attendance-outbox'
 import type {
-  AttendanceStatus,
-  V1AttendanceMarks,
+  V1CheckInInvalidate,
   V1SessionCommand,
 } from '@/vendor/attendance-contract/v1/types'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
@@ -256,15 +255,13 @@ export async function executeTeacherAttendanceMarks(input: {
   classroomId: string
   classDate: string
   requestId: string
-  actor: VerifiedPikaAttendanceTeacher
+  actor?: VerifiedPikaAttendanceTeacher
   marks: Array<{
     studentId: string
-    status: AttendanceStatus
+    status: 'automatic' | 'present' | 'late' | 'absent'
     reasonCode?: string
   }>
   integrationState?: 'disabled' | 'not_configured' | 'ready'
-  store?: AttendanceCommandStore
-  send?: (payload: V1AttendanceMarks) => Promise<BaraAttendanceMarksResult>
 }) {
   const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
     teacherId: input.teacherId,
@@ -273,30 +270,104 @@ export async function executeTeacherAttendanceMarks(input: {
   if (integrationState !== 'ready') {
     throw new TeacherAttendanceCommandError(integrationState)
   }
+  const { data, error } = await input.supabase.rpc('apply_attendance_status_overrides_v1', {
+    p_teacher_id: input.teacherId,
+    p_classroom_id: input.classroomId,
+    p_class_date: input.classDate,
+    p_request_id: input.requestId,
+    p_marks: input.marks.map((mark) => ({
+      student_id: mark.studentId,
+      status: mark.status,
+      ...(mark.reasonCode ? { reason_code: mark.reasonCode } : {}),
+    })),
+  })
+  if (error) {
+    if (isMigrationError(error)) throw new TeacherAttendanceCommandError('migration_required')
+    if (error.code === '23505') throw new TeacherAttendanceCommandError('conflict')
+    if (error.message?.includes('attendance_roster_changed')) {
+      throw new TeacherAttendanceCommandError('roster_changed')
+    }
+    throw new TeacherAttendanceCommandError('upstream_unavailable')
+  }
+  const parsed = z.object({
+    outcome: z.enum(['applied', 'duplicate']),
+    occurrence_ref: opaqueRefSchema,
+    applied_count: z.number().int().nonnegative(),
+    unchanged_count: z.number().int().nonnegative(),
+  }).strict().safeParse(data)
+  if (!parsed.success) throw new TeacherAttendanceCommandError('upstream_unavailable')
+  return {
+    outcome: parsed.data.outcome,
+    appliedCount: parsed.data.applied_count,
+    unchangedCount: parsed.data.unchanged_count,
+  }
+}
+
+export async function executeTeacherCheckInInvalidations(input: {
+  supabase: any
+  teacherId: string
+  classroomId: string
+  classDate: string
+  requestId: string
+  actor: VerifiedPikaAttendanceTeacher
+  studentIds: string[]
+  integrationState?: 'disabled' | 'not_configured' | 'ready'
+  store?: AttendanceCommandStore
+  send?: (payload: V1CheckInInvalidate) => Promise<BaraCheckInInvalidationResult>
+}) {
+  const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
+    teacherId: input.teacherId,
+    classroomId: input.classroomId,
+  })
+  if (integrationState !== 'ready') throw new TeacherAttendanceCommandError(integrationState)
   const store = input.store ?? createSupabaseAttendanceCommandStore(input.supabase)
-  const [context, participantRefs] = await Promise.all([
-    store.loadContext(input),
-    store.loadParticipantRefs({
-      classroomId: input.classroomId,
-      studentIds: input.marks.map((mark) => mark.studentId),
-    }),
-  ])
+  const context = await store.loadContext(input)
+  const { data, error } = await input.supabase
+    .from('attendance_check_in_facts')
+    .select('student_id, check_in_ref, accepted_at')
+    .eq('classroom_id', input.classroomId)
+    .eq('occurrence_ref', context.occurrenceRef)
+    .is('invalidated_at', null)
+    .in('student_id', input.studentIds)
+    .order('accepted_at', { ascending: false })
+  if (error) {
+    throw new TeacherAttendanceCommandError(
+      isMigrationError(error) ? 'migration_required' : 'upstream_unavailable',
+    )
+  }
+  const parsed = z.array(z.object({
+    student_id: z.string().uuid(), check_in_ref: opaqueRefSchema,
+    accepted_at: z.string().datetime({ offset: true }),
+  }).strict()).safeParse(data ?? [])
+  if (!parsed.success) throw new TeacherAttendanceCommandError('upstream_unavailable')
+  const latestByStudent = new Map<string, { checkInRef: string; acceptedAt: string }>()
+  for (const row of parsed.data) {
+    const current = latestByStudent.get(row.student_id)
+    if (!current || Date.parse(row.accepted_at) > Date.parse(current.acceptedAt)) {
+      latestByStudent.set(row.student_id, {
+        checkInRef: row.check_in_ref,
+        acceptedAt: row.accepted_at,
+      })
+    }
+  }
+  if (latestByStudent.size === 0) {
+    return { outcome: 'applied' as const, appliedCount: 0, unchangedCount: 0 }
+  }
   const refs = requestRefs(input.requestId)
-  const payload: V1AttendanceMarks = {
+  const payload: V1CheckInInvalidate = {
     schema_version: 1,
-    message_type: 'attendance.marks',
-    idempotency_key: `marks:${context.occurrenceRef}:${refs.compact}`,
+    message_type: 'check_in.invalidate',
+    idempotency_key: `invalidate:${context.occurrenceRef}:${refs.compact}`,
     correlation_ref: refs.correlationRef,
     installation_ref: context.installationRef,
     roster_ref: context.rosterRef,
     occurrence_ref: context.occurrenceRef,
     actor_principal_ref: context.actorPrincipalRef,
     actor_display_name: context.actorDisplayName,
-    marks: input.marks.map((mark, index) => ({
-      command_ref: `mark_${refs.compact}_${index + 1}`,
-      participant_ref: participantRefs.get(mark.studentId)!,
-      status: mark.status,
-      ...(mark.reasonCode ? { reason_code: mark.reasonCode } : {}),
+    invalidations: [...latestByStudent.values()].map(({ checkInRef }, index) => ({
+      command_ref: `invalidate_${refs.compact}_${index + 1}`,
+      check_in_ref: checkInRef,
+      reason_code: 'staff_reset',
     })),
   }
   try {
@@ -310,11 +381,10 @@ export async function executeTeacherAttendanceMarks(input: {
         }))
     return {
       outcome: result.outcome,
-      sessionRevision: result.sessionRevision,
       appliedCount: result.appliedCount,
       unchangedCount: result.unchangedCount,
     }
-  } catch (error) {
-    return mapClientError(error, { durableClientFailure: !input.send })
+  } catch (reason) {
+    return mapClientError(reason, { durableClientFailure: !input.send })
   }
 }
