@@ -7,9 +7,11 @@ if [[ -z "$DB_CONTAINER" ]]; then
   exit 2
 fi
 
-# This fixture requires migration 120. It is intentionally transactional and
+# This fixture requires migration 120. With migration 134 present, it also
+# proves Blueprint finalization can clear question provenance without changing
+# an active Test or its student work. It is intentionally transactional and
 # leaves local data and rollout settings unchanged. Do not run it until the
-# exact migration has been authorized and replayed locally.
+# exact migrations have been authorized and replayed locally.
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
@@ -113,10 +115,11 @@ insert into public.course_blueprint_assignments (
   'c1200000-0000-4000-8000-000000000010', 'Deleted assignment'
 );
 insert into public.course_blueprint_assessments (
-  id, course_blueprint_id, assessment_type, title
+  id, course_blueprint_id, artifact_id, assessment_type, title
 ) values (
   'c1200000-0000-4000-8000-000000000021',
-  'c1200000-0000-4000-8000-000000000010', 'test', 'Deleted test'
+  'c1200000-0000-4000-8000-000000000010',
+  'c1200000-0000-4000-8000-000000000084', 'test', 'Deleted test'
 );
 insert into public.course_blueprint_versions (
   id, course_blueprint_id, version_number, source_draft_revision,
@@ -144,6 +147,47 @@ insert into public.classrooms (
 insert into public.classroom_enrollments (classroom_id, student_id) values (
   'c1200000-0000-4000-8000-000000000030',
   'c1200000-0000-4000-8000-000000000002'
+);
+
+insert into public.tests (
+  id, classroom_id, title, status, points_possible, created_by,
+  artifact_id, source_artifact_id, source_blueprint_version_id
+) values (
+  'c1200000-0000-4000-8000-000000000080',
+  'c1200000-0000-4000-8000-000000000030',
+  'Preserved active Test', 'active', 1,
+  'c1200000-0000-4000-8000-000000000001',
+  'c1200000-0000-4000-8000-000000000085',
+  'c1200000-0000-4000-8000-000000000084',
+  'c1200000-0000-4000-8000-000000000022'
+);
+insert into public.test_questions (
+  id, test_id, question_type, question_text, points, position,
+  artifact_id, source_artifact_id, source_blueprint_version_id
+) values (
+  'c1200000-0000-4000-8000-000000000081',
+  'c1200000-0000-4000-8000-000000000080',
+  'open_response', 'Student work must survive Blueprint deletion', 1, 0,
+  'c1200000-0000-4000-8000-000000000086',
+  'c1200000-0000-4000-8000-000000000087',
+  'c1200000-0000-4000-8000-000000000022'
+);
+insert into public.test_attempts (
+  id, test_id, student_id, responses, is_submitted, submitted_at
+) values (
+  'c1200000-0000-4000-8000-000000000082',
+  'c1200000-0000-4000-8000-000000000080',
+  'c1200000-0000-4000-8000-000000000002',
+  '{"draft":"preserved"}'::jsonb, true, '2026-08-28T14:00:00Z'
+);
+insert into public.test_responses (
+  id, test_id, question_id, student_id, response_text, submitted_at
+) values (
+  'c1200000-0000-4000-8000-000000000083',
+  'c1200000-0000-4000-8000-000000000080',
+  'c1200000-0000-4000-8000-000000000081',
+  'c1200000-0000-4000-8000-000000000002',
+  'Preserved student response', '2026-08-28T14:00:00Z'
 );
 
 select public.begin_managed_storage_upload(
@@ -470,7 +514,7 @@ begin
     'c1200000-0000-4000-8000-000000000060',
     'c1200000-0000-4000-8000-000000000001'
   );
-  if v_result->>'operation_status' <> 'completed' then
+  if v_result->>'operation_status' is distinct from 'completed' then
     raise exception 'Blueprint purge did not finalize: %', v_result;
   end if;
 end;
@@ -494,6 +538,44 @@ begin
       and source_blueprint_origin->>'blueprint_deleted' = 'true'
       and source_blueprint_origin->>'during_purge_edit_preserved' = 'true'
   ) then raise exception 'Linked Classroom was not preserved and unlinked'; end if;
+  if not exists (
+    select 1 from public.tests
+    where id = 'c1200000-0000-4000-8000-000000000080'
+      and classroom_id = 'c1200000-0000-4000-8000-000000000030'
+      and title = 'Preserved active Test'
+      and status = 'active'
+      and points_possible = 1
+      and source_blueprint_version_id is null
+  ) then raise exception 'Linked Test was not preserved and unlinked'; end if;
+  if not exists (
+    select 1 from public.test_questions
+    where id = 'c1200000-0000-4000-8000-000000000081'
+      and test_id = 'c1200000-0000-4000-8000-000000000080'
+      and question_text = 'Student work must survive Blueprint deletion'
+      and points = 1
+      and position = 0
+      and artifact_id = 'c1200000-0000-4000-8000-000000000086'
+      and source_artifact_id = 'c1200000-0000-4000-8000-000000000087'
+      and source_blueprint_version_id is null
+  ) then raise exception 'Linked Test question was not preserved and unlinked'; end if;
+  if not exists (
+    select 1 from public.test_attempts
+    where id = 'c1200000-0000-4000-8000-000000000082'
+      and test_id = 'c1200000-0000-4000-8000-000000000080'
+      and student_id = 'c1200000-0000-4000-8000-000000000002'
+      and responses = '{"draft":"preserved"}'::jsonb
+      and is_submitted is true
+      and submitted_at = '2026-08-28T14:00:00Z'::timestamptz
+  ) then raise exception 'Linked Test attempt changed during Blueprint deletion'; end if;
+  if not exists (
+    select 1 from public.test_responses
+    where id = 'c1200000-0000-4000-8000-000000000083'
+      and test_id = 'c1200000-0000-4000-8000-000000000080'
+      and question_id = 'c1200000-0000-4000-8000-000000000081'
+      and student_id = 'c1200000-0000-4000-8000-000000000002'
+      and response_text = 'Preserved student response'
+      and submitted_at = '2026-08-28T14:00:00Z'::timestamptz
+  ) then raise exception 'Linked Test response changed during Blueprint deletion'; end if;
   if (select count(*) from public.users where id in (
       'c1200000-0000-4000-8000-000000000001',
       'c1200000-0000-4000-8000-000000000002'

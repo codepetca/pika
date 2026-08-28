@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Pin student Achievements navigation to the bottom
-
-**Risk profile:** none — student classroom navigation ordering and layout only;
-no API, schema, persistence, dependency, or hosted state changed.
-
-- Moved the student-only Achievements destination out of the primary classroom
-  navigation cluster and pinned it to the bottom of the desktop sidebar and
-  mobile navigation drawer. Teacher navigation remains unchanged.
-- Added regression coverage for the complete student navigation order, active
-  `aria-current` state, and the bottom-placement class.
-- Full Vitest passes (5,096/5,096). Focused navigation/sidebar tests pass
-  (16/16), lint, design policy, Pika audit, and diff checks pass.
-- Playwright visual verification passed for student and teacher, desktop and
-  mobile, light and dark. The active Achievements link stays inside the viewport
-  at the bottom edge with no horizontal overflow.
-- Composite-widget checklist reviewed: keyboard behavior is unchanged; semantic
-  active state is covered by tests; remaining manual follow-up: none.
-
-**Model recommendation:** GPT-5.6 Sol for the small shared-shell layout change
-and bounded PR review.
-
 ## 2026-08-26 — Move student check-in status into Today side card
 
 **Risk profile:** none — student Today-tab composition only; no attendance
@@ -1106,3 +1085,22 @@ state changed.
 
 **Model recommendation:** GPT-5.6 Sol for migration and concurrency changes;
 GPT-5.6 Terra for bounded compatibility review.
+
+## 2026-08-28 — Preserve linked Tests during Blueprint purge
+
+**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
+no migration was applied, no database was reset, and no hosted state changed.
+
+- Extended the owner-only provenance exception so Blueprint purge finalization
+  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
+  after student work exists. Authored Test content and identity remain frozen.
+- Added a transactional database regression covering an active linked Test,
+  question, submitted attempt, and response. The old trigger fails purge
+  permanently; the revised trigger completes purge while preserving all Test
+  and student-work records and clearing only Blueprint lineage.
+- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
+  lint, the production build, SQL diff validation, and transaction-only local
+  before/after database proofs. Migration 134 remains unapplied to production.
+
+**Model recommendation:** current frontier coding model for the bounded
+PostgreSQL trigger and deletion-contract fix.
