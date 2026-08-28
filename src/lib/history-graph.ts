@@ -40,6 +40,15 @@ export interface ActivityWindow {
   endMs: number
 }
 
+export interface DailyActivityGroup {
+  day: string
+  midpointMs: number
+  additions: number
+  deletions: number
+  entries: EntryWithDiff[]
+  finalEntry: EntryWithDiff
+}
+
 export interface WorkSession {
   id: string
   startMs: number
@@ -56,6 +65,15 @@ const STEM_PADDING_X = 2 // px from left/right edges
 const STEM_WIDTH = 2
 const STEM_GAP = 1 // 1px gap between stems
 export const HISTORY_SESSION_GAP_MS = 30 * 60 * 1000
+const HISTORY_DAY_MS = 24 * 60 * 60 * 1000
+const HISTORY_ZOOM_PRESETS_MS = [
+  14 * HISTORY_DAY_MS,
+  7 * HISTORY_DAY_MS,
+  3 * HISTORY_DAY_MS,
+  HISTORY_DAY_MS,
+  6 * 60 * 60 * 1000,
+  60 * 60 * 1000,
+]
 
 // ── Pure functions ─────────────────────────────────────────────────
 
@@ -169,6 +187,10 @@ export function computeActivityPositions(
     + positionInActivityWindow(Date.parse(entry.entry.created_at), window) * usableWidth
   ))
 
+  if ((entries.length - 1) * minSpacing > usableWidth) {
+    return positions
+  }
+
   for (let index = 1; index < positions.length; index += 1) {
     positions[index] = Math.max(positions[index], positions[index - 1] + minSpacing)
   }
@@ -185,6 +207,84 @@ export function computeActivityPositions(
   }
 
   return positions
+}
+
+/** Aggregate chronological save changes by Toronto activity day. */
+export function groupActivityByDay(entries: EntryWithDiff[]): DailyActivityGroup[] {
+  const groups = new Map<string, DailyActivityGroup>()
+
+  for (const entry of entries) {
+    const day = formatInTimeZone(new Date(entry.entry.created_at), TZ, 'yyyy-MM-dd')
+    const existing = groups.get(day)
+    const additions = Math.max(0, entry.charDiff)
+    const deletions = Math.max(0, -entry.charDiff)
+
+    if (existing) {
+      existing.additions += additions
+      existing.deletions += deletions
+      existing.entries.push(entry)
+      existing.finalEntry = entry
+      continue
+    }
+
+    groups.set(day, {
+      day,
+      midpointMs: fromZonedTime(`${day}T12:00:00`, TZ).getTime(),
+      additions,
+      deletions,
+      entries: [entry],
+      finalEntry: entry,
+    })
+  }
+
+  return [...groups.values()]
+}
+
+/** Return full-project plus progressively narrower, non-duplicated zoom durations. */
+export function buildHistoryZoomDurations(window: ActivityWindow): number[] {
+  const fullDuration = Math.max(0, window.endMs - window.startMs)
+  if (fullDuration === 0) return []
+
+  return [
+    fullDuration,
+    ...HISTORY_ZOOM_PRESETS_MS.filter((duration) => duration < fullDuration),
+  ]
+}
+
+/** Center a zoom duration on an activity timestamp without leaving the full window. */
+export function computeHistoryZoomWindow(
+  fullWindow: ActivityWindow,
+  durationMs: number,
+  anchorMs: number
+): ActivityWindow {
+  const fullDuration = fullWindow.endMs - fullWindow.startMs
+  if (durationMs >= fullDuration) return fullWindow
+
+  const boundedAnchor = Math.max(fullWindow.startMs, Math.min(fullWindow.endMs, anchorMs))
+  const idealStart = boundedAnchor - durationMs / 2
+  const startMs = Math.max(
+    fullWindow.startMs,
+    Math.min(fullWindow.endMs - durationMs, idealStart)
+  )
+
+  return { startMs, endMs: startMs + durationMs }
+}
+
+/**
+ * Scale character changes linearly inside the current view. A two-pixel floor
+ * keeps non-zero edits visible without changing the shared additions/deletions domain.
+ */
+export function computeLinearChangeHeight(
+  change: number,
+  maxAbsChange: number,
+  maxHeight: number,
+  minVisibleHeight: number = 2
+): number {
+  if (change === 0 || maxAbsChange <= 0 || maxHeight <= 0) return 0
+  return Math.min(
+    maxHeight,
+    Math.max(minVisibleHeight, (Math.abs(change) / maxAbsChange) * maxHeight)
+  )
 }
 
 /**

@@ -9,6 +9,10 @@ import {
   buildWorkSessions,
   computeActivityPositions,
   computeActivityWindow,
+  buildHistoryZoomDurations,
+  computeHistoryZoomWindow,
+  computeLinearChangeHeight,
+  groupActivityByDay,
   positionInActivityWindow,
 } from '@/lib/history-graph'
 
@@ -164,6 +168,68 @@ describe('activity days and sessions', () => {
     expect(positions[2] - positions[1]).toBeGreaterThanOrEqual(4)
     expect(positions[0]).toBeGreaterThanOrEqual(5)
     expect(positions[2]).toBeLessThanOrEqual(251)
+  })
+
+  it('preserves real timing when there are too many saves to space apart', () => {
+    const diffs = computeCharDiffs(makeEntries(
+      Array.from({ length: 80 }, (_, index) => ({
+        charCount: 1000 - index * 5,
+        time: new Date(Date.parse('2025-01-20T15:00:00Z') + (79 - index) * 1000).toISOString(),
+      }))
+    ))
+    const window = computeActivityWindow(diffs.map((entry) => entry.entry))!
+
+    const positions = computeActivityPositions(diffs, window, 256, 5, 4)
+
+    expect(positions[positions.length - 1] - positions[0]).toBeLessThan(1)
+  })
+
+  it('aggregates additions and deletions by Toronto activity day', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 190, time: '2025-01-17T16:00:00Z', id: 'final' },
+      { charCount: 140, time: '2025-01-16T19:00:00Z', id: 'rewrite' },
+      { charCount: 220, time: '2025-01-16T16:00:00Z', id: 'addition' },
+      { charCount: 100, time: '2025-01-15T16:00:00Z', id: 'baseline' },
+    ]))
+
+    const groups = groupActivityByDay(diffs)
+
+    expect(groups).toHaveLength(3)
+    expect(groups[1]).toMatchObject({
+      day: '2025-01-16',
+      additions: 120,
+      deletions: 80,
+    })
+    expect(groups[1].finalEntry.entry.id).toBe('rewrite')
+    expect(groups[2]).toMatchObject({ additions: 50, deletions: 0 })
+  })
+
+  it('builds useful zoom levels and clamps a centered zoom to the project range', () => {
+    const window = {
+      startMs: Date.parse('2025-01-01T00:00:00Z'),
+      endMs: Date.parse('2025-02-12T00:00:00Z'),
+    }
+    const durations = buildHistoryZoomDurations(window)
+
+    expect(durations[0]).toBe(42 * 24 * 60 * 60 * 1000)
+    expect(durations[1]).toBe(14 * 24 * 60 * 60 * 1000)
+
+    expect(computeHistoryZoomWindow(window, durations[1], window.startMs)).toEqual({
+      startMs: window.startMs,
+      endMs: window.startMs + durations[1],
+    })
+    expect(computeHistoryZoomWindow(window, durations[1], window.endMs)).toEqual({
+      startMs: window.endMs - durations[1],
+      endMs: window.endMs,
+    })
+  })
+
+  it('uses a shared linear character scale while keeping non-zero edits visible', () => {
+    expect(computeLinearChangeHeight(400, 400, 28)).toBe(28)
+    expect(computeLinearChangeHeight(-200, 400, 28)).toBe(14)
+    expect(computeLinearChangeHeight(100, 400, 28)).toBe(7)
+    expect(computeLinearChangeHeight(1, 400, 28)).toBe(2)
+    expect(computeLinearChangeHeight(0, 400, 28)).toBe(0)
   })
 })
 

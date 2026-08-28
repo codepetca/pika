@@ -21,7 +21,11 @@ vi.mock('@/components/editor', () => ({
 
 vi.mock('@/components/HistoryList', () => ({
   HistoryList: ({ entries, onEntryClick, onEntryHover, ...props }: any) => (
-    <div data-testid="history-list" data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}>
+    <div
+      data-testid="history-list"
+      data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}
+      data-show-heading={props.showHeading === false ? 'no' : 'yes'}
+    >
       {entries.map((entry: any) => (
         <button
           key={entry.id}
@@ -1236,6 +1240,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Grade' }))
 
     expect(await screen.findByTestId('history-list')).toHaveAttribute('data-has-lifecycle', 'no')
+    expect(screen.getByTestId('history-list')).toHaveAttribute('data-show-heading', 'no')
     await waitFor(() => {
       expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
     })

@@ -224,3 +224,52 @@ and the first/last activity dates.
 - Semantic state covered by tests: yes; the slider name, range position, and
   text alternative for character change are asserted.
 - Remaining manual follow-up: none; visible focus was checked in Playwright.
+
+## Dense-history semantic zoom refinement
+
+### Change brief
+
+- Surface: the existing compact assignment-history chart and the development
+  gallery examples used to stress-test it.
+- Reference: the current 240–256 px chart, including hover preview and
+  click-to-pin behavior.
+- Affected roles: teacher and student.
+- Required viewports and themes: desktop/mobile and light/dark.
+- Key states: fit-all overview, zoomed save detail, hover, pinned selection,
+  keyboard focus, empty, long document, steady multi-week work, bursty rewrites,
+  and a dense final-day crunch.
+- Primary signal: the fit-all view aggregates additions and deletions by activity
+  day; zooming reveals individual saves. Both directions share one linear
+  character scale that recalculates for the visible range and uses the available
+  chart height, with a small non-zero visibility floor.
+- Must not add: a permanent legend, activity judgments, assignment/due
+  boundaries, a second chart, pan controls, or explanatory body copy.
+- Composite widget accessibility review: yes. The save-history slider retains
+  Arrow/Home/End behavior and labelled zoom buttons expose the view change.
+
+The teacher surface removes the redundant visible `Student activity` heading
+while retaining the section's accessible name. The student keeps its existing
+role-owned heading.
+
+### Verification result
+
+- Reviewed teacher and student at 1440 × 900 and 390 × 844 in light and dark
+  themes. No horizontal overflow was present at 390 px.
+- Reviewed fit-all daily views for steady six-week work, bursty rewrites, a
+  100-save final-day crunch, a single save, and empty history.
+- Reviewed the long-document hover fit, 14-day individual-save zoom, pinned
+  reading-size preview, and visible keyboard focus.
+- The zoom controls measured 44 × 44 px. Additions and deletions remain visibly
+  distinct and share one proportional linear character scale.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Arrow keys, Home, and End retain save
+  navigation, and zoom controls are ordinary keyboard-reachable buttons.
+- Semantic state covered by tests: yes; slider values/text, daily/save view
+  changes, zoom button state, accessible group naming, and hidden-heading region
+  naming are asserted.
+- Remaining manual follow-up: none; focus visibility and target size were checked
+  in Playwright.

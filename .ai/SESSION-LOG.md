@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Verify entitled-teacher active-class readiness
-
-**Risk profile:** runtime-platform — read-only production UI and aggregate
-database verification; no production migration, deployment, entitlement,
-configuration, flag, cleanup, or attendance-data mutation was performed.
-
-- Confirmed the entitled teacher sees Attendance in the sole active production
-  classroom and that its enabled policy plus opaque roster/schedule mapping are
-  fully synced.
-- Added the target-pinned, aggregate-only `attendance:pilot:readiness` operator.
-  It emits no teacher, classroom, roster, or student identifiers and fails
-  closed unless configured and unconfigured active classrooms both exist.
-- The production run correctly reported
-  `requires_at_least_two_active_classrooms` and
-  `requires_unconfigured_active_classroom`; the save-isolation gate therefore
-  remains open until a second intended active classroom exists or an exact
-  temporary setup and restoration is separately authorized.
-- Added focused readiness, service-role read-path, and operator-contract
-  coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
-  production build pass with only the existing WorkOS Edge-runtime warnings.
-- Independent review found that separate REST reads could observe inconsistent
-  states, an unconfigured Class mapping could mask a missing configured-Class
-  mapping, the service-role transport was not operation-read-only, and output
-  could expose unstable error or revision detail.
-- Remediated those findings with proposed, unapplied migration 133: one stable
-  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
-  transport allowlist, stable operator failure codes, and database regression
-  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
-  boundaries, and the production build pass. Production remains through
-  migration 132 and was not modified.
-- Targeted re-review caught and fixed a database-test false positive where the
-  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
-  assertion now requires exactly the eight aggregate keys with numeric values;
-  migration 133 remains unapplied pending exact authorization.
-
 ## 2026-08-25 — Repair Blueprint Test question identity mapping
 
 **Risk profile:** runtime-platform — the initial database RPC replacement was
@@ -2822,3 +2787,34 @@ or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for shared rich-text viewport state,
 scroll restoration, responsive measurement, and cross-role interaction QA.
+
+## 2026-08-28 — Make dense assignment history explorable
+
+**Risk profile:** none — shared teacher/student history presentation,
+interaction, and development fixtures only; no API, schema, persistence,
+authentication, dependency, migration, deployment, or hosted state changed.
+
+- Kept the compact full-history chart as the default view, aggregating long or
+  dense histories by Toronto activity day so six weeks of steady work, bursty
+  rewrites, and a 100-save final-day crunch remain immediately readable.
+- Added compact zoom controls that reveal individual saves at progressively
+  narrower windows. Zoom centers on the selected, hovered, keyboard-selected,
+  or latest save while preserving hover preview and click-to-pin behavior.
+- Replaced square-root height scaling with a shared linear character domain for
+  additions and deletions. The domain recalculates for the current daily or
+  individual-save view, uses the available vertical height, and retains a small
+  non-zero visibility floor.
+- Removed the redundant visible teacher `Student activity` heading while
+  retaining the section's accessible name. Added a reachable, gated
+  `/ui-gallery` alias plus a 40-paragraph preview and deterministic dense-history
+  stress fixtures.
+- Focused coverage passes 74/74; TypeScript, lint, environment verification,
+  diff checks, and the Pika audit pass. The composite-widget checklist records
+  keyboard and semantic coverage with no remaining manual follow-up.
+- Playwright verification covered both roles at desktop/mobile widths in
+  light/dark, daily/save zoom states, hover fit, pinned reading size, keyboard
+  focus, empty/single-save states, and 44 px zoom targets with no mobile
+  overflow. The review is recorded in `design-qa.md`.
+
+**Model recommendation:** GPT-5.6 Sol for a shared compact visualization with
+semantic zoom, proportional scaling, cross-role interaction, and visual QA.

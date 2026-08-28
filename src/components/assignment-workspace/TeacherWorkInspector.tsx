@@ -507,6 +507,7 @@ export function TeacherWorkInspector({
                 onEntryClick={onEntryClick}
                 onEntryHover={onEntryHover}
                 audience="teacher"
+                showHeading={false}
               />
             )}
           </div>

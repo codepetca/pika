@@ -29,6 +29,18 @@ const entries = [
   entry('first', '2025-01-20T01:00:00Z', 20, 120),
 ]
 
+const multiWeekEntries = Array.from({ length: 20 }, (_, index) => {
+  const chronologicalIndex = 19 - index
+  const day = Math.floor(chronologicalIndex / 2)
+  const save = chronologicalIndex % 2
+  return entry(
+    `long-${chronologicalIndex}`,
+    new Date(Date.UTC(2025, 0, 1 + day, 15 + save)).toISOString(),
+    20 + chronologicalIndex * 10,
+    100 + chronologicalIndex * 50
+  )
+})
+
 describe('HistoryGraph', () => {
   it('shows a calm empty state when no saves exist yet', () => {
     render(
@@ -65,6 +77,37 @@ describe('HistoryGraph', () => {
     expect(chart).toHaveAttribute('aria-valuetext', expect.stringContaining('-60 characters since previous'))
     expect(chart.querySelectorAll('[data-change-direction="up"]')).toHaveLength(1)
     expect(chart.querySelectorAll('[data-change-direction="down"]')).toHaveLength(1)
+
+    const largestAddition = chart.querySelector('[data-change-value="240"]')
+    const deletion = chart.querySelector('[data-change-value="60"]')
+    expect(Number(largestAddition?.getAttribute('y1')) - Number(largestAddition?.getAttribute('y2')))
+      .toBe(28)
+    expect(Number(deletion?.getAttribute('y2')) - Number(deletion?.getAttribute('y1')))
+      .toBe(7)
+  })
+
+  it('fits multi-week work by day and zooms into individual saves', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    expect(chart).toHaveAttribute('data-view-mode', 'daily')
+    expect(chart.querySelectorAll('[data-activity-day]')).toHaveLength(10)
+    expect(screen.getByText('Showing all activity')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Zoom out history' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+
+    expect(chart).toHaveAttribute('data-view-mode', 'saves')
+    expect(screen.getByText('Showing 7 days')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Zoom out history' })).toBeEnabled()
   })
 
   it('uses student language without duplicating a caller-owned heading', () => {
@@ -183,5 +226,6 @@ describe('HistoryGraph', () => {
     expect(screen.queryByText('No saves yet')).not.toBeInTheDocument()
     expect(screen.getByRole('slider', { name: 'Complete save history' }))
       .toHaveAttribute('aria-valuenow', '1')
+    expect(screen.queryByRole('button', { name: 'Zoom in history' })).not.toBeInTheDocument()
   })
 })

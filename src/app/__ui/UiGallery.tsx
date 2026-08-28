@@ -170,7 +170,7 @@ const PREVIEW_CONTENT: TiptapContent = {
       attrs: { level: 1 },
       content: [{ type: 'text', text: 'Field Study Reflection' }],
     },
-    ...Array.from({ length: 15 }, (_, index) => ({
+    ...Array.from({ length: 40 }, (_, index) => ({
       type: 'paragraph',
       content: [{
         type: 'text',
@@ -183,7 +183,7 @@ const PREVIEW_CONTENT: TiptapContent = {
 function HistoryPreviewGallery({ role }: { role: Role }) {
   const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
-  const entries = SCENARIOS[0].entries
+  const entries = LONG_PROJECT_ENTRIES
   const isTeacher = role === 'teacher'
 
   return (
@@ -285,8 +285,104 @@ function makeEntry(
   }
 }
 
+function makeSteadyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  let charCount = 90
+
+  for (let day = 0; day < 42; day += 1) {
+    const weekday = day % 7
+    if (weekday === 5 || weekday === 6) continue
+
+    const saves = 4 + (day % 4)
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const change = (day + save) % 9 === 0
+        ? -(18 + (day % 3) * 12)
+        : 24 + ((day * 11 + save * 17) % 72)
+      charCount = Math.max(30, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 0, 6 + day, 15 + save, (save * 11) % 60))
+      chronological.push(makeEntry(
+        `steady-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  }
+
+  return chronological.reverse()
+}
+
+function makeBurstyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  const activeDays = [0, 3, 6, 10, 13]
+  let charCount = 140
+
+  activeDays.forEach((day, dayIndex) => {
+    const saves = 9 + dayIndex * 2
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const isRewrite = save === Math.floor(saves / 2) && dayIndex > 0
+      const change = isRewrite
+        ? -(220 + dayIndex * 85)
+        : 38 + ((day * 19 + save * 31) % 150)
+      charCount = Math.max(70, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 2, 3 + day, 14, save * 4))
+      chronological.push(makeEntry(
+        `bursty-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  })
+
+  return chronological.reverse()
+}
+
+function makeFinalDayCrunchEntries(): AssignmentDocHistoryEntry[] {
+  const chronological = [makeEntry(
+    'crunch-001',
+    80,
+    '2025-04-01T18:00:00.000Z',
+    'baseline'
+  )]
+  let charCount = 80
+  const startMs = Date.parse('2025-04-14T14:00:00.000Z')
+
+  for (let save = 0; save < 100; save += 1) {
+    const change = save % 11 === 0
+      ? -(45 + (save % 4) * 35)
+      : 12 + ((save * 23) % 86)
+    charCount = Math.max(40, charCount + change)
+    chronological.push(makeEntry(
+      `crunch-${String(save + 2).padStart(3, '0')}`,
+      charCount,
+      new Date(startMs + save * 5 * 60 * 1000).toISOString()
+    ))
+  }
+
+  return chronological.reverse()
+}
+
+const LONG_PROJECT_ENTRIES = makeSteadyProjectEntries()
+const BURSTY_PROJECT_ENTRIES = makeBurstyProjectEntries()
+const FINAL_DAY_CRUNCH_ENTRIES = makeFinalDayCrunchEntries()
+
 // Newest-first (as from DB)
 const SCENARIOS: { label: string; entries: AssignmentDocHistoryEntry[] }[] = [
+  {
+    label: 'Six-week project — steady work on most weekdays',
+    entries: LONG_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Two-week project — bursts and large rewrites',
+    entries: BURSTY_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Final-day crunch — 100 saves after a two-week gap',
+    entries: FINAL_DAY_CRUNCH_ENTRIES,
+  },
   {
     label: 'Normal session — 18 entries, all additions',
     entries: [
@@ -398,7 +494,8 @@ function HistoryGraphGallery() {
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
         One compact chart shows additions and deletions across the actual activity
-        days. Hover to preview a save; click to pin it.
+        days. It starts fitted to all activity; zoom in for individual saves.
+        Hover to preview a save; click to pin it.
       </p>
 
       {lastEvent && (
@@ -430,6 +527,7 @@ function HistoryGraphGallery() {
                     entries={scenario.entries}
                     activeEntryId={activeId}
                     audience={audience}
+                    showHeading={false}
                     onEntryClick={(entry) => {
                       setActiveId(entry.id)
                       setLastEvent(`click: ${entry.id} (${entry.char_count} chars)`)

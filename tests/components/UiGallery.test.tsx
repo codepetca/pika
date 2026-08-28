@@ -17,10 +17,12 @@ const historyEntry = {
 }
 
 vi.mock('@/components/HistoryGraph', () => ({
-  HistoryGraph: ({ onEntryClick, onEntryHover }: any) => (
+  HistoryGraph: ({ entries, onEntryClick, onEntryHover, showHeading }: any) => (
     <button
       type="button"
       aria-label="History point"
+      data-entry-count={entries.length}
+      data-show-heading={showHeading === false ? 'no' : 'yes'}
       onMouseEnter={() => onEntryHover?.(historyEntry)}
       onClick={() => onEntryClick(historyEntry)}
     >
@@ -30,11 +32,15 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ historyPreviewMode }: any) => (
-    <div data-testid="student-preview-mode">{historyPreviewMode}</div>
+  RichTextEditor: ({ content, historyPreviewMode }: any) => (
+    <div data-testid="student-preview-mode" data-content-blocks={content.content.length}>
+      {historyPreviewMode}
+    </div>
   ),
-  RichTextViewer: ({ historyPreviewMode }: any) => (
-    <div data-testid="teacher-preview-mode">{historyPreviewMode}</div>
+  RichTextViewer: ({ content, historyPreviewMode }: any) => (
+    <div data-testid="teacher-preview-mode" data-content-blocks={content.content.length}>
+      {historyPreviewMode}
+    </div>
   ),
 }))
 
@@ -57,6 +63,12 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
+    expect(Number(previewPoint.getAttribute('data-entry-count'))).toBeGreaterThan(100)
+    expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
+    expect(screen.getByText(/two-week project/i)).toBeInTheDocument()
+    expect(screen.getByText(/final-day crunch/i)).toBeInTheDocument()
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('fit')
