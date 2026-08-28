@@ -24409,3 +24409,35 @@ no API, schema, persistence, dependency, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the small shared-shell layout change
 and bounded PR review.
+
+<!-- pika-session-log-archive-batch:58771a4e72e193710e63f0d4c318bc52e1efa9473ab780dd70865d74f851e294 -->
+## 2026-08-26 — Move student check-in status into Today side card
+
+**Risk profile:** none — student Today-tab composition only; no attendance
+logic, API, schema, persistence, authentication, or hosted state changed.
+
+- Moved the existing `StudentAttendanceStatus` banner from above the daily-log
+  editor into the right-side lesson-plan card's `Today` section. The signed-in
+  student identity and classroom-scoped status selection remain unchanged.
+- Kept the open state as the one-line `Scan QR for Attendance` prompt and
+  simplified confirmation to one line: `Checked in at 9:07 AM`. The visible
+  Present/Late taxonomy, timezone suffix, and secondary confirmation line were
+  removed from this student surface.
+- Added focused coverage proving the attendance hook receives the signed-in
+  student and the rendered status is contained by the `Today` side-card
+  section. A dedicated mobile inspector keeps the side card before the Daily
+  Log in both visual and assistive-technology reading order below `lg`, while
+  desktop keeps the Daily Log before the right-side inspector. Attendance
+  status and Today-history regressions remain covered.
+- Focused Vitest passes (82/82), lint and design policy pass. Playwright
+  captures of the real component and side-card markup cover QR-open and
+  confirmed states on desktop/mobile in light/dark with no banner overflow,
+  wrapping, or legibility issues. The temporary visual
+  fixture was removed; the authenticated app matrix was unavailable because
+  the shared local environment has no Supabase URL or keys. Teacher UI is n/a
+  because this composition renders only for the student Today workspace. A
+  focused responsive-order capture also confirms Today-first stacking on
+  mobile and the unchanged right-side placement on desktop.
+
+**Model recommendation:** current model for a localized React composition and
+visual-verification change.
