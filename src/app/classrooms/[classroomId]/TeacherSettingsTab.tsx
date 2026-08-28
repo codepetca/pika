@@ -1,14 +1,12 @@
 'use client'
 
 import {
-  forwardRef,
   useEffect,
   useMemo,
   useRef,
   useState,
   useId,
   type ReactNode,
-  type TextareaHTMLAttributes,
 } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -28,7 +26,6 @@ import {
 } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
-import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { CLASSROOM_THEME_PALETTE, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import {
@@ -37,7 +34,7 @@ import {
   type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
+import type { Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -47,13 +44,12 @@ function generateJoinCode() {
     .join('')
 }
 
-type SettingsSection = 'general' | 'access' | 'features' | 'syllabus' | 'class-days' | 'reuse'
+type SettingsSection = 'general' | 'access' | 'features' | 'class-days' | 'reuse'
 
 const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
   { value: 'general', label: 'General' },
   { value: 'access', label: 'Access' },
   { value: 'features', label: 'Features' },
-  { value: 'syllabus', label: 'Syllabus' },
   { value: 'class-days', label: 'Class Days' },
   { value: 'reuse', label: 'Reuse' },
 ]
@@ -69,18 +65,6 @@ const LESSON_PLAN_VISIBILITY_OPTIONS = [
   { value: 'one_week_ahead', label: '1 week ahead' },
   { value: 'all', label: 'All (no restrictions)' },
 ]
-
-const SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS = [
-  { value: 'current_week', label: 'Current week (and earlier)' },
-  { value: 'one_week_ahead', label: 'One week ahead' },
-  { value: 'all', label: 'All lesson plans' },
-]
-
-function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
-  return {
-    ...(config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG),
-  }
-}
 
 interface Props {
   classroom: Classroom
@@ -177,27 +161,6 @@ function SettingsSwitchRow({
   )
 }
 
-interface SettingsTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  hasError?: boolean
-}
-
-const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextareaProps>(function SettingsTextarea(
-  { hasError, className, ...props },
-  ref,
-) {
-  return (
-    <textarea
-      ref={ref}
-      className={cn(
-        'w-full rounded-control border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-surface-2 disabled:cursor-not-allowed',
-        hasError ? 'border-danger' : 'border-border',
-        className,
-      )}
-      {...props}
-    />
-  )
-})
-
 export function TeacherSettingsTab({
   classroom,
   palEnabled = false,
@@ -208,10 +171,6 @@ export function TeacherSettingsTab({
   const router = useRouter()
   const section = parseSettingsSection(sectionParam)
   const titleId = useId()
-  const actualSiteSlugId = useId()
-  const actualOverviewId = useId()
-  const actualOutlineId = useId()
-  const actualLessonPlanScopeId = useId()
   const isReadOnly = !!classroom.archived_at
   const activeClassroomIdRef = useRef(classroom.id)
   const formClassroomIdRef = useRef(classroom.id)
@@ -244,15 +203,6 @@ export function TeacherSettingsTab({
   const [themeColor, setThemeColor] = useState<ClassroomThemeColor>(classroom.theme_color)
   const [themeSaving, setThemeSaving] = useState(false)
   const [themeError, setThemeError] = useState('')
-  const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
-  const [actualSitePublished, setActualSitePublished] = useState(!!classroom.actual_site_published)
-  const [actualSiteConfig, setActualSiteConfig] = useState<ActualCourseSiteConfig>(
-    visibleActualSiteConfig(classroom.actual_site_config)
-  )
-  const [courseOverviewMarkdown, setCourseOverviewMarkdown] = useState(classroom.course_overview_markdown || '')
-  const [courseOutlineMarkdown, setCourseOutlineMarkdown] = useState(classroom.course_outline_markdown || '')
-  const [siteSaving, setSiteSaving] = useState(false)
-  const [siteError, setSiteError] = useState('')
   const [showCreateBlueprintDialog, setShowCreateBlueprintDialog] = useState(false)
   const [blueprintTitle, setBlueprintTitle] = useState(classroom.title)
   const [blueprintBusy, setBlueprintBusy] = useState(false)
@@ -288,21 +238,6 @@ export function TeacherSettingsTab({
   const displayedThemeColor = formStateReady ? themeColor : classroom.theme_color
   const displayedThemeSaving = formStateReady && themeSaving
   const displayedThemeError = formStateReady ? themeError : ''
-  const displayedActualSiteSlug = formStateReady ? actualSiteSlug : classroom.actual_site_slug || ''
-  const displayedActualSitePublished = formStateReady
-    ? actualSitePublished
-    : !!classroom.actual_site_published
-  const displayedActualSiteConfig = formStateReady
-    ? actualSiteConfig
-    : visibleActualSiteConfig(classroom.actual_site_config)
-  const displayedCourseOverviewMarkdown = formStateReady
-    ? courseOverviewMarkdown
-    : classroom.course_overview_markdown || ''
-  const displayedCourseOutlineMarkdown = formStateReady
-    ? courseOutlineMarkdown
-    : classroom.course_outline_markdown || ''
-  const displayedSiteSaving = formStateReady && siteSaving
-  const displayedSiteError = formStateReady ? siteError : ''
   const displayedShowCreateBlueprintDialog = formStateReady && showCreateBlueprintDialog
   const displayedBlueprintTitle = formStateReady ? blueprintTitle : classroom.title
   const displayedBlueprintBusy = formStateReady && blueprintBusy
@@ -332,13 +267,6 @@ export function TeacherSettingsTab({
     setThemeColor(classroom.theme_color)
     setThemeSaving(false)
     setThemeError('')
-    setActualSiteSlug(classroom.actual_site_slug || '')
-    setActualSitePublished(!!classroom.actual_site_published)
-    setActualSiteConfig(visibleActualSiteConfig(classroom.actual_site_config))
-    setCourseOverviewMarkdown(classroom.course_overview_markdown || '')
-    setCourseOutlineMarkdown(classroom.course_outline_markdown || '')
-    setSiteSaving(false)
-    setSiteError('')
     setShowCreateBlueprintDialog(false)
     setBlueprintTitle(classroom.title)
     setBlueprintBusy(false)
@@ -628,50 +556,6 @@ export function TeacherSettingsTab({
     }
   }
 
-  async function saveActualSiteSettings() {
-    if (isReadOnly) return
-    const classroomId = classroom.id
-    if (!hasCurrentFormState(classroomId)) return
-    const formGeneration = formGenerationRef.current
-    setSiteSaving(true)
-    setSiteError('')
-    try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actualSiteSlug: actualSiteSlug || null,
-          actualSitePublished,
-          actualSiteConfig: visibleActualSiteConfig(actualSiteConfig),
-          courseOverviewMarkdown,
-          courseOutlineMarkdown,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save syllabus settings')
-      }
-      invalidateTeacherClassrooms()
-      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
-      if (data.classroom) {
-        onClassroomUpdated?.(data.classroom)
-      }
-      setActualSiteSlug(data.classroom?.actual_site_slug || '')
-      setActualSitePublished(!!data.classroom?.actual_site_published)
-      setActualSiteConfig(visibleActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig))
-      setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
-      setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
-      showMessage({ text: 'Syllabus settings saved', tone: 'success' })
-    } catch (err: any) {
-      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
-      setSiteError(err.message || 'Failed to save syllabus settings')
-    } finally {
-      if (isCurrentFormGeneration(classroomId, formGeneration)) {
-        setSiteSaving(false)
-      }
-    }
-  }
-
   function openCreateBlueprintDialog() {
     setBlueprintTitle(classroom.title)
     setBlueprintError('')
@@ -874,7 +758,7 @@ export function TeacherSettingsTab({
                     ['tests', 'Tests', 'Teacher and students · Assessments and responses'],
                     ['gradebook', 'Gradebook', 'Teacher only · Requires Classwork or Tests'],
                     ['calendar', 'Calendar', 'Teacher and students · Lesson plans'],
-                    ['syllabus', 'Syllabus', 'Teacher and students · Course information and resources'],
+                    ['syllabus', 'Course Guide', 'Teacher and students · Course information and resources'],
                     ['announcements', 'Announcements', 'Teacher and students · Classroom updates'],
                     ...(palEnabled
                       ? [['achievements', 'Achievements', 'Students only · Pal achievements and progress']]
@@ -985,138 +869,6 @@ export function TeacherSettingsTab({
                   <span className="font-medium">Show markdown</span>
                 </SettingsSwitchRow>
               </div>
-            </SettingsPanel>
-          ) : null}
-
-          {section === 'syllabus' ? (
-            <SettingsPanel className="space-y-4">
-            <SettingsHeading title="Public Syllabus" tooltip="Publish the public syllabus page for this classroom" />
-
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
-              <FormField label="Syllabus slug" htmlFor={actualSiteSlugId}>
-                <Input
-                  value={displayedActualSiteSlug}
-                  onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
-                  disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-                  placeholder="career-studies-period-1"
-                />
-              </FormField>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-                  onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
-                >
-                  Generate
-                </Button>
-              </div>
-            </div>
-
-            <SettingsSwitchRow
-              checked={displayedActualSitePublished}
-              onChange={setActualSitePublished}
-              disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-              ariaLabel="Publish this classroom syllabus"
-            >
-              <span className="font-medium">Publish this classroom syllabus</span>
-            </SettingsSwitchRow>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {(
-                [
-                  ['overview', 'Overview'],
-                  ['outline', 'Outline'],
-                  ['assignments', 'Assignments'],
-                  ['tests', 'Tests'],
-                  ['lesson_plans', 'Lesson plans'],
-                  ['announcements', 'Announcements'],
-                ] as Array<[keyof ActualCourseSiteConfig, string]>
-              ).map(([key, label]) => {
-                const checked = typeof displayedActualSiteConfig[key] === 'boolean'
-                  ? (displayedActualSiteConfig[key] as boolean)
-                  : false
-
-                return (
-                  <SettingsSwitchRow
-                    key={key}
-                    checked={checked}
-                    onChange={(nextChecked) =>
-                      setActualSiteConfig((current) => ({
-                        ...current,
-                        [key]: nextChecked,
-                      }))
-                    }
-                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-                    ariaLabel={label}
-                  >
-                    <span className={checked ? 'font-medium' : undefined}>{label}</span>
-                  </SettingsSwitchRow>
-                )
-              })}
-            </div>
-
-            <FormField label="Lesson plan visibility on syllabus" htmlFor={actualLessonPlanScopeId}>
-              <Select
-                options={SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS}
-                value={displayedActualSiteConfig.lesson_plan_scope}
-                onChange={(e) =>
-                  setActualSiteConfig((current) => ({
-                    ...current,
-                    lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
-                  }))
-                }
-                disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-              />
-            </FormField>
-
-            {showMarkdown ? (
-              <>
-                <FormField label="Course overview" htmlFor={actualOverviewId}>
-                  <SettingsTextarea
-                    value={displayedCourseOverviewMarkdown}
-                    onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
-                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-                    className="min-h-[140px] font-mono"
-                  />
-                </FormField>
-
-                <FormField label="Course outline" htmlFor={actualOutlineId}>
-                  <SettingsTextarea
-                    value={displayedCourseOutlineMarkdown}
-                    onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
-                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
-                    className="min-h-[160px] font-mono"
-                  />
-                </FormField>
-              </>
-            ) : (
-              <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-                Course overview and outline editing is hidden by your display setting.
-              </div>
-            )}
-
-            {displayedActualSitePublished && displayedActualSiteSlug ? (
-              <div className="text-sm text-text-muted">
-                Syllabus URL:{' '}
-                <a
-                  href={`/actual/${displayedActualSiteSlug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline"
-                >
-                  {`/actual/${displayedActualSiteSlug}`}
-                </a>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3">
-              <Button type="button" onClick={saveActualSiteSettings} disabled={displayedSiteSaving || isReadOnly || !formStateReady}>
-                {displayedSiteSaving ? 'Saving...' : 'Save Syllabus'}
-              </Button>
-            </div>
-
-            {displayedSiteError && <div className="text-sm text-danger">{displayedSiteError}</div>}
             </SettingsPanel>
           ) : null}
 

@@ -51,7 +51,7 @@ const teacherItems: NavItem[] = [
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Syllabus', icon: BookOpen },
+  { id: 'resources', label: 'Course Guide', icon: BookOpen },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -62,7 +62,7 @@ const studentItems: NavItem[] = [
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Syllabus', icon: BookOpen },
+  { id: 'resources', label: 'Course Guide', icon: BookOpen },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'achievements', label: 'Achievements', icon: Trophy },
 ]

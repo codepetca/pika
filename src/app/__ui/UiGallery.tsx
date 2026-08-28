@@ -56,7 +56,7 @@ export function UiGallery({ role }: Props) {
         { label: 'Gradebook', href: `/classrooms/${c.id}?tab=gradebook` },
         { label: 'Roster', href: `/classrooms/${c.id}?tab=roster` },
         { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Syllabus', href: `/classrooms/${c.id}?tab=resources` },
+        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
         { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
         { label: 'Settings', href: `/classrooms/${c.id}?tab=settings` },
       ],
@@ -72,7 +72,7 @@ export function UiGallery({ role }: Props) {
         { label: 'Classwork', href: `/classrooms/${c.id}?tab=assignments` },
         { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
         { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Syllabus', href: `/classrooms/${c.id}?tab=resources` },
+        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
         { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
       ],
     }))

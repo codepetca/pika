@@ -5,8 +5,14 @@ type ClassResources = {
   id?: string
   classroom_id?: string
   content?: TiptapContent
+  save_revision?: number
   updated_at?: string
   updated_by?: string
+}
+
+export type TeacherClassResourcesSnapshot = {
+  content: TiptapContent | null
+  saveRevision: number
 }
 
 type ClassResourcesResponse = {
@@ -43,7 +49,7 @@ async function parseClassResourcesResponse(response: Response, fallbackMessage: 
   return data
 }
 
-export async function fetchTeacherClassResources(classroomId: string): Promise<TiptapContent | null> {
+export async function fetchTeacherClassResources(classroomId: string): Promise<TeacherClassResourcesSnapshot> {
   const data = await fetchJSONWithCache<ClassResourcesResponse>(
     getTeacherClassResourcesCacheKey(classroomId),
     async () => {
@@ -53,7 +59,10 @@ export async function fetchTeacherClassResources(classroomId: string): Promise<T
     CLASS_RESOURCES_CACHE_TTL_MS,
   )
 
-  return data.resources?.content ?? null
+  return {
+    content: data.resources?.content ?? null,
+    saveRevision: data.resources?.save_revision ?? 0,
+  }
 }
 
 export async function fetchStudentClassResources(classroomId: string): Promise<TiptapContent | null> {

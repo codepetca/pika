@@ -123,7 +123,7 @@ describe('NavItems notification dots', () => {
       'Classwork',
       'Tests',
       'Calendar',
-      'Syllabus',
+      'Course Guide',
       'Announcements',
       'Achievements',
     ])
@@ -188,7 +188,7 @@ describe('NavItems notification dots', () => {
 
     const announcementsLink = screen.getByRole('link', { name: 'Announcements (new activity)' })
     expect(announcementsLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Syllabus' }).querySelector('[data-new-activity-dot="true"]')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('[data-new-activity-dot="true"]')).toBeNull()
   })
 
   it('does not render notification dots for teacher nav items', () => {

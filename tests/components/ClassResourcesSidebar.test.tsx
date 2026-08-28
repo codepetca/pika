@@ -32,13 +32,16 @@ vi.mock('@/components/editor', () => {
         {children}
       </div>
     ),
-    RichTextEditor: ({ content, onBlur, onChange }: any) => (
+    RichTextEditor: ({ content, editable, onBlur, onChange }: any) => (
       <div>
-        <div data-testid="rich-text-editor">{extractText(content)}</div>
-        <button type="button" onClick={() => onChange(contentDoc('Updated teacher resources'))}>
+        <div data-testid="rich-text-editor" data-editable={String(editable)}>{extractText(content)}</div>
+        <button type="button" disabled={!editable} onClick={() => onChange(contentDoc('Updated teacher resources'))}>
           Change teacher resources
         </button>
-        <button type="button" onClick={() => onBlur?.()}>
+        <button type="button" disabled={!editable} onClick={() => onChange(contentDoc('Newest teacher resources'))}>
+          Change teacher resources again
+        </button>
+        <button type="button" disabled={!editable} onClick={() => onBlur?.()}>
           Blur resources editor
         </button>
       </div>
@@ -94,7 +97,7 @@ function contentDoc(text: string): TiptapContent {
   }
 }
 
-function resourceResponse(text: string | null): Response {
+function resourceResponse(text: string | null, saveRevision = 0): Response {
   return new Response(
     JSON.stringify({
       resources: text
@@ -102,6 +105,7 @@ function resourceResponse(text: string | null): Response {
             id: `resources-${text}`,
             classroom_id: classroom.id,
             content: contentDoc(text),
+            save_revision: saveRevision,
           }
         : null,
     }),
@@ -146,6 +150,8 @@ describe('class resources sidebars', () => {
 
     expect(screen.queryByText('First teacher resources')).not.toBeInTheDocument()
 
+    await waitFor(() => expect(resolveSecondRead).not.toBeNull())
+
     await act(async () => {
       resolveSecondRead?.(resourceResponse('Second teacher resources'))
     })
@@ -184,6 +190,45 @@ describe('class resources sidebars', () => {
     expect(await screen.findByText('Second student resources')).toBeInTheDocument()
   })
 
+  it('does not expose an empty editable document or save after a failed read, then retries safely', async () => {
+    const writeUrls: string[] = []
+    let readCount = 0
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'PUT') {
+        writeUrls.push(url)
+        return resourceResponse('Unexpected write')
+      }
+
+      readCount += 1
+      if (readCount === 1) {
+        return new Response(JSON.stringify({ error: 'Read failed' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return resourceResponse('Recovered teacher resources')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const sendBeacon = vi.fn()
+    vi.stubGlobal('navigator', { ...navigator, sendBeacon })
+
+    render(<TeacherClassResourcesSidebar classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your existing resources have not been changed')
+    expect(screen.queryByTestId('rich-text-editor')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change teacher resources' })).not.toBeInTheDocument()
+
+    window.dispatchEvent(new Event('beforeunload'))
+    expect(writeUrls).toEqual([])
+    expect(sendBeacon).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('Recovered teacher resources')).toBeInTheDocument()
+    expect(screen.getByTestId('rich-text-editor')).toHaveAttribute('data-editable', 'true')
+    expect(writeUrls).toEqual([])
+  })
+
   it('does not save a pending teacher edit to the next classroom after switching', async () => {
     const writeUrls: string[] = []
     let resolveSecondRead: ((response: Response) => void) | null = null
@@ -215,6 +260,8 @@ describe('class resources sidebars', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
 
     expect(writeUrls).toEqual([])
+
+    await waitFor(() => expect(resolveSecondRead).not.toBeNull())
 
     await act(async () => {
       resolveSecondRead?.(resourceResponse('Second teacher resources'))
@@ -261,12 +308,14 @@ describe('class resources sidebars', () => {
     })
 
     view.rerender(<TeacherClassResourcesSidebar classroom={secondClassroom} />)
-    await screen.findByText('Second teacher resources')
-    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources' }))
+    expect(screen.queryByText('Second teacher resources')).not.toBeInTheDocument()
 
     await act(async () => {
       resolveFirstSave?.()
     })
+
+    await screen.findByText('Second teacher resources')
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
 
@@ -276,6 +325,98 @@ describe('class resources sidebars', () => {
         `/api/teacher/classrooms/${secondClassroom.id}/resources`,
       ])
     })
+  })
+
+  it('serializes same-class saves so an older draft cannot overwrite the newest draft', async () => {
+    const writeBodies: TiptapContent[] = []
+    let resolveFirstSave: (() => void) | null = null
+    let resolveSecondSave: (() => void) | null = null
+    const onSaved = vi.fn()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method !== 'PUT') return resourceResponse('Teacher resources')
+
+        const body = JSON.parse(String(init.body)) as { content: TiptapContent }
+        writeBodies.push(body.content)
+        if (writeBodies.length === 1) {
+          return new Promise<Response>((resolve) => {
+            resolveFirstSave = () => resolve(resourceResponse('Updated teacher resources'))
+          })
+        }
+        return new Promise<Response>((resolve) => {
+          resolveSecondSave = () => resolve(resourceResponse('Newest teacher resources'))
+        })
+      }),
+    )
+
+    render(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+    await screen.findByText('Teacher resources')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await waitFor(() => expect(writeBodies).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await act(async () => Promise.resolve())
+    expect(writeBodies).toHaveLength(1)
+    expect(resolveSecondSave).toBeNull()
+
+    await act(async () => resolveFirstSave?.())
+    await waitFor(() => expect(writeBodies).toHaveLength(2))
+    expect(writeBodies.map((body) => JSON.stringify(body))).toEqual([
+      JSON.stringify(contentDoc('Updated teacher resources')),
+      JSON.stringify(contentDoc('Newest teacher resources')),
+    ])
+
+    await act(async () => resolveSecondSave?.())
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenLastCalledWith(contentDoc('Newest teacher resources'))
+    })
+  })
+
+  it('reloads after an A to B to A switch instead of accepting an old save generation', async () => {
+    let resolveOldSave: (() => void) | null = null
+    let firstClassroomReadCount = 0
+    const onSaved = vi.fn()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'PUT') {
+        return new Promise<Response>((resolve) => {
+          resolveOldSave = () => resolve(resourceResponse('Old in-flight draft', 6))
+        })
+      }
+
+      if (url.includes(secondClassroom.id)) {
+        return resourceResponse('Second classroom resources', 2)
+      }
+
+      firstClassroomReadCount += 1
+      return firstClassroomReadCount === 1
+        ? resourceResponse('Initial classroom resources', 5)
+        : resourceResponse('Fresh classroom resources', 6)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+    await screen.findByText('Initial classroom resources')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await waitFor(() => expect(resolveOldSave).not.toBeNull())
+
+    view.rerender(<TeacherClassResourcesSidebar classroom={secondClassroom} onSaved={onSaved} />)
+    view.rerender(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+
+    await act(async () => resolveOldSave?.())
+
+    expect(await screen.findByText('Fresh classroom resources')).toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(firstClassroomReadCount).toBe(2)
+    expect(fetchMock.mock.calls.some(([input, init]) => (
+      String(input).includes(secondClassroom.id) && !init?.method
+    ))).toBe(false)
   })
 
   it('invalidates teacher and student resource caches after a teacher save', async () => {

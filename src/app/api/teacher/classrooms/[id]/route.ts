@@ -134,7 +134,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
 
   if (effectiveActualSitePublished && !effectiveActualSiteSlug) {
     return NextResponse.json(
-      { error: 'A syllabus slug is required before publishing the syllabus' },
+      { error: 'A public page address is required before sharing the course guide publicly' },
       { status: 400 }
     )
   }
@@ -193,7 +193,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
 
     if ((slugConflict || []).length > 0) {
       return NextResponse.json(
-        { error: 'That syllabus slug is already in use' },
+        { error: 'That course guide address is already in use' },
         { status: 409 }
       )
     }

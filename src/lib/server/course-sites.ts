@@ -76,11 +76,8 @@ export type PublishedActualCourseSiteData = {
     Classroom,
     | 'id'
     | 'title'
-    | 'class_code'
-    | 'term_label'
     | 'actual_site_config'
     | 'course_overview_markdown'
-    | 'course_outline_markdown'
   >
   resources: ClassroomResources | null
   resources_markdown: string
@@ -329,29 +326,14 @@ export async function getPublishedPlannedCourseSite(
   return { ok: true, site: { blueprint: detail.detail } }
 }
 
-export async function getPublishedActualCourseSite(
-  slug: string
+async function buildActualCourseSite(
+  classroomRow: Record<string, any>,
 ): Promise<{ ok: true; site: PublishedActualCourseSiteData } | { ok: false; status: number; error: string }> {
-  const supabase = getSupabase()
-  const { data: classroomRow, error } = await supabase
-    .from('classrooms')
-    .select('id, title, class_code, term_label, actual_site_config, course_overview_markdown, course_outline_markdown')
-    .eq('actual_site_slug', slug)
-    .eq('actual_site_published', true)
-    .single()
-
-  if (error || !classroomRow) {
-    return { ok: false, status: 404, error: 'Actual course site not found' }
-  }
-
   const classroom: PublishedActualCourseSiteData['classroom'] = {
     id: String(classroomRow.id),
     title: String(classroomRow.title || ''),
-    class_code: String(classroomRow.class_code || ''),
-    term_label: typeof classroomRow.term_label === 'string' ? classroomRow.term_label : null,
     actual_site_config: normalizeActualCourseSiteConfig(classroomRow.actual_site_config),
     course_overview_markdown: String(classroomRow.course_overview_markdown || ''),
-    course_outline_markdown: String(classroomRow.course_outline_markdown || ''),
   }
   const sourceResult = await loadPublishedClassroomSource(classroom.id)
   if (!sourceResult.ok) return sourceResult
@@ -380,6 +362,44 @@ export async function getPublishedActualCourseSite(
       ),
     },
   }
+}
+
+const ACTUAL_COURSE_SITE_CLASSROOM_COLUMNS =
+  'id, title, actual_site_config, course_overview_markdown'
+
+export async function getClassroomActualCourseSite(
+  classroomId: string,
+): Promise<{ ok: true; site: PublishedActualCourseSiteData } | { ok: false; status: number; error: string }> {
+  const supabase = getSupabase()
+  const { data: classroomRow, error } = await supabase
+    .from('classrooms')
+    .select(ACTUAL_COURSE_SITE_CLASSROOM_COLUMNS)
+    .eq('id', classroomId)
+    .single()
+
+  if (error || !classroomRow) {
+    return { ok: false, status: 404, error: 'Classroom not found' }
+  }
+
+  return buildActualCourseSite(classroomRow as Record<string, any>)
+}
+
+export async function getPublishedActualCourseSite(
+  slug: string
+): Promise<{ ok: true; site: PublishedActualCourseSiteData } | { ok: false; status: number; error: string }> {
+  const supabase = getSupabase()
+  const { data: classroomRow, error } = await supabase
+    .from('classrooms')
+    .select(ACTUAL_COURSE_SITE_CLASSROOM_COLUMNS)
+    .eq('actual_site_slug', slug)
+    .eq('actual_site_published', true)
+    .single()
+
+  if (error || !classroomRow) {
+    return { ok: false, status: 404, error: 'Actual course site not found' }
+  }
+
+  return buildActualCourseSite(classroomRow as Record<string, any>)
 }
 
 export async function getBlueprintMergeSuggestionSet(
