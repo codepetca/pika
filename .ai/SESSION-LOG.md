@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Return Pika logo navigation to active classrooms
-
-**Risk profile:** none — localized teacher classroom-list state transition; no
-layout, API, schema, persistence, authentication, or hosted state changed.
-
-- Added a shared app-home selection event to the existing Pika logo navigation
-  without changing its route, guarded-navigation behavior, or modifier clicks.
-- Made the teacher classrooms index switch from Archived to Active when the logo
-  selects Home while preserving Organize mode.
-- Added semantic component coverage for the header signal, blocked navigation,
-  and `aria-pressed` Active state, plus the exact interaction in the archived
-  classroom Playwright matrix.
-- Focused Vitest passes (42/42); lint, architecture, UI policy, Pika audit, and
-  diff checks pass. Playwright passed for teacher/student boundaries and the
-  teacher Archived-to-Active interaction at desktop/mobile in light/dark, with
-  no overflow or visual regression.
-- Composite-widget checklist reviewed: keyboard behavior unchanged and covered
-  by the shared control; semantic state covered by tests; remaining manual
-  follow-up none.
-- CI twice exposed the unrelated in-app test-preview callback regression racing
-  its own five-second `waitFor` under full-suite coverage load. The test keeps
-  its five-second assertion deadline but now has a ten-second outer deadline.
-
-**Model recommendation:** GPT-5.6 Terra at high reasoning for a standard-risk
-application state-transition review.
-
 ## 2026-08-27 — Keep Daily class-log summaries minimal
 
 **Risk profile:** runtime-platform — AI summary policy, untrusted-output boundary,
@@ -1292,3 +1266,28 @@ documentation gaps: the teacher-view contract now records QR-origin provenance
 fields with a route assertion, and superseded 36 px comparison captures are
 explicitly marked historical. One targeted documentation confirmation remains
 before handoff.
+
+## 2026-08-28 — Restore Attendance time to leading context
+
+**Risk profile:** low teacher-only visual refinement — no Attendance commands,
+permissions, session state, QR provenance, API/schema, or student behavior
+changed.
+
+- Restored the content-sized clickable Attendance range to the quiet left
+  context slot while keeping the date and action hierarchy centered.
+- Limited the subtle success background to a confirmed open session. Closed,
+  scheduled, cancelled, stale, and pending states remain neutral; the accessible
+  name continues to announce the actual state.
+- Added explicit light/dark closed-session browser captures and assertions, and
+  refreshed the live two-state Open Design comparison, evidence record, and
+  Product Design QA. Mobile continues to expose Attendance hours through the
+  condensed actions menu.
+- No durable shared guidance changed because this placement and open-only state
+  cue are Attendance-specific refinements.
+
+**Verification:** focused component tests (18/18) and the responsive Attendance
+Playwright matrix (4/4) pass with explicit leading-placement, longest-label,
+open-background, neutral-closed, stale, and pending assertions. Open and closed
+source/production captures were visually compared in desktop light/dark; mobile
+light/dark remained free of overflow. Student UI is n/a because this remains a
+teacher-only surface.

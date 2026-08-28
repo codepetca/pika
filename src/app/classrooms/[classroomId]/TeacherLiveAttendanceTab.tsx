@@ -683,6 +683,47 @@ export function TeacherLiveAttendanceTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
       testId="attendance-context-bar"
+      context={view?.integration === 'ready' ? (
+        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
+          {!isArchived ? (
+            <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
+              <Button
+                type="button"
+                size="xs"
+                variant="surface"
+                className={cn(
+                  'h-9 w-fit max-w-full justify-start whitespace-nowrap px-2.5 text-left tabular-nums text-text-muted hover:text-text-default',
+                  !windowLabel && 'w-9 justify-center px-0',
+                  windowLabel && sessionState === 'open' && !hasUnconfirmedView
+                    && !localSessionPending && view.sync.state !== 'pending'
+                    && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
+                )}
+                aria-label={windowLabel
+                  ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
+                  : 'Set attendance hours'}
+                disabled={Boolean(activeCommand)}
+                onClick={() => setAttendanceHoursOpen(true)}
+              >
+                {windowLabel ? (
+                  <span>{windowLabel}</span>
+                ) : (
+                  <Clock3 className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+            </Tooltip>
+          ) : windowLabel ? (
+            <span
+              className={cn(
+                'inline-flex h-9 items-center whitespace-nowrap rounded-control px-2.5 text-xs tabular-nums text-text-muted',
+                sessionState === 'open' && !hasUnconfirmedView && view.sync.state !== 'pending'
+                  && 'bg-success-bg text-success',
+              )}
+            >
+              {windowLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       primary={(
         <div className="flex items-center gap-1" data-testid="attendance-primary-control">
           <CalendarDateNavigator
@@ -696,41 +737,6 @@ export function TeacherLiveAttendanceTab({
             labelClassName="min-w-16 px-2 sm:min-w-20 sm:px-3"
             joined
           />
-          {view?.integration === 'ready' ? (
-            !isArchived ? (
-              <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="surface"
-                  className={cn(
-                    'hidden h-9 w-fit max-w-full whitespace-nowrap px-2.5 tabular-nums text-text-muted hover:text-text-default sm:inline-flex',
-                    !windowLabel && 'w-9 justify-center px-0',
-                    windowLabel && sessionState === 'open' && !hasUnconfirmedView
-                      && !localSessionPending && view.sync.state !== 'pending'
-                      && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
-                    (hasUnconfirmedView || localSessionPending || view.sync.state === 'pending')
-                      && 'bg-warning-bg hover:bg-warning-bg',
-                  )}
-                  aria-label={windowLabel
-                    ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
-                    : 'Set attendance hours'}
-                  disabled={Boolean(activeCommand)}
-                  onClick={() => setAttendanceHoursOpen(true)}
-                >
-                  {windowLabel ? (
-                    <span>{windowLabel}</span>
-                  ) : (
-                    <Clock3 className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </Button>
-              </Tooltip>
-            ) : windowLabel ? (
-              <span className="hidden h-9 items-center whitespace-nowrap rounded-control bg-surface px-2.5 text-xs tabular-nums text-text-muted sm:inline-flex">
-                {windowLabel}
-              </span>
-            ) : null
-          ) : null}
           {mobileSessionActions.length > 0 ? (
             <div className="sm:hidden">
               <TeacherWorkSurfaceIconMenuButton

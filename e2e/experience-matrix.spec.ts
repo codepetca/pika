@@ -164,6 +164,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
 
   const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
   let hasAttendanceWindow = true
+  let attendanceSessionState: 'open' | 'closed' = 'open'
   let attendanceStudents = Array.from({ length: 45 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const status = attendanceStatuses[index % attendanceStatuses.length]
@@ -194,7 +195,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         classDate: '2026-08-17',
         integration: 'ready',
         session: {
-          state: hasAttendanceWindow ? 'open' : 'not_scheduled',
+          state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
           opensAt: hasAttendanceWindow ? '2026-08-17T04:45:00.000Z' : null,
           closesAt: hasAttendanceWindow ? '2026-08-18T02:34:00.000Z' : null,
           revision: 1,
@@ -250,7 +251,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
   const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
   const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
-  const attendanceHours = primaryControl.getByRole('button', {
+  const attendanceHours = contextBar.getByRole('button', {
     name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
   })
   if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
@@ -259,13 +260,16 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     await expect(attendanceHours).not.toContainText('Open')
     await expect(attendanceHours).toHaveClass(/bg-success-bg/)
     await expect(trailingActions).toBeVisible()
-    const [dateBox, attendanceHoursBox] = await Promise.all([
-      dateButton.boundingBox(),
+    await expect(primaryControl.getByRole('button', {
+      name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+    })).toHaveCount(0)
+    const [contextBox, attendanceHoursBox] = await Promise.all([
+      contextBar.boundingBox(),
       attendanceHours.boundingBox(),
     ])
-    expect(dateBox).not.toBeNull()
+    expect(contextBox).not.toBeNull()
     expect(attendanceHoursBox).not.toBeNull()
-    expect(attendanceHoursBox!.x).toBeGreaterThan(dateBox!.x + dateBox!.width)
+    expect(attendanceHoursBox!.x - contextBox!.x).toBeLessThan(24)
     expect(attendanceHoursBox!.width).toBeLessThan(190)
   }
   await expect(page.getByRole('checkbox')).toHaveCount(46)
@@ -404,8 +408,20 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   })
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   if (viewport === 'desktop') {
+    attendanceSessionState = 'closed'
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const closedHours = page.getByTestId('attendance-context-bar').getByRole('button', {
+      name: 'Attendance hours, Closed, 12:45 AM to 10:34 PM',
+    })
+    await expect(closedHours).toBeVisible()
+    await expect(closedHours).not.toHaveClass(/bg-success-bg|bg-warning-bg/)
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-closed.png'),
+      animations: 'disabled',
+    })
+
     hasAttendanceWindow = false
-    await nextDayButton.click()
+    await page.getByTestId('attendance-primary-control').getByRole('button', { name: 'Next day' }).click()
     await expect(contextBar.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('attendance-desktop-no-hours.png'),

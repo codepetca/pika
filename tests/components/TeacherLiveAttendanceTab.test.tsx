@@ -163,13 +163,14 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Clear mark' })).toBeEnabled()
     fireEvent.keyDown(window, { key: 'Escape' })
-    const attendanceHours = within(primaryControl).getByRole('button', {
+    const attendanceHours = within(contextBar).getByRole('button', {
       name: 'Attendance hours, Open, 8:45 AM to 9:15 AM',
     })
     expect(attendanceHours).toBeEnabled()
     expect(attendanceHours).toHaveTextContent('8:45 AM - 9:15 AM')
     expect(attendanceHours).not.toHaveTextContent('Open')
     expect(attendanceHours).toHaveClass('w-fit', 'bg-success-bg')
+    expect(within(primaryControl).queryByRole('button', { name: /attendance hours/i })).not.toBeInTheDocument()
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
@@ -315,9 +316,10 @@ describe('TeacherLiveAttendanceTab', () => {
     const attendanceHours = screen.getByRole('button', { name: 'Set attendance hours' })
     expect(attendanceHours).toHaveClass('w-9', 'justify-center')
     expect(attendanceHours.querySelector('svg')).toBeInTheDocument()
+    expect(screen.getByTestId('attendance-context-bar')).toContainElement(attendanceHours)
   })
 
-  it('keeps the longest attendance window content-sized in the primary controls', async () => {
+  it('keeps the longest attendance window content-sized in the leading context slot', async () => {
     const base = attendanceView()
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       session: {
@@ -336,7 +338,8 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(attendanceHours).toHaveTextContent('12:45 AM - 10:34 PM')
     expect(attendanceHours).not.toHaveTextContent('Open')
     expect(attendanceHours).toHaveClass('w-fit', 'bg-success-bg')
-    expect(screen.getByTestId('attendance-primary-control')).toContainElement(attendanceHours)
+    expect(screen.getByTestId('attendance-context-bar')).toContainElement(attendanceHours)
+    expect(screen.getByTestId('attendance-primary-control')).not.toContainElement(attendanceHours)
     expect(attendanceHours).not.toHaveClass('w-full')
   })
 
@@ -648,6 +651,11 @@ describe('TeacherLiveAttendanceTab', () => {
     await screen.findByText('Ada')
 
     expect(screen.queryByRole('button', { name: /reopen attendance/i })).not.toBeInTheDocument()
+    const attendanceHours = screen.getByRole('button', {
+      name: 'Attendance hours, Closed, 8:45 AM to 9:15 AM',
+    })
+    expect(attendanceHours).not.toHaveClass('bg-success-bg')
+    expect(attendanceHours).not.toHaveClass('bg-warning-bg')
     expect(within(
       screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
     ).getByRole('button', { name: 'Present' })).toBeEnabled()
@@ -672,7 +680,7 @@ describe('TeacherLiveAttendanceTab', () => {
     ).getByRole('button', { name: 'Present' })).toBeEnabled()
   })
 
-  it('keeps an unconfirmed projection warning on the centered attendance-hours control', async () => {
+  it('keeps unconfirmed attendance hours neutral in the leading context slot', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       sync: { state: 'stale', confirmedAt: '2026-08-17T12:45:00.000Z' },
     })))
@@ -680,13 +688,14 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab()
     await screen.findByText('Ada')
 
-    const attendanceHours = within(screen.getByTestId('attendance-primary-control')).getByRole('button', {
+    const attendanceHours = within(screen.getByTestId('attendance-context-bar')).getByRole('button', {
       name: 'Attendance hours, Last confirmed, 8:45 AM to 9:15 AM',
     })
     expect(attendanceHours).toHaveTextContent('8:45 AM - 9:15 AM')
     expect(attendanceHours).not.toHaveTextContent('Last confirmed')
     expect(attendanceHours).not.toHaveTextContent('Open')
-    expect(attendanceHours).toHaveClass('bg-warning-bg')
+    expect(attendanceHours).not.toHaveClass('bg-success-bg')
+    expect(attendanceHours).not.toHaveClass('bg-warning-bg')
   })
 
   it('does not let a command response for one date replace the newly selected date', async () => {
