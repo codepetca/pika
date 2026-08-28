@@ -124,7 +124,7 @@ function AttendanceStatusSortChip({
         <span
           aria-hidden="true"
           className={cn(
-            'inline-flex h-7 w-9 items-center justify-center rounded-badge px-0 text-sm font-semibold tabular-nums',
+            'inline-flex h-6 w-8 items-center justify-center rounded-badge px-0 text-xs font-semibold tabular-nums',
             STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
@@ -158,7 +158,7 @@ function AttendanceStatusControl({
         label: STATUS_LABELS[optionStatus],
         disabled,
         className: cn(
-          "relative rounded-full after:pointer-events-none after:absolute after:h-9 after:w-9 after:rounded-full after:content-['']",
+          "relative h-9 w-9 min-h-9 min-w-9 rounded-full after:pointer-events-none after:absolute after:h-8 after:w-8 after:rounded-full after:content-['']",
           STATUS_BUTTON_CLASSES[optionStatus],
         ),
         activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',
@@ -691,9 +691,8 @@ export function TeacherLiveAttendanceTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
       testId="attendance-context-bar"
-      contextClassName="w-full"
       context={view && view.integration !== 'disabled' ? (
-        <div className="hidden w-full min-w-0 items-center justify-end whitespace-nowrap sm:flex">
+        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
           {!isArchived ? (
             <Tooltip content={windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
               <Button
@@ -701,8 +700,8 @@ export function TeacherLiveAttendanceTab({
                 size="xs"
                 variant="surface"
                 className={cn(
-                  'h-9 max-w-full justify-end gap-1.5 px-2.5 text-text-muted hover:text-text-default',
-                  !windowLabel && 'w-9 px-0',
+                  'h-9 w-fit max-w-full justify-start gap-1.5 px-2.5 text-left text-text-muted hover:text-text-default',
+                  !windowLabel && 'w-9 justify-center px-0',
                 )}
                 aria-label={windowLabel
                   ? `Attendance hours, ${sessionContextLabel}, ${windowLabel.replace(' - ', ' to ')}`
@@ -723,7 +722,7 @@ export function TeacherLiveAttendanceTab({
                     {hasUnconfirmedView ? (
                       <span className="hidden truncate xl:inline">· {SESSION_LABELS[sessionState]}</span>
                     ) : null}
-                    <span className="hidden min-w-40 text-right tabular-nums lg:inline">
+                    <span className="hidden tabular-nums lg:inline">
                       · {windowLabel}
                     </span>
                     {localSessionPending || view.sync.state === 'pending' ? (
@@ -745,7 +744,7 @@ export function TeacherLiveAttendanceTab({
                 aria-hidden="true"
               />
               <span className="truncate">{sessionContextLabel}</span>
-              <span className="hidden min-w-40 text-right tabular-nums lg:inline">
+              <span className="hidden tabular-nums lg:inline">
                 · {windowLabel}
               </span>
             </div>
@@ -1049,7 +1048,7 @@ export function TeacherLiveAttendanceTab({
                         {student.lastName || '—'}
                       </span>
                       {checkInTime ? (
-                        <span className="block text-xs text-text-muted md:hidden">
+                        <span className="block whitespace-nowrap text-xs tabular-nums text-text-muted md:hidden">
                           {checkInTime}
                         </span>
                       ) : null}
@@ -1075,7 +1074,7 @@ export function TeacherLiveAttendanceTab({
                               type="button"
                               variant="ghost"
                               size="xs"
-                              className="h-11 w-11 px-0 py-0"
+                              className="h-9 w-9 min-h-9 min-w-9 px-0 py-0"
                               aria-label={`Undo manual attendance change for ${studentName}`}
                               disabled={!editable}
                               onClick={() => void submitMarks(

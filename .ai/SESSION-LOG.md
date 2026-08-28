@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-26 — Serialize Test draft saves with activation
-
-**Risk profile:** runtime-platform — Test authoring/activation transactions,
-question immutability after student work, and teacher editor close behavior; no
-database was reset or migrated and no hosted state was changed.
-
-- Added version-fenced, service-role-only migration-134 RPCs for atomic Test
-  authoring saves and draft activation. Both lock Test, Classroom, draft, and
-  questions in the same order, so activation either consumes the completed save
-  or rejects a stale version, and archive cannot cross an authorized write.
-- Activation materializes questions only through explicit portable identity.
-  Draft-created UUIDs become `artifact_id`, persisted row IDs remain internal,
-  and active/closed authoring rebuilds from and atomically synchronizes the
-  materialized question rows instead of trusting stale draft JSON.
-- Preserved the supported active/closed editor lifecycle while freezing question
-  mutations once student work exists. Metadata/document-only saves remain
-  possible because unchanged question rows are not rewritten.
-- The teacher authoring dialog now flushes queued/debounced saves before close,
-  remains open with a disabled `Saving...` action during the flush, and
-  activation sends the exact saved draft version obtained during preflight.
-- Blueprint capture is read-only for Test/question identity and uses draft JSON
-  only for draft Tests; active/closed Tests are captured from materialized rows.
-- Added real two-session save/activation and archive ordering, active-authoring,
-  student-work lock, and rollback regressions for fresh CI replay. Full Vitest
-  passes 5,123 tests across 586 files; the final focused surface passes 169
-  tests. Lint, TypeScript, production build, shell syntax, diff checks, Pika
-  audit, accessibility review, desktop/mobile light/dark Playwright verification,
-  and two bounded independent re-reviews pass. Local generated-type parity is
-  intentionally deferred to fresh CI because the installed local database has
-  the earlier migration-134 definition and applying/resetting it was prohibited.
-
 ## 2026-08-26 — Generalize the Attendance work-surface hierarchy
 
 **Risk profile:** none — teacher UI composition, reusable layout primitives,
@@ -1359,3 +1328,30 @@ Playwright matrix (4/4), TypeScript, lint, architecture boundaries, Pika audit,
 diff checks, and same-viewport source/implementation Product Design comparison
 pass. Student UI is n/a because this remains a teacher-only surface. Bounded
 independent review passed; rerun PR CI remains before handoff.
+
+## 2026-08-28 — Fit Attendance time and tighten row controls
+
+**Risk profile:** low teacher-only visual/composite-widget refinement — no
+Attendance commands, permissions, session state, QR provenance, API/schema, or
+student behavior changed.
+
+- Left-aligned the clickable Attendance time control and made it shrink to its
+  content. Verified the full `Open · 12:45 AM - 10:34 PM` label without
+  stretching the leading context track.
+- Reduced each row Present/Late/Absent target from 44 px to 36 px and its visible
+  disc from 36 px to 32 px. Matched the sortable count pills to the 32 px disc
+  width and reduced the QR-correction Undo target so it does not hold rows open.
+- Kept mobile Check-in time on one line so the reduced controls materially lower
+  row height at the narrow viewport as well as desktop.
+- Updated the live Open Design mock, approved reference, brief, Product Design
+  QA, and desktop/mobile light/dark evidence. No durable guidance changed because
+  these remain Attendance-specific density and placement choices.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  unchanged and covered; semantic names, pressed state, focus rings, tooltips,
+  36 px target geometry, 32 px disc/count geometry, longest-time alignment, and
+  compact row height are covered by component/browser checks.
+
+**Verification:** focused component tests (18/18), responsive Attendance
+Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
+architecture, design policy, UI policy, Pika audit, diff checks, and same-view
+source/implementation Product Design comparison pass. Student UI is n/a.

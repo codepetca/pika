@@ -26,22 +26,29 @@
 No actionable P0, P1, or P2 mismatch remains.
 
 - Fonts and typography: the implementation uses Pika's production font stack, weights, and compact table type scale. Hierarchy, legibility, and truncation behavior are consistent with the shared work surface.
-- Spacing and layout rhythm: the right-justified clickable session range, centered action cluster, quiet refresh utility, tight roster, and table frame match the approved hierarchy. The date arrows directly touch the date segment. At 390 px, nonessential session context is condensed and session commands/utilities collapse to one compact menu without overlap.
-- Colors and visual tokens: semantic Pika surface, text, focus, attendance-status, light, and dark tokens render consistently. The active status is full-strength with a primary blue ring and subtle shadow; the other two choices remain discoverable at 12% opacity. Count pills and visible discs share a 36 px width on the same 44 px grid.
+- Spacing and layout rhythm: the left-aligned, content-sized clickable session range, centered action cluster, quiet refresh utility, denser roster, and table frame match the approved hierarchy. The full `Open · 12:45 AM - 10:34 PM` example fits without stretching the left grid track. Row status targets are reduced to 36 px so the tight table padding produces visibly shorter rows. The date arrows directly touch the date segment. At 390 px, nonessential session context is condensed and session commands/utilities collapse to one compact menu without overlap.
+- Colors and visual tokens: semantic Pika surface, text, focus, attendance-status, light, and dark tokens render consistently. The active status is full-strength with a primary blue ring and subtle shadow; the other two choices remain discoverable at 12% opacity. Count pills and visible discs share a 32 px width on the same compact 36 px grid.
 - Copy and content: the implementation preserves Attendance-specific terms and does not import Test terminology. `Check-in` contains the Toronto-local QR check-in time and is visually empty when no QR check-in exists. The session range, Check-in, and QR expiry use uppercase `AM`/`PM`; the session range uses spaces around the dash.
 - Icons and affordances: the old trailing Attendance hours icon is removed. The session range itself is a subtle button that opens Attendance hours; a clock button occupies the same leading slot when no range exists. The selectable date has no dropdown chevron. Row status controls are icon-free; remaining utility and menu icons use Pika's existing Lucide family with accessible names and tooltips.
 - Selection and actions: checkbox selection remains independent from always-available row corrections. The persistent selected-student menu is disabled until selection and then exposes the selected count. Broad whole-roster status buttons and a manual-attendance mode toggle are absent.
-- Responsiveness and accessibility: desktop/mobile light/dark captures have no document overflow. Row status controls retain 44 x 44 targets, named pressed states, roving focus, and Arrow/Home/End behavior. Mobile keeps Attendance hours in the condensed action menu. The internal roster scroller retains sticky sortable/resizable headers.
+- Responsiveness and accessibility: desktop/mobile light/dark captures have no document overflow. Row status controls use the explicitly approved compact 36 x 36 target treatment while retaining named pressed states, visible focus rings, roving focus, and Arrow/Home/End behavior. Mobile keeps Attendance hours in the condensed action menu. The internal roster scroller retains sticky sortable/resizable headers.
 - Interaction/runtime check: checkbox selection, select-all semantics, selected-student actions, direct row changes, QR Undo, status sorting, internal scrolling, mobile session menu, clickable session range, no-time clock fallback, and Attendance hours were exercised in Chromium. Browser console and page errors remained empty in all four projects.
 
 ## Comparison History
+
+### Pass 9 — left-fitted time control and denser row choices, passed
+
+- Moved the clickable session-time control to the left edge of its context track and removed the stretching/right-alignment rules.
+- Exercised the longest requested example, `Open · 12:45 AM - 10:34 PM`, and confirmed the button remains content-sized and below one-third of the desktop context bar width.
+- Reduced row status targets from 44 px to 36 px and visible discs/count pills from 36 px to 32 px. The compact target removes eight pixels from the control-driven row height while preserving the selected ring, inactive opacity, semantic pressed states, tooltips, and keyboard model.
+- Compared the refreshed 1440 x 900 source and implementation together and reviewed desktop/mobile light/dark default, selected-menu, Undo, dialog, scrolled-header, and no-hours states. No actionable mismatch remains.
 
 ### Pass 8 — always-editable controls and direct session-time editing, passed
 
 - Removed the manual-attendance mode concept from the approved direction; the fixed Present/Late/Absent control is always available when existing Attendance permissions allow marking.
 - Reduced inactive status discs from 35% to 12% opacity and removed the segmented-control track, preserving a quiet fixed three-column grid. The selected disc remains full-strength with its blue ring.
 - Widened count pills to 36 px and aligned their 44 px targets with the row status columns.
-- Replaced the trailing Attendance hours icon with a right-justified, directly clickable session range using `8:45 AM - 9:15 AM` formatting. Dates without a range show a clock fallback in the same leading slot.
+- Replaced the trailing Attendance hours icon with a directly clickable session range using spaced-dash time formatting. Dates without a range show a clock fallback in the same leading slot. Its final left alignment and content sizing are recorded in Pass 9.
 - Compared the final 1440 x 900 source and implementation together, then verified desktop/mobile light/dark default, selected, menu, Undo, dialog, scrolled-header, and no-hours states. No actionable mismatch remains.
 
 ### Pass 7 — smaller discs and stronger selected state, passed

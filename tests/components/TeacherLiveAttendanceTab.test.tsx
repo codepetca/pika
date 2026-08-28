@@ -168,7 +168,7 @@ describe('TeacherLiveAttendanceTab', () => {
     })
     expect(attendanceHours).toBeEnabled()
     expect(attendanceHours).toHaveTextContent('Open· 8:45 AM - 9:15 AM')
-    expect(attendanceHours).toHaveClass('justify-end')
+    expect(attendanceHours).toHaveClass('w-fit', 'justify-start', 'text-left')
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
@@ -239,7 +239,16 @@ describe('TeacherLiveAttendanceTab', () => {
     )
     for (const label of ['Present', 'Late', 'Absent']) {
       const statusButton = within(graceStatus).getByRole('button', { name: label })
-      expect(statusButton).toHaveClass('rounded-full', 'after:h-9', 'after:w-9', 'after:rounded-full')
+      expect(statusButton).toHaveClass(
+        'h-9',
+        'w-9',
+        'min-h-9',
+        'min-w-9',
+        'rounded-full',
+        'after:h-8',
+        'after:w-8',
+        'after:rounded-full',
+      )
       expect(statusButton.querySelector('svg')).not.toBeInTheDocument()
     }
     expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
@@ -261,17 +270,17 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(presentSort.firstElementChild).toHaveClass(
       'bg-attendance-present',
       'text-attendance-present-text',
-      'w-9',
+      'w-8',
     )
     expect(lateSort.firstElementChild).toHaveClass(
       'bg-attendance-late',
       'text-attendance-late-text',
-      'w-9',
+      'w-8',
     )
     expect(absentSort.firstElementChild).toHaveClass(
       'bg-attendance-absent',
       'text-attendance-absent-text',
-      'w-9',
+      'w-8',
     )
 
     fireEvent.click(lateSort)
@@ -303,8 +312,29 @@ describe('TeacherLiveAttendanceTab', () => {
     await screen.findByText('Ada')
 
     const attendanceHours = screen.getByRole('button', { name: 'Set attendance hours' })
-    expect(attendanceHours).toHaveClass('w-9', 'justify-end')
+    expect(attendanceHours).toHaveClass('w-9', 'justify-center')
     expect(attendanceHours.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('keeps the longest attendance window left-aligned and content-sized', async () => {
+    const base = attendanceView()
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      session: {
+        ...base.session,
+        opensAt: '2026-08-17T04:45:00.000Z',
+        closesAt: '2026-08-18T02:34:00.000Z',
+      },
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    const attendanceHours = screen.getByRole('button', {
+      name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+    })
+    expect(attendanceHours).toHaveTextContent('Open· 12:45 AM - 10:34 PM')
+    expect(attendanceHours).toHaveClass('w-fit', 'justify-start', 'text-left')
+    expect(attendanceHours).not.toHaveClass('w-full')
   })
 
   it('matches Daily sortable identity columns, check-in sorting, and resize semantics', async () => {

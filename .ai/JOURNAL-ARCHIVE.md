@@ -24628,3 +24628,35 @@ reset or migrated and no hosted state was changed.
   shell syntax, diff checks, and the production build pass. The revised SQL
   fixture remains for fresh-database CI because migration application/reset was
   explicitly prohibited for this task.
+
+<!-- pika-session-log-archive-batch:4741cb244a2a7f78e7996c3322bccc05e32a40332b23dbdafab8acd680e860cf -->
+## 2026-08-26 — Serialize Test draft saves with activation
+
+**Risk profile:** runtime-platform — Test authoring/activation transactions,
+question immutability after student work, and teacher editor close behavior; no
+database was reset or migrated and no hosted state was changed.
+
+- Added version-fenced, service-role-only migration-134 RPCs for atomic Test
+  authoring saves and draft activation. Both lock Test, Classroom, draft, and
+  questions in the same order, so activation either consumes the completed save
+  or rejects a stale version, and archive cannot cross an authorized write.
+- Activation materializes questions only through explicit portable identity.
+  Draft-created UUIDs become `artifact_id`, persisted row IDs remain internal,
+  and active/closed authoring rebuilds from and atomically synchronizes the
+  materialized question rows instead of trusting stale draft JSON.
+- Preserved the supported active/closed editor lifecycle while freezing question
+  mutations once student work exists. Metadata/document-only saves remain
+  possible because unchanged question rows are not rewritten.
+- The teacher authoring dialog now flushes queued/debounced saves before close,
+  remains open with a disabled `Saving...` action during the flush, and
+  activation sends the exact saved draft version obtained during preflight.
+- Blueprint capture is read-only for Test/question identity and uses draft JSON
+  only for draft Tests; active/closed Tests are captured from materialized rows.
+- Added real two-session save/activation and archive ordering, active-authoring,
+  student-work lock, and rollback regressions for fresh CI replay. Full Vitest
+  passes 5,123 tests across 586 files; the final focused surface passes 169
+  tests. Lint, TypeScript, production build, shell syntax, diff checks, Pika
+  audit, accessibility review, desktop/mobile light/dark Playwright verification,
+  and two bounded independent re-reviews pass. Local generated-type parity is
+  intentionally deferred to fresh CI because the installed local database has
+  the earlier migration-134 definition and applying/resetting it was prohibited.
