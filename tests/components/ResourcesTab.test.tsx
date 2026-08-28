@@ -4,6 +4,7 @@ import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResou
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
+import { CourseGuidePanel } from '@/components/CourseGuidePanel'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
@@ -46,6 +47,11 @@ vi.mock('@/components/CourseGuideView', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  ContentField: ({ label, hint, children }: {
+    label: string
+    hint?: string
+    children: ReactNode
+  }) => <div><span>{label}</span>{children}{hint ? <span>{hint}</span> : null}</div>,
   MarkdownContentEditor: ({ markdown, onMarkdownChange, 'aria-label': ariaLabel }: {
     markdown: string
     onMarkdownChange: (value: string) => void
@@ -116,13 +122,16 @@ const guide = {
   classroom: {
     title: classroom.title,
   },
-  visibility: classroom.actual_site_config,
+  visibility: {
+    overview: true,
+    resources: true,
+    assignments: true,
+    tests: true,
+  },
   overviewMarkdown: classroom.course_overview_markdown,
   resourcesContent: null,
   assignments: [],
   tests: [],
-  lessonPlans: [],
-  announcements: [],
 }
 
 function fetchResult(value: unknown, ok = true) {
@@ -258,6 +267,7 @@ describe('Course Guide classroom tabs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
 
     expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import curriculum' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share guide publicly' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Hide Assignments' }))
     expect(screen.getByRole('button', { name: 'Show Assignments' })).toHaveAttribute('aria-pressed', 'false')
@@ -289,6 +299,89 @@ describe('Course Guide classroom tabs', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull())
     expect(optionsButton).toHaveFocus()
+  })
+
+  it('opens curriculum import from Guide options only when overview edits are saved', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+
+    expect(screen.getByRole('dialog', { name: 'Import curriculum' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
+    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+      target: { value: 'Unsaved overview' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Save or cancel your overview edits before importing curriculum.',
+    )
+    expect(screen.queryByRole('dialog', { name: 'Import curriculum' })).toBeNull()
+  })
+
+  it('imports against raw teacher content when overview visibility is off', async () => {
+    const hiddenGuide = {
+      ...guide,
+      visibility: { ...guide.visibility, overview: false },
+      overviewMarkdown: '',
+    }
+    const importDraft = {
+      sourceTitle: 'Ontario curriculum',
+      sourceUrl: 'https://example.ca/curriculum.pdf',
+      sourceFilename: null,
+      sourceLabel: '[Ontario curriculum](https://example.ca/curriculum.pdf)',
+      overviewMarkdown: 'Imported overview',
+      expectationsMarkdown: '',
+      sourceLinks: [],
+      draftMarkdown: '## Curriculum overview\n\nImported overview',
+      citationMarkdown: 'Source: Ontario curriculum — https://example.ca/curriculum.pdf',
+    }
+    const updatedClassroom = {
+      ...classroom,
+      course_overview_markdown: 'Course overview\n\n---\n\nImported overview',
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockReturnValueOnce(fetchResult({ guide: hiddenGuide }))
+      .mockReturnValueOnce(fetchResult({
+        draft: importDraft,
+        provenanceToken: 'p'.repeat(80),
+      }))
+      .mockReturnValueOnce(fetchResult({ classroom: updatedClassroom }))
+
+    render(
+      <CourseGuidePanel
+        role="teacher"
+        classroom={{
+          ...classroom,
+          actual_site_config: { ...classroom.actual_site_config, overview: false },
+        }}
+      />,
+    )
+    await screen.findByTestId('course-guide-view')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Public URL' }))
+    fireEvent.change(screen.getByLabelText('Public document URL'), {
+      target: { value: 'https://example.ca/curriculum.pdf' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }))
+    await screen.findByLabelText('Imported curriculum draft')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to confirmation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add reviewed draft' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const applyRequest = fetchMock.mock.calls[2]?.[1] as RequestInit
+    expect(JSON.parse(String(applyRequest.body))).toMatchObject({
+      expectedOverviewMarkdown: 'Course overview',
+      provenanceToken: 'p'.repeat(80),
+    })
   })
 
   it('keeps the overview editor open and announces a failed save', async () => {

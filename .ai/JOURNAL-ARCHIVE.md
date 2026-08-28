@@ -24514,3 +24514,62 @@ contract changes; no hosted migration, deployment, or merge occurred.
 - The canonical identity and broader Versioned Blueprint database contracts
   pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
   build, generated Supabase type checks, diff checks, and the Pika audit.
+
+<!-- pika-session-log-archive-batch:85e93784e3a745a5c5a93ccfb67d71f7d9d50d7f89cfc8f55f660bf8022a0aa3 -->
+## 2026-08-26 — Make Blueprint question identity capture draft-safe
+
+**Risk profile:** runtime-platform — proposed migration and rollback-only test
+coverage; no staging or production migration, deployment, or merge occurred.
+
+- Replaced ordinal row lookup in proposed migration 134 with stable identity
+  matching across physical, artifact, and source-artifact IDs. Missing rows are
+  accepted for draft-only additions; multiple matching rows fail closed with
+  SQLSTATE `22023`.
+- Added active and archived regressions for deleted and reordered questions,
+  draft-only additions, ambiguity after an earlier identity write, atomic
+  rollback, successful capture/reuse, and idempotent replay.
+- The ambiguity fixture now requires the exact active/archived error message and
+  verifies active classroom Blueprint linkage, operation, Blueprint, and source
+  identity writes all roll back.
+- Rebasing onto `origin/main` preserved migration number 134 because main ends
+  at 133. Continuity-history conflicts were resolved without restoring the
+  duplicate archived attendance entry.
+- Focused Blueprint tests (30/30), lint, architecture boundaries, generated
+  database types, and the production build pass. The installed local function
+  is an earlier 134 revision, so fresh-database CI remains the authoritative SQL
+  replay gate; local migration state was not changed without new authorization.
+
+## 2026-08-26 — Preserve Blueprint identity failure evidence
+
+**Risk profile:** runtime-platform — proposed migration and transactional
+database regression changes only; no local, staging, or production migration,
+deployment, or merge occurred.
+
+- Wrapped the active-capture and archived-reuse identity writes in an outer
+  ledger-owned transaction boundary. Identity ambiguity now rolls back the full
+  Blueprint graph while retaining a structured failed operation with stable
+  `test_question_identity_ambiguous` code and SQLSTATE `22023`.
+- Strengthened the database contract to assert the failed ledger, rolled-back
+  domain writes, a successful same-key retry after repairing the source
+  collision, and idempotent replay for both active and archived sources.
+- The full Vitest suite passes (5,093/5,093), as do lint, architecture
+  boundaries, generated database types, the Pika audit, and the production
+  build. The database regression still requires fresh-database CI because the
+  installed local function is an earlier migration 134 revision.
+
+## 2026-08-26 — Keep archived Blueprint repair retries idempotent
+
+**Risk profile:** runtime-platform — application request hashing and regression
+coverage only; no migration application, deployment, or merge occurred.
+
+- Removed the archived source revision from the stable Blueprint operation
+  request hash while retaining it as the RPC stale-read precondition. The UI's
+  retained operation key can now retry after an identity-only source repair
+  advances the Classroom revision.
+- Added a server regression proving revision-only retries send the new expected
+  revision with the original request hash. The database fixture now proves the
+  repair advances the source revision before its same-key retry.
+- Focused Blueprint tests (20/20), architecture boundaries, the Pika audit, and
+  the production build pass. Fresh-database CI remains the authoritative SQL
+  replay gate because the installed local function is an earlier migration 134
+  revision.
