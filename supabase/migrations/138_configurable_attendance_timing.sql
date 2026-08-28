@@ -80,12 +80,14 @@ alter table public.attendance_occurrence_mappings
 -- Preserve the currently scheduled acceptance interval while giving any
 -- pre-release occurrence the agreed default policy snapshot.
 update public.attendance_occurrence_mappings
-set session_starts_at = least(
-      opens_at + interval '10 minutes', closes_at - interval '1 minute'
+set session_starts_at = greatest(
+      opens_at,
+      least(opens_at + interval '10 minutes', closes_at - interval '1 minute')
     ),
     session_ends_at = closes_at + interval '10 minutes',
-    present_through_at = least(
-      opens_at + interval '15 minutes', closes_at - interval '1 minute'
+    present_through_at = greatest(
+      opens_at,
+      least(opens_at + interval '15 minutes', closes_at - interval '1 minute')
     ),
     absent_at = closes_at + interval '10 minutes',
     policy_revision = 1
@@ -194,6 +196,7 @@ as $$
     or exists (select 1 from public.attendance_integration_outbox where classroom_id = p_classroom_id)
     or exists (select 1 from public.attendance_integration_inbox where classroom_id = p_classroom_id)
     or exists (select 1 from public.attendance_session_projection where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_record_projection where classroom_id = p_classroom_id)
     or exists (select 1 from public.attendance_check_in_facts where classroom_id = p_classroom_id)
     or exists (select 1 from public.attendance_status_overrides where classroom_id = p_classroom_id)
     or exists (select 1 from public.attendance_status_override_events where classroom_id = p_classroom_id)
@@ -211,6 +214,8 @@ set search_path = ''
 as $$
   select
     exists (select 1 from public.attendance_participant_mappings
+      where classroom_id = p_classroom_id and student_id = p_student_id)
+    or exists (select 1 from public.attendance_record_projection
       where classroom_id = p_classroom_id and student_id = p_student_id)
     or exists (select 1 from public.attendance_check_in_facts
       where classroom_id = p_classroom_id and student_id = p_student_id)

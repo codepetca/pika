@@ -19,7 +19,7 @@ describe('configurable attendance timing migration', () => {
     ]) expect(migration).toContain(`add column ${column}`)
     expect(migration).toContain('present_through_at < closes_at')
     expect(migration).toContain('least(10, durations.duration_minutes - 1)')
-    expect(migration).toContain("closes_at - interval '1 minute'")
+    expect(migration).toContain("greatest(\n      opens_at,\n      least(opens_at + interval '10 minutes'")
   })
 
   it('replaces provider statuses with immutable check-in facts and Pika overrides', () => {
@@ -60,6 +60,16 @@ describe('configurable attendance timing migration', () => {
     expect(migration).toContain("where source = 'student_qr'")
     expect(migration).toContain(
       "message = 'attendance_timing_cutover_requires_empty_legacy_qr_projection'",
+    )
+  })
+
+  it('retains legacy attendance projections in classroom and student deletion guards', () => {
+    expect(migration.match(/attendance_record_projection/g)).toHaveLength(3)
+    expect(migration).toContain(
+      'attendance_record_projection where classroom_id = p_classroom_id',
+    )
+    expect(migration).toContain(
+      'where classroom_id = p_classroom_id and student_id = p_student_id',
     )
   })
 })
