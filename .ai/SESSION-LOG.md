@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Match Attendance status dots to Daily and TeachAssist
-
-**Risk profile:** none — teacher Attendance presentation, semantic color
-tokens, regression coverage, and pending guidance only; no attendance behavior,
-API, schema, persistence, authentication, dependency, or hosted state changed.
-
-- Replaced the interim check/clock/X/dash roster icons with Daily's 12px
-  accessible status-dot geometry. Visible status labels and aggregate context
-  counts remain removed; tooltip and screen-reader names preserve meaning.
-- Added attendance-specific semantic tokens using the exact colors inspected in
-  the connected TeachAssist teacher view: present `#2DBF00`, late `#F1C700`,
-  absent `#B10606`, and the shared neutral border token for unmarked. The
-  source colors remain stable in dark mode without changing Pika's global
-  success, warning, or danger palette.
-- Full Vitest (5,103/5,103), lint, and the production build pass. Playwright
-  verification covers the teacher surface at desktop/mobile in light/dark
-  across default, scrolled, and selected states; it programmatically confirms
-  ten dots per status, 12px geometry, and the exact TeachAssist RGB values.
-  Visual review confirms the compact roster, sticky header, and mobile
-  selection-bar clearance. Student UI is n/a because this surface is
-  teacher-only.
-
-**Model recommendation:** current GPT-5 coding model for a localized
-cross-product visual-language match and responsive verification.
-
 ## 2026-08-27 — Align Attendance table sorting with Daily
 
 **Risk profile:** none — teacher Attendance table presentation, sorting,
@@ -1321,3 +1296,35 @@ behavior, schema, dependency, deployment, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Terra for a low-risk, cross-page design
 guidance clarification grounded in the reviewed Attendance implementation.
+
+## 2026-08-28 — Release configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated Pika/Supabase/Bara production
+release with protected-branch merges, exact Git-source deployments, and a
+production Convex worker correction.
+
+- Merged configurable Attendance timing through Pika production PR #1106 at
+  `f895b240` and Bara production PR #49, followed by the worker correction in
+  PRs #50/#51 at `8515a4ca`. Exact Git-source Vercel production deployments are
+  Ready and own the stable Pika and Bara aliases.
+- Verified production Supabase migrations 001–138 are aligned. Migration 138
+  owns timing-policy persistence, occurrence snapshots, Pika-side status
+  derivation, immutable accepted-check-in facts, and audited invalidation.
+- Kept service ownership explicit: Bara enforces only the concrete half-open QR
+  gate and records authoritative timestamps; Pika derives Present/Late/Absent,
+  applies teacher overrides/Undo, and invalidates or clears accepted facts.
+- Corrected Bara's scheduled worker after production logs exposed two paginated
+  queries in one Convex transaction. The coordinator is now an internal action
+  whose open and close pages run as separate mutations. Full Bara tests,
+  typecheck, build, and lint passed; repeated production cron runs are clean.
+- Restricted Vercel deployment creation in both repositories to `main` and
+  `production`; slash-containing feature branches are rejected before a preview
+  deployment is created. Main preview and production release paths remain on.
+- Restored the configured canary teacher's missing entitlement through the
+  separately authorized, audited production operation. The active revision-1
+  grant has no expiry, classroom access returns `ready`, and the final deployed
+  `enabled`/`teacher_entitlements` signed smoke passed 4/4 across canary scope,
+  transition health, Pika-to-Bara authentication, and Bara-to-Pika callback.
+
+**Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
+bounded follow-up now that the coordinated rollout is complete.
