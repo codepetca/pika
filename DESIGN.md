@@ -172,6 +172,10 @@ for new or deliberately modified work.
 - Teacher and student density are product modes, not permission to remove data
   or compress interactive targets.
 - Directly actionable controls maintain a minimum 44 by 44 CSS-pixel target.
+- Compact visible geometry does not shrink interaction geometry. A dense status
+  mark or icon may render inside a smaller visual boundary only when its full
+  target remains at least 44 by 44 CSS pixels, neighboring targets do not
+  overlap, and focus and state feedback remain perceptible.
 - Select named page widths through shared page primitives instead of adding
   feature-local `max-w-*` contracts.
 - Narrow-screen behavior should change composition when needed rather than
