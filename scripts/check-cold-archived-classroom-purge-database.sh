@@ -20,10 +20,12 @@ do $migration$
 begin
   if not exists (
     select 1 from supabase_migrations.schema_migrations where version = '122'
+  ) or not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '136'
   ) or to_regprocedure(
     'public.begin_cold_archived_classroom_purge(uuid,uuid,uuid,uuid,text,jsonb)'
   ) is null
-  then raise exception 'Migration 122 is not applied to the local database'; end if;
+  then raise exception 'Migrations 122 and 136 are not applied to the local database'; end if;
 end;
 $migration$;
 
@@ -287,6 +289,14 @@ $begin_purge$;
 
 do $fence$
 begin
+  begin
+    perform public.guard_classroom_purge_lifecycle(
+      'c2200000-0000-4000-8000-000000000010'
+    );
+    raise exception 'Lifecycle guard crossed the cold purge fence';
+  exception when sqlstate '55000' then
+    if sqlerrm <> 'classroom_purge_active' then raise; end if;
+  end;
   begin
     delete from public.classroom_cold_tombstones
     where classroom_id = 'c2200000-0000-4000-8000-000000000010';

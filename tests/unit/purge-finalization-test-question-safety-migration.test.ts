@@ -31,12 +31,23 @@ describe('purge finalization Test-question safety migration', () => {
     expect(migration).toContain("return 'linked_classroom_purge_active'")
     expect(migration).toContain('public.course_blueprint_purge_fences')
     expect(migration).toContain('public.classroom_purge_fences')
+    expect(migration).toContain('public.cold_classroom_purge_fences')
     expect(migration).toContain(
       'private.classroom_purge_conflict_pre_cross_purge_order',
     )
     expect(migration).toContain(
       'private.course_blueprint_purge_conflict_pre_cross_purge_order',
     )
+    expect(migration).toContain('private.classroom_blueprint_purge_links()')
+    expect(migration).toContain(
+      'private.lock_classroom_blueprint_purge_links',
+    )
+    expect(migration).toContain("'classroom_blueprint_purge_pair'")
+    expect(migration).toContain('pg_catalog.pg_advisory_xact_lock')
+    expect(migration).toContain('proposal.target_classroom_id')
+    expect(migration).toContain('operation.result_classroom_id')
+    expect(migration).toContain('operation.result_blueprint_id')
+    expect(migration).toContain('course_blueprint_editing_sessions')
     expect(migration).toMatch(
       /function public\.classroom_purge_conflict\(p_classroom_id uuid\)[\s\S]{0,120}security definer\s+set search_path = ''/,
     )
@@ -60,12 +71,24 @@ describe('purge finalization Test-question safety migration', () => {
     )
   })
 
+  it('preserves cold-Classroom purge fences without applying Blueprint retry semantics', () => {
+    expect(migration).toMatch(
+      /if exists \(\s*select 1 from public\.cold_classroom_purge_fences[\s\S]{0,180}raise exception using errcode = '55000', message = 'classroom_purge_active'/,
+    )
+    expect(migration).not.toMatch(
+      /cold_classroom_purge_fences[\s\S]{0,220}course_blueprint_purge_waiting_for_classroom_purge/,
+    )
+  })
+
   it('reclassifies only retained generic Blueprint failures with a live linked Classroom fence', () => {
     expect(migration).toMatch(
       /update public\.course_blueprint_purge_operations operation[\s\S]*operation\.status = 'failed'[\s\S]*operation\.retryable is false[\s\S]*operation\.error_code = 'database_finalize_failed'/,
     )
     expect(migration).toMatch(
-      /exists \([\s\S]*from public\.classroom_purge_fences classroom_fence[\s\S]*classroom\.source_blueprint_id = operation\.course_blueprint_id/,
+      /exists \([\s\S]*from public\.classroom_purge_fences classroom_fence[\s\S]*join private\.classroom_blueprint_purge_links\(\) link[\s\S]*link\.course_blueprint_id = operation\.course_blueprint_id/,
+    )
+    expect(migration).toContain(
+      'private.repair_linked_course_blueprint_purge_failures()',
     )
   })
 })

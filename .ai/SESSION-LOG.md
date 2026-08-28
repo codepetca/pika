@@ -1176,13 +1176,20 @@ unchanged and migration 136 is not authorized for hosted application.
   regression now includes a closed Test, question, submitted attempt, and
   response and proves the complete Classroom graph is deleted.
 - Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
-  the second deletion from starting, legacy interleaved operations drain in
-  Classroom-then-Blueprint order, and a retained generic Blueprint failure is
-  made retryable only when a live linked Classroom fence proves that cause.
+  the second deletion from starting. One canonical lineage relation now covers
+  direct, proposal, operation, and editing-session links for atomic advisory
+  locking, conflict detection, and upgrade repair. Three synchronized two-session
+  database races prove exactly one purge installs a fence for indirect links.
+- Preserved the cold-Classroom lifecycle fence that migration 122 added. A
+  rollback database regression proves both the shared guard and cold tombstone
+  trigger still reject mutations while a cold purge is active.
+- Legacy interleaved operations drain in Classroom-then-Blueprint order. The
+  retained-failure repair now includes operation-only and editing-session-only
+  links and is covered by a database fixture for both omitted upgrade shapes.
 - Expanded both rollback-only purge contracts for linked versions, completed
   capture lineage, applied proposals, retained fences, and worker-role access.
-  A clean 001-136 replay, both database contracts, 5,177 tests, lint, build, and
-  database lint passed; lint reported only established warning-level findings.
+  A clean 001-136 replay, all four database contracts, 5,181 tests, lint, build,
+  and database lint passed; lint reported only established warning-level findings.
 - During the isolated replay, `supabase db reset --db-url` recognized the local
   container and recreated its default local database rather than the named
   disposable database. No hosted database was touched. The local database is

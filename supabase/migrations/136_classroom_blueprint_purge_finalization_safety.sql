@@ -167,6 +167,85 @@ alter function public.classroom_purge_conflict_pre_cross_purge_order(uuid)
 revoke all on function private.classroom_purge_conflict_pre_cross_purge_order(uuid)
   from public, anon, authenticated, service_role;
 
+-- Keep every supported Classroom/Blueprint lineage shape in one relation so
+-- admission ordering, conflict detection, and upgrade repair cannot drift.
+create function private.classroom_blueprint_purge_links()
+returns table (classroom_id uuid, course_blueprint_id uuid)
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select distinct link.classroom_id, link.course_blueprint_id
+  from (
+    select classroom.id, classroom.source_blueprint_id
+    from public.classrooms classroom
+    union all
+    select proposal.source_classroom_id, proposal.course_blueprint_id
+    from public.course_blueprint_change_proposals proposal
+    union all
+    select proposal.target_classroom_id, proposal.course_blueprint_id
+    from public.course_blueprint_change_proposals proposal
+    union all
+    select classroom_id, blueprint_id
+    from public.course_blueprint_operations operation
+    cross join lateral (values
+      (operation.source_classroom_id),
+      (operation.result_classroom_id)
+    ) classroom(classroom_id)
+    cross join lateral (values
+      (operation.source_blueprint_id),
+      (operation.result_blueprint_id)
+    ) blueprint(blueprint_id)
+    union all
+    select session.classroom_id, session.course_blueprint_id
+    from public.course_blueprint_editing_sessions session
+  ) link(classroom_id, course_blueprint_id)
+  where link.classroom_id is not null
+    and link.course_blueprint_id is not null
+$$;
+
+revoke all on function private.classroom_blueprint_purge_links()
+  from public, anon, authenticated, service_role;
+
+-- Both begin RPCs call their conflict function immediately before installing
+-- a fence. A shared pair lock makes that read-and-install interval mutually
+-- exclusive even when the only lineage is a proposal, operation, or session.
+create function private.lock_classroom_blueprint_purge_links(
+  p_classroom_id uuid default null,
+  p_course_blueprint_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_link record;
+begin
+  for v_link in
+    select link.classroom_id, link.course_blueprint_id
+    from private.classroom_blueprint_purge_links() link
+    where (p_classroom_id is null or link.classroom_id = p_classroom_id)
+      and (p_course_blueprint_id is null
+        or link.course_blueprint_id = p_course_blueprint_id)
+    order by link.classroom_id, link.course_blueprint_id
+  loop
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(
+      pg_catalog.jsonb_build_array(
+        'classroom_blueprint_purge_pair',
+        v_link.classroom_id,
+        v_link.course_blueprint_id
+      )::text,
+      0
+    ));
+  end loop;
+end;
+$$;
+
+revoke all on function private.lock_classroom_blueprint_purge_links(uuid, uuid)
+  from public, anon, authenticated, service_role;
+
 create function public.classroom_purge_conflict(p_classroom_id uuid)
 returns text
 language plpgsql
@@ -174,33 +253,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  perform private.lock_classroom_blueprint_purge_links(p_classroom_id, null);
   if exists (
     select 1
     from public.course_blueprint_purge_fences blueprint_fence
-    where blueprint_fence.course_blueprint_id in (
-      select classroom.source_blueprint_id
-      from public.classrooms classroom
-      where classroom.id = p_classroom_id
-      union
-      select proposal.course_blueprint_id
-      from public.course_blueprint_change_proposals proposal
-      where proposal.source_classroom_id = p_classroom_id
-         or proposal.target_classroom_id = p_classroom_id
-      union
-      select operation.source_blueprint_id
-      from public.course_blueprint_operations operation
-      where operation.source_classroom_id = p_classroom_id
-         or operation.result_classroom_id = p_classroom_id
-      union
-      select operation.result_blueprint_id
-      from public.course_blueprint_operations operation
-      where operation.source_classroom_id = p_classroom_id
-         or operation.result_classroom_id = p_classroom_id
-      union
-      select session.course_blueprint_id
-      from public.course_blueprint_editing_sessions session
-      where session.classroom_id = p_classroom_id
-    )
+    join private.classroom_blueprint_purge_links() link
+      on link.course_blueprint_id = blueprint_fence.course_blueprint_id
+    where link.classroom_id = p_classroom_id
   ) then
     return 'linked_course_blueprint_purge_active';
   end if;
@@ -228,36 +287,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  perform private.lock_classroom_blueprint_purge_links(null, p_blueprint_id);
   if exists (
     select 1
     from public.classroom_purge_fences classroom_fence
-    where classroom_fence.classroom_id in (
-      select classroom.id
-      from public.classrooms classroom
-      where classroom.source_blueprint_id = p_blueprint_id
-      union
-      select proposal.source_classroom_id
-      from public.course_blueprint_change_proposals proposal
-      where proposal.course_blueprint_id = p_blueprint_id
-      union
-      select proposal.target_classroom_id
-      from public.course_blueprint_change_proposals proposal
-      where proposal.course_blueprint_id = p_blueprint_id
-      union
-      select operation.source_classroom_id
-      from public.course_blueprint_operations operation
-      where operation.source_blueprint_id = p_blueprint_id
-         or operation.result_blueprint_id = p_blueprint_id
-      union
-      select operation.result_classroom_id
-      from public.course_blueprint_operations operation
-      where operation.source_blueprint_id = p_blueprint_id
-         or operation.result_blueprint_id = p_blueprint_id
-      union
-      select session.classroom_id
-      from public.course_blueprint_editing_sessions session
-      where session.course_blueprint_id = p_blueprint_id
-    )
+    join private.classroom_blueprint_purge_links() link
+      on link.classroom_id = classroom_fence.classroom_id
+    where link.course_blueprint_id = p_blueprint_id
   ) then
     return 'linked_classroom_purge_active';
   end if;
@@ -299,6 +335,12 @@ begin
       raise exception using errcode = '40001',
         message = 'course_blueprint_purge_waiting_for_classroom_purge';
     end if;
+    raise exception using errcode = '55000', message = 'classroom_purge_active';
+  end if;
+  if exists (
+    select 1 from public.cold_classroom_purge_fences
+    where classroom_id = p_classroom_id
+  ) then
     raise exception using errcode = '55000', message = 'classroom_purge_active';
   end if;
 end;
@@ -425,28 +467,38 @@ $$;
 
 -- Recover only terminal generic failures that are demonstrably paired with a
 -- still-active linked Classroom purge. Their fence and inventory stay intact;
--- the original idempotency key can resume after the Classroom finishes.
-update public.course_blueprint_purge_operations operation
-set retryable = true,
-    error_code = 'course_blueprint_purge_waiting_for_classroom_purge',
-    updated_at = clock_timestamp()
-where operation.status = 'failed'
-  and operation.retryable is false
-  and operation.error_code = 'database_finalize_failed'
-  and exists (
-    select 1
-    from public.classroom_purge_fences classroom_fence
-    where classroom_fence.classroom_id in (
-      select classroom.id
-      from public.classrooms classroom
-      where classroom.source_blueprint_id = operation.course_blueprint_id
-      union
-      select proposal.source_classroom_id
-      from public.course_blueprint_change_proposals proposal
-      where proposal.course_blueprint_id = operation.course_blueprint_id
-      union
-      select proposal.target_classroom_id
-      from public.course_blueprint_change_proposals proposal
-      where proposal.course_blueprint_id = operation.course_blueprint_id
-    )
-  );
+-- the original idempotency key can resume after the Classroom finishes. Keep
+-- this narrowly reusable so the database contract can exercise upgrade repair
+-- for every canonical lineage shape after the migration has been installed.
+create function private.repair_linked_course_blueprint_purge_failures()
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_repaired bigint;
+begin
+  update public.course_blueprint_purge_operations operation
+  set retryable = true,
+      error_code = 'course_blueprint_purge_waiting_for_classroom_purge',
+      updated_at = clock_timestamp()
+  where operation.status = 'failed'
+    and operation.retryable is false
+    and operation.error_code = 'database_finalize_failed'
+    and exists (
+      select 1
+      from public.classroom_purge_fences classroom_fence
+      join private.classroom_blueprint_purge_links() link
+        on link.classroom_id = classroom_fence.classroom_id
+      where link.course_blueprint_id = operation.course_blueprint_id
+    );
+  get diagnostics v_repaired = row_count;
+  return v_repaired;
+end;
+$$;
+
+revoke all on function private.repair_linked_course_blueprint_purge_failures()
+  from public, anon, authenticated, service_role;
+
+select private.repair_linked_course_blueprint_purge_failures();

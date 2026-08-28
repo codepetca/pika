@@ -228,6 +228,91 @@ insert into public.course_blueprint_change_proposals (
   clock_timestamp()
 );
 
+-- Exercise migration-136 upgrade repair for the two legacy lineage shapes
+-- that do not require a Classroom.source_blueprint_id or proposal row.
+insert into public.classrooms (id, teacher_id, title, class_code) values
+  ('b1800000-0000-4000-8000-000000000012',
+    'b1800000-0000-4000-8000-000000000001', 'Operation-only link', 'OPR136'),
+  ('b1800000-0000-4000-8000-000000000013',
+    'b1800000-0000-4000-8000-000000000001', 'Session-only link', 'SES136');
+insert into public.course_blueprints (id, teacher_id, title) values
+  ('b1800000-0000-4000-8000-000000000025',
+    'b1800000-0000-4000-8000-000000000001', 'Operation-only Blueprint'),
+  ('b1800000-0000-4000-8000-000000000026',
+    'b1800000-0000-4000-8000-000000000001', 'Session-only Blueprint');
+insert into public.course_blueprint_operations (
+  id, teacher_id, operation_type, request_sha256, status,
+  source_classroom_id, result_blueprint_id
+) values (
+  'b1800000-0000-4000-8000-000000000027',
+  'b1800000-0000-4000-8000-000000000001', 'capture', repeat('1', 64),
+  'completed', 'b1800000-0000-4000-8000-000000000012',
+  'b1800000-0000-4000-8000-000000000025'
+);
+insert into public.course_blueprint_editing_sessions (
+  id, teacher_id, course_blueprint_id, classroom_id,
+  base_blueprint_revision, package_sha256, status, expires_at, closed_at
+) values (
+  'b1800000-0000-4000-8000-000000000028',
+  'b1800000-0000-4000-8000-000000000001',
+  'b1800000-0000-4000-8000-000000000026',
+  'b1800000-0000-4000-8000-000000000013', 1, repeat('2', 64),
+  'closed', clock_timestamp() - interval '1 hour', clock_timestamp()
+);
+insert into public.classroom_purge_operations (
+  id, teacher_id, classroom_id, classroom_title, request_sha256, status,
+  source_revision, impact_summary
+) values
+  ('b1800000-0000-4000-8000-000000000029',
+    'b1800000-0000-4000-8000-000000000001',
+    'b1800000-0000-4000-8000-000000000012', 'Operation-only link',
+    repeat('3', 64), 'failed', 1, '{}'::jsonb),
+  ('b1800000-0000-4000-8000-00000000002a',
+    'b1800000-0000-4000-8000-000000000001',
+    'b1800000-0000-4000-8000-000000000013', 'Session-only link',
+    repeat('4', 64), 'failed', 1, '{}'::jsonb);
+insert into public.classroom_purge_fences (
+  classroom_id, operation_id, teacher_id
+) values
+  ('b1800000-0000-4000-8000-000000000012',
+    'b1800000-0000-4000-8000-000000000029',
+    'b1800000-0000-4000-8000-000000000001'),
+  ('b1800000-0000-4000-8000-000000000013',
+    'b1800000-0000-4000-8000-00000000002a',
+    'b1800000-0000-4000-8000-000000000001');
+insert into public.course_blueprint_purge_operations (
+  id, course_blueprint_id, teacher_id, course_blueprint_title,
+  request_sha256, inventory_sha256, finalization_sha256, source_revision,
+  status, retryable, error_code
+) values
+  ('b1800000-0000-4000-8000-00000000002b',
+    'b1800000-0000-4000-8000-000000000025',
+    'b1800000-0000-4000-8000-000000000001', 'Operation-only Blueprint',
+    repeat('5', 64), repeat('6', 64), repeat('7', 64), 1,
+    'failed', false, 'database_finalize_failed'),
+  ('b1800000-0000-4000-8000-00000000002c',
+    'b1800000-0000-4000-8000-000000000026',
+    'b1800000-0000-4000-8000-000000000001', 'Session-only Blueprint',
+    repeat('8', 64), repeat('9', 64), repeat('a', 64), 1,
+    'failed', false, 'database_finalize_failed');
+
+do $upgrade_repair$
+begin
+  if private.repair_linked_course_blueprint_purge_failures() <> 2 then
+    raise exception 'Migration-136 repair missed a canonical lineage shape';
+  end if;
+  if (select count(*) from public.course_blueprint_purge_operations
+      where id in (
+        'b1800000-0000-4000-8000-00000000002b',
+        'b1800000-0000-4000-8000-00000000002c'
+      )
+        and retryable is true
+        and error_code = 'course_blueprint_purge_waiting_for_classroom_purge'
+    ) <> 2
+  then raise exception 'Migration-136 repair did not retain retry evidence'; end if;
+end;
+$upgrade_repair$;
+
 -- Five classroom buckets plus one interrupted upload and one Blueprint file.
 select public.begin_managed_storage_upload(
   'b1800000-0000-4000-8000-000000000101', 'assignment-artifacts',
