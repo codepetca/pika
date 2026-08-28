@@ -29,7 +29,7 @@ interface ReconciliationOptions extends ClientOptions {
 export interface BaraAttendanceReconciliationResult {
   occurrenceRef: string
   sessionProjectionApplied: boolean
-  recordProjectionCount: number
+  checkInProjectionCount: number
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -67,10 +67,10 @@ export async function reconcileBaraAttendanceSession(
     !isPlainObject(data) ||
     data.applied !== true ||
     typeof data.session_projection_applied !== 'boolean' ||
-    !Number.isInteger(data.record_projection_count) ||
-    (data.record_projection_count as number) < 0 ||
+    !Number.isInteger(data.check_in_projection_count) ||
+    (data.check_in_projection_count as number) < 0 ||
     Object.keys(data).some((key) =>
-      !['applied', 'session_projection_applied', 'record_projection_count'].includes(key),
+      !['applied', 'session_projection_applied', 'check_in_projection_count'].includes(key),
     )
   ) {
     throw new Error('Attendance reconciliation returned an invalid result')
@@ -79,7 +79,7 @@ export async function reconcileBaraAttendanceSession(
   return {
     occurrenceRef: snapshot.occurrence_ref,
     sessionProjectionApplied: data.session_projection_applied,
-    recordProjectionCount: data.record_projection_count as number,
+    checkInProjectionCount: data.check_in_projection_count as number,
   }
 }
 

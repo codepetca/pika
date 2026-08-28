@@ -1,24 +1,16 @@
 'use client'
 
 import { useId } from 'react'
-import { Check, ExternalLink, Minus } from 'lucide-react'
+import { Check, ExternalLink, FileInput, Minus } from 'lucide-react'
 import { getCourseGuidePublicSharingReadiness } from '@/lib/course-guide'
 import type { ActualCourseSiteConfig } from '@/types'
-import { Button, ContentDialog, FormField, Input, Select, cn } from '@/ui'
-
-const LESSON_PLAN_SCOPE_OPTIONS = [
-  { value: 'current_week', label: 'Current week (and earlier)' },
-  { value: 'one_week_ahead', label: 'One week ahead' },
-  { value: 'all', label: 'All lesson plans' },
-]
+import { Button, ContentDialog, FormField, Input, cn } from '@/ui'
 
 const VISIBILITY_OPTIONS: Array<[keyof ActualCourseSiteConfig, string]> = [
   ['overview', 'Curriculum overview'],
   ['resources', 'Resources'],
   ['assignments', 'Assignments'],
   ['tests', 'Tests'],
-  ['lesson_plans', 'Lesson sequence'],
-  ['announcements', 'Announcements'],
 ]
 
 type CourseGuideOptionsDialogProps = {
@@ -33,6 +25,7 @@ type CourseGuideOptionsDialogProps = {
   onConfigChange: (config: ActualCourseSiteConfig) => void
   onGenerateSlug: () => void
   onOpenPublicGuide: () => void
+  onImportCurriculum: () => void
   onSave: () => void
   onClose: () => void
 }
@@ -49,11 +42,11 @@ export function CourseGuideOptionsDialog({
   onConfigChange,
   onGenerateSlug,
   onOpenPublicGuide,
+  onImportCurriculum,
   onSave,
   onClose,
 }: CourseGuideOptionsDialogProps) {
   const slugId = useId()
-  const scopeId = useId()
   const readiness = getCourseGuidePublicSharingReadiness({ enabled: published, slug })
 
   return (
@@ -61,12 +54,35 @@ export function CourseGuideOptionsDialog({
       isOpen={isOpen}
       onClose={saving ? () => {} : onClose}
       title="Guide options"
-      subtitle="Choose what students see and whether the guide is public."
+      subtitle="Choose the high-level course orientation students see and whether it is public."
       maxWidth="max-w-xl"
       showFooterClose={false}
     >
       <div className="space-y-4">
-        <section aria-labelledby="guide-sharing-heading" className="space-y-3">
+        <section aria-labelledby="guide-import-heading" className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 id="guide-import-heading" className="text-sm font-semibold text-text-default">
+                Curriculum import
+              </h4>
+              <p className="mt-1 text-sm text-text-muted">
+                Create a reviewable draft from one PDF or public document link.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={saving}
+              onClick={onImportCurriculum}
+              className="shrink-0"
+            >
+              <FileInput className="h-4 w-4" aria-hidden="true" />
+              Import curriculum
+            </Button>
+          </div>
+        </section>
+
+        <section aria-labelledby="guide-sharing-heading" className="space-y-3 border-t border-border pt-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h4 id="guide-sharing-heading" className="text-sm font-semibold text-text-default">
@@ -144,6 +160,9 @@ export function CourseGuideOptionsDialog({
           <h4 id="guide-sections-heading" className="text-sm font-semibold text-text-default">
             Guide sections
           </h4>
+          <p className="mt-1 text-sm text-text-muted">
+            Assignments and Tests appear as compact title lists. Daily course activity stays in its classroom tabs.
+          </p>
           <div className="mt-3 divide-y divide-border">
             {VISIBILITY_OPTIONS.map(([key, label]) => {
               const shown = config[key] === true
@@ -172,21 +191,6 @@ export function CourseGuideOptionsDialog({
             })}
           </div>
         </section>
-
-        <div className="border-t border-border pt-4">
-          <FormField label="Lesson sequence range" htmlFor={scopeId}>
-            <Select
-              id={scopeId}
-              options={LESSON_PLAN_SCOPE_OPTIONS}
-              value={config.lesson_plan_scope}
-              disabled={saving || !config.lesson_plans}
-              onChange={(event) => onConfigChange({
-                ...config,
-                lesson_plan_scope: event.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
-              })}
-            />
-          </FormField>
-        </div>
 
         {error ? (
           <div role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

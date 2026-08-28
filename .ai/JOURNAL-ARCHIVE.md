@@ -24411,7 +24411,6 @@ no API, schema, persistence, dependency, or hosted state changed.
 and bounded PR review.
 
 <!-- pika-session-log-archive-batch:58771a4e72e193710e63f0d4c318bc52e1efa9473ab780dd70865d74f851e294 -->
-<!-- pika-session-log-archive-batch:326a2e0480084989b7eaea768a89867c5b12284446437d49415eb64a6d65bab0 -->
 ## 2026-08-26 — Move student check-in status into Today side card
 
 **Risk profile:** none — student Today-tab composition only; no attendance
@@ -24516,7 +24515,7 @@ contract changes; no hosted migration, deployment, or merge occurred.
   pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
   build, generated Supabase type checks, diff checks, and the Pika audit.
 
-<!-- pika-session-log-archive-batch:c11b20ccab18ef730e56dcf21756f7b4bfca09a1fce614d9391fabc1436e5edf -->
+<!-- pika-session-log-archive-batch:85e93784e3a745a5c5a93ccfb67d71f7d9d50d7f89cfc8f55f660bf8022a0aa3 -->
 ## 2026-08-26 — Make Blueprint question identity capture draft-safe
 
 **Risk profile:** runtime-platform — proposed migration and rollback-only test
@@ -24558,7 +24557,6 @@ deployment, or merge occurred.
   build. The database regression still requires fresh-database CI because the
   installed local function is an earlier migration 134 revision.
 
-<!-- pika-session-log-archive-batch:1c26b36a41965a16a4a601c8bb0e9dbfff3523648dd5a56e9a0f983c2f08247e -->
 ## 2026-08-26 — Keep archived Blueprint repair retries idempotent
 
 **Risk profile:** runtime-platform — application request hashing and regression
@@ -24576,6 +24574,7 @@ coverage only; no migration application, deployment, or merge occurred.
   replay gate because the installed local function is an earlier migration 134
   revision.
 
+<!-- pika-session-log-archive-batch:bf898e6f1914b732e1ac1d6e4b4f11dc446cda79093e914dbe83457cb1900ddc -->
 ## 2026-08-26 — Harden PR 1066 identity compatibility and migration fencing
 
 **Risk profile:** runtime-platform — draft/API identity compatibility,
@@ -24629,7 +24628,6 @@ reset or migrated and no hosted state was changed.
   fixture remains for fresh-database CI because migration application/reset was
   explicitly prohibited for this task.
 
-<!-- pika-session-log-archive-batch:4741cb244a2a7f78e7996c3322bccc05e32a40332b23dbdafab8acd680e860cf -->
 ## 2026-08-26 — Serialize Test draft saves with activation
 
 **Risk profile:** runtime-platform — Test authoring/activation transactions,
@@ -24661,7 +24659,6 @@ database was reset or migrated and no hosted state was changed.
   intentionally deferred to fresh CI because the installed local database has
   the earlier migration-134 definition and applying/resetting it was prohibited.
 
-<!-- pika-session-log-archive-batch:e90daa3bf2dfda073d5e2c02f53a8e05feaf13cf1a3082aeb056deb52377f5d7 -->
 ## 2026-08-26 — Generalize the Attendance work-surface hierarchy
 
 **Risk profile:** none — teacher UI composition, reusable layout primitives,
@@ -24757,7 +24754,6 @@ no workflow, API, schema, persistence, dependency, or hosted state changed.
 
 **Model recommendation:** current model for a narrow, accessible UI refinement.
 
-<!-- pika-session-log-archive-batch:97630e7def3569eb14db5f3752c01495e396fc7b3a533b3bdc3477b71e8d513c -->
 ## 2026-08-27 — Return Pika logo navigation to active classrooms
 
 **Risk profile:** none — localized teacher classroom-list state transition; no
@@ -24783,3 +24779,128 @@ layout, API, schema, persistence, authentication, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Terra at high reasoning for a standard-risk
 application state-transition review.
+
+## 2026-08-27 — Keep Daily class-log summaries minimal
+
+**Risk profile:** runtime-platform — AI summary policy, untrusted-output boundary,
+cached-summary compatibility, and a teacher unavailable state; no schema,
+dependency, migration, deployment, or hosted state changed.
+
+- Reframed the Daily class-log summary prompt as minimal triage instead of a
+  general sentiment-and-themes summary.
+- Required explicit facts only and prohibited inferred emotion, motivation,
+  intent, diagnoses, causes, tone interpretation, embellishment, or constructed
+  patterns.
+- Restricted action items to explicit high-priority safety, wellbeing, serious
+  incident, or participation-blocking concerns needing prompt teacher action.
+  Routine difficulty, mild frustration, ordinary questions, incomplete work,
+  neutral updates, achievements, and vague wording are excluded.
+- PR review hardened the boundary: logs are JSON-serialized behind server-issued
+  source references, the Responses API enforces a strict category-only schema,
+  runtime validation rejects unknown/duplicate references and extra fields, and
+  all visible wording is derived server-side.
+- Versioned cached summaries retire legacy broad summaries instead of serving
+  them as current, including stale and malformed historical shapes. The teacher
+  sees concise unavailable copy for those dates.
+- Successful model responses must now be complete and non-refusal before their
+  schema-valid output can be accepted; incomplete and mixed refusal/output
+  payloads fail closed.
+- A committed, reproducible synthetic live-model matrix passed 5/5 explicit
+  high-priority cases and 7/7 routine/vague exclusions with zero category or
+  attribution mismatches. The evaluation pins the documented
+  `gpt-5-nano-2025-08-07` snapshot and verifies the provider-returned model.
+  The package evaluation command loads the shared `.env.local` directly and
+  passes with no API key pre-exported in the shell.
+  A forged log boundary stayed attributed to its submitting log and never to
+  the targeted student.
+- Focused unit, cron, teacher API, and component suites pass (65/65). Visual
+  verification of the teacher unavailable state passed on desktop/mobile in
+  light/dark with no overflow; student is n/a because the panel is teacher-only.
+- Pika audit, lint, architecture, TypeScript, session-log, and diff checks pass.
+  The remediated full suite passed 5,104/5,105 and hit one unrelated
+  `TestDetailPanel` timing failure; that complete 43-test file passed immediately
+  in isolation.
+
+**Model recommendation:** GPT-5.6 Sol for the untrusted AI-output, attribution,
+safety-threshold, cache-compatibility, and review remediation boundary.
+
+## 2026-08-27 — Make the titlebar Classroom title static
+
+**Risk profile:** none — shared titlebar interaction removal only; no API,
+schema, persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the multi-Classroom selector in `AppHeader` with the same static,
+  truncated Classroom title treatment used for a single Classroom. Clicking the
+  title now has no behavior; the Pika logo remains the Home link to
+  `/classrooms`.
+- Removed the unused selector component, its switching/navigation guard
+  plumbing, its focused test suite, and the now-stale UI/design exception
+  registry entries. Added AppHeader coverage proving multiple Classrooms still
+  render the current title without a selector or listbox and remain inert when
+  clicked, plus shell/exam-source wiring contracts that prevent the removed
+  callback from returning.
+- Focused Vitest passes (54/54); lint, TypeScript, architecture, UI policy,
+  design policy, Pika audit, and diff checks pass.
+- Playwright rendered the real AppHeader for teacher and student at
+  desktop/mobile in light/dark. All eight captures passed visual review with no
+  overflow, truncation, alignment, or contrast regressions; direct browser
+  clicks left the titlebar unchanged and desktop snapshots retained the linked
+  Pika logo. The temporary visual harness was removed after capture because the
+  shared local environment has no Supabase URL or keys.
+- Composite-widget review: the Classroom dropdown was removed completely, so
+  its menu keyboard/focus contract and exception entries are no longer
+  applicable. Existing UserMenu and mobile navigation controls are unchanged.
+- Independent PR review found no merge blockers. Its one P3 documentation
+  finding was fixed by updating the shared-header comment from Classroom
+  selector to Classroom title.
+
+**Model recommendation:** GPT-5.6 Sol for a shared-shell behavior removal with
+cross-role visual verification.
+
+## 2026-08-27 — Complete the canonical Test-question identity path
+
+**Risk profile:** runtime-platform — Test authoring API retirement, portable
+identity enforcement, Version instantiation, migration backfill, and archived
+operation recovery; no database was reset or migrated and no hosted state was
+changed.
+
+- Retired direct question-row create/edit/delete/reorder writes. Those endpoints
+  now preserve authentication and ownership checks but direct teachers to the
+  version-fenced Test draft contract, keeping the saved document as the single
+  authoring source activation consumes.
+- Enforced UUIDv4 portable identity at draft validation, save, activation, and
+  migration backfill. Legacy input is resolved only through exact row/artifact/
+  source identity; collisions and non-v4 identities fail the migration atomically
+  rather than receiving inferred or newly generated lineage.
+- Prevented the compatibility instantiator from creating Test-question rows by
+  position. Migration 134 now passes Tests without questions through that layer
+  and materializes Version questions exactly once with explicit artifact identity.
+- Made archived-Classroom winner replay reserve and validate every operation key,
+  retain stale-revision failures durably, reject same-key/different-hash reuse,
+  and reconcile compatible failed or fresh operations to the established winner.
+- Added static/API/unit and fresh-database regressions for direct-write retirement,
+  identity collisions, non-v4 rejection without partial writes, positional-path
+  bypass, post-winner replay, stale failure recovery, and result-count parity.
+  The full Vitest suite passes 5,120 tests across 586 files; the focused surface,
+  TypeScript, architecture/design/UI policies, shell syntax, diff checks, and the
+  production build pass. Fresh-database CI remains authoritative for the SQL
+  harness because applying or resetting migration 134 was explicitly prohibited.
+
+## 2026-08-27 — Preserve operational AI reference caches after Test freeze
+
+**Risk profile:** runtime-platform — post-attempt Test-question mutation policy
+and reusable AI grading cache behavior; no database was reset or migrated and
+no hosted state was changed.
+
+- Narrowed migration 134's student-work freeze from every question UPDATE to
+  authored and identity changes. Updates that alter only the four
+  `ai_reference_cache_*` fields (plus the automatic `updated_at` timestamp) are
+  permitted, while INSERT, DELETE, and all other present or future columns stay
+  frozen by default.
+- Added static and fresh-database contract coverage proving an AI reference
+  cache persists after an attempt exists, the cache write does not advance the
+  Classroom structural revision, and the existing authored-question mutation
+  still fails atomically with `test_questions_locked`.
+- Rebased the dedicated branch onto current `origin/main` and ran the canonical
+  session-log trimmer, restoring chronological order and the rolling-entry cap.
+  Migration 134 remains the sole branch-added migration after main's 133.

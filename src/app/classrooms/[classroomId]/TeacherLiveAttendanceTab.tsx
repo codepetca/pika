@@ -11,6 +11,7 @@ import {
   QrCode as QrCodeIcon,
   RefreshCw,
   RotateCcw,
+  Trash2,
   UserRoundCheck,
   UserRoundX,
 } from 'lucide-react'
@@ -464,7 +465,7 @@ export function TeacherLiveAttendanceTab({
 
   async function submitMarks(
     ids: string[],
-    status: TeacherAttendanceStatus,
+    status: 'automatic' | Exclude<TeacherAttendanceStatus, 'unmarked'>,
     options?: {
       successText?: string
       clearSelectionAfter?: boolean
@@ -506,8 +507,8 @@ export function TeacherLiveAttendanceTab({
         const previous = previousRecords.get(studentId)
         return Boolean(
           student &&
-          student.status === status &&
-          (previous?.status === status || student.revision !== previous?.revision) &&
+          (status === 'automatic' ? !student.hasManualOverride : student.status === status) &&
+          (status === 'automatic' || previous?.status === status || student.revision !== previous?.revision) &&
           !student.pendingCommand,
         )
       }))
@@ -519,8 +520,9 @@ export function TeacherLiveAttendanceTab({
         })
         if (options?.clearSelectionAfter) clearSelection()
         showMessage({
-          text: options?.successText
-            ?? `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`,
+          text: options?.successText ?? (status === 'automatic'
+            ? `Automatic status restored for ${ids.length} ${ids.length === 1 ? 'student' : 'students'}`
+            : `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`),
           tone: 'info',
         })
       } else {
@@ -534,6 +536,61 @@ export function TeacherLiveAttendanceTab({
       })
       showMessage({
         text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
+        tone: 'warning',
+      })
+    } finally {
+      setActiveCommand(null)
+    }
+  }
+
+  async function resetCheckIns(studentIds: string[]) {
+    if (!view || activeCommand || studentIds.length === 0) return
+    const ids = studentIds.filter((studentId) =>
+      view.students.some((student) => student.studentId === studentId && student.checkInRef),
+    )
+    if (ids.length === 0) {
+      showMessage({ text: 'No selected students have a QR check-in', tone: 'info' })
+      return
+    }
+    if (!window.confirm(
+      `Remove ${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'}? The audit history will be kept, and students may scan again while QR check-in is open.`,
+    )) return
+    const commandViewKey = currentViewKeyRef.current
+    setActiveCommand('check-ins:reset')
+    setLocalPendingStudentIds((current) => new Set([...current, ...ids]))
+    try {
+      await fetchJSON('/api/teacher/attendance/check-ins', {
+        init: {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classroom_id: classroom.id, date: selectedDate,
+            request_id: requestId(), student_ids: ids,
+          }),
+        },
+        errorMessage: 'QR check-ins could not be removed',
+      })
+      const confirmed = await pollForConfirmation(commandViewKey, (next) => ids.every((studentId) =>
+        next.students.find((student) => student.studentId === studentId)?.checkInRef === null,
+      ))
+      if (confirmed) {
+        setLocalPendingStudentIds((current) => {
+          const next = new Set(current)
+          ids.forEach((studentId) => next.delete(studentId))
+          return next
+        })
+        clearSelection()
+        showMessage({ text: `${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'} removed`, tone: 'info' })
+      } else {
+        showMessage({ text: 'Removal sent; waiting for confirmation', tone: 'info' })
+      }
+    } catch (commandError) {
+      setLocalPendingStudentIds((current) => {
+        const next = new Set(current)
+        ids.forEach((studentId) => next.delete(studentId))
+        return next
+      })
+      showMessage({
+        text: commandError instanceof Error ? commandError.message : 'QR check-ins could not be removed',
         tone: 'warning',
       })
     } finally {
@@ -599,9 +656,9 @@ export function TeacherLiveAttendanceTab({
 
   const sessionAction = view?.integration === 'ready' && !isArchived
     ? sessionState === 'scheduled'
-      ? { command: 'open' as const, label: 'Open attendance' }
+      ? { command: 'open' as const, label: 'Open QR check-in' }
       : sessionState === 'open'
-        ? { command: 'close' as const, label: 'Close attendance' }
+        ? { command: 'close' as const, label: 'Stop QR check-in' }
         : null
     : null
 
@@ -672,11 +729,18 @@ export function TeacherLiveAttendanceTab({
       onSelect: () => void submitMarks([...selectedIds], 'absent', { clearSelectionAfter: true }),
     },
     {
-      id: 'clear-selected-mark',
-      label: 'Clear mark',
+      id: 'restore-selected-automatic-status',
+      label: 'Use automatic',
       icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
       disabled: Boolean(activeCommand) || !canMark,
-      onSelect: () => void submitMarks([...selectedIds], 'unmarked', { clearSelectionAfter: true }),
+      onSelect: () => void submitMarks([...selectedIds], 'automatic', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'remove-selected-qr-check-ins',
+      label: 'Remove QR check-in',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void resetCheckIns([...selectedIds]),
     },
   ]
   const actionBar = (
@@ -991,10 +1055,8 @@ export function TeacherLiveAttendanceTab({
                 const studentName = `${student.firstName} ${student.lastName}`.trim()
                 const checkInTime = formatTime(student.checkedInAt)
                 const canUndoQrCorrection = Boolean(
-                  student.source === 'staff'
-                  && student.checkedInAt
-                  && student.checkedInStatus
-                  && student.status !== student.checkedInStatus,
+                  student.hasManualOverride
+                  && student.checkInRef,
                 )
                 return (
                   <DataTableRow
@@ -1042,7 +1104,7 @@ export function TeacherLiveAttendanceTab({
                             }
                           }}
                         />
-                        {canUndoQrCorrection && student.checkedInStatus ? (
+                        {canUndoQrCorrection ? (
                           <Tooltip content="Restore QR check-in">
                             <Button
                               type="button"
@@ -1053,7 +1115,7 @@ export function TeacherLiveAttendanceTab({
                               disabled={!editable}
                               onClick={() => void submitMarks(
                                 [student.studentId],
-                                student.checkedInStatus!,
+                                'automatic',
                                 { successText: `${studentName}'s QR check-in restored` },
                               )}
                             >

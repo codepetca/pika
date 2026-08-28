@@ -11,131 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Keep Daily class-log summaries minimal
-
-**Risk profile:** runtime-platform — AI summary policy, untrusted-output boundary,
-cached-summary compatibility, and a teacher unavailable state; no schema,
-dependency, migration, deployment, or hosted state changed.
-
-- Reframed the Daily class-log summary prompt as minimal triage instead of a
-  general sentiment-and-themes summary.
-- Required explicit facts only and prohibited inferred emotion, motivation,
-  intent, diagnoses, causes, tone interpretation, embellishment, or constructed
-  patterns.
-- Restricted action items to explicit high-priority safety, wellbeing, serious
-  incident, or participation-blocking concerns needing prompt teacher action.
-  Routine difficulty, mild frustration, ordinary questions, incomplete work,
-  neutral updates, achievements, and vague wording are excluded.
-- PR review hardened the boundary: logs are JSON-serialized behind server-issued
-  source references, the Responses API enforces a strict category-only schema,
-  runtime validation rejects unknown/duplicate references and extra fields, and
-  all visible wording is derived server-side.
-- Versioned cached summaries retire legacy broad summaries instead of serving
-  them as current, including stale and malformed historical shapes. The teacher
-  sees concise unavailable copy for those dates.
-- Successful model responses must now be complete and non-refusal before their
-  schema-valid output can be accepted; incomplete and mixed refusal/output
-  payloads fail closed.
-- A committed, reproducible synthetic live-model matrix passed 5/5 explicit
-  high-priority cases and 7/7 routine/vague exclusions with zero category or
-  attribution mismatches. The evaluation pins the documented
-  `gpt-5-nano-2025-08-07` snapshot and verifies the provider-returned model.
-  The package evaluation command loads the shared `.env.local` directly and
-  passes with no API key pre-exported in the shell.
-  A forged log boundary stayed attributed to its submitting log and never to
-  the targeted student.
-- Focused unit, cron, teacher API, and component suites pass (65/65). Visual
-  verification of the teacher unavailable state passed on desktop/mobile in
-  light/dark with no overflow; student is n/a because the panel is teacher-only.
-- Pika audit, lint, architecture, TypeScript, session-log, and diff checks pass.
-  The remediated full suite passed 5,104/5,105 and hit one unrelated
-  `TestDetailPanel` timing failure; that complete 43-test file passed immediately
-  in isolation.
-
-**Model recommendation:** GPT-5.6 Sol for the untrusted AI-output, attribution,
-safety-threshold, cache-compatibility, and review remediation boundary.
-
-## 2026-08-27 — Make the titlebar Classroom title static
-
-**Risk profile:** none — shared titlebar interaction removal only; no API,
-schema, persistence, authentication, dependency, or hosted state changed.
-
-- Replaced the multi-Classroom selector in `AppHeader` with the same static,
-  truncated Classroom title treatment used for a single Classroom. Clicking the
-  title now has no behavior; the Pika logo remains the Home link to
-  `/classrooms`.
-- Removed the unused selector component, its switching/navigation guard
-  plumbing, its focused test suite, and the now-stale UI/design exception
-  registry entries. Added AppHeader coverage proving multiple Classrooms still
-  render the current title without a selector or listbox and remain inert when
-  clicked, plus shell/exam-source wiring contracts that prevent the removed
-  callback from returning.
-- Focused Vitest passes (54/54); lint, TypeScript, architecture, UI policy,
-  design policy, Pika audit, and diff checks pass.
-- Playwright rendered the real AppHeader for teacher and student at
-  desktop/mobile in light/dark. All eight captures passed visual review with no
-  overflow, truncation, alignment, or contrast regressions; direct browser
-  clicks left the titlebar unchanged and desktop snapshots retained the linked
-  Pika logo. The temporary visual harness was removed after capture because the
-  shared local environment has no Supabase URL or keys.
-- Composite-widget review: the Classroom dropdown was removed completely, so
-  its menu keyboard/focus contract and exception entries are no longer
-  applicable. Existing UserMenu and mobile navigation controls are unchanged.
-- Independent PR review found no merge blockers. Its one P3 documentation
-  finding was fixed by updating the shared-header comment from Classroom
-  selector to Classroom title.
-
-**Model recommendation:** GPT-5.6 Sol for a shared-shell behavior removal with
-cross-role visual verification.
-
-## 2026-08-27 — Complete the canonical Test-question identity path
-
-**Risk profile:** runtime-platform — Test authoring API retirement, portable
-identity enforcement, Version instantiation, migration backfill, and archived
-operation recovery; no database was reset or migrated and no hosted state was
-changed.
-
-- Retired direct question-row create/edit/delete/reorder writes. Those endpoints
-  now preserve authentication and ownership checks but direct teachers to the
-  version-fenced Test draft contract, keeping the saved document as the single
-  authoring source activation consumes.
-- Enforced UUIDv4 portable identity at draft validation, save, activation, and
-  migration backfill. Legacy input is resolved only through exact row/artifact/
-  source identity; collisions and non-v4 identities fail the migration atomically
-  rather than receiving inferred or newly generated lineage.
-- Prevented the compatibility instantiator from creating Test-question rows by
-  position. Migration 134 now passes Tests without questions through that layer
-  and materializes Version questions exactly once with explicit artifact identity.
-- Made archived-Classroom winner replay reserve and validate every operation key,
-  retain stale-revision failures durably, reject same-key/different-hash reuse,
-  and reconcile compatible failed or fresh operations to the established winner.
-- Added static/API/unit and fresh-database regressions for direct-write retirement,
-  identity collisions, non-v4 rejection without partial writes, positional-path
-  bypass, post-winner replay, stale failure recovery, and result-count parity.
-  The full Vitest suite passes 5,120 tests across 586 files; the focused surface,
-  TypeScript, architecture/design/UI policies, shell syntax, diff checks, and the
-  production build pass. Fresh-database CI remains authoritative for the SQL
-  harness because applying or resetting migration 134 was explicitly prohibited.
-
-## 2026-08-27 — Preserve operational AI reference caches after Test freeze
-
-**Risk profile:** runtime-platform — post-attempt Test-question mutation policy
-and reusable AI grading cache behavior; no database was reset or migrated and
-no hosted state was changed.
-
-- Narrowed migration 134's student-work freeze from every question UPDATE to
-  authored and identity changes. Updates that alter only the four
-  `ai_reference_cache_*` fields (plus the automatic `updated_at` timestamp) are
-  permitted, while INSERT, DELETE, and all other present or future columns stay
-  frozen by default.
-- Added static and fresh-database contract coverage proving an AI reference
-  cache persists after an attempt exists, the cache write does not advance the
-  Classroom structural revision, and the existing authored-question mutation
-  still fails atomically with `test_questions_locked`.
-- Rebased the dedicated branch onto current `origin/main` and ran the canonical
-  session-log trimmer, restoring chronological order and the rolling-entry cap.
-  Migration 134 remains the sole branch-added migration after main's 133.
-
 ## 2026-08-27 — Simplify Classwork inspector summaries
 
 **Risk profile:** UI-only — teacher Classwork inspector presentation and keyboard
@@ -1291,3 +1166,147 @@ open-background, neutral-closed, stale, and pending assertions. Open and closed
 source/production captures were visually compared in desktop light/dark; mobile
 light/dark remained free of overflow. Student UI is n/a because this remains a
 teacher-only surface.
+
+## 2026-08-28 — Integrate Attendance redesign with timing rules
+
+**Risk profile:** standard integration of a teacher-only UI with newly merged
+Attendance timing and automatic-status behavior; no authorization boundary or
+schema was added by this branch.
+
+- Merged current `main`, including configurable Attendance timing rules and the
+  reviewed Course Guide import, into the feature branch before final review.
+- Preserved the approved compact roster and persistent selected-student menu.
+  Mapped the new `Use automatic` and confirmed `Remove QR check-in` actions into
+  that menu instead of restoring a separate bulk action bar.
+- Updated per-row QR correction Undo to clear the manual override and reveal the
+  timing-derived automatic status. Check-in time now comes from the durable
+  check-in fact introduced by the timing work.
+- Retained the leading session-time control, open-only success treatment,
+  neutral closed/stale/pending states, compact 28 px discs in 44 px targets, and
+  mobile condensed action hierarchy.
+- Refreshed Product Design QA and desktop/mobile light/dark evidence for the
+  integrated selected-student menu and Attendance timing dialog. No new durable
+  shared design guidance was needed.
+
+**Verification:** TypeScript passes; five focused Attendance test files pass
+(40 tests); the integrated teacher/student Playwright matrix passes in all
+eight desktop/mobile light/dark cases with no browser or page errors. Visual
+comparison passed for default, selection menu, timing dialog, and dark/mobile
+states. Final policy, lint, audit, independent review, and PR merge gates follow.
+
+## 2026-08-28 — Define configurable Attendance timing semantics
+
+**Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
+status, persistence, and versioned-contract behavior; no product code,
+migration, deployment, PR, merge, production state, or Bara file changed.
+
+- Completed the mandatory Pika startup contract in a fresh detached worktree at
+  the fetched `origin/main` head `09bb0c54`; installed locked dependencies and
+  passed `verify-env.sh`.
+- Audited native Pika Attendance policy creation, Toronto/DST schedule
+  materialization, teacher/student permissions, QR entry and idempotency,
+  projections, persistence, API validators, and focused tests. The current v1
+  model has only absolute open/close instants: every accepted QR scan becomes
+  Present and closing finalizes Unmarked students as Absent.
+- Inspected open PR #1094. It preserves teacher corrections and Undo while
+  exposing original QR check-in time from signed Bara events, but it does not
+  add timing cutoffs; reconciliation cannot yet recover immutable first-QR
+  evidence if the original event was missed.
+- Inspected `/Users/stew/Repos/bara` read-only at local `main` `f66850f`.
+  Bara's server clock and Convex mutation are authoritative, the entry interval
+  currently closes exclusively at `closesAt`, manual Pika corrections are
+  allowed after close, and automatic close turns only Unmarked records Absent.
+- Recommended separating session start/end, QR entry open/close, Present grace,
+  and Absent finalization; using explicit boundary semantics and a v2 contract;
+  preserving existing policies in legacy mode until a teacher opts in; and
+  waiting for maintainer agreement before any implementation plan or change.
+
+**Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
+cross-repository, time-boundary, persistence, and compatibility implementation.
+
+## 2026-08-28 — Implement configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
+PostgreSQL migration, QR acceptance ledger, derived status rules, and teacher UI;
+no migration was applied and no PR, commit, deployment, or hosted state changed.
+
+- Rewrote the shared v1 contract in place because neither integration is in use.
+  Bara now receives only concrete `[accepts_at, stops_accepting_at)` gates and
+  publishes authoritative accepted/invalidated check-in facts; it no longer
+  assigns Pika Present/Late/Absent outcomes.
+- Added Pika timing policy defaults and occurrence snapshots for session start/end,
+  QR open/close, inclusive Present grace, and Absent cutoff. Frozen occurrences
+  retain their policy after QR entry opens, including scans already accepted.
+- Added Pika-side status derivation, audited teacher overrides with Undo, and
+  audited individual/bulk QR check-in invalidation. Invalidation preserves the
+  fact history and permits a new scan while Bara's gate remains open.
+- Updated the teacher timing dialog, live roster timestamps/source labels,
+  automatic-status control, removal confirmation, student confirmation reads,
+  Toronto DST/cross-midnight handling, validation, reconciliation, and docs.
+- Pika passed 591 files/5,180 tests, TypeScript, lint, production build, the
+  repository audit, and an eight-case Playwright matrix covering teacher/student,
+  desktop/mobile, and light/dark states. Bara passed 34 files/180 tests,
+  TypeScript, and lint with only four generated-file warnings.
+
+**Rollout note:** migration 138 remains unapplied and requires exact one-time
+authorization. Deploy Pika's migration/API and Bara's matching v1 contract as a
+coordinated pre-release cutover; there is intentionally no legacy compatibility
+mode.
+
+**Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
+cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
+
+## 2026-08-28 — Course Guide Phase 2 curriculum import
+
+**Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
+extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
+classroom synchronization and no schema or hosted-state change.
+
+- Added an Import curriculum assistant to Guide options with explicit Source,
+  Review, and Confirm steps. Teachers can upload a validated PDF up to 4 MB or
+  provide a public HTTPS document URL, then edit the extracted overview,
+  expectations, and useful links before anything is applied.
+- Added a server-side structured Responses API extraction boundary with
+  non-stored requests, untrusted-document instructions, bounded validated
+  output, safe failures, and source provenance. The confirmed apply path always
+  attaches the citation server-side so review edits cannot remove it.
+- Preserved existing teacher content by appending the reviewed import, and used
+  an expected-overview compare guard to return a conflict instead of silently
+  overwriting a Course Guide changed during review.
+- Applied the owner refinement that the Course Guide is orientation, not an
+  activity feed. The shared teacher/student/public display model now contains
+  only overview/resources visibility plus title-only Assignment and Test
+  records. Lesson sequence, Announcements, instructions, dates, scores,
+  statuses, documents, and grading details are absent from the payload and UI;
+  their classroom features remain unchanged. Guide options exposes only the
+  four orientation sections.
+- Added domain, provider-boundary, API authorization/concurrency, component,
+  fixture, and regression coverage. All 5,223 tests pass, along with lint,
+  architecture, design/UI policy checks, production build, Pika audit, and diff
+  validation.
+- Visual verification passed 13 teacher/student/public checks across desktop
+  and mobile, light and dark, covering the narrowed options, title-only lists,
+  removed activity sections, source, editable cited review, confirmation,
+  extraction failure, overflow, and absence of teacher controls for students.
+- Independent review remediation lowered PDF uploads to the hosting-safe 4 MB
+  boundary; added extraction timeout/output limits; moved apply authorization
+  before body parsing; signed source provenance to the teacher/classroom;
+  normalized and previewed the locked citation; preserved existing overview
+  bytes; used raw classroom content when visibility is off; and cancelled stale
+  client operations across classroom switches. Final hardening canonicalized
+  public URLs, rejected credentials and control/format characters, emitted the
+  locked citation as safe plain text, and removed redundant provenance-token
+  fields so maximum valid inputs still fit the apply contract.
+- Final merge review rebased the branch onto Attendance PR #1103 and closed the
+  remaining provider-cost boundary: public curriculum URLs are fetched through
+  the existing DNS-pinned, redirect-revalidated 4 MB document path before they
+  reach OpenAI, and each teacher/Classroom is limited to one active extraction
+  and three attempts per ten minutes. The confirmed write now also rechecks
+  teacher ownership and non-archived state in the atomic update predicates.
+- Updated production continuity to the user-confirmed baseline: production
+  commit 530d444a with migrations through 136 applied and zero error-level
+  database lint findings. No migration was added or applied, and nothing was
+  merged or deployed.
+- Recorded `epic-gradebook-general-breakdown` as separate future work for a
+  general Attendance, Term Work, and Final breakdown; no mark breakdown was
+  added to the Course Guide.

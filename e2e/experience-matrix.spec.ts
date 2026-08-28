@@ -179,8 +179,9 @@ test('keeps the Attendance roster compact with inline status controls', async ({
       status,
       source,
       checkedInAt,
-      checkedInStatus: checkedInAt ? 'present' : null,
       revision: status === 'unmarked' ? null : 1,
+      checkInRef: checkedInAt ? `check_in_${ordinal}` : null,
+      hasManualOverride: source === 'staff',
       pendingCommand: false,
       commandFailed: false,
     }
@@ -198,6 +199,10 @@ test('keeps the Attendance roster compact with inline status controls', async ({
           state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
           opensAt: hasAttendanceWindow ? '2026-08-17T04:45:00.000Z' : null,
           closesAt: hasAttendanceWindow ? '2026-08-18T02:34:00.000Z' : null,
+          sessionStartsAt: hasAttendanceWindow ? '2026-08-17T12:55:00.000Z' : null,
+          sessionEndsAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
+          presentThroughAt: hasAttendanceWindow ? '2026-08-17T13:00:00.000Z' : null,
+          absentAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
           revision: 1,
           commandFailed: false,
         },
@@ -208,13 +213,15 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   })
   await page.route('**/api/teacher/attendance/marks', async (route) => {
     const body = route.request().postDataJSON() as {
-      marks: Array<{ student_id: string; status: typeof attendanceStatuses[number] }>
+      marks: Array<{ student_id: string; status: typeof attendanceStatuses[number] | 'automatic' }>
     }
     const statusByStudentId = new Map(body.marks.map((mark) => [mark.student_id, mark.status]))
     attendanceStudents = attendanceStudents.map((student) => {
       const status = statusByStudentId.get(student.studentId)
-      return status
-        ? { ...student, status, source: 'staff' as const, revision: (student.revision ?? 0) + 1 }
+      return status === 'automatic'
+        ? { ...student, source: student.checkedInAt ? 'student_qr' as const : null, hasManualOverride: false }
+        : status
+          ? { ...student, status, source: 'staff' as const, hasManualOverride: true, revision: (student.revision ?? 0) + 1 }
         : student
     })
     await route.fulfill({
@@ -231,9 +238,13 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         policy: {
           classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
           timezone: 'America/Toronto',
-          opensLocal: '08:45',
-          closesLocal: '15:15',
-          closeDayOffset: 0,
+          sessionStartsLocal: '09:00',
+          sessionEndsLocal: '10:00',
+          sessionEndDayOffset: 0,
+          entryOpensMinutesBefore: 10,
+          presentGraceMinutes: 5,
+          entryClosesMinutesBeforeEnd: 10,
+          absentMinutesBeforeEnd: 0,
           enabled: true,
           revision: 1,
           updatedAt: '2026-08-17T12:00:00.000Z',
@@ -311,11 +322,23 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     animations: 'disabled',
   })
 
+  const checkedInStudentSelection = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
+  await checkedInStudentSelection.click()
+  await primaryControl.getByRole('button', { name: 'Student actions for 1 selected' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-check-in.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await checkedInStudentSelection.click()
+
   if (viewport === 'mobile') {
     await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
     const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance actions' })
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show QR' })).toBeVisible()
-    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Close attendance' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Stop QR check-in' })).toBeVisible()
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
     await page.keyboard.press('Escape')
@@ -377,7 +400,8 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Present' })).toBeVisible()
   await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Late' })).toBeVisible()
   await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Absent' })).toBeVisible()
-  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Clear mark' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Use automatic' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
     animations: 'disabled',
@@ -401,11 +425,19 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
     await attendanceHours.click()
   }
-  await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Attendance timing' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
     animations: 'disabled',
   })
+  if (viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Save timing' }).scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: testInfo.outputPath(`attendance-${viewport}-hours-dialog-actions.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   if (viewport === 'desktop') {
     attendanceSessionState = 'closed'
@@ -429,6 +461,21 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     })
   }
   expect(browserErrors).toEqual([])
+})
+
+test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.goto('/e2e-fixtures/student-attendance', { waitUntil: 'domcontentloaded' })
+
+  await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+  await expect(page.getByText('Checked in at 9:07 AM')).toBeVisible()
+  await expect(page.getByText('Late', { exact: true })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-attendance-${getExperienceMetadata(testInfo).viewport}.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
 })
 
 test('keeps the selected Test grading roster compact and selection-driven', async ({ page }, testInfo) => {

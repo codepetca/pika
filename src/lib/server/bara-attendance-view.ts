@@ -2,11 +2,10 @@ import { z } from 'zod'
 import { loadAttendanceRoster } from '@/lib/server/attendance-report'
 import type {
   TeacherAttendanceSessionState,
-  TeacherAttendanceSource,
   TeacherAttendanceStatus,
   TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
-import { validateV1Event, validateV1Message } from '@/vendor/attendance-contract/v1/validate'
+import { validateV1Message } from '@/vendor/attendance-contract/v1/validate'
 
 export type {
   TeacherAttendanceSessionState,
@@ -15,106 +14,107 @@ export type {
   TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
 
-interface StudentInput {
-  studentId: string
-  firstName: string
-  lastName: string
-}
-
-interface ParticipantMappingInput {
-  studentId: string
-  participantRef: string
-}
-
 interface OccurrenceInput {
   occurrenceRef: string
   opensAt: string
   closesAt: string
+  sessionStartsAt?: string
+  sessionEndsAt?: string
+  presentThroughAt?: string
+  absentAt?: string
 }
 
-interface SessionProjectionInput extends OccurrenceInput {
+interface SessionProjectionInput {
+  occurrenceRef: string
   state: Exclude<TeacherAttendanceSessionState, 'not_scheduled'>
   revision: number
   updatedAt: string
+  opensAt: string
+  closesAt: string
 }
 
-interface RecordProjectionInput {
-  participantRef: string
-  status: TeacherAttendanceStatus
-  source: 'student_qr' | 'staff_manual' | 'system_finalize'
+interface CheckInFactInput {
+  studentId: string
+  checkInRef: string
   revision: number
+  acceptedAt: string
+  invalidatedAt: string | null
   updatedAt: string
 }
 
-interface QrCheckInInput {
-  participantRef: string
-  status: TeacherAttendanceStatus
-  recordedAt: string
+interface StatusOverrideInput {
+  studentId: string
+  status: Exclude<TeacherAttendanceStatus, 'unmarked'> | null
+  active: boolean
+  revision: number
+  updatedAt: string
 }
 
 export interface BuildTeacherAttendanceViewInput {
   classroomId: string
   classDate: string
   integration: TeacherAttendanceView['integration']
-  students: StudentInput[]
-  participantMappings: ParticipantMappingInput[]
+  students: Array<{ studentId: string; firstName: string; lastName: string }>
+  participantMappings?: Array<{ studentId: string; participantRef: string }>
   occurrence: OccurrenceInput | null
   sessionProjection: SessionProjectionInput | null
-  recordProjections: RecordProjectionInput[]
-  qrCheckIns?: QrCheckInInput[]
-  pendingStudentIds: string[]
+  checkInFacts?: CheckInFactInput[]
+  statusOverrides?: StatusOverrideInput[]
+  pendingCheckInRefs?: string[]
   pendingSessionCommand?: boolean
-  failedStudentIds?: string[]
   failedSessionCommand?: boolean
   projectionKnownStale?: boolean
+  now?: string
+  // Retained only so callers compiled against the old builder fail softly
+  // while the pre-release contract is updated in one branch.
+  recordProjections?: unknown[]
+  pendingStudentIds?: string[]
+  failedStudentIds?: string[]
 }
 
 type QueryResult = Promise<{ data: unknown; error: { code?: string; message?: string } | null }>
-
 const opaqueRefSchema = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
-const positiveRevisionSchema = z.number().int().safe().positive()
+const revisionSchema = z.number().int().safe().positive()
 const instantSchema = z.string().datetime({ offset: true })
 
-const participantMappingRowsSchema = z.array(z.object({
-  student_id: z.string().uuid(),
-  participant_ref: opaqueRefSchema,
+const participantRowsSchema = z.array(z.object({
+  student_id: z.string().uuid(), participant_ref: opaqueRefSchema,
 }).strict())
-
 const occurrenceRowSchema = z.object({
   occurrence_ref: opaqueRefSchema,
   opens_at: instantSchema.nullable(),
   closes_at: instantSchema.nullable(),
+  session_starts_at: instantSchema.nullable(),
+  session_ends_at: instantSchema.nullable(),
+  present_through_at: instantSchema.nullable(),
+  absent_at: instantSchema.nullable(),
 }).strict().nullable()
-
 const policyRowSchema = z.object({ enabled: z.boolean() }).strict().nullable()
-
-const sessionProjectionRowSchema = z.object({
+const sessionRowSchema = z.object({
   occurrence_ref: opaqueRefSchema,
   status: z.enum(['scheduled', 'open', 'closed', 'cancelled']),
-  opens_at: instantSchema.nullable(),
-  closes_at: instantSchema.nullable(),
-  session_revision: positiveRevisionSchema,
-  updated_at: instantSchema,
+  opens_at: instantSchema.nullable(), closes_at: instantSchema.nullable(),
+  session_revision: revisionSchema, updated_at: instantSchema,
 }).strict().nullable()
-
-const recordProjectionRowsSchema = z.array(z.object({
-  participant_ref: opaqueRefSchema,
-  status: z.enum(['unmarked', 'present', 'late', 'absent']),
-  source: z.enum(['student_qr', 'staff_manual', 'system_finalize']),
-  record_revision: positiveRevisionSchema,
+const checkInRowsSchema = z.array(z.object({
+  student_id: z.string().uuid(),
+  check_in_ref: opaqueRefSchema,
+  check_in_revision: revisionSchema,
+  accepted_at: instantSchema,
+  invalidated_at: instantSchema.nullable(),
   updated_at: instantSchema,
 }).strict())
-
-const integrationInboxRowsSchema = z.array(z.object({
-  payload: z.unknown(),
+const overrideRowsSchema = z.array(z.object({
+  student_id: z.string().uuid(),
+  status: z.enum(['present', 'late', 'absent']).nullable(),
+  active: z.boolean(), revision: revisionSchema, updated_at: instantSchema,
 }).strict())
-
-const unresolvedOutboxRowsSchema = z.array(z.object({
-  message_type: z.enum(['roster.snapshot', 'schedule.snapshot', 'session.command', 'attendance.marks']),
-  payload: z.unknown(),
-  status: z.enum(['pending', 'processing', 'non_retryable']),
-  lease_expires_at: instantSchema.nullable(),
-  updated_at: instantSchema,
+const outboxRowsSchema = z.array(z.object({
+  message_type: z.enum([
+    'roster.snapshot', 'schedule.snapshot', 'session.command', 'check_in.invalidate',
+  ]),
+  payload: z.unknown(), status: z.enum(['pending', 'processing', 'non_retryable']),
+  lease_expires_at: instantSchema.nullable(), updated_at: instantSchema,
 }).strict())
 
 export class TeacherAttendanceViewReadError extends Error {
@@ -130,23 +130,13 @@ function readError(error: { code?: string } | null): never {
   )
 }
 
-async function selectMany(
-  client: any,
-  table: string,
-  columns: string,
-  filters: Array<[string, string]>,
-): QueryResult {
+async function selectMany(client: any, table: string, columns: string, filters: string[][]): QueryResult {
   let query: any = client.from(table).select(columns)
   for (const [column, value] of filters) query = query.eq(column, value)
   return await query
 }
 
-async function selectMaybeOne(
-  client: any,
-  table: string,
-  columns: string,
-  filters: Array<[string, string]>,
-): QueryResult {
+async function selectMaybeOne(client: any, table: string, columns: string, filters: string[][]): QueryResult {
   let query: any = client.from(table).select(columns)
   for (const [column, value] of filters) query = query.eq(column, value)
   return await query.maybeSingle()
@@ -160,352 +150,191 @@ export async function loadTeacherAttendanceView(input: {
   installationRef?: string
 }): Promise<TeacherAttendanceView> {
   const roster = await loadAttendanceRoster(input.supabase, input.classroomId)
-  if (roster.enrollmentsError || roster.profilesError) {
-    throw new TeacherAttendanceViewReadError('read_failed')
-  }
+  if (roster.enrollmentsError || roster.profilesError) throw new TeacherAttendanceViewReadError('read_failed')
   const students = roster.students.map((student) => ({
-    studentId: student.id,
-    firstName: student.first_name,
-    lastName: student.last_name,
+    studentId: student.id, firstName: student.first_name, lastName: student.last_name,
   }))
-
-  if (input.integration !== 'ready') {
-    return buildTeacherAttendanceView({
-      classroomId: input.classroomId,
-      classDate: input.classDate,
-      integration: input.integration,
-      students,
-      participantMappings: [],
-      occurrence: null,
-      sessionProjection: null,
-      recordProjections: [],
-      pendingStudentIds: [],
-    })
-  }
+  const empty = () => buildTeacherAttendanceView({
+    classroomId: input.classroomId, classDate: input.classDate, integration: input.integration,
+    students, occurrence: null, sessionProjection: null,
+  })
+  if (input.integration !== 'ready') return empty()
 
   const installationRef = input.installationRef ?? process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim()
   if (!installationRef || !opaqueRefSchema.safeParse(installationRef).success) {
     throw new TeacherAttendanceViewReadError('read_failed')
   }
-
-  const [participantResult, occurrenceResult, policyResult] = await Promise.all([
-    selectMany(
-      input.supabase,
-      'attendance_participant_mappings',
-      'student_id, participant_ref',
-      [['classroom_id', input.classroomId]],
-    ),
-    selectMaybeOne(
-      input.supabase,
-      'attendance_occurrence_mappings',
-      'occurrence_ref, opens_at, closes_at',
-      [['classroom_id', input.classroomId], ['class_date', input.classDate]],
-    ),
-    selectMaybeOne(
-      input.supabase,
-      'attendance_window_policies',
-      'enabled',
-      [['classroom_id', input.classroomId]],
-    ),
+  const [participantsResult, occurrenceResult, policyResult] = await Promise.all([
+    selectMany(input.supabase, 'attendance_participant_mappings', 'student_id, participant_ref',
+      [['classroom_id', input.classroomId]]),
+    selectMaybeOne(input.supabase, 'attendance_occurrence_mappings',
+      'occurrence_ref, opens_at, closes_at, session_starts_at, session_ends_at, present_through_at, absent_at',
+      [['classroom_id', input.classroomId], ['class_date', input.classDate]]),
+    selectMaybeOne(input.supabase, 'attendance_window_policies', 'enabled',
+      [['classroom_id', input.classroomId]]),
   ])
-  if (participantResult.error) readError(participantResult.error)
-  if (occurrenceResult.error) readError(occurrenceResult.error)
-  if (policyResult.error) readError(policyResult.error)
-
-  const participantParsed = participantMappingRowsSchema.safeParse(participantResult.data ?? [])
-  const occurrenceParsed = occurrenceRowSchema.safeParse(occurrenceResult.data ?? null)
-  const policyParsed = policyRowSchema.safeParse(policyResult.data ?? null)
-  if (!participantParsed.success || !occurrenceParsed.success || !policyParsed.success) {
+  for (const result of [participantsResult, occurrenceResult, policyResult]) if (result.error) readError(result.error)
+  const participants = participantRowsSchema.safeParse(participantsResult.data ?? [])
+  const occurrence = occurrenceRowSchema.safeParse(occurrenceResult.data ?? null)
+  const policy = policyRowSchema.safeParse(policyResult.data ?? null)
+  if (!participants.success || !occurrence.success || !policy.success) {
     throw new TeacherAttendanceViewReadError('invalid_projection')
   }
-
-  const occurrence = occurrenceParsed.data
-  if (!occurrence || !occurrence.opens_at || !occurrence.closes_at) {
+  if (!occurrence.data?.opens_at || !occurrence.data.closes_at
+    || !occurrence.data.session_starts_at || !occurrence.data.session_ends_at
+    || !occurrence.data.present_through_at || !occurrence.data.absent_at) {
     return buildTeacherAttendanceView({
-      classroomId: input.classroomId,
-      classDate: input.classDate,
-      integration: policyParsed.data?.enabled ? 'ready' : 'not_configured',
-      students,
-      participantMappings: participantParsed.data.map((row) => ({
-        studentId: row.student_id,
-        participantRef: row.participant_ref,
-      })),
-      occurrence: null,
-      sessionProjection: null,
-      recordProjections: [],
-      pendingStudentIds: [],
+      classroomId: input.classroomId, classDate: input.classDate,
+      integration: policy.data?.enabled ? 'ready' : 'not_configured',
+      students, occurrence: null, sessionProjection: null,
     })
   }
-
-  const [sessionResult, recordResult, inboxResult, outboxResult] = await Promise.all([
-    selectMaybeOne(
-      input.supabase,
-      'attendance_session_projection',
+  const occurrenceRow = occurrence.data
+  const acceptsAt = occurrenceRow.opens_at!
+  const stopsAcceptingAt = occurrenceRow.closes_at!
+  const sessionStartsAt = occurrenceRow.session_starts_at!
+  const sessionEndsAt = occurrenceRow.session_ends_at!
+  const presentThroughAt = occurrenceRow.present_through_at!
+  const absentAt = occurrenceRow.absent_at!
+  const [sessionResult, checkInsResult, overridesResult, outboxResult] = await Promise.all([
+    selectMaybeOne(input.supabase, 'attendance_session_projection',
       'occurrence_ref, status, opens_at, closes_at, session_revision, updated_at',
-      [['installation_ref', installationRef], ['occurrence_ref', occurrence.occurrence_ref]],
-    ),
-    selectMany(
-      input.supabase,
-      'attendance_record_projection',
-      'participant_ref, status, source, record_revision, updated_at',
-      [['installation_ref', installationRef], ['occurrence_ref', occurrence.occurrence_ref]],
-    ),
-    selectMany(
-      input.supabase,
-      'attendance_integration_inbox',
-      'payload',
-      [
-        ['classroom_id', input.classroomId],
-        ['installation_ref', installationRef],
-        ['occurrence_ref', occurrence.occurrence_ref],
-        ['event_type', 'attendance.record.changed'],
-      ],
-    ),
-    input.supabase
-      .from('attendance_integration_outbox')
+      [['installation_ref', installationRef], ['occurrence_ref', occurrenceRow.occurrence_ref]]),
+    selectMany(input.supabase, 'attendance_check_in_facts',
+      'student_id, check_in_ref, check_in_revision, accepted_at, invalidated_at, updated_at',
+      [['installation_ref', installationRef], ['occurrence_ref', occurrenceRow.occurrence_ref]]),
+    selectMany(input.supabase, 'attendance_status_overrides',
+      'student_id, status, active, revision, updated_at',
+      [['classroom_id', input.classroomId], ['occurrence_ref', occurrenceRow.occurrence_ref]]),
+    input.supabase.from('attendance_integration_outbox')
       .select('message_type, payload, status, lease_expires_at, updated_at')
-      .eq('classroom_id', input.classroomId)
-      .in('status', ['pending', 'processing', 'non_retryable']),
+      .eq('classroom_id', input.classroomId).in('status', ['pending', 'processing', 'non_retryable']),
   ])
-  if (sessionResult.error) readError(sessionResult.error)
-  if (recordResult.error) readError(recordResult.error)
-  if (inboxResult.error) readError(inboxResult.error)
-  if (outboxResult.error) readError(outboxResult.error)
-
-  const sessionParsed = sessionProjectionRowSchema.safeParse(sessionResult.data ?? null)
-  const recordsParsed = recordProjectionRowsSchema.safeParse(recordResult.data ?? [])
-  const inboxParsed = integrationInboxRowsSchema.safeParse(inboxResult.data ?? [])
-  const outboxParsed = unresolvedOutboxRowsSchema.safeParse(outboxResult.data ?? [])
-  if (!sessionParsed.success || !recordsParsed.success || !inboxParsed.success || !outboxParsed.success) {
+  for (const result of [sessionResult, checkInsResult, overridesResult, outboxResult]) if (result.error) readError(result.error)
+  const session = sessionRowSchema.safeParse(sessionResult.data ?? null)
+  const checkIns = checkInRowsSchema.safeParse(checkInsResult.data ?? [])
+  const overrides = overrideRowsSchema.safeParse(overridesResult.data ?? [])
+  const outbox = outboxRowsSchema.safeParse(outboxResult.data ?? [])
+  if (!session.success || !checkIns.success || !overrides.success || !outbox.success) {
     throw new TeacherAttendanceViewReadError('invalid_projection')
   }
 
-  const qrCheckInByParticipantRef = new Map<string, QrCheckInInput>()
-  for (const row of inboxParsed.data) {
-    const validation = validateV1Event(row.payload)
-    if (!validation.ok) throw new TeacherAttendanceViewReadError('invalid_projection')
-    const event = validation.value
-    if (
-      event.event_type !== 'attendance.record.changed'
-      || event.installation_ref !== installationRef
-      || event.occurrence_ref !== occurrence.occurrence_ref
-      || event.metadata.source !== 'student_qr'
-    ) {
-      continue
-    }
-    const existing = qrCheckInByParticipantRef.get(event.metadata.participant_ref)
-    if (!existing || Date.parse(event.occurred_at) < Date.parse(existing.recordedAt)) {
-      qrCheckInByParticipantRef.set(event.metadata.participant_ref, {
-        participantRef: event.metadata.participant_ref,
-        status: event.metadata.to_status,
-        recordedAt: event.occurred_at,
-      })
-    }
-  }
-
-  const studentIdByParticipantRef = new Map(
-    participantParsed.data.map((row) => [row.participant_ref, row.student_id]),
-  )
-  const pendingStudentIds = new Set<string>()
-  const failedStudentIds = new Set<string>()
+  const pendingCheckInRefs = new Set<string>()
   let pendingSessionCommand = false
   let failedSessionCommand = false
-  const recordByParticipantRef = new Map(
-    recordsParsed.data.map((record) => [record.participant_ref, record]),
-  )
-  const isPending = (row: z.infer<typeof unresolvedOutboxRowsSchema>[number]) =>
-    row.status === 'pending'
-      || (
-        row.status === 'processing'
-        && row.lease_expires_at !== null
-        && Date.parse(row.lease_expires_at) > Date.now()
-      )
-  for (const row of outboxParsed.data) {
+  const isPending = (row: z.infer<typeof outboxRowsSchema>[number]) => row.status === 'pending'
+    || (row.status === 'processing' && row.lease_expires_at !== null
+      && Date.parse(row.lease_expires_at) > Date.now())
+  for (const row of outbox.data) {
     const validation = validateV1Message(row.payload)
     if (!validation.ok || validation.value.message_type !== row.message_type) {
       throw new TeacherAttendanceViewReadError('invalid_projection')
     }
     const message = validation.value
-    if (!('occurrence_ref' in message) || message.occurrence_ref !== occurrence.occurrence_ref) {
-      continue
-    }
+    if (!('occurrence_ref' in message) || message.occurrence_ref !== occurrenceRow.occurrence_ref) continue
     if (message.message_type === 'session.command') {
-      if (isPending(row)) {
-        pendingSessionCommand = true
-      } else if (
-        row.status === 'non_retryable'
-        && (
-          !sessionParsed.data
-          || Date.parse(row.updated_at) > Date.parse(sessionParsed.data.updated_at)
-        )
-      ) {
-        failedSessionCommand = true
-      }
+      if (isPending(row)) pendingSessionCommand = true
+      else if (row.status === 'non_retryable') failedSessionCommand = true
     }
-    if (message.message_type === 'attendance.marks') {
-      for (const mark of message.marks) {
-        const studentId = studentIdByParticipantRef.get(mark.participant_ref)
-        if (!studentId) continue
-        if (isPending(row)) {
-          pendingStudentIds.add(studentId)
-        } else if (row.status === 'non_retryable') {
-          const projection = recordByParticipantRef.get(mark.participant_ref)
-          if (!projection || Date.parse(row.updated_at) > Date.parse(projection.updated_at)) {
-            failedStudentIds.add(studentId)
-          }
-        }
-      }
+    if (message.message_type === 'check_in.invalidate' && isPending(row)) {
+      for (const invalidation of message.invalidations) pendingCheckInRefs.add(invalidation.check_in_ref)
     }
   }
-  if (pendingSessionCommand) failedSessionCommand = false
-  for (const studentId of pendingStudentIds) failedStudentIds.delete(studentId)
 
   return buildTeacherAttendanceView({
-    classroomId: input.classroomId,
-    classDate: input.classDate,
-    integration: 'ready',
-    students,
-    participantMappings: participantParsed.data.map((row) => ({
-      studentId: row.student_id,
-      participantRef: row.participant_ref,
-    })),
+    classroomId: input.classroomId, classDate: input.classDate, integration: 'ready', students,
     occurrence: {
-      occurrenceRef: occurrence.occurrence_ref,
-      opensAt: occurrence.opens_at,
-      closesAt: occurrence.closes_at,
+      occurrenceRef: occurrenceRow.occurrence_ref,
+      opensAt: acceptsAt, closesAt: stopsAcceptingAt,
+      sessionStartsAt, sessionEndsAt, presentThroughAt, absentAt,
     },
-    sessionProjection: sessionParsed.data
-      ? {
-          occurrenceRef: sessionParsed.data.occurrence_ref,
-          state: sessionParsed.data.status,
-          opensAt: sessionParsed.data.opens_at ?? occurrence.opens_at,
-          closesAt: sessionParsed.data.closes_at ?? occurrence.closes_at,
-          revision: sessionParsed.data.session_revision,
-          updatedAt: sessionParsed.data.updated_at,
-        }
-      : null,
-    recordProjections: recordsParsed.data.map((row) => ({
-      participantRef: row.participant_ref,
-      status: row.status,
-      source: row.source,
-      revision: row.record_revision,
-      updatedAt: row.updated_at,
+    sessionProjection: session.data ? {
+      occurrenceRef: session.data.occurrence_ref, state: session.data.status,
+      opensAt: session.data.opens_at ?? acceptsAt,
+      closesAt: session.data.closes_at ?? stopsAcceptingAt,
+      revision: session.data.session_revision, updatedAt: session.data.updated_at,
+    } : null,
+    checkInFacts: checkIns.data.map((row) => ({
+      studentId: row.student_id, checkInRef: row.check_in_ref,
+      revision: row.check_in_revision, acceptedAt: row.accepted_at,
+      invalidatedAt: row.invalidated_at, updatedAt: row.updated_at,
     })),
-    qrCheckIns: [...qrCheckInByParticipantRef.values()],
-    pendingStudentIds: [...pendingStudentIds],
-    pendingSessionCommand,
-    failedStudentIds: [...failedStudentIds],
-    failedSessionCommand,
+    statusOverrides: overrides.data.map((row) => ({
+      studentId: row.student_id, status: row.status, active: row.active,
+      revision: row.revision, updatedAt: row.updated_at,
+    })),
+    pendingCheckInRefs: [...pendingCheckInRefs], pendingSessionCommand, failedSessionCommand,
   })
 }
 
-function normalizeSource(source: RecordProjectionInput['source']): TeacherAttendanceSource {
-  if (source === 'staff_manual') return 'staff'
-  if (source === 'system_finalize') return 'system'
-  return 'student_qr'
+function latestInstant(values: Array<string | null>) {
+  return values.filter((value): value is string => Boolean(value))
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0] ?? null
 }
 
-function latestInstant(values: Array<string | null>): string | null {
-  let latest: string | null = null
-  let latestTime = Number.NEGATIVE_INFINITY
-  for (const value of values) {
-    if (!value) continue
-    const time = Date.parse(value)
-    if (Number.isFinite(time) && time > latestTime) {
-      latest = value
-      latestTime = time
+export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInput): TeacherAttendanceView {
+  const factsByStudent = new Map<string, CheckInFactInput>()
+  for (const fact of input.checkInFacts ?? []) {
+    if (fact.invalidatedAt) continue
+    const current = factsByStudent.get(fact.studentId)
+    if (!current || Date.parse(fact.acceptedAt) > Date.parse(current.acceptedAt)) {
+      factsByStudent.set(fact.studentId, fact)
     }
   }
-  return latest
-}
-
-export function buildTeacherAttendanceView(
-  input: BuildTeacherAttendanceViewInput,
-): TeacherAttendanceView {
-  const pendingStudentIds = new Set(input.pendingStudentIds)
-  const failedStudentIds = new Set(input.failedStudentIds ?? [])
-  const participantRefByStudentId = new Map(
-    input.participantMappings.map((mapping) => [mapping.studentId, mapping.participantRef]),
-  )
-  const recordByParticipantRef = new Map(
-    input.recordProjections.map((record) => [record.participantRef, record]),
-  )
-  const currentQrCheckIns = input.recordProjections
-      .filter((record) => record.source === 'student_qr')
-      .map((record) => ({
-        participantRef: record.participantRef,
-        status: record.status,
-        recordedAt: record.updatedAt,
-      }))
-  const qrCheckInByParticipantRef = new Map<string, QrCheckInInput>(
-    [...currentQrCheckIns, ...(input.qrCheckIns ?? [])]
-      .map((checkIn): [string, QrCheckInInput] => [checkIn.participantRef, checkIn]),
-  )
-
-  const projectionMatchesOccurrence = Boolean(
-    input.occurrence &&
-      input.sessionProjection?.occurrenceRef === input.occurrence.occurrenceRef,
-  )
-  const projection = projectionMatchesOccurrence ? input.sessionProjection : null
+  const overrides = new Map((input.statusOverrides ?? []).map((item) => [item.studentId, item]))
+  const pendingRefs = new Set(input.pendingCheckInRefs ?? [])
+  const projection = input.occurrence
+    && input.sessionProjection?.occurrenceRef === input.occurrence.occurrenceRef
+    ? input.sessionProjection : null
   const confirmedAt = latestInstant([
     projection?.updatedAt ?? null,
-    ...input.recordProjections.map((record) => record.updatedAt),
+    ...(input.checkInFacts ?? []).map((fact) => fact.updatedAt),
+    ...(input.statusOverrides ?? []).map((override) => override.updatedAt),
   ])
-
-  let syncState: TeacherAttendanceView['sync']['state']
-  if (input.integration !== 'ready') {
-    syncState = 'unavailable'
-  } else if (pendingStudentIds.size > 0 || input.pendingSessionCommand) {
-    syncState = 'pending'
-  } else if ((input.occurrence && !projection) || input.projectionKnownStale) {
-    syncState = 'stale'
-  } else {
-    syncState = 'current'
-  }
+  const syncState: TeacherAttendanceView['sync']['state'] = input.integration !== 'ready'
+    ? 'unavailable'
+    : input.pendingSessionCommand || pendingRefs.size > 0
+      ? 'pending'
+      : (input.occurrence && !projection) || input.projectionKnownStale ? 'stale' : 'current'
+  const now = Date.parse(input.now ?? new Date().toISOString())
+  const presentThrough = Date.parse(input.occurrence?.presentThroughAt ?? input.occurrence?.opensAt ?? '')
+  const absentAt = Date.parse(input.occurrence?.absentAt ?? input.occurrence?.closesAt ?? '')
 
   return {
-    classroomId: input.classroomId,
-    classDate: input.classDate,
-    integration: input.integration,
-    session: projection
-      ? {
-          state: projection.state,
-          opensAt: projection.opensAt,
-          closesAt: projection.closesAt,
-          revision: projection.revision,
-          commandFailed: input.failedSessionCommand ?? false,
-        }
-      : input.occurrence
-        ? {
-            state: 'scheduled',
-            opensAt: input.occurrence.opensAt,
-            closesAt: input.occurrence.closesAt,
-            revision: null,
-            commandFailed: input.failedSessionCommand ?? false,
-          }
-        : {
-            state: 'not_scheduled',
-            opensAt: null,
-            closesAt: null,
-            revision: null,
-            commandFailed: input.failedSessionCommand ?? false,
-          },
+    classroomId: input.classroomId, classDate: input.classDate, integration: input.integration,
+    session: input.occurrence ? {
+      state: projection?.state ?? 'scheduled',
+      opensAt: projection?.opensAt ?? input.occurrence.opensAt,
+      closesAt: projection?.closesAt ?? input.occurrence.closesAt,
+      sessionStartsAt: input.occurrence.sessionStartsAt ?? null,
+      sessionEndsAt: input.occurrence.sessionEndsAt ?? null,
+      presentThroughAt: input.occurrence.presentThroughAt ?? null,
+      absentAt: input.occurrence.absentAt ?? null,
+      revision: projection?.revision ?? null,
+      commandFailed: input.failedSessionCommand ?? false,
+    } : {
+      state: 'not_scheduled', opensAt: null, closesAt: null,
+      sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
+      revision: null, commandFailed: input.failedSessionCommand ?? false,
+    },
     sync: { state: syncState, confirmedAt },
     students: input.students.map((student) => {
-      const participantRef = participantRefByStudentId.get(student.studentId)
-      const record = participantRef ? recordByParticipantRef.get(participantRef) : undefined
-      const qrCheckIn = participantRef ? qrCheckInByParticipantRef.get(participantRef) : undefined
+      const fact = factsByStudent.get(student.studentId)
+      const override = overrides.get(student.studentId)
+      const automaticStatus: TeacherAttendanceStatus = fact
+        ? Date.parse(fact.acceptedAt) <= presentThrough ? 'present' : 'late'
+        : Number.isFinite(absentAt) && now >= absentAt ? 'absent' : 'unmarked'
+      const hasOverride = Boolean(override?.active && override.status)
       return {
-        studentId: student.studentId,
-        firstName: student.firstName,
-        lastName: student.lastName,
-        status: record?.status ?? 'unmarked',
-        source: record ? normalizeSource(record.source) : null,
-        checkedInAt: qrCheckIn?.recordedAt ?? null,
-        checkedInStatus: qrCheckIn?.status ?? null,
-        revision: record?.revision ?? null,
-        pendingCommand: pendingStudentIds.has(student.studentId),
-        commandFailed: failedStudentIds.has(student.studentId),
+        studentId: student.studentId, firstName: student.firstName, lastName: student.lastName,
+        status: hasOverride ? override!.status! : automaticStatus,
+        source: hasOverride ? 'staff' : fact ? 'student_qr' : automaticStatus === 'absent' ? 'system' : null,
+        revision: hasOverride ? override!.revision : fact?.revision ?? null,
+        checkedInAt: fact?.acceptedAt ?? null,
+        checkInRef: fact?.checkInRef ?? null,
+        hasManualOverride: hasOverride,
+        pendingCommand: fact ? pendingRefs.has(fact.checkInRef) : false,
+        commandFailed: false,
       }
     }),
   }

@@ -38,6 +38,10 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
       state: 'open',
       opensAt: '2026-08-17T12:45:00.000Z',
       closesAt: '2026-08-17T13:15:00.000Z',
+      sessionStartsAt: '2026-08-17T12:55:00.000Z',
+      sessionEndsAt: '2026-08-17T13:25:00.000Z',
+      presentThroughAt: '2026-08-17T13:00:00.000Z',
+      absentAt: '2026-08-17T13:25:00.000Z',
       revision: 1,
       commandFailed: false,
     },
@@ -50,8 +54,9 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         status: 'unmarked',
         source: null,
         checkedInAt: null,
-        checkedInStatus: null,
         revision: null,
+        checkInRef: null,
+        hasManualOverride: false,
         pendingCommand: false,
         commandFailed: false,
       },
@@ -62,8 +67,9 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         status: 'present',
         source: 'student_qr',
         checkedInAt: '2026-08-17T12:50:00.000Z',
-        checkedInStatus: 'present',
         revision: 1,
+        checkInRef: 'check_in_grace',
+        hasManualOverride: false,
         pendingCommand: false,
         commandFailed: false,
       },
@@ -140,11 +146,11 @@ describe('TeacherLiveAttendanceTab', () => {
     const contextBar = screen.getByTestId('attendance-context-bar')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
-    const closeAttendance = within(contextBar).getByRole('button', { name: 'Close attendance' })
+    const closeAttendance = within(contextBar).getByRole('button', { name: 'Stop QR check-in' })
     expect(showQr).toBeEnabled()
     expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
-    expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
+    expect(within(primaryControl).getByRole('button', { name: 'Stop QR check-in' })).toBe(closeAttendance)
     expect(screen.getAllByRole('checkbox')).toHaveLength(3)
     const studentActions = within(primaryControl).getByRole('button', {
       name: 'Student actions (select students to enable)',
@@ -161,7 +167,8 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Present' })).toBeEnabled()
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Late' })).toBeEnabled()
     expect(within(actionsMenu).getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
-    expect(within(actionsMenu).getByRole('menuitem', { name: 'Clear mark' })).toBeEnabled()
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Use automatic' })).toBeEnabled()
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Remove QR check-in' })).toBeEnabled()
     fireEvent.keyDown(window, { key: 'Escape' })
     const attendanceHours = within(contextBar).getByRole('button', {
       name: 'Attendance hours, Open, 8:45 AM to 9:15 AM',
@@ -178,11 +185,11 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(trailingActions).getByRole('button', { name: 'Refresh attendance' })).toBeEnabled()
 
     fireEvent.click(attendanceHours)
-    expect(await screen.findByRole('dialog', { name: 'Attendance hours' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Attendance timing' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.focus(closeAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Stop QR check-in')
 
   })
 
@@ -197,8 +204,9 @@ describe('TeacherLiveAttendanceTab', () => {
           status: 'late',
           source: 'staff',
           checkedInAt: null,
-          checkedInStatus: null,
           revision: 1,
+          checkInRef: null,
+          hasManualOverride: true,
           pendingCommand: false,
           commandFailed: false,
         },
@@ -209,8 +217,9 @@ describe('TeacherLiveAttendanceTab', () => {
           status: 'absent',
           source: 'staff',
           checkedInAt: null,
-          checkedInStatus: null,
           revision: 1,
+          checkInRef: null,
+          hasManualOverride: true,
           pendingCommand: false,
           commandFailed: false,
         },
@@ -354,8 +363,9 @@ describe('TeacherLiveAttendanceTab', () => {
           status: 'late',
           source: 'staff',
           checkedInAt: null,
-          checkedInStatus: null,
           revision: 1,
+          checkInRef: null,
+          hasManualOverride: true,
           pendingCommand: false,
           commandFailed: false,
         },
@@ -394,11 +404,9 @@ describe('TeacherLiveAttendanceTab', () => {
   it('groups the date and immediate session command in the center action cluster', async () => {
     const scheduledView = attendanceView({
       session: {
+        ...attendanceView().session,
         state: 'scheduled',
-        opensAt: '2026-08-17T12:45:00.000Z',
-        closesAt: '2026-08-17T13:15:00.000Z',
         revision: 1,
-        commandFailed: false,
       },
     })
     vi.mocked(fetch)
@@ -421,14 +429,14 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(primaryControl).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
     expect(within(primaryControl).getByRole('button', { name: 'Next day' })).toBeEnabled()
 
-    const openAttendance = within(contextBar).getByRole('button', { name: 'Open attendance' })
+    const openAttendance = within(contextBar).getByRole('button', { name: 'Open QR check-in' })
     expect(openAttendance).toBeEnabled()
     expect(openAttendance).toHaveTextContent('')
-    expect(within(primaryControl).getByRole('button', { name: 'Open attendance' })).toBe(openAttendance)
-    expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
+    expect(within(primaryControl).getByRole('button', { name: 'Open QR check-in' })).toBe(openAttendance)
+    expect(screen.queryByText('Open QR check-in')).not.toBeInTheDocument()
 
     fireEvent.focus(openAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open attendance')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open QR check-in')
     fireEvent.click(openAttendance)
 
     await waitFor(() => expect(screen.getByText('Attendance opened')).toBeInTheDocument())
@@ -598,12 +606,12 @@ describe('TeacherLiveAttendanceTab', () => {
     const initial = attendanceView()
     const manuallyChanged = attendanceView({
       students: initial.students.map((student) => student.firstName === 'Grace'
-        ? { ...student, status: 'late', source: 'staff', revision: 2 }
+        ? { ...student, status: 'late', source: 'staff', revision: 2, hasManualOverride: true }
         : student),
     })
     const restored = attendanceView({
       students: initial.students.map((student) => student.firstName === 'Grace'
-        ? { ...student, status: 'present', source: 'staff', revision: 3 }
+        ? { ...student, status: 'present', source: 'student_qr', revision: 3, hasManualOverride: false }
         : student),
     })
     vi.mocked(fetch)
@@ -631,7 +639,7 @@ describe('TeacherLiveAttendanceTab', () => {
     const undoPost = JSON.parse(String(vi.mocked(fetch).mock.calls[3]?.[1]?.body))
     expect(undoPost.marks).toEqual([{
       student_id: '20000000-0000-4000-8000-000000000002',
-      status: 'present',
+      status: 'automatic',
       reason_code: 'staff_correction',
     }])
   })
@@ -639,11 +647,9 @@ describe('TeacherLiveAttendanceTab', () => {
   it('allows audited corrections after close without offering an unsupported reopen command', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
       session: {
+        ...attendanceView().session,
         state: 'closed',
-        opensAt: '2026-08-17T12:45:00.000Z',
-        closesAt: '2026-08-17T13:15:00.000Z',
         revision: 2,
-        commandFailed: false,
       },
     })))
 
@@ -722,11 +728,15 @@ describe('TeacherLiveAttendanceTab', () => {
     const nextDay = attendanceView({
       classDate: '2026-08-18',
       session: {
+        ...attendanceView().session,
         state: 'not_scheduled',
         opensAt: null,
         closesAt: null,
+        sessionStartsAt: null,
+        sessionEndsAt: null,
+        presentThroughAt: null,
+        absentAt: null,
         revision: null,
-        commandFailed: false,
       },
     })
     vi.mocked(fetch).mockImplementation(async (input, init) => {
@@ -762,7 +772,7 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab({ ...classroom, archived_at: '2026-08-18T00:00:00Z' })
     await screen.findByText('Ada')
 
-    expect(screen.queryByRole('button', { name: 'Close attendance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop QR check-in' })).not.toBeInTheDocument()
     expect(within(
       screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
     ).getByRole('button', { name: 'Present' })).toBeDisabled()

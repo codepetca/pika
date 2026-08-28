@@ -48,6 +48,8 @@ describe('student attendance status view', () => {
       occurrence_ref: 'occurrence_one',
       opens_at: '2026-08-23T13:00:00.000Z',
       closes_at: '2026-08-23T14:00:00.000Z',
+      present_through_at: '2026-08-23T13:05:00.000Z',
+      absent_at: '2026-08-23T14:10:00.000Z',
       desired_state: 'scheduled' as const,
     }
     const session = {
@@ -61,7 +63,8 @@ describe('student attendance status view', () => {
       classroomId: classroomOne,
       occurrence,
       session,
-      record: null,
+      checkIn: null,
+      statusOverride: null,
       now: new Date('2026-08-23T13:30:00.000Z'),
     }).state.state).toBe('open')
 
@@ -69,7 +72,8 @@ describe('student attendance status view', () => {
       classroomId: classroomOne,
       occurrence,
       session,
-      record: null,
+      checkIn: null,
+      statusOverride: null,
       now: new Date(occurrence.closes_at),
     }).state.state).toBe('closed')
   })
@@ -83,6 +87,8 @@ describe('student attendance status view', () => {
         occurrence_ref: 'occurrence_one',
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
+        present_through_at: '2026-08-23T13:05:00.000Z',
+        absent_at: '2026-08-23T14:10:00.000Z',
         desired_state: 'scheduled',
       },
       session: {
@@ -91,12 +97,15 @@ describe('student attendance status view', () => {
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
       },
-      record: {
+      checkIn: {
         classroom_id: classroomOne,
         occurrence_ref: 'occurrence_one',
-        status: 'late',
-        last_event_at: '2026-08-23T13:07:00.000Z',
+        check_in_ref: 'check_in_one',
+        check_in_revision: 1,
+        accepted_at: '2026-08-23T13:07:00.000Z',
+        invalidated_at: null,
       },
+      statusOverride: null,
       now: new Date('2026-08-23T14:30:00.000Z'),
     })
 
@@ -130,6 +139,8 @@ describe('student attendance status view', () => {
         occurrence_ref: 'occurrence_one',
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
+        present_through_at: '2026-08-23T13:05:00.000Z',
+        absent_at: '2026-08-23T14:00:00.000Z',
         desired_state: 'scheduled',
       }],
       attendance_session_projection: [{
@@ -138,7 +149,8 @@ describe('student attendance status view', () => {
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
       }],
-      attendance_record_projection: [],
+      attendance_check_in_facts: [],
+      attendance_status_overrides: [],
     })
 
     const result = await loadStudentAttendanceStatusView({
@@ -163,12 +175,12 @@ describe('student attendance status view', () => {
     expect(result.serverNow).toBe('2026-08-23T13:30:00.000Z')
     expect(result.studentId).toBe(studentOne)
     expect(calls).toContainEqual({
-      table: 'attendance_record_projection',
+      table: 'attendance_check_in_facts',
       method: 'eq',
       args: ['student_id', studentOne],
     })
     expect(calls.filter((call) => call.method === 'limit').every(
-      (call) => typeof call.args[0] === 'number' && call.args[0] <= 100,
+      (call) => typeof call.args[0] === 'number' && call.args[0] <= 500,
     )).toBe(true)
     expect(JSON.stringify(result)).not.toContain('occurrence_one')
     expect(JSON.stringify(result)).not.toContain(teacherOne)
@@ -187,6 +199,8 @@ describe('student attendance status view', () => {
           occurrence_ref: 'overnight_occurrence',
           opens_at: '2026-08-24T03:00:00.000Z',
           closes_at: '2026-08-24T05:00:00.000Z',
+          present_through_at: '2026-08-24T03:05:00.000Z',
+          absent_at: '2026-08-24T05:00:00.000Z',
           desired_state: 'scheduled',
         },
         {
@@ -195,6 +209,8 @@ describe('student attendance status view', () => {
           occurrence_ref: 'today_occurrence',
           opens_at: '2026-08-24T13:00:00.000Z',
           closes_at: '2026-08-24T14:00:00.000Z',
+          present_through_at: '2026-08-24T13:05:00.000Z',
+          absent_at: '2026-08-24T14:00:00.000Z',
           desired_state: 'scheduled',
         },
       ],
@@ -212,7 +228,8 @@ describe('student attendance status view', () => {
           closes_at: '2026-08-24T14:00:00.000Z',
         },
       ],
-      attendance_record_projection: [],
+      attendance_check_in_facts: [],
+      attendance_status_overrides: [],
     })
 
     const result = await loadStudentAttendanceStatusView({
@@ -249,6 +266,8 @@ describe('student attendance status view', () => {
           occurrence_ref: 'overnight_occurrence',
           opens_at: '2026-08-24T03:00:00.000Z',
           closes_at: '2026-08-24T05:00:00.000Z',
+          present_through_at: '2026-08-24T03:05:00.000Z',
+          absent_at: '2026-08-24T05:00:00.000Z',
           desired_state: 'scheduled',
         },
         {
@@ -257,6 +276,8 @@ describe('student attendance status view', () => {
           occurrence_ref: 'today_occurrence',
           opens_at: '2026-08-24T13:00:00.000Z',
           closes_at: '2026-08-24T14:00:00.000Z',
+          present_through_at: '2026-08-24T13:05:00.000Z',
+          absent_at: '2026-08-24T14:00:00.000Z',
           desired_state: 'scheduled',
         },
       ],
@@ -266,11 +287,21 @@ describe('student attendance status view', () => {
         opens_at: '2026-08-24T03:00:00.000Z',
         closes_at: '2026-08-24T05:00:00.000Z',
       }],
-      attendance_record_projection: [{
+      attendance_check_in_facts: [{
+        classroom_id: classroomOne,
+        occurrence_ref: 'overnight_occurrence',
+        check_in_ref: 'overnight_check_in',
+        check_in_revision: 1,
+        accepted_at: '2026-08-24T03:15:00.000Z',
+        invalidated_at: null,
+      }],
+      attendance_status_overrides: [{
         classroom_id: classroomOne,
         occurrence_ref: 'overnight_occurrence',
         status: 'present',
-        last_event_at: '2026-08-24T03:15:00.000Z',
+        active: true,
+        revision: 1,
+        updated_at: '2026-08-24T03:15:00.000Z',
       }],
     }
 
@@ -307,6 +338,8 @@ describe('student attendance status view', () => {
         occurrence_ref: 'occurrence_one',
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
+        present_through_at: '2026-08-23T13:05:00.000Z',
+        absent_at: '2026-08-23T14:00:00.000Z',
         desired_state: 'scheduled',
       },
       session: {
@@ -315,11 +348,21 @@ describe('student attendance status view', () => {
         opens_at: '2026-08-23T13:00:00.000Z',
         closes_at: '2026-08-23T14:00:00.000Z',
       },
-      record: {
+      checkIn: {
+        classroom_id: classroomOne,
+        occurrence_ref: 'occurrence_one',
+        check_in_ref: 'check_in_one',
+        check_in_revision: 1,
+        accepted_at: '2026-08-23T13:07:00.000Z',
+        invalidated_at: null,
+      },
+      statusOverride: {
         classroom_id: classroomOne,
         occurrence_ref: 'occurrence_one',
         status: 'present',
-        last_event_at: '2026-08-23T13:07:00.000Z',
+        active: true,
+        revision: 1,
+        updated_at: '2026-08-23T13:07:00.000Z',
       },
       now: new Date('2026-08-23T20:00:00.000Z'),
     })
@@ -328,6 +371,66 @@ describe('student attendance status view', () => {
     expect(result.state).toEqual(expect.objectContaining({
       state: 'confirmed',
       validUntil: '2026-08-24T04:00:00.000Z',
+    }))
+  })
+
+  it('uses the inclusive Present cutoff and lets an active teacher override win', () => {
+    const occurrence = {
+      classroom_id: classroomOne,
+      class_date: '2026-08-23',
+      occurrence_ref: 'occurrence_one',
+      opens_at: '2026-08-23T12:50:00.000Z',
+      closes_at: '2026-08-23T13:50:00.000Z',
+      present_through_at: '2026-08-23T13:05:00.000Z',
+      absent_at: '2026-08-23T14:00:00.000Z',
+      desired_state: 'scheduled' as const,
+    }
+    const session = {
+      occurrence_ref: 'occurrence_one',
+      status: 'open' as const,
+      opens_at: occurrence.opens_at,
+      closes_at: occurrence.closes_at,
+    }
+    const cutoffCheckIn = {
+      classroom_id: classroomOne,
+      occurrence_ref: 'occurrence_one',
+      check_in_ref: 'cutoff_check_in',
+      check_in_revision: 1,
+      accepted_at: occurrence.present_through_at,
+      invalidated_at: null,
+    }
+
+    expect(buildStudentAttendanceClassroomState({
+      classroomId: classroomOne,
+      occurrence,
+      session,
+      checkIn: cutoffCheckIn,
+      statusOverride: null,
+      now: new Date('2026-08-23T13:10:00.000Z'),
+    }).state).toEqual(expect.objectContaining({
+      state: 'confirmed',
+      attendanceStatus: 'present',
+      confirmedAt: occurrence.present_through_at,
+    }))
+
+    expect(buildStudentAttendanceClassroomState({
+      classroomId: classroomOne,
+      occurrence,
+      session,
+      checkIn: { ...cutoffCheckIn, accepted_at: '2026-08-23T13:05:00.001Z' },
+      statusOverride: {
+        classroom_id: classroomOne,
+        occurrence_ref: 'occurrence_one',
+        status: 'present',
+        active: true,
+        revision: 2,
+        updated_at: '2026-08-23T13:12:00.000Z',
+      },
+      now: new Date('2026-08-23T13:15:00.000Z'),
+    }).state).toEqual(expect.objectContaining({
+      state: 'confirmed',
+      attendanceStatus: 'present',
+      confirmedAt: '2026-08-23T13:12:00.000Z',
     }))
   })
 })
