@@ -7,13 +7,9 @@ import {
 
 const visibleConfig = {
   overview: true,
-  outline: true,
   resources: true,
   assignments: true,
   tests: true,
-  lesson_plans: true,
-  announcements: true,
-  lesson_plan_scope: 'current_week' as const,
 }
 
 const guide: CourseGuideData = {
@@ -29,31 +25,10 @@ const guide: CourseGuideData = {
   assignments: [{
     key: 'assignment:0',
     title: 'Portfolio',
-    instructionsMarkdown: 'Build a portfolio.',
-    dueAt: '2026-10-15T03:59:00.000Z',
-    pointsPossible: 30,
-    includeInFinal: true,
-    courseWeightPercent: 25,
-    position: 0,
   }],
   tests: [{
     key: 'test:0',
     title: 'Programming Test',
-    pointsPossible: 50,
-    includeInFinal: true,
-    courseWeightPercent: 75,
-    position: 0,
-    documents: [{ key: 'document:0', title: 'Review sheet', href: 'https://example.com/review' }],
-  }],
-  lessonPlans: [{
-    key: 'lesson:2026-09-10',
-    contentMarkdown: 'Variables and data types',
-  }],
-  announcements: [{
-    key: 'announcement:1',
-    title: 'Welcome',
-    content: 'Bring your laptop.',
-    publishedAt: '2026-09-01T14:00:00.000Z',
   }],
 }
 
@@ -91,18 +66,6 @@ describe('course guide', () => {
       resourcesContent: null,
       assignments: [],
       tests: [],
-      lessonPlans: [],
-      announcements: [],
-    })).toBe(false)
-
-    expect(hasCourseGuideContent({
-      ...guide,
-      overviewMarkdown: '',
-      resourcesContent: null,
-      assignments: [],
-      tests: [],
-      lessonPlans: [],
-      announcements: [],
     })).toBe(false)
   })
 })

@@ -61,7 +61,7 @@ These are the current or proposed structural primitives for the teacher work-sur
 | Calm empty-state container via `EmptyState` | tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
 | Teacher workspace split container derived from assignments | integrated assignment viewing/grading panes | adopted by tests when grading needs side-by-side work | stable structural primitive | keep as primitive | now |
 | Operational context bar and table frame | Attendance and selected Test grading | Classwork and nearby sections when scan-heavy and row-operational | stable structural primitives | keep as primitives | now |
-| Bottom `TeacherSelectionBar` | Attendance | existing adopters only | migration support | replace with centered persistent selection menu when the surface is refreshed | next Attendance pass |
+| Bottom `TeacherSelectionBar` | no production owner | legacy compatibility only | deprecated migration support | do not adopt; remove when compatibility is no longer needed | later |
 | Shared teacher work-item card variant | `SortableAssignmentCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
 | Generic teacher list/detail container | no single owner yet | conceptually repeated | unstable | do not extract yet | never for now |
 
@@ -75,7 +75,7 @@ These should remain composed feature patterns even if they use shared primitives
 | Teacher assignment focused workspace and student inspection | `TeacherClassroomView`, `TeacherStudentWorkPanel` | stable | keep composed, feed split extraction | now |
 | Teacher test authoring composition | `TeacherTestsTab`, `TestDetailPanel` | experimental | keep composed | now |
 | Teacher grading workspace composition | `TeacherTestsTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
-| Attendance operational table composition | `TeacherLiveAttendanceTab` | stable table reference; selection placement is migration debt | keep table rhythm, migrate actions next | now |
+| Attendance operational table composition | `TeacherLiveAttendanceTab` | stable | keep as the Attendance-specific adopter of the centered persistent selection menu and compact table rhythm | now |
 | Selected Test grading action composition | `TeacherTestsTab` | stable | approved reference for global, selected, and inline row actions | now |
 
 ## Feature-Local Behavior
@@ -122,7 +122,8 @@ The combined operational composition is stable through two narrow structural own
 - `TeacherWorkSurfaceContextBar` owns the quiet-edge/centered-action hierarchy
 - `TeacherWorkSurfaceTableFrame` owns the internal scroller
 - feature-owned centered menus keep selection actions visible-but-disabled until
-  selection; `TeacherSelectionBar` remains transitional for existing consumers
+  selection; `TeacherSelectionBar` remains legacy compatibility only and has no
+  production owner
 
 Sortable/resizable table behavior continues to come from the shared `@/ui`
 table primitives. Status vocabulary, colors, comparisons, columns, and batch

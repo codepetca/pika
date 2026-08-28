@@ -153,9 +153,39 @@ async function mockBlueprintRollover(page: Page) {
   })
 }
 
-test('keeps Attendance hours reachable across the responsive context bar', async ({ page }, testInfo) => {
+test('keeps the Attendance roster compact with inline status controls', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  const browserErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => browserErrors.push(error.message))
   await applyProjectTheme(page, testInfo)
+
+  const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
+  let hasAttendanceWindow = true
+  let attendanceSessionState: 'open' | 'closed' = 'open'
+  let attendanceStudents = Array.from({ length: 45 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(2, '0')
+    const status = attendanceStatuses[index % attendanceStatuses.length]
+    const source = index === 1 ? 'staff' : index % 3 === 0 ? 'student_qr' : index % 3 === 1 ? 'staff' : null
+    const checkedInAt = source === 'student_qr' || index === 1
+      ? `2026-08-17T12:${String(48 + (index % 12)).padStart(2, '0')}:00.000Z`
+      : null
+    return {
+      studentId: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      firstName: `Student ${ordinal}`,
+      lastName: `Alpha${ordinal}`,
+      status,
+      source,
+      checkedInAt,
+      revision: status === 'unmarked' ? null : 1,
+      hasQrCheckIn: Boolean(checkedInAt),
+      hasManualOverride: source === 'staff',
+      pendingCommand: false,
+      commandFailed: false,
+    }
+  })
 
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
     await route.fulfill({
@@ -166,26 +196,38 @@ test('keeps Attendance hours reachable across the responsive context bar', async
         classDate: '2026-08-17',
         integration: 'ready',
         session: {
-          state: 'open',
-          opensAt: '2026-08-17T12:45:00.000Z',
-          closesAt: '2026-08-17T13:15:00.000Z',
+          state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
+          opensAt: hasAttendanceWindow ? '2026-08-17T04:45:00.000Z' : null,
+          closesAt: hasAttendanceWindow ? '2026-08-18T02:34:00.000Z' : null,
+          sessionStartsAt: hasAttendanceWindow ? '2026-08-17T12:55:00.000Z' : null,
+          sessionEndsAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
+          presentThroughAt: hasAttendanceWindow ? '2026-08-17T13:00:00.000Z' : null,
+          absentAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
           revision: 1,
           commandFailed: false,
         },
         sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
-        students: [
-          {
-            studentId: '40000000-0000-4000-8000-000000000001',
-            firstName: 'Ada',
-            lastName: 'Lovelace',
-            status: 'present',
-            source: 'student_qr',
-            revision: 1,
-            pendingCommand: false,
-            commandFailed: false,
-          },
-        ],
+        students: attendanceStudents,
       }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/marks', async (route) => {
+    const body = route.request().postDataJSON() as {
+      marks: Array<{ student_id: string; status: typeof attendanceStatuses[number] | 'automatic' }>
+    }
+    const statusByStudentId = new Map(body.marks.map((mark) => [mark.student_id, mark.status]))
+    attendanceStudents = attendanceStudents.map((student) => {
+      const status = statusByStudentId.get(student.studentId)
+      return status === 'automatic'
+        ? { ...student, source: student.checkedInAt ? 'student_qr' as const : null, hasManualOverride: false }
+        : status
+          ? { ...student, status, source: 'staff' as const, hasManualOverride: true, revision: (student.revision ?? 0) + 1 }
+        : student
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outcome: 'applied', appliedCount: body.marks.length }),
     })
   })
   await page.route('**/api/teacher/attendance/policy?**', async (route) => {
@@ -196,9 +238,13 @@ test('keeps Attendance hours reachable across the responsive context bar', async
         policy: {
           classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
           timezone: 'America/Toronto',
-          opensLocal: '08:45',
-          closesLocal: '15:15',
-          closeDayOffset: 0,
+          sessionStartsLocal: '09:00',
+          sessionEndsLocal: '10:00',
+          sessionEndDayOffset: 0,
+          entryOpensMinutesBefore: 10,
+          presentGraceMinutes: 5,
+          entryClosesMinutesBeforeEnd: 10,
+          absentMinutesBeforeEnd: 0,
           enabled: true,
           revision: 1,
           updatedAt: '2026-08-17T12:00:00.000Z',
@@ -209,28 +255,224 @@ test('keeps Attendance hours reachable across the responsive context bar', async
 
   await page.goto('/e2e-fixtures/teacher-live-attendance', { waitUntil: 'domcontentloaded' })
 
+  const contextBar = page.getByTestId('attendance-context-bar')
+  const primaryControl = page.getByTestId('attendance-primary-control')
   const trailingActions = page.getByTestId('attendance-trailing-actions')
-  await expect(trailingActions).toBeVisible()
+  const scrollPane = page.getByTestId('attendance-student-scroll-pane')
+  const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
+  const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
+  const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
+  const attendanceHours = contextBar.getByRole('button', {
+    name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+  })
+  if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
+  else {
+    await expect(attendanceHours).toHaveText('12:45 AM - 10:34 PM')
+    await expect(attendanceHours).not.toContainText('Open')
+    await expect(attendanceHours).toHaveClass(/bg-success-bg/)
+    await expect(trailingActions).toBeVisible()
+    await expect(primaryControl.getByRole('button', {
+      name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+    })).toHaveCount(0)
+    const [contextBox, attendanceHoursBox] = await Promise.all([
+      contextBar.boundingBox(),
+      attendanceHours.boundingBox(),
+    ])
+    expect(contextBox).not.toBeNull()
+    expect(attendanceHoursBox).not.toBeNull()
+    expect(attendanceHoursBox!.x - contextBox!.x).toBeLessThan(24)
+    expect(attendanceHoursBox!.width).toBeLessThan(190)
+  }
+  await expect(page.getByRole('checkbox')).toHaveCount(46)
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })).toBeDisabled()
+  await expect(dateButton.locator('svg')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toBeVisible()
+  const [firstStudentRowHeight, presentCountWidth] = await Promise.all([
+    page.getByRole('row').nth(1).evaluate((element) => element.getBoundingClientRect().height),
+    page.getByRole('button', { name: 'Sort Present first, 12 students' })
+      .locator('span')
+      .evaluate((element) => element.getBoundingClientRect().width),
+  ])
+  expect(firstStudentRowHeight).toBeLessThanOrEqual(46)
+  expect(presentCountWidth).toBeCloseTo(28, 1)
+  await expect(page.getByRole('group', { name: 'Sort attendance by status' }).locator('xpath=ancestor::th')).not.toContainText('Status')
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerHeight + 1),
+  )
+
+  const [primaryBox, previousBox, dateBox, nextBox] = await Promise.all([
+    primaryControl.boundingBox(),
+    previousDayButton.boundingBox(),
+    dateButton.boundingBox(),
+    nextDayButton.boundingBox(),
+  ])
+  expect(primaryBox).not.toBeNull()
+  expect(previousBox).not.toBeNull()
+  expect(dateBox).not.toBeNull()
+  expect(nextBox).not.toBeNull()
+  expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+  expect(Math.abs((previousBox!.x + previousBox!.width) - dateBox!.x)).toBeLessThan(1)
+  expect(Math.abs((dateBox!.x + dateBox!.width) - nextBox!.x)).toBeLessThan(1)
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-context-bar.png`),
-    fullPage: true,
+    path: testInfo.outputPath(`attendance-${viewport}-default.png`),
     animations: 'disabled',
   })
 
+  const checkedInStudentSelection = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
+  await checkedInStudentSelection.click()
+  await primaryControl.getByRole('button', { name: 'Student actions for 1 selected' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-check-in.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await checkedInStudentSelection.click()
+
   if (viewport === 'mobile') {
-    const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance actions' })
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show QR' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Stop QR check-in' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  } else {
+    await primaryControl.getByRole('button', { name: 'Show QR' }).hover()
+    await expect(page.getByRole('tooltip', { name: 'Show QR' })).toBeVisible()
+  }
+
+  const firstStudentStatus = page.getByRole('group', {
+    name: 'Attendance status for Student 01 Alpha01',
+  })
+  for (const [label, selected] of [['Present', true], ['Late', false], ['Absent', false]] as const) {
+    const statusButton = firstStudentStatus.getByRole('button', { name: label })
+    await expect(statusButton.locator('svg')).toHaveCount(0)
+    const geometry = await statusButton.evaluate((element) => {
+      const styles = window.getComputedStyle(element)
+      const indicatorStyles = window.getComputedStyle(element, '::after')
+      const bounds = element.getBoundingClientRect()
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        radius: Number.parseFloat(styles.borderTopLeftRadius),
+        indicatorWidth: Number.parseFloat(indicatorStyles.width),
+        indicatorHeight: Number.parseFloat(indicatorStyles.height),
+        indicatorOpacity: Number.parseFloat(indicatorStyles.opacity),
+        indicatorShadow: indicatorStyles.boxShadow,
+      }
+    })
+    expect(geometry.width).toBeCloseTo(44, 1)
+    expect(geometry.height).toBeCloseTo(44, 1)
+    expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
+    expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
+    expect(geometry.indicatorWidth).toBe(28)
+    expect(geometry.indicatorHeight).toBe(28)
+    expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
+    expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.12)
+    expect(geometry.indicatorShadow === 'none').toBe(!selected)
+  }
+  await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
+  await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
+  const undoQrCorrection = page.getByRole('button', {
+    name: 'Undo manual attendance change for Student 01 Alpha01',
+  })
+  await expect(undoQrCorrection).toBeVisible()
+  const undoBounds = await undoQrCorrection.boundingBox()
+  expect(undoBounds).not.toBeNull()
+  expect(undoBounds!.width).toBeCloseTo(44, 1)
+  expect(undoBounds!.height).toBeCloseTo(44, 1)
+  await expect(page.getByTestId('app-message-overlay')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  const selectedActions = primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })
+  await expect(selectedActions).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-manual-with-undo.png`),
+    animations: 'disabled',
+  })
+  await selectedActions.click()
+  const selectedActionsMenu = page.getByRole('menu', { name: 'Selected student attendance actions' })
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Present' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Late' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Absent' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Use automatic' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+
+  await scrollPane.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(scrollPane.locator('thead')).toBeVisible()
+  await page.getByRole('button', { name: 'Sort Present first, 11 students' }).click()
+  await expect(page.getByRole('button', { name: 'Sort Present first, 11 students' })).toHaveAttribute('aria-pressed', 'true')
+
+  if (viewport === 'mobile') {
+    const attendanceMenu = primaryControl.getByRole('button', { name: 'Attendance actions' })
     await expect(attendanceMenu).toBeVisible()
     await attendanceMenu.click()
     await expect(page.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
     await page.getByRole('menuitem', { name: 'Attendance hours' }).click()
   } else {
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
-    await trailingActions.getByRole('button', { name: 'Attendance hours' }).click()
+    await attendanceHours.click()
   }
-  await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Attendance timing' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
+    animations: 'disabled',
+  })
+  if (viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Save timing' }).scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: testInfo.outputPath(`attendance-${viewport}-hours-dialog-actions.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  if (viewport === 'desktop') {
+    attendanceSessionState = 'closed'
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const closedHours = page.getByTestId('attendance-context-bar').getByRole('button', {
+      name: 'Attendance hours, Closed, 12:45 AM to 10:34 PM',
+    })
+    await expect(closedHours).toBeVisible()
+    await expect(closedHours).not.toHaveClass(/bg-success-bg|bg-warning-bg/)
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-closed.png'),
+      animations: 'disabled',
+    })
+
+    hasAttendanceWindow = false
+    await page.getByTestId('attendance-primary-control').getByRole('button', { name: 'Next day' }).click()
+    await expect(contextBar.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-no-hours.png'),
+      animations: 'disabled',
+    })
+  }
+  expect(browserErrors).toEqual([])
+})
+
+test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.goto('/e2e-fixtures/student-attendance', { waitUntil: 'domcontentloaded' })
+
+  await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+  await expect(page.getByText('Checked in at 9:07 AM')).toBeVisible()
+  await expect(page.getByText('Late', { exact: true })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-attendance-${getExperienceMetadata(testInfo).viewport}.png`),
     fullPage: true,
     animations: 'disabled',
   })

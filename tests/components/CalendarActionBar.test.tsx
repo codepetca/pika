@@ -35,6 +35,24 @@ describe('CalendarActionBar', () => {
     expect(onNext).toHaveBeenCalledOnce()
   })
 
+  it('can join the date arrows directly to a chevron-free date button', () => {
+    render(
+      <CalendarDateNavigator
+        label="Aug 17"
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onLabelClick={vi.fn()}
+        joined
+      />,
+    )
+
+    const dateButton = screen.getByRole('button', { name: 'Go to today' })
+    expect(dateButton.parentElement).toHaveClass('overflow-hidden', 'border-border-strong')
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveClass('border-r')
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveClass('border-l')
+    expect(dateButton.querySelector('svg')).toBeNull()
+  })
+
   it('exposes the calendar view control and changes modes', () => {
     const onViewModeChange = vi.fn()
 

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const timeFromDatabaseSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/)
 const policyRowSchema = z.object({
@@ -8,6 +7,10 @@ const policyRowSchema = z.object({
   opens_local: timeFromDatabaseSchema,
   closes_local: timeFromDatabaseSchema,
   close_day_offset: z.union([z.literal(0), z.literal(1)]),
+  entry_opens_minutes_before: z.number().int().min(0).max(720),
+  present_grace_minutes: z.number().int().min(0).max(720),
+  entry_closes_minutes_before_end: z.number().int().min(0).max(720),
+  absent_minutes_before_end: z.number().int().min(0).max(720),
   enabled: z.boolean(),
   policy_revision: z.number().int().safe().positive(),
   updated_at: z.string().datetime({ offset: true }),
@@ -16,9 +19,13 @@ const policyRowSchema = z.object({
 const savedPolicySchema = z.object({
   classroom_id: z.string().uuid(),
   timezone: z.literal('America/Toronto'),
-  opens_local: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  closes_local: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  close_day_offset: z.union([z.literal(0), z.literal(1)]),
+  session_starts_local: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  session_ends_local: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  session_end_day_offset: z.union([z.literal(0), z.literal(1)]),
+  entry_opens_minutes_before: z.number().int().min(0).max(720),
+  present_grace_minutes: z.number().int().min(0).max(720),
+  entry_closes_minutes_before_end: z.number().int().min(0).max(720),
+  absent_minutes_before_end: z.number().int().min(0).max(720),
   enabled: z.boolean(),
   revision: z.number().int().safe().positive(),
   updated_at: z.string().datetime({ offset: true }),
@@ -27,9 +34,13 @@ const savedPolicySchema = z.object({
 export interface TeacherAttendancePolicy {
   classroomId: string
   timezone: 'America/Toronto'
-  opensLocal: string
-  closesLocal: string
-  closeDayOffset: 0 | 1
+  sessionStartsLocal: string
+  sessionEndsLocal: string
+  sessionEndDayOffset: 0 | 1
+  entryOpensMinutesBefore: number
+  presentGraceMinutes: number
+  entryClosesMinutesBeforeEnd: number
+  absentMinutesBeforeEnd: number
   enabled: boolean
   revision: number
   updatedAt: string
@@ -50,9 +61,13 @@ function toPolicy(row: z.infer<typeof policyRowSchema>): TeacherAttendancePolicy
   return {
     classroomId: row.classroom_id,
     timezone: row.timezone,
-    opensLocal: row.opens_local.slice(0, 5),
-    closesLocal: row.closes_local.slice(0, 5),
-    closeDayOffset: row.close_day_offset,
+    sessionStartsLocal: row.opens_local.slice(0, 5),
+    sessionEndsLocal: row.closes_local.slice(0, 5),
+    sessionEndDayOffset: row.close_day_offset,
+    entryOpensMinutesBefore: row.entry_opens_minutes_before,
+    presentGraceMinutes: row.present_grace_minutes,
+    entryClosesMinutesBeforeEnd: row.entry_closes_minutes_before_end,
+    absentMinutesBeforeEnd: row.absent_minutes_before_end,
     enabled: row.enabled,
     revision: row.policy_revision,
     updatedAt: row.updated_at,
@@ -65,7 +80,7 @@ export async function loadTeacherAttendancePolicy(input: {
 }): Promise<TeacherAttendancePolicy | null> {
   const { data, error } = await input.supabase
     .from('attendance_window_policies')
-    .select('classroom_id, timezone, opens_local, closes_local, close_day_offset, enabled, policy_revision, updated_at')
+    .select('classroom_id, timezone, opens_local, closes_local, close_day_offset, entry_opens_minutes_before, present_grace_minutes, entry_closes_minutes_before_end, absent_minutes_before_end, enabled, policy_revision, updated_at')
     .eq('classroom_id', input.classroomId)
     .maybeSingle()
   if (error) {
@@ -81,27 +96,30 @@ export async function saveTeacherAttendancePolicy(input: {
   supabase: any
   teacherId: string
   classroomId: string
-  opensLocal: string
-  closesLocal: string
-  closeDayOffset: 0 | 1
+  sessionStartsLocal: string
+  sessionEndsLocal: string
+  sessionEndDayOffset: 0 | 1
+  entryOpensMinutesBefore: number
+  presentGraceMinutes: number
+  entryClosesMinutesBeforeEnd: number
+  absentMinutesBeforeEnd: number
   enabled: boolean
   expectedRevision: number | null
 }): Promise<TeacherAttendancePolicy> {
-  const scopeMode = getBaraAttendanceScopeMode()
   const { data, error } = await input.supabase.rpc(
-    scopeMode === 'teacher_entitlements'
-      ? 'upsert_attendance_window_policy_v2'
-      : 'upsert_attendance_window_policy_v1', {
+    'upsert_attendance_timing_policy_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
-    p_opens_local: input.opensLocal,
-    p_closes_local: input.closesLocal,
-    p_close_day_offset: input.closeDayOffset,
+    p_session_starts_local: input.sessionStartsLocal,
+    p_session_ends_local: input.sessionEndsLocal,
+    p_session_end_day_offset: input.sessionEndDayOffset,
+    p_entry_opens_minutes_before: input.entryOpensMinutesBefore,
+    p_present_grace_minutes: input.presentGraceMinutes,
+    p_entry_closes_minutes_before_end: input.entryClosesMinutesBeforeEnd,
+    p_absent_minutes_before_end: input.absentMinutesBeforeEnd,
     p_enabled: input.enabled,
     p_expected_revision: input.expectedRevision,
-    ...(scopeMode === 'teacher_entitlements'
-      ? { p_at: new Date().toISOString() }
-      : {}),
+    p_at: new Date().toISOString(),
   })
   if (error) {
     if (isMigrationError(error)) throw new TeacherAttendancePolicyError('migration_required')
@@ -115,9 +133,13 @@ export async function saveTeacherAttendancePolicy(input: {
   return {
     classroomId: parsed.data.classroom_id,
     timezone: parsed.data.timezone,
-    opensLocal: parsed.data.opens_local,
-    closesLocal: parsed.data.closes_local,
-    closeDayOffset: parsed.data.close_day_offset,
+    sessionStartsLocal: parsed.data.session_starts_local,
+    sessionEndsLocal: parsed.data.session_ends_local,
+    sessionEndDayOffset: parsed.data.session_end_day_offset,
+    entryOpensMinutesBefore: parsed.data.entry_opens_minutes_before,
+    presentGraceMinutes: parsed.data.present_grace_minutes,
+    entryClosesMinutesBeforeEnd: parsed.data.entry_closes_minutes_before_end,
+    absentMinutesBeforeEnd: parsed.data.absent_minutes_before_end,
     enabled: parsed.data.enabled,
     revision: parsed.data.revision,
     updatedAt: parsed.data.updated_at,

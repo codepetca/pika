@@ -26,6 +26,10 @@ export interface TeacherAttendanceView {
     state: TeacherAttendanceSessionState
     opensAt: string | null
     closesAt: string | null
+    sessionStartsAt: string | null
+    sessionEndsAt: string | null
+    presentThroughAt: string | null
+    absentAt: string | null
     revision: number | null
     commandFailed: boolean
   }
@@ -39,7 +43,10 @@ export interface TeacherAttendanceView {
     lastName: string
     status: TeacherAttendanceStatus
     source: TeacherAttendanceSource | null
+    checkedInAt: string | null
     revision: number | null
+    hasQrCheckIn: boolean
+    hasManualOverride: boolean
     pendingCommand: boolean
     commandFailed: boolean
   }>

@@ -219,7 +219,7 @@ function TeacherWorkSurfaceActionMenuButton({
                   handleItemSelect(item)
                 }}
                 className={cn(
-                  'w-full rounded-sm px-3 py-2 text-left text-sm text-text-default hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50',
+                  'min-h-control w-full rounded-sm px-3 py-2 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
                   item.destructive ? 'text-danger hover:bg-danger-bg' : '',
                 )}
               >

@@ -3,17 +3,17 @@ import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   BaraAttendanceClientError,
-  type BaraAttendanceMarksResult,
+  type BaraCheckInInvalidationResult,
   type BaraRosterSnapshotResult,
   type BaraScheduleSnapshotResult,
   type BaraSessionCommandResult,
-  postBaraAttendanceMarks,
+  postBaraCheckInInvalidations,
   postBaraSessionCommand,
   putBaraRosterSnapshot,
   putBaraScheduleSnapshot,
 } from '@/lib/server/bara-attendance-client'
 import type {
-  V1AttendanceMarks,
+  V1CheckInInvalidate,
   V1Message,
   V1RosterSnapshot,
   V1ScheduleSnapshot,
@@ -29,13 +29,13 @@ type V1OutboxMessage =
   | V1RosterSnapshot
   | V1ScheduleSnapshot
   | V1SessionCommand
-  | V1AttendanceMarks
+  | V1CheckInInvalidate
 
 export type BaraAttendanceDeliveryResult =
   | BaraRosterSnapshotResult
   | BaraScheduleSnapshotResult
   | BaraSessionCommandResult
-  | BaraAttendanceMarksResult
+  | BaraCheckInInvalidationResult
 
 export type AttendanceOutboxClient = Pick<
   ReturnType<typeof getServiceRoleClient>,
@@ -61,7 +61,7 @@ const messageTypeSchema = z.enum([
   'roster.snapshot',
   'schedule.snapshot',
   'session.command',
-  'attendance.marks',
+  'check_in.invalidate',
 ])
 
 const outboxRowSchema = z.object({
@@ -134,7 +134,7 @@ const sessionResultSchema = z.object({
   sessionRevision: z.number().int().positive(),
 }).strict()
 
-const marksResultSchema = z.object({
+const checkInInvalidationResultSchema = z.object({
   outcome: z.enum(['applied', 'duplicate']),
   occurrenceRef: z.string(),
   sessionRevision: z.number().int().positive(),
@@ -192,7 +192,7 @@ function parseResult(
     case 'roster.snapshot': return rosterResultSchema.parse(value)
     case 'schedule.snapshot': return scheduleResultSchema.parse(value)
     case 'session.command': return sessionResultSchema.parse(value)
-    case 'attendance.marks': return marksResultSchema.parse(value)
+    case 'check_in.invalidate': return checkInInvalidationResultSchema.parse(value)
   }
 }
 
@@ -201,7 +201,7 @@ async function sendMessage(message: V1OutboxMessage): Promise<BaraAttendanceDeli
     case 'roster.snapshot': return putBaraRosterSnapshot(message)
     case 'schedule.snapshot': return putBaraScheduleSnapshot(message)
     case 'session.command': return postBaraSessionCommand(message)
-    case 'attendance.marks': return postBaraAttendanceMarks(message)
+    case 'check_in.invalidate': return postBaraCheckInInvalidations(message)
   }
 }
 
@@ -209,7 +209,7 @@ function isOutboxMessage(message: V1Message): message is V1OutboxMessage {
   return message.message_type === 'roster.snapshot'
     || message.message_type === 'schedule.snapshot'
     || message.message_type === 'session.command'
-    || message.message_type === 'attendance.marks'
+    || message.message_type === 'check_in.invalidate'
 }
 
 function retryAt(attempts: number, now: Date) {
@@ -362,11 +362,11 @@ export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
   teacherId?: string
   classroomId: string
-  message: V1AttendanceMarks
+  message: V1CheckInInvalidate
   scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
-}): Promise<BaraAttendanceMarksResult>
+}): Promise<BaraCheckInInvalidationResult>
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
   teacherId?: string

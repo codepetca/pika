@@ -30,10 +30,10 @@
 
 - Design claim being checked: global Test access actions remain stable in the centered top cluster, the disabled-until-selection student menu becomes the selected-count trigger, row access switches communicate open/closed state, and long-roster table density remains intact.
 - Confirmed invariants: quiet edge context; mathematically centered action cluster; no gap before the table; aligned header/row checkboxes; sticky sortable/resizable header; menu above the table layer; persistent Open All/Close All controls; exact four-item student menu; immediate semantic row switches; responsive light/dark rendering.
-- Inconsistencies or migration debt: Attendance still uses the transitional bottom selection bar and is intentionally deferred to a separate focused change.
+- Historical migration debt: at capture time, Attendance still used the transitional bottom selection bar. PR #1094 later completed that focused Attendance redesign and replaced row selection with confirmed whole-roster actions plus inline corrections.
 - Intentional differences: the implementation uses Pika's existing modal dialog for the consequential AI grading scope choice instead of the exploration board's attached prompt; application tokens, production typography, and long realistic roster data remain authoritative.
 - Limitations or dimensions not covered: no separate tablet viewport; student view is not applicable because this is a teacher-only surface; production data and authenticated routing are covered by existing integration paths rather than this fixture capture.
-- Follow-up owner: next focused Attendance consistency pass.
+- Follow-up owner: none; the Attendance consistency pass is tracked by PR #1094.
 
 ## Rules
 

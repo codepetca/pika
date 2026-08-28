@@ -103,9 +103,9 @@ Do not repeat the same counts in the context row.
   carrier. Do not require confirmation for each row toggle.
 - Confirm broad global state changes and destructive actions. For costly or
   overwrite-capable actions, ask for the meaningful scope at execution time.
-- `TeacherSelectionBar` is transitional support for existing adopters. New or
-  materially refreshed operational tables use the centered persistent menu and
-  do not add bottom selection clearance.
+- `TeacherSelectionBar` remains legacy compatibility with no current production
+  owner. Operational tables use the centered persistent menu and do not add
+  bottom selection clearance.
 
 ## Executable composition
 
@@ -125,7 +125,8 @@ Do not repeat the same counts in the context row.
 ```
 
 The shared components own layout, responsive hierarchy, and scroll containment.
-The feature-owned action cluster owns command placement and selected-count context.
+The feature-owned action cluster owns command placement and, when applicable,
+selected-count context.
 Features own labels, dates, statuses, semantic status colors, row data,
 comparisons, column limits, loading, permissions, commands, and mutations.
 
@@ -148,7 +149,7 @@ the overall composition fits.
 
 | Section/state | Centered action focus | Table adaptation | Status-chip rule |
 | --- | --- | --- | --- |
-| Attendance | Date plus QR/open/close commands; migrate selection actions into the centered persistent menu | First, Last, Source, Status | Present/Late/Absent; Unmarked has no chip |
+| Attendance | Date plus QR/open/close commands and a persistent selected-student actions menu | Selection, First, Last, Check-in, and inline three-state corrections | Present/Late/Absent controls remain in the trailing header; Unmarked has no control |
 | Classwork operational list | Active collection, range, or selected assignment plus immediate commands | Title or student identity, relevant dates/metadata, Status | Use only for a small set of row states teachers actively triage |
 | Tests summary | Active filter/scope and immediate create or management command | Test title, availability, response metadata, Status | Use only when counts map to visible test rows |
 | Selected Test grading roster | Persistent Open All/Close All icons plus the disabled-until-selection student-actions menu | First, Last, Access, score/activity metadata, Status | Suitable for a small mutually meaningful set such as submission/review states |

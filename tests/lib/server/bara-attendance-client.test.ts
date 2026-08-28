@@ -3,7 +3,7 @@ import {
   BaraAttendanceClientError,
   getBaraAttendanceIntegrationState,
   getBaraSessionSnapshot,
-  postBaraAttendanceMarks,
+  postBaraCheckInInvalidations,
   postBaraCheckInPresentation,
   postBaraSessionCommand,
   postBaraStudentCheckIn,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/server/bara-attendance-client'
 import { verifyV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
 import type {
-  V1AttendanceMarks,
+  V1CheckInInvalidate,
   V1CheckInPresentationRequest,
   V1RosterSnapshot,
   V1ScheduleSnapshot,
@@ -51,8 +51,8 @@ const schedulePayload: V1ScheduleSnapshot = {
     occurrence_ref: 'occurrence_one',
     date: '2026-09-02',
     title: 'Period 1 attendance',
-    opens_at: '2026-09-02T12:50:00Z',
-    closes_at: '2026-09-02T13:20:00Z',
+    accepts_at: '2026-09-02T12:50:00Z',
+    stops_accepting_at: '2026-09-02T13:20:00Z',
   }],
 }
 
@@ -69,20 +69,20 @@ const commandPayload: V1SessionCommand = {
   actor_display_name: 'Teacher Owner',
 }
 
-const marksPayload: V1AttendanceMarks = {
+const invalidationPayload: V1CheckInInvalidate = {
   schema_version: 1,
-  message_type: 'attendance.marks',
-  idempotency_key: 'marks:occurrence_one:one',
-  correlation_ref: 'correlation_marks_one',
+  message_type: 'check_in.invalidate',
+  idempotency_key: 'invalidate:occurrence_one:one',
+  correlation_ref: 'correlation_invalidate_one',
   installation_ref: 'pika_test_installation',
   roster_ref: 'roster_one',
   occurrence_ref: 'occurrence_one',
   actor_principal_ref: 'principal_teacher_owner',
   actor_display_name: 'Teacher Owner',
-  marks: [{
-    command_ref: 'mark_participant_one',
-    participant_ref: 'participant_one',
-    status: 'present',
+  invalidations: [{
+    command_ref: 'invalidate_check_in_one',
+    check_in_ref: 'check_in_one',
+    reason_code: 'staff_reset',
   }],
 }
 
@@ -330,7 +330,7 @@ describe('Bara attendance server client', () => {
     expect(JSON.parse(body)).toEqual(commandPayload)
   })
 
-  it('sends bounded attendance marks and accepts only aggregate results', async () => {
+  it('sends bounded check-in invalidations and accepts only aggregate results', async () => {
     const fetcher = vi.fn(async () =>
       new Response(JSON.stringify({
         ok: true,
@@ -342,10 +342,10 @@ describe('Bara attendance server client', () => {
       }), { status: 200 }),
     )
 
-    await expect(postBaraAttendanceMarks(marksPayload, {
+    await expect(postBaraCheckInInvalidations(invalidationPayload, {
       fetcher: fetcher as typeof fetch,
       now: () => 1_786_917_600_000,
-      nonce: () => 'nonce_marks_one_1234567',
+      nonce: () => 'nonce_invalidate_one_123',
     })).resolves.toEqual({
       outcome: 'applied',
       occurrenceRef: 'occurrence_one',
@@ -356,19 +356,19 @@ describe('Bara attendance server client', () => {
 
     const [url, init] = fetcher.mock.calls[0]!
     expect(url).toBe(
-      'https://attendance-api.example/api/integrations/pika/v1/sessions/occurrence_one/marks',
+      'https://attendance-api.example/api/integrations/pika/v1/sessions/occurrence_one/check-in-invalidations',
     )
     const headers = init?.headers as Record<string, string>
     const body = init?.body as string
     await expect(verifyV1RequestSignature({
       secret,
       method: 'POST',
-      path: '/api/integrations/pika/v1/sessions/occurrence_one/marks',
+      path: '/api/integrations/pika/v1/sessions/occurrence_one/check-in-invalidations',
       timestamp: headers['X-Attendance-Timestamp'],
       nonce: headers['X-Attendance-Nonce'],
       body,
     }, headers['X-Attendance-Signature'])).resolves.toBe(true)
-    expect(JSON.parse(body)).toEqual(marksPayload)
+    expect(JSON.parse(body)).toEqual(invalidationPayload)
   })
 
   it('retrieves a closed, signed check-in presentation without service IDs', async () => {
@@ -435,15 +435,14 @@ describe('Bara attendance server client', () => {
         roster_ref: 'roster_one',
         session_revision: 3,
         status: 'closed',
-        opens_at: '2026-09-02T12:50:00.000Z',
-        closes_at: '2026-09-02T13:20:00.000Z',
-        records: [{
+        accepts_at: '2026-09-02T12:50:00.000Z',
+        stops_accepting_at: '2026-09-02T13:20:00.000Z',
+        check_ins: [{
+          check_in_ref: 'check_in_one',
           participant_ref: 'participant_one',
-          record_revision: 2,
-          status: 'absent',
-          source: 'staff_manual',
-          actor_type: 'staff',
-          modified_at: '2026-09-02T13:25:00.000Z',
+          check_in_revision: 2,
+          accepted_at: '2026-09-02T13:01:00.000Z',
+          invalidated_at: '2026-09-02T13:25:00.000Z',
         }],
       }), { status: 200 }),
     )
@@ -456,7 +455,7 @@ describe('Bara attendance server client', () => {
       occurrence_ref: 'occurrence_one',
       roster_ref: 'roster_one',
       status: 'closed',
-      records: [{ participant_ref: 'participant_one', record_revision: 2 }],
+      check_ins: [{ check_in_ref: 'check_in_one', check_in_revision: 2 }],
     })
 
     const [url, init] = fetcher.mock.calls[0]!
@@ -481,14 +480,14 @@ describe('Bara attendance server client', () => {
       ok: true,
       schema_version: 1,
       outcome: 'applied',
-      result_code: 'present_marked',
+      result_code: 'check_in_accepted',
       occurrence_ref: 'occurrence_one',
       session_revision: 2,
-      record: {
+      check_in: {
+        check_in_ref: 'check_in_one',
         participant_ref: 'participant_one',
-        record_revision: 1,
-        status: 'present',
-        modified_at: '2026-09-02T13:01:00.000Z',
+        check_in_revision: 1,
+        accepted_at: '2026-09-02T13:01:00.000Z',
       },
     }
     const fetcher = vi.fn(async () => new Response(JSON.stringify(response), { status: 200 }))
@@ -497,14 +496,14 @@ describe('Bara attendance server client', () => {
       fetcher: fetcher as typeof fetch,
     })).resolves.toEqual({
       outcome: 'applied',
-      resultCode: 'present_marked',
+      resultCode: 'check_in_accepted',
       occurrenceRef: 'occurrence_one',
       sessionRevision: 2,
-      record: {
+      checkIn: {
+        checkInRef: 'check_in_one',
         participantRef: 'participant_one',
-        recordRevision: 1,
-        status: 'present',
-        modifiedAt: '2026-09-02T13:01:00.000Z',
+        checkInRevision: 1,
+        acceptedAt: '2026-09-02T13:01:00.000Z',
       },
     })
     expect(fetcher.mock.calls[0]?.[0]).toBe(

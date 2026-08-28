@@ -114,6 +114,9 @@ jobs:
       - name: Verify durable Course Blueprint purge
         run: bash scripts/check-course-blueprint-purge-database.sh
 
+      - name: Verify Classroom and Blueprint purge admission concurrency
+        run: bash scripts/check-classroom-blueprint-purge-concurrency-database.sh
+
       - name: Verify archive operations and lifecycle evidence
         run: bash scripts/check-classroom-archive-database.sh
 
