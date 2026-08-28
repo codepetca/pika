@@ -2,7 +2,7 @@
 
 ## Provenance
 
-- Implementation commit: `8ea38427900b754eab01cf9f972d01c9663e0d50`
+- Implementation commit: `3d7720d13fa9364beafdd42ee689efaeb06ab4a2`
 - Capture date: 2026-08-28
 - Capture tool: Playwright Chromium through `e2e/experience-matrix.spec.ts`
 - Base URL or environment: local `PIKA_E2E_FIXTURES=true` Next.js development server backed by the local ephemeral Supabase environment
