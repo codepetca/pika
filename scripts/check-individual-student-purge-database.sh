@@ -2,6 +2,7 @@
 set -euo pipefail
 
 DB_CONTAINER="${STUDENT_PURGE_DB_CONTAINER:-supabase_db_pika}"
+DB_NAME="${STUDENT_PURGE_DB_NAME:-postgres}"
 EXPECTED_PROJECT_LABEL="${STUDENT_PURGE_DB_PROJECT_LABEL:-pika}"
 EXPECTED_DB_PORT="${STUDENT_PURGE_DB_PORT:-54322}"
 if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
@@ -18,7 +19,7 @@ if [[ "$PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL" ]] \
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 do $migration$
 begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '123')

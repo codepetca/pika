@@ -1071,9 +1071,15 @@ no persistent local, staging, or production migration was applied.
   storage-deletion failure path. It now proves object/operation failure state,
   error evidence, exponential backoff, lease cleanup, stale-lease rejection,
   and a fresh retry lease before successful completion.
+- Independent high-risk review found and remediation added operation-first row
+  locking plus post-lock live-lease validation, preventing a deadlock or stale
+  failure write when an expired lease is reclaimed concurrently. A disposable
+  two-session regression now proves the stale reporter waits, loses authority,
+  and cannot overwrite the replacement lease or operation retry state.
 - Replayed migrations 001-135 from scratch in a disposable isolated Supabase
-  project. Error-level database lint reports zero findings; focused student
-  purge and archive database contracts, generated database types, 5,170-test
+  project. Error-level database lint reports zero findings and is now an
+  all-schema CI gate; focused student
+  purge and archive database contracts, generated database types, 5,172-test
   coverage, TypeScript, lint, architecture/UI/design policies, migration
   lineage, diff/shell checks, the Pika audit, and the production build pass.
 

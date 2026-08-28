@@ -5,15 +5,31 @@ import { describe, expect, it } from 'vitest'
 const script = readFileSync(resolve(
   process.cwd(), 'scripts/check-individual-student-purge-database.sh',
 ), 'utf8')
+const concurrencyScript = readFileSync(resolve(
+  process.cwd(), 'scripts/check-individual-student-purge-failure-concurrency.sh',
+), 'utf8')
 
 describe('individual-student purge database fixture', () => {
   it('refuses unexpected targets and requires migration 123', () => {
     expect(script).toContain('com.supabase.cli.project')
     expect(script).toContain('STUDENT_PURGE_DB_PROJECT_LABEL:-pika')
     expect(script).toContain('STUDENT_PURGE_DB_PORT:-54322')
+    expect(script).toContain('STUDENT_PURGE_DB_NAME:-postgres')
     expect(script).toContain('PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL"')
     expect(script).toContain('grep -q ":${EXPECTED_DB_PORT}$"')
     expect(script).toContain("version = '123'")
+  })
+
+  it('races an expired failure against reclaim in a disposable database', () => {
+    expect(concurrencyScript).toContain('STUDENT_PURGE_DB_PROJECT_LABEL:-pika')
+    expect(concurrencyScript).toContain('STUDENT_PURGE_DB_PORT:-54322')
+    expect(concurrencyScript).toContain('dropdb -U postgres --if-exists --force "$TMP_DB"')
+    expect(concurrencyScript).toContain('for migration in "$ROOT"/supabase/migrations/*.sql')
+    expect(concurrencyScript).toContain('student_purge_expired_claimer')
+    expect(concurrencyScript).toContain('student_purge_expired_failure')
+    expect(concurrencyScript).toContain("wait_event_type = 'Lock'")
+    expect(concurrencyScript).toContain('student_purge_object_lease_lost')
+    expect(concurrencyScript).toContain('Stale failure mutated the replacement object lease')
   })
 
   it('is destructive only inside a rollback-only transaction', () => {

@@ -1,7 +1,9 @@
 -- Resolve the two error-level database lint findings present after migration 134.
 --
 -- The student-purge failure RPC had a real UPDATE ... FROM ambiguity because
--- both joined tables expose attempt_count. The archive export finding was a
+-- both joined tables expose attempt_count. Its replacement also preserves the
+-- operation-then-object lock order and validates the live lease after waiting
+-- for that lock. The archive export finding was a
 -- plpgsql_check limitation: its transaction-local actor table is created before
 -- use, and the database archive regression executes that path successfully.
 -- Resolve the latter references dynamically after creation, explicitly through
@@ -13,21 +15,33 @@ CREATE OR REPLACE FUNCTION public.fail_student_purge_object(p_operation_id uuid,
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-declare v_attempt integer;
+declare
+  v_attempt integer;
+  v_now timestamptz;
 begin
+  -- Match claim_student_purge_object's operation-then-object lock order. This
+  -- also serializes lease validation against an expired-lease reclaim.
+  perform 1
+  from public.student_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+  for update;
+  if not found then return jsonb_build_object('ok', false, 'status', 409,
+    'error_code', 'student_purge_object_lease_lost', 'error', 'Storage deletion lease expired', 'retryable', true); end if;
+
+  v_now := clock_timestamp();
   update public.student_purge_objects object set status = 'failed', lease_token = null,
     lease_expires_at = null, last_error_code = left(coalesce(p_error_code, 'storage_delete_failed'), 200),
-    next_attempt_at = clock_timestamp() + make_interval(secs => least(300, (2 ^ least(object.attempt_count, 8))::integer)),
-    updated_at = clock_timestamp()
-  from public.student_purge_operations operation
+    next_attempt_at = v_now + make_interval(secs => least(300, (2 ^ least(object.attempt_count, 8))::integer)),
+    updated_at = v_now
   where object.id = p_object_id and object.operation_id = p_operation_id
-    and operation.id = object.operation_id and operation.teacher_id = p_teacher_id
     and object.status = 'processing' and object.lease_token = p_lease_token
+    and object.lease_expires_at > v_now
   returning object.attempt_count into v_attempt;
   if not found then return jsonb_build_object('ok', false, 'status', 409,
     'error_code', 'student_purge_object_lease_lost', 'error', 'Storage deletion lease expired', 'retryable', true); end if;
   update public.student_purge_operations set status = 'failed', retryable = v_attempt < 12,
-    error_code = 'student_purge_storage_delete_failed', updated_at = clock_timestamp()
+    error_code = 'student_purge_storage_delete_failed', updated_at = v_now
   where id = p_operation_id;
   return jsonb_build_object('ok', true, 'status', 202, 'operation_id', p_operation_id,
     'operation_status', 'failed', 'retryable', v_attempt < 12);
