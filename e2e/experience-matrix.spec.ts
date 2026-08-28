@@ -317,6 +317,8 @@ test('keeps the Attendance roster compact with inline status controls', async ({
         indicatorShadow: indicatorStyles.boxShadow,
       }
     })
+    expect(geometry.width).toBeCloseTo(44, 1)
+    expect(geometry.height).toBeCloseTo(44, 1)
     expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
     expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
     expect(geometry.indicatorWidth).toBe(36)

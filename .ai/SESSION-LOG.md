@@ -1357,8 +1357,11 @@ API/schema behavior, and student UI are unchanged.
   covered: yes; semantic pressed state, hit geometry, visible-disc geometry,
   selected ring, inactive opacity, and time labels covered by tests: yes;
   remaining manual follow-up: none.
+- One bounded independent review found the browser regression test described the
+  44 x 44 hit target without asserting its exact size. Added explicit tolerant
+  width/height assertions and reran the four-project matrix successfully.
 
 **Verification:** focused component/UI tests and responsive Attendance Playwright
-matrix (4/4) pass; TypeScript, lint, Pika audit, diff checks, CI, and bounded
-independent review are pending before handoff. Student UI is n/a because this
-remains a teacher-only surface.
+matrix (4/4) pass; TypeScript, lint, Pika audit, and diff checks pass; CI and
+bounded independent re-review are pending before handoff. Student UI is n/a
+because this remains a teacher-only surface.
