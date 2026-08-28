@@ -5,7 +5,7 @@
     "deploymentEnabled": {
       "main": true,
       "production": true,
-      "*": false
+      "**": false
     }
   },
   "crons": [
