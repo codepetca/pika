@@ -18,6 +18,8 @@ describe('configurable attendance timing migration', () => {
       'absent_at', 'policy_revision', 'policy_frozen_at',
     ]) expect(migration).toContain(`add column ${column}`)
     expect(migration).toContain('present_through_at < closes_at')
+    expect(migration).toContain('least(10, durations.duration_minutes - 1)')
+    expect(migration).toContain("closes_at - interval '1 minute'")
   })
 
   it('replaces provider statuses with immutable check-in facts and Pika overrides', () => {
@@ -27,11 +29,21 @@ describe('configurable attendance timing migration', () => {
     expect(migration).toContain("action text not null check (action in ('set', 'undo'))")
     expect(migration).toContain("message_type in (\n      'roster.snapshot', 'schedule.snapshot', 'session.command', 'check_in.invalidate'")
     expect(migration).not.toContain("when 'attendance.record.changed'")
+    expect(migration).toContain("message = 'attendance_check_in_identity_conflict'")
+    expect(migration).toContain("message = 'attendance_check_in_transition_invalid'")
+    expect(migration).toContain('grant select on table public.attendance_check_in_facts to service_role')
+    expect(migration).not.toContain(
+      'grant select, insert, update on table public.attendance_check_in_facts to service_role',
+    )
   })
 
   it('freezes opened occurrences and refuses schedule drift', () => {
     expect(migration).toContain('create function public.stage_attendance_timing_schedule_v1')
     expect(migration).toContain('mapping.opens_at <= p_at')
+    expect(migration.indexOf('mapping.opens_at <= p_at')).toBeLessThan(
+      migration.indexOf("message = 'attendance_schedule_message_mismatch'"),
+    )
+    expect(migration).toContain('and policy_frozen_at is null')
     expect(migration).toContain("message = 'attendance_occurrence_policy_frozen'")
     expect(migration).toContain("'attendance.check_in.accepted', 'attendance.check_in.invalidated'")
   })
@@ -40,6 +52,14 @@ describe('configurable attendance timing migration', () => {
     expect(migration).toContain('create function public.apply_attendance_status_overrides_v1')
     expect(migration).toContain("mark.status not in ('automatic', 'present', 'late', 'absent')")
     expect(migration).toContain("case when v_mark.status = 'automatic' then 'undo' else 'set' end")
+    expect(migration).toContain("v_mark.status = 'automatic' and v_override.id is null")
     expect(migration).toContain('unique (request_id, student_id)')
+  })
+
+  it('fails closed if the pre-release no-legacy-data assumption is false', () => {
+    expect(migration).toContain("where source = 'student_qr'")
+    expect(migration).toContain(
+      "message = 'attendance_timing_cutover_requires_empty_legacy_qr_projection'",
+    )
   })
 })

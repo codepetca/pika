@@ -10036,6 +10036,23 @@ export type Database = {
         }
         Returns: Json
       }
+      upsert_attendance_timing_policy_v1: {
+        Args: {
+          p_absent_minutes_before_end: number
+          p_at?: string
+          p_classroom_id: string
+          p_enabled: boolean
+          p_entry_closes_minutes_before_end: number
+          p_entry_opens_minutes_before: number
+          p_expected_revision?: number
+          p_present_grace_minutes: number
+          p_session_end_day_offset: number
+          p_session_ends_local: string
+          p_session_starts_local: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       upsert_attendance_window_policy_v1: {
         Args: {
           p_classroom_id: string
@@ -10057,23 +10074,6 @@ export type Database = {
           p_enabled: boolean
           p_expected_revision?: number
           p_opens_local: string
-          p_teacher_id: string
-        }
-        Returns: Json
-      }
-      upsert_attendance_timing_policy_v1: {
-        Args: {
-          p_absent_minutes_before_end: number
-          p_at?: string
-          p_classroom_id: string
-          p_enabled: boolean
-          p_entry_closes_minutes_before_end: number
-          p_entry_opens_minutes_before: number
-          p_expected_revision?: number
-          p_present_grace_minutes: number
-          p_session_end_day_offset: number
-          p_session_ends_local: string
-          p_session_starts_local: string
           p_teacher_id: string
         }
         Returns: Json

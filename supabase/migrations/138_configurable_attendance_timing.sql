@@ -3,6 +3,19 @@
 
 -- This integration is pre-release. Obsolete provider-owned status commands
 -- cannot be replayed against the timestamp-only contract.
+do $$
+begin
+  if exists (
+    select 1 from public.attendance_record_projection
+    where source = 'student_qr'
+  ) then
+    raise exception using
+      errcode = '55000',
+      message = 'attendance_timing_cutover_requires_empty_legacy_qr_projection';
+  end if;
+end;
+$$;
+
 delete from public.attendance_integration_outbox
 where message_type = 'attendance.marks';
 alter table public.attendance_integration_outbox
@@ -24,6 +37,29 @@ alter table public.attendance_window_policies
   add column absent_minutes_before_end integer not null default 0
     check (absent_minutes_before_end between 0 and 720);
 
+-- Legacy windows could be shorter than the new 15-minute default split. Keep
+-- every previously valid positive window migratable by shrinking the close
+-- lead first and then the Present grace, while retaining the proposed defaults
+-- for normal-length and newly-created sessions.
+with durations as (
+  select classroom_id, greatest(
+    1,
+    floor(extract(epoch from (closes_local - opens_local)) / 60
+      + close_day_offset * 1440)::integer
+  ) as duration_minutes
+  from public.attendance_window_policies
+)
+update public.attendance_window_policies policy
+set entry_closes_minutes_before_end = least(10, durations.duration_minutes - 1),
+    present_grace_minutes = least(
+      5,
+      durations.duration_minutes
+        - least(10, durations.duration_minutes - 1)
+        - 1
+    )
+from durations
+where durations.classroom_id = policy.classroom_id;
+
 alter table public.attendance_window_policies
   add constraint attendance_window_policy_timing_order check (
     present_grace_minutes <
@@ -44,9 +80,13 @@ alter table public.attendance_occurrence_mappings
 -- Preserve the currently scheduled acceptance interval while giving any
 -- pre-release occurrence the agreed default policy snapshot.
 update public.attendance_occurrence_mappings
-set session_starts_at = opens_at + interval '10 minutes',
+set session_starts_at = least(
+      opens_at + interval '10 minutes', closes_at - interval '1 minute'
+    ),
     session_ends_at = closes_at + interval '10 minutes',
-    present_through_at = opens_at + interval '15 minutes',
+    present_through_at = least(
+      opens_at + interval '15 minutes', closes_at - interval '1 minute'
+    ),
     absent_at = closes_at + interval '10 minutes',
     policy_revision = 1
 where opens_at is not null and closes_at is not null;
@@ -190,7 +230,7 @@ revoke all on table public.attendance_check_in_facts,
   public.attendance_status_override_events,
   public.attendance_override_requests
   from public, anon, authenticated, service_role;
-grant select, insert, update on table public.attendance_check_in_facts to service_role;
+grant select on table public.attendance_check_in_facts to service_role;
 grant select, insert, update on table public.attendance_status_overrides to service_role;
 grant select, insert on table public.attendance_status_override_events to service_role;
 grant select, insert on table public.attendance_override_requests to service_role;
@@ -349,6 +389,9 @@ declare
   v_check_in jsonb;
   v_classroom_id uuid;
   v_student_id uuid;
+  v_existing_check_in public.attendance_check_in_facts%rowtype;
+  v_incoming_revision bigint;
+  v_incoming_invalidated_at timestamptz;
   v_session_rows integer := 0;
   v_check_in_rows integer := 0;
   v_current_rows integer := 0;
@@ -410,35 +453,65 @@ begin
     from public.attendance_participant_mappings
     where classroom_id = v_classroom_id
       and participant_ref = v_check_in->>'participant_ref';
-    insert into public.attendance_check_in_facts (
-      classroom_id, student_id, installation_ref, roster_ref, occurrence_ref,
-      participant_ref, check_in_ref, check_in_revision, accepted_at,
-      invalidated_at, reason_code, last_event_id, last_event_at
-    ) values (
-      v_classroom_id, v_student_id, p_installation_ref, p_snapshot->>'roster_ref',
-      p_snapshot->>'occurrence_ref', v_check_in->>'participant_ref',
-      v_check_in->>'check_in_ref', (v_check_in->>'check_in_revision')::bigint,
-      (v_check_in->>'accepted_at')::timestamptz,
-      case when v_check_in ? 'invalidated_at'
-        then (v_check_in->>'invalidated_at')::timestamptz end,
-      v_check_in->>'reason_code',
-      'reconcile:' || (v_check_in->>'check_in_ref') || ':' ||
-        (v_check_in->>'check_in_revision'), clock_timestamp()
-    ) on conflict (installation_ref, check_in_ref) do update
-      set classroom_id = excluded.classroom_id,
-          student_id = excluded.student_id,
-          roster_ref = excluded.roster_ref,
-          occurrence_ref = excluded.occurrence_ref,
-          participant_ref = excluded.participant_ref,
-          check_in_revision = excluded.check_in_revision,
-          accepted_at = excluded.accepted_at,
-          invalidated_at = excluded.invalidated_at,
-          reason_code = excluded.reason_code,
-          last_event_id = excluded.last_event_id,
-          last_event_at = excluded.last_event_at,
+    v_incoming_revision := (v_check_in->>'check_in_revision')::bigint;
+    v_incoming_invalidated_at := case when v_check_in ? 'invalidated_at'
+      then (v_check_in->>'invalidated_at')::timestamptz end;
+    perform pg_advisory_xact_lock(hashtextextended(
+      p_installation_ref || ':' || (v_check_in->>'check_in_ref'), 0
+    ));
+    select * into v_existing_check_in
+    from public.attendance_check_in_facts
+    where installation_ref = p_installation_ref
+      and check_in_ref = v_check_in->>'check_in_ref'
+    for update;
+
+    if v_existing_check_in.id is null then
+      insert into public.attendance_check_in_facts (
+        classroom_id, student_id, installation_ref, roster_ref, occurrence_ref,
+        participant_ref, check_in_ref, check_in_revision, accepted_at,
+        invalidated_at, reason_code, last_event_id, last_event_at
+      ) values (
+        v_classroom_id, v_student_id, p_installation_ref, p_snapshot->>'roster_ref',
+        p_snapshot->>'occurrence_ref', v_check_in->>'participant_ref',
+        v_check_in->>'check_in_ref', v_incoming_revision,
+        (v_check_in->>'accepted_at')::timestamptz, v_incoming_invalidated_at,
+        v_check_in->>'reason_code',
+        'reconcile:' || (v_check_in->>'check_in_ref') || ':' || v_incoming_revision,
+        clock_timestamp()
+      );
+      v_current_rows := 1;
+    elsif v_existing_check_in.classroom_id <> v_classroom_id
+      or v_existing_check_in.student_id <> v_student_id
+      or v_existing_check_in.roster_ref <> p_snapshot->>'roster_ref'
+      or v_existing_check_in.occurrence_ref <> p_snapshot->>'occurrence_ref'
+      or v_existing_check_in.participant_ref <> v_check_in->>'participant_ref'
+      or v_existing_check_in.accepted_at <>
+        (v_check_in->>'accepted_at')::timestamptz then
+      raise exception using errcode = '23514', message = 'attendance_check_in_identity_conflict';
+    elsif v_incoming_revision < v_existing_check_in.check_in_revision then
+      v_current_rows := 0;
+    elsif v_incoming_revision = v_existing_check_in.check_in_revision then
+      if v_existing_check_in.invalidated_at is distinct from v_incoming_invalidated_at
+        or v_existing_check_in.reason_code is distinct from v_check_in->>'reason_code' then
+        raise exception using errcode = '23514', message = 'attendance_check_in_revision_conflict';
+      end if;
+      v_current_rows := 0;
+    elsif v_existing_check_in.invalidated_at is not null
+      or v_incoming_invalidated_at is null
+      or v_incoming_revision <> v_existing_check_in.check_in_revision + 1 then
+      raise exception using errcode = '23514', message = 'attendance_check_in_transition_invalid';
+    else
+      update public.attendance_check_in_facts
+      set check_in_revision = v_incoming_revision,
+          invalidated_at = v_incoming_invalidated_at,
+          reason_code = v_check_in->>'reason_code',
+          last_event_id = 'reconcile:' || (v_check_in->>'check_in_ref') || ':' ||
+            v_incoming_revision,
+          last_event_at = clock_timestamp(),
           updated_at = clock_timestamp()
-      where excluded.check_in_revision > public.attendance_check_in_facts.check_in_revision;
-    get diagnostics v_current_rows = row_count;
+      where id = v_existing_check_in.id;
+      v_current_rows := 1;
+    end if;
     v_check_in_rows := v_check_in_rows + v_current_rows;
   end loop;
 
@@ -584,6 +657,22 @@ begin
     then greatest(v_roster.schedule_source_revision, 1)
     else v_roster.schedule_source_revision + 1 end;
 
+  -- Freeze a due or remotely-started occurrence before comparing its stored
+  -- policy revision with the newly saved policy. This keeps the current class
+  -- immutable even when its opening event has not reached Pika yet.
+  update public.attendance_occurrence_mappings mapping
+  set policy_frozen_at = coalesce(mapping.policy_frozen_at, p_at)
+  where mapping.classroom_id = p_classroom_id
+    and mapping.policy_frozen_at is null
+    and (
+      mapping.opens_at <= p_at
+      or exists (
+        select 1 from public.attendance_session_projection projection
+        where projection.occurrence_ref = mapping.occurrence_ref
+          and projection.status in ('open', 'closed', 'cancelled')
+      )
+    );
+
   select case when v_policy.enabled then count(*) else 0 end into v_expected_count
   from public.class_days class_day
   where class_day.classroom_id = p_classroom_id
@@ -639,23 +728,11 @@ begin
     raise exception using errcode = '22023', message = 'attendance_schedule_message_mismatch';
   end if;
 
-  update public.attendance_occurrence_mappings mapping
-  set policy_frozen_at = coalesce(mapping.policy_frozen_at, p_at)
-  where mapping.classroom_id = p_classroom_id
-    and mapping.policy_frozen_at is null
-    and (
-      mapping.opens_at <= p_at
-      or exists (
-        select 1 from public.attendance_session_projection projection
-        where projection.occurrence_ref = mapping.occurrence_ref
-          and projection.status in ('open', 'closed', 'cancelled')
-      )
-    );
-
   update public.attendance_occurrence_mappings
   set desired_state = 'cancelled', updated_at = clock_timestamp()
   where classroom_id = p_classroom_id
     and class_date between v_window_start and v_window_end
+    and policy_frozen_at is null
     and not exists (
       select 1 from jsonb_to_recordset(p_cutoffs) cutoff(occurrence_ref text)
       where cutoff.occurrence_ref = attendance_occurrence_mappings.occurrence_ref
@@ -818,10 +895,11 @@ begin
       and student_id = v_mark.student_id
     for update;
 
-    if v_override.id is not null
+    if (v_mark.status = 'automatic' and v_override.id is null)
+      or (v_override.id is not null
       and ((v_mark.status = 'automatic' and not v_override.active)
         or (v_override.active and v_override.status = v_mark.status
-          and v_override.reason_code is not distinct from v_mark.reason_code)) then
+          and v_override.reason_code is not distinct from v_mark.reason_code))) then
       v_unchanged := v_unchanged + 1;
       continue;
     end if;
@@ -1000,6 +1078,9 @@ declare
   v_inbox_id uuid;
   v_classroom_id uuid;
   v_student_id uuid;
+  v_existing_check_in public.attendance_check_in_facts%rowtype;
+  v_incoming_revision bigint;
+  v_incoming_invalidated_at timestamptz;
   v_projection_rows integer := 0;
 begin
   if not public.attendance_event_v1_valid(p_event)
@@ -1100,36 +1181,68 @@ begin
       where occurrence_ref = p_event->>'occurrence_ref';
     end if;
   else
-    insert into public.attendance_check_in_facts (
-      classroom_id, student_id, installation_ref, roster_ref,
-      occurrence_ref, participant_ref, check_in_ref, check_in_revision,
-      accepted_at, invalidated_at, reason_code, last_event_id, last_event_at
-    ) values (
-      v_classroom_id, v_student_id, p_event->>'installation_ref',
-      p_event->>'roster_ref', p_event->>'occurrence_ref',
-      p_event->'metadata'->>'participant_ref',
-      p_event->'metadata'->>'check_in_ref',
-      (p_event->'metadata'->>'check_in_revision')::bigint,
-      (p_event->'metadata'->>'accepted_at')::timestamptz,
-      case when p_event->>'event_type' = 'attendance.check_in.invalidated'
-        then (p_event->'metadata'->>'invalidated_at')::timestamptz end,
-      p_event->'metadata'->>'reason_code', p_event->>'event_id',
-      (p_event->>'occurred_at')::timestamptz
-    ) on conflict (installation_ref, check_in_ref) do update
-      set roster_ref = excluded.roster_ref,
-          classroom_id = excluded.classroom_id,
-          student_id = excluded.student_id,
-          occurrence_ref = excluded.occurrence_ref,
-          participant_ref = excluded.participant_ref,
-          check_in_revision = excluded.check_in_revision,
-          accepted_at = excluded.accepted_at,
-          invalidated_at = excluded.invalidated_at,
-          reason_code = excluded.reason_code,
-          last_event_id = excluded.last_event_id,
-          last_event_at = excluded.last_event_at,
+    v_incoming_revision := (p_event->'metadata'->>'check_in_revision')::bigint;
+    v_incoming_invalidated_at := case
+      when p_event->>'event_type' = 'attendance.check_in.invalidated'
+      then (p_event->'metadata'->>'invalidated_at')::timestamptz end;
+    perform pg_advisory_xact_lock(hashtextextended(
+      (p_event->>'installation_ref') || ':' ||
+        (p_event->'metadata'->>'check_in_ref'), 0
+    ));
+    select * into v_existing_check_in
+    from public.attendance_check_in_facts
+    where installation_ref = p_event->>'installation_ref'
+      and check_in_ref = p_event->'metadata'->>'check_in_ref'
+    for update;
+
+    if v_existing_check_in.id is null then
+      insert into public.attendance_check_in_facts (
+        classroom_id, student_id, installation_ref, roster_ref,
+        occurrence_ref, participant_ref, check_in_ref, check_in_revision,
+        accepted_at, invalidated_at, reason_code, last_event_id, last_event_at
+      ) values (
+        v_classroom_id, v_student_id, p_event->>'installation_ref',
+        p_event->>'roster_ref', p_event->>'occurrence_ref',
+        p_event->'metadata'->>'participant_ref',
+        p_event->'metadata'->>'check_in_ref', v_incoming_revision,
+        (p_event->'metadata'->>'accepted_at')::timestamptz,
+        v_incoming_invalidated_at, p_event->'metadata'->>'reason_code',
+        p_event->>'event_id', (p_event->>'occurred_at')::timestamptz
+      );
+      v_projection_rows := 1;
+    elsif v_existing_check_in.classroom_id <> v_classroom_id
+      or v_existing_check_in.student_id <> v_student_id
+      or v_existing_check_in.roster_ref <> p_event->>'roster_ref'
+      or v_existing_check_in.occurrence_ref <> p_event->>'occurrence_ref'
+      or v_existing_check_in.participant_ref <>
+        p_event->'metadata'->>'participant_ref'
+      or v_existing_check_in.accepted_at <>
+        (p_event->'metadata'->>'accepted_at')::timestamptz then
+      raise exception using errcode = '23514', message = 'attendance_check_in_identity_conflict';
+    elsif v_incoming_revision < v_existing_check_in.check_in_revision then
+      v_projection_rows := 0;
+    elsif v_incoming_revision = v_existing_check_in.check_in_revision then
+      if v_existing_check_in.invalidated_at is distinct from v_incoming_invalidated_at
+        or v_existing_check_in.reason_code is distinct from
+          p_event->'metadata'->>'reason_code' then
+        raise exception using errcode = '23514', message = 'attendance_check_in_revision_conflict';
+      end if;
+      v_projection_rows := 0;
+    elsif v_existing_check_in.invalidated_at is not null
+      or v_incoming_invalidated_at is null
+      or v_incoming_revision <> v_existing_check_in.check_in_revision + 1 then
+      raise exception using errcode = '23514', message = 'attendance_check_in_transition_invalid';
+    else
+      update public.attendance_check_in_facts
+      set check_in_revision = v_incoming_revision,
+          invalidated_at = v_incoming_invalidated_at,
+          reason_code = p_event->'metadata'->>'reason_code',
+          last_event_id = p_event->>'event_id',
+          last_event_at = (p_event->>'occurred_at')::timestamptz,
           updated_at = clock_timestamp()
-      where excluded.check_in_revision > public.attendance_check_in_facts.check_in_revision;
-    get diagnostics v_projection_rows = row_count;
+      where id = v_existing_check_in.id;
+      v_projection_rows := 1;
+    end if;
     update public.attendance_occurrence_mappings
     set policy_frozen_at = coalesce(
       policy_frozen_at, (p_event->'metadata'->>'accepted_at')::timestamptz
