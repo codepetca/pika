@@ -24411,6 +24411,7 @@ no API, schema, persistence, dependency, or hosted state changed.
 and bounded PR review.
 
 <!-- pika-session-log-archive-batch:58771a4e72e193710e63f0d4c318bc52e1efa9473ab780dd70865d74f851e294 -->
+<!-- pika-session-log-archive-batch:326a2e0480084989b7eaea768a89867c5b12284446437d49415eb64a6d65bab0 -->
 ## 2026-08-26 — Move student check-in status into Today side card
 
 **Risk profile:** none — student Today-tab composition only; no attendance

@@ -114,7 +114,7 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
-  it('renders QR check-in time, confirmed whole-roster actions, and no selection controls', async () => {
+  it('renders QR check-in time with persistent checkbox-driven student actions', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(attendanceView()))
       .mockResolvedValueOnce(jsonResponse({
@@ -145,11 +145,24 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
     expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
-    expect(within(primaryControl).getByRole('button', { name: 'Mark all present' })).toBeEnabled()
-    expect(within(primaryControl).getByRole('button', { name: 'Mark all late' })).toBeEnabled()
-    expect(within(primaryControl).getByRole('button', { name: 'Mark all absent' })).toBeEnabled()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /student actions/i })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3)
+    const studentActions = within(primaryControl).getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })
+    expect(studentActions).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
+    const selectedActions = within(primaryControl).getByRole('button', {
+      name: 'Student actions for 1 selected',
+    })
+    expect(selectedActions).toBeEnabled()
+    fireEvent.click(selectedActions)
+    const actionsMenu = screen.getByRole('menu', { name: 'Selected student attendance actions' })
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Present' })).toBeEnabled()
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Late' })).toBeEnabled()
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Absent' })).toBeEnabled()
+    expect(within(actionsMenu).getByRole('menuitem', { name: 'Clear mark' })).toBeEnabled()
+    fireEvent.keyDown(window, { key: 'Escape' })
     const trailingActions = screen.getByTestId('attendance-trailing-actions')
     expect(trailingActions).toHaveClass('flex')
     expect(trailingActions).not.toHaveClass('hidden')
@@ -164,10 +177,6 @@ describe('TeacherLiveAttendanceTab', () => {
     fireEvent.focus(closeAttendance)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
 
-    fireEvent.click(within(primaryControl).getByRole('button', { name: 'Mark all absent' }))
-    const confirm = screen.getByRole('dialog', { name: 'Mark all students absent?' })
-    expect(confirm).toHaveTextContent('all 2 students')
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
   })
 
   it('uses accessible three-state row controls and sortable count chips without context-bar counts', async () => {
@@ -224,6 +233,7 @@ describe('TeacherLiveAttendanceTab', () => {
 
     const statusGroup = screen.getByRole('group', { name: 'Sort attendance by status' })
     const statusHeader = statusGroup.closest('th')
+    expect(within(statusHeader as HTMLElement).queryByText('Status')).not.toBeInTheDocument()
     const presentSort = within(statusGroup).getByRole('button', {
       name: 'Sort Present first, 1 student',
     })
@@ -478,7 +488,7 @@ describe('TeacherLiveAttendanceTab', () => {
     })
   })
 
-  it('confirms and applies whole-roster marks to every student', async () => {
+  it('applies a selected-student action to every checked student and clears selection', async () => {
     const initial = attendanceView()
     const confirmed = attendanceView({
       students: initial.students.map((student) => ({
@@ -495,13 +505,15 @@ describe('TeacherLiveAttendanceTab', () => {
 
     renderTab()
     await screen.findByText('Ada')
-    fireEvent.click(screen.getByRole('button', { name: 'Mark all absent' }))
-    const confirm = screen.getByRole('dialog', { name: 'Mark all students absent?' })
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Mark all absent' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all students' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 2 selected' }))
+    fireEvent.click(within(
+      screen.getByRole('menu', { name: 'Selected student attendance actions' }),
+    ).getByRole('menuitem', { name: 'Absent' }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog', {
-      name: 'Mark all students absent?',
-    })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })).toBeDisabled())
     const post = vi.mocked(fetch).mock.calls[1]
     const body = JSON.parse(String(post[1]?.body))
     expect(body.marks).toEqual(initial.students.map((student) => ({
@@ -656,6 +668,10 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(
       screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' }),
     ).getByRole('button', { name: 'Present' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Mark all present' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeDisabled()
+    expect(screen.getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })).toBeDisabled()
   })
 })

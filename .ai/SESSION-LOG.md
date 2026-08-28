@@ -1277,3 +1277,36 @@ surface.
 **Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
 of requirements coverage, QR provenance projection, accessibility, and
 responsive regression risk.
+
+## 2026-08-28 — Restore selected-student Attendance actions
+
+**Risk profile:** standard application behavior — teacher Attendance selection
+and batch-action composition changed; existing permissions, command polling,
+QR provenance, API/schema behavior, authentication, and student UI are unchanged.
+
+- Restored row and select-all checkboxes plus the persistent Student actions
+  menu, disabled with no selection and labeled with the selected count when
+  enabled. Removed the superseded whole-roster Present/Late/Absent controls.
+- Retained the inline per-student Present/Late/Absent segmented control,
+  Check-in time, and QR correction Undo. Removed only the visible `Status`
+  column-header label while retaining accessible sortable status counts.
+- Preserved the joined date navigator, centered session/action hierarchy, quiet
+  utilities, compact internally scrolling roster, sticky sortable/resizable
+  headers, archived/closed-state permissions, and mobile action access.
+- Refreshed desktop/mobile light/dark evidence for default, selected, open-menu,
+  manual-with-Undo, and hours states. The Tailscale gallery on port 8792 was
+  refreshed and left running. Durable guidance changed only where its
+  Attendance-specific mapping described the superseded whole-roster direction.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic selection, menu, sortable-count, and pressed-state
+  behavior covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** focused component/UI tests (25/25), responsive Attendance
+Playwright matrix (4/4), TypeScript, lint, production build, architecture,
+design policy, UI policy, Pika audit, diff checks, and combined source/rendered
+Product Design comparison pass. Student UI is n/a because this remains a
+teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, selection behavior, accessibility, evidence, and
+responsive regression risk.

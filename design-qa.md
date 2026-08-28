@@ -2,15 +2,15 @@
 
 ## Comparison Target
 
-- Source visual truth: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/approved-design-reference.png` for the selected hierarchy, plus the user's later explicit interaction revision (no row selection/menu; whole-roster status buttons; inline three-state corrections; QR Undo; Check-in time)
+- Source visual truth: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/approved-design-reference.png` for the selected hierarchy, plus the user's explicit interaction revisions through 2026-08-28 (checkbox selection and persistent selected-student menu restored; inline three-state corrections retained; QR Undo retained; Check-in time retained; visible `Status` header label removed)
 - Primary implementation screenshots:
   - `docs/guidance/ui/evidence/attendance-actions-2026-08-27/teacher-desktop-light-default.png`
   - `docs/guidance/ui/evidence/attendance-actions-2026-08-27/teacher-desktop-light-manual-with-undo.png`
-  - `docs/guidance/ui/evidence/attendance-actions-2026-08-27/teacher-desktop-light-bulk-confirmation.png`
+  - `docs/guidance/ui/evidence/attendance-actions-2026-08-27/teacher-desktop-light-selected-menu.png`
 - Additional responsive/theme evidence: all `teacher-desktop-*` and `teacher-mobile-*` captures in the same evidence directory
 - Route: `/e2e-fixtures/teacher-live-attendance`
 - Role: teacher; student is not applicable to this teacher-only surface
-- States: default, a manual correction to a QR check-in with Undo, whole-roster confirmation, internally scrolled/sorted roster, and Attendance hours dialog
+- States: default, a manual correction to a QR check-in with Undo, one checked student with the selected-student menu open, internally scrolled/sorted roster, and Attendance hours dialog
 
 ## Dimensions and Normalization
 
@@ -18,8 +18,9 @@
 - Desktop implementation: 1440 x 900 CSS pixels and image pixels at device scale factor 1.
 - Mobile implementation: 390 x 844 CSS pixels and image pixels at device scale factor 1.
 - Full-view comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-full-default.png`; the source was scaled to 900 px high and placed beside the unscaled 1440 x 900 default implementation.
-- Focused default comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-focus-default.png`; the source default action/table-header crop was normalized to 1440 px wide and stacked with the implementation's 1440 px action/table-header crop.
-- Revised interaction comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-focus-revision.png`; the source default hierarchy and implementation default/manual-correction states are reviewed together, with the user's explicit interaction revision treated as authoritative where it supersedes the image.
+- Focused default comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-focus-default.png`; the 1486 x 529 source default crop and 1440 x 529 implementation crop are placed side by side without density scaling.
+- Focused selected comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-focus-selected-menu.png`; the 1486 x 529 source selected crop and 1440 x 529 implementation selected-menu crop are placed side by side without density scaling.
+- Revised interaction comparison: `docs/guidance/ui/evidence/attendance-actions-2026-08-27/qa-focus-revision.png`; the full source board was scaled to 900 px high and placed beside the unscaled 1440 x 900 implementation selected-menu state, with the user's explicit Attendance revisions treated as authoritative where they supersede the generated image.
 - The source is an exploration board rather than a browser capture, so comparisons judge hierarchy and component treatment rather than false pixel precision.
 
 ## Findings
@@ -31,13 +32,21 @@ No actionable P0, P1, or P2 mismatch remains.
 - Colors and visual tokens: semantic Pika surface, text, focus, attendance-status, light, and dark tokens render consistently. The active state is full-strength while the other two status choices remain visible at lower emphasis; icons and `aria-pressed` ensure the control does not rely on color alone.
 - Image quality and asset fidelity: the work surface requires no photographic or generated product asset. Production Lucide icons replace the generated board's illustrative icons and remain optically consistent with the existing Pika icon family; no handcrafted SVG, CSS art, emoji, or placeholder imagery was introduced.
 - Copy and content: the implementation preserves Attendance-specific terms (`Show QR`, `Open attendance`, `Close attendance`, `Present`, `Late`, `Absent`, `Restore QR check-in`, and `Attendance hours`) and does not import Test terminology. `Check-in` contains the Toronto-local QR check-in time and is visually empty when the student has no QR check-in.
-- Icons and affordances: every icon action has an explicit accessible name and tooltip. The selectable date contains no dropdown chevron. Whole-roster and row status controls use the same green/check, yellow/clock, and red/x mapping at different scopes; the whole-roster action always confirms before mutation.
+- Icons and affordances: every icon action has an explicit accessible name and tooltip. The selectable date contains no dropdown chevron. The persistent selected-student menu uses Attendance terms and remains disabled until selection. Row status controls use the green/check, yellow/clock, and red/x mapping, and the trailing header keeps only the matching sortable counts without a visible `Status` label.
 - Responsiveness and accessibility: desktop/mobile light/dark captures have no document overflow. All direct controls meet the 44 px `min-h-control` target and use the canonical focus-visible treatment. The three-state control supplies a named group, named pressed-state buttons, roving focus, and Arrow/Home/End behavior. Mobile session and utility menus retain all actions.
-- Interaction/runtime check: whole-roster confirmation, direct row status changes, QR Undo visibility, status sorting, internal scrolling/sticky header, mobile session menu, utilities, and Attendance hours were exercised in Chromium. Browser console and page errors were collected and remained empty in all four projects.
+- Interaction/runtime check: checkbox selection, select-all semantics, the selected-student menu, direct row status changes, QR Undo visibility, status sorting, internal scrolling/sticky header, mobile session menu, utilities, and Attendance hours were exercised in Chromium. Browser console and page errors were collected and remained empty in all four projects.
 
 ## Comparison History
 
-### Pass 4 — user interaction revision, passed
+### Pass 5 — checkbox selection restored, passed
+
+- Restored row and select-all checkboxes plus the persistent selected-student actions menu, disabled until selection and labeled with the selected count when enabled.
+- Removed the superseded whole-roster Present/Late/Absent buttons while retaining the per-student three-state control, Check-in time, and QR correction Undo.
+- Removed only the visible `Status` header text; the accessible sortable Present/Late/Absent counts remain in the trailing header.
+- The first selected-state capture included a transient success message over the centered controls. The capture sequence now waits for that message to dismiss before recording the selected menu, eliminating a misleading overlap from the evidence.
+- Focused source/implementation comparison plus the refreshed desktop/mobile light/dark matrix found no actionable P0/P1/P2 issue. All four Chromium projects passed with no browser or page errors.
+
+### Pass 4 — whole-roster interaction revision, passed but superseded by Pass 5
 
 - Removed the earlier checkbox/selected-student menu interaction at the user's direction.
 - Added confirmed whole-roster Present/Late/Absent actions to the centered cluster and immediate inline three-state row corrections.

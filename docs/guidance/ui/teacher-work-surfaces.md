@@ -12,7 +12,7 @@ It governs how those tabs should feel, compose, and evolve. It does not govern:
 - unrelated teacher tabs such as settings or calendar
 - the student product
 
-Assignments are the current baseline for summary-to-workspace progression. Attendance is the reference implementation for compact operational tables with a centered primary control, inline row corrections, and confirmed whole-roster actions. Neither is permanent authority; update this canon when another implementation produces a better shared pattern.
+Assignments are the current baseline for summary-to-workspace progression. Attendance is the reference implementation for compact operational tables with a centered primary control, selection-driven batch corrections, and inline row corrections. Neither is permanent authority; update this canon when another implementation produces a better shared pattern.
 
 ## Read Order
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { addDays, format, parseISO } from 'date-fns'
 import {
   Check,
+  ChevronDown,
   ClipboardCopy,
   Clock3,
   DoorClosed,
@@ -11,16 +12,20 @@ import {
   QrCode as QrCodeIcon,
   RefreshCw,
   RotateCcw,
+  UserRoundCheck,
+  UserRoundX,
   X,
 } from 'lucide-react'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import {
   TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
+import { useTableSelection } from '@/hooks/useTableSelection'
 import { fetchJSON } from '@/lib/request-cache'
 import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -32,7 +37,6 @@ import type {
 import type { Classroom } from '@/types'
 import {
   Button,
-  ConfirmDialog,
   ContentDialog,
   DataTable,
   DataTableBody,
@@ -49,6 +53,8 @@ import {
   RefreshingIndicator,
   SegmentedControl,
   SortableHeaderCell,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   Tooltip,
   cn,
   useAppMessage,
@@ -133,33 +139,6 @@ function AttendanceStatusSortChip({
         >
           {count}
         </span>
-      </Button>
-    </Tooltip>
-  )
-}
-
-function AttendanceMarkAllButton({
-  status,
-  disabled,
-  onClick,
-}: {
-  status: StatusSort
-  disabled: boolean
-  onClick: () => void
-}) {
-  const label = STATUS_LABELS[status]
-  return (
-    <Tooltip content={`Mark all ${label.toLowerCase()}`}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        className={cn('h-11 w-11 px-0 py-0', STATUS_BUTTON_CLASSES[status])}
-        aria-label={`Mark all ${label.toLowerCase()}`}
-        disabled={disabled}
-        onClick={onClick}
-      >
-        {STATUS_ICONS[status]}
       </Button>
     </Tooltip>
   )
@@ -277,7 +256,6 @@ export function TeacherLiveAttendanceTab({
   const [qrError, setQrError] = useState('')
   const [qrPresentation, setQrPresentation] = useState<TeacherAttendanceQrPresentation | null>(null)
   const [attendanceHoursOpen, setAttendanceHoursOpen] = useState(false)
-  const [bulkConfirmation, setBulkConfirmation] = useState<StatusSort | null>(null)
   const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -337,7 +315,6 @@ export function TeacherLiveAttendanceTab({
     setQrError('')
     setQrPresentation(null)
     setAttendanceHoursOpen(false)
-    setBulkConfirmation(null)
     if (isActive) void loadView()
   }, [classroom.id, isActive, loadView, selectedDate])
 
@@ -392,6 +369,19 @@ export function TeacherLiveAttendanceTab({
     }
     return counts
   }, [students])
+  const selectableStudentIds = useMemo(
+    () => students.filter((student) => !student.pendingCommand).map((student) => student.studentId),
+    [students],
+  )
+  const {
+    selectedIds,
+    toggleSelect,
+    toggleSelectAll,
+    allSelected,
+    someSelected,
+    clearSelection,
+    selectedCount,
+  } = useTableSelection(selectableStudentIds)
   const isArchived = Boolean(classroom.archived_at)
   const sessionState = view?.session.state ?? 'not_scheduled'
   const canMark = Boolean(
@@ -406,6 +396,10 @@ export function TeacherLiveAttendanceTab({
     }
     return ids
   }, [localPendingStudentIds, students])
+  const selectedHasPendingStudent = useMemo(
+    () => [...selectedIds].some((studentId) => pendingStudentIds.has(studentId)),
+    [pendingStudentIds, selectedIds],
+  )
   const failedStudentCount = useMemo(
     () => students.filter((student) => student.commandFailed).length,
     [students],
@@ -483,7 +477,10 @@ export function TeacherLiveAttendanceTab({
   async function submitMarks(
     ids: string[],
     status: TeacherAttendanceStatus,
-    successText?: string,
+    options?: {
+      successText?: string
+      clearSelectionAfter?: boolean
+    },
   ) {
     if (!view || activeCommand || ids.length === 0) return
     const commandViewKey = currentViewKeyRef.current
@@ -532,8 +529,9 @@ export function TeacherLiveAttendanceTab({
           ids.forEach((studentId) => next.delete(studentId))
           return next
         })
+        if (options?.clearSelectionAfter) clearSelection()
         showMessage({
-          text: successText
+          text: options?.successText
             ?? `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`,
           tone: 'info',
         })
@@ -663,12 +661,36 @@ export function TeacherLiveAttendanceTab({
     }] : []),
     ...utilityActions,
   ]
-  const bulkMarkDisabled = Boolean(
-    activeCommand
-    || !canMark
-    || students.length === 0
-    || pendingStudentIds.size > 0,
-  )
+  const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'mark-selected-present',
+      label: 'Present',
+      icon: <UserRoundCheck className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks([...selectedIds], 'present', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'mark-selected-late',
+      label: 'Late',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks([...selectedIds], 'late', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'mark-selected-absent',
+      label: 'Absent',
+      icon: <UserRoundX className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks([...selectedIds], 'absent', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'clear-selected-mark',
+      label: 'Clear mark',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(activeCommand) || !canMark,
+      onSelect: () => void submitMarks([...selectedIds], 'unmarked', { clearSelectionAfter: true }),
+    },
+  ]
   const actionBar = (
     <TeacherWorkSurfaceContextBar
       ariaLabel="Attendance controls and summary"
@@ -757,20 +779,31 @@ export function TeacherLiveAttendanceTab({
             </Tooltip>
           ) : null}
           {view?.integration === 'ready' ? (
-            <div
-              role="group"
-              aria-label="Mark all students"
-              className="flex items-center gap-0.5"
-            >
-              {SORTABLE_STATUSES.map((status) => (
-                <AttendanceMarkAllButton
-                  key={status}
-                  status={status}
-                  disabled={bulkMarkDisabled}
-                  onClick={() => setBulkConfirmation(status)}
-                />
-              ))}
-            </div>
+            <TeacherWorkSurfaceMenuButton
+              label={(
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="hidden sm:inline">
+                    {selectedCount > 0 ? `${selectedCount} selected` : 'Student actions'}
+                  </span>
+                  <span className="sm:hidden" aria-hidden="true">
+                    {selectedCount > 0 ? selectedCount : <UserRoundCheck className="h-4 w-4" />}
+                  </span>
+                  <ChevronDown className="hidden h-4 w-4 sm:block" aria-hidden="true" />
+                </span>
+              )}
+              items={selectedStudentActions}
+              variant="secondary"
+              size="sm"
+              disabled={selectedCount === 0 || selectedHasPendingStudent || Boolean(activeCommand) || !canMark}
+              menuAriaLabel="Selected student attendance actions"
+              menuPlacement="down"
+              menuAlign="center"
+              buttonProps={{
+                'aria-label': selectedCount > 0
+                  ? `Student actions for ${selectedCount} selected`
+                  : 'Student actions (select students to enable)',
+              }}
+            />
           ) : null}
         </div>
       )}
@@ -868,6 +901,7 @@ export function TeacherLiveAttendanceTab({
           <DataTable density="tight" className="table-fixed">
             <caption className="sr-only">Student attendance for {formatFullDay(selectedDate)}</caption>
             <colgroup>
+              <col className="w-10" />
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
               <col
@@ -878,6 +912,18 @@ export function TeacherLiveAttendanceTab({
             </colgroup>
             <DataTableHead sticky>
               <DataTableRow>
+                <TableSelectionHeaderCell
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={toggleSelectAll}
+                  ariaLabel="Select all students"
+                  disabled={
+                    !canMark
+                    || Boolean(activeCommand)
+                    || pendingStudentIds.size > 0
+                    || selectableStudentIds.length === 0
+                  }
+                />
                 <SortableHeaderCell
                   label="First"
                   isActive={sortColumn === 'first_name'}
@@ -923,7 +969,6 @@ export function TeacherLiveAttendanceTab({
                   aria-sort={sortColumn === 'status' ? 'other' : 'none'}
                 >
                   <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
-                    <span className="hidden shrink-0 lg:inline">Status</span>
                     <span
                       role="group"
                       aria-label="Sort attendance by status"
@@ -947,6 +992,7 @@ export function TeacherLiveAttendanceTab({
               {rows.map((student) => {
                 const pending = pendingStudentIds.has(student.studentId)
                 const editable = canMark && !pending && !activeCommand
+                const selected = selectedIds.has(student.studentId)
                 const studentName = `${student.firstName} ${student.lastName}`.trim()
                 const checkInTime = formatTime(student.checkedInAt)
                 const canUndoQrCorrection = Boolean(
@@ -958,8 +1004,18 @@ export function TeacherLiveAttendanceTab({
                 return (
                   <DataTableRow
                     key={student.studentId}
-                    className="transition-colors"
+                    aria-selected={selected}
+                    className={cn(
+                      'transition-colors',
+                      selected && 'bg-info-bg hover:bg-info-bg-hover',
+                    )}
                   >
+                    <TableSelectionCell
+                      checked={selected}
+                      onChange={() => toggleSelect(student.studentId)}
+                      ariaLabel={`Select ${studentName}`}
+                      disabled={!editable}
+                    />
                     <DataTableCell className="min-w-0">
                       <span className="block truncate" title={student.firstName || undefined}>
                         {student.firstName || '—'}
@@ -1002,7 +1058,7 @@ export function TeacherLiveAttendanceTab({
                               onClick={() => void submitMarks(
                                 [student.studentId],
                                 student.checkedInStatus!,
-                                `${studentName}'s QR check-in restored`,
+                                { successText: `${studentName}'s QR check-in restored` },
                               )}
                             >
                               <RotateCcw className="h-4 w-4" aria-hidden="true" />
@@ -1019,7 +1075,7 @@ export function TeacherLiveAttendanceTab({
                 )
               })}
               {rows.length === 0 ? (
-                <EmptyStateRow colSpan={4} message="No students enrolled" />
+                <EmptyStateRow colSpan={5} message="No students enrolled" />
               ) : null}
             </DataTableBody>
           </DataTable>
@@ -1041,27 +1097,6 @@ export function TeacherLiveAttendanceTab({
           {content}
         </PageContent>
       </PageLayout>
-      <ConfirmDialog
-        isOpen={bulkConfirmation !== null}
-        onCancel={() => setBulkConfirmation(null)}
-        onConfirm={async () => {
-          const status = bulkConfirmation
-          if (!status) return
-          await submitMarks(
-            students.map((student) => student.studentId),
-            status,
-            `All students marked ${STATUS_LABELS[status].toLowerCase()}`,
-          )
-          setBulkConfirmation(null)
-        }}
-        title={bulkConfirmation ? `Mark all students ${STATUS_LABELS[bulkConfirmation].toLowerCase()}?` : ''}
-        description={bulkConfirmation
-          ? `This will replace the attendance status for all ${students.length} students on ${formatFullDay(selectedDate)}.`
-          : undefined}
-        confirmLabel={bulkConfirmation ? `Mark all ${STATUS_LABELS[bulkConfirmation].toLowerCase()}` : 'Confirm'}
-        isCancelDisabled={Boolean(activeCommand)}
-        isConfirmDisabled={bulkMarkDisabled || Boolean(activeCommand)}
-      />
       <ContentDialog
         isOpen={qrOpen}
         onClose={() => setQrOpen(false)}

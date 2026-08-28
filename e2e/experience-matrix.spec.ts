@@ -252,13 +252,13 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   await expect(contextBar).toContainText('Open')
   if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
   else await expect(trailingActions).toBeVisible()
-  await expect(primaryControl.getByRole('button', { name: 'Mark all present' })).toBeVisible()
-  await expect(primaryControl.getByRole('button', { name: 'Mark all late' })).toBeVisible()
-  await expect(primaryControl.getByRole('button', { name: 'Mark all absent' })).toBeVisible()
-  await expect(page.getByRole('checkbox')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  await expect(page.getByRole('checkbox')).toHaveCount(46)
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })).toBeDisabled()
   await expect(dateButton.locator('svg')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Sort attendance by status' }).locator('xpath=ancestor::th')).not.toContainText('Status')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
     await page.evaluate(() => window.innerHeight + 1),
@@ -304,17 +304,25 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   await expect(page.getByRole('button', {
     name: 'Undo manual attendance change for Student 01 Alpha01',
   })).toBeVisible()
+  await expect(page.getByTestId('app-message-overlay')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  const selectedActions = primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })
+  await expect(selectedActions).toBeEnabled()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-manual-with-undo.png`),
     animations: 'disabled',
   })
-  await primaryControl.getByRole('button', { name: 'Mark all absent' }).click()
-  await expect(page.getByRole('dialog', { name: 'Mark all students absent?' })).toBeVisible()
+  await selectedActions.click()
+  const selectedActionsMenu = page.getByRole('menu', { name: 'Selected student attendance actions' })
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Present' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Late' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Absent' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Clear mark' })).toBeVisible()
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-bulk-confirmation.png`),
+    path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
     animations: 'disabled',
   })
-  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.keyboard.press('Escape')
 
   await scrollPane.evaluate((element) => {
     element.scrollTop = element.scrollHeight
