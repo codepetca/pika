@@ -1285,7 +1285,7 @@ changed.
 - No durable shared guidance changed because this placement and open-only state
   cue are Attendance-specific refinements.
 
-**Verification:** focused component tests (18/18) and the responsive Attendance
+**Verification:** focused component tests (19/19) and the responsive Attendance
 Playwright matrix (4/4) pass with explicit leading-placement, longest-label,
 open-background, neutral-closed, stale, and pending assertions. Open and closed
 source/production captures were visually compared in desktop light/dark; mobile

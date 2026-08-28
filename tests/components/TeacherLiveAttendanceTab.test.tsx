@@ -698,6 +698,22 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(attendanceHours).not.toHaveClass('bg-warning-bg')
   })
 
+  it('keeps pending attendance hours neutral while exposing the updating state', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      sync: { state: 'pending', confirmedAt: '2026-08-17T12:45:00.000Z' },
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    const attendanceHours = within(screen.getByTestId('attendance-context-bar')).getByRole('button', {
+      name: 'Attendance hours, Updating…, 8:45 AM to 9:15 AM',
+    })
+    expect(attendanceHours).toHaveTextContent('8:45 AM - 9:15 AM')
+    expect(attendanceHours).not.toHaveClass('bg-success-bg')
+    expect(attendanceHours).not.toHaveClass('bg-warning-bg')
+  })
+
   it('does not let a command response for one date replace the newly selected date', async () => {
     let resolvePost!: (response: Response) => void
     const postResponse = new Promise<Response>((resolve) => {
