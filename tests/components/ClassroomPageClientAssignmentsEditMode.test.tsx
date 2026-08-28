@@ -147,7 +147,7 @@ vi.mock('@/components/layout', async () => {
           </button>
         ) : null}
         <button type="button" onClick={() => onTabChange('resources')}>
-          Go Syllabus
+          Go Course Guide
         </button>
       </nav>
     ),
@@ -640,7 +640,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
     const pushStateSpy = vi.spyOn(window.history, 'pushState')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Go Syllabus' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go Course Guide' }))
 
     expect(pushStateSpy).not.toHaveBeenCalled()
     expect(replaceStateSpy).toHaveBeenCalled()
@@ -648,7 +648,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(lastReplaceCall?.[2]).toBe('/classrooms/classroom-1?tab=resources')
   })
 
-  it('constrains the syllabus workspace to the viewport without content padding', () => {
+  it('constrains the course guide workspace to the viewport without content padding', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=resources')
     renderClient({ initialTab: 'resources', initialSearchParams: { tab: 'resources' } })
 

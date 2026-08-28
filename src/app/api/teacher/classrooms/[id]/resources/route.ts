@@ -45,16 +45,26 @@ export const GET = withErrorHandler('GetClassroomResources', async (_request, co
   return NextResponse.json({ resources: resources || null })
 })
 
-// PUT /api/teacher/classrooms/[id]/resources - Upsert resources for a classroom
-export const PUT = withErrorHandler('PutUpsertClassroomResources', async (request, context) => {
+async function upsertClassroomResources(
+  request: NextRequest,
+  context: { params: Promise<Record<string, string>> },
+) {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
-  const { content } = body as { content: TiptapContent }
+  const { content, saveRevision } = body as {
+    content: TiptapContent
+    saveRevision: number
+  }
 
-  if (!content || content.type !== 'doc') {
+  if (
+    !content
+    || content.type !== 'doc'
+    || !Number.isSafeInteger(saveRevision)
+    || saveRevision < 1
+  ) {
     return NextResponse.json(
-      { error: 'Invalid content format' },
+      { error: 'Invalid resource save payload' },
       { status: 400 }
     )
   }
@@ -76,6 +86,7 @@ export const PUT = withErrorHandler('PutUpsertClassroomResources', async (reques
       {
         classroom_id: classroomId,
         content,
+        save_revision: saveRevision,
         updated_at: new Date().toISOString(),
         updated_by: user.id,
       },
@@ -84,7 +95,7 @@ export const PUT = withErrorHandler('PutUpsertClassroomResources', async (reques
       }
     )
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error upserting resources:', error)
@@ -94,5 +105,18 @@ export const PUT = withErrorHandler('PutUpsertClassroomResources', async (reques
     )
   }
 
+  if (!resources) {
+    return NextResponse.json(
+      { error: 'A newer resource draft has already been saved' },
+      { status: 409 },
+    )
+  }
+
   return NextResponse.json({ resources })
-})
+}
+
+// PUT /api/teacher/classrooms/[id]/resources - Upsert resources for a classroom
+export const PUT = withErrorHandler('PutUpsertClassroomResources', upsertClassroomResources)
+
+// POST supports navigator.sendBeacon during unload using the same guarded upsert.
+export const POST = withErrorHandler('PostUpsertClassroomResources', upsertClassroomResources)

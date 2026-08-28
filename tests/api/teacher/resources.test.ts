@@ -3,8 +3,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET, PUT } from '@/app/api/teacher/classrooms/[id]/resources/route'
+import { GET, POST, PUT } from '@/app/api/teacher/classrooms/[id]/resources/route'
 import { NextRequest } from 'next/server'
+import type { TiptapContent } from '@/types'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -125,13 +126,13 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: { type: 'invalid', content: [] } }),
+        body: JSON.stringify({ content: { type: 'invalid', content: [] }, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('Invalid content format')
+    expect(data.error).toContain('Invalid resource save payload')
   })
 
   it('should return 400 for missing content', async () => {
@@ -139,13 +140,13 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('Invalid content format')
+    expect(data.error).toContain('Invalid resource save payload')
   })
 
   it('should upsert resources successfully', async () => {
@@ -160,7 +161,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
     const mockFrom = vi.fn(() => ({
       upsert: vi.fn(() => ({
         select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: mockResources, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: mockResources, error: null }),
         })),
       })),
     }))
@@ -170,7 +171,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: mockResources.content }),
+        body: JSON.stringify({ content: mockResources.content, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -192,7 +193,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: { type: 'doc', content: [] } }),
+        body: JSON.stringify({ content: { type: 'doc', content: [] }, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -213,7 +214,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: { type: 'doc', content: [] } }),
+        body: JSON.stringify({ content: { type: 'doc', content: [] }, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -230,7 +231,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: { type: 'doc', content: [] } }),
+        body: JSON.stringify({ content: { type: 'doc', content: [] }, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -241,7 +242,7 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
     const mockFrom = vi.fn(() => ({
       upsert: vi.fn(() => ({
         select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
         })),
       })),
     }))
@@ -251,10 +252,133 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/resources',
       {
         method: 'PUT',
-        body: JSON.stringify({ content: { type: 'doc', content: [] } }),
+        body: JSON.stringify({ content: { type: 'doc', content: [] }, saveRevision: 1 }),
       }
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(500)
+  })
+
+  it('returns 409 when the database rejects an older save revision', async () => {
+    const mockFrom = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/resources',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content: { type: 'doc', content: [] }, saveRevision: 1 }),
+      },
+    )
+    const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'A newer resource draft has already been saved',
+    })
+  })
+})
+
+describe('POST /api/teacher/classrooms/[id]/resources', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('persists a valid unload beacon through the same guarded upsert', async () => {
+    const content = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Unload draft' }] }],
+    }
+    const upsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: 'm-1', classroom_id: 'c-1', content, save_revision: 2 },
+          error: null,
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ upsert }))
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/resources',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, saveRevision: 2 }),
+      },
+    )
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(200)
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      classroom_id: 'c-1',
+      content,
+      save_revision: 2,
+      updated_by: 'teacher-1',
+    }), { onConflict: 'classroom_id' })
+  })
+
+  it('keeps a newer beacon when an older PUT reaches the database afterward', async () => {
+    const olderContent = { type: 'doc', content: [{ type: 'paragraph' }] }
+    const newerContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Newest unload draft' }] }],
+    }
+    let stored: { content: TiptapContent; save_revision: number } = {
+      content: { type: 'doc', content: [] },
+      save_revision: 0,
+    }
+    let releaseOlderWrite: (() => void) | null = null
+
+    const upsert = vi.fn((candidate: { content: TiptapContent; save_revision: number }) => ({
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => {
+          if (candidate.save_revision === 1) {
+            await new Promise<void>((resolve) => {
+              releaseOlderWrite = resolve
+            })
+          }
+          if (candidate.save_revision < stored.save_revision) {
+            return { data: null, error: null }
+          }
+          stored = { content: candidate.content, save_revision: candidate.save_revision }
+          return { data: stored, error: null }
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ upsert }))
+
+    const olderRequest = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/resources',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content: olderContent, saveRevision: 1 }),
+      },
+    )
+    const olderResponsePromise = PUT(olderRequest, { params: Promise.resolve({ id: 'c-1' }) })
+    await vi.waitFor(() => expect(releaseOlderWrite).not.toBeNull())
+
+    const beaconRequest = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/resources',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newerContent, saveRevision: 2 }),
+      },
+    )
+    const beaconResponse = await POST(beaconRequest, { params: Promise.resolve({ id: 'c-1' }) })
+    expect(beaconResponse.status).toBe(200)
+
+    releaseOlderWrite?.()
+    const olderResponse = await olderResponsePromise
+
+    expect(olderResponse.status).toBe(409)
+    expect(stored).toEqual({ content: newerContent, save_revision: 2 })
   })
 })

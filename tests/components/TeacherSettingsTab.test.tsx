@@ -18,6 +18,26 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+vi.mock('@/components/editor', () => ({
+  MarkdownContentEditor: ({ markdown, onMarkdownChange, id, placeholder, className, 'aria-labelledby': ariaLabelledBy }: {
+    markdown: string
+    onMarkdownChange: (value: string) => void
+    id?: string
+    placeholder?: string
+    className?: string
+    'aria-labelledby'?: string
+  }) => (
+    <textarea
+      id={id}
+      aria-labelledby={ariaLabelledBy}
+      placeholder={placeholder}
+      className={className}
+      value={markdown}
+      onChange={(event) => onMarkdownChange(event.target.value)}
+    />
+  ),
+}))
+
 const mockClassroom: Classroom = {
   id: 'cls-123',
   teacher_id: 't1',
@@ -112,33 +132,16 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
 
   it('resets classroom-derived form state when switching classrooms', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    const firstClassroom = {
-      ...mockClassroom,
-      actual_site_slug: 'test-course',
-      actual_site_published: true,
-    }
+    const firstClassroom = { ...mockClassroom }
     const { rerender } = render(
       <TeacherSettingsTab classroom={firstClassroom} sectionParam="general" />,
       { wrapper: Wrapper },
     )
 
     fireEvent.change(screen.getByLabelText('Classroom name'), { target: { value: 'Unsaved Course A' } })
-    rerender(<TeacherSettingsTab classroom={firstClassroom} sectionParam="syllabus" />)
-    fireEvent.change(screen.getByLabelText('Syllabus slug'), { target: { value: 'course-a-draft' } })
+    rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="general" />)
 
-    rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="syllabus" />)
-
-    expect(screen.getByRole('link', { name: '/actual/chemistry-12' })).toHaveAttribute(
-      'href',
-      '/actual/chemistry-12',
-    )
-    expect(screen.queryByRole('link', { name: '/actual/test-course' })).not.toBeInTheDocument()
-
-    await waitFor(() => expect(screen.getByLabelText('Syllabus slug')).toHaveValue('chemistry-12'))
-    expect(screen.getByRole('switch', { name: 'Publish this classroom syllabus' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('one_week_ahead')
-    expect(screen.getByLabelText('Course overview')).toHaveValue('Chemistry overview')
-    expect(screen.getByLabelText('Course outline')).toHaveValue('Chemistry outline')
+    await waitFor(() => expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12'))
 
     rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
     expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
@@ -195,18 +198,6 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     expect(screen.queryByText('Classroom name updated')).not.toBeInTheDocument()
   })
 
-  it('hides syllabus markdown fields when the user preference is off', async () => {
-    window.localStorage.setItem('pika_show_markdown', 'false')
-
-    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />, { wrapper: Wrapper })
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
-    })
-    expect(screen.queryByLabelText('Course outline')).not.toBeInTheDocument()
-    expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
-  })
-
   it('persists the show markdown display setting from the general settings tab', async () => {
     const { rerender } = render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
@@ -219,15 +210,17 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       expect(markdownToggle).toHaveAttribute('aria-checked', 'false')
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
-    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />)
-    expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
-    expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
+    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="general" />)
+    expect(screen.getByRole('switch', { name: 'Show markdown' })).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('exposes the syllabus lesson-plan visibility select with an accessible label', () => {
+  it('routes legacy Course Guide settings URLs back to General settings', () => {
     render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />, { wrapper: Wrapper })
 
-    expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('current_week')
+    expect(screen.getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Classroom name')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Course Guide' })).toBeNull()
+    expect(screen.queryByLabelText('Public page address')).toBeNull()
   })
 
   it('uses the shared section switcher for each settings area', () => {
@@ -245,7 +238,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     expect(within(sectionSwitcher).getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(sectionSwitcher).getByRole('button', { name: 'Access' })).toBeInTheDocument()
     expect(within(sectionSwitcher).getByRole('button', { name: 'Features' })).toBeInTheDocument()
-    expect(within(sectionSwitcher).getByRole('button', { name: 'Syllabus' })).toBeInTheDocument()
+    expect(within(sectionSwitcher).queryByRole('button', { name: 'Course Guide' })).toBeNull()
     expect(within(sectionSwitcher).getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
 
     fireEvent.click(within(sectionSwitcher).getByRole('button', { name: 'Class Days' }))

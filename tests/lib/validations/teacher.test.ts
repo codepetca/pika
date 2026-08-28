@@ -6,14 +6,14 @@ import {
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 describe('teacher validations', () => {
-  it('rejects publishing a syllabus when the request clears the slug', () => {
+  it('rejects publishing a course guide when the request clears the address', () => {
     const result = updateClassroomPublishingSchema.safeParse({
       actualSiteSlug: null,
       actualSitePublished: true,
     })
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.message).toBe('A syllabus slug is required before publishing the syllabus')
+    expect(result.error?.issues[0]?.message).toBe('A public page address is required before sharing the course guide publicly')
   })
 
   it('accepts supported classroom theme colors', () => {
