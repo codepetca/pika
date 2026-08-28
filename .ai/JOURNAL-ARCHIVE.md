@@ -25245,3 +25245,29 @@ dependency, or hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for a localized status
 language and responsive-density refinement.
+
+<!-- pika-session-log-archive-batch:de5b40cb2de27e90b10e60962dfdde397c74a819589a0e5f80fc1619a656b1c3 -->
+## 2026-08-27 — Match Attendance status dots to Daily and TeachAssist
+
+**Risk profile:** none — teacher Attendance presentation, semantic color
+tokens, regression coverage, and pending guidance only; no attendance behavior,
+API, schema, persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the interim check/clock/X/dash roster icons with Daily's 12px
+  accessible status-dot geometry. Visible status labels and aggregate context
+  counts remain removed; tooltip and screen-reader names preserve meaning.
+- Added attendance-specific semantic tokens using the exact colors inspected in
+  the connected TeachAssist teacher view: present `#2DBF00`, late `#F1C700`,
+  absent `#B10606`, and the shared neutral border token for unmarked. The
+  source colors remain stable in dark mode without changing Pika's global
+  success, warning, or danger palette.
+- Full Vitest (5,103/5,103), lint, and the production build pass. Playwright
+  verification covers the teacher surface at desktop/mobile in light/dark
+  across default, scrolled, and selected states; it programmatically confirms
+  ten dots per status, 12px geometry, and the exact TeachAssist RGB values.
+  Visual review confirms the compact roster, sticky header, and mobile
+  selection-bar clearance. Student UI is n/a because this surface is
+  teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for a localized
+cross-product visual-language match and responsive verification.
