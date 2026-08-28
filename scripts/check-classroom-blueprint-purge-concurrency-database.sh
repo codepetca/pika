@@ -22,6 +22,10 @@ psql_local() {
 
 cleanup() {
   psql_local >/dev/null 2>&1 <<'SQL' || true
+select pg_terminate_backend(pid)
+from pg_stat_activity
+where application_name like 'pika_cross_purge_%'
+  and pid <> pg_backend_pid();
 delete from public.course_blueprint_purge_fences
 where operation_id in (
   'd1360000-0000-4000-8000-000000000040',
@@ -58,6 +62,7 @@ where id in (
   'd1360000-0000-4000-8000-000000000011',
   'd1360000-0000-4000-8000-000000000012'
 );
+select set_config('pika.course_blueprint_purge_finalize', 'on', false);
 delete from public.course_blueprints
 where id in (
   'd1360000-0000-4000-8000-000000000020',
@@ -168,17 +173,59 @@ run_race() {
   local blueprint_id="$2"
   local classroom_operation_id="$3"
   local blueprint_operation_id="$4"
+  local race_tag="${classroom_id##*-}"
+  local coordinator_app="pika_cross_purge_gate_${race_tag}"
+  local classroom_app="pika_cross_purge_classroom_${race_tag}"
+  local blueprint_app="pika_cross_purge_blueprint_${race_tag}"
 
-  psql_local -c "select pg_advisory_lock(hashtextextended(jsonb_build_array('classroom_blueprint_purge_pair', '${classroom_id}'::uuid, '${blueprint_id}'::uuid)::text, 0)); select pg_sleep(2); select pg_advisory_unlock(hashtextextended(jsonb_build_array('classroom_blueprint_purge_pair', '${classroom_id}'::uuid, '${blueprint_id}'::uuid)::text, 0));" >/dev/null &
+  docker exec -i -e PGAPPNAME="$coordinator_app" "$DB_CONTAINER" \
+    psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+    -c "select pg_advisory_lock(hashtextextended(jsonb_build_array('classroom_blueprint_purge_pair', '${classroom_id}'::uuid, '${blueprint_id}'::uuid)::text, 0)); select pg_sleep(30);" \
+    >/dev/null 2>&1 &
   local coordinator_pid=$!
-  sleep 0.2
 
-  psql_local -c "begin; insert into public.classroom_purge_fences (classroom_id, operation_id, teacher_id) select '${classroom_id}'::uuid, '${classroom_operation_id}'::uuid, 'd1360000-0000-4000-8000-000000000001'::uuid where public.classroom_purge_conflict('${classroom_id}'::uuid) is null; commit;" >/dev/null &
+  local coordinator_ready=false
+  for _ in {1..100}; do
+    if [[ "$(psql_local -Atc "select count(*) from pg_stat_activity activity join pg_locks held on held.pid = activity.pid where activity.application_name = '${coordinator_app}' and held.locktype = 'advisory' and held.granted")" == "1" ]]; then
+      coordinator_ready=true
+      break
+    fi
+    sleep 0.05
+  done
+  if [[ "$coordinator_ready" != "true" ]]; then
+    echo "Cross-purge coordinator did not acquire the pair lock." >&2
+    return 1
+  fi
+
+  docker exec -i -e PGAPPNAME="$classroom_app" "$DB_CONTAINER" \
+    psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+    -c "begin; insert into public.classroom_purge_fences (classroom_id, operation_id, teacher_id) select '${classroom_id}'::uuid, '${classroom_operation_id}'::uuid, 'd1360000-0000-4000-8000-000000000001'::uuid where public.classroom_purge_conflict('${classroom_id}'::uuid) is null; commit;" \
+    >/dev/null &
   local classroom_pid=$!
-  psql_local -c "begin; insert into public.course_blueprint_purge_fences (course_blueprint_id, operation_id) select '${blueprint_id}'::uuid, '${blueprint_operation_id}'::uuid where public.course_blueprint_purge_conflict('${blueprint_id}'::uuid) is null; commit;" >/dev/null &
+  docker exec -i -e PGAPPNAME="$blueprint_app" "$DB_CONTAINER" \
+    psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+    -c "begin; insert into public.course_blueprint_purge_fences (course_blueprint_id, operation_id) select '${blueprint_id}'::uuid, '${blueprint_operation_id}'::uuid where public.course_blueprint_purge_conflict('${blueprint_id}'::uuid) is null; commit;" \
+    >/dev/null &
   local blueprint_pid=$!
 
-  wait "$coordinator_pid"
+  local contenders_ready=false
+  for _ in {1..100}; do
+    if [[ "$(psql_local -Atc "select count(distinct activity.application_name) from pg_stat_activity activity join pg_locks waiting on waiting.pid = activity.pid where activity.application_name in ('${classroom_app}', '${blueprint_app}') and waiting.locktype = 'advisory' and not waiting.granted")" == "2" ]]; then
+      contenders_ready=true
+      break
+    fi
+    sleep 0.05
+  done
+  if [[ "$contenders_ready" != "true" ]]; then
+    echo "Both cross-purge contenders did not block on the pair lock." >&2
+    return 1
+  fi
+
+  if [[ "$(psql_local -Atc "select coalesce(bool_or(pg_cancel_backend(pid)), false) from pg_stat_activity where application_name = '${coordinator_app}'")" != "t" ]]; then
+    echo "Cross-purge coordinator lock could not be released." >&2
+    return 1
+  fi
+  wait "$coordinator_pid" || true
   wait "$classroom_pid"
   wait "$blueprint_pid"
 

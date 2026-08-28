@@ -1180,6 +1180,9 @@ unchanged and migration 137 is not authorized for hosted application.
   direct, proposal, operation, and editing-session links for atomic advisory
   locking, conflict detection, and upgrade repair. Three synchronized two-session
   database races prove exactly one purge installs a fence for indirect links.
+  The fixture identifies each backend, proves the coordinator owns the pair
+  lock and both contenders are waiting before release, and runs in the CI
+  Architecture Database Contracts job.
 - Preserved the cold-Classroom lifecycle fence that migration 122 added. A
   rollback database regression proves both the shared guard and cold tombstone
   trigger still reject mutations while a cold purge is active.
