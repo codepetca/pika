@@ -66,7 +66,6 @@ describe('classroom feature visibility', () => {
       getAvailableClassroomTabs('teacher', DEFAULT_CLASSROOM_FEATURE_VISIBILITY, true),
     ).toEqual([
       'daily',
-      'attendance',
       'assignments',
       'tests',
       'gradebook',

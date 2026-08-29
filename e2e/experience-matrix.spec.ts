@@ -460,6 +460,181 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   expect(browserErrors).toEqual([])
 })
 
+test('combines Daily logs and entitled Attendance in one teacher work surface', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  const students = Array.from({ length: 18 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(2, '0')
+    const studentId = `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
+    const status = (['present', 'late', 'absent'] as const)[index % 3]
+    return {
+      studentId,
+      firstName: `Student ${ordinal}`,
+      lastName: `Alpha${ordinal}`,
+      status,
+      source: index % 2 === 0 ? 'student_qr' as const : 'staff' as const,
+      checkedInAt: index % 2 === 0 ? `2026-08-17T13:${String(index).padStart(2, '0')}:00.000Z` : null,
+      revision: 1,
+      hasQrCheckIn: index % 2 === 0,
+      hasManualOverride: index % 2 !== 0,
+      pendingCommand: false,
+      commandFailed: false,
+    }
+  })
+
+  await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        class_days: [{
+          id: '50000000-0000-4000-8000-000000000001',
+          classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          date: '2026-08-17',
+          prompt_text: null,
+          is_class_day: true,
+        }],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/logs?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        logs: students.map((student, index) => ({
+          student_id: student.studentId,
+          student_email: `student${String(index + 1).padStart(2, '0')}@example.com`,
+          student_first_name: student.firstName,
+          student_last_name: student.lastName,
+          entry: index % 3 === 0 ? {
+            id: `60000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+            student_id: student.studentId,
+            classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+            date: '2026-08-17',
+            text: `Completed a detailed reflection for ${student.firstName} with enough content to demonstrate the full Daily log tooltip.`,
+            rich_content: null,
+            version: 1,
+            minutes_reported: null,
+            mood: null,
+            created_at: '2026-08-17T14:00:00.000Z',
+            updated_at: '2026-08-17T14:00:00.000Z',
+            on_time: true,
+          } : null,
+          history_preview: [],
+        })),
+      }),
+    })
+  })
+  await page.route('**/api/teacher/log-summary?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        summary_status: 'ready',
+        summary: {
+          overview: 'Students reflected on their progress and next steps.',
+          action_items: [{
+            studentName: 'Student 02 Alpha02',
+            text: 'Student 02 Alpha02 needs a follow-up conversation.',
+          }],
+          generated_at: '2026-08-29T14:10:00.000Z',
+        },
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classDate: '2026-08-17',
+        integration: 'ready',
+        session: {
+          state: 'open',
+          opensAt: '2026-08-17T12:45:00.000Z',
+          closesAt: '2026-08-17T14:00:00.000Z',
+          sessionStartsAt: '2026-08-17T13:00:00.000Z',
+          sessionEndsAt: '2026-08-17T14:00:00.000Z',
+          presentThroughAt: '2026-08-17T13:10:00.000Z',
+          absentAt: '2026-08-17T14:00:00.000Z',
+          revision: 1,
+          commandFailed: false,
+        },
+        sync: { state: 'current', confirmedAt: '2026-08-17T13:20:00.000Z' },
+        students,
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
+
+  const contextBar = page.getByTestId('daily-context-bar')
+  const primaryControl = page.getByTestId('daily-primary-control')
+  await expect(contextBar).toBeVisible()
+  await expect(primaryControl.getByRole('button', { name: 'Select Daily date' })).toHaveText('Mon Aug 17')
+  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
+  await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
+  } else {
+    await expect(primaryControl.getByRole('button', { name: 'Attendance actions' })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
+  const summary = page.getByRole('region', { name: 'Class Log Summary' })
+  await expect(summary).toBeVisible()
+  await expect(summary.getByText('Students reflected on their progress and next steps.')).toBeVisible()
+  await expect(summary.getByText('Today 10:10 AM')).toBeVisible()
+  await expect(summary.getByText(/student02/i)).toHaveCount(0)
+  await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
+  const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
+  await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
+
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-default.png`),
+    animations: 'disabled',
+  })
+
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  await expect(primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Hide ID column' }).click()
+  await expect(page.getByRole('columnheader', { name: 'ID' })).toHaveCount(0)
+  await expect(page.getByRole('separator', { name: 'Resize ID column' })).toHaveCount(0)
+
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-selected-id-hidden.png`),
+    animations: 'disabled',
+  })
+  await verifyProjectContract(page, testInfo)
+
+  await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
+  await page.goto('/e2e-fixtures/teacher-daily-attendance?attendance=off', { waitUntil: 'domcontentloaded' })
+
+  const dailyOnlyContextBar = page.getByTestId('daily-context-bar')
+  await expect(dailyOnlyContextBar).toBeVisible()
+  await expect(dailyOnlyContextBar.getByRole('button', { name: 'Select Daily date' })).toHaveText('Mon Aug 17')
+  await expect(page.getByRole('button', { name: 'Attendance actions' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
+
+  await dailyOnlyContextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByRole('menuitem')).toHaveCount(1)
+  await expect(page.getByRole('menuitem', { name: 'Hide ID column' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-only-${viewport}-more-menu.png`),
+    animations: 'disabled',
+  })
+  await verifyProjectContract(page, testInfo)
+})
+
 test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
   await page.goto('/e2e-fixtures/student-attendance', { waitUntil: 'domcontentloaded' })

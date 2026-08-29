@@ -92,6 +92,10 @@ describe('ClassroomPage feature visibility redirects', () => {
 
   it.each([
     {
+      tab: 'attendance',
+      visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+    },
+    {
       tab: 'tests',
       visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, tests: false },
     },

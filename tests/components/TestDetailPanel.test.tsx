@@ -20,6 +20,13 @@ function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): Te
   } as TestAssessmentWithStats
 }
 
+function holdAutosaveDebounce() {
+  const nativeSetTimeout = globalThis.setTimeout
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback, delay, ...args) => (
+    nativeSetTimeout(callback, delay === 3_000 ? 60_000 : delay, ...args)
+  )) as typeof setTimeout)
+}
+
 const sampleQuestions: TestAssessmentQuestion[] = [
   createMockTestQuestion({ id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], position: 0 }),
   createMockTestQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
@@ -1790,6 +1797,7 @@ Current Test reference material.
 
       const editorPane = await screen.findByTestId('test-question-editor-pane')
       const markdownPane = screen.getByTestId('test-question-markdown-pane')
+      holdAutosaveDebounce()
       const user = userEvent.setup()
       const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
@@ -2399,6 +2407,8 @@ Correct Option: 2
       await waitFor(() => {
         expect(screen.getByText('Markdown')).toBeInTheDocument()
       })
+
+      holdAutosaveDebounce()
 
       fireEvent.click(screen.getByText('Markdown'))
       fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))

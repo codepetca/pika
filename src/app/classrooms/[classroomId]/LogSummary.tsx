@@ -137,7 +137,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
       {summary.action_items.length > 0 && (
         <div>
-          <ul aria-label="Needs attention" className="space-y-1.5">
+          <ul aria-label="Class log follow-ups" className="space-y-1.5">
             {summary.action_items.map((item, index) => {
               // The text starts with the student name — make it clickable
               const startsWithName = item.text.startsWith(item.studentName)
@@ -170,7 +170,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
       )}
 
       <p className="pt-2 text-xs text-text-muted">
-        Generated {formatRelativeDateTimeInToronto(summary.generated_at)}
+        {formatRelativeDateTimeInToronto(summary.generated_at)}
       </p>
     </div>
   )

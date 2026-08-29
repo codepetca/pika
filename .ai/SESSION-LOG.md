@@ -1494,3 +1494,36 @@ strict `main` and `production` ruleset inspection, and diff validation pass.
 **Model recommendation:** GPT-5.6 Terra for the bounded CI/browser-test
 remediation review and GPT-5.6 Sol only if the follow-up audit exposes a deeper
 workflow or safety-lane defect.
+## 2026-08-29 — Combine Daily and teacher Attendance
+
+**Risk profile:** standard application behavior — teacher classroom navigation,
+authoritative Attendance commands, responsive operational-table composition,
+and existing Daily logs/summary; no schema, migration, hosted configuration, or
+student Attendance behavior changed.
+
+- Removed the standalone teacher Attendance destination and composed entitled,
+  classroom-enabled Attendance hours, QR/session commands, selected-student
+  actions, Check-in, and Present/Late/Absent controls into Daily.
+- Preserved Daily date selection, First/Last/ID/Log sorting, resizable columns,
+  log hover text, student-log inspection, and the dotted resizable Class Log
+  Summary. The summary timestamp now omits “Generated,” uses the existing
+  Toronto-relative formatter, and names its action list “Class log follow-ups.”
+- Kept the Daily-only state stable when Attendance is unavailable or disabled:
+  centered date navigation and a trailing More menu containing only Show/Hide
+  ID. Legacy `?tab=attendance` links and new Blueprint classrooms resolve to
+  Daily. Daily-log content never infers Attendance.
+- Added production-path tests for entitlement/setting composition, status and
+  bulk mark commands, session close, QR presentation, sorting, ID removal,
+  menu/dialog focus, and preserved Daily split/resize behavior. Stabilized two
+  unrelated Test-detail debounce assertions selected by the full dependency
+  gate by holding only their 3-second autosave timer during the assertion.
+- Visual verification passed Attendance-on and Daily-only teacher states on
+  desktop/mobile in light/dark, including selection, hidden ID, and open More
+  menu. Student visual verification is n/a because no student surface changed.
+- `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
+  UI/design policy, 193 changed-path tests, 1,305 related tests, TypeScript, and
+  lint. The Pika pre-commit audit passes; the composite-widget checklist is
+  covered by direct semantic, keyboard, focus, and resize tests.
+
+**Model recommendation:** GPT-5.6 Terra high for correctness, requirements,
+responsive behavior, and compatibility review of the complete PR diff.

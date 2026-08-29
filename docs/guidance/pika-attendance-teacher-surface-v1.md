@@ -6,39 +6,42 @@ on an explicitly authorized migration target and hosted configuration.
 
 ## Outcome
 
-Attendance is a native Pika classroom tab. A teacher signs in to Pika once,
-opens the tab, and sees a Pika-owned projection of the Bara attendance session
-for the selected class day. Pika authorizes every teacher action and sends it
+Attendance is an entitlement- and classroom-setting-gated capability composed
+into the native Pika Daily workspace. A teacher signs in to Pika once, opens
+Daily, and sees a Pika-owned projection of the Bara attendance session beside
+the existing Daily logs for the selected class day. Pika authorizes every teacher action and sends it
 through the versioned server adapter; the browser never imports Convex types,
 calls Convex, or depends on a Bara database identifier.
 
-The existing `TeacherAttendanceTab` is a useful table and work-surface
-reference, but it currently renders Daily-log completion from
-`/api/teacher/logs`. The attendance implementation must replace that data model
-rather than relabeling Daily participation as attendance.
+`TeacherAttendanceTab` remains the legacy-named owner of the Daily workspace.
+It composes Daily-log rows from `/api/teacher/logs` with the independent,
+authoritative Attendance controller. Daily-log completion must never be
+relabeled, inferred, or sent as attendance.
 
 ## UI change brief
 
-- Surface: a dedicated Attendance tab beside the existing Daily tab in the
-  classroom sidebar and main pane.
+- Surface: the existing Daily tab. When Attendance is effectively enabled,
+  the Daily table gains Attendance controls and columns; otherwise it retains
+  the same centered date selector and More menu without empty Attendance chrome.
 - Reference: the current Daily-style student table, teacher work-surface shell,
   date navigator, selection behavior, and floating action controls.
 - Affected roles: teacher. Student QR is a separate surface and phase.
 - Required viewports: desktop and mobile.
 - Required themes: light and dark.
 - Primary signal: one session-state treatment (`scheduled`, `open`, `closed`,
-  or `unavailable`) paired with the existing table status cells.
+  or `unavailable`) paired with the authoritative Attendance status cells.
 - Must not add: a Bara iframe, a second sign-in prompt, provider identifiers,
-  duplicate summary chrome, email addresses, or a competing navigation shell.
+  duplicate summary chrome, a separate Attendance navigation item, email
+  addresses, or a competing navigation shell.
 - Composite widget accessibility review needed: yes, for multi-select rows,
-  bulk status commands, the session-controls FAB, and the QR dialog.
+  bulk status commands, the session controls in the context bar, and the QR dialog.
 
 This is a refinement of the existing teacher work-surface pattern, not a new
 application embedded in Pika.
 
 ## Teacher flow
 
-1. The teacher opens a classroom and selects **Attendance**.
+1. The teacher opens a classroom and selects **Daily**.
 2. Pika selects today’s class occurrence from its class-day schedule. A date
    navigator allows review of another class day.
 3. The main pane shows the roster with each student's projected attendance
@@ -46,9 +49,10 @@ application embedded in Pika.
 4. Pika has already materialized the teacher-local attendance policy into a
    concrete UTC open/close window. Bara opens and closes the session
    automatically.
-5. The FAB shows controls appropriate to the state: show/share QR while open,
-   open or close as an explicit override, retry/reconcile when stale, and view
-   lifecycle activity.
+5. The Daily context bar shows controls appropriate to the state: attendance
+   hours at the leading edge; date, show QR, open/close override, and the
+   persistent selected-student menu in the centered cluster; display options
+   in the trailing More menu. Narrow screens consolidate Attendance actions.
 6. The teacher can select one or many students and mark or correct attendance.
    Pika sends a bounded command through the Bara adapter and keeps the rows in a
    pending state until the authoritative event or snapshot revision arrives.
@@ -154,12 +158,14 @@ happy path:
 2. **Native teacher slice:** completed locally. The authenticated,
    teacher-owned route reads Pika's projection, strips opaque references, and
    remains safe before migration application while the integration flag is off.
-   The dedicated Pika tab renders disabled, unavailable, scheduled, open,
-   closed, cancelled, empty-roster, pending, and stale projection treatments.
+   The combined Daily surface renders scheduled, open, closed, cancelled,
+   empty-roster, pending, and stale projection treatments when Attendance is
+   effective. When it is not effective, Daily remains fully usable without
+   Attendance selection, QR/session actions, or status columns.
    Real provider-backed rendering remains gated on step 1.
 3. **Scheduling policy:** completed locally. The owner-only GET/PUT policy API
    stores Toronto-local open/close times with optimistic revisions and does not
-   invent a default window. The Attendance action bar now opens an accessible
+   invent a default window. The Daily context bar now opens an accessible
    settings dialog for same-day or overnight hours and automatic operation.
    Saving immediately requests the same bounded 90-day roster/schedule sync
    used by automation; if delivery is unavailable, the saved policy remains
@@ -175,7 +181,7 @@ happy path:
    enumerated privacy-safe reasons through the durable outbox. The accessible
    multi-select UI keeps commands pending until an authoritative revision is
    projected back into Pika and supports corrections after close.
-6. **QR presentation and native student check-in:** completed locally. The FAB
+6. **QR presentation and native student check-in:** completed locally. The context bar
    lazily fetches a bounded QR presentation through Pika, displays and copies
    the Pika-owned entry URL, and the native entry screen preserves its opaque
    token across Pika login. Pika derives the student from the verified server
@@ -191,4 +197,5 @@ The slice is not complete if the UI infers attendance from Daily-log content,
 if the browser calls Bara or Convex directly, if a teacher sees a second login,
 if automatic open/close is inferred by Bara from Pika tables, or if a pending
 command is presented as confirmed before a Bara revision is projected back
-into Pika.
+into Pika. It is also incomplete if Attendance requires or advertises a
+separate teacher classroom tab rather than progressively enhancing Daily.

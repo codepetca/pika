@@ -15,6 +15,7 @@ const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
+const mockTeacherAttendanceTabProps = vi.hoisted(() => vi.fn())
 const mockUseStudentAttendanceStatusView = vi.hoisted(() => vi.fn())
 const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
 const mockAppShellProps = vi.hoisted(() => vi.fn())
@@ -57,10 +58,6 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
   TeacherAssignmentsMarkdownEditor: ({ markdownContent }: any) => (
     <div>Markdown editor: {markdownContent}</div>
   ),
-}))
-
-vi.mock('@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab', () => ({
-  TeacherLiveAttendanceTab: () => <div>Live attendance</div>,
 }))
 
 vi.mock('@/components/AppShell', () => ({
@@ -295,7 +292,10 @@ vi.mock('@/app/classrooms/[classroomId]/StudentAssignmentsTab', () => ({
   StudentAssignmentsTab: () => <div />,
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherAttendanceTab', () => ({
-  TeacherAttendanceTab: () => <div />,
+  TeacherAttendanceTab: (props: any) => {
+    mockTeacherAttendanceTabProps(props)
+    return <div data-testid="teacher-daily" />
+  },
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherRosterTab', () => ({
   TeacherRosterTab: () => <div />,
@@ -475,6 +475,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
     mockStudentTodayTabProps.mockReset()
+    mockTeacherAttendanceTabProps.mockReset()
     mockUseStudentAttendanceStatusView.mockReset()
     mockUseStudentAttendanceStatusView.mockReturnValue({
       view: {
@@ -501,15 +502,31 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
   })
 
-  it('does not expose the Attendance destination when server entitlement is unavailable', () => {
+  it('falls back to Daily without Attendance controls when server entitlement is unavailable', () => {
     renderClient({
       initialTab: 'attendance',
       initialSearchParams: { tab: 'attendance' },
       attendanceAvailable: false,
     })
 
-    expect(screen.queryByRole('button', { name: 'Go Attendance' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Live attendance')).not.toBeInTheDocument()
+    expect(screen.getByTestId('teacher-daily')).toBeInTheDocument()
+    expect(mockTeacherAttendanceTabProps).toHaveBeenCalledWith(expect.objectContaining({
+      attendanceEnabled: false,
+      isActive: true,
+    }))
+  })
+
+  it('enables Attendance controls inside Daily when entitlement and classroom setting are active', () => {
+    renderClient({
+      initialTab: 'daily',
+      initialSearchParams: { tab: 'daily' },
+      attendanceAvailable: true,
+    })
+
+    expect(mockTeacherAttendanceTabProps).toHaveBeenCalledWith(expect.objectContaining({
+      attendanceEnabled: true,
+      isActive: true,
+    }))
   })
 
   it('puts the signed-in student attendance status in the Today plan section', async () => {
