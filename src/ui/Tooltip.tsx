@@ -28,6 +28,8 @@ export interface TooltipProps {
   align?: 'start' | 'center' | 'end'
   /** Optional Tailwind classes for the tooltip content wrapper */
   className?: string
+  /** Prevent the tooltip from opening while preserving its trigger structure. */
+  disabled?: boolean
 }
 
 /**
@@ -47,9 +49,14 @@ export function Tooltip({
   side = 'bottom',
   align = 'center',
   className,
+  disabled = false,
 }: TooltipProps) {
   return (
-    <TooltipPrimitive.Root delayDuration={delayDuration} disableHoverableContent={!interactive}>
+    <TooltipPrimitive.Root
+      delayDuration={delayDuration}
+      disableHoverableContent={!interactive}
+      open={disabled ? false : undefined}
+    >
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

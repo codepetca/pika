@@ -1521,8 +1521,13 @@ student Attendance behavior changed.
   selection, hidden ID, open More menus, the sticky long-roster header, and the
   contained QR-override recovery row. The unchanged student Daily flow also
   passed in all four browser projects.
+- Ready-PR CI exposed an action-menu focus race in the existing Tests workspace.
+  Tooltip-wrapped icon menus now keep the same trigger mounted while their menu
+  is open and suppress only the tooltip, so a dialog reliably captures and
+  restores focus to its opener. The full Tests workspace file and a shared
+  action-cluster trigger-identity regression cover the hosted failure.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 227 changed-path tests, 1,331 related tests, TypeScript, and
+  UI/design policy, 228 changed-path tests, 1,868 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 

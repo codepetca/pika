@@ -1,11 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { Pencil, Plus } from 'lucide-react'
+import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
+  TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TooltipProvider } from '@/ui'
 
 describe('TeacherWorkSurfaceActionCluster', () => {
   it('separates primary chooser actions from direct contextual toggles', () => {
@@ -115,5 +117,25 @@ describe('TeacherWorkSurfaceActionCluster', () => {
 
     expect(outerEscapeHandler).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
+  })
+
+  it('keeps a tooltip-wrapped icon menu trigger mounted while its menu opens', () => {
+    render(
+      <TooltipProvider>
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="More actions"
+          tooltip="More actions"
+          icon={<EllipsisVertical aria-hidden="true" />}
+          items={[{ id: 'edit', label: 'Edit', onSelect: vi.fn() }]}
+        />
+      </TooltipProvider>,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('button', { name: 'More actions' })).toBe(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(trigger).toHaveFocus()
   })
 })

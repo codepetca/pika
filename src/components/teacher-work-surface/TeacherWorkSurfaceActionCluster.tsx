@@ -384,10 +384,10 @@ export function TeacherWorkSurfaceIconMenuButton({
           </Button>
         )
 
-        if (!tooltip || isOpen) return button
+        if (!tooltip) return button
 
         return (
-          <Tooltip content={tooltip}>
+          <Tooltip content={tooltip} disabled={isOpen}>
             <span className="inline-flex">{button}</span>
           </Tooltip>
         )
