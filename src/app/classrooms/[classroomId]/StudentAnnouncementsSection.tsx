@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Button, PageState, RefreshingIndicator } from '@/ui'
+import { Button, Card, PageState, RefreshingIndicator } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
@@ -166,9 +166,9 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
         const title = normalizeAnnouncementTitle(announcement.title)
 
         return (
-          <div
+          <Card
             key={announcement.id}
-            className="bg-surface rounded-lg border border-border p-4"
+            padding="sm"
           >
             <p className="text-[11px] text-text-muted mb-2">
               {formatAnnouncementTimestamp(announcement.created_at)}
@@ -180,7 +180,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
               </h3>
             )}
             <AnnouncementContent content={announcement.content} />
-          </div>
+          </Card>
         )
       })}
 

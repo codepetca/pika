@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button, PageState, SaveStatus } from '@/ui'
+import { Button, Card, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -658,7 +658,7 @@ export function StudentTodayTab({
           </Button>
         </div>
       )}
-      <div className="bg-surface rounded-lg border border-border p-6">
+      <Card padding="lg">
         {!isClassDay ? (
           <div className="bg-page border border-border rounded-lg p-4 text-center">
             <p className="text-text-muted">No class today</p>
@@ -698,9 +698,9 @@ export function StudentTodayTab({
             )}
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-surface border border-border rounded-lg">
+      <Card padding="none">
         <div className="px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold text-text-default">Past logs</h2>
         </div>
@@ -739,7 +739,7 @@ export function StudentTodayTab({
             })
           )}
         </div>
-      </div>
+      </Card>
     </PageStack>
   )
 

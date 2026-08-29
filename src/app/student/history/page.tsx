@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, FormEvent } from 'react'
-import { Button, ContentDialog, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
+import { Button, Card, ContentDialog, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
 import type { Entry, Classroom } from '@/types'
@@ -261,7 +261,7 @@ export default function HistoryPage() {
     >
       {/* Classroom List Sidebar */}
       <div className="w-full flex-shrink-0 md:w-64">
-        <div className="bg-surface rounded-lg shadow-sm p-4">
+        <Card padding="sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">My Classes</h3>
             <Button
@@ -316,7 +316,7 @@ export default function HistoryPage() {
               </Button>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Main Content */}
@@ -345,7 +345,7 @@ export default function HistoryPage() {
           />
         ) : selectedClassroom ? (
           <div>
-            <div className="bg-surface rounded-lg shadow-sm p-6 mb-6">
+            <Card padding="lg" className="mb-6">
               <h2 className="text-2xl font-bold text-text-default mb-1">
                 {selectedClassroom.title}
               </h2>
@@ -374,9 +374,9 @@ export default function HistoryPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
-            <div className="bg-surface rounded-lg shadow-sm divide-y">
+            <Card padding="none" className="divide-y divide-border">
               {loadingHistory ? (
                 <div className="p-8 text-center text-text-muted">
                   <Spinner size="md" />
@@ -423,12 +423,12 @@ export default function HistoryPage() {
                   )
                 })
               )}
-            </div>
+            </Card>
           </div>
         ) : (
-          <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
+          <Card padding="lg" className="text-center text-text-muted">
             Select a class to view your attendance
-          </div>
+          </Card>
         )}
       </div>
 

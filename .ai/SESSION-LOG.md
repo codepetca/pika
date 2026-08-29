@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Complete the canonical Test-question identity cutover
-
-**Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
-archive reuse, and migration concurrency contracts; no database was reset or
-migrated and no hosted state changed.
-
-- Defined one persisted portable question identity,
-  `coalesce(source_artifact_id, artifact_id)`, while keeping
-  `test_questions.id` internal. Post-backfill save, activation, and Blueprint
-  capture no longer union portable identity with internal row identity.
-- Made `question_identity_version: 1` mandatory for new and updated Test drafts.
-  The pre-migration application can still project unmarked live drafts with
-  exact internal-row precedence; migration 134 marks every live Test draft and
-  installs an at-rest constraint that makes that compatibility branch
-  unreachable after commit.
-- Added uniqueness constraints for active Tests and Test questions at their
-  portable identity boundaries. Capture selects only the active Test generation
-  and remains read-only with respect to Test and question identity.
-- Standardized write locking as Classroom, Test, Draft, then questions,
-  including the shared question-mutation trigger. The database contract now
-  runs save and activation against the real archived-Classroom reuse operation
-  in both arrival orders.
-- Preserved immutable Blueprint Versions byte-for-byte and kept legacy identity
-  translation at the explicit cold-archive restore boundary. Restored resources
-  are normalized in memory into the canonical marked format before reuse.
-- Added a CI-only lifecycle contract that resets an ephemeral database to
-  migration 133, seeds the known production row-ID/artifact-ID collision,
-  applies 134, and continues through save and activation. It was syntax-checked
-  locally but intentionally not executed outside CI.
-- The focused 44-test identity/archive/capture suite, full 5,150-test suite,
-  TypeScript, lint, architecture/design/UI policies, managed-storage lineage,
-  shell syntax, diff validation, and production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
-database concurrency review, and migration lifecycle verification.
-
 ## 2026-08-27 — Separate captured Test membership from source identity
 
 **Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
@@ -1314,3 +1278,51 @@ GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
 **Model recommendation:** Sonnet 5 is sufficient for the suggested next
 steps (the Card-primitive convergence pass and Tests mobile-mode scoping);
 escalate only if Tests mobile mode turns into a state-machine redesign.
+
+## 2026-08-29 — Student compact exam mode and Card convergence
+
+**Risk profile:** exam-mode — changes the student Tests exam shell and one
+window-compliance rule. No schema, route, dependency, or deployment change.
+
+- Added a compact exam layout to `StudentTestsTab`: below `lg`, a shared
+  `SegmentedControl` switches between Questions and Documents instead of
+  stacking the documents pane above the questions. Both panes stay mounted and
+  only their visibility changes, so `StudentTestForm` is never unmounted and
+  in-progress answers survive a swap. Swapping carries the existing doc/form
+  interaction suppression so it is not recorded as an exam exit.
+- Moved the exam window-compliance decision into
+  `src/lib/exam-window-compliance.ts`. Added a narrow exemption for a
+  height-only viewport shrink on compact touch viewports: a browser that
+  supports the Fullscreen API does not take the existing mobile fallback, so an
+  on-screen keyboard raised the "Window must be maximized" lock mid-typing. The
+  exemption still requires the normal width threshold.
+- Fixed a pre-existing desktop overflow found by the new browser coverage:
+  `lg:grid-cols-[30%_70%]` plus `gap-2` summed past 100%, so the detail pane
+  ended at 1448px in a 1440px viewport. Percentage tracks are now
+  `minmax(0,3fr)/minmax(0,7fr)` and `minmax(0,1fr)` pairs. The same pattern
+  remains in `TeacherTestPreviewPage.tsx` and was left for the teacher-surface
+  owner to avoid colliding with in-flight work.
+- Converted `StudentTodayTab`, `StudentAnnouncementsSection`,
+  `StudentClassResourcesSidebar`, and `/student/history` from hand-rolled
+  `bg-surface`/`shadow-sm` boxes to the `Card` primitive. `rounded-card` and
+  `p-card-cozy` map exactly onto the previous `rounded-lg`/`p-6`; list-item
+  boxes tightened 16px to 14px onto the card scale. Biggest win is dark mode,
+  where the history boxes previously had only `shadow-sm` and so had no visible
+  boundary.
+- Corrected an earlier recommendation in the student review doc: `EmptyState`
+  renders its own `Card` and `<h2>`, so it is wrong for the empty row inside
+  the past-logs card. That stays a compact inline row.
+- Added durable Playwright coverage for the compact exam layout across the
+  existing desktop/mobile and light/dark projects, plus 20 focused unit and
+  component tests. Card changes were verified with before/after captures at
+  1440 and 390 in light and dark through a temporary local harness.
+- Full suite passes except `ai-startup-docs` running `verify-env.sh`, which
+  requires Node 24 and fails identically on an unmodified checkout in this
+  Node 22 container. Lint, design policy, UI policy, architecture, and the
+  production build all pass.
+
+No deployment or database operation was performed.
+
+**Model recommendation:** Sonnet 5 for the remaining student polish; escalate
+for any further change to exam window-compliance rules, which are integrity
+sensitive.

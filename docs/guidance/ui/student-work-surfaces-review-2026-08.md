@@ -73,7 +73,24 @@ utility routes. It does not re-litigate teacher surfaces.
 
 ## Ranked findings
 
-### P1 — the one real gap worth planning for
+### P1 — resolved
+
+**Status:** done. Student Tests now has a compact exam mode: below `lg` a
+Questions/Documents switch shows one pane at a time, both panes stay mounted
+so in-progress answers survive a swap, and swapping is not recorded as an exam
+exit. Two bugs surfaced while building it and are fixed:
+
+- On a browser that supports the Fullscreen API (Android Chrome), the existing
+  mobile fallback did not apply, so an on-screen keyboard shrinking the
+  viewport raised the "Window must be maximized" lock mid-typing.
+- The desktop split used `lg:grid-cols-[30%_70%]` with `gap-2`, so the tracks
+  summed past 100% and the page scrolled horizontally at 1440px. Now fr-based.
+
+The same percentage-track pattern remains in
+`src/components/TeacherTestPreviewPage.tsx` and was deliberately left for the
+teacher-surface owner.
+
+### P1 — original finding
 
 **Student Tests and the Assignment editor are not mobile-adapted; Tests has
 no mobile mode at all.** Every other student surface either already branches
@@ -102,8 +119,22 @@ drift the teacher audit called out and converged before declaring Attendance
 and is the cheapest way to make the student side visually match the polish
 level Attendance/Tests already have on the teacher side.
 
-`StudentTodayTab`'s "No past logs yet" state should also use `EmptyState`
-instead of a raw paragraph, for the same reason.
+Correction to an earlier draft of this review: it also recommended replacing
+`StudentTodayTab`'s "No past logs yet" line with `EmptyState`. That is wrong.
+`EmptyState` renders its own `Card` with an `<h2>`, so using it for an empty
+row inside the past-logs card would nest a card in a card and duplicate the
+section heading. A compact inline empty row is the correct pattern there;
+`EmptyState` stays a page- or region-level primitive.
+
+**Status:** done. `StudentTodayTab`, `StudentAnnouncementsSection`,
+`StudentClassResourcesSidebar`, and `/student/history` now use `Card`. Token
+mapping is exact where it matters (`rounded-card` == `rounded-lg`,
+`p-card-cozy` == `p-6`); list-item boxes moved from `p-4` to `padding="sm"`
+(14px), a 2px tightening onto the card scale. Verified with before/after
+captures at 1440 and 390, light and dark. The clearest win is dark mode: the
+`/student/history` boxes previously carried only `shadow-sm`, which is
+effectively invisible on a dark background, so they had no visible boundary
+at all; they now have proper borders.
 
 ### P3 — worth a quick live check, not a code-visible gap
 

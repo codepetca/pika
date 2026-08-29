@@ -25953,3 +25953,40 @@ unapplied migration 134 backfill; no database was reset or migrated.
 
 **Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
 boundary change, with an independent compatibility review.
+
+<!-- pika-session-log-archive-batch:f43cda02c032e2fbac30efcbf8ac54261328d68fa5d9373326cc712ab3307efb -->
+## 2026-08-27 — Complete the canonical Test-question identity cutover
+
+**Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
+archive reuse, and migration concurrency contracts; no database was reset or
+migrated and no hosted state changed.
+
+- Defined one persisted portable question identity,
+  `coalesce(source_artifact_id, artifact_id)`, while keeping
+  `test_questions.id` internal. Post-backfill save, activation, and Blueprint
+  capture no longer union portable identity with internal row identity.
+- Made `question_identity_version: 1` mandatory for new and updated Test drafts.
+  The pre-migration application can still project unmarked live drafts with
+  exact internal-row precedence; migration 134 marks every live Test draft and
+  installs an at-rest constraint that makes that compatibility branch
+  unreachable after commit.
+- Added uniqueness constraints for active Tests and Test questions at their
+  portable identity boundaries. Capture selects only the active Test generation
+  and remains read-only with respect to Test and question identity.
+- Standardized write locking as Classroom, Test, Draft, then questions,
+  including the shared question-mutation trigger. The database contract now
+  runs save and activation against the real archived-Classroom reuse operation
+  in both arrival orders.
+- Preserved immutable Blueprint Versions byte-for-byte and kept legacy identity
+  translation at the explicit cold-archive restore boundary. Restored resources
+  are normalized in memory into the canonical marked format before reuse.
+- Added a CI-only lifecycle contract that resets an ephemeral database to
+  migration 133, seeds the known production row-ID/artifact-ID collision,
+  applies 134, and continues through save and activation. It was syntax-checked
+  locally but intentionally not executed outside CI.
+- The focused 44-test identity/archive/capture suite, full 5,150-test suite,
+  TypeScript, lint, architecture/design/UI policies, managed-storage lineage,
+  shell syntax, diff validation, and production build pass.
+
+**Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
+database concurrency review, and migration lifecycle verification.

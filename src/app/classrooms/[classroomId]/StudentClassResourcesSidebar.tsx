@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
+import { Card } from '@/ui'
 import type { Classroom, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { isEmpty } from '@/lib/tiptap-content'
@@ -58,13 +59,13 @@ export function StudentClassResourcesSidebar({ classroom }: Props) {
   return (
     <div className="px-3 py-3">
       {hasContent ? (
-        <div className="rounded-lg bg-surface p-4 shadow-sm">
+        <Card padding="sm">
           <RichTextViewer content={currentContent!} />
-        </div>
+        </Card>
       ) : (
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <Card tone="muted" padding="sm">
           <p className="text-sm text-text-muted">No resources have been added yet.</p>
-        </div>
+        </Card>
       )}
     </div>
   )
