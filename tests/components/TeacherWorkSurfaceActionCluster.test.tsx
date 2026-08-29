@@ -70,6 +70,8 @@ describe('TeacherWorkSurfaceActionCluster', () => {
   })
 
   it('supports radio-style checked menu items for mutually exclusive options', () => {
+    const onHoverChange = vi.fn()
+
     render(
       <TeacherWorkSurfaceMenuButton
         label="Display"
@@ -94,6 +96,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
             label: 'Column controls',
             checked: false,
             onSelect: vi.fn(),
+            onHoverChange,
           },
         ]}
       />,
@@ -104,6 +107,13 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
+
+    const columnControls = screen.getByRole('menuitemcheckbox', { name: 'Column controls' })
+    fireEvent.mouseEnter(columnControls)
+    fireEvent.mouseLeave(columnControls)
+    fireEvent.focus(columnControls)
+    fireEvent.blur(columnControls)
+    expect(onHoverChange.mock.calls).toEqual([[true], [false], [true], [false]])
 
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'ArrowDown' })

@@ -21,12 +21,13 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
   Code,
   Copy,
+  EllipsisVertical,
   GripVertical,
   LoaderCircle,
   Lock,
@@ -35,7 +36,8 @@ import {
   Paperclip,
   Percent,
   Pencil,
-  Send,
+  Reply,
+  Sparkles,
   SquareMenu,
   Trash2,
   Unlock,
@@ -64,6 +66,7 @@ import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
   TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
@@ -2087,8 +2090,14 @@ export function TeacherClassroomView({
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
-  const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
   const workspaceGradeBusy = workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving
+  const selectedStudentActionsBusy =
+    isAutoGrading ||
+    isGradeSelectedSaving ||
+    hasActiveAssignmentAiRun ||
+    isReturning ||
+    workspaceGradeBusy ||
+    isReadOnly
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
@@ -2227,94 +2236,69 @@ export function TeacherClassroomView({
     </Tooltip>
   )
 
-  const classPaneActions = (
-    <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-      <span className="inline-flex">
-        <SplitButton
-          label={
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>AI Grade</span>
-            </span>
-          }
-          onPrimaryClick={() => {
-            void handleBatchAutoGrade()
-          }}
-          options={[
-            {
-              id: 'delete-assignment',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Delete Assignment</span>
-                </span>
-              ),
-              onSelect: () => {
-                if (activeSelectedAssignmentData) {
-                  setPendingDelete({
-                    id: activeSelectedAssignmentData.assignment.id,
-                    title: activeSelectedAssignmentData.assignment.title,
-                  })
-                }
-              },
-              disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
-              destructive: true,
-            },
-            {
-              id: 'grade-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Grade to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('grade')
-              },
-              disabled: isApplyGradeSelectedDisabled,
-            },
-            {
-              id: 'comments-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Comments to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('comments')
-              },
-              disabled: isApplyCommentsSelectedDisabled,
-            },
-            {
-              id: 'return',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <Send className="h-4 w-4" aria-hidden="true" />
-                  <span>Return</span>
-                </span>
-              ),
-              onSelect: () => {
-                setShowReturnConfirm(true)
-              },
-              disabled: isReturnDisabled,
-            },
-          ]}
-          className="inline-flex"
-          toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
-          menuPlacement="down"
-          primaryButtonProps={{
-            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-            disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-          }}
-        />
-      </span>
-    </Tooltip>
-  )
+  const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'ai-grade-selected',
+      label: 'AI Grade',
+      icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        void handleBatchAutoGrade()
+      },
+      disabled: selectedStudentActionsBusy,
+    },
+    {
+      id: 'grade-selected',
+      label: 'Apply Grade',
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+      onSelect: () => {
+        setHighlightedApplyTarget(null)
+        setGradeSelectedConfirmTarget('grade')
+      },
+      disabled: isApplyGradeSelectedDisabled,
+    },
+    {
+      id: 'comments-selected',
+      label: 'Apply Comments',
+      icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
+      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+      onSelect: () => {
+        setHighlightedApplyTarget(null)
+        setGradeSelectedConfirmTarget('comments')
+      },
+      disabled: isApplyCommentsSelectedDisabled,
+    },
+    {
+      id: 'return-selected',
+      label: 'Return',
+      icon: <Reply className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setShowReturnConfirm(true),
+      disabled: isReturnDisabled,
+    },
+  ]
+
+  const assignmentUtilityActions: TeacherWorkSurfaceActionItem[] = activeSelectedAssignmentData ? [
+    {
+      id: 'edit-assignment',
+      label: 'Edit Assignment',
+      icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+      onSelect: openSelectedAssignmentEditor,
+      disabled: !canEditAssignment,
+    },
+    {
+      id: 'delete-assignment',
+      label: 'Delete Assignment',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        setPendingDelete({
+          id: activeSelectedAssignmentData.assignment.id,
+          title: activeSelectedAssignmentData.assignment.title,
+        })
+      },
+      disabled: selectedAssignmentLoading || isReadOnly || isDeleting,
+      destructive: true,
+    },
+  ] : []
 
   const selectedStudentControls = (
     <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
@@ -2353,10 +2337,7 @@ export function TeacherClassroomView({
   )
 
   const workspaceStatus = workspaceLoading ? (
-    <div
-      aria-live="polite"
-      className="pointer-events-none absolute -right-7 top-1/2 inline-flex -translate-y-1/2 items-center text-text-muted"
-    >
+    <div aria-live="polite" className="inline-flex items-center text-text-muted">
       <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
@@ -2365,20 +2346,46 @@ export function TeacherClassroomView({
   const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
     <div
       data-testid="assignment-workspace-actionbar-center"
-      className="relative flex min-w-0 items-center justify-center gap-2"
+      className="flex min-w-0 items-center justify-center gap-2"
     >
-      <TeacherWorkSurfaceActionCluster>
-        {assignmentLayoutToggle}
-        {classPaneActions}
-        <TeacherWorkSurfaceIconButton
-          ariaLabel="Edit Assignment"
-          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-          onClick={openSelectedAssignmentEditor}
-          disabled={!canEditAssignment}
-          tooltip="Edit Assignment"
+      <div role="toolbar" aria-label="Assignment grading actions" className="flex max-w-full items-center justify-center gap-2">
+        <TeacherWorkSurfaceActionCluster>
+          {assignmentLayoutToggle}
+        </TeacherWorkSurfaceActionCluster>
+        <TeacherWorkSurfaceMenuButton
+          label={(
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </span>
+          )}
+          items={selectedStudentActions}
+          disabled={batchSelectedCount === 0 || selectedStudentActionsBusy}
+          variant="secondary"
+          size="sm"
+          menuPlacement="down"
+          menuAlign="center"
+          menuAriaLabel="Selected student assignment actions"
+          buttonProps={{
+            'aria-label': batchSelectedCount > 0
+              ? `Student actions for ${batchSelectedCount} selected`
+              : 'Student actions (select students to enable)',
+          }}
         />
-      </TeacherWorkSurfaceActionCluster>
-      {workspaceStatus}
+      </div>
+    </div>
+  ) : null
+
+  const assignmentWorkspaceUtilities = assignmentUtilityActions.length > 0 ? (
+    <div className="flex items-center" data-testid="assignment-workspace-trailing-actions">
+      <TeacherWorkSurfaceIconMenuButton
+        ariaLabel="More actions"
+        tooltip="More actions"
+        variant="ghost"
+        icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+        items={assignmentUtilityActions}
+        menuAriaLabel="Assignment actions"
+      />
     </div>
   ) : null
 
@@ -2527,6 +2534,37 @@ export function TeacherClassroomView({
     },
   ]
 
+  const classworkUtilityActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'organize-classwork',
+      label: assignmentEditMode ? 'Done organizing classwork' : 'Organize classwork',
+      icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+      checked: assignmentEditMode,
+      onSelect: () => setAssignmentEditMode(!assignmentEditMode),
+      disabled: isReadOnly,
+    },
+    ...(assignmentEditMode && showMarkdownEditorOption ? [{
+      id: 'edit-markdown',
+      label: 'Edit Markdown',
+      icon: <Code className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onOpenMarkdownEditor?.(),
+      disabled: !onOpenMarkdownEditor || isReadOnly,
+    }] : []),
+  ]
+
+  const classworkSummaryUtilities = (
+    <div className="flex items-center" data-testid="assignment-summary-trailing-actions">
+      <TeacherWorkSurfaceIconMenuButton
+        ariaLabel="More actions"
+        tooltip="More actions"
+        variant="ghost"
+        icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+        items={classworkUtilityActions}
+        menuAriaLabel="Classwork actions"
+      />
+    </div>
+  )
+
   const primaryButtons =
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceContextBar
@@ -2546,30 +2584,18 @@ export function TeacherClassroomView({
               menuAlign="center"
               menuClassName="w-64"
             />
-            <TeacherWorkSurfaceIconButton
-              ariaLabel="Organize classwork"
-              icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-              onClick={() => setAssignmentEditMode(!assignmentEditMode)}
-              disabled={isReadOnly}
-              pressed={assignmentEditMode}
-              tooltip={assignmentEditMode ? 'Done organizing classwork' : 'Organize classwork'}
-            />
-            {assignmentEditMode && showMarkdownEditorOption ? (
-              <TeacherWorkSurfaceIconButton
-                ariaLabel="Edit Markdown"
-                icon={<Code className="h-4 w-4" aria-hidden="true" />}
-                onClick={() => onOpenMarkdownEditor?.()}
-                disabled={!onOpenMarkdownEditor || isReadOnly}
-                tooltip="Edit Markdown"
-              />
-            ) : null}
           </TeacherWorkSurfaceActionCluster>
         }
+        actions={classworkSummaryUtilities}
+        trailingClassName="overflow-visible"
       />
     ) : (
       <TeacherWorkSurfaceContextBar
         ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
+        context={selection.mode === 'assignment' ? workspaceStatus : null}
         primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
+        actions={selection.mode === 'assignment' ? assignmentWorkspaceUtilities : null}
+        trailingClassName="overflow-visible"
       />
     )
 

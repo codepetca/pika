@@ -21,6 +21,7 @@ export interface TeacherWorkSurfaceActionItem {
   label: ReactNode
   description?: ReactNode
   onSelect: () => void
+  onHoverChange?: (active: boolean) => void
   disabled?: boolean
   icon?: ReactNode
   checked?: boolean
@@ -228,6 +229,10 @@ function TeacherWorkSurfaceActionMenuButton({
                   event.stopPropagation()
                   handleItemSelect(item)
                 }}
+                onMouseEnter={() => item.onHoverChange?.(true)}
+                onMouseLeave={() => item.onHoverChange?.(false)}
+                onFocus={() => item.onHoverChange?.(true)}
+                onBlur={() => item.onHoverChange?.(false)}
                 className={cn(
                   'min-h-control w-full rounded-sm px-3 py-2 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
                   item.destructive ? 'text-danger hover:bg-danger-bg' : '',

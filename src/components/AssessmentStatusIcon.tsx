@@ -1,4 +1,4 @@
-import { Check, Circle, Clock, RotateCcw, Send, type LucideIcon } from 'lucide-react'
+import { Check, Circle, Clock, Reply, RotateCcw, type LucideIcon } from 'lucide-react'
 
 export type AssessmentStatusIconState =
   | 'not_started'
@@ -24,7 +24,7 @@ const STATUS_ICON_META: Record<AssessmentStatusIconState, { icon: LucideIcon; cl
   submitted: { icon: Circle, className: 'text-success' },
   draft_graded: { icon: Check, className: 'text-text-muted' },
   graded: { icon: Check, className: 'text-success' },
-  returned: { icon: Send, className: 'text-primary' },
+  returned: { icon: Reply, className: 'text-primary' },
   resubmitted: { icon: RotateCcw, className: 'text-warning' },
 }
 
