@@ -15,13 +15,17 @@ import {
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
-import { Button, ConfirmDialog, EmptyState, PageState } from '@/ui'
+import { Button, ConfirmDialog, EmptyState, PageState, SegmentedControl } from '@/ui'
 import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import {
+  isMobileFullscreenFallback,
+  resolveExamWindowCompliance,
+} from '@/lib/exam-window-compliance'
 import {
   createExamIncidentState,
   EXAM_FOCUS_LOSS_GRACE_MS,
@@ -143,23 +147,26 @@ function isFullscreenApiSupported(): boolean {
   return typeof fullscreenElement?.requestFullscreen === 'function'
 }
 
-function isMobileBrowserWithoutFullscreen(): boolean {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return false
-  if (isFullscreenApiSupported()) return false
-
+function hasTouchInput(): boolean {
+  if (typeof window === 'undefined') return false
   const maxTouchPoints = window.navigator?.maxTouchPoints ?? 0
   const hasCoarsePointer =
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
-  const hasTouchInput = maxTouchPoints > 0 || hasCoarsePointer
-  const compactViewport = Math.min(window.innerWidth, window.innerHeight) <= 1024
+  return maxTouchPoints > 0 || hasCoarsePointer
+}
 
-  return hasTouchInput && compactViewport
+function isMobileBrowserWithoutFullscreen(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false
+  return isMobileFullscreenFallback({
+    isFullscreenApiSupported: isFullscreenApiSupported(),
+    hasTouchInput: hasTouchInput(),
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+  })
 }
 
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 750
 const EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS = 4_000
-const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
-const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
 const EXAM_LOCK_OVERLAY_ENABLED = true
 const EXAM_FORM_INTERACTION_RESIZE_SUPPRESSION_MS = 1500
 const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
@@ -205,14 +212,18 @@ function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
   const availHeight = window.screen?.availHeight || innerHeight
   const widthRatio = availWidth > 0 ? innerWidth / availWidth : 1
   const heightRatio = availHeight > 0 ? innerHeight / availHeight : 1
-  const mobileFullscreenFallback = isMobileBrowserWithoutFullscreen()
 
   return {
     isFullscreen,
-    isCompliant:
-      isFullscreen ||
-      mobileFullscreenFallback ||
-      (widthRatio >= EXAM_WINDOW_MIN_WIDTH_RATIO && heightRatio >= EXAM_WINDOW_MIN_HEIGHT_RATIO),
+    isCompliant: resolveExamWindowCompliance({
+      isFullscreen,
+      isFullscreenApiSupported: isFullscreenApiSupported(),
+      hasTouchInput: hasTouchInput(),
+      innerWidth,
+      innerHeight,
+      widthRatio,
+      heightRatio,
+    }),
     widthRatio,
     heightRatio,
     innerWidth,
@@ -279,6 +290,13 @@ function getRemoteClosureDescription(
   return 'This test is no longer available.'
 }
 
+/**
+ * Below the `lg` breakpoint the exam shell shows one pane at a time so the
+ * questions are not pushed under the documents pane. Both panes stay mounted;
+ * only their visibility changes, so in-progress answers are never unmounted.
+ */
+type MobileExamPane = 'questions' | 'documents'
+
 export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [tests, setTests] = useState<StudentTestView[]>([])
@@ -300,6 +318,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [isWindowCompliantNow, setIsWindowCompliantNow] = useState(true)
   const [isWindowCompliantStable, setIsWindowCompliantStable] = useState(true)
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
+  const [mobileExamPane, setMobileExamPane] = useState<MobileExamPane>('questions')
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedTestIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
@@ -1344,6 +1363,23 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
   }, [logRouteExitAttempt])
 
+  // Selecting or leaving a test returns the compact shell to the questions.
+  useEffect(() => {
+    setMobileExamPane('questions')
+  }, [selectedTestId])
+
+  const handleMobileExamPaneChange = useCallback((pane: MobileExamPane) => {
+    // Switching panes is local UI state rather than navigation, but it should
+    // carry the same interaction suppression as tapping into either pane
+    // directly so the resulting reflow is not logged as an exam exit.
+    if (pane === 'documents') {
+      markAllowedDocInteraction()
+    } else {
+      markExamFormInteraction()
+    }
+    setMobileExamPane(pane)
+  }, [markAllowedDocInteraction, markExamFormInteraction])
+
   const renderAssessmentList = (showSelectionState: boolean) => {
     if (visibleTests.length === 0) {
       return (
@@ -1511,13 +1547,32 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
             {showSplitExamShell ? (
                 <div
                   data-testid="student-test-split-container"
-                  className={`grid grid-cols-1 gap-2 ${
+                  className={`flex flex-col gap-2 lg:grid ${
                     showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
                   } lg:min-h-0 lg:h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
                 >
+                  <SegmentedControl
+                    ariaLabel="Exam view"
+                    testId="student-test-mobile-pane-switch"
+                    className="w-full lg:hidden"
+                    value={mobileExamPane}
+                    onChange={handleMobileExamPaneChange}
+                    options={[
+                      { value: 'questions', label: 'Questions', className: 'flex-1' },
+                      {
+                        value: 'documents',
+                        label: allowedDocs.length > 0
+                          ? `Documents (${allowedDocs.length})`
+                          : 'Documents',
+                        className: 'flex-1',
+                      },
+                    ]}
+                  />
                   <section
                     data-testid="student-test-documents-pane"
                     className={`rounded-xl border border-border bg-surface ${
+                      mobileExamPane === 'documents' ? '' : 'hidden lg:block'
+                    } ${
                       showCurrentTestInfoPanel
                         ? 'relative min-h-0 overflow-x-hidden overflow-y-auto scrollbar-hover p-0'
                         : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
@@ -1668,6 +1723,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   <section
                     data-testid="student-test-detail-pane"
                     className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
+                      mobileExamPane === 'questions' ? '' : 'hidden lg:block'
+                    } ${
                       showCurrentTestInfoPanel
                         ? 'min-h-0 overflow-y-auto scrollbar-hover'
                         : 'lg:h-full'

@@ -4348,4 +4348,198 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
     expect(screen.getByDisplayValue('TDD clarifies expected behavior before coding.')).toBeVisible()
   })
+
+  describe('compact exam layout', () => {
+    async function renderStartedExamWithDocument() {
+      mockFullscreenSuccess()
+
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes('/api/student/tests?classroom_id=')) {
+          return {
+            ok: true,
+            json: async () => ({
+              tests: [{
+                id: 'test-1',
+                title: 'Midterm Test',
+                assessment_type: 'test',
+                status: 'active',
+                show_results: false,
+                position: 0,
+                student_status: 'not_started',
+              }],
+            }),
+          }
+        }
+
+        if (url.endsWith('/api/student/tests/test-1')) {
+          return {
+            ok: true,
+            json: async () => ({
+              test: {
+                id: 'test-1',
+                title: 'Midterm Test',
+                assessment_type: 'test',
+                status: 'active',
+                show_results: false,
+                documents: [
+                  {
+                    id: 'doc-1',
+                    title: 'Node.js API',
+                    url: 'https://nodejs.org/api/fs.html',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: '2026-04-02T12:00:00.000Z',
+                  },
+                ],
+                position: 0,
+                student_status: 'not_started',
+              },
+              student_status: 'not_started',
+              questions: [
+                {
+                  id: 'q1',
+                  test_id: 'test-1',
+                  question_text: 'Use documentation for this question.',
+                  options: ['A', 'B'],
+                  question_type: 'multiple_choice',
+                  points: 1,
+                  response_max_chars: 5000,
+                  position: 0,
+                },
+              ],
+              student_responses: {},
+              focus_summary: {
+                away_count: 0,
+                away_total_seconds: 0,
+                route_exit_attempts: 0,
+                window_unmaximize_attempts: 0,
+                last_away_started_at: null,
+                last_away_ended_at: null,
+              },
+            }),
+          }
+        }
+
+        if (url.includes('/api/student/tests/test-1/focus-events')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              focus_summary: {
+                away_count: 0,
+                away_total_seconds: 0,
+                route_exit_attempts: 0,
+                window_unmaximize_attempts: 0,
+                last_away_started_at: null,
+                last_away_ended_at: null,
+              },
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch call: ${url}`)
+      })
+
+      const rendered = render(<StudentTestsTab classroom={classroom} />)
+
+      fireEvent.click(await screen.findByText('Midterm Test'))
+      fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+      fireEvent.click(await screen.findByText('Start test'))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+      })
+
+      return rendered
+    }
+
+    it('opens on the questions pane and keeps the documents pane out of the compact flow', async () => {
+      const { container } = await renderStartedExamWithDocument()
+
+      const paneSwitch = screen.getByTestId('student-test-mobile-pane-switch')
+      expect(paneSwitch).toHaveAttribute('aria-label', 'Exam view')
+      // The switch is a compact-only affordance; the split still governs at lg.
+      expect(paneSwitch.classList.contains('lg:hidden')).toBe(true)
+      expect(screen.getByRole('button', { name: 'Questions' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: 'Documents (1)' })).toHaveAttribute('aria-pressed', 'false')
+
+      const documentsPane = screen.getByTestId('student-test-documents-pane')
+      const detailPane = screen.getByTestId('student-test-detail-pane')
+
+      expect(documentsPane.classList.contains('hidden')).toBe(true)
+      expect(documentsPane.classList.contains('lg:block')).toBe(true)
+      expect(detailPane.classList.contains('hidden')).toBe(false)
+
+      // The desktop split is untouched.
+      const splitContainer = getSplitContainer(container)
+      expect(splitContainer.className).toContain('lg:grid')
+      expect(splitContainer.className).toContain('lg:grid-cols-[30%_70%]')
+      expect(splitContainer.className).toContain('lg:h-[calc(100dvh-3rem)]')
+    })
+
+    it('swaps panes without unmounting the in-progress test form', async () => {
+      await renderStartedExamWithDocument()
+
+      fireEvent.click(screen.getByText('A'))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Documents (1)' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Documents (1)' })).toHaveAttribute('aria-pressed', 'true')
+      })
+
+      const documentsPane = screen.getByTestId('student-test-documents-pane')
+      const detailPane = screen.getByTestId('student-test-detail-pane')
+      expect(documentsPane.classList.contains('hidden')).toBe(false)
+      expect(detailPane.classList.contains('hidden')).toBe(true)
+      expect(detailPane.classList.contains('lg:block')).toBe(true)
+
+      // The form is only hidden, never unmounted, so the answer survives.
+      expect(screen.getByText('Use documentation for this question.')).toBeInTheDocument()
+      expect(screen.getByText('A').closest('[data-question-option]'))
+        .toHaveClass('border-primary')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Questions' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Questions' })).toHaveAttribute('aria-pressed', 'true')
+      })
+      expect(screen.getByTestId('student-test-detail-pane').classList.contains('hidden')).toBe(false)
+    })
+
+    it('does not record an exam exit when the student swaps panes', async () => {
+      await renderStartedExamWithDocument()
+
+      const focusCallsBefore = fetchMock.mock.calls.filter(
+        ([url]: [string]) => typeof url === 'string' && url.includes('/focus-events')
+      ).length
+
+      fireEvent.click(screen.getByRole('button', { name: 'Documents (1)' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Questions' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Questions' })).toHaveAttribute('aria-pressed', 'true')
+      })
+
+      const focusCallsAfter = fetchMock.mock.calls.filter(
+        ([url]: [string]) => typeof url === 'string' && url.includes('/focus-events')
+      ).length
+
+      expect(focusCallsAfter).toBe(focusCallsBefore)
+      expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    })
+
+    it('does not render the pane switch before the test is started', async () => {
+      queueTestList()
+      queueTestDetail()
+
+      render(<StudentTestsTab classroom={classroom} />)
+
+      fireEvent.click(await screen.findByText('Midterm Test'))
+      expect(await screen.findByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+
+      expect(screen.queryByTestId('student-test-mobile-pane-switch')).not.toBeInTheDocument()
+    })
+  })
 })
