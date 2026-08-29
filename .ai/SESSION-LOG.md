@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Separate captured Test membership from source identity
-
-**Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
-application contracts in unapplied migration 134; no database was reset or
-migrated and no hosted state changed.
-
-- Stopped treating `source_artifact_id` as both portable lineage and Blueprint
-  membership. A captured origin Test now keeps `source_artifact_id = null` and
-  records membership through the immutable capture Version.
-- Active and archived Classroom capture record
-  `source_blueprint_version_id` on participating Tests and materialized
-  questions. The application layer only classifies a source-null Test as
-  tracked when its Version matches the Classroom's current Blueprint Version.
-- Replaced the migration 112 classroom-proposal apply RPC in migration 134 so
-  Test matching and removal use source-first portable identity plus Version
-  provenance. Classroom-only Tests without that provenance remain untouched.
-- Added unit coverage for Version-based counting and snapshot filtering, plus a
-  disposable-database capture → Blueprint edit → apply regression that updates
-  the original Test row, creates no duplicate portable identity, and preserves
-  an unrelated local Test.
-- The focused 39-test identity/proposal suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, and production build pass. The full suite passed 5,150 of 5,151
-  tests; its single unrelated Test-editor timing failure passed immediately in
-  isolation. CI remains authoritative for the ephemeral migration replay.
-
-**Model recommendation:** GPT-5.6 Sol for the Version-provenance database
-contract and final migration replay review.
-
 ## 2026-08-27 — Migrate selected Test grading to the teacher work surface
 
 **Risk profile:** async-grading — teacher Test roster presentation, sorting,
@@ -1319,6 +1290,34 @@ No deployment or database operation was performed.
 
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
+
+## 2026-08-29 — Redirect legacy password pages under the WorkOS pilot
+
+**Risk profile:** authentication — changes which auth screens render. No schema,
+persistence, or session-format change; behavior is unchanged while
+`WORKOS_MAGIC_AUTH_PILOT` is off.
+
+- Follow-up to gating the legacy password API routes. `/login` and `/signup`
+  already branch on the pilot flag, but `/create-password`, `/verify-signup`,
+  `/forgot-password`, and `/reset-password` did not, so with the pilot on they
+  rendered password forms whose API routes now refuse the submission.
+- Split each into the server `page.tsx` + client component shape `/login` and
+  `/signup` already use. The server page redirects to `/login` when
+  `isWorkOSMagicAuthPilotEnabled()`, otherwise renders the unchanged client
+  form. Pages reading `useSearchParams` keep a `Suspense` boundary.
+- Repointed three `scripts/ui-control-exceptions.json` entries at the extracted
+  client components, since the governed native controls moved with them.
+  `check:ui-policy` caught this and now passes (178 controls, 58 files).
+- New `tests/components/LegacyAuthPagePilotRedirects.test.tsx` covers all four
+  pages in both flag states (8 cases). Confirmed it fails when a page is
+  reverted to its pre-split form.
+- Verification: full suite 5,315/5,317, lint, `tsc --noEmit`, architecture
+  boundaries (818 modules), UI policy, design policy, and the production build
+  all pass. The two failures are known and unrelated:
+  `tests/unit/ai-startup-docs.test.ts` shells out to `scripts/verify-env.sh`,
+  which rejects the sandbox's Node 22.22.2 against the required 24.x, and
+  `tests/components/TestDetailPanel.test.tsx` is flaky — it passed on re-run and
+  this change does not touch it.
 
 ## 2026-08-29 — Make local Pika startup supply safe runtime credentials
 

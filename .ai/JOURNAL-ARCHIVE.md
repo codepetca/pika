@@ -26087,3 +26087,33 @@ migrated and no hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
 database concurrency review, and migration lifecycle verification.
+
+<!-- pika-session-log-archive-batch:f50be86d1198f83dea7e7aafba92a9c6db1cbea3b0fc8102544c62007212309b -->
+## 2026-08-27 — Separate captured Test membership from source identity
+
+**Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
+application contracts in unapplied migration 134; no database was reset or
+migrated and no hosted state changed.
+
+- Stopped treating `source_artifact_id` as both portable lineage and Blueprint
+  membership. A captured origin Test now keeps `source_artifact_id = null` and
+  records membership through the immutable capture Version.
+- Active and archived Classroom capture record
+  `source_blueprint_version_id` on participating Tests and materialized
+  questions. The application layer only classifies a source-null Test as
+  tracked when its Version matches the Classroom's current Blueprint Version.
+- Replaced the migration 112 classroom-proposal apply RPC in migration 134 so
+  Test matching and removal use source-first portable identity plus Version
+  provenance. Classroom-only Tests without that provenance remain untouched.
+- Added unit coverage for Version-based counting and snapshot filtering, plus a
+  disposable-database capture → Blueprint edit → apply regression that updates
+  the original Test row, creates no duplicate portable identity, and preserves
+  an unrelated local Test.
+- The focused 39-test identity/proposal suite, TypeScript, lint,
+  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
+  validation, and production build pass. The full suite passed 5,150 of 5,151
+  tests; its single unrelated Test-editor timing failure passed immediately in
+  isolation. CI remains authoritative for the ephemeral migration replay.
+
+**Model recommendation:** GPT-5.6 Sol for the Version-provenance database
+contract and final migration replay review.
