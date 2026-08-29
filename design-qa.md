@@ -288,3 +288,46 @@ role-owned heading.
   naming are asserted.
 - Remaining manual follow-up: none; focus visibility and target size were checked
   in Playwright.
+
+## Zoomed-history wheel navigation and saved-state preview
+
+### Change brief
+
+- Surface: the existing compact teacher/student assignment-history chart and
+  its long-document development fixture.
+- Affected roles: teacher and student.
+- Added gestures: vertical wheel zooms around the pointer; horizontal trackpad
+  scrolling or Shift+wheel pans the bounded window after zooming.
+- Zoom presentation: a 260 ms eased expansion/contraction keeps the chosen point
+  as the visual origin; panning stays immediate and reduced motion is respected.
+- Preserved interactions: fit-all overview, zoom buttons, Arrow-key/Home/End
+  save navigation, hover-to-fit preview, and click-to-pin reading view.
+- Visible copy remains unchanged; gesture instructions are connected to the
+  slider with `aria-describedby`.
+
+### Verification result
+
+- Teacher desktop at 1440 × 900: wheel zoom changed the fit-all daily view to
+  individual saves; a horizontal delta moved the start of the visible window
+  earlier. Hovering the left and right sides of the resulting window rendered
+  distinct four- and eighteen-paragraph saved states.
+- Student mobile at 390 × 844: the same gesture sequence moved the date window
+  and rendered distinct seven- and twenty-one-paragraph saved states without
+  horizontal overflow.
+- Light and dark screenshots were reviewed for both roles. Stems, baseline,
+  date labels, zoom controls, preview border, and fitted text remained clear.
+- A non-passive native wheel listener contains handled gestures inside the chart;
+  the final teacher and student browser runs reported zero console errors.
+- Chromium reported one active SVG animation with an intermediate scale and
+  opacity during the transition, followed by no animation and the identity
+  transform after completion; the mid-transition frame remained legible.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Left/Right/Up/Down/Home/End navigation and the
+  keyboard-reachable zoom buttons remain covered.
+- Semantic state covered by tests: yes; slider values, view mode, visible window,
+  zoom status, and the connected gesture description are exposed semantically.
+- Remaining manual follow-up: none.

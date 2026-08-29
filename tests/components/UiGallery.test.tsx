@@ -3,33 +3,30 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 
-const historyEntry = {
-  id: 'save-1',
-  assignment_doc_id: 'doc-1',
-  patch: null,
-  snapshot: null,
-  word_count: 10,
-  char_count: 50,
-  paste_word_count: null,
-  keystroke_count: null,
-  trigger: 'autosave',
-  created_at: '2026-08-27T12:00:00Z',
-}
-
 vi.mock('@/components/HistoryGraph', () => ({
-  HistoryGraph: ({ entries, hoverEnabled = true, onEntryClick, onEntryHover, showHeading }: any) => (
-    <button
-      type="button"
-      aria-label="History point"
-      data-entry-count={entries.length}
-      data-hover-enabled={hoverEnabled ? 'yes' : 'no'}
-      data-show-heading={showHeading === false ? 'no' : 'yes'}
-      onMouseEnter={() => hoverEnabled && onEntryHover?.(historyEntry)}
-      onClick={() => onEntryClick(historyEntry)}
-    >
-      Saved point
-    </button>
-  ),
+  HistoryGraph: ({ entries, hoverEnabled = true, onEntryClick, onEntryHover, showHeading }: any) => {
+    if (entries.length === 0) return <div data-testid="empty-history" />
+
+    return (
+      <div>
+        {[entries[entries.length - 1], entries[0]].map((historyEntry, index) => (
+          <button
+            key={historyEntry.id}
+            type="button"
+            aria-label="History point"
+            data-history-position={index === 0 ? 'earliest' : 'latest'}
+            data-entry-count={entries.length}
+            data-hover-enabled={hoverEnabled ? 'yes' : 'no'}
+            data-show-heading={showHeading === false ? 'no' : 'yes'}
+            onMouseEnter={() => hoverEnabled && onEntryHover?.(historyEntry)}
+            onClick={() => onEntryClick(historyEntry)}
+          >
+            Saved point
+          </button>
+        ))}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/editor', () => ({
@@ -62,7 +59,9 @@ describe('UiGallery history preview fixture', () => {
     render(<UiGallery role="teacher" />)
 
     expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
-    const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
+    const [previewPoint, latestPreviewPoint] = screen.getAllByRole('button', {
+      name: 'History point',
+    })
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
@@ -73,10 +72,14 @@ describe('UiGallery history preview fixture', () => {
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('fit')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '2')
 
-    await user.click(previewPoint)
+    fireEvent.mouseEnter(latestPreviewPoint)
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+
+    await user.click(latestPreviewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
-    expect(previewPoint).toHaveAttribute('data-hover-enabled', 'no')
+    expect(latestPreviewPoint).toHaveAttribute('data-hover-enabled', 'no')
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
@@ -93,6 +96,7 @@ describe('UiGallery history preview fixture', () => {
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('fit')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '2')
 
     fireEvent.click(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('locked')

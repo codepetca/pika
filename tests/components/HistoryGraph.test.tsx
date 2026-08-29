@@ -214,6 +214,288 @@ describe('HistoryGraph', () => {
     expect(screen.getByRole('button', { name: 'Zoom out history' })).toBeEnabled()
   })
 
+  it('zooms with the wheel and pans a zoomed window horizontally', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+
+    fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
+
+    expect(chart).toHaveAttribute('data-view-mode', 'saves')
+    expect(screen.getByText('Showing 7 days')).toBeInTheDocument()
+    const initialStart = Number(chart.getAttribute('data-visible-start-ms'))
+
+    fireEvent.wheel(chart, { deltaX: -500, deltaY: 0, clientX: 500 })
+
+    expect(Number(chart.getAttribute('data-visible-start-ms'))).toBeLessThan(initialStart)
+  })
+
+  it('eases wheel zoom around the pointer position', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: animate,
+    })
+
+    fireEvent.wheel(chart, { deltaY: -100, clientX: 250 })
+
+    expect(animate).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          opacity: 0.68,
+          transform: 'scaleX(0.72)',
+          transformOrigin: '25% 50%',
+        }),
+      ]),
+      expect.objectContaining({
+        duration: 260,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      })
+    )
+  })
+
+  it('does not animate zoom when reduced motion is requested', () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: animate,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+
+    expect(animate).not.toHaveBeenCalled()
+    matchMedia.mockRestore()
+  })
+
+  it('cancels zoom animation before panning or pointer selection', () => {
+    const { unmount } = render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    let chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const bounds = {
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
+    const panCancel = vi.fn()
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: vi.fn(() => ({ cancel: panCancel }) as unknown as Animation),
+    })
+    fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
+
+    fireEvent.wheel(chart, { deltaX: -100, deltaY: 0, clientX: 500 })
+
+    expect(panCancel).toHaveBeenCalledTimes(1)
+    unmount()
+
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+    chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
+    const pointerCancel = vi.fn()
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: vi.fn(() => ({ cancel: pointerCancel }) as unknown as Animation),
+    })
+    fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
+
+    fireEvent.mouseMove(chart, { clientX: 500, clientY: 39 })
+
+    expect(pointerCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('pans with Shift plus a conventional vertical scroll wheel', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    const initialStart = Number(chart.getAttribute('data-visible-start-ms'))
+
+    fireEvent.wheel(chart, { deltaY: -500, shiftKey: true, clientX: 500 })
+
+    expect(Number(chart.getAttribute('data-visible-start-ms'))).toBeLessThan(initialStart)
+  })
+
+  it('keeps button zoom centered on the window after panning', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    const zoomIn = screen.getByRole('button', { name: 'Zoom in history' })
+    fireEvent.click(zoomIn)
+    fireEvent.wheel(chart, { deltaX: -500, deltaY: 0, clientX: 500 })
+    const pannedCenter = (
+      Number(chart.getAttribute('data-visible-start-ms'))
+      + Number(chart.getAttribute('data-visible-end-ms'))
+    ) / 2
+
+    fireEvent.click(zoomIn)
+
+    const zoomedCenter = (
+      Number(chart.getAttribute('data-visible-start-ms'))
+      + Number(chart.getAttribute('data-visible-end-ms'))
+    ) / 2
+    expect(zoomedCenter).toBe(pannedCenter)
+  })
+
+  it('contains horizontal pan gestures at the timeline boundary', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    const boundaryPan = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaX: 500,
+    })
+
+    fireEvent(chart, boundaryPan)
+
+    expect(boundaryPan.defaultPrevented).toBe(true)
+  })
+
   it('uses student language without duplicating a caller-owned heading', () => {
     render(
       <HistoryGraph

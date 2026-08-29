@@ -7,6 +7,7 @@ import type { AssignmentDocHistoryEntry, Classroom, TiptapContent } from '@/type
 import { HistoryGraph } from '@/components/HistoryGraph'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 
 type Role = 'teacher' | 'student'
 
@@ -162,29 +163,37 @@ export function UiGallery({ role }: Props) {
 
 // ── History Graph Gallery ──────────────────────────────────────────
 
-const PREVIEW_CONTENT: TiptapContent = {
-  type: 'doc',
-  content: [
-    {
-      type: 'heading',
-      attrs: { level: 1 },
-      content: [{ type: 'text', text: 'Field Study Reflection' }],
-    },
-    ...Array.from({ length: 40 }, (_, index) => ({
-      type: 'paragraph',
-      content: [{
-        type: 'text',
-        text: `Section ${index + 1}. This saved response records an observation, the evidence that supports it, and the student’s developing interpretation of what happened during the field study.`,
-      }],
-    })),
-  ],
+function makePreviewContent(paragraphCount: number): TiptapContent {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Field Study Reflection' }],
+      },
+      ...Array.from({ length: paragraphCount }, (_, index) => ({
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: `Section ${index + 1}. This saved response records an observation, the evidence that supports it, and the student’s developing interpretation of what happened during the field study.`,
+        }],
+      })),
+    ],
+  }
 }
+
+const PREVIEW_CONTENT = makePreviewContent(40)
 
 function HistoryPreviewGallery({ role }: { role: Role }) {
   const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
   const entries = LONG_PROJECT_ENTRIES
   const isTeacher = role === 'teacher'
+  const previewContent = useMemo(() => {
+    if (!activeEntryId) return PREVIEW_CONTENT
+    return reconstructAssignmentDocContent([...entries].reverse(), activeEntryId) ?? PREVIEW_CONTENT
+  }, [activeEntryId, entries])
 
   return (
     <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
@@ -220,14 +229,14 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
         >
           {isTeacher ? (
             <RichTextViewer
-              content={PREVIEW_CONTENT}
+              content={previewContent}
               fillHeight
               chrome="flush"
               historyPreviewMode={previewMode}
             />
           ) : (
             <RichTextEditor
-              content={PREVIEW_CONTENT}
+              content={previewContent}
               onChange={() => undefined}
               editable={false}
               className="h-full"
@@ -311,7 +320,15 @@ function makeSteadyProjectEntries(): AssignmentDocHistoryEntry[] {
     }
   }
 
-  return chronological.reverse()
+  return chronological
+    .map((entry, index) => ({
+      ...entry,
+      snapshot: makePreviewContent(Math.max(
+        1,
+        Math.ceil(((index + 1) / chronological.length) * 40)
+      )),
+    }))
+    .reverse()
 }
 
 function makeBurstyProjectEntries(): AssignmentDocHistoryEntry[] {

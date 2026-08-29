@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Minus, Plus } from 'lucide-react'
 import type { AssignmentDocHistoryEntry } from '@/types'
@@ -36,6 +36,7 @@ const BASELINE_Y = CHART_HEIGHT / 2
 const MAX_CHANGE_HEIGHT = 28
 const OVERVIEW_DAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
 const OVERVIEW_ENTRY_THRESHOLD = 60
+const ZOOM_ANIMATION_MS = 260
 
 function formatDate(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
@@ -77,7 +78,13 @@ export function HistoryGraph({
   const [zoomAnchorMs, setZoomAnchorMs] = useState<number | null>(null)
   const lastHoveredEntryIdRef = useRef<string | null>(null)
   const previousActiveEntryIdRef = useRef<string | null>(activeEntryId)
+  const lastWheelZoomAtRef = useRef(0)
+  const chartRef = useRef<SVGSVGElement | null>(null)
+  const plotRef = useRef<SVGGElement | null>(null)
+  const pendingZoomAnimationRef = useRef<{ scale: number; originRatio: number } | null>(null)
+  const zoomAnimationRef = useRef<Animation | null>(null)
   const zoomStatusId = useId()
+  const gestureInstructionsId = useId()
   const historyKey = `${entries[0]?.id ?? 'empty'}:${entries[entries.length - 1]?.id ?? 'empty'}:${entries.length}`
 
   useEffect(() => {
@@ -85,6 +92,9 @@ export function HistoryGraph({
     setZoomAnchorMs(null)
     setHoveredEntryId(null)
     lastHoveredEntryIdRef.current = null
+    zoomAnimationRef.current?.cancel()
+    zoomAnimationRef.current = null
+    pendingZoomAnimationRef.current = null
   }, [historyKey])
 
   useEffect(() => {
@@ -128,6 +138,8 @@ export function HistoryGraph({
     [boundedZoomIndex, fullWindow, selectedEntryMs, zoomAnchorMs, zoomDurations]
   )
   const fullDuration = fullWindow ? fullWindow.endMs - fullWindow.startMs : 0
+  const zoomDurationMs = visibleWindow ? visibleWindow.endMs - visibleWindow.startMs : 0
+  const showZoomControls = zoomDurations.length > 1 && diffs.length > 1
   const isOverview = boundedZoomIndex === 0
     && (fullDuration > OVERVIEW_DAY_THRESHOLD_MS || diffs.length > OVERVIEW_ENTRY_THRESHOLD)
   const dailyGroups = useMemo(() => groupActivityByDay(diffs), [diffs])
@@ -157,12 +169,19 @@ export function HistoryGraph({
     [dailyGroups, visibleWindow]
   )
 
+  const cancelZoomAnimation = useCallback(() => {
+    pendingZoomAnimationRef.current = null
+    zoomAnimationRef.current?.cancel()
+    zoomAnimationRef.current = null
+  }, [])
+
   const selectByIndex = useCallback((index: number) => {
     const next = diffs[Math.max(0, Math.min(diffs.length - 1, index))]
     if (!next) return
+    cancelZoomAnimation()
     setZoomAnchorMs(Date.parse(next.entry.created_at))
     onEntryClick(next.entry)
-  }, [diffs, onEntryClick])
+  }, [cancelZoomAnimation, diffs, onEntryClick])
 
   const maxAbsChange = isOverview
     ? Math.max(1, ...dailyGroups.flatMap((group) => [group.additions, group.deletions]))
@@ -201,6 +220,7 @@ export function HistoryGraph({
   }, [dailyGroups, dayPositions, isOverview, maxAbsChange, positions, visibleDiffs, visibleWindow])
 
   const handlePointer = useCallback((event: React.MouseEvent<SVGSVGElement>, select: boolean) => {
+    cancelZoomAnimation()
     const entry = findNearestEntry(
       event.clientX,
       event.clientY,
@@ -221,7 +241,132 @@ export function HistoryGraph({
       setHoveredEntryId(entry.entry.id)
       onEntryHover?.(entry.entry)
     }
-  }, [findNearestEntry, hoverEnabled, onEntryClick, onEntryHover])
+  }, [cancelZoomAnimation, findNearestEntry, hoverEnabled, onEntryClick, onEntryHover])
+
+  const setZoom = useCallback(
+    (
+      nextIndex: number,
+      anchorMs: number = zoomAnchorMs ?? selectedEntryMs,
+      animationOriginRatio?: number
+    ) => {
+      if (!fullWindow || !visibleWindow) return
+      const boundedIndex = Math.max(0, Math.min(zoomDurations.length - 1, nextIndex))
+      const nextWindow = computeHistoryZoomWindow(
+        fullWindow,
+        zoomDurations[boundedIndex] ?? fullDuration,
+        anchorMs
+      )
+      const currentDuration = visibleWindow.endMs - visibleWindow.startMs
+      const nextDuration = nextWindow.endMs - nextWindow.startMs
+      pendingZoomAnimationRef.current = {
+        scale: Math.max(0.72, Math.min(1.28, nextDuration / currentDuration)),
+        originRatio: animationOriginRatio
+          ?? positionInActivityWindow(anchorMs, visibleWindow),
+      }
+      setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
+      setZoomIndex(boundedIndex)
+    },
+    [fullDuration, fullWindow, selectedEntryMs, visibleWindow, zoomAnchorMs, zoomDurations]
+  )
+
+  useLayoutEffect(() => {
+    const pending = pendingZoomAnimationRef.current
+    pendingZoomAnimationRef.current = null
+    const plot = plotRef.current
+    if (!pending || !plot || typeof plot.animate !== 'function') return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+
+    zoomAnimationRef.current?.cancel()
+    const animation = plot.animate(
+      [
+        {
+          opacity: 0.68,
+          transform: `scaleX(${pending.scale})`,
+          transformOrigin: `${pending.originRatio * 100}% 50%`,
+        },
+        {
+          opacity: 1,
+          transform: 'scaleX(1)',
+          transformOrigin: `${pending.originRatio * 100}% 50%`,
+        },
+      ],
+      {
+        duration: ZOOM_ANIMATION_MS,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      }
+    )
+    zoomAnimationRef.current = animation
+    animation.onfinish = () => {
+      if (zoomAnimationRef.current === animation) {
+        zoomAnimationRef.current = null
+      }
+    }
+  }, [boundedZoomIndex])
+
+  useEffect(() => () => zoomAnimationRef.current?.cancel(), [])
+
+  const handleWheel = useCallback((event: WheelEvent) => {
+    if (!fullWindow || !visibleWindow) return
+    const bounds = chartRef.current?.getBoundingClientRect()
+    if (!bounds || bounds.width <= 0) return
+
+    const horizontalDelta = event.shiftKey ? event.deltaY : event.deltaX
+    const isPanGesture = boundedZoomIndex > 0
+      && (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY))
+
+    if (isPanGesture && horizontalDelta !== 0) {
+      cancelZoomAnimation()
+      event.preventDefault()
+      const currentCenter = (visibleWindow.startMs + visibleWindow.endMs) / 2
+      const nextCenter = currentCenter + (horizontalDelta / bounds.width) * zoomDurationMs
+      const nextWindow = computeHistoryZoomWindow(fullWindow, zoomDurationMs, nextCenter)
+
+      if (
+        nextWindow.startMs !== visibleWindow.startMs
+        || nextWindow.endMs !== visibleWindow.endMs
+      ) {
+        setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
+      }
+      return
+    }
+
+    if (!showZoomControls || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+
+    const nextIndex = Math.max(
+      0,
+      Math.min(zoomDurations.length - 1, boundedZoomIndex + (event.deltaY < 0 ? 1 : -1))
+    )
+    if (nextIndex === boundedZoomIndex) return
+
+    event.preventDefault()
+    const now = Date.now()
+    if (now - lastWheelZoomAtRef.current < 140) return
+    lastWheelZoomAtRef.current = now
+
+    const pointerRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
+    const pointerTime = visibleWindow.startMs + pointerRatio * zoomDurationMs
+    const nextDuration = zoomDurations[nextIndex] ?? fullDuration
+    const nextAnchor = pointerTime + (0.5 - pointerRatio) * nextDuration
+    setZoom(nextIndex, nextAnchor, pointerRatio)
+  }, [
+    boundedZoomIndex,
+    cancelZoomAnimation,
+    fullDuration,
+    fullWindow,
+    setZoom,
+    showZoomControls,
+    visibleWindow,
+    zoomDurationMs,
+    zoomDurations,
+  ])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+
+    chart.addEventListener('wheel', handleWheel, { passive: false })
+    return () => chart.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   if (entries.length === 0 || !fullWindow || !visibleWindow || !selectedEntry) {
     return (
@@ -238,25 +383,17 @@ export function HistoryGraph({
   const visibleEndMs = visibleWindow.endMs - 1
   const firstDay = formatInTimeZone(new Date(visibleStartMs), TZ, 'yyyy-MM-dd')
   const lastDay = formatInTimeZone(new Date(visibleEndMs), TZ, 'yyyy-MM-dd')
-  const zoomDurationMs = visibleWindow.endMs - visibleWindow.startMs
   const zoomStatus = boundedZoomIndex === 0
     ? 'Showing all activity'
     : zoomDurationMs >= 24 * 60 * 60 * 1000
       ? `Showing ${Math.round(zoomDurationMs / (24 * 60 * 60 * 1000))} days`
       : `Showing ${Math.round(zoomDurationMs / (60 * 60 * 1000))} hours`
-  const showZoomControls = zoomDurations.length > 1 && diffs.length > 1
-
-  const setZoom = (nextIndex: number) => {
-    const boundedIndex = Math.max(0, Math.min(zoomDurations.length - 1, nextIndex))
-    setZoomAnchorMs(selectedEntryMs)
-    setZoomIndex(boundedIndex)
-  }
-
   return (
     <section className="px-3 py-2" aria-label={heading}>
       {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
       <div className={`relative ${showHeading ? 'mt-1' : ''}`}>
         <svg
+          ref={chartRef}
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           className="block h-20 w-full cursor-crosshair overflow-visible outline-none focus-visible:ring-foundation focus-visible:ring-focus"
           role="slider"
@@ -266,8 +403,12 @@ export function HistoryGraph({
           aria-valuemax={diffs.length}
           aria-valuenow={selectedIndex + 1}
           aria-valuetext={entryLabel(selectedEntry, selectedIndex === 0)}
-          aria-describedby={zoomStatusId}
+          aria-describedby={showZoomControls
+            ? `${zoomStatusId} ${gestureInstructionsId}`
+            : zoomStatusId}
           data-view-mode={isOverview ? 'daily' : 'saves'}
+          data-visible-start-ms={visibleWindow.startMs}
+          data-visible-end-ms={visibleWindow.endMs}
           preserveAspectRatio="none"
           onMouseMove={variant === 'desktop' && hoverEnabled
             ? (event) => handlePointer(event, false)
@@ -299,7 +440,8 @@ export function HistoryGraph({
             }
           }}
         >
-          <line
+          <g ref={plotRef}>
+            <line
             x1={CHART_INSET}
             y1={BASELINE_Y}
             x2={CHART_WIDTH - CHART_INSET}
@@ -307,7 +449,7 @@ export function HistoryGraph({
             stroke="var(--color-border-strong)"
             strokeWidth={2}
           />
-          {isOverview
+            {isOverview
             ? dailyGroups.map((group, index) => {
                 const x = dayPositions[index]
                 const additionY = pointY(group.additions, maxAbsChange)
@@ -452,10 +594,16 @@ export function HistoryGraph({
                   </g>
                 )
               })}
+          </g>
         </svg>
       </div>
 
       <span id={zoomStatusId} className="sr-only" aria-live="polite">{zoomStatus}</span>
+      {showZoomControls && (
+        <span id={gestureInstructionsId} className="sr-only">
+          Use the mouse wheel to zoom. Scroll horizontally or hold Shift while scrolling to pan.
+        </span>
+      )}
       <div className="mt-0.5 grid grid-cols-[1fr_auto_1fr] items-center gap-1 text-xs leading-tight text-text-muted">
         <span className={!showZoomControls && firstDay === lastDay ? 'col-span-3 text-center' : undefined}>
           {formatDate(visibleStartMs)}
