@@ -37,11 +37,17 @@ describe('CI workflow', () => {
     expect(workflow).toContain('node scripts/classify-ci-changes.mjs --full')
     expect(workflow).toContain('--target "$TARGET_BRANCH"')
     expect(workflow).toContain('--head-branch "$HEAD_BRANCH"')
+    expect(workflow).toContain('--main-sha "$MAIN_SHA"')
+    expect(workflow).toContain('--head-repository "$HEAD_REPOSITORY"')
+    expect(workflow).toContain('--base-repository "$BASE_REPOSITORY"')
     expect(workflow).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
     expect(workflow).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")
     expect(workflow).toContain("if: needs.classify-changes.result == 'success'")
     expect(workflow).toContain('run: pnpm run check:workflow')
     expect(workflow).toContain('Verify every selected check passed')
+    expect(workflow).toContain('Invalid or inconsistent CI selectors')
+    expect(workflow).toContain('full:true:true')
+    expect(workflow).toContain('docs-only:false:false')
     expect(workflow).toContain(
       'Architecture Database Contracts were required but ended: $DATABASE_RESULT',
     )

@@ -12,7 +12,9 @@ describe('production promotion workflow', () => {
 
     expect(script).toContain('PROMOTION_COUNT')
     expect(script).toContain('Multiple open main-to-production PRs exist')
-    expect(script).toContain('Production worktree has local changes')
+    expect(script).toContain('worktree add --detach "$PROMOTION_WT" origin/production')
+    expect(script).toContain('trap cleanup EXIT')
+    expect(script).toContain('no persistent production checkout is advanced')
     expect(script).toContain('BRANCH_NAME="$EXISTING_PR_HEAD"')
     expect(script).toContain('gh pr ready "$EXISTING_PR_URL" --repo "$GITHUB_REPO" --undo')
     expect(script).toContain('Promotion PR updated and kept draft for cumulative review')

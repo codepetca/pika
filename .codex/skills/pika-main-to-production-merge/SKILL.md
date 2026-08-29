@@ -20,22 +20,24 @@ Execute a deterministic `main` -> `production` merge flow that respects Pika wor
    the reviewed SHA, mark the PR ready, and wait for `PR Gate`.
 4. If the script reports a created or updated PR URL, share it. Do not create a
    second promotion PR while the batch is open.
-5. Merge the PR (manually or with `gh pr merge`) and then sync local `production` using the production worktree path printed by the script:
-   - `git -C <production-worktree> fetch origin production`
-   - `git -C <production-worktree> merge --ff-only origin/production`
+5. Merge the PR (manually or with `gh pr merge`). The helper uses and removes an
+   ephemeral detached worktree, so it never advances a persistent local
+   `production` branch and remains safe after merge, squash, or rebase outcomes.
 6. Report final `origin/production` commit SHA.
 
 ## Conflict Handling
 
 1. If `git merge origin/main` conflicts, stop and list conflicted files.
-2. Resolve conflicts in the production worktree only.
+2. Resolve conflicts only in the ephemeral promotion worktree path reported by
+   the helper.
 3. Complete the merge commit and continue PR flow.
 
 ## Guardrails
 
 - Use worktree-safe git commands (`git -C <path>`).
 - Expect `production` direct pushes to fail with `GH013`; use PR flow.
-- If the production worktree path is stale/missing, run `git worktree prune` and re-add it.
+- The helper prunes stale metadata and creates a fresh detached promotion
+  worktree from `origin/production` on every run.
 - Use single-quoted PR body text when calling `gh pr create` to avoid shell interpolation.
 - Do not promote automatically after every main PR. Start a promotion only when
   explicitly authorized, and batch additional reviewed main commits into the one

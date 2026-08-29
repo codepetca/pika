@@ -4,7 +4,8 @@ set -euo pipefail
 HUB_REPO="${PIKA_HUB_REPO:-$HOME/Repos/pika}"
 WORKTREE_ROOT="${PIKA_PROD_WT_ROOT:-$HOME/.codex/worktrees/pika}"
 GITHUB_REPO="${PIKA_GITHUB_REPO:-codepetca/pika}"
-PROD_WT="$WORKTREE_ROOT/production"
+PROMOTION_TEMP_ROOT=''
+PROMOTION_WT=''
 DATE_TAG="$(date +%Y%m%d)"
 BRANCH_NAME="codex/merge-main-into-production-${DATE_TAG}"
 TITLE="Merge main into production ($(date +%Y-%m-%d))"
@@ -41,6 +42,20 @@ run() {
     "$@"
   fi
 }
+
+cleanup() {
+  if [[ -n "$PROMOTION_WT" && -d "$PROMOTION_WT" ]]; then
+    if ! git -C "$HUB_REPO" worktree remove "$PROMOTION_WT" >/dev/null 2>&1; then
+      printf 'Promotion worktree preserved for conflict recovery: %s\n' "$PROMOTION_WT" >&2
+      return
+    fi
+  fi
+  if [[ -n "$PROMOTION_TEMP_ROOT" && -d "$PROMOTION_TEMP_ROOT" ]]; then
+    rmdir "$PROMOTION_TEMP_ROOT" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -95,34 +110,25 @@ fi
 run git -C "$HUB_REPO" fetch origin
 run git -C "$HUB_REPO" worktree prune
 
-EXISTING_PROD_WT="$(git -C "$HUB_REPO" worktree list --porcelain \
-  | awk '/^worktree / { path=$2 } /^branch refs\/heads\/production$/ { print path; exit }')"
-if [[ -n "$EXISTING_PROD_WT" ]]; then
-  PROD_WT="$EXISTING_PROD_WT"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  PROMOTION_TEMP_ROOT="$WORKTREE_ROOT/.production-promotion.DRYRUN"
+else
+  mkdir -p "$WORKTREE_ROOT"
+  PROMOTION_TEMP_ROOT="$(mktemp -d "$WORKTREE_ROOT/.production-promotion.XXXXXX")"
 fi
+PROMOTION_WT="$PROMOTION_TEMP_ROOT/worktree"
 
-if [[ ! -d "$PROD_WT" ]]; then
-  run mkdir -p "$(dirname "$PROD_WT")"
-  run git -C "$HUB_REPO" worktree add "$PROD_WT" production
-fi
-
-if [[ "$DRY_RUN" -eq 0 && -n "$(git -C "$PROD_WT" status --porcelain)" ]]; then
-  echo "Production worktree has local changes; preserve or resolve them before promotion." >&2
-  exit 1
-fi
-
-run git -C "$PROD_WT" fetch origin main production
-run git -C "$PROD_WT" merge --ff-only origin/production
+run git -C "$HUB_REPO" worktree add --detach "$PROMOTION_WT" origin/production
 if [[ -n "$EXISTING_PR_HEAD" ]]; then
   if [[ "$EXISTING_PR_IS_DRAFT" != "true" ]]; then
     gh pr ready "$EXISTING_PR_URL" --repo "$GITHUB_REPO" --undo
   fi
-  run git -C "$PROD_WT" fetch origin \
+  run git -C "$HUB_REPO" fetch origin \
     "refs/heads/$EXISTING_PR_HEAD:refs/remotes/origin/$EXISTING_PR_HEAD"
-  run git -C "$PROD_WT" merge --ff-only "origin/$EXISTING_PR_HEAD"
+  run git -C "$PROMOTION_WT" merge --ff-only "origin/$EXISTING_PR_HEAD"
 fi
-run git -C "$PROD_WT" merge origin/main
-run git -C "$PROD_WT" push origin "HEAD:refs/heads/$BRANCH_NAME"
+run git -C "$PROMOTION_WT" merge --no-edit origin/main
+run git -C "$PROMOTION_WT" push origin "HEAD:refs/heads/$BRANCH_NAME"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   printf '[dry-run] gh pr create --draft --repo %q --base production --head %q --title %q --body %q\n' "$GITHUB_REPO" "$BRANCH_NAME" "$TITLE" "$BODY"
@@ -144,6 +150,5 @@ PR_URL="$(gh pr create \
   --body "$BODY")"
 
 printf 'Draft promotion PR created: %s\n' "$PR_URL"
-printf 'Next: finish cumulative review, mark ready, merge after PR Gate, then sync local production with:\n'
-printf 'git -C %q fetch origin production\n' "$PROD_WT"
-printf 'git -C %q merge --ff-only origin/production\n' "$PROD_WT"
+printf 'Next: finish cumulative review, mark ready, and merge after PR Gate.\n'
+printf 'The ephemeral promotion worktree is removed automatically; no persistent production checkout is advanced.\n'

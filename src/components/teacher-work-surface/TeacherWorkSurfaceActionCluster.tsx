@@ -73,6 +73,7 @@ function TeacherWorkSurfaceActionMenuButton({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const restoreTriggerFocusRef = useRef(false)
   const triggerId = useId()
   const menuId = useId()
   const normalItems = items.filter((item) => !item.destructive)
@@ -91,11 +92,17 @@ function TeacherWorkSurfaceActionMenuButton({
   }, [])
 
   const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
-    setIsOpen(false)
     if (options?.restoreFocus) {
-      triggerRef.current?.focus()
+      restoreTriggerFocusRef.current = true
     }
+    setIsOpen(false)
   }, [])
+
+  useEffect(() => {
+    if (isOpen || !restoreTriggerFocusRef.current) return
+    restoreTriggerFocusRef.current = false
+    triggerRef.current?.focus()
+  }, [isOpen])
 
   const restoreFocusIfNoNewModalOpened = useCallback((existingModals: Set<Element>) => {
     window.requestAnimationFrame(() => {
@@ -161,6 +168,7 @@ function TeacherWorkSurfaceActionMenuButton({
   function handleItemSelect(item: TeacherWorkSurfaceActionItem) {
     const existingModals = new Set(document.querySelectorAll('[aria-modal="true"]'))
     closeMenu()
+    triggerRef.current?.focus()
     item.onSelect()
     restoreFocusIfNoNewModalOpened(existingModals)
   }

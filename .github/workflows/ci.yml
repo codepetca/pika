@@ -41,16 +41,23 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
           FULL_CI: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           if [[ "$FULL_CI" == "true" ]]; then
             node scripts/classify-ci-changes.mjs --full --github-output "$GITHUB_OUTPUT"
           else
+            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+            MAIN_SHA="$(git rev-parse origin/main)"
             node scripts/classify-ci-changes.mjs \
               --base "$BASE_SHA" \
               --head "$HEAD_SHA" \
               --target "$TARGET_BRANCH" \
               --head-branch "$HEAD_BRANCH" \
+              --main-sha "$MAIN_SHA" \
+              --head-repository "$HEAD_REPOSITORY" \
+              --base-repository "$BASE_REPOSITORY" \
               --github-output "$GITHUB_OUTPUT"
           fi
 
@@ -117,6 +124,9 @@ jobs:
 
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
+
+      - name: Verify atomic Test publication
+        run: bash scripts/check-test-publication-atomicity.sh
 
       - name: Verify atomic test grading
         run: bash scripts/check-atomic-test-grading.sh
@@ -403,6 +413,20 @@ jobs:
             echo "Test & Build did not succeed: $TEST_BUILD_RESULT"
             exit 1
           }
+          case "$CI_MODE:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
+            full:true:true | \
+            docs-only:false:false | \
+            production-promotion:false:false | \
+            application-database:true:false | \
+            application-browser:false:true | \
+            application-database-browser:true:true | \
+            application-test-build:false:false)
+              ;;
+            *)
+              echo "Invalid or inconsistent CI selectors: mode=$CI_MODE database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
           if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_RESULT" != "success" ]]; then
             echo "Architecture Database Contracts were required but ended: $DATABASE_RESULT"
             exit 1

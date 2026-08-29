@@ -46,9 +46,14 @@ function isFullCiPath(path) {
     || path === 'scripts/run-focused-checks.mjs'
 }
 
+function isSeedPath(path) {
+  return path === 'scripts/clear-and-seed.ts'
+    || /^scripts\/(?:.*\/)?[^/]*seed[^/]*\.ts$/.test(path)
+}
+
 function isDatabasePath(path) {
   return path.startsWith('supabase/')
-    || /^scripts\/(?:seed|seed-tests|clear-and-seed)\.ts$/.test(path)
+    || isSeedPath(path)
     || path.startsWith('src/app/api/')
     || path.startsWith('src/lib/server/')
     || path.startsWith('src/types/database')
@@ -61,7 +66,7 @@ function isDatabasePath(path) {
 
 function isBrowserPath(path) {
   return path.startsWith('e2e/')
-    || /^scripts\/(?:seed|seed-tests|clear-and-seed)\.ts$/.test(path)
+    || isSeedPath(path)
     || path === 'src/middleware.ts'
     || path.startsWith('public/')
     || path.startsWith('src/app/')
@@ -72,9 +77,7 @@ function isBrowserPath(path) {
 }
 
 function isKnownTestBuildPath(path) {
-  return path.startsWith('src/')
-    || path.startsWith('tests/')
-    || path.startsWith('scripts/')
+  return path.startsWith('tests/')
     || path.startsWith('.codex/skills/')
     || path.startsWith('.claude/commands/')
     || path.startsWith('.github/')
@@ -85,6 +88,10 @@ export function classifyChangedPaths(inputPaths, options = {}) {
   const paths = normalizedPaths(inputPaths)
   const targetBranch = options.targetBranch ?? 'main'
   const headBranch = options.headBranch ?? ''
+  const headSha = options.headSha ?? ''
+  const mainSha = options.mainSha ?? ''
+  const headRepository = options.headRepository ?? ''
+  const baseRepository = options.baseRepository ?? ''
   const forceFull = options.forceFull === true
 
   if (forceFull) {
@@ -114,7 +121,12 @@ export function classifyChangedPaths(inputPaths, options = {}) {
   }
 
   if (targetBranch === 'production') {
-    if (!headBranch.startsWith('codex/merge-main-into-production-')) {
+    const trustedPromotion = headBranch.startsWith('codex/merge-main-into-production-')
+      && headRepository !== ''
+      && headRepository === baseRepository
+      && headSha !== ''
+      && headSha === mainSha
+    if (!trustedPromotion) {
       return {
         mode: 'full',
         reason: 'noncanonical production PR; fail closed',
@@ -128,7 +140,7 @@ export function classifyChangedPaths(inputPaths, options = {}) {
     }
     return {
       mode: 'production-promotion',
-      reason: 'production validates the combined merge result; main already ran risk-matched contracts',
+      reason: 'same-repository promotion head exactly matches current main; main already ran risk-matched contracts',
       paths,
       docsOnly: false,
       runTestBuild: true,
@@ -203,6 +215,9 @@ function parseArguments(argv) {
     head: null,
     targetBranch: 'main',
     headBranch: '',
+    mainSha: '',
+    headRepository: '',
+    baseRepository: '',
     forceFull: false,
     githubOutput: null,
   }
@@ -213,6 +228,9 @@ function parseArguments(argv) {
     else if (value === '--head') args.head = argv[++index]
     else if (value === '--target') args.targetBranch = argv[++index]
     else if (value === '--head-branch') args.headBranch = argv[++index]
+    else if (value === '--main-sha') args.mainSha = argv[++index]
+    else if (value === '--head-repository') args.headRepository = argv[++index]
+    else if (value === '--base-repository') args.baseRepository = argv[++index]
     else if (value === '--full') args.forceFull = true
     else if (value === '--github-output') args.githubOutput = argv[++index]
     else throw new Error(`Unknown argument: ${value}`)
@@ -227,7 +245,7 @@ function readChangedPaths(args) {
   }
   return execFileSync(
     'git',
-    ['diff', '--name-only', '--diff-filter=ACMR', args.base, args.head],
+    ['diff', '--name-only', '--diff-filter=ACMRD', args.base, args.head],
     { encoding: 'utf8' },
   ).split('\n')
 }
@@ -251,6 +269,10 @@ if (invokedPath === import.meta.url) {
     const result = classifyChangedPaths(readChangedPaths(args), {
       targetBranch: args.targetBranch,
       headBranch: args.headBranch,
+      headSha: args.head,
+      mainSha: args.mainSha,
+      headRepository: args.headRepository,
+      baseRepository: args.baseRepository,
       forceFull: args.forceFull,
     })
     console.log(JSON.stringify(result, null, 2))

@@ -581,11 +581,13 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const scrollPane = page.getByTestId('test-grading-student-scroll-pane')
   const selectAllCheckbox = page.getByRole('checkbox', { name: 'Select all students' })
   const firstStudentCheckbox = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
-  await expect(contextBar).toContainText('Active')
+  await expect(contextBar).not.toContainText(/Draft|Active|Closed/)
   await expect(primaryControl.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
   await expect(trailingActions).toBeVisible()
+  const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
+  await expect(moreActionsButton).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
@@ -617,7 +619,21 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   if (viewport === 'desktop') {
     await primaryControl.getByRole('button', { name: 'Open All' }).hover()
     await expect(page.getByRole('tooltip', { name: 'Open access for all students' })).toBeVisible()
+    await moreActionsButton.hover()
+    await expect(page.getByRole('tooltip', { name: 'More actions' })).toBeVisible()
   }
+  await moreActionsButton.click()
+  const testActionsMenu = page.getByRole('menu', { name: 'Test actions' })
+  await expect(testActionsMenu.getByRole('menuitem', { name: 'Edit Test' })).toBeVisible()
+  await expect(testActionsMenu.getByRole('menuitem', { name: 'Delete Test' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-test-actions.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await expect(testActionsMenu).toBeHidden()
+  await expect(moreActionsButton).toBeFocused()
+
   await primaryControl.getByRole('button', { name: 'Close All' }).click()
   await expect(page.getByRole('dialog')).toContainText(`Close access for ${students.length} student(s)?`)
   await page.screenshot({
@@ -687,6 +703,232 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-selected.png`),
+    animations: 'disabled',
+  })
+})
+
+test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests**', async (route) => {
+    const url = new URL(route.request().url())
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}/results`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          test: {
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            title: 'Functions and Graphs Test',
+            status: 'draft',
+            grading_finalized_at: null,
+          },
+          questions: [{ id: 'question-1', question_type: 'multiple_choice' }],
+          students: [],
+          active_ai_grading_run: null,
+        }),
+      })
+      return
+    }
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}/draft`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          draft: {
+            id: 'draft-1',
+            version: 1,
+            content: {
+              title: 'Functions and Graphs Test',
+              show_results: false,
+              question_identity_version: 1,
+              questions: [{
+                id: '30000000-0000-4000-8000-000000000014',
+                question_type: 'multiple_choice',
+                question_text: 'Ready to publish?',
+                options: ['Yes', 'No'],
+                correct_option: 0,
+                answer_key: null,
+                sample_solution: null,
+                points: 1,
+                response_max_chars: 5000,
+                response_monospace: false,
+              }],
+            },
+          },
+        }),
+      })
+      return
+    }
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          draft_version: 1,
+          questions: [{
+            id: 'question-1',
+            question_type: 'multiple_choice',
+            question_text: 'Ready to publish?',
+            options: ['Yes', 'No'],
+            correct_option: 0,
+            points: 1,
+          }],
+        }),
+      })
+      return
+    }
+
+    if (
+      url.pathname === '/api/teacher/tests' &&
+      url.searchParams.get('classroom_id') === TEST_GRADING_FIXTURE_CLASSROOM_ID
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tests: [{
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Functions and Graphs Test',
+            description: null,
+            instructions: null,
+            status: 'draft',
+            show_results: false,
+            position: 0,
+            documents: [],
+            created_at: '2026-08-27T12:00:00.000Z',
+            updated_at: '2026-08-27T12:00:00.000Z',
+            stats: {
+              total_students: 0,
+              responded: 0,
+              submitted: 0,
+              open_access: 0,
+              closed_access: 0,
+              questions_count: 1,
+            },
+          }],
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: `Unhandled Test publication fixture route: ${url.pathname}` }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading', { waitUntil: 'domcontentloaded' })
+
+  const contextBar = page.getByTestId('test-grading-context-bar')
+  await expect(contextBar).not.toContainText(/Draft|Active|Closed|Unpublished|Published/)
+  await expect(page.getByRole('button', { name: 'Open All' })).toBeDisabled()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit Test' }).click()
+  const authoringDialog = page.getByRole('dialog', { name: 'Edit test' })
+  await expect(authoringDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
+  await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
+  await expect(authoringDialog.getByText(/Failed to load assessment draft|Unhandled Test publication fixture route/)).toHaveCount(0)
+  await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+
+  const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
+  await expect(publishDialog).toBeVisible()
+  await expect(publishDialog).toContainText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')
+  await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-publish-${viewport}-confirmation.png`),
+    animations: 'disabled',
+  })
+})
+
+test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/student/notifications**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 1,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+  })
+  await page.route('**/api/student/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000023',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Functions and Graphs Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 1,
+            documents: [],
+            student_status: 'not_started',
+            access_state: null,
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000025',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Individually Closed Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            student_status: 'not_started',
+            access_state: 'closed',
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000024',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Practice Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            student_status: 'not_started',
+            access_state: null,
+            effective_access: 'open',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
+
+  const closedTest = page.getByRole('button', { name: /Functions and Graphs Test/ })
+  await expect(closedTest).toBeVisible()
+  await expect(closedTest).toBeDisabled()
+  await expect(closedTest).toContainText('This test is closed')
+  const individuallyClosedTest = page.getByRole('button', { name: /Individually Closed Test/ })
+  await expect(individuallyClosedTest).toBeDisabled()
+  await expect(individuallyClosedTest).toContainText('Closed')
+  await expect(individuallyClosedTest).toContainText('This test is closed')
+  await expect(page.getByRole('button', { name: /Practice Test/ })).toBeEnabled()
+  await expect(page.getByText(/Unpublished|Published/, { exact: false })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-test-list-${viewport}-published-closed.png`),
     animations: 'disabled',
   })
 })
@@ -919,7 +1161,7 @@ test.describe('teacher experience matrix', () => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One publication lifecycle pass is sufficient')
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
-    await page.locator('aside').getByRole('button', { name: /Computer Science 11/ }).click()
+    await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
@@ -933,21 +1175,21 @@ test.describe('teacher experience matrix', () => {
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(404)
 
       await publishCheckbox.check()
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(200)
     } finally {
       const restore = await page.request.patch(
-        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.blueprintId}`,
+        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.publicationBlueprintId}`,
         {
           data: {
-            planned_site_slug: PLANNED_COURSE_FIXTURE.publicSlug,
+            planned_site_slug: PLANNED_COURSE_FIXTURE.publicationSlug,
             planned_site_published: true,
             planned_site_config: {
               overview: true,

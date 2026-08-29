@@ -8,7 +8,7 @@ describe('focused local checks', () => {
   it('uses the same classifier as CI and never shells interpolated paths', () => {
     expect(script).toContain("from './classify-ci-changes.mjs'")
     expect(script).toContain("execFileSync(command, args, { stdio: 'inherit' })")
-    expect(script).toContain("['diff', '--name-only', '--diff-filter=ACMR', 'HEAD']")
+    expect(script).toContain("['diff', '--name-only', '--diff-filter=ACMRD', 'HEAD']")
     expect(script).toContain("['ls-files', '--others', '--exclude-standard']")
     expect(script).not.toContain('execSync(')
   })

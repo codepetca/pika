@@ -15,7 +15,7 @@
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "check:workflow": "vitest run tests/unit/ci-change-classifier.test.ts tests/unit/ci-performance.test.ts tests/unit/ci-workflow.test.ts tests/unit/focused-checks.test.ts tests/unit/production-promotion-workflow.test.ts tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/vercel-deployment-config.test.ts",
+    "check:workflow": "vitest run tests/unit/ci-change-classifier.test.ts tests/unit/ci-performance.test.ts tests/unit/ci-workflow.test.ts tests/unit/focused-checks.test.ts tests/unit/production-promotion-workflow.test.ts tests/unit/seed-planned-course-fixtures.test.ts tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/vercel-deployment-config.test.ts",
     "check:focused": "node scripts/run-focused-checks.mjs",
     "measure:ci": "node scripts/measure-ci-performance.mjs",
     "verify:classroom-archive-recovery": "bash scripts/check-classroom-archive-recovery-drill.sh",

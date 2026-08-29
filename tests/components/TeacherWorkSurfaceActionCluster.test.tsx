@@ -57,6 +57,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.queryByText('Work students complete')).not.toBeInTheDocument()
     fireEvent.click(assignmentMenuItem)
     expect(addAssignment).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toHaveFocus()
 
     expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByText('Reorder or delete items')).not.toBeInTheDocument()
@@ -107,5 +108,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
   })
 })

@@ -24,6 +24,11 @@ Reproduce the rolling measurement with:
 pnpm measure:ci -- --limit 50
 ```
 
+The report loads each successful `PR Gate`, reads its emitted classifier mode,
+and reports time-to-gate-start, gate duration, and time-to-gate-pass separately
+for docs-only, full, promotion, and application modes. Runs whose retained logs
+cannot prove a mode are counted explicitly and do not satisfy per-mode targets.
+
 ## Acceptance targets
 
 - Draft review pushes launch no heavy jobs.
@@ -35,7 +40,9 @@ pnpm measure:ci -- --limit 50
 - No database or browser lane selected by the classifier may be skipped by the
   aggregate gate, and unknown paths must select full CI.
 - Canonical production promotions reuse one draft batch PR and run Test & Build
-  on the combined merge result; any other production PR fails closed to full CI.
+  when the same-repository head is exactly the current reviewed `main` commit;
+  any divergent, forked, or otherwise unproven production PR fails closed to
+  full CI.
 
 ## Branch-ruleset checkpoint
 

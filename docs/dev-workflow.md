@@ -191,8 +191,10 @@ CI classifies changes conservatively:
   matrix, while database/server-contract paths add ephemeral database contracts.
 - CI configuration, dependency/runtime configuration, manual dispatches, empty
   change evidence, and unknown paths fail closed to the full suite.
-- Production promotion PRs validate the combined merge result with Test & Build;
-  risk-matched database and browser contracts already ran against the main PRs.
+- Same-repository production promotion PRs whose head exactly matches current
+  `main` validate with Test & Build; divergent or unproven promotion heads run
+  full CI. Risk-matched database and browser contracts already ran against the
+  exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
 `Test & Build` remains compatible with the existing branch rules during rollout.
@@ -284,39 +286,36 @@ promotion is explicitly authorized, the helper creates one draft batch PR or
 updates the existing open promotion PR. Complete cumulative review once, mark
 the stable SHA ready, and merge only after `PR Gate` passes.
 
-### 1) Prepare hub + production worktree
+### 1) Prepare an ephemeral detached promotion worktree
 
 ```bash
 HUB="$HOME/Repos/pika"
 WT_ROOT="$HOME/.codex/worktrees/pika"
 git -C "$HUB" fetch origin
 git -C "$HUB" worktree prune
-
-PROD_WT="$(git -C "$HUB" worktree list --porcelain \
-  | awk '/^worktree / { path=$2 } /^branch refs\/heads\/production$/ { print path; exit }')"
-
-if [ -z "$PROD_WT" ]; then
-  PROD_WT="$WT_ROOT/production"
-  mkdir -p "$(dirname "$PROD_WT")"
-  git -C "$HUB" worktree add "$PROD_WT" production
-fi
+mkdir -p "$WT_ROOT"
+PROMO_TMP="$(mktemp -d "$WT_ROOT/.production-promotion.XXXXXX")"
+PROMO_WT="$PROMO_TMP/worktree"
+git -C "$HUB" worktree add --detach "$PROMO_WT" origin/production
 ```
 
-### 2) Merge latest remote branches in production worktree
+### 2) Merge current main without advancing local production
 
 ```bash
-git -C "$PROD_WT" fetch origin main production
-git -C "$PROD_WT" merge --ff-only origin/production
-git -C "$PROD_WT" merge origin/main
+git -C "$PROMO_WT" merge --no-edit origin/main
 ```
+
+If production is an ancestor of main this fast-forwards to the exact reviewed
+main SHA and receives abbreviated promotion CI. Divergent or otherwise unproven
+merge results fail closed to full CI.
 
 ### 3) Open PR to production
 
 ```bash
 MERGE_BRANCH="codex/merge-main-into-production-$(date +%Y%m%d)"
-git -C "$PROD_WT" push origin HEAD:"refs/heads/$MERGE_BRANCH"
+git -C "$PROMO_WT" push origin HEAD:"refs/heads/$MERGE_BRANCH"
 
-gh pr create \
+gh pr create --draft \
   --repo codepetca/pika \
   --base production \
   --head "$MERGE_BRANCH" \
@@ -324,18 +323,19 @@ gh pr create \
   --body 'Merge latest main into production.'
 ```
 
-### 4) Merge PR and sync local production
+### 4) Merge PR and remove the ephemeral worktree
 
 ```bash
 gh pr merge <pr-number> --repo codepetca/pika --merge
-git -C "$PROD_WT" fetch origin production
-git -C "$PROD_WT" merge --ff-only origin/production
+git -C "$HUB" worktree remove "$PROMO_WT"
+rmdir "$PROMO_TMP"
 ```
 
 ### Known pitfalls (and fixes)
 
-- `production` worktree path missing but listed in metadata:
-  - Run `git -C "$HOME/Repos/pika" worktree prune` then re-add.
+- A failed merge leaves the ephemeral worktree dirty:
+  - Preserve and report its exact path for conflict resolution; do not reset a
+    persistent local `production` branch.
 - Push rejected with `GH013`:
   - Expected; open/merge PR instead of direct push.
 - `gh pr create` body errors due to backticks:

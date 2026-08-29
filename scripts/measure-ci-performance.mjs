@@ -38,6 +38,30 @@ export function summarizeCiRuns(runs) {
   const runSeconds = successful.map((run) => secondsBetween(run.startedAt, run.updatedAt))
   const wallSeconds = successful.map((run) => secondsBetween(run.createdAt, run.updatedAt))
   const cancelled = completed.filter((run) => run.conclusion === 'cancelled')
+  const successfulWithGate = successful.filter((run) => (
+    run.prGate?.mode
+    && run.prGate.startedAt
+    && run.prGate.completedAt
+  ))
+  const perMode = Object.fromEntries(
+    [...new Set(successfulWithGate.map((run) => run.prGate.mode))]
+      .sort()
+      .map((mode) => {
+        const modeRuns = successfulWithGate.filter((run) => run.prGate.mode === mode)
+        return [mode, {
+          sampleSize: modeRuns.length,
+          timeToGateStartSeconds: summarize(modeRuns.map((run) => (
+            secondsBetween(run.createdAt, run.prGate.startedAt)
+          ))),
+          gateRunSeconds: summarize(modeRuns.map((run) => (
+            secondsBetween(run.prGate.startedAt, run.prGate.completedAt)
+          ))),
+          timeToGatePassSeconds: summarize(modeRuns.map((run) => (
+            secondsBetween(run.createdAt, run.prGate.completedAt)
+          ))),
+        }]
+      }),
+  )
 
   return {
     sampleSize: completed.length,
@@ -51,11 +75,13 @@ export function summarizeCiRuns(runs) {
     successfulQueueSeconds: summarize(queueSeconds),
     successfulRunSeconds: summarize(runSeconds),
     successfulWallSeconds: summarize(wallSeconds),
+    successfulRunsWithoutPrGateEvidence: successful.length - successfulWithGate.length,
+    prGateByMode: perMode,
   }
 }
 
 function parseArguments(argv) {
-  const args = { repo: 'codepetca/pika', workflow: 'ci.yml', limit: 50 }
+  const args = { repo: 'codepetca/pika', workflow: 'ci.yml', limit: 20 }
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index]
     if (value === '--') continue
@@ -68,6 +94,42 @@ function parseArguments(argv) {
     throw new Error('--limit must be an integer from 1 to 100')
   }
   return args
+}
+
+function loadPrGateEvidence(runId, repo) {
+  try {
+    const rawJobs = execFileSync('gh', [
+      'run',
+      'view',
+      String(runId),
+      '--repo',
+      repo,
+      '--json',
+      'jobs',
+    ], { encoding: 'utf8' })
+    const gate = JSON.parse(rawJobs).jobs?.find((job) => job.name === 'PR Gate')
+    if (!gate?.databaseId || !gate.startedAt || !gate.completedAt) return null
+
+    const log = execFileSync('gh', [
+      'run',
+      'view',
+      String(runId),
+      '--repo',
+      repo,
+      '--job',
+      String(gate.databaseId),
+      '--log',
+    ], { encoding: 'utf8' })
+    const mode = log.match(/CI mode:\s*([a-z-]+)/)?.[1] ?? null
+    if (!mode) return null
+    return {
+      mode,
+      startedAt: gate.startedAt,
+      completedAt: gate.completedAt,
+    }
+  } catch {
+    return null
+  }
 }
 
 const invokedPath = process.argv[1] ? new URL(`file://${process.argv[1]}`).href : null
@@ -84,9 +146,15 @@ if (invokedPath === import.meta.url) {
       '--limit',
       String(args.limit),
       '--json',
-      'status,conclusion,createdAt,startedAt,updatedAt,url',
+      'databaseId,status,conclusion,createdAt,startedAt,updatedAt,url',
     ], { encoding: 'utf8' })
-    console.log(JSON.stringify(summarizeCiRuns(JSON.parse(raw)), null, 2))
+    const runs = JSON.parse(raw).map((run) => ({
+      ...run,
+      prGate: run.status === 'completed' && run.conclusion === 'success'
+        ? loadPrGateEvidence(run.databaseId, args.repo)
+        : null,
+    }))
+    console.log(JSON.stringify(summarizeCiRuns(runs), null, 2))
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
