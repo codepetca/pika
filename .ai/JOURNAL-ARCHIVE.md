@@ -26088,7 +26088,7 @@ migrated and no hosted state changed.
 **Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
 database concurrency review, and migration lifecycle verification.
 
-<!-- pika-session-log-archive-batch:f50be86d1198f83dea7e7aafba92a9c6db1cbea3b0fc8102544c62007212309b -->
+<!-- pika-session-log-archive-batch:2465ef114e38d10dd0794652b35f2a154063bb0cb3e477a0dc944f9b7f624b09 -->
 ## 2026-08-27 — Separate captured Test membership from source identity
 
 **Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
