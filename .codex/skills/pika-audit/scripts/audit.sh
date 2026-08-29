@@ -129,6 +129,12 @@ strip_block_comments() {
   '
 }
 
+added_lines_for_file() {
+  local file="$1"
+  git -C "$WORKTREE" diff --unified=0 HEAD -- "$file" 2>/dev/null \
+    | awk '/^\+\+\+ / { next } /^\+/ { print substr($0, 2) }'
+}
+
 has_relevant_test_for_composite_file() {
   local file="$1"
   local source_base source_stem source_stem_lower source_module source_alias source_alias_regex
@@ -260,11 +266,13 @@ while IFS= read -r file; do
     done < <(grep -nE '(function|const) parseContentField' "$FULL" 2>/dev/null || true)
   fi
 
-  # d) console.log in production code (not tests)
+  # d) Newly introduced console.log in production code (not tests). Checking
+  # only added lines avoids turning an unrelated edit into cleanup of legacy
+  # logging elsewhere in the same file.
   if [[ "$file" != *.test.ts && "$file" != *.spec.ts && "$file" != *.test.tsx && "$file" != *.spec.tsx ]]; then
-    while IFS=: read -r lineno _; do
-      report_violation "console-log" "$file:$lineno" "use console.error/warn or structured logging"
-    done < <(grep -n 'console\.log(' "$FULL" 2>/dev/null || true)
+    while IFS= read -r _; do
+      report_violation "console-log" "$file:new" "use console.error/warn or structured logging"
+    done < <(added_lines_for_file "$file" | grep 'console\.log(' || true)
   fi
 
   # e) fetchJSON without cache in client components

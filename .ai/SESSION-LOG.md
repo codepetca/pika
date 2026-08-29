@@ -11,6 +11,104 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-27 — Restore mobile access to Attendance utilities
+
+**Risk profile:** low — responsive teacher Attendance controls and regression
+coverage only; no attendance data behavior, API contract, schema, persistence,
+authentication, dependency, or hosted state changed.
+
+- Resolved the PR review blocker that hid Attendance hours and Refresh below
+  640px. Desktop retains the two direct utility icons; mobile now uses the
+  shared teacher work-surface overflow menu so the centered date/session FAB
+  stays visually primary without overlapping trailing controls.
+- Raised the Attendance action-bar stacking context with the existing semantic
+  layer token so the mobile menu remains interactive above the sticky table
+  header.
+- Added a guarded Playwright-only Attendance fixture and a 390px browser
+  regression that opens the real Attendance-hours dialog in light and dark.
+  The same regression preserves direct desktop access in both themes and checks
+  for horizontal overflow.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
+  covered by the reused menu component tests; semantic state and dialog access
+  are covered by Attendance component and browser tests; remaining manual
+  follow-up: none.
+
+**Verification:** focused Attendance component tests (14/14), full Vitest
+(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
+Pika audit, diff checks, and production build pass. Visual review covers teacher
+desktop/mobile in light/dark with both the context bar and dialog open. Student
+UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded responsive
+interaction remediation with browser verification.
+
+## 2026-08-27 — Keep Attendance browser fixture reachable in local development
+
+**Risk profile:** none — local browser-test fixture gating only; no product UI,
+business behavior, API, schema, persistence, authentication, dependency, or
+hosted state changed.
+
+- Kept the Attendance fixture closed in production unless explicitly enabled,
+  while allowing it automatically on development servers so Playwright can
+  reuse a normal unflagged local server.
+- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
+  is evaluated when the production server handles each request instead of being
+  frozen into the build artifact.
+- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
+  existing Attendance-hours regression passed on desktop/mobile in light/dark
+  and opened the real dialog in all four cases.
+- Built one production artifact with the fixture flag present, then proved that
+  same artifact returns 404 when started unflagged and 200 when started flagged.
+
+**Model recommendation:** current GPT-5 coding model for a contained test-harness
+compatibility correction and exact-workflow verification.
+
+## 2026-08-27 — Resolve legacy Test-question backfill collisions
+
+**Risk profile:** runtime-platform — production Test draft identity backfill;
+no production data was changed by migration 134 and no migration retry occurred.
+
+- Production already contained migration 133. The first authorized attempt to
+  apply migration 134 failed atomically because 12 legacy draft questions each
+  matched both their historical row ID and a question-zero row carrying that ID
+  as corrupted portable lineage from migrations 112/114. Migration 134 remains
+  unapplied in production.
+- Changed the unapplied migration to resolve the exact historical row ID first,
+  then use a unique artifact/source identity only when no row-ID match exists.
+  The precedence is contractual and does not infer identity from position or
+  content; genuine multiple portable matches still fail closed.
+- Added static coverage and a fresh disposable-database regression that replays
+  the migration's exact backfill statement against the production collision
+  shape, proves both draft IDs resolve to distinct portable identities, and
+  proves neither persisted question row is mutated. Extended that fixture
+  through post-backfill save and activation so the installed RPCs cannot
+  reintroduce row-ID ambiguity after the one-time conversion.
+- Removed internal row-ID matching from migration 134's post-backfill save and
+  activation functions. Materialized Blueprint capture now validates in a
+  portable-only mode while the temporary dual reader remains scoped to actual
+  legacy draft JSON.
+- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
+  lock before the question-table fence. This makes the migration wait behind an
+  in-flight save before holding a lock that save must upgrade, preventing a
+  Draft-row/question-table deadlock; the database harness now rehearses that
+  two-session ordering.
+- Scoped the legacy draft rewrite under the transaction-local identity-mapping
+  guard. The identity-only update no longer advances Classroom structural
+  revision or waits on a Classroom held by a save that is waiting at the Draft
+  fence; the database harness now rehearses both migration/save arrival orders.
+- A privacy-minimized read-only production rehearsal resolved all 351 questions
+  across 28 drafts: 212 persisted questions would receive portable draft IDs,
+  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
+  portable matches, row reuse, or duplicate portable identities remain.
+- Rebased onto current `origin/main`. The focused 56-test identity/draft suite,
+  full 5,142-test suite, TypeScript, lint, architecture/design/UI policies,
+  shell syntax, diff validation, and production build pass. Fresh-database CI
+  remains authoritative for the migration replay; migration 134 was not applied
+  or reset locally and no hosted state changed.
+
+**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
+that preserves student-linked row identity.
+
 ## 2026-08-27 — Version portable Test draft question identity
 
 **Risk profile:** runtime-platform — Test draft identity compatibility and the
@@ -1148,6 +1246,76 @@ production Convex worker correction.
 
 **Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
 bounded follow-up now that the coordinated rollout is complete.
+
+## 2026-08-28 — Build the automatic development-speed workflow
+
+**Risk profile:** runtime-platform — CI selection, browser concurrency, AI PR
+routing, and protected production-promotion behavior changed; no schema,
+dependency, secret, or hosted state was changed.
+
+- Measured the pre-change CI baseline: latest clean lanes took 4m41s for Test &
+  Build, 7m32s for database contracts, and 9m08s for the browser matrix; the
+  recent successful wall-time median was 563s, with 8 of 30 attempts cancelled
+  after consuming about 41 minutes.
+- Added a fail-closed, change-aware classifier and aggregate `PR Gate`. Draft
+  pushes skip heavy work; docs/AI guidance uses the fast workflow-contract lane;
+  application, database, and rendered-browser paths select their relevant lanes;
+  unknown/runtime/CI paths and manual dispatches run the full suite.
+- Made the draft-first stable-SHA lifecycle automatic for AI agents: focused
+  local checks, draft PR, risk-matched review, batched remediation, one ready-SHA
+  CI run, and return-to-draft before any correction push.
+- Combined the three Playwright CI launches, moved the public Course Guide setup
+  into deterministic seed state, and enabled two CI workers while keeping each
+  spec internally serial. Added a reusable performance measurement command and
+  rollout/rollback targets.
+- Changed production promotion to reuse one cumulative draft PR and kept direct
+  or noncanonical production PRs on fail-closed full CI. Repository ruleset
+  replacement remains an explicit owner checkpoint after the workflow proves
+  both docs-only and full classifications.
+- Independent Sol/Terra review found and batch-remediated spoofable production
+  provenance, deletion omission, over-broad runtime safe classification, a
+  shared Playwright mutation, persistent production-worktree divergence,
+  malformed aggregate selectors, and metrics that could not prove per-mode
+  targets. Production abbreviation now requires same-repository head = current
+  `main`; all other cases fail closed. Mutable publication coverage has a
+  dedicated fixture, promotion worktrees are ephemeral, and metrics inspect
+  actual `PR Gate` timing by classifier mode.
+- A targeted remediation review then closed four remaining integration gaps:
+  the helper now publishes the exact `origin/main` SHA even when production is
+  divergent; all three aggregate selectors are validated together; fork PRs
+  cannot enter promotion discovery; and unrecognized `.github` paths fail
+  closed. Executable temporary-repository coverage exercises merge, squash,
+  rebase, and subsequent promotion preparation.
+- Validation on current `main` passed 77 workflow contracts, architecture,
+  UI/design policies, TypeScript, lint, production build, actionlint, Bash
+  syntax, Playwright discovery (93 tests), focused checks, and diff validation.
+  Two full-suite attempts each passed 5,287/5,288 but exposed different
+  non-repeating timing failures; both affected files passed immediately in
+  isolation. The PAL timeout test now has scheduler headroom while retaining a
+  strict bound. Final GitHub CI remains authoritative. Ephemeral database and
+  real-browser execution remain selected for the final ready-PR run because
+  local seed/migration application was not authorized.
+- Tightened the Pika audit so newly introduced production `console.log` calls
+  still fail without forcing unrelated edits to clean legacy logging elsewhere
+  in the same file; regression coverage locks both cases.
+- Final exact-SHA GitHub CI passed every selected full-mode safeguard: aggregate
+  `PR Gate` in 7m34s, database contracts in 7m17s, Test & Build in 6m21s, and
+  the combined browser matrix in 5m13s versus the 9m08s browser baseline.
+  After owner approval, current `main` advanced through Course Guide limiter PR
+  #1111; the speed-program PR returned to draft and merged that change while
+  retaining its new database-contract step in the aggregate CI workflow.
+- The next exact-SHA CI exposed a pre-existing archive visual test that packed
+  20 context/navigation states into one 30-second case. Test & Build and database
+  contracts passed, while all browser retries timed out even though an artifact
+  snapshot showed the expected verified state arriving after the deadline.
+  Split the four viewport/theme entries into separate internally serial tests,
+  preserving every assertion and screenshot. The exact two-worker combined
+  browser command then passed 82 tests with 14 intentional skips in 2.5 minutes;
+  each split archive case passed first try in 4.3–10.2 seconds.
+
+**Model recommendation:** GPT-5.6 Sol at high reasoning for the branch-protection
+transition and initial post-rollout evidence review; use Terra for routine
+follow-up once the aggregate gate is established.
 
 ## 2026-08-28 — Limit Test publication wording to the publish transition
 

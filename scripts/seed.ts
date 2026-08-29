@@ -177,6 +177,19 @@ async function seed() {
       term_label: seedCalendar.termLabel,
       start_date: format(seedCalendar.rangeStart, 'yyyy-MM-dd'),
       end_date: format(seedCalendar.rangeEnd, 'yyyy-MM-dd'),
+      course_overview_markdown: 'This course develops practical problem-solving, collaboration, and communication skills through guided study and classroom work.',
+      actual_site_slug: 'e2e-test-course-guide',
+      actual_site_published: true,
+      actual_site_config: {
+        overview: true,
+        outline: false,
+        resources: true,
+        assignments: true,
+        tests: true,
+        lesson_plans: true,
+        announcements: true,
+        lesson_plan_scope: 'current_week',
+      },
     })
     .select()
     .single()

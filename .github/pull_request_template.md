@@ -39,6 +39,9 @@
 
 ## Checks
 
+- CI classification:
+- Final reviewed SHA:
+- Draft review and batched remediation:
 - Tests:
 - Policy/contrast checks:
 - Risks and migration notes:

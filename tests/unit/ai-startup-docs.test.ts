@@ -240,7 +240,29 @@ describe('AI startup docs', () => {
       expect(prompt).toContain('$HOME/Repos/pika')
       expect(prompt).toContain('detached HEAD')
       expect(prompt).toContain('Never force-push')
+      expect(prompt).toContain('pnpm check:focused -- --base origin/main')
+      expect(prompt).toContain('gh pr create --draft')
+      expect(prompt).toContain('gh pr ready --undo')
+      expect(prompt).toContain('gh pr ready')
+      expect(prompt).toContain('PR Gate')
     }
+  })
+
+  it('makes the draft-first stable-SHA lifecycle automatic for every repository agent', () => {
+    const files = ['AGENTS.md', 'docs/ai-instructions.md', 'docs/dev-workflow.md']
+
+    for (const file of files) {
+      const content = readRepoFile(file)
+      expect(content).toMatch(/draft-first/i)
+      expect(content).toMatch(/stable-SHA/i)
+    }
+
+    const workflow = readRepoFile('docs/dev-workflow.md')
+    expect(workflow).toMatch(/Agents execute this\s+automatically/)
+    expect(workflow).toContain('batch accepted fixes')
+    expect(workflow).toContain('return the PR to draft')
+    expect(workflow).toContain('ready_for_review')
+    expect(workflow).toContain('workflow_dispatch')
   })
 
   it('documents orient-only startup for read-only work', () => {
@@ -449,6 +471,44 @@ describe('AI startup docs', () => {
       )
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('does not turn an unrelated edit into cleanup of an existing console log', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    const seedPath = join(repoRoot, 'scripts/seed.ts')
+
+    mkdirSync(dirname(seedPath), { recursive: true })
+    writeFileSync(seedPath, "console.log('seed progress')\nconst published = false\n")
+    commitAll(repoRoot, 'add seed fixture')
+    writeFileSync(seedPath, "console.log('seed progress')\nconst published = true\n")
+
+    try {
+      const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('console-log')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a newly introduced console log in production code', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    const sourcePath = join(repoRoot, 'src/lib/example.ts')
+
+    mkdirSync(dirname(sourcePath), { recursive: true })
+    writeFileSync(sourcePath, 'export const value = 1\n')
+    commitAll(repoRoot, 'add source fixture')
+    writeFileSync(sourcePath, "export const value = 1\nconsole.log('debug')\n")
+
+    try {
+      const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('console-log')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 

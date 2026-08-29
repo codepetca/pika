@@ -1,8 +1,6 @@
 import {
   expect,
-  request as playwrightRequest,
   test,
-  type APIRequestContext,
   type Page,
   type TestInfo,
 } from '@playwright/test'
@@ -15,7 +13,6 @@ const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
-const E2E_BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -1164,7 +1161,7 @@ test.describe('teacher experience matrix', () => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One publication lifecycle pass is sufficient')
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
-    await page.locator('aside').getByRole('button', { name: /Computer Science 11/ }).click()
+    await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
@@ -1178,21 +1175,21 @@ test.describe('teacher experience matrix', () => {
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(404)
 
       await publishCheckbox.check()
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(200)
     } finally {
       const restore = await page.request.patch(
-        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.blueprintId}`,
+        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.publicationBlueprintId}`,
         {
           data: {
-            planned_site_slug: PLANNED_COURSE_FIXTURE.publicSlug,
+            planned_site_slug: PLANNED_COURSE_FIXTURE.publicationSlug,
             planned_site_published: true,
             planned_site_config: {
               overview: true,
@@ -1450,69 +1447,6 @@ test.describe('public planned course experience matrix', () => {
 
 test.describe('public Course Guide experience matrix', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
-
-  let teacherRequest: APIRequestContext | null = null
-  let originalClassroom: {
-    id: string
-    course_overview_markdown: string
-    actual_site_slug: string | null
-    actual_site_published: boolean
-    actual_site_config: Record<string, unknown>
-  } | null = null
-
-  test.beforeAll(async () => {
-    teacherRequest = await playwrightRequest.newContext({
-      baseURL: E2E_BASE_URL,
-      storageState: TEACHER_STORAGE,
-    })
-    const classroomsResponse = await teacherRequest.get('/api/teacher/classrooms')
-    expect(classroomsResponse.ok()).toBe(true)
-    const payload = await classroomsResponse.json() as {
-      classrooms?: Array<{ id: string; title: string }>
-    }
-    const classroomSummary = payload.classrooms?.find((item) => item.title === 'Test Classroom') ?? null
-    if (!classroomSummary) throw new Error('Teacher browser fixture is missing Test Classroom')
-
-    const classroomResponse = await teacherRequest.get(`/api/teacher/classrooms/${classroomSummary.id}`)
-    expect(classroomResponse.ok()).toBe(true)
-    const classroomPayload = await classroomResponse.json() as { classroom: typeof originalClassroom }
-    originalClassroom = classroomPayload.classroom
-    if (!originalClassroom) throw new Error('Teacher browser fixture details could not be loaded')
-
-    const guideResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
-      data: {
-        courseOverviewMarkdown: 'This course develops practical problem-solving, collaboration, and communication skills through guided study and classroom work.',
-        actualSiteSlug: PUBLIC_ACTUAL_COURSE_SLUG,
-        actualSitePublished: true,
-        actualSiteConfig: {
-          overview: true,
-          outline: false,
-          resources: true,
-          assignments: true,
-          tests: true,
-          lesson_plans: true,
-          announcements: true,
-          lesson_plan_scope: 'current_week',
-        },
-      },
-    })
-    expect(guideResponse.ok()).toBe(true)
-  })
-
-  test.afterAll(async () => {
-    if (originalClassroom && teacherRequest) {
-      const restoreResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
-        data: {
-          courseOverviewMarkdown: originalClassroom.course_overview_markdown,
-          actualSiteSlug: originalClassroom.actual_site_slug,
-          actualSitePublished: originalClassroom.actual_site_published,
-          actualSiteConfig: originalClassroom.actual_site_config,
-        },
-      })
-      expect(restoreResponse.ok()).toBe(true)
-    }
-    await teacherRequest?.dispose()
-  })
 
   test.beforeEach(async ({ page }, testInfo) => {
     await applyProjectTheme(page, testInfo)
