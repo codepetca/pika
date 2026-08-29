@@ -1522,13 +1522,17 @@ student Attendance behavior changed.
   foreground poll. Daily now keeps one cancellable background revalidation
   queue until authoritative success or terminal failure, then releases the
   affected controls. Non-retryable check-in invalidations are surfaced through
-  the existing per-student failure contract. Regression coverage confirms both
-  delayed success after the eighth read and terminal session failure recovery.
+  the existing per-student failure contract. Request-scoped ownership rejects
+  overlapping commands for a still-pending student, and a monotonic view
+  generation cancels stale foreground work across A-to-B-to-A date transitions.
+  Regression coverage confirms delayed success after the eighth read, terminal
+  session failure recovery, overlap rejection, view-generation cancellation,
+  and non-retryable active-versus-invalidated check-in mapping.
 - Visual verification passed Attendance-on and Daily-only teacher states on
   desktop/mobile in light/dark, including selection, hidden ID, and open More
   menu. Student visual verification is n/a because no student surface changed.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 201 changed-path tests, 1,313 related tests, TypeScript, and
+  UI/design policy, 205 changed-path tests, 1,317 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 

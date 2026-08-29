@@ -65,10 +65,12 @@ function wait(milliseconds: number) {
 }
 
 type AttendanceConfirmationOutcome = 'confirmed' | 'failed' | 'pending'
+type AttendancePollOutcome = AttendanceConfirmationOutcome | 'cancelled'
 
 interface PendingConfirmationBase {
   id: string
   viewKey: string
+  generation: number
   successText: string
   failureText: string
 }
@@ -161,8 +163,19 @@ export function useTeacherAttendanceController({
   const [attendanceHoursOpen, setAttendanceHoursOpen] = useState(false)
   const requestSequenceRef = useRef(0)
   const mountedRef = useRef(true)
-  const currentViewKeyRef = useRef(`${classroom.id}:${selectedDate}`)
-  currentViewKeyRef.current = `${classroom.id}:${selectedDate}`
+  const currentViewKey = `${classroom.id}:${selectedDate}`
+  const currentScopeKey = `${currentViewKey}:${enabled ? 'enabled' : 'disabled'}:${isActive ? 'active' : 'inactive'}`
+  const currentViewKeyRef = useRef(currentViewKey)
+  const currentScopeKeyRef = useRef(currentScopeKey)
+  const viewGenerationRef = useRef(0)
+  const activeCommandRequestRef = useRef<string | null>(null)
+  const localPendingStudentIdsRef = useRef<Set<string>>(new Set())
+  const localSessionPendingRef = useRef(false)
+  currentViewKeyRef.current = currentViewKey
+  if (currentScopeKeyRef.current !== currentScopeKey) {
+    currentScopeKeyRef.current = currentScopeKey
+    viewGenerationRef.current += 1
+  }
 
   const readView = useCallback(async () => {
     return await fetchJSON<TeacherAttendanceView>(attendanceUrl(classroom.id, selectedDate), {
@@ -197,6 +210,8 @@ export function useTeacherAttendanceController({
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      activeCommandRequestRef.current = null
+      viewGenerationRef.current += 1
     }
   }, [])
 
@@ -204,7 +219,11 @@ export function useTeacherAttendanceController({
     requestSequenceRef.current += 1
     setView(null)
     setError('')
+    activeCommandRequestRef.current = null
+    setActiveCommand(null)
+    localPendingStudentIdsRef.current = new Set()
     setLocalPendingStudentIds(new Set())
+    localSessionPendingRef.current = false
     setLocalSessionPending(false)
     setPendingConfirmations([])
     setQrOpen(false)
@@ -283,24 +302,44 @@ export function useTeacherAttendanceController({
     [students],
   )
 
+  const addLocalPendingStudents = useCallback((studentIds: string[]) => {
+    const next = new Set(localPendingStudentIdsRef.current)
+    studentIds.forEach((studentId) => next.add(studentId))
+    localPendingStudentIdsRef.current = next
+    setLocalPendingStudentIds(next)
+  }, [])
+
   const clearLocalPendingStudents = useCallback((studentIds: string[]) => {
-    setLocalPendingStudentIds((current) => {
-      const next = new Set(current)
-      studentIds.forEach((studentId) => next.delete(studentId))
-      return next
-    })
+    const next = new Set(localPendingStudentIdsRef.current)
+    studentIds.forEach((studentId) => next.delete(studentId))
+    localPendingStudentIdsRef.current = next
+    setLocalPendingStudentIds(next)
+  }, [])
+
+  const setLocalSessionPendingState = useCallback((pending: boolean) => {
+    localSessionPendingRef.current = pending
+    setLocalSessionPending(pending)
   }, [])
 
   const pollForConfirmation = useCallback(async (
     viewKey: string,
+    generation: number,
     getOutcome: (next: TeacherAttendanceView) => AttendanceConfirmationOutcome,
-  ) => {
+  ): Promise<AttendancePollOutcome> => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
       if (attempt > 0) await wait(750)
-      if (!mountedRef.current || currentViewKeyRef.current !== viewKey) return 'pending'
+      if (
+        !mountedRef.current
+        || currentViewKeyRef.current !== viewKey
+        || viewGenerationRef.current !== generation
+      ) return 'cancelled'
       try {
         const next = await readView()
-        if (!mountedRef.current || currentViewKeyRef.current !== viewKey) return 'pending'
+        if (
+          !mountedRef.current
+          || currentViewKeyRef.current !== viewKey
+          || viewGenerationRef.current !== generation
+        ) return 'cancelled'
         setView(next)
         const outcome = getOutcome(next)
         if (outcome !== 'pending') return outcome
@@ -308,13 +347,16 @@ export function useTeacherAttendanceController({
         // Keep the last confirmed projection visible and retry within this bounded window.
       }
     }
-    return 'pending'
+    return viewGenerationRef.current === generation ? 'pending' : 'cancelled'
   }, [readView])
 
   useEffect(() => {
     if (!enabled || !isActive || pendingConfirmations.length === 0) return
     const viewKey = currentViewKeyRef.current
-    const confirmations = pendingConfirmations.filter((confirmation) => confirmation.viewKey === viewKey)
+    const generation = viewGenerationRef.current
+    const confirmations = pendingConfirmations.filter((confirmation) =>
+      confirmation.viewKey === viewKey && confirmation.generation === generation
+    )
     if (confirmations.length === 0) return
 
     let cancelled = false
@@ -322,10 +364,20 @@ export function useTeacherAttendanceController({
 
     const scheduleRevalidation = () => {
       timer = window.setTimeout(async () => {
-        if (cancelled || !mountedRef.current || currentViewKeyRef.current !== viewKey) return
+        if (
+          cancelled
+          || !mountedRef.current
+          || currentViewKeyRef.current !== viewKey
+          || viewGenerationRef.current !== generation
+        ) return
         try {
           const next = await readView()
-          if (cancelled || !mountedRef.current || currentViewKeyRef.current !== viewKey) return
+          if (
+            cancelled
+            || !mountedRef.current
+            || currentViewKeyRef.current !== viewKey
+            || viewGenerationRef.current !== generation
+          ) return
           setView(next)
 
           const resolved = confirmations
@@ -353,7 +405,7 @@ export function useTeacherAttendanceController({
             && confirmation.clearSelectionAfter
           )) clearSelection()
           if (resolved.some(({ confirmation }) => confirmation.kind === 'session')) {
-            setLocalSessionPending(false)
+            setLocalSessionPendingState(false)
           }
 
           for (const { confirmation, outcome } of resolved) {
@@ -380,18 +432,27 @@ export function useTeacherAttendanceController({
     isActive,
     pendingConfirmations,
     readView,
+    setLocalSessionPendingState,
     showMessage,
   ])
 
   const submitSessionCommand = useCallback(async (command: TeacherAttendanceSessionCommand) => {
-    if (!view || activeCommand) return
+    if (
+      !view
+      || activeCommandRequestRef.current
+      || localSessionPendingRef.current
+      || view.classroomId !== classroom.id
+      || view.classDate !== selectedDate
+    ) return
     const commandViewKey = currentViewKeyRef.current
+    const commandGeneration = viewGenerationRef.current
     const expectedState = command === 'open' ? 'open' : 'closed'
     const requestId = createRequestId()
     const confirmation: PendingAttendanceConfirmation = {
       id: requestId,
       kind: 'session',
       viewKey: commandViewKey,
+      generation: commandGeneration,
       expectedState,
       previousRevision: view.session.revision,
       successText: command === 'open' ? 'Attendance opened' : 'Attendance closed',
@@ -399,8 +460,9 @@ export function useTeacherAttendanceController({
         ? 'Attendance could not be opened'
         : 'Attendance could not be closed',
     }
+    activeCommandRequestRef.current = requestId
     setActiveCommand(`session:${command}`)
-    setLocalSessionPending(true)
+    setLocalSessionPendingState(true)
     try {
       await fetchJSON('/api/teacher/attendance/session', {
         init: {
@@ -417,36 +479,60 @@ export function useTeacherAttendanceController({
       })
       const outcome = await pollForConfirmation(
         commandViewKey,
+        commandGeneration,
         (next) => confirmationOutcome(confirmation, next),
       )
       if (outcome === 'confirmed') {
-        setLocalSessionPending(false)
+        setLocalSessionPendingState(false)
         showMessage({ text: confirmation.successText, tone: 'info' })
       } else if (outcome === 'failed') {
-        setLocalSessionPending(false)
+        setLocalSessionPendingState(false)
         showMessage({ text: confirmation.failureText, tone: 'warning' })
-      } else {
+      } else if (outcome === 'pending') {
         setPendingConfirmations((current) => [...current, confirmation])
         showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
       }
     } catch (commandError) {
-      setLocalSessionPending(false)
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
-        tone: 'warning',
-      })
+      if (
+        currentViewKeyRef.current === commandViewKey
+        && viewGenerationRef.current === commandGeneration
+      ) {
+        setLocalSessionPendingState(false)
+        showMessage({
+          text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
+          tone: 'warning',
+        })
+      }
     } finally {
-      setActiveCommand(null)
+      if (activeCommandRequestRef.current === requestId) {
+        activeCommandRequestRef.current = null
+        setActiveCommand(null)
+      }
     }
-  }, [activeCommand, classroom.id, pollForConfirmation, selectedDate, showMessage, view])
+  }, [
+    classroom.id,
+    pollForConfirmation,
+    selectedDate,
+    setLocalSessionPendingState,
+    showMessage,
+    view,
+  ])
 
   const submitMarks = useCallback(async (
     ids: string[],
     status: 'automatic' | TeacherAttendanceMark,
     options?: { successText?: string; clearSelectionAfter?: boolean },
   ) => {
-    if (!view || activeCommand || ids.length === 0) return
+    if (
+      !view
+      || activeCommandRequestRef.current
+      || ids.length === 0
+      || ids.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
+      || view.classroomId !== classroom.id
+      || view.classDate !== selectedDate
+    ) return
     const commandViewKey = currentViewKeyRef.current
+    const commandGeneration = viewGenerationRef.current
     const idSet = new Set(ids)
     const previousRecords = Object.fromEntries(
       view.students
@@ -461,6 +547,7 @@ export function useTeacherAttendanceController({
       id: requestId,
       kind: 'marks',
       viewKey: commandViewKey,
+      generation: commandGeneration,
       studentIds: ids,
       status,
       previousRecords,
@@ -470,8 +557,9 @@ export function useTeacherAttendanceController({
         : `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`),
       failureText: 'Attendance update could not be completed',
     }
+    activeCommandRequestRef.current = requestId
     setActiveCommand(`marks:${status}`)
-    setLocalPendingStudentIds((current) => new Set([...current, ...ids]))
+    addLocalPendingStudents(ids)
     try {
       await fetchJSON('/api/teacher/attendance/marks', {
         init: {
@@ -492,27 +580,36 @@ export function useTeacherAttendanceController({
       })
       const outcome = await pollForConfirmation(
         commandViewKey,
+        commandGeneration,
         (next) => confirmationOutcome(confirmation, next),
       )
       if (outcome === 'confirmed') {
         clearLocalPendingStudents(ids)
         if (options?.clearSelectionAfter) clearSelection()
         showMessage({ text: confirmation.successText, tone: 'info' })
-      } else {
+      } else if (outcome === 'pending') {
         setPendingConfirmations((current) => [...current, confirmation])
         showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
       }
     } catch (commandError) {
-      clearLocalPendingStudents(ids)
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
-        tone: 'warning',
-      })
+      if (
+        currentViewKeyRef.current === commandViewKey
+        && viewGenerationRef.current === commandGeneration
+      ) {
+        clearLocalPendingStudents(ids)
+        showMessage({
+          text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
+          tone: 'warning',
+        })
+      }
     } finally {
-      setActiveCommand(null)
+      if (activeCommandRequestRef.current === requestId) {
+        activeCommandRequestRef.current = null
+        setActiveCommand(null)
+      }
     }
   }, [
-    activeCommand,
+    addLocalPendingStudents,
     classroom.id,
     clearLocalPendingStudents,
     clearSelection,
@@ -523,7 +620,14 @@ export function useTeacherAttendanceController({
   ])
 
   const resetCheckIns = useCallback(async (studentIds: string[]) => {
-    if (!view || activeCommand || studentIds.length === 0) return
+    if (
+      !view
+      || activeCommandRequestRef.current
+      || studentIds.length === 0
+      || studentIds.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
+      || view.classroomId !== classroom.id
+      || view.classDate !== selectedDate
+    ) return
     const ids = studentIds.filter((studentId) =>
       view.students.some((student) => student.studentId === studentId && student.hasQrCheckIn)
     )
@@ -535,18 +639,21 @@ export function useTeacherAttendanceController({
       `Remove ${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'}? The audit history will be kept, and students may scan again while QR check-in is open.`
     )) return
     const commandViewKey = currentViewKeyRef.current
+    const commandGeneration = viewGenerationRef.current
     const requestId = createRequestId()
     const confirmation: PendingAttendanceConfirmation = {
       id: requestId,
       kind: 'check-ins',
       viewKey: commandViewKey,
+      generation: commandGeneration,
       studentIds: ids,
       clearSelectionAfter: true,
       successText: `${ids.length} ${ids.length === 1 ? 'QR check-in' : 'QR check-ins'} removed`,
       failureText: 'QR check-ins could not be removed',
     }
+    activeCommandRequestRef.current = requestId
     setActiveCommand('check-ins:reset')
-    setLocalPendingStudentIds((current) => new Set([...current, ...ids]))
+    addLocalPendingStudents(ids)
     try {
       await fetchJSON('/api/teacher/attendance/check-ins', {
         init: {
@@ -563,6 +670,7 @@ export function useTeacherAttendanceController({
       })
       const outcome = await pollForConfirmation(
         commandViewKey,
+        commandGeneration,
         (next) => confirmationOutcome(confirmation, next),
       )
       if (outcome === 'confirmed') {
@@ -572,21 +680,29 @@ export function useTeacherAttendanceController({
       } else if (outcome === 'failed') {
         clearLocalPendingStudents(ids)
         showMessage({ text: confirmation.failureText, tone: 'warning' })
-      } else {
+      } else if (outcome === 'pending') {
         setPendingConfirmations((current) => [...current, confirmation])
         showMessage({ text: 'Removal sent; waiting for confirmation', tone: 'info' })
       }
     } catch (commandError) {
-      clearLocalPendingStudents(ids)
-      showMessage({
-        text: commandError instanceof Error ? commandError.message : 'QR check-ins could not be removed',
-        tone: 'warning',
-      })
+      if (
+        currentViewKeyRef.current === commandViewKey
+        && viewGenerationRef.current === commandGeneration
+      ) {
+        clearLocalPendingStudents(ids)
+        showMessage({
+          text: commandError instanceof Error ? commandError.message : 'QR check-ins could not be removed',
+          tone: 'warning',
+        })
+      }
     } finally {
-      setActiveCommand(null)
+      if (activeCommandRequestRef.current === requestId) {
+        activeCommandRequestRef.current = null
+        setActiveCommand(null)
+      }
     }
   }, [
-    activeCommand,
+    addLocalPendingStudents,
     classroom.id,
     clearLocalPendingStudents,
     clearSelection,

@@ -484,6 +484,59 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
+  it('keeps the entitled Attendance table stable while a date projection is not configured', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: [{
+            student_id: 'student-1',
+            student_email: 'student1@example.com',
+            student_first_name: 'Student1',
+            student_last_name: 'Test',
+            entry: entry({ text: longLogText }),
+            history_preview: [],
+          }],
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        return mockJson(combinedAttendanceView({
+          integration: 'not_configured',
+          session: {
+            ...combinedAttendanceView().session,
+            state: 'not_scheduled',
+            opensAt: null,
+            closesAt: null,
+            sessionStartsAt: null,
+            sessionEndsAt: null,
+            presentThroughAt: null,
+            absentAt: null,
+            revision: null,
+          },
+        }))
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    expect(await screen.findByRole('columnheader', { name: 'Check-in' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Sort attendance by status' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select Student1 Test' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Attendance hours are not configured. Daily logs remain available.',
+    )
+  })
+
   it('sends row and session commands through the authoritative Attendance routes', async () => {
     const fetchMock = mockCombinedCommandFetch()
     const user = userEvent.setup()
