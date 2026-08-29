@@ -21,8 +21,9 @@ The launcher intentionally:
 - reads local credentials from `supabase status`, never from hosted Supabase;
 - accepts both current publishable/secret keys and legacy anon/service-role keys;
 - rejects a Supabase API URL unless it is loopback HTTP;
-- requires the target to be a registered worktree of the Pika repository that
-  contains this skill before passing it credentials;
+- clears inherited Git repository-selection variables, then requires the target
+  to be an exact registered worktree of the same Pika repository as this skill
+  before passing it credentials;
 - supplies `NEXT_PUBLIC_SUPABASE_URL`, the publishable key, and the secret key
   only to the dev-server process;
 - generates a new 64-character `SESSION_SECRET` for that process;

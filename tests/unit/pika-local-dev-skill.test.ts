@@ -24,6 +24,7 @@ type FixtureOptions = {
   keyMode?: 'current' | 'legacy' | 'missing-publishable'
   opensslExit?: number
   opensslOutput?: string
+  registeredGit?: boolean
   supabaseExit?: number
   trustedGit?: boolean
 }
@@ -34,6 +35,7 @@ function makeFixture(options: FixtureOptions = {}) {
   const worktree = join(fixtureRoot, 'worktree')
   const pnpmMarker = join(fixtureRoot, 'pnpm-called')
   const supabaseMarker = join(fixtureRoot, 'supabase-called')
+  const gitPoisonMarker = join(fixtureRoot, 'git-poison-seen')
 
   fixturePaths.push(fixtureRoot)
   mkdirSync(fakeBin)
@@ -58,6 +60,7 @@ function makeFixture(options: FixtureOptions = {}) {
     join(fakeBin, 'git'),
     [
       '#!/usr/bin/env bash',
+      `[[ -z "\${GIT_DIR:-}\${GIT_WORK_TREE:-}\${GIT_COMMON_DIR:-}" ]] || touch '${gitPoisonMarker}'`,
       '[[ "$1" == "-C" ]] || exit 2',
       'target="$2"',
       'shift 2',
@@ -69,6 +72,11 @@ function makeFixture(options: FixtureOptions = {}) {
       options.trustedGit === false
         ? `    [[ "$target" == '${canonicalWorktree}' ]] && printf '%s\\n' '/untrusted/git-common' || printf '%s\\n' '/trusted/git-common'`
         : "    printf '%s\\n' '/trusted/git-common'",
+      '    ;;',
+      '  "worktree list --porcelain -z")',
+      options.registeredGit === false
+        ? `    printf 'worktree %s\\0HEAD fixture\\0branch refs/heads/main\\0\\0' '${repoRoot}'`
+        : `    printf 'worktree %s\\0HEAD fixture\\0branch refs/heads/fixture\\0\\0' '${canonicalWorktree}'`,
       '    ;;',
       '  *) exit 2 ;;',
       'esac',
@@ -103,7 +111,7 @@ function makeFixture(options: FixtureOptions = {}) {
   )
   writeExecutable(join(fakeBin, 'jq'), "#!/usr/bin/env bash\necho 'jq must not be used' >&2\nexit 99\n")
 
-  return { fakeBin, pnpmMarker, supabaseMarker, worktree: canonicalWorktree }
+  return { fakeBin, gitPoisonMarker, pnpmMarker, supabaseMarker, worktree: canonicalWorktree }
 }
 
 function writeExecutable(path: string, content: string) {
@@ -111,12 +119,19 @@ function writeExecutable(path: string, content: string) {
   chmodSync(path, 0o755)
 }
 
-function runLauncher(fakeBin: string, worktree: string, args: string[] = [], bashArgs: string[] = []) {
+function runLauncher(
+  fakeBin: string,
+  worktree: string,
+  args: string[] = [],
+  bashArgs: string[] = [],
+  extraEnv: NodeJS.ProcessEnv = {},
+) {
   return spawnSync('/bin/bash', [...bashArgs, launcherPath, ...args, worktree], {
     cwd: repoRoot,
     encoding: 'utf8',
     env: {
       ...process.env,
+      ...extraEnv,
       PATH: `${fakeBin}:/usr/bin:/bin`,
     },
   })
@@ -185,6 +200,23 @@ describe('Pika local dev skill', () => {
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('untrusted Pika worktree')
+    expect(existsSync(supabaseMarker)).toBe(false)
+    expect(existsSync(pnpmMarker)).toBe(false)
+  })
+
+  it('clears poisoned Git selectors and rejects an unregistered lookalike before credential reads', () => {
+    const { fakeBin, gitPoisonMarker, pnpmMarker, supabaseMarker, worktree } = makeFixture({
+      registeredGit: false,
+    })
+    const result = runLauncher(fakeBin, worktree, [], [], {
+      GIT_COMMON_DIR: '/trusted/git-common',
+      GIT_DIR: '/trusted/git-common',
+      GIT_WORK_TREE: worktree,
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('unregistered Pika worktree')
+    expect(existsSync(gitPoisonMarker)).toBe(false)
     expect(existsSync(supabaseMarker)).toBe(false)
     expect(existsSync(pnpmMarker)).toBe(false)
   })

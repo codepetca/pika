@@ -1334,12 +1334,15 @@ application behavior changed.
   names are supported without adding a `jq` dependency.
 - Disabled inherited shell tracing before sensitive reads and fail closed when
   OpenSSL fails or returns anything other than a 64-character hex secret.
+- Cleared inherited Git repository selectors and required the canonical target
+  to appear in the trusted Pika repository's registered-worktree inventory
+  before the launcher reads local credentials.
 - Added behavioral coverage for credential injection, key-format compatibility,
   missing-key diagnostics, untrusted-worktree and non-loopback rejection,
   trace redaction, secret-generation failure, stopped-stack failure, and
   check-only mode.
 
-**Verification:** focused skill tests (11/11), live prerequisite check, Bash and
+**Verification:** focused skill tests (12/12), live prerequisite check, Bash and
 ShellCheck validation, and Codex skill validation pass.
 
 **Model recommendation:** current frontier coding model for bounded local

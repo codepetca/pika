@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 set +x
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+unset GIT_CEILING_DIRECTORIES GIT_DISCOVERY_ACROSS_FILESYSTEM
 
 CHECK_ONLY=0
 if [[ "${1:-}" == "--check" ]]; then
@@ -38,6 +41,24 @@ TARGET_GIT_COMMON_DIR="$(git -C "$TARGET_REPO_ROOT" rev-parse --path-format=abso
 
 if [[ -z "$TRUSTED_GIT_COMMON_DIR" || "$TRUSTED_GIT_COMMON_DIR" != "$TARGET_GIT_COMMON_DIR" ]]; then
   echo "Refusing to pass local credentials to an untrusted Pika worktree." >&2
+  exit 1
+fi
+
+if ! git -C "$TRUSTED_REPO_ROOT" worktree list --porcelain -z >/dev/null 2>&1; then
+  echo "Unable to read Pika's registered worktrees." >&2
+  exit 1
+fi
+
+TARGET_IS_REGISTERED=0
+while IFS= read -r -d '' worktree_field; do
+  if [[ "$worktree_field" == worktree\ * && "${worktree_field#worktree }" == "$TARGET_REPO_ROOT" ]]; then
+    TARGET_IS_REGISTERED=1
+    break
+  fi
+done < <(git -C "$TRUSTED_REPO_ROOT" worktree list --porcelain -z)
+
+if [[ "$TARGET_IS_REGISTERED" -ne 1 ]]; then
+  echo "Refusing to pass local credentials to an unregistered Pika worktree." >&2
   exit 1
 fi
 
