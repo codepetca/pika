@@ -12,10 +12,10 @@ Student Workflow Map in
 against current code, confirms which July P0/P1 findings are actually fixed,
 and produces a ranked, back-to-school-oriented punch list.
 
-This is a code-inspection pass, not a new visual-evidence capture. No
-`pnpm dev` / local Supabase / Playwright screenshots were taken in this pass —
-see [Follow-up: visual verification](#follow-up-visual-verification) before
-treating any "looks fine in code" note below as pixel-verified.
+This started as a code-inspection pass. The P1 and P2 findings have since
+been implemented and browser-verified; each ranked finding below carries its
+own **Status**. Rows in the per-workflow table describe the state *after*
+that work. Anything still marked deferred or unverified says so explicitly.
 
 Scope: everything under the student role — classroom tabs
 (`Student*Tab.tsx`), the classroom index/join flow, and the `/student/*`
@@ -59,16 +59,16 @@ utility routes. It does not re-litigate teacher surfaces.
 | Workflow | Component(s) | Primitive conformance | Known gap |
 | --- | --- | --- | --- |
 | Classrooms index / join | `StudentClassroomsIndex` | Full (`PageLayout`, `EmptyState`, `Card`) | None found |
-| Today (daily journal) | `StudentTodayTab` | Partial — hand-rolled `bg-surface rounded-lg border` boxes instead of `Card`; "No past logs yet" is a raw paragraph instead of `EmptyState` | Save status not live-announced (`SaveStatus` renders text but isn't wired to `aria-live`); history list has no mobile-specific treatment, just stacks |
+| Today (daily journal) | `StudentTodayTab` | Full — converted to `Card`. The "No past logs yet" row stays a compact inline row on purpose (see the P2 correction) | History list has no mobile-specific treatment, just stacks. Save status *is* announced: `SaveStatus` bakes in `role="status" aria-live="polite" aria-atomic="true"` |
 | Assignments | `StudentAssignmentsTab`, `StudentAssignmentEditor` | Full on the tab; editor is dense (1,798 lines, one coordinator) but already responsive (`md:flex-row`/`md:hidden` history rail split at `StudentAssignmentEditor.tsx:1493-1575`) | Mobile workspace mode is stacked-by-default rather than an explicit mode switch; matches the roadmap's "deferred mobile workspace modes" note |
-| Tests + results | `StudentTestsTab`, `StudentTestForm`, `StudentTestResults` | Full page-state handling; accessible save/flag live regions in `StudentTestForm` | No responsive split-pane handling found in `StudentTestsTab` beyond the exam full-screen fallback (`isMobileBrowserWithoutFullscreen`) — list/detail is desktop-shaped; this is the largest single student surface (1,948 lines) and the least mobile-adapted |
-| Surveys | `StudentSurveyPanel` | Full (`Card`, live regions) | None found beyond the July note that results failure could hang in loading — worth a quick re-check live |
+| Tests + results | `StudentTestsTab`, `StudentTestForm`, `StudentTestResults` | Full page-state handling; accessible save/flag live regions in `StudentTestForm`; compact exam mode below `lg` | Still one large coordinator (~2,000 lines). The non-exam list and results were already fine on narrow screens; the exam shell now switches panes rather than stacking |
+| Surveys | `StudentSurveyPanel` | Full (`Card`, live regions) | None. The July "results failure hangs in loading" note is resolved: the results fetch's `catch` sets an explicit `error` state, guarded by request/survey id, rendered as `role="alert"` with Retry |
 | Calendar | `StudentLessonCalendarTab` | Full (`PageState`, `PageLayout bleedX={false}`) | Mobile redesign explicitly deferred per roadmap; not independently re-verified here |
-| Announcements | `StudentAnnouncementsSection` (+ thin `StudentAnnouncementsTab` wrapper) | Mostly full; one raw `bg-surface rounded-lg border` card at line 171 instead of `Card` | Cosmetic only |
+| Announcements | `StudentAnnouncementsSection` (+ thin `StudentAnnouncementsTab` wrapper) | Full — announcement items now use `Card padding="sm"` | None found |
 | Course Guide / resources | `StudentResourcesTab` → `CourseGuidePanel` (shared with teacher/public) | Delegates entirely to the shared component | None specific to student |
-| Class resources sidebar | `StudentClassResourcesSidebar` | Raw divs (`rounded-lg bg-surface p-4 shadow-sm`, `rounded-lg border ... bg-surface-2`) instead of `Card`; `shadow-sm` is a legacy elevation value DESIGN.md reserves for overlays | Cosmetic; small file, easy fix |
+| Class resources sidebar | `StudentClassResourcesSidebar` | Full — `Card` and `Card tone="muted"`; the legacy `shadow-sm` is gone | None found |
 | Achievements (Pal) | `StudentAchievementsTab` | Thin wrapper delegating to `@codepet/pal-widget`, with `PageState` error fallback | Not owned by this codebase's design system; out of scope beyond the fallback |
-| Attendance history utility | `/student/history/page.tsx` | Uses `PageLayout`/`PageState` for load/error/empty, but the ready-state body (roster-style list, entry detail) is built from raw `bg-surface rounded-lg shadow-sm` blocks, not `Card` | Same `Card`-primitive drift as Today/Announcements/sidebar; `shadow-sm` again |
+| Attendance history utility | `/student/history/page.tsx` | Full — ready-state body now uses `Card`; the borderless `shadow-sm` blocks are gone | Mobile density still deferred per the roadmap |
 | Grades / profile | returned assignment/test feedback only; no aggregate view | N/A | Explicitly out of scope until product defines an aggregate-disclosure and profile-authority contract (see roadmap Phase 3, item 12) — this is a product decision, not a UI bug |
 
 ## Ranked findings
@@ -136,42 +136,65 @@ captures at 1440 and 390, light and dark. The clearest win is dark mode: the
 effectively invisible on a dark background, so they had no visible boundary
 at all; they now have proper borders.
 
-### P3 — worth a quick live check, not a code-visible gap
+### P3 — checked, both resolve
 
-- `StudentSurveyPanel` results-failure handling was flagged in July as
-  possibly hanging in loading; the component now has explicit `role="alert"`
-  error rendering, so this looks resolved, but it wasn't exercised live in
-  this pass.
-- `SaveStatus` on Today (`StudentTodayTab.tsx:672`) renders visible text but
-  wasn't confirmed to carry a live region; worth a screen-reader spot check
-  alongside the Tests/Assignment save announcements, which already use
-  `aria-live`.
+**Status:** done, and both notes in the first draft of this review were
+wrong or stale.
 
-## Suggested sequencing for "ready for school, quickly"
+- `StudentSurveyPanel` does not hang on a results failure. The results
+  fetch's `catch` sets an explicit `error` state with a message, fenced by
+  request-id and survey-id guards, and renders `role="alert"` with a Retry
+  action. The July finding is resolved in current code.
+- Today's save status *is* announced. `SaveStatus` (`src/ui/SaveStatus.tsx`)
+  carries `role="status" aria-live="polite" aria-atomic="true"` in the
+  primitive itself, so every caller inherits it. The first draft's claim that
+  it "renders text but isn't wired to `aria-live`" was incorrect.
 
-1. **Card-primitive convergence pass** (P2 above) — four files, mechanical,
-   low risk, immediately makes student surfaces read as finished rather than
-   half-migrated. Good candidate for Codex or a quick Claude pass today.
-2. **Live visual verification** of Classrooms index, Today, Assignments,
-   Tests, and Calendar at desktop/mobile, light/dark, per
-   [`ai-ui-testing.md`](../../guides/ai-ui-testing.md) — none of the notes
-   above were screenshot-verified, and it's been a month since the last
-   recorded student visual evidence in the July audit.
-3. **Tests mobile mode** (P1 above) — the substantive remaining work. Scope
-   it the same way the teacher canon scoped Attendance: define the mobile
-   list/detail (and exam) states explicitly rather than shrinking the
-   desktop layout. This is the one item that actually matches "a lot of work
-   left to do" — everything else here is finishing touches.
-4. Leave **Assignments editor mobile polish** and **aggregate grades**
-   exactly where the roadmap already has them (deferred / needs a product
-   decision, respectively) — don't reopen those scopes as part of a quick
-   pass.
+Neither needed a code change. Both were resolved by reading the primitive
+and the state machine rather than trusting the earlier note.
 
-## Follow-up: visual verification
+## Where this leaves the student side
 
-This review did not run `pnpm dev`, seed local Supabase, or capture
-Playwright screenshots. Before marking any student surface "done" the way
-Attendance/Tests are done on the teacher side, run the matrix in
+Done and verified in this pass:
+
+1. **Compact exam mode for Tests** — the substantive item. Below `lg`, a
+   Questions/Documents switch replaces the stacked shell; both panes stay
+   mounted so answers survive a swap, and swapping is not logged as an exam
+   exit.
+2. **Two exam bugs found while building it** — the touch-keyboard lock and
+   the desktop grid overflow (see the P1 status above).
+3. **`Card` convergence** across Today, Announcements, the resources sidebar,
+   and `/student/history`.
+4. **The two P3 accessibility/recovery questions**, both of which resolve
+   with no code change.
+
+Verification standing behind those: focused unit and component tests, plus
+Playwright coverage of the compact exam layout across the existing
+desktop/mobile and light/dark projects, plus before/after captures for the
+`Card` work at 1440 and 390 in light and dark.
+
+Deliberately not done:
+
+- **`TeacherTestPreviewPage.tsx`** carries the same percentage-track overflow
+  that was fixed in the student exam shell. Left to the teacher-surface owner
+  to avoid colliding with in-flight work; it is a one-line change.
+- **Assignments editor mobile polish** and **aggregate student grades** stay
+  exactly where the roadmap already has them — deferred, and pending a
+  product decision on disclosure and profile authority respectively. Neither
+  was reopened here.
+- **A refreshed full student visual-evidence set.** The captures taken here
+  were scoped to the surfaces that changed, through fixture routes and a
+  temporary local harness, not a seeded run of the whole student matrix.
+
+## Follow-up: remaining visual evidence
+
+The surfaces changed in this pass are browser-verified. What is *not* covered
+is a durable, recorded evidence set for the student surfaces that did not
+change — Classrooms index, Assignments, and Calendar in particular. Before
+declaring the student side "done" the way Attendance is done on the teacher
+side, run the matrix in
 [`ai-ui-testing.md`](../../guides/ai-ui-testing.md) (desktop/mobile,
-light/dark) for at least Today, Assignments, Tests, and Classrooms index, and
-record it the way [`design-qa.md`](/design-qa.md) records Attendance.
+light/dark) against seeded data and record it the way
+[`design-qa.md`](/design-qa.md) records Attendance. The captures behind this
+pass were verification artifacts, not durable evidence: they used mocked APIs
+and a scratch harness that is not in the repo.

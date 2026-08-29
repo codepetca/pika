@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Separate captured Test membership from source identity
-
-**Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
-application contracts in unapplied migration 134; no database was reset or
-migrated and no hosted state changed.
-
-- Stopped treating `source_artifact_id` as both portable lineage and Blueprint
-  membership. A captured origin Test now keeps `source_artifact_id = null` and
-  records membership through the immutable capture Version.
-- Active and archived Classroom capture record
-  `source_blueprint_version_id` on participating Tests and materialized
-  questions. The application layer only classifies a source-null Test as
-  tracked when its Version matches the Classroom's current Blueprint Version.
-- Replaced the migration 112 classroom-proposal apply RPC in migration 134 so
-  Test matching and removal use source-first portable identity plus Version
-  provenance. Classroom-only Tests without that provenance remain untouched.
-- Added unit coverage for Version-based counting and snapshot filtering, plus a
-  disposable-database capture → Blueprint edit → apply regression that updates
-  the original Test row, creates no duplicate portable identity, and preserves
-  an unrelated local Test.
-- The focused 39-test identity/proposal suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, and production build pass. The full suite passed 5,150 of 5,151
-  tests; its single unrelated Test-editor timing failure passed immediately in
-  isolation. CI remains authoritative for the ephemeral migration replay.
-
-**Model recommendation:** GPT-5.6 Sol for the Version-provenance database
-contract and final migration replay review.
-
 ## 2026-08-27 — Migrate selected Test grading to the teacher work surface
 
 **Risk profile:** async-grading — teacher Test roster presentation, sorting,
@@ -1326,3 +1297,28 @@ No deployment or database operation was performed.
 **Model recommendation:** Sonnet 5 for the remaining student polish; escalate
 for any further change to exam window-compliance rules, which are integrity
 sensitive.
+
+## 2026-08-29 — Student review doc reconciled with implementation
+
+**Risk profile:** none — documentation only.
+
+- Checked the two outstanding P3 items in code. Both resolve with no change,
+  and both notes in the first draft of the student review were wrong or stale:
+  `SaveStatus` already carries `role="status" aria-live="polite"` in the
+  primitive, so Today's save state is announced; and `StudentSurveyPanel`'s
+  results fetch sets an explicit fenced `error` state rendered as
+  `role="alert"` with Retry, so the July "hangs in loading" finding is closed.
+- Reconciled `student-work-surfaces-review-2026-08.md` with what was actually
+  implemented. The per-workflow table had gone stale against its own findings
+  section: it still described Card drift and a missing Tests mobile mode after
+  both were fixed.
+- Replaced the forward-looking sequencing section with an explicit
+  done/not-done split, and narrowed the visual-evidence follow-up to what is
+  genuinely still missing: durable recorded evidence for the student surfaces
+  that did not change. The captures behind this work were verification
+  artifacts using mocked APIs and a scratch harness, not durable evidence.
+
+No deployment or database operation was performed.
+
+**Model recommendation:** Sonnet 5 for the remaining seeded visual-evidence
+capture, which is mechanical once a seeded environment is available.
