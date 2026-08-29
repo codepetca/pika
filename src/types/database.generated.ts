@@ -4716,6 +4716,44 @@ export type Database = {
           },
         ]
       }
+      course_guide_import_rate_limits: {
+        Row: {
+          active_lease_expires_at: string | null
+          active_lease_token: string | null
+          attempt_count: number
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_count: number
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_count?: number
+          attempt_timestamps?: string[]
+          teacher_id?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_guide_import_rate_limits_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       developer_feedback_candidates: {
         Row: {
           affected_area: string | null
@@ -7018,6 +7056,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_course_guide_import_extraction_slot: {
+        Args: { p_teacher_id: string }
+        Returns: Json
+      }
       activate_managed_storage_enforcement: {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
@@ -9418,6 +9460,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      release_course_guide_import_extraction_slot: {
+        Args: { p_lease_token: string; p_teacher_id: string }
+        Returns: boolean
       }
       remove_classroom_roster_entries_atomic: {
         Args: { p_classroom_id: string; p_roster_ids: string[] }

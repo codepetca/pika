@@ -1,33 +1,62 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { acquireCourseGuideImportExtractionSlot } from '@/lib/server/course-guide-import-rate-limit'
 
-describe('course guide curriculum import rate limit', () => {
-  it('allows one active extraction per teacher and classroom', () => {
-    const key = { teacherId: 'teacher-active', classroomId: 'classroom-active' }
-    const release = acquireCourseGuideImportExtractionSlot(key, 1_000)
+function createClient(results: Array<{ data: unknown; error: unknown }>) {
+  return {
+    rpc: vi.fn().mockImplementation(() => Promise.resolve(results.shift())),
+  }
+}
 
-    expect(() => acquireCourseGuideImportExtractionSlot(key, 1_001)).toThrow(
-      'A curriculum import is already running for this Course Guide.',
-    )
+describe('course guide curriculum import shared rate limit', () => {
+  it('acquires and releases the database lease for the teacher', async () => {
+    const client = createClient([
+      {
+        data: {
+          ok: true,
+          lease_token: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          lease_expires_at: '2026-08-28T15:00:00+00:00',
+        },
+        error: null,
+      },
+      { data: true, error: null },
+    ])
 
-    release()
-    const nextRelease = acquireCourseGuideImportExtractionSlot(key, 1_002)
-    nextRelease()
+    const release = await acquireCourseGuideImportExtractionSlot({
+      teacherId: 'teacher-1',
+      supabase: client as never,
+    })
+    await release()
+
+    expect(client.rpc).toHaveBeenNthCalledWith(1, 'acquire_course_guide_import_extraction_slot', {
+      p_teacher_id: 'teacher-1',
+    })
+    expect(client.rpc).toHaveBeenNthCalledWith(2, 'release_course_guide_import_extraction_slot', {
+      p_teacher_id: 'teacher-1',
+      p_lease_token: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
   })
 
-  it('limits repeated provider calls while preserving bounded retries', () => {
-    const key = { teacherId: 'teacher-window', classroomId: 'classroom-window' }
+  it.each([
+    ['active', 'A curriculum import is already running for this teacher.'],
+    ['rate_limited', 'Too many curriculum import attempts. Try again in a few minutes.'],
+  ] as const)('returns 429 when the shared limiter reports %s', async (reason, message) => {
+    const client = createClient([{ data: { ok: false, reason }, error: null }])
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const release = acquireCourseGuideImportExtractionSlot(key, 2_000 + attempt)
-      release()
-    }
+    await expect(acquireCourseGuideImportExtractionSlot({
+      teacherId: 'teacher-1',
+      supabase: client as never,
+    })).rejects.toMatchObject({ statusCode: 429, message })
+  })
 
-    expect(() => acquireCourseGuideImportExtractionSlot(key, 2_010)).toThrow(
-      'Too many curriculum import attempts. Try again in a few minutes.',
-    )
+  it('fails closed when the shared limiter is unavailable', async () => {
+    const client = createClient([{ data: null, error: { message: 'missing function' } }])
 
-    const release = acquireCourseGuideImportExtractionSlot(key, 2_000 + 10 * 60 * 1000)
-    release()
+    await expect(acquireCourseGuideImportExtractionSlot({
+      teacherId: 'teacher-1',
+      supabase: client as never,
+    })).rejects.toMatchObject({
+      statusCode: 503,
+      message: 'Curriculum import is temporarily unavailable.',
+    })
   })
 })

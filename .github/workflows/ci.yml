@@ -51,6 +51,9 @@ jobs:
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 
+      - name: Verify Course Guide import shared lease and rate window
+        run: bash scripts/check-course-guide-import-rate-limit-database.sh
+
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
 
