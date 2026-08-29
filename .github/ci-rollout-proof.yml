@@ -1,0 +1,3 @@
+# Temporary rollout probe. This unrecognized GitHub configuration path must
+# fail closed to full CI. The proof PR will be closed without merging.
+rollout_probe: full
