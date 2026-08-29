@@ -28,6 +28,38 @@ describe('GET /api/student/tests', () => {
     vi.clearAllMocks()
   })
 
+  it('returns 500 instead of a partial list when reading closed tests fails', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table !== 'tests') throw new Error(`Unexpected table: ${table}`)
+
+      let statusFilter: string | null = null
+      const builder: any = {
+        select: vi.fn(() => builder),
+        eq: vi.fn((column: string, value: string) => {
+          if (column === 'status') statusFilter = value
+          return builder
+        }),
+        order: vi.fn(() => builder),
+        then: vi.fn((resolve: any) => {
+          if (statusFilter === 'active') {
+            resolve({ data: [{ id: 'test-active', status: 'active' }], error: null })
+            return
+          }
+          resolve({ data: null, error: { message: 'Database error' } })
+        }),
+      }
+      return builder
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to fetch tests')
+  })
+
   it('returns 500 when reading submitted test responses fails', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'tests') {

@@ -59,7 +59,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   if (closedError) {
     console.error('Error fetching closed tests:', closedError)
-    // Continue without closed tests
+    return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
   const classroomTestIds = [

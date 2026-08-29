@@ -1330,6 +1330,11 @@ separate explicit authorizations; no application code was deployed.
   overflow. A non-blocking lost-response publication-retry reconciliation is
   documented for follow-up because it needs a durable idempotency design beyond
   the already-applied migration.
+- Final integration review found and corrected a partial-success failure path:
+  if the published-closed Test query fails, the student list now returns 500 so
+  the existing retry/stale-snapshot UI can preserve prior data instead of
+  replacing it with a misleading active-only list. Regression coverage proves
+  the request fails rather than emitting partial data.
 
 **Model recommendation:** GPT-5.6 Sol for the migration transaction,
 publication/access state boundary, cross-role UI behavior, and high-risk PR
