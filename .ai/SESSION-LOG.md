@@ -11,176 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Restore mobile access to Attendance utilities
-
-**Risk profile:** low — responsive teacher Attendance controls and regression
-coverage only; no attendance data behavior, API contract, schema, persistence,
-authentication, dependency, or hosted state changed.
-
-- Resolved the PR review blocker that hid Attendance hours and Refresh below
-  640px. Desktop retains the two direct utility icons; mobile now uses the
-  shared teacher work-surface overflow menu so the centered date/session FAB
-  stays visually primary without overlapping trailing controls.
-- Raised the Attendance action-bar stacking context with the existing semantic
-  layer token so the mobile menu remains interactive above the sticky table
-  header.
-- Added a guarded Playwright-only Attendance fixture and a 390px browser
-  regression that opens the real Attendance-hours dialog in light and dark.
-  The same regression preserves direct desktop access in both themes and checks
-  for horizontal overflow.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
-  covered by the reused menu component tests; semantic state and dialog access
-  are covered by Attendance component and browser tests; remaining manual
-  follow-up: none.
-
-**Verification:** focused Attendance component tests (14/14), full Vitest
-(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
-Pika audit, diff checks, and production build pass. Visual review covers teacher
-desktop/mobile in light/dark with both the context bar and dialog open. Student
-UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded responsive
-interaction remediation with browser verification.
-
-## 2026-08-27 — Keep Attendance browser fixture reachable in local development
-
-**Risk profile:** none — local browser-test fixture gating only; no product UI,
-business behavior, API, schema, persistence, authentication, dependency, or
-hosted state changed.
-
-- Kept the Attendance fixture closed in production unless explicitly enabled,
-  while allowing it automatically on development servers so Playwright can
-  reuse a normal unflagged local server.
-- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
-  is evaluated when the production server handles each request instead of being
-  frozen into the build artifact.
-- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
-  existing Attendance-hours regression passed on desktop/mobile in light/dark
-  and opened the real dialog in all four cases.
-- Built one production artifact with the fixture flag present, then proved that
-  same artifact returns 404 when started unflagged and 200 when started flagged.
-
-**Model recommendation:** current GPT-5 coding model for a contained test-harness
-compatibility correction and exact-workflow verification.
-
-## 2026-08-27 — Resolve legacy Test-question backfill collisions
-
-**Risk profile:** runtime-platform — production Test draft identity backfill;
-no production data was changed by migration 134 and no migration retry occurred.
-
-- Production already contained migration 133. The first authorized attempt to
-  apply migration 134 failed atomically because 12 legacy draft questions each
-  matched both their historical row ID and a question-zero row carrying that ID
-  as corrupted portable lineage from migrations 112/114. Migration 134 remains
-  unapplied in production.
-- Changed the unapplied migration to resolve the exact historical row ID first,
-  then use a unique artifact/source identity only when no row-ID match exists.
-  The precedence is contractual and does not infer identity from position or
-  content; genuine multiple portable matches still fail closed.
-- Added static coverage and a fresh disposable-database regression that replays
-  the migration's exact backfill statement against the production collision
-  shape, proves both draft IDs resolve to distinct portable identities, and
-  proves neither persisted question row is mutated. Extended that fixture
-  through post-backfill save and activation so the installed RPCs cannot
-  reintroduce row-ID ambiguity after the one-time conversion.
-- Removed internal row-ID matching from migration 134's post-backfill save and
-  activation functions. Materialized Blueprint capture now validates in a
-  portable-only mode while the temporary dual reader remains scoped to actual
-  legacy draft JSON.
-- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
-  lock before the question-table fence. This makes the migration wait behind an
-  in-flight save before holding a lock that save must upgrade, preventing a
-  Draft-row/question-table deadlock; the database harness now rehearses that
-  two-session ordering.
-- Scoped the legacy draft rewrite under the transaction-local identity-mapping
-  guard. The identity-only update no longer advances Classroom structural
-  revision or waits on a Classroom held by a save that is waiting at the Draft
-  fence; the database harness now rehearses both migration/save arrival orders.
-- A privacy-minimized read-only production rehearsal resolved all 351 questions
-  across 28 drafts: 212 persisted questions would receive portable draft IDs,
-  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
-  portable matches, row reuse, or duplicate portable identities remain.
-- Rebased onto current `origin/main`. The focused 56-test identity/draft suite,
-  full 5,142-test suite, TypeScript, lint, architecture/design/UI policies,
-  shell syntax, diff validation, and production build pass. Fresh-database CI
-  remains authoritative for the migration replay; migration 134 was not applied
-  or reset locally and no hosted state changed.
-
-**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
-that preserves student-linked row identity.
-
-## 2026-08-27 — Version portable Test draft question identity
-
-**Risk profile:** runtime-platform — Test draft identity compatibility and the
-unapplied migration 134 backfill; no database was reset or migrated.
-
-- Added `question_identity_version: 1` as the explicit discriminator for
-  canonical Test draft question IDs. Marked drafts resolve only portable
-  artifact/source identity; unmarked legacy drafts retain exact historical row
-  ID precedence before portable fallback.
-- Migration 134 now marks every successfully converted legacy draft, validates
-  already-marked drafts strictly on replay, and makes Test draft saves preserve
-  the marker. Blueprint capture, immutable Versions, and classroom
-  instantiation also retain or introduce the portable marker at their format
-  boundaries.
-- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
-  savepoint so concurrent retries cannot overwrite a completed ledger result.
-  Test save and activation now take the Classroom update lock up front, avoiding
-  shared-lock upgrades when two Tests advance the same structural revision; the
-  disposable database contract exercises concurrent saves.
-- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
-  memory before semantic comparison. The persisted Version stays unchanged, and
-  adding the discriminator alone cannot create a false Blueprint/Classroom
-  divergence or unnecessary review flow.
-- Added collision regressions across draft GET/PATCH projection, Blueprint
-  detail GET overlay, Blueprint capture, migration replay, save, activation,
-  and Version instantiation. The known row-ID/artifact-ID collision remains
-  distinct after conversion instead of re-entering the legacy dual-identity
-  reader.
-- The focused identity suites, full 5,147-test suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, session-log validation, and production build pass. The disposable
-  database CI job remains authoritative; migration 134 was not applied locally.
-
-**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
-boundary change, with an independent compatibility review.
-
-## 2026-08-27 — Complete the canonical Test-question identity cutover
-
-**Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
-archive reuse, and migration concurrency contracts; no database was reset or
-migrated and no hosted state changed.
-
-- Defined one persisted portable question identity,
-  `coalesce(source_artifact_id, artifact_id)`, while keeping
-  `test_questions.id` internal. Post-backfill save, activation, and Blueprint
-  capture no longer union portable identity with internal row identity.
-- Made `question_identity_version: 1` mandatory for new and updated Test drafts.
-  The pre-migration application can still project unmarked live drafts with
-  exact internal-row precedence; migration 134 marks every live Test draft and
-  installs an at-rest constraint that makes that compatibility branch
-  unreachable after commit.
-- Added uniqueness constraints for active Tests and Test questions at their
-  portable identity boundaries. Capture selects only the active Test generation
-  and remains read-only with respect to Test and question identity.
-- Standardized write locking as Classroom, Test, Draft, then questions,
-  including the shared question-mutation trigger. The database contract now
-  runs save and activation against the real archived-Classroom reuse operation
-  in both arrival orders.
-- Preserved immutable Blueprint Versions byte-for-byte and kept legacy identity
-  translation at the explicit cold-archive restore boundary. Restored resources
-  are normalized in memory into the canonical marked format before reuse.
-- Added a CI-only lifecycle contract that resets an ephemeral database to
-  migration 133, seeds the known production row-ID/artifact-ID collision,
-  applies 134, and continues through save and activation. It was syntax-checked
-  locally but intentionally not executed outside CI.
-- The focused 44-test identity/archive/capture suite, full 5,150-test suite,
-  TypeScript, lint, architecture/design/UI policies, managed-storage lineage,
-  shell syntax, diff validation, and production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
-database concurrency review, and migration lifecycle verification.
-
 ## 2026-08-27 — Separate captured Test membership from source identity
 
 **Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
@@ -1489,3 +1319,31 @@ No deployment or database operation was performed.
 
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
+
+## 2026-08-29 — Make local Pika startup supply safe runtime credentials
+
+**Risk profile:** runtime-platform — local development process bootstrap and
+secret handling only; no hosted configuration, database state, migrations, or
+application behavior changed.
+
+- Added a repository-scoped `pika-local-dev` skill so future agents launch Pika
+  with a generated process-only session secret and credentials derived from the
+  already-running local Supabase stack.
+- Required loopback HTTP and trusted Pika Git-common-directory identity before
+  reading or passing local Supabase credentials. Current and legacy Supabase key
+  names are supported without adding a `jq` dependency.
+- Disabled inherited shell tracing before sensitive reads and fail closed when
+  OpenSSL fails or returns anything other than a 64-character hex secret.
+- Cleared inherited Git repository selectors and required the canonical target
+  to appear in the trusted Pika repository's registered-worktree inventory
+  before the launcher reads local credentials.
+- Added behavioral coverage for credential injection, key-format compatibility,
+  missing-key diagnostics, untrusted-worktree and non-loopback rejection,
+  trace redaction, secret-generation failure, stopped-stack failure, and
+  check-only mode.
+
+**Verification:** focused skill tests (12/12), live prerequisite check, Bash and
+ShellCheck validation, and Codex skill validation pass.
+
+**Model recommendation:** current frontier coding model for bounded local
+developer tooling with security-sensitive environment handling.
