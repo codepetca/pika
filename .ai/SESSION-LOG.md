@@ -1527,12 +1527,14 @@ student Attendance behavior changed.
   generation cancels stale foreground work across A-to-B-to-A date transitions.
   Regression coverage confirms delayed success after the eighth read, terminal
   session failure recovery, overlap rejection, view-generation cancellation,
-  and non-retryable active-versus-invalidated check-in mapping.
+  non-retryable active-versus-invalidated check-in mapping, and controller-level
+  rejection of mark/reset commands for students whose authoritative view still
+  reports pending command ownership.
 - Visual verification passed Attendance-on and Daily-only teacher states on
   desktop/mobile in light/dark, including selection, hidden ID, and open More
   menu. Student visual verification is n/a because no student surface changed.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 205 changed-path tests, 1,317 related tests, TypeScript, and
+  UI/design policy, 207 changed-path tests, 1,319 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 

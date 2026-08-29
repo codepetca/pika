@@ -35,7 +35,7 @@ const classroom: Classroom = {
 
 const studentId = '10000000-0000-4000-8000-000000000001'
 
-function attendanceView(classDate: string): TeacherAttendanceView {
+function attendanceView(classDate: string, pendingCommand = false): TeacherAttendanceView {
   return {
     classroomId: classroom.id,
     classDate,
@@ -62,25 +62,34 @@ function attendanceView(classDate: string): TeacherAttendanceView {
       revision: 1,
       hasQrCheckIn: true,
       hasManualOverride: false,
-      pendingCommand: false,
+      pendingCommand,
       commandFailed: false,
     }],
   }
 }
 
-function mockPendingMarksFetch() {
+function mockPendingMarksFetch(pendingCommand = false) {
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(attendanceView(url.searchParams.get('date') ?? '2026-05-05')),
+        json: () => Promise.resolve(attendanceView(
+          url.searchParams.get('date') ?? '2026-05-05',
+          pendingCommand,
+        )),
       }) as any
     }
     if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ outcome: 'applied', appliedCount: 1 }),
+      }) as any
+    }
+    if (url.pathname === '/api/teacher/attendance/check-ins' && init?.method === 'POST') {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ outcome: 'pending' }),
       }) as any
     }
     throw new Error(`Unhandled fetch: ${url.toString()}`)
@@ -131,6 +140,33 @@ describe('useTeacherAttendanceController', () => {
       new URL(String(input), 'http://localhost').pathname === '/api/teacher/attendance/marks'
       && init?.method === 'POST'
     ))).toHaveLength(1)
+  })
+
+  it.each([
+    ['mark', (controller: ReturnType<typeof useTeacherAttendanceController>) =>
+      controller.submitMarks([studentId], 'late')],
+    ['check-in reset', (controller: ReturnType<typeof useTeacherAttendanceController>) =>
+      controller.resetCheckIns([studentId])],
+  ])('rejects a %s for a student with server-reported pending ownership', async (_label, invoke) => {
+    const fetchMock = mockPendingMarksFetch(true)
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    await act(async () => {
+      void invoke(result.current)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+    expect(confirmMock).not.toHaveBeenCalled()
+    confirmMock.mockRestore()
   })
 
   it('cancels foreground confirmation after an A to B to A view transition', async () => {

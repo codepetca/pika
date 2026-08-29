@@ -528,6 +528,9 @@ export function useTeacherAttendanceController({
       || activeCommandRequestRef.current
       || ids.length === 0
       || ids.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
+      || ids.some((studentId) =>
+        view.students.some((student) => student.studentId === studentId && student.pendingCommand)
+      )
       || view.classroomId !== classroom.id
       || view.classDate !== selectedDate
     ) return
@@ -625,6 +628,9 @@ export function useTeacherAttendanceController({
       || activeCommandRequestRef.current
       || studentIds.length === 0
       || studentIds.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
+      || studentIds.some((studentId) =>
+        view.students.some((student) => student.studentId === studentId && student.pendingCommand)
+      )
       || view.classroomId !== classroom.id
       || view.classDate !== selectedDate
     ) return
