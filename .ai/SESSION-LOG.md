@@ -1278,7 +1278,13 @@ dependency, secret, or hosted state was changed.
   `main`; all other cases fail closed. Mutable publication coverage has a
   dedicated fixture, promotion worktrees are ephemeral, and metrics inspect
   actual `PR Gate` timing by classifier mode.
-- Validation on current `main` passed 75 workflow contracts, architecture,
+- A targeted remediation review then closed four remaining integration gaps:
+  the helper now publishes the exact `origin/main` SHA even when production is
+  divergent; all three aggregate selectors are validated together; fork PRs
+  cannot enter promotion discovery; and unrecognized `.github` paths fail
+  closed. Executable temporary-repository coverage exercises merge, squash,
+  rebase, and subsequent promotion preparation.
+- Validation on current `main` passed 77 workflow contracts, architecture,
   UI/design policies, TypeScript, lint, production build, actionlint, Bash
   syntax, Playwright discovery (93 tests), focused checks, and diff validation.
   Two full-suite attempts each passed 5,287/5,288 but exposed different

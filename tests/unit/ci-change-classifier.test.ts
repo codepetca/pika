@@ -94,7 +94,13 @@ describe('CI change classifier', () => {
   })
 
   it('fails closed for CI configuration and unknown paths', () => {
-    for (const path of ['.github/workflows/ci.yml', '.nvmrc', 'unclassified/tool.bin']) {
+    for (const path of [
+      '.github/workflows/ci.yml',
+      '.github/actions/setup/action.yml',
+      '.github/CODEOWNERS',
+      '.nvmrc',
+      'unclassified/tool.bin',
+    ]) {
       expect(classifyChangedPaths([path])).toMatchObject({
         mode: 'full',
         runTestBuild: true,

@@ -42,6 +42,7 @@ function isDocumentationPath(path) {
 function isFullCiPath(path) {
   return FULL_CI_FILES.has(path)
     || path.startsWith('.github/workflows/')
+    || path.startsWith('.github/actions/')
     || path === 'scripts/classify-ci-changes.mjs'
     || path === 'scripts/run-focused-checks.mjs'
 }
@@ -80,7 +81,6 @@ function isKnownTestBuildPath(path) {
   return path.startsWith('tests/')
     || path.startsWith('.codex/skills/')
     || path.startsWith('.claude/commands/')
-    || path.startsWith('.github/')
     || path === '.gitignore'
 }
 

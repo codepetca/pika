@@ -21,8 +21,9 @@ Execute a deterministic `main` -> `production` merge flow that respects Pika wor
 4. If the script reports a created or updated PR URL, share it. Do not create a
    second promotion PR while the batch is open.
 5. Merge the PR (manually or with `gh pr merge`). The helper uses and removes an
-   ephemeral detached worktree, so it never advances a persistent local
-   `production` branch and remains safe after merge, squash, or rebase outcomes.
+   ephemeral detached worktree at the exact current `origin/main` SHA, so it
+   never advances a persistent local `production` branch and remains safe after
+   merge, squash, or rebase outcomes.
 6. Report final `origin/production` commit SHA.
 
 ## Conflict Handling
@@ -37,7 +38,8 @@ Execute a deterministic `main` -> `production` merge flow that respects Pika wor
 - Use worktree-safe git commands (`git -C <path>`).
 - Expect `production` direct pushes to fail with `GH013`; use PR flow.
 - The helper prunes stale metadata and creates a fresh detached promotion
-  worktree from `origin/production` on every run.
+  worktree from `origin/main` on every run; GitHub computes the merge with
+  production.
 - Use single-quoted PR body text when calling `gh pr create` to avoid shell interpolation.
 - Do not promote automatically after every main PR. Start a promotion only when
   explicitly authorized, and batch additional reviewed main commits into the one

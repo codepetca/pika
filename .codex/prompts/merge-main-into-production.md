@@ -2,7 +2,7 @@ Merge `main` into `production` using the protected PR workflow.
 
 Use the dedicated repo skill and `docs/dev-workflow.md` as the canonical process reference.
 Do not switch the hub checkout between `main` and `production`; the helper uses
-a fresh ephemeral detached worktree.
+a fresh ephemeral detached worktree at the exact current `origin/main` SHA.
 
 Primary command:
 ```bash

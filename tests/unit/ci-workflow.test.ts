@@ -46,8 +46,9 @@ describe('CI workflow', () => {
     expect(workflow).toContain('run: pnpm run check:workflow')
     expect(workflow).toContain('Verify every selected check passed')
     expect(workflow).toContain('Invalid or inconsistent CI selectors')
-    expect(workflow).toContain('full:true:true')
-    expect(workflow).toContain('docs-only:false:false')
+    expect(workflow).toContain('TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}')
+    expect(workflow).toContain('full:true:true:true')
+    expect(workflow).toContain('docs-only:false:false:false')
     expect(workflow).toContain(
       'Architecture Database Contracts were required but ended: $DATABASE_RESULT',
     )

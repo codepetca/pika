@@ -4,6 +4,7 @@ set -euo pipefail
 HUB_REPO="${PIKA_HUB_REPO:-$HOME/Repos/pika}"
 WORKTREE_ROOT="${PIKA_PROD_WT_ROOT:-$HOME/.codex/worktrees/pika}"
 GITHUB_REPO="${PIKA_GITHUB_REPO:-codepetca/pika}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROMOTION_TEMP_ROOT=''
 PROMOTION_WT=''
 DATE_TAG="$(date +%Y%m%d)"
@@ -84,25 +85,15 @@ if [[ ! -d "$HUB_REPO/.git" ]]; then
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
-  PROMOTION_COUNT="$(gh pr list \
+  PROMOTION_SELECTION="$(gh pr list \
     --repo "$GITHUB_REPO" \
     --base production \
     --state open \
     --limit 100 \
-    --json headRefName \
-    --jq '[.[] | select(.headRefName | startswith("codex/merge-main-into-production-"))] | length')"
-  if [[ "$PROMOTION_COUNT" -gt 1 ]]; then
-    echo "Multiple open main-to-production PRs exist; consolidate them before continuing." >&2
-    exit 1
-  fi
-  if [[ "$PROMOTION_COUNT" -eq 1 ]]; then
-    IFS=$'\t' read -r EXISTING_PR_HEAD EXISTING_PR_URL EXISTING_PR_IS_DRAFT <<< "$(gh pr list \
-      --repo "$GITHUB_REPO" \
-      --base production \
-      --state open \
-      --limit 100 \
-      --json headRefName,url,isDraft \
-      --jq '[.[] | select(.headRefName | startswith("codex/merge-main-into-production-"))][0] | [.headRefName, .url, (.isDraft | tostring)] | @tsv')"
+    --json headRefName,url,isDraft,isCrossRepository \
+    | node "$SCRIPT_DIR/select_production_promotion.mjs")"
+  if [[ -n "$PROMOTION_SELECTION" ]]; then
+    IFS=$'\t' read -r EXISTING_PR_HEAD EXISTING_PR_URL EXISTING_PR_IS_DRAFT <<< "$PROMOTION_SELECTION"
     BRANCH_NAME="$EXISTING_PR_HEAD"
   fi
 fi
@@ -118,16 +109,12 @@ else
 fi
 PROMOTION_WT="$PROMOTION_TEMP_ROOT/worktree"
 
-run git -C "$HUB_REPO" worktree add --detach "$PROMOTION_WT" origin/production
+run git -C "$HUB_REPO" worktree add --detach "$PROMOTION_WT" origin/main
 if [[ -n "$EXISTING_PR_HEAD" ]]; then
   if [[ "$EXISTING_PR_IS_DRAFT" != "true" ]]; then
     gh pr ready "$EXISTING_PR_URL" --repo "$GITHUB_REPO" --undo
   fi
-  run git -C "$HUB_REPO" fetch origin \
-    "refs/heads/$EXISTING_PR_HEAD:refs/remotes/origin/$EXISTING_PR_HEAD"
-  run git -C "$PROMOTION_WT" merge --ff-only "origin/$EXISTING_PR_HEAD"
 fi
-run git -C "$PROMOTION_WT" merge --no-edit origin/main
 run git -C "$PROMOTION_WT" push origin "HEAD:refs/heads/$BRANCH_NAME"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

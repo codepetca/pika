@@ -398,6 +398,7 @@ jobs:
         env:
           CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
           TEST_BUILD_RESULT: ${{ needs.test-and-build.result }}
+          TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}
           DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}
           DATABASE_RESULT: ${{ needs.architecture-database-contracts.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
@@ -413,17 +414,17 @@ jobs:
             echo "Test & Build did not succeed: $TEST_BUILD_RESULT"
             exit 1
           }
-          case "$CI_MODE:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
-            full:true:true | \
-            docs-only:false:false | \
-            production-promotion:false:false | \
-            application-database:true:false | \
-            application-browser:false:true | \
-            application-database-browser:true:true | \
-            application-test-build:false:false)
+          case "$CI_MODE:$TEST_BUILD_REQUIRED:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
+            full:true:true:true | \
+            docs-only:false:false:false | \
+            production-promotion:true:false:false | \
+            application-database:true:true:false | \
+            application-browser:true:false:true | \
+            application-database-browser:true:true:true | \
+            application-test-build:true:false:false)
               ;;
             *)
-              echo "Invalid or inconsistent CI selectors: mode=$CI_MODE database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
+              echo "Invalid or inconsistent CI selectors: mode=$CI_MODE test_build=$TEST_BUILD_REQUIRED database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
               exit 1
               ;;
           esac

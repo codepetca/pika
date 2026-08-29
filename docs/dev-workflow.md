@@ -296,18 +296,19 @@ git -C "$HUB" worktree prune
 mkdir -p "$WT_ROOT"
 PROMO_TMP="$(mktemp -d "$WT_ROOT/.production-promotion.XXXXXX")"
 PROMO_WT="$PROMO_TMP/worktree"
-git -C "$HUB" worktree add --detach "$PROMO_WT" origin/production
+git -C "$HUB" worktree add --detach "$PROMO_WT" origin/main
 ```
 
-### 2) Merge current main without advancing local production
+### 2) Verify the promotion head is exactly current main
 
 ```bash
-git -C "$PROMO_WT" merge --no-edit origin/main
+test "$(git -C "$PROMO_WT" rev-parse HEAD)" = "$(git -C "$HUB" rev-parse origin/main)"
 ```
 
-If production is an ancestor of main this fast-forwards to the exact reviewed
-main SHA and receives abbreviated promotion CI. Divergent or otherwise unproven
-merge results fail closed to full CI.
+GitHub combines this exact reviewed main SHA with production when the PR merges.
+The promotion branch therefore receives abbreviated CI regardless of the prior
+production merge strategy; divergent or otherwise unproven heads fail closed to
+full CI.
 
 ### 3) Open PR to production
 
