@@ -352,6 +352,7 @@ export function TeacherWorkSurfaceIconMenuButton({
   menuClassName,
   buttonProps,
 }: TeacherWorkSurfaceIconMenuButtonProps) {
+  const [isTooltipSuppressed, setIsTooltipSuppressed] = useState(false)
   const { className: buttonClassName, ...restButtonProps } = buttonProps ?? {}
 
   return (
@@ -375,7 +376,10 @@ export function TeacherWorkSurfaceIconMenuButton({
             aria-haspopup="menu"
             aria-controls={menuId}
             aria-expanded={isOpen}
-            onClick={onClick}
+            onClick={(event) => {
+              if (!isOpen) setIsTooltipSuppressed(true)
+              onClick(event)
+            }}
             disabled={resolvedDisabled}
             className={cn('h-9 w-9 p-0', className, buttonClassName)}
             {...restButtonProps}
@@ -387,8 +391,18 @@ export function TeacherWorkSurfaceIconMenuButton({
         if (!tooltip) return button
 
         return (
-          <Tooltip content={tooltip} disabled={isOpen}>
-            <span className="inline-flex">{button}</span>
+          <Tooltip content={tooltip} disabled={isOpen || isTooltipSuppressed}>
+            <span
+              className="inline-flex"
+              onBlur={() => {
+                if (!isOpen) setIsTooltipSuppressed(false)
+              }}
+              onPointerMove={() => {
+                if (!isOpen) setIsTooltipSuppressed(false)
+              }}
+            >
+              {button}
+            </span>
           </Tooltip>
         )
       }}

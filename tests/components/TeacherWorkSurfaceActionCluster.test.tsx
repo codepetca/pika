@@ -156,7 +156,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
     await user.click(await screen.findByRole('button', { name: 'Close' }))
-    expect(document.querySelector('[role="tooltip"][data-state="delayed-open"]')).toBeNull()
+    expect(document.querySelector('[role="tooltip"][data-state$="-open"]')).toBeNull()
     expect(trigger).toHaveFocus()
   })
 })
