@@ -353,6 +353,7 @@ export function TeacherWorkSurfaceIconMenuButton({
   buttonProps,
 }: TeacherWorkSurfaceIconMenuButtonProps) {
   const [isTooltipSuppressed, setIsTooltipSuppressed] = useState(false)
+  const isMenuOpenRef = useRef(false)
   const { className: buttonClassName, ...restButtonProps } = buttonProps ?? {}
 
   return (
@@ -365,6 +366,7 @@ export function TeacherWorkSurfaceIconMenuButton({
       menuClassName={menuClassName}
     >
       {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, menuId }) => {
+        isMenuOpenRef.current = isOpen
         const button = (
           <Button
             ref={ref}
@@ -395,10 +397,16 @@ export function TeacherWorkSurfaceIconMenuButton({
             <span
               className="inline-flex"
               onBlur={() => {
-                if (!isOpen) setIsTooltipSuppressed(false)
+                window.requestAnimationFrame(() => {
+                  if (isMenuOpenRef.current) return
+                  if (document.querySelector('[aria-modal="true"]')) return
+                  setIsTooltipSuppressed(false)
+                })
               }}
               onPointerMove={() => {
-                if (!isOpen) setIsTooltipSuppressed(false)
+                if (isMenuOpenRef.current) return
+                if (document.querySelector('[aria-modal="true"]')) return
+                setIsTooltipSuppressed(false)
               }}
             >
               {button}

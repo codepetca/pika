@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
@@ -156,7 +156,10 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
     await user.click(await screen.findByRole('button', { name: 'Close' }))
-    expect(document.querySelector('[role="tooltip"][data-state$="-open"]')).toBeNull()
-    expect(trigger).toHaveFocus()
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await act(async () => {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+    })
+    expect(document.querySelector('[data-radix-popper-content-wrapper] [role="tooltip"]')).toBeNull()
   })
 })
