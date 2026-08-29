@@ -46,7 +46,7 @@ beforeEach(() => {
   mocks.verifyProvenanceToken.mockReturnValue({
     citationMarkdown: 'Source: Ontario curriculum — curriculum.pdf',
   })
-  mocks.acquireExtractionSlot.mockReturnValue(vi.fn())
+  mocks.acquireExtractionSlot.mockResolvedValue(vi.fn())
 })
 
 describe('POST curriculum import draft', () => {
@@ -86,14 +86,13 @@ describe('POST curriculum import draft', () => {
     }))
     expect(mocks.acquireExtractionSlot).toHaveBeenCalledWith({
       teacherId: 'teacher-1',
-      classroomId: 'classroom-1',
     })
   })
 
   it('returns 429 before extraction when the teacher has exhausted the bounded slot', async () => {
-    mocks.acquireExtractionSlot.mockImplementation(() => {
-      throw new ApiError(429, 'Too many curriculum import attempts. Try again in a few minutes.')
-    })
+    mocks.acquireExtractionSlot.mockRejectedValue(
+      new ApiError(429, 'Too many curriculum import attempts. Try again in a few minutes.'),
+    )
     const formData = new FormData()
     formData.set('sourceType', 'url')
     formData.set('sourceUrl', 'https://example.ca/curriculum.pdf')
@@ -110,7 +109,7 @@ describe('POST curriculum import draft', () => {
 
   it('releases the bounded extraction slot when the provider fails', async () => {
     const release = vi.fn()
-    mocks.acquireExtractionSlot.mockReturnValue(release)
+    mocks.acquireExtractionSlot.mockResolvedValue(release)
     mocks.extractCourseGuideImportDraft.mockRejectedValue(new Error('provider failed'))
     const formData = new FormData()
     formData.set('sourceType', 'url')

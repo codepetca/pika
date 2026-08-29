@@ -25693,7 +25693,6 @@ persistence, authentication, dependency, or hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for scoped design-system
 promotion and implementation routing.
-
 <!-- pika-session-log-archive-batch:045add07b551883ffe9498d2b3d7a04db17bfce0348b995fe99d9d85d4a2cb21 -->
 ## 2026-08-27 — Align Attendance table sorting with Daily
 
@@ -25775,3 +25774,98 @@ changed.
 
 **Model recommendation:** current GPT-5 coding model for a localized semantic
 contrast remediation with responsive visual verification.
+
+<!-- pika-session-log-archive-batch:3ec974d64aa7596b0488f0769a4e85bb9174d19f9e9670e79af228500c2b9f19 -->
+## 2026-08-27 — Resolve Attendance status-dot contrast review
+
+**Risk profile:** none — teacher Attendance status presentation, semantic token
+coverage, accessibility regressions, and stable guidance only; no attendance
+behavior, API, schema, persistence, authentication, dependency, or hosted state
+changed.
+
+- Accepted the independent PR review blocker that the exact TeachAssist status
+  fills did not always form a 3:1 boundary against light and dark row surfaces.
+  Preserved every approved fill and added a theme-adaptive semantic one-pixel
+  halo, including default, hovered, selected, and selected-hover rows.
+- Gave each compact status mark explicit image semantics and retained its
+  accessible status name and tooltip.
+- Added theme-aware non-text contrast contracts and component coverage for
+  default and selected rows. Focused remediation coverage passes 24 tests,
+  along with lint and design/UI policy checks.
+- Playwright visual review passes for teacher desktop/mobile in light/dark over
+  all four row surfaces. Student UI is n/a because Attendance is teacher-only.
+  The independent reviewer reported no other actionable findings.
+
+**Model recommendation:** current GPT-5 coding model for a localized semantic
+contrast remediation with responsive visual verification.
+
+## 2026-08-27 — Set the Attendance context bar as the migration target
+
+**Risk profile:** none — design governance and a source-level deprecation notice
+only; no rendered UI, behavior, API, schema, persistence, dependency, or hosted
+state changed.
+
+- Made `TeacherWorkSurfaceContextBar` the explicit target for teacher
+  top-control rows as Classwork, Tests, and nearby pages are deliberately
+  refreshed.
+- Marked `TeacherWorkSurfaceActionBar` as transitional compatibility: new
+  consumers are prohibited, while existing pages migrate one coherent workflow
+  at a time with responsive and interaction-state visual verification.
+- Kept the operational-table adoption checklist as the guard against a blind
+  mechanical replacement on unrelated authoring surfaces.
+
+**Verification:** documentation and source guidance only; lint, continuity, and
+diff checks pass. Visual verification is n/a because rendered output is
+unchanged.
+
+## 2026-08-27 — Restore mobile access to Attendance utilities
+
+**Risk profile:** low — responsive teacher Attendance controls and regression
+coverage only; no attendance data behavior, API contract, schema, persistence,
+authentication, dependency, or hosted state changed.
+
+- Resolved the PR review blocker that hid Attendance hours and Refresh below
+  640px. Desktop retains the two direct utility icons; mobile now uses the
+  shared teacher work-surface overflow menu so the centered date/session FAB
+  stays visually primary without overlapping trailing controls.
+- Raised the Attendance action-bar stacking context with the existing semantic
+  layer token so the mobile menu remains interactive above the sticky table
+  header.
+- Added a guarded Playwright-only Attendance fixture and a 390px browser
+  regression that opens the real Attendance-hours dialog in light and dark.
+  The same regression preserves direct desktop access in both themes and checks
+  for horizontal overflow.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
+  covered by the reused menu component tests; semantic state and dialog access
+  are covered by Attendance component and browser tests; remaining manual
+  follow-up: none.
+
+**Verification:** focused Attendance component tests (14/14), full Vitest
+(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
+Pika audit, diff checks, and production build pass. Visual review covers teacher
+desktop/mobile in light/dark with both the context bar and dialog open. Student
+UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded responsive
+interaction remediation with browser verification.
+
+## 2026-08-27 — Keep Attendance browser fixture reachable in local development
+
+**Risk profile:** none — local browser-test fixture gating only; no product UI,
+business behavior, API, schema, persistence, authentication, dependency, or
+hosted state changed.
+
+- Kept the Attendance fixture closed in production unless explicitly enabled,
+  while allowing it automatically on development servers so Playwright can
+  reuse a normal unflagged local server.
+- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
+  is evaluated when the production server handles each request instead of being
+  frozen into the build artifact.
+- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
+  existing Attendance-hours regression passed on desktop/mobile in light/dark
+  and opened the real dialog in all four cases.
+- Built one production artifact with the fixture flag present, then proved that
+  same artifact returns 404 when started unflagged and 200 when started flagged.
+
+**Model recommendation:** current GPT-5 coding model for a contained test-harness
+compatibility correction and exact-workflow verification.

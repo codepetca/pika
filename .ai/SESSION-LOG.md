@@ -11,77 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Set the Attendance context bar as the migration target
-
-**Risk profile:** none — design governance and a source-level deprecation notice
-only; no rendered UI, behavior, API, schema, persistence, dependency, or hosted
-state changed.
-
-- Made `TeacherWorkSurfaceContextBar` the explicit target for teacher
-  top-control rows as Classwork, Tests, and nearby pages are deliberately
-  refreshed.
-- Marked `TeacherWorkSurfaceActionBar` as transitional compatibility: new
-  consumers are prohibited, while existing pages migrate one coherent workflow
-  at a time with responsive and interaction-state visual verification.
-- Kept the operational-table adoption checklist as the guard against a blind
-  mechanical replacement on unrelated authoring surfaces.
-
-**Verification:** documentation and source guidance only; lint, continuity, and
-diff checks pass. Visual verification is n/a because rendered output is
-unchanged.
-
-## 2026-08-27 — Restore mobile access to Attendance utilities
-
-**Risk profile:** low — responsive teacher Attendance controls and regression
-coverage only; no attendance data behavior, API contract, schema, persistence,
-authentication, dependency, or hosted state changed.
-
-- Resolved the PR review blocker that hid Attendance hours and Refresh below
-  640px. Desktop retains the two direct utility icons; mobile now uses the
-  shared teacher work-surface overflow menu so the centered date/session FAB
-  stays visually primary without overlapping trailing controls.
-- Raised the Attendance action-bar stacking context with the existing semantic
-  layer token so the mobile menu remains interactive above the sticky table
-  header.
-- Added a guarded Playwright-only Attendance fixture and a 390px browser
-  regression that opens the real Attendance-hours dialog in light and dark.
-  The same regression preserves direct desktop access in both themes and checks
-  for horizontal overflow.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
-  covered by the reused menu component tests; semantic state and dialog access
-  are covered by Attendance component and browser tests; remaining manual
-  follow-up: none.
-
-**Verification:** focused Attendance component tests (14/14), full Vitest
-(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
-Pika audit, diff checks, and production build pass. Visual review covers teacher
-desktop/mobile in light/dark with both the context bar and dialog open. Student
-UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded responsive
-interaction remediation with browser verification.
-
-## 2026-08-27 — Keep Attendance browser fixture reachable in local development
-
-**Risk profile:** none — local browser-test fixture gating only; no product UI,
-business behavior, API, schema, persistence, authentication, dependency, or
-hosted state changed.
-
-- Kept the Attendance fixture closed in production unless explicitly enabled,
-  while allowing it automatically on development servers so Playwright can
-  reuse a normal unflagged local server.
-- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
-  is evaluated when the production server handles each request instead of being
-  frozen into the build artifact.
-- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
-  existing Attendance-hours regression passed on desktop/mobile in light/dark
-  and opened the real dialog in all four cases.
-- Built one production artifact with the fixture flag present, then proved that
-  same artifact returns 404 when started unflagged and 200 when started flagged.
-
-**Model recommendation:** current GPT-5 coding model for a contained test-harness
-compatibility correction and exact-workflow verification.
-
 ## 2026-08-27 — Resolve legacy Test-question backfill collisions
 
 **Risk profile:** runtime-platform — production Test draft identity backfill;
@@ -1153,7 +1082,8 @@ cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
 
 **Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
 extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
-classroom synchronization and no schema or hosted-state change.
+classroom synchronization. Migration 140 adds a durable provider-call lease and
+rate window; it has not been applied to local or hosted state.
 
 - Added an Import curriculum assistant to Guide options with explicit Source,
   Review, and Confirm steps. Teachers can upload a validated PDF up to 4 MB or
@@ -1193,13 +1123,14 @@ classroom synchronization and no schema or hosted-state change.
 - Final merge review rebased the branch onto Attendance PR #1103 and closed the
   remaining provider-cost boundary: public curriculum URLs are fetched through
   the existing DNS-pinned, redirect-revalidated 4 MB document path before they
-  reach OpenAI, and each teacher/Classroom is limited to one active extraction
-  and three attempts per ten minutes. The confirmed write now also rechecks
-  teacher ownership and non-archived state in the atomic update predicates.
+  reach OpenAI. A teacher-scoped database lease now permits one active extraction
+  and three attempts per ten minutes across all deployed server instances. The
+  confirmed write now also rechecks teacher ownership and non-archived state in
+  the atomic update predicates.
 - Updated production continuity to the user-confirmed baseline: production
   commit 530d444a with migrations through 136 applied and zero error-level
-  database lint findings. No migration was added or applied, and nothing was
-  merged or deployed.
+  database lint findings. Migration 140 was added but not applied to local or
+  hosted state; nothing was merged or deployed.
 - Recorded `epic-gradebook-general-breakdown` as separate future work for a
   general Attendance, Term Work, and Final breakdown; no mark breakdown was
   added to the Course Guide.
@@ -1339,3 +1270,68 @@ separate explicit authorizations; no application code was deployed.
 **Model recommendation:** GPT-5.6 Sol for the migration transaction,
 publication/access state boundary, cross-role UI behavior, and high-risk PR
 review.
+
+## 2026-08-28 — Resequence Course Guide import rate-limit migration
+
+**Risk profile:** workspace-state/schema-numbering — migration filename and
+references only; no SQL behavior, database state, or hosted environment changed.
+
+- Rebased the merged Course Guide branch onto current `origin/main`, skipping
+  the five feature commits already represented by squash merge `ba08bf52`.
+- Preserved and restored the uncommitted database-backed import-rate-limit work.
+- Resolved the active-worktree collision with the student Tests migration
+  `139_publish_test_from_draft_atomic.sql` by renaming the Course Guide limiter
+  to `140_course_guide_import_rate_limits.sql` and updating its tests and
+  continuity references.
+- Migration 140 remains unapplied. It must be rebased after migration 139 lands
+  before any authorized local or hosted application.
+
+**Model recommendation:** current frontier coding model for shared-worktree
+preservation and migration-lineage coordination.
+
+## 2026-08-28 — Apply Course Guide import rate-limit migration
+
+**Risk profile:** runtime-platform — explicitly authorized local and production
+application of migration 140; no deployment or unrelated migration application.
+
+- Reconstructed the complete 001–140 migration directory in an isolated
+  workspace because migration 139 remains in its separate student Tests
+  worktree. Both target ledgers were already aligned through 139.
+- Dry runs for local and linked production each proposed only
+  `140_course_guide_import_rate_limits.sql`.
+- Applied migration 140 locally, then verified the shared lease/concurrency and
+  three-attempt window contract plus zero error-level database lint findings.
+- Applied migration 140 to production. The production ledger is aligned through
+  140 with zero error-level lint findings; an authenticated schema dump confirms
+  the RLS-enabled table, constraints, security-definer functions with empty
+  search paths, and service-role execution grants.
+- The database-backed limiter application changes remain uncommitted and
+  undeployed; production continues using the merged in-memory limiter until the
+  code completes its own PR/review/release loop.
+
+**Model recommendation:** GPT-5.6 Sol for the remaining migration-backed server
+code review and rollout because it crosses provider-cost and database authority.
+
+## 2026-08-28 — Harden Course Guide import rate limiting
+
+**Risk profile:** runtime-platform — rolling teacher-wide provider-cost limit,
+lease fencing, and explicitly authorized local and production migration 141.
+
+- Added migration 141 to replace the fixed Course Guide import window with a
+  rolling three-attempt/ten-minute history and extend extraction leases to 90
+  seconds. Existing migration-140 rows are backfilled conservatively.
+- Kept acquisition serialized with row locking and retained token-fenced release
+  so an expired worker cannot clear a replacement lease.
+- Added database-contract coverage for existing-row concurrency, rolling-window
+  boundaries, conservative upgrade behavior, and stale-token replacement.
+- Independent security re-review found no remaining blockers. Focused tests,
+  TypeScript, lint, database type generation/checking, shell syntax, the Pika
+  audit, and the live local database contract pass.
+- With explicit target-and-migration authorization, applied migration 141 first
+  to local and then production. Both migration ledgers are aligned through 141,
+  error-level database lint reports no findings, and an authenticated production
+  schema dump confirms the hardened function, constraints, and grants.
+- The application changes remain pending their exact-head PR/CI/merge loop; no
+  application deployment was performed as part of the schema application.
+
+**Model recommendation:** GPT-5.6 Sol for the final exact-head CI and merge loop.
