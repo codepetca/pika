@@ -22,10 +22,7 @@ import {
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 import { normalizeTestDocuments } from '@/lib/test-documents'
-import {
-  isMobileFullscreenFallback,
-  resolveExamWindowCompliance,
-} from '@/lib/exam-window-compliance'
+import { resolveExamWindowCompliance } from '@/lib/exam-window-compliance'
 import {
   createExamIncidentState,
   EXAM_FOCUS_LOSS_GRACE_MS,
@@ -153,16 +150,6 @@ function hasTouchInput(): boolean {
   const hasCoarsePointer =
     typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
   return maxTouchPoints > 0 || hasCoarsePointer
-}
-
-function isMobileBrowserWithoutFullscreen(): boolean {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return false
-  return isMobileFullscreenFallback({
-    isFullscreenApiSupported: isFullscreenApiSupported(),
-    hasTouchInput: hasTouchInput(),
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-  })
 }
 
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 750
@@ -1549,7 +1536,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   data-testid="student-test-split-container"
                   className={`flex flex-col gap-2 lg:grid ${
                     showDocPanel ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]'
-                  } lg:min-h-0 lg:h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
+                  } min-h-0 h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
                 >
                   <SegmentedControl
                     ariaLabel="Exam view"
@@ -1571,7 +1558,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   <section
                     data-testid="student-test-documents-pane"
                     className={`rounded-xl border border-border bg-surface ${
-                      mobileExamPane === 'documents' ? '' : 'hidden lg:block'
+                      mobileExamPane === 'documents' ? 'min-h-0 flex-1' : 'hidden lg:block'
                     } ${
                       showCurrentTestInfoPanel
                         ? 'relative min-h-0 overflow-x-hidden overflow-y-auto scrollbar-hover p-0'
@@ -1723,7 +1710,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   <section
                     data-testid="student-test-detail-pane"
                     className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
-                      mobileExamPane === 'questions' ? '' : 'hidden lg:block'
+                      mobileExamPane === 'questions' ? 'min-h-0 flex-1' : 'hidden lg:block'
                     } ${
                       showCurrentTestInfoPanel
                         ? 'min-h-0 overflow-y-auto scrollbar-hover'

@@ -1297,8 +1297,8 @@ describe('StudentTestsTab exam mode', () => {
     const splitContainerExamMode = getSplitContainer(container)
     expect(splitContainerExamMode.className).toContain('lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]')
     expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]')
-    expect(splitContainerExamMode.className).toContain('lg:h-[calc(100dvh-3rem)]')
-    expect(splitContainerExamMode.className).toContain('lg:min-h-0')
+    expect(splitContainerExamMode.className).toContain('h-[calc(100dvh-3rem)]')
+    expect(splitContainerExamMode.className).toContain('min-h-0')
 
     const documentsPane = screen.getByTestId('student-test-documents-pane')
     const detailPane = screen.getByTestId('student-test-detail-pane')
@@ -4475,7 +4475,7 @@ describe('StudentTestsTab exam mode', () => {
       const splitContainer = getSplitContainer(container)
       expect(splitContainer.className).toContain('lg:grid')
       expect(splitContainer.className).toContain('lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]')
-      expect(splitContainer.className).toContain('lg:h-[calc(100dvh-3rem)]')
+      expect(splitContainer.className).toContain('h-[calc(100dvh-3rem)]')
     })
 
     it('swaps panes without unmounting the in-progress test form', async () => {

@@ -1071,6 +1071,17 @@ test('gives students a one-pane exam layout on narrow screens', async ({ page },
     await expect(question).toBeAttached()
     await expect(page.getByRole('button', { name: 'Course formula sheet' })).toBeVisible()
 
+    // An opened reference document must be readable. The viewer is absolutely
+    // positioned inside this pane, so if the pane ever loses its height the
+    // document collapses to the height of the (hidden) document list instead.
+    await page.getByRole('button', { name: 'Course formula sheet' }).click()
+    await expect(page.getByRole('button', { name: 'Back to documents list' })).toBeVisible()
+    const paneHeight = await documentsPane.evaluate((el) => el.getBoundingClientRect().height)
+    const viewportHeight = page.viewportSize()?.height ?? 0
+    expect(paneHeight).toBeGreaterThan(viewportHeight * 0.5)
+
+    await page.getByRole('button', { name: 'Back to documents list' }).click()
+
     await page.getByRole('button', { name: 'Questions' }).click()
     await expect(detailPane).toBeVisible()
     await expect(documentsPane).toBeHidden()
