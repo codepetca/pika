@@ -1,6 +1,9 @@
 'use client'
 
-import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
+import {
+  describeAssignmentHistoryChange,
+  type AssignmentHistoryChange,
+} from '@/lib/assignment-doc-history'
 import type { HistoryPreviewMinimapState } from '@/hooks/useHistoryPreviewViewport'
 import type { TiptapContent, TiptapNode } from '@/types'
 
@@ -8,6 +11,18 @@ interface HistoryPreviewMinimapProps {
   content: TiptapContent
   change: AssignmentHistoryChange
   state: HistoryPreviewMinimapState | null
+}
+
+export function HistoryPreviewChangeSummary({
+  change,
+}: {
+  change: AssignmentHistoryChange
+}) {
+  return (
+    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {describeAssignmentHistoryChange(change)}
+    </p>
+  )
 }
 
 function getNodeText(node: TiptapNode): string {

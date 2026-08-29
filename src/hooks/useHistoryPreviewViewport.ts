@@ -80,10 +80,15 @@ function annotateChangedBlocks(
     block.setAttribute(attribute, String(existingCount + count))
   })
 
-  const changedTarget = change.changedBlocks[0]
-  if (changedTarget) return blocks[changedTarget.index] ?? null
-  const deletionTarget = change.deletionAnchors[0]
-  return deletionTarget ? blocks[deletionTarget.index] ?? null : null
+  const firstTarget = [
+    ...change.changedBlocks.map(({ index }) => ({ index, order: index * 2 + 1 })),
+    ...change.deletionAnchors.map(({ index, position }) => ({
+      index,
+      order: index * 2 + (position === 'before' ? 0 : 2),
+    })),
+  ].sort((left, right) => left.order - right.order)[0]
+
+  return firstTarget ? blocks[firstTarget.index] ?? null : null
 }
 
 function clampRatio(value: number) {

@@ -147,4 +147,17 @@ describe('useHistoryPreviewViewport', () => {
     expect(deletionAnchor).toHaveTextContent('Conclusion')
     expect(document.querySelector('[data-testid="minimap-state"]')).toHaveTextContent('deleted')
   })
+
+  it('focuses the earliest location when a save deletes and revises different areas', () => {
+    const change: AssignmentHistoryChange = {
+      changedBlocks: [{ index: 1, kind: 'modified' }],
+      deletionAnchors: [{ index: 0, position: 'before', count: 1 }],
+    }
+    render(<PreviewViewport mode="focused" contentKey="mixed-save" change={change} />)
+
+    const viewport = document.querySelector<HTMLElement>('[data-testid="preview-viewport"]')!
+    expect(viewport.scrollTop).toBe(0)
+    expect(document.querySelector('[data-history-deletion-before="1"]')).toHaveTextContent('Opening')
+    expect(document.querySelector('[data-history-change-kind="modified"]')).toHaveTextContent('Changed evidence')
+  })
 })

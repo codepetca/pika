@@ -67,38 +67,174 @@ function nodeSignature(node: TiptapNode): string {
   return JSON.stringify(node)
 }
 
-function findMatchingBlocks(before: TiptapNode[], after: TiptapNode[]) {
-  const rows = before.length + 1
-  const columns = after.length + 1
-  const lengths = Array.from({ length: rows }, () => Array<number>(columns).fill(0))
+interface BlockMatch {
+  beforeIndex: number
+  afterIndex: number
+}
 
-  for (let beforeIndex = before.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
-    for (let afterIndex = after.length - 1; afterIndex >= 0; afterIndex -= 1) {
-      lengths[beforeIndex]![afterIndex] = nodeSignature(before[beforeIndex]!) === nodeSignature(after[afterIndex]!)
-        ? 1 + lengths[beforeIndex + 1]![afterIndex + 1]!
+const MAX_LCS_CELLS = 40_000
+
+function findGreedyMatches(
+  beforeSignatures: string[],
+  afterSignatures: string[],
+  beforeStart: number,
+  beforeEnd: number,
+  afterStart: number,
+  afterEnd: number,
+): BlockMatch[] {
+  const afterPositions = new Map<string, number[]>()
+  for (let afterIndex = afterStart; afterIndex < afterEnd; afterIndex += 1) {
+    const signature = afterSignatures[afterIndex]!
+    const positions = afterPositions.get(signature) ?? []
+    positions.push(afterIndex)
+    afterPositions.set(signature, positions)
+  }
+
+  const matches: BlockMatch[] = []
+  let nextAfterIndex = afterStart
+  for (let beforeIndex = beforeStart; beforeIndex < beforeEnd; beforeIndex += 1) {
+    const positions = afterPositions.get(beforeSignatures[beforeIndex]!)
+    if (!positions) continue
+
+    let low = 0
+    let high = positions.length
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2)
+      if (positions[middle]! < nextAfterIndex) low = middle + 1
+      else high = middle
+    }
+
+    const afterIndex = positions[low]
+    if (afterIndex === undefined) continue
+    matches.push({ beforeIndex, afterIndex })
+    nextAfterIndex = afterIndex + 1
+  }
+
+  return matches
+}
+
+function findMatchingBlocks(before: TiptapNode[], after: TiptapNode[]): BlockMatch[] {
+  const beforeSignatures = before.map(nodeSignature)
+  const afterSignatures = after.map(nodeSignature)
+  const matches: BlockMatch[] = []
+  let beforeStart = 0
+  let afterStart = 0
+
+  while (
+    beforeStart < before.length
+    && afterStart < after.length
+    && beforeSignatures[beforeStart] === afterSignatures[afterStart]
+  ) {
+    matches.push({ beforeIndex: beforeStart, afterIndex: afterStart })
+    beforeStart += 1
+    afterStart += 1
+  }
+
+  let beforeEnd = before.length
+  let afterEnd = after.length
+  const suffixMatches: BlockMatch[] = []
+  while (
+    beforeEnd > beforeStart
+    && afterEnd > afterStart
+    && beforeSignatures[beforeEnd - 1] === afterSignatures[afterEnd - 1]
+  ) {
+    beforeEnd -= 1
+    afterEnd -= 1
+    suffixMatches.unshift({ beforeIndex: beforeEnd, afterIndex: afterEnd })
+  }
+
+  const beforeCount = beforeEnd - beforeStart
+  const afterCount = afterEnd - afterStart
+  if (beforeCount === 0 || afterCount === 0) {
+    return [...matches, ...suffixMatches]
+  }
+
+  if (beforeCount * afterCount > MAX_LCS_CELLS) {
+    return [
+      ...matches,
+      ...findGreedyMatches(
+        beforeSignatures,
+        afterSignatures,
+        beforeStart,
+        beforeEnd,
+        afterStart,
+        afterEnd,
+      ),
+      ...suffixMatches,
+    ]
+  }
+
+  const lengths = Array.from(
+    { length: beforeCount + 1 },
+    () => new Uint16Array(afterCount + 1),
+  )
+  for (let beforeOffset = beforeCount - 1; beforeOffset >= 0; beforeOffset -= 1) {
+    for (let afterOffset = afterCount - 1; afterOffset >= 0; afterOffset -= 1) {
+      lengths[beforeOffset]![afterOffset] = (
+        beforeSignatures[beforeStart + beforeOffset] === afterSignatures[afterStart + afterOffset]
+      )
+        ? 1 + lengths[beforeOffset + 1]![afterOffset + 1]!
         : Math.max(
-            lengths[beforeIndex + 1]![afterIndex]!,
-            lengths[beforeIndex]![afterIndex + 1]!,
+            lengths[beforeOffset + 1]![afterOffset]!,
+            lengths[beforeOffset]![afterOffset + 1]!,
           )
     }
   }
 
-  const matches: Array<{ beforeIndex: number; afterIndex: number }> = []
-  let beforeIndex = 0
-  let afterIndex = 0
-  while (beforeIndex < before.length && afterIndex < after.length) {
-    if (nodeSignature(before[beforeIndex]!) === nodeSignature(after[afterIndex]!)) {
-      matches.push({ beforeIndex, afterIndex })
-      beforeIndex += 1
-      afterIndex += 1
-    } else if (lengths[beforeIndex + 1]![afterIndex]! >= lengths[beforeIndex]![afterIndex + 1]!) {
-      beforeIndex += 1
+  let beforeOffset = 0
+  let afterOffset = 0
+  while (beforeOffset < beforeCount && afterOffset < afterCount) {
+    if (
+      beforeSignatures[beforeStart + beforeOffset]
+      === afterSignatures[afterStart + afterOffset]
+    ) {
+      matches.push({
+        beforeIndex: beforeStart + beforeOffset,
+        afterIndex: afterStart + afterOffset,
+      })
+      beforeOffset += 1
+      afterOffset += 1
+    } else if (lengths[beforeOffset + 1]![afterOffset]! >= lengths[beforeOffset]![afterOffset + 1]!) {
+      beforeOffset += 1
     } else {
-      afterIndex += 1
+      afterOffset += 1
     }
   }
 
-  return matches
+  return [...matches, ...suffixMatches]
+}
+
+function formatBlockLocations(indexes: number[]) {
+  const shown = indexes.slice(0, 3).map((index) => index + 1)
+  const remaining = indexes.length - shown.length
+  return `${shown.join(', ')}${remaining > 0 ? `, and ${remaining} more` : ''}`
+}
+
+export function describeAssignmentHistoryChange(change: AssignmentHistoryChange): string {
+  const added = change.changedBlocks.filter(({ kind }) => kind === 'added')
+  const modified = change.changedBlocks.filter(({ kind }) => kind === 'modified')
+  const parts: string[] = []
+
+  if (added.length > 0) {
+    parts.push(
+      `${added.length} added area${added.length === 1 ? '' : 's'} at document block ${formatBlockLocations(added.map(({ index }) => index))}`,
+    )
+  }
+  if (modified.length > 0) {
+    parts.push(
+      `${modified.length} revised area${modified.length === 1 ? '' : 's'} at document block ${formatBlockLocations(modified.map(({ index }) => index))}`,
+    )
+  }
+  if (change.deletionAnchors.length > 0) {
+    const deletedCount = change.deletionAnchors.reduce((total, anchor) => total + anchor.count, 0)
+    parts.push(
+      `${deletedCount} deleted area${deletedCount === 1 ? '' : 's'} near document block ${formatBlockLocations(change.deletionAnchors.map(({ index }) => index))}`,
+    )
+  }
+
+  return parts.length > 0
+    ? `History preview: ${parts.join('; ')}.`
+    : 'History preview: no changed document areas detected.'
 }
 
 export function compareAssignmentDocContent(

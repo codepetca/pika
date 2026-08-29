@@ -62,7 +62,10 @@ import {
   type HistoryPreviewMode,
 } from '@/hooks/useHistoryPreviewViewport'
 import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
-import { HistoryPreviewMinimap } from './HistoryPreviewMinimap'
+import {
+  HistoryPreviewChangeSummary,
+  HistoryPreviewMinimap,
+} from './HistoryPreviewMinimap'
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
@@ -667,6 +670,9 @@ export function RichTextEditor({
           </Toolbar>
         )}
 
+        {showHistoryMinimap ? (
+          <HistoryPreviewChangeSummary change={historyPreviewChange} />
+        ) : null}
         <div className="history-preview-layout">
           <EditorContent
             ref={viewportRef}

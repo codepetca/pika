@@ -9,7 +9,10 @@ import {
   type HistoryPreviewMode,
 } from '@/hooks/useHistoryPreviewViewport'
 import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
-import { HistoryPreviewMinimap } from './HistoryPreviewMinimap'
+import {
+  HistoryPreviewChangeSummary,
+  HistoryPreviewMinimap,
+} from './HistoryPreviewMinimap'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -114,14 +117,19 @@ export function RichTextViewer({
 
   if (showPlainText) {
     return (
-      <pre
-        className={[
-          'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
-          fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
-        ].join(' ')}
-      >
-        {editor.getText()}
-      </pre>
+      <>
+        {showHistoryMinimap ? (
+          <HistoryPreviewChangeSummary change={historyPreviewChange} />
+        ) : null}
+        <pre
+          className={[
+            'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
+            fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
+          ].join(' ')}
+        >
+          {editor.getText()}
+        </pre>
+      </>
     )
   }
 
@@ -134,6 +142,9 @@ export function RichTextViewer({
           : 'bg-surface-2 rounded-none border border-border',
       ].join(' ')}
     >
+      {showHistoryMinimap ? (
+        <HistoryPreviewChangeSummary change={historyPreviewChange} />
+      ) : null}
       <div className="history-preview-layout">
         <EditorContent
           ref={viewportRef}

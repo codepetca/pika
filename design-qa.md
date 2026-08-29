@@ -331,3 +331,47 @@ role-owned heading.
 - Semantic state covered by tests: yes; slider values, view mode, visible window,
   zoom status, and the connected gesture description are exposed semantically.
 - Remaining manual follow-up: none.
+
+## Focused assignment-history document preview
+
+### Change brief
+
+- Surface: the shared teacher/student assignment-history preview beside the
+  existing compact chart.
+- Affected roles: teacher and student.
+- Preview behavior: hover keeps the document at normal reading size and scrolls
+  to the earliest changed location; click retains the existing pinned-save
+  lifecycle.
+- Change presentation: inserted and rewritten areas receive visible Added or
+  Revised labels, while deletions leave a red `Deleted here` anchor at their
+  former position.
+- Orientation: a narrow, non-interactive whole-document minimap shows change
+  marks and the current reading viewport. It is hidden at narrow mobile widths
+  to preserve the main reading area.
+
+### Verification result
+
+- Teacher and student desktop at 1440 × 900: rewrite, insertion, and deletion
+  saves each focused the correct document area at normal scale. Clicking an
+  insertion pinned it while later pointer movement left the selected save
+  unchanged.
+- Student mobile at 390 × 844: the focused changed area remained legible, the
+  minimap hid as designed, and there was no horizontal overflow.
+- Teacher dark mode: document text, changed-area label/background, minimap
+  lines, change marker, viewport outline, and history stems remained clear.
+- Manual scrolling moved the minimap viewport from 0% to 87.351%, matching the
+  full available document range. The final browser run reported no errors.
+- Review remediation was rechecked visually: the Revised label provides a
+  non-color cue, the live status text names the change kind and document block,
+  and a 1,000-block comparison completes in about 1.2 ms locally.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; the existing slider keyboard navigation and
+  Escape-to-exit behavior remain covered, and the minimap adds no focus stops.
+- Semantic state covered by tests: yes; the minimap is hidden from assistive
+  technology, while a polite status message announces added, revised, and
+  deleted locations for the active save.
+- Remaining manual follow-up: none.

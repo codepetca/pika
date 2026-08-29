@@ -1664,6 +1664,11 @@ authentication, dependency, migration, deployment, or hosted state changed.
   and dark mode. It confirmed 100% text scale, rewrite/insertion/deletion
   markers, pinned-save stability, viewport tracking, and no horizontal overflow
   or browser errors.
+- Independent stable-SHA review found three P2 issues. Remediation now bounds
+  large-document matching after precomputing block signatures (1,000-block
+  comparisons measured about 1.2 ms), focuses the earliest location in mixed
+  deletion/rewrite saves, and distinguishes Added/Revised changes with visible
+  text plus a live assistive description of change kinds and locations.
 
 **Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
 behavior covered: yes; semantic state covered by tests: yes; remaining manual

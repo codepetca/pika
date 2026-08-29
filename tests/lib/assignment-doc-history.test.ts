@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createJsonPatch } from '@/lib/json-patch'
 import {
   buildAssignmentHistoryPreview,
   compareAssignmentDocContent,
+  describeAssignmentHistoryChange,
   reconstructAssignmentDocContent,
 } from '@/lib/assignment-doc-history'
 import type { AssignmentDocHistoryEntry, JsonPatchOperation, TiptapContent } from '@/types'
@@ -220,5 +221,43 @@ describe('assignment-doc-history reconstruction', () => {
         deletionAnchors: [],
       },
     })
+  })
+
+  it('bounds comparison work for very large, substantially changed documents', () => {
+    const before: TiptapContent = {
+      type: 'doc',
+      content: Array.from({ length: 1000 }, (_, index) => ({
+        type: 'paragraph',
+        content: [{ type: 'text', text: `Before ${index}` }],
+      })),
+    }
+    const after: TiptapContent = {
+      type: 'doc',
+      content: Array.from({ length: 1000 }, (_, index) => ({
+        type: 'paragraph',
+        content: [{ type: 'text', text: `After ${index}` }],
+      })),
+    }
+    const stringifySpy = vi.spyOn(JSON, 'stringify')
+
+    const result = compareAssignmentDocContent(before, after)
+    const signatureCalls = stringifySpy.mock.calls.length
+    stringifySpy.mockRestore()
+
+    expect(signatureCalls).toBe(2000)
+    expect(result.changedBlocks).toHaveLength(1000)
+    expect(result.deletionAnchors).toEqual([])
+  })
+
+  it('describes change kinds and document locations for assistive technology', () => {
+    expect(describeAssignmentHistoryChange({
+      changedBlocks: [
+        { index: 2, kind: 'added' },
+        { index: 5, kind: 'modified' },
+      ],
+      deletionAnchors: [{ index: 7, position: 'before', count: 2 }],
+    })).toBe(
+      'History preview: 1 added area at document block 3; 1 revised area at document block 6; 2 deleted areas near document block 8.',
+    )
   })
 })

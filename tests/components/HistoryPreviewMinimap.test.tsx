@@ -1,6 +1,9 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { HistoryPreviewMinimap } from '@/components/editor/HistoryPreviewMinimap'
+import {
+  HistoryPreviewChangeSummary,
+  HistoryPreviewMinimap,
+} from '@/components/editor/HistoryPreviewMinimap'
 import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
 import type { HistoryPreviewMinimapState } from '@/hooks/useHistoryPreviewViewport'
 
@@ -43,5 +46,23 @@ describe('HistoryPreviewMinimap', () => {
       top: '40%',
       height: '20%',
     })
+  })
+
+  it('announces change kinds and locations outside the hidden visual overview', () => {
+    render(
+      <HistoryPreviewChangeSummary
+        change={{
+          changedBlocks: [
+            { index: 2, kind: 'added' },
+            { index: 4, kind: 'modified' },
+          ],
+          deletionAnchors: [{ index: 6, position: 'before', count: 1 }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1 added area at document block 3; 1 revised area at document block 5; 1 deleted area near document block 7',
+    )
   })
 })
