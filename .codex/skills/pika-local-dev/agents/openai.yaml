@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika Local Dev"
+  short_description: "Launch Pika with safe local credentials"
+  default_prompt: "Use $pika-local-dev to launch the Pika development server."
