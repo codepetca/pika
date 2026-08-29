@@ -1329,13 +1329,18 @@ application behavior changed.
 - Added a repository-scoped `pika-local-dev` skill so future agents launch Pika
   with a generated process-only session secret and credentials derived from the
   already-running local Supabase stack.
-- Required loopback HTTP for the Supabase API URL and kept all credential values
-  out of output, files, and Git history.
-- Added behavioral coverage for credential injection, the 64-character session
-  secret, non-loopback rejection, stopped-stack failure, and check-only mode.
+- Required loopback HTTP and trusted Pika Git-common-directory identity before
+  reading or passing local Supabase credentials. Current and legacy Supabase key
+  names are supported without adding a `jq` dependency.
+- Disabled inherited shell tracing before sensitive reads and fail closed when
+  OpenSSL fails or returns anything other than a 64-character hex secret.
+- Added behavioral coverage for credential injection, key-format compatibility,
+  missing-key diagnostics, untrusted-worktree and non-loopback rejection,
+  trace redaction, secret-generation failure, stopped-stack failure, and
+  check-only mode.
 
-**Verification:** focused skill tests (5/5), live prerequisite check, Bash
-syntax validation, and Codex skill validation pass.
+**Verification:** focused skill tests (11/11), live prerequisite check, Bash and
+ShellCheck validation, and Codex skill validation pass.
 
 **Model recommendation:** current frontier coding model for bounded local
 developer tooling with security-sensitive environment handling.
