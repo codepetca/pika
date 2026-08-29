@@ -70,8 +70,9 @@ describe('UiGallery history preview fixture', () => {
     const [previewPoint, latestPreviewPoint] = screen.getAllByRole('button', {
       name: 'History point',
     })
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '22')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '13')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
     expect(previewPoint).toHaveAttribute('data-entry-count', '5')
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
@@ -80,12 +81,12 @@ describe('UiGallery history preview fixture', () => {
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '9')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
 
     fireEvent.mouseEnter(latestPreviewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '1')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
 
     await user.click(latestPreviewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
@@ -96,17 +97,22 @@ describe('UiGallery history preview fixture', () => {
 
     await user.click(screen.getByRole('button', { name: 'Exit preview' }))
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '0')
   })
 
   it('uses the same preview lifecycle for the student surface', () => {
     render(<UiGallery role="student" />)
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
-    expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('current')
+    expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '22')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-changed-blocks', '13')
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '9')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
 
     fireEvent.click(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('locked')

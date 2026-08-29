@@ -190,6 +190,12 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
   const entries = FOCUSED_PREVIEW_ENTRIES
   const isTeacher = role === 'teacher'
+
+  useEffect(() => {
+    setActiveEntryId('preview-3')
+    setPreviewMode('focused')
+  }, [])
+
   const preview = useMemo(() => {
     if (!activeEntryId) return null
     return buildAssignmentHistoryPreview([...entries].reverse(), activeEntryId)
@@ -204,7 +210,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
             {isTeacher ? 'Teacher' : 'Student'} history preview
           </h2>
           <p className="mt-1 text-sm text-text-muted">
-            Hover a save to jump to its changed section. Click to pin it.
+            A mid-project save is previewed. Hover another save, or click to pin it.
           </p>
         </div>
         {previewMode !== 'current' ? (
@@ -303,18 +309,19 @@ function clonePreviewContent(content: TiptapContent): TiptapContent {
 }
 
 function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
-  const baseline = makePreviewContent(40)
+  const baseline = makePreviewContent(8)
   const rewrite = clonePreviewContent(baseline)
-  rewrite.content![28] = {
+  rewrite.content![6] = {
     type: 'paragraph',
     content: [{
       type: 'text',
-      text: 'Section 28. The student rewrote this interpretation to connect the soil sample, the weather record, and the field observation more clearly.',
+      text: 'Section 6. The student rewrote this interpretation to connect the soil sample, the weather record, and the field observation more clearly.',
     }],
   }
 
   const addition = clonePreviewContent(rewrite)
-  addition.content!.splice(16, 0, {
+  addition.content!.push(...makePreviewContent(20).content!.slice(9))
+  addition.content!.splice(13, 0, {
     type: 'paragraph',
     content: [{
       type: 'text',
@@ -323,9 +330,10 @@ function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
   })
 
   const deletion = clonePreviewContent(addition)
-  deletion.content!.splice(10, 1)
+  deletion.content!.splice(4, 1)
 
   const latest = clonePreviewContent(deletion)
+  latest.content!.push(...makePreviewContent(40).content!.slice(21))
   latest.content![34] = {
     type: 'paragraph',
     content: [{
@@ -336,10 +344,10 @@ function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
 
   return [
     { ...makeEntry('preview-5', 6120, '2025-03-14T18:20:00Z'), snapshot: latest },
-    { ...makeEntry('preview-4', 5980, '2025-03-13T19:05:00Z'), snapshot: deletion },
-    { ...makeEntry('preview-3', 6140, '2025-03-12T17:40:00Z'), snapshot: addition },
-    { ...makeEntry('preview-2', 5980, '2025-03-11T20:10:00Z'), snapshot: rewrite },
-    { ...makeEntry('preview-1', 5860, '2025-03-10T18:00:00Z', 'baseline'), snapshot: baseline },
+    { ...makeEntry('preview-4', 3100, '2025-03-13T19:05:00Z'), snapshot: deletion },
+    { ...makeEntry('preview-3', 3260, '2025-03-12T17:40:00Z'), snapshot: addition },
+    { ...makeEntry('preview-2', 1380, '2025-03-11T20:10:00Z'), snapshot: rewrite },
+    { ...makeEntry('preview-1', 1320, '2025-03-10T18:00:00Z', 'baseline'), snapshot: baseline },
   ]
 }
 

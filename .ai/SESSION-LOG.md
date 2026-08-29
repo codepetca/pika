@@ -1667,6 +1667,10 @@ state changed.
   comparison work, mixed-save focus order, color-only change semantics, and the
   large-reorder threshold edge. Final targeted re-review found no residual
   P0–P2 issues.
+- Clarified the UI gallery demonstration after review: its five saves now grow
+  from 8 to 20 to 40 sections, and it opens on the mid-project save so the
+  minimap visibly ends before the final-document length. The main pane lands on
+  Sections 9–11 marked Added, making snapshot-at-that-time behavior immediate.
 
 **Verification:** the final pre-rebase focused gate passed 77 workflow tests,
 177 focused tests, and 567 related tests plus TypeScript, lint, architecture,
