@@ -149,18 +149,6 @@ const TEST_GRADING_STATUS_CHIP_CLASSES: Record<TestGradingStatusSort, string> = 
   returned: 'bg-info-bg text-primary',
 }
 
-const TEST_LIFECYCLE_LABELS: Record<NonNullable<TestAssessment['status']>, string> = {
-  draft: 'Draft',
-  active: 'Active',
-  closed: 'Closed',
-}
-
-const TEST_LIFECYCLE_DOT_CLASSES: Record<NonNullable<TestAssessment['status']>, string> = {
-  draft: 'bg-border-strong',
-  active: 'bg-success-solid',
-  closed: 'bg-border-strong',
-}
-
 const GRADING_POLL_INTERVAL_MS = 15_000
 
 function getTestGradingExitCount(student: TestGradingStudentRow): number {
@@ -557,10 +545,9 @@ export function TeacherTestsTab({
     }
   }, [selectedTestMode])
   const [statusUpdating, setStatusUpdating] = useState(false)
-  const [checkingActivation, setCheckingActivation] = useState(false)
-  const [showActivateConfirm, setShowActivateConfirm] = useState(false)
-  const [activationDraftVersion, setActivationDraftVersion] = useState<number | null>(null)
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [checkingPublication, setCheckingPublication] = useState(false)
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false)
+  const [publicationDraftVersion, setPublicationDraftVersion] = useState<number | null>(null)
 
   const testSortSensors = useSensors(
     useSensor(PointerSensor, {
@@ -785,9 +772,8 @@ export function TeacherTestsTab({
     setPendingDeleteStudentAttemptIds(null)
     setIsDeletingStudentAttempt(false)
     setStatusUpdating(false)
-    setCheckingActivation(false)
-    setShowActivateConfirm(false)
-    setShowCloseConfirm(false)
+    setCheckingPublication(false)
+    setShowPublishConfirm(false)
     clearBatchSelection()
     clearTestWorkspace({ replace: true })
   }, [classroom.id, clearBatchSelection, clearTestWorkspace])
@@ -1192,7 +1178,6 @@ export function TeacherTestsTab({
       selectedWorkspaceTab !== 'grading' ||
       !selectedTestId ||
       gradingServerTestId !== selectedTestId ||
-      gradingServerTestStatus !== 'active' ||
       !hasOpenGradingAccess
     ) {
       return
@@ -1251,7 +1236,6 @@ export function TeacherTestsTab({
     }
   }, [
     gradingServerTestId,
-    gradingServerTestStatus,
     hasOpenGradingAccess,
     loadGradingRows,
     selectedTestId,
@@ -1876,34 +1860,29 @@ export function TeacherTestsTab({
       setStatusActionError(error?.message || 'Failed to update test')
     } finally {
       setStatusUpdating(false)
-      setActivationDraftVersion(null)
-      setShowActivateConfirm(false)
-      setShowCloseConfirm(false)
+      setPublicationDraftVersion(null)
+      setShowPublishConfirm(false)
     }
   }
 
-  async function handleSelectedTestStatusChange(newStatus: 'active' | 'closed') {
-    if (newStatus === 'active') {
-      if (activationDraftVersion === null) {
-        setStatusActionError('Reload the saved Test draft before activating')
-        return
-      }
-      await patchSelectedTest({ status: newStatus, draft_version: activationDraftVersion })
+  async function handleSelectedTestPublish() {
+    if (publicationDraftVersion === null) {
+      setStatusActionError('Reload the saved Test draft before publishing')
       return
     }
-    await patchSelectedTest({ status: newStatus })
+    await patchSelectedTest({ status: 'closed', draft_version: publicationDraftVersion })
   }
 
-  async function handleRequestSelectedTestActivate() {
-    if (!selectedTest || !selectedTestWorkspace || isReadOnly || statusUpdating || checkingActivation) return
+  async function handleRequestSelectedTestPublish(): Promise<boolean> {
+    if (!selectedTest || !selectedTestWorkspace || isReadOnly || statusUpdating || checkingPublication) return false
 
-    const activation = validateSelectedTestActivation(selectedTestWorkspace.stats.questions_count || 0)
-    if (!activation.valid) {
-      setStatusActionError(activation.error || 'Test cannot be activated yet')
-      return
+    const publication = validateSelectedTestPublication(selectedTestWorkspace.stats.questions_count || 0)
+    if (!publication.valid) {
+      setStatusActionError(publication.error || 'Test cannot be published yet')
+      return false
     }
 
-    setCheckingActivation(true)
+    setCheckingPublication(true)
     setStatusActionError('')
     try {
       const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: any }>(
@@ -1922,40 +1901,39 @@ export function TeacherTestsTab({
       const draftVersion = Number(data.draft_version)
       if (!Number.isInteger(draftVersion) || draftVersion < 1) {
         setStatusActionError('Test draft version is unavailable. Reload and try again.')
-        return
+        return false
       }
       if (questions.length < 1) {
         setStatusActionError('Test must have at least 1 question')
-        return
+        return false
       }
 
       for (let index = 0; index < questions.length; index += 1) {
         const validation = validateTestQuestionCreate(questions[index] as Record<string, unknown>)
         if (!validation.valid) {
           setStatusActionError(`Q${index + 1}: ${validation.error}`)
-          return
+          return false
         }
       }
 
-      setActivationDraftVersion(draftVersion)
-      setShowActivateConfirm(true)
+      setPublicationDraftVersion(draftVersion)
+      setShowPublishConfirm(true)
+      return true
     } catch (error: any) {
       setStatusActionError(error?.message || 'Failed to validate test')
+      return false
     } finally {
-      setCheckingActivation(false)
+      setCheckingPublication(false)
     }
   }
 
-  function validateSelectedTestActivation(questionCount: number): { valid: boolean; error?: string } {
+  function validateSelectedTestPublication(questionCount: number): { valid: boolean; error?: string } {
     if (questionCount < 1) {
       return { valid: false, error: 'Test must have at least 1 question' }
     }
     return { valid: true }
   }
 
-  const selectedActivation = selectedTestWorkspace
-    ? validateSelectedTestActivation(selectedTestWorkspace.stats.questions_count || 0)
-    : { valid: false }
   const isSelectedWorkspace = workspaceState === 'selected'
   const getEffectiveStudentAccess = useCallback((student: TestGradingStudentRow): 'open' | 'closed' => {
     return getEffectiveTestAccess(student, selectedTestWorkspace?.status)
@@ -1985,7 +1963,7 @@ export function TeacherTestsTab({
   const isOpenAllDisabled =
     areGlobalAccessActionsBusy ||
     (selectedTestWorkspace?.status === 'draft'
-      ? !selectedActivation.valid || checkingActivation || statusUpdating || hasPendingMarkdownImport
+      ? true
       : allStudentIds.length === 0 || allOpenAccessCount === allStudentIds.length)
   const isCloseAllDisabled = areGlobalAccessActionsBusy || allOpenAccessCount === 0
 
@@ -1993,10 +1971,7 @@ export function TeacherTestsTab({
     if (!selectedTestWorkspace) return
 
     if (state === 'open') {
-      if (selectedTestWorkspace.status === 'draft') {
-        void handleRequestSelectedTestActivate()
-        return
-      }
+      if (selectedTestWorkspace.status === 'draft') return
       if (allStudentIds.length === 0) return
       setPendingOpenAccessStudentIds(allStudentIds)
       return
@@ -2573,52 +2548,18 @@ export function TeacherTestsTab({
     </div>
   ) : null
 
-  const selectedTestLifecycleStatus =
-    gradingServerTestId === selectedTestWorkspace?.id && gradingServerTestStatus
-      ? gradingServerTestStatus
-      : selectedTestWorkspace?.status ?? null
-
-  const selectedTestContext = selectedTestLifecycleStatus ? (
-    <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-      <span
-        className={cn('h-2 w-2 shrink-0 rounded-full', TEST_LIFECYCLE_DOT_CLASSES[selectedTestLifecycleStatus])}
-        aria-hidden="true"
-      />
-      <span className="truncate">{TEST_LIFECYCLE_LABELS[selectedTestLifecycleStatus]}</span>
-      {workspaceModeStatus ? <span className="hidden items-center gap-1 xl:inline-flex">· {workspaceModeStatus}</span> : null}
-    </div>
-  ) : workspaceModeStatus
+  const selectedTestContext = workspaceModeStatus
 
   const selectedTestUtilities = deleteTestAction ? (
     <div className="flex items-center" data-testid="test-workspace-trailing-actions">
-      <div className="sm:hidden">
-        <TeacherWorkSurfaceIconMenuButton
-          ariaLabel="Test utilities"
-          tooltip="Test utilities"
-          variant="ghost"
-          icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
-          items={testUtilityActions}
-          menuAriaLabel="Test utilities"
-        />
-      </div>
-      <div className="hidden items-center gap-1 sm:flex">
-        <TeacherWorkSurfaceIconButton
-          ariaLabel="Edit Test"
-          tooltip="Edit Test"
-          variant="ghost"
-          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-          onClick={openSelectedTestEditor}
-          disabled={isReadOnly}
-        />
-        <TeacherWorkSurfaceIconMenuButton
-          ariaLabel="More Test utilities"
-          tooltip="More Test utilities"
-          variant="ghost"
-          icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
-          items={[deleteTestAction]}
-          menuAriaLabel="More Test utilities"
-        />
-      </div>
+      <TeacherWorkSurfaceIconMenuButton
+        ariaLabel="More actions"
+        tooltip="More actions"
+        variant="ghost"
+        icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+        items={testUtilityActions}
+        menuAriaLabel="Test actions"
+      />
     </div>
   ) : null
 
@@ -2667,7 +2608,7 @@ export function TeacherTestsTab({
 
   const primaryContent = workspaceState === 'selected' ? (
     <TeacherWorkSurfaceContextBar
-      ariaLabel="Test grading controls and status"
+      ariaLabel="Test grading controls"
       testId="test-grading-context-bar"
       context={selectedTestContext}
       primary={selectedTestControls}
@@ -2898,6 +2839,7 @@ export function TeacherTestsTab({
         }}
         onPendingMarkdownImportChange={setHasPendingMarkdownImport}
         onRequestPreview={handleOpenSavedTestPreview}
+        onRequestPublish={handleRequestSelectedTestPublish}
       />
 
       <DialogPanel
@@ -2961,30 +2903,18 @@ export function TeacherTestsTab({
       />
 
       <ConfirmDialog
-        isOpen={showActivateConfirm}
-        title="Activate test?"
-        description="Once activated, students will be able to respond."
-        confirmLabel={statusUpdating ? 'Activating...' : 'Activate'}
+        isOpen={showPublishConfirm}
+        title="Publish test?"
+        description="Publishing is permanent. Students will see this test, but it will stay closed until you open access."
+        confirmLabel={statusUpdating ? 'Publishing...' : 'Publish'}
         cancelLabel="Cancel"
         isConfirmDisabled={statusUpdating}
         isCancelDisabled={statusUpdating}
         onCancel={() => {
-          setActivationDraftVersion(null)
-          setShowActivateConfirm(false)
+          setPublicationDraftVersion(null)
+          setShowPublishConfirm(false)
         }}
-        onConfirm={() => handleSelectedTestStatusChange('active')}
-      />
-
-      <ConfirmDialog
-        isOpen={showCloseConfirm}
-        title="Close test?"
-        description="Students will no longer be able to respond."
-        confirmLabel={statusUpdating ? 'Closing...' : 'Close'}
-        cancelLabel="Cancel"
-        isConfirmDisabled={statusUpdating}
-        isCancelDisabled={statusUpdating}
-        onCancel={() => setShowCloseConfirm(false)}
-        onConfirm={() => handleSelectedTestStatusChange('closed')}
+        onConfirm={() => handleSelectedTestPublish()}
       />
 
       <ConfirmDialog

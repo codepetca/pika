@@ -2185,6 +2185,26 @@ describe('StudentTestsTab exam mode', () => {
             position: 2,
             student_status: 'can_view_results',
           },
+          {
+            id: 'test-not-open',
+            title: 'Not Open Yet Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 3,
+            student_status: 'not_started',
+            effective_access: 'closed',
+          },
+          {
+            id: 'test-open-after-publish',
+            title: 'Opened Published Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 4,
+            student_status: 'not_started',
+            effective_access: 'open',
+          },
         ],
       }),
     })
@@ -2195,15 +2215,23 @@ describe('StudentTestsTab exam mode', () => {
       expect(screen.getByText('Closed Test')).toBeInTheDocument()
       expect(screen.getByText('Submitted Test')).toBeInTheDocument()
       expect(screen.getByText('Returned Test')).toBeInTheDocument()
+      expect(screen.getByText('Not Open Yet Test')).toBeInTheDocument()
+      expect(screen.getByText('Opened Published Test')).toBeInTheDocument()
     })
 
     const closedCard = screen.getByRole('button', { name: /Closed Test/i })
     const submittedCard = screen.getByRole('button', { name: /Submitted Test/i })
     const returnedCard = screen.getByRole('button', { name: /Returned Test/i })
+    const notOpenCard = screen.getByRole('button', { name: /Not Open Yet Test/i })
+    const openedPublishedCard = screen.getByRole('button', { name: /Opened Published Test/i })
 
     expect(within(closedCard).getByText('Closed')).toBeInTheDocument()
     expect(within(submittedCard).getByText('Submitted')).toBeInTheDocument()
     expect(within(returnedCard).getByText('Returned')).toBeInTheDocument()
+    expect(within(notOpenCard).getByText('Closed')).toBeInTheDocument()
+    expect(notOpenCard).toBeDisabled()
+    expect(within(openedPublishedCard).getByText('New')).toBeInTheDocument()
+    expect(openedPublishedCard).toBeEnabled()
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
   })
 

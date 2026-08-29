@@ -230,7 +230,7 @@ function getResultsStatus(results: TestResultsRecord): 'draft' | 'active' | 'clo
 test.describe('teacher exam mode', () => {
   test.use({ storageState: TEACHER_STORAGE })
 
-  test('activates a draft test and closes all student access from the grading workspace', async ({ page }) => {
+  test('publishes a draft test closed and controls student access from the grading workspace', async ({ page }) => {
     test.setTimeout(90_000)
     let testId: string | null = null
 
@@ -253,14 +253,18 @@ test.describe('teacher exam mode', () => {
       await testButton.click()
       await expect(page.locator('[data-test-grading-student-row]').first()).toBeVisible({ timeout: 15_000 })
 
-      await page.getByRole('button', { name: 'Open All' }).click()
-      await expect(page.getByText('Activate test?')).toBeVisible()
-      await page.getByRole('button', { name: 'Activate' }).click()
+      await expect(page.getByRole('button', { name: 'Open All' })).toBeDisabled()
+      await page.getByRole('button', { name: 'More actions' }).click()
+      await page.getByRole('menuitem', { name: 'Edit Test' }).click()
+      const authoringDialog = page.getByRole('dialog', { name: 'Edit test' })
+      await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+      await expect(page.getByText('Publish test?')).toBeVisible()
+      await page.getByRole('button', { name: 'Publish' }).click()
 
       await expect.poll(async () => {
         const results = await loadJson<TestResultsRecord>(page, `/api/teacher/tests/${testRecord.id}/results`)
         return getResultsStatus(results)
-      }).toBe('active')
+      }).toBe('closed')
 
       await expect(page.getByRole('button', { name: 'Open All' })).toBeVisible()
       await page.getByRole('button', { name: 'Open All' }).click()

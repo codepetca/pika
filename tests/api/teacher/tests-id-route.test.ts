@@ -4,8 +4,8 @@ import { DELETE, GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import {
-  activateTestFromDraftAtomic,
   getAssessmentDraftByType,
+  publishTestFromDraftAtomic,
 } from '@/lib/server/assessment-drafts'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 
@@ -48,10 +48,10 @@ vi.mock('@/lib/server/test-document-authoring', () => ({
 }))
 
 vi.mock('@/lib/server/assessment-drafts', () => ({
-  activateTestFromDraftAtomic: vi.fn(async () => ({
+  publishTestFromDraftAtomic: vi.fn(async () => ({
     ok: true,
     draftVersion: 3,
-    test: { id: 'test-1', status: 'active', title: 'Unit Test', show_results: false },
+    test: { id: 'test-1', status: 'closed', title: 'Unit Test', show_results: false },
   })),
   getAssessmentDraftByType: vi.fn(async () => ({ draft: null, error: null })),
   isMissingAssessmentDraftsError: vi.fn(() => false),
@@ -300,7 +300,21 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     ])
   })
 
-  it('returns 400 when activating with an incomplete question', async () => {
+  it('does not allow a draft to bypass publication into the legacy active state', async () => {
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'active', draft_version: 3 }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Cannot transition from draft to active' })
+    expect(publishTestFromDraftAtomic).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when publishing with an incomplete question', async () => {
     vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
       draft: {
         id: 'draft-1',
@@ -329,7 +343,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'active', draft_version: 3 }),
+        body: JSON.stringify({ status: 'closed', draft_version: 3 }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -337,10 +351,10 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('Q1: Question text is required')
-    expect(activateTestFromDraftAtomic).not.toHaveBeenCalled()
+    expect(publishTestFromDraftAtomic).not.toHaveBeenCalled()
   })
 
-  it('activates a draft test when all questions are complete', async () => {
+  it('publishes a draft test closed when all questions are complete', async () => {
     vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
       draft: {
         id: 'draft-1',
@@ -369,19 +383,70 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'active', draft_version: 3 }),
+        body: JSON.stringify({ status: 'closed', draft_version: 3 }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.test.status).toBe('active')
-    expect(activateTestFromDraftAtomic).toHaveBeenCalledWith(mockSupabaseClient, {
+    expect(data.test.status).toBe('closed')
+    expect(publishTestFromDraftAtomic).toHaveBeenCalledWith(mockSupabaseClient, {
       expectedDraftVersion: 3,
       teacherId: 'teacher-1',
       testId: 'test-1',
     })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the publication RPC returns a non-closed Test', async () => {
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        assessment_type: 'test',
+        assessment_id: 'test-1',
+        classroom_id: 'classroom-1',
+        content: {
+          title: 'Unit Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [{
+            id: '30000000-0000-4000-8000-000000000014',
+            question_type: 'multiple_choice',
+            question_text: 'Ready to publish?',
+            options: ['Yes', 'No'],
+            correct_option: 0,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+        version: 3,
+        created_by: 'teacher-1',
+        updated_by: 'teacher-1',
+        created_at: '2026-03-01T00:00:00.000Z',
+        updated_at: '2026-03-01T00:00:00.000Z',
+      },
+      error: null,
+    })
+    vi.mocked(publishTestFromDraftAtomic).mockResolvedValueOnce({
+      ok: true,
+      draftVersion: 3,
+      test: { id: 'test-1', status: 'active' },
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'closed', draft_version: 3 }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Failed to publish test' })
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 

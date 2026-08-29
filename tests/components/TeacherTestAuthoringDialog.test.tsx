@@ -40,17 +40,21 @@ const test = {
 function renderDialog({
   hasPendingMarkdownImport = false,
   onRequestPreview = vi.fn(),
+  onRequestPublish = vi.fn(async () => true),
   onClose = vi.fn(),
+  testOverride = test,
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
+  onRequestPublish?: () => Promise<boolean>
   onClose?: () => void
+  testOverride?: TestAssessmentWithStats
 } = {}) {
   render(
     <TooltipProvider>
       <TeacherTestAuthoringDialog
         isOpen
-        test={test}
+        test={testOverride}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
         hasPendingMarkdownImport={hasPendingMarkdownImport}
@@ -59,11 +63,12 @@ function renderDialog({
         onTestUpdate={vi.fn()}
         onPendingMarkdownImportChange={vi.fn()}
         onRequestPreview={onRequestPreview}
+        onRequestPublish={onRequestPublish}
       />
     </TooltipProvider>,
   )
 
-  return { onClose, onRequestPreview }
+  return { onClose, onRequestPreview, onRequestPublish }
 }
 
 describe('TeacherTestAuthoringDialog', () => {
@@ -104,7 +109,34 @@ describe('TeacherTestAuthoringDialog', () => {
     ).toBeDisabled()
   })
 
+  it('publishes only from draft authoring after flushing the latest save', async () => {
+    draftFlush.mockClear()
+    const onRequestPublish = vi.fn(async () => true)
+    renderDialog({
+      onRequestPublish,
+      testOverride: { ...test, status: 'draft' },
+    })
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', {
+      name: 'Publish',
+    }))
+
+    await waitFor(() => expect(draftFlush).toHaveBeenCalledTimes(1))
+    expect(onRequestPublish).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show publication controls after the test is published', () => {
+    renderDialog({ testOverride: { ...test, status: 'closed' } })
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Edit test' })).queryByRole('button', {
+        name: 'Publish',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
   it('waits for the latest draft save before closing', async () => {
+    draftFlush.mockClear()
     let resolveFlush: ((saved: boolean) => void) | null = null
     draftFlush.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
       resolveFlush = resolve

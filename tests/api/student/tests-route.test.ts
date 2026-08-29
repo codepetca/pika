@@ -490,6 +490,7 @@ describe('GET /api/student/tests', () => {
       'test-active-new',
       'test-active-old',
       'test-closed-new',
+      'test-closed-hidden',
     ])
   })
 
@@ -562,6 +563,11 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.tests).toHaveLength(0)
+    expect(data.tests).toHaveLength(1)
+    expect(data.tests[0]).toMatchObject({
+      id: 'test-closed-placeholder',
+      student_status: 'not_started',
+      effective_access: 'closed',
+    })
   })
 })

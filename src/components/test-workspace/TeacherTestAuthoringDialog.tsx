@@ -23,6 +23,7 @@ interface TeacherTestAuthoringDialogProps {
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onPendingMarkdownImportChange: (pending: boolean) => void
   onRequestPreview: (preview: { testId: string; title: string }) => void
+  onRequestPublish: () => Promise<boolean>
 }
 
 export function TeacherTestAuthoringDialog({
@@ -36,10 +37,12 @@ export function TeacherTestAuthoringDialog({
   onTestUpdate,
   onPendingMarkdownImportChange,
   onRequestPreview,
+  onRequestPublish,
 }: TeacherTestAuthoringDialogProps) {
   const [authoringView, setAuthoringView] = useState<AuthoringView>('edit')
   const [titlePortalTarget, setTitlePortalTarget] = useState<HTMLDivElement | null>(null)
   const [isClosing, setIsClosing] = useState(false)
+  const [isPreparingPublish, setIsPreparingPublish] = useState(false)
   const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
 
   useEffect(() => {
@@ -57,6 +60,17 @@ export function TeacherTestAuthoringDialog({
       onClose()
     }
     setIsClosing(false)
+  }
+
+  const handlePublish = async () => {
+    if (isClosing || isPreparingPublish) return
+    setIsPreparingPublish(true)
+    const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
+    if (saved && await onRequestPublish()) {
+      setAuthoringView('edit')
+      onClose()
+    }
+    setIsPreparingPublish(false)
   }
 
   return (
@@ -115,6 +129,23 @@ export function TeacherTestAuthoringDialog({
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
           Preview
         </Button>
+        {test?.status === 'draft' ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              void handlePublish()
+            }}
+            disabled={
+              hasPendingMarkdownImport ||
+              (test.stats.questions_count || 0) < 1 ||
+              isClosing ||
+              isPreparingPublish
+            }
+          >
+            {isPreparingPublish ? 'Preparing...' : 'Publish'}
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="secondary"
@@ -122,7 +153,7 @@ export function TeacherTestAuthoringDialog({
           onClick={() => {
             void handleClose()
           }}
-          disabled={isClosing}
+          disabled={isClosing || isPreparingPublish}
         >
           {isClosing ? 'Saving...' : 'Close'}
         </Button>

@@ -194,29 +194,9 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
   }
 
-  const visibleActiveTests = (activeTests || []).filter((test) => {
-    const access = getEffectiveStudentTestAccess({
-      testStatus: test.status,
-      accessState: availabilityByTestId.get(test.id) ?? null,
-      hasSubmitted: respondedTestIds.has(test.id),
-      returnedAt: returnedTestIds.has(test.id) ? 'returned' : null,
-      isLockedForGrading: lockedTestIds.has(test.id),
-    })
-    return access.can_start_or_continue || access.can_view_submitted
-  })
-
-  const visibleClosedTests = (closedTests || []).filter((test) => {
-    const access = getEffectiveStudentTestAccess({
-      testStatus: test.status,
-      accessState: availabilityByTestId.get(test.id) ?? null,
-      hasSubmitted: respondedTestIds.has(test.id),
-      returnedAt: returnedTestIds.has(test.id) ? 'returned' : null,
-      isLockedForGrading: lockedTestIds.has(test.id),
-    })
-    return access.can_start_or_continue || access.can_view_submitted
-  })
-
-  const allTests = [...visibleActiveTests, ...visibleClosedTests]
+  // Publication controls visibility; per-student access controls whether the
+  // published Test can be opened. Draft Tests never reach this list query.
+  const allTests = [...(activeTests || []), ...(closedTests || [])]
 
   const testsWithStatus = allTests.map((test) => {
     const hasResponded = respondedTestIds.has(test.id)
