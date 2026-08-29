@@ -1548,7 +1548,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                 <div
                   data-testid="student-test-split-container"
                   className={`flex flex-col gap-2 lg:grid ${
-                    showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
+                    showDocPanel ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]'
                   } lg:min-h-0 lg:h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
                 >
                   <SegmentedControl

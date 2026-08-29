@@ -936,6 +936,159 @@ test('shows published closed Tests to students without opening them', async ({ p
   })
 })
 
+const COMPACT_EXAM_TEST_ID = '40000000-0000-4000-8000-000000000001'
+
+test('gives students a one-pane exam layout on narrow screens', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  // A real device fills its own screen, so the exam window-compliance ratios
+  // pass. Emulated projects keep the host screen, which would otherwise read as
+  // a deliberately shrunken window and raise the lock overlay.
+  await page.addInitScript(() => {
+    const { innerWidth, innerHeight } = window
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => innerHeight })
+  })
+
+  await page.route('**/api/student/notifications**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 1,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+  })
+
+  await page.route('**/api/student/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [{
+          id: COMPACT_EXAM_TEST_ID,
+          title: 'Compact Exam Fixture',
+          assessment_type: 'test',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+        }],
+      }),
+    })
+  })
+
+  await page.route(`**/api/student/tests/${COMPACT_EXAM_TEST_ID}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        test: {
+          id: COMPACT_EXAM_TEST_ID,
+          title: 'Compact Exam Fixture',
+          assessment_type: 'test',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+          documents: [
+            { id: 'doc-1', title: 'Course formula sheet', source: 'text', content: '# Formula sheet' },
+            { id: 'doc-2', title: 'Unit 3 vocabulary', source: 'text', content: '# Vocabulary' },
+          ],
+        },
+        student_status: 'not_started',
+        questions: [{
+          id: 'q1',
+          test_id: COMPACT_EXAM_TEST_ID,
+          question_text: 'Which HTTP method is usually used for partial updates?',
+          options: ['GET', 'PATCH', 'DELETE'],
+          question_type: 'multiple_choice',
+          points: 2,
+          response_max_chars: 5000,
+          position: 0,
+        }],
+        student_responses: {},
+        focus_summary: {
+          away_count: 0,
+          away_total_seconds: 0,
+          route_exit_attempts: 0,
+          window_unmaximize_attempts: 0,
+          last_away_started_at: null,
+          last_away_ended_at: null,
+        },
+      }),
+    })
+  })
+
+  await page.route('**/focus-events**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        focus_summary: {
+          away_count: 0,
+          away_total_seconds: 0,
+          route_exit_attempts: 0,
+          window_unmaximize_attempts: 0,
+          last_away_started_at: null,
+          last_away_ended_at: null,
+        },
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
+
+  await page.getByRole('button', { name: /Compact Exam Fixture/ }).click()
+  await page.getByRole('button', { name: 'Start the Test' }).click()
+  await page.getByRole('button', { name: 'Start test' }).click()
+
+  const question = page.getByText('Which HTTP method is usually used for partial updates?')
+  await expect(question).toBeVisible()
+
+  const paneSwitch = page.getByTestId('student-test-mobile-pane-switch')
+  const documentsPane = page.getByTestId('student-test-documents-pane')
+  const detailPane = page.getByTestId('student-test-detail-pane')
+
+  // The exam must not be obscured by the maximize lock in either layout.
+  await expect(page.getByTestId('exam-content-obscurer')).toHaveCount(0)
+
+  if (viewport === 'mobile') {
+    await expect(paneSwitch).toBeVisible()
+    await expect(detailPane).toBeVisible()
+    await expect(documentsPane).toBeHidden()
+
+    await page.getByRole('button', { name: /^Documents/ }).click()
+    await expect(documentsPane).toBeVisible()
+    await expect(detailPane).toBeHidden()
+    // Swapping panes hides the form; it must never unmount it, or in-progress
+    // answers would be lost.
+    await expect(question).toBeAttached()
+    await expect(page.getByRole('button', { name: 'Course formula sheet' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Questions' }).click()
+    await expect(detailPane).toBeVisible()
+    await expect(documentsPane).toBeHidden()
+  } else {
+    // The desktop split is unchanged: both panes work side by side and the
+    // compact switch never appears.
+    await expect(paneSwitch).toBeHidden()
+    await expect(documentsPane).toBeVisible()
+    await expect(detailPane).toBeVisible()
+  }
+
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-exam-${viewport}-layout.png`),
+    animations: 'disabled',
+  })
+})
+
 test.describe('teacher experience matrix', () => {
   test.use({ storageState: TEACHER_STORAGE })
 
