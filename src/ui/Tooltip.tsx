@@ -1,7 +1,7 @@
 'use client'
 
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { cn } from './utils'
 
@@ -28,6 +28,8 @@ export interface TooltipProps {
   align?: 'start' | 'center' | 'end'
   /** Optional Tailwind classes for the tooltip content wrapper */
   className?: string
+  /** Prevent the tooltip from opening while preserving its trigger structure. */
+  disabled?: boolean
 }
 
 /**
@@ -47,9 +49,23 @@ export function Tooltip({
   side = 'bottom',
   align = 'center',
   className,
+  disabled = false,
 }: TooltipProps) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (disabled) setIsOpen(false)
+  }, [disabled])
+
   return (
-    <TooltipPrimitive.Root delayDuration={delayDuration} disableHoverableContent={!interactive}>
+    <TooltipPrimitive.Root
+      delayDuration={delayDuration}
+      disableHoverableContent={!interactive}
+      open={disabled ? false : isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setIsOpen(nextOpen)
+      }}
+    >
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

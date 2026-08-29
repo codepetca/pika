@@ -26117,3 +26117,36 @@ migrated and no hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the Version-provenance database
 contract and final migration replay review.
+
+<!-- pika-session-log-archive-batch:5047083f231ed6c5a04ccf32e3d0d7463bd5d512965e34437eaeb815f5c7e975 -->
+## 2026-08-27 — Migrate selected Test grading to the teacher work surface
+
+**Risk profile:** async-grading — teacher Test roster presentation, sorting,
+selection, and action routing changed around preserved grading mutations; no API,
+schema, persistence, authentication, dependency, or student UI changed.
+
+- Mapped the selected-Test domain before migrating it: whole-Test access remains
+  distinct from selected-student access, while AI grade, unsubmit, return, and
+  delete-work retain their existing eligibility and confirmation behavior.
+- Adopted the shared teacher context bar, internally scrolling table frame, and
+  selection bar. The whole-Test access control stays mathematically centered;
+  lifecycle context and Test utilities stay quiet at the edges; bulk actions
+  appear only after row selection.
+- Split names into sortable/resizable First and Last columns, kept compact
+  operational metrics, added sticky sortable/resizable headers, and added
+  semantic count chips that can prioritize closed, submitted, or returned rows.
+- Added a guarded long-roster fixture and responsive browser contract covering
+  default, status-sorted, scrolled, and selected states on desktop/mobile in
+  light/dark. Student UI is n/a because the surface is teacher-only.
+- Composite-widget accessibility checklist reviewed: keyboard navigation and
+  Escape behavior remain covered, semantic sort/pressed states have focused
+  tests, and remaining manual follow-up is none. Existing design guidance
+  already governs this surface, so no durable design rule was added.
+
+**Verification:** focused Test/shared work-surface tests (71/71), responsive
+Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
+checks, and production build pass. Visual review covers eight captures: default
+and selected long-roster states across desktop/mobile and light/dark.
+
+**Model recommendation:** current GPT-5 coding model for a domain-sensitive
+teacher workspace migration with responsive visual verification.

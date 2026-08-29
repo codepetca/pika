@@ -11,11 +11,29 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { CircleDot, GripHorizontal, UndoDot } from 'lucide-react'
+import {
+  ChevronDown,
+  ClipboardCopy,
+  Clock3,
+  DoorClosed,
+  DoorOpen,
+  GripHorizontal,
+  MoreVertical,
+  QrCode as QrCodeIcon,
+  RotateCcw,
+  Trash2,
+  UserRoundCheck,
+  UserRoundX,
+} from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { DateNavigator } from '@/components/DateNavigator'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
+import {
+  TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { LogSummary } from './LogSummary'
@@ -26,35 +44,57 @@ import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import {
   Button,
+  ContentDialog,
   DataTable,
   DataTableBody,
   DataTableCell,
   DataTableHead,
+  DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
   PageState,
+  QrCode,
   RefreshingIndicator,
   SortableHeaderCell,
-  TableCard,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   Tooltip,
+  cn,
 } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { CountBadge } from '@/components/StudentCountBadge'
-import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
+import {
+  applyDirection,
+  compareByNameFields,
+  compareNullableStrings,
+  toggleSort,
+} from '@/lib/table-sort'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
+import { AttendanceWindowDialog } from './AttendanceWindowDialog'
+import {
+  AttendanceStatusControl,
+  AttendanceStatusSortChip,
+  SORTABLE_ATTENDANCE_STATUSES,
+} from './TeacherAttendanceControls'
+import {
+  formatTeacherAttendanceTime,
+  useTeacherAttendanceController,
+  type TeacherAttendanceMark,
+} from '@/hooks/useTeacherAttendanceController'
 
-type SortColumn = 'first_name' | 'last_name' | 'id' | 'log'
-type ResizableColumn = 'first' | 'last' | 'id'
+type SortColumn = 'first_name' | 'last_name' | 'id' | 'log' | 'check_in' | 'attendance_status'
+type ResizableColumn = 'first' | 'last' | 'id' | 'checkIn'
 
 const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number; max: number }> = {
   first: { defaultWidth: 72, min: 60, max: 160 },
   last: { defaultWidth: 72, min: 60, max: 160 },
   id: { defaultWidth: 80, min: 56, max: 180 },
+  checkIn: { defaultWidth: 92, min: 76, max: 140 },
 }
 
 const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
@@ -88,6 +128,7 @@ interface LogRow {
 
 interface Props {
   classroom: Classroom
+  attendanceEnabled?: boolean
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
   onDateChange?: (date: string) => void
   isActive?: boolean
@@ -99,6 +140,7 @@ export interface TeacherAttendanceTabHandle {
 
 export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({
   classroom,
+  attendanceEnabled = false,
   onSelectEntry,
   onDateChange,
   isActive = true,
@@ -117,6 +159,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logsRequestVersion, setLogsRequestVersion] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [showIdColumn, setShowIdColumn] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const studentTableNavigationRef = useRef<HTMLDivElement | null>(null)
@@ -145,13 +188,37 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     () => getMostRecentClassDayBefore(classDays, today),
     [classDays, today]
   )
-  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+  const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
-  }>({ column: 'last_name', direction: 'asc' })
+    status: TeacherAttendanceMark | null
+  }>({ column: 'last_name', direction: 'asc', status: null })
+  const visibleStudentIds = useMemo(
+    () => logs.map((log) => log.student_id),
+    [logs],
+  )
+  const attendance = useTeacherAttendanceController({
+    classroom,
+    selectedDate,
+    enabled: attendanceEnabled,
+    isActive,
+    visibleStudentIds,
+  })
   currentClassroomIdRef.current = classroom.id
   currentSelectedDateRef.current = selectedDate
   onSelectEntryRef.current = onSelectEntry
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('teacher-daily:show-id')
+    if (stored === 'false') setShowIdColumn(false)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem('teacher-daily:show-id', String(showIdColumn))
+    if (!showIdColumn && sortColumn === 'id') {
+      setSortState({ column: 'last_name', direction: 'asc', status: null })
+    }
+  }, [showIdColumn, sortColumn])
 
   const isCurrentLogsRequest = useCallback((requestId: number, classroomId: string, date: string) => {
     return (
@@ -282,6 +349,25 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
+      const compareNames = () => compareByNameFields(
+        { firstName: a.student_first_name, lastName: a.student_last_name, id: a.email_username },
+        { firstName: b.student_first_name, lastName: b.student_last_name, id: b.email_username },
+        'last_name',
+        'asc',
+      )
+
+      if (sortColumn === 'attendance_status') {
+        if (!sortStatus) return compareNames()
+        const aStatus = attendance.studentsById.get(a.student_id)?.status
+        const bStatus = attendance.studentsById.get(b.student_id)?.status
+        const statusRank = Number(bStatus === sortStatus) - Number(aStatus === sortStatus)
+        return statusRank || compareNames()
+      }
+      if (sortColumn === 'check_in') {
+        const aCheckIn = attendance.studentsById.get(a.student_id)?.checkedInAt ?? null
+        const bCheckIn = attendance.studentsById.get(b.student_id)?.checkedInAt ?? null
+        return applyDirection(compareNullableStrings(aCheckIn, bCheckIn), sortDirection) || compareNames()
+      }
       if (sortColumn === 'log') {
         const rankOf = (row: LogRow) => {
           return row.entry && entryHasContent(row.entry) ? 0 : 1
@@ -305,7 +391,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         sortDirection
       )
     })
-  }, [logs, sortColumn, sortDirection])
+  }, [attendance.studentsById, logs, sortColumn, sortDirection, sortStatus])
+
+  const attendanceStatusCounts = useMemo(() => {
+    const counts: Record<TeacherAttendanceMark, number> = { present: 0, late: 0, absent: 0 }
+    for (const row of logs) {
+      const status = attendance.studentsById.get(row.student_id)?.status
+      if (status && status !== 'unmarked') counts[status] += 1
+    }
+    return counts
+  }, [attendance.studentsById, logs])
 
   const { completeCount, incompleteCount } = useMemo(() => {
     let complete = 0
@@ -335,18 +430,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   })
 
   function handleSort(column: SortColumn) {
-    setSortState((prev) => toggleSort(prev, column))
+    setSortState((prev) => ({ ...toggleSort(prev, column), status: null }))
   }
 
-  function goToLastClass() {
-    const currentToday = refreshToday()
-    const currentLastClassDate = getMostRecentClassDayBefore(classDays, currentToday)
-    if (!currentLastClassDate) return
-    setSelectedDate(currentLastClassDate)
-  }
-
-  function goToToday() {
-    setSelectedDate(refreshToday())
+  function handleAttendanceStatusSort(status: TeacherAttendanceMark) {
+    setSortState({ column: 'attendance_status', direction: 'asc', status })
   }
 
   function handleRowClick(row: LogRow) {
@@ -379,6 +467,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (document.querySelector('[role="menu"]')) return
       event.preventDefault()
       handleKeyboardDeselect()
     }
@@ -393,6 +482,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
       if (!selectedWorkspace) return
+      if (event.target instanceof Element && event.target.closest('[aria-label="Daily controls"]')) return
       if (event.target instanceof Node && selectedWorkspace.contains(event.target)) return
       handleDeselect()
     }
@@ -547,12 +637,114 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     [summaryPanelCollapsed],
   )
 
+  const moreActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'toggle-id-column',
+      label: showIdColumn ? 'Hide ID column' : 'Show ID column',
+      onSelect: () => setShowIdColumn((visible) => !visible),
+    },
+  ]
+  const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'mark-selected-present',
+      label: 'Present',
+      icon: <UserRoundCheck className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || !attendance.canMark,
+      onSelect: () => void attendance.submitMarks([...attendance.selectedIds], 'present', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'mark-selected-late',
+      label: 'Late',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || !attendance.canMark,
+      onSelect: () => void attendance.submitMarks([...attendance.selectedIds], 'late', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'mark-selected-absent',
+      label: 'Absent',
+      icon: <UserRoundX className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || !attendance.canMark,
+      onSelect: () => void attendance.submitMarks([...attendance.selectedIds], 'absent', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'restore-selected-automatic-status',
+      label: 'Use automatic',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || !attendance.canMark,
+      onSelect: () => void attendance.submitMarks([...attendance.selectedIds], 'automatic', { clearSelectionAfter: true }),
+    },
+    {
+      id: 'remove-selected-qr-check-ins',
+      label: 'Remove QR check-in',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || !attendance.canMark,
+      onSelect: () => void attendance.resetCheckIns([...attendance.selectedIds]),
+    },
+  ]
+  const mobileAttendanceActions: TeacherWorkSurfaceActionItem[] = attendanceEnabled ? [
+    ...(attendance.attendanceReady && attendance.sessionState === 'open' ? [{
+      id: 'show-attendance-qr',
+      label: 'Show QR',
+      icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || attendance.sessionPending,
+      onSelect: attendance.openQrPresentation,
+    }] : []),
+    ...(attendance.attendanceReady && attendance.sessionAction ? [{
+      id: `${attendance.sessionAction.command}-attendance`,
+      label: attendance.sessionAction.label,
+      icon: attendance.sessionAction.command === 'open'
+        ? <DoorOpen className="h-4 w-4" aria-hidden="true" />
+        : <DoorClosed className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand) || attendance.sessionPending,
+      onSelect: () => void attendance.submitSessionCommand(attendance.sessionAction!.command),
+    }] : []),
+    ...(!classroom.archived_at ? [{
+      id: 'attendance-hours',
+      label: 'Attendance hours',
+      icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
+      disabled: Boolean(attendance.activeCommand),
+      onSelect: () => attendance.setAttendanceHoursOpen(true),
+    }] : []),
+  ] : []
+
   const actionBar = (
     <TeacherWorkSurfaceContextBar
       ariaLabel="Daily controls"
       testId="daily-context-bar"
-      primary={
-        <div className="flex min-w-0 items-center gap-1">
+      context={attendanceEnabled ? (
+        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
+          {!classroom.archived_at ? (
+            <Tooltip content={attendance.windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
+              <Button
+                type="button"
+                size="xs"
+                variant="surface"
+                className={cn(
+                  'h-9 w-fit max-w-full justify-start whitespace-nowrap px-2.5 text-left tabular-nums text-text-muted hover:text-text-default',
+                  !attendance.windowLabel && 'w-9 justify-center px-0',
+                  attendance.windowLabel && attendance.sessionState === 'open'
+                    && !attendance.hasUnconfirmedView && !attendance.localSessionPending
+                    && attendance.view?.sync.state !== 'pending'
+                    && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
+                )}
+                aria-label={attendance.windowLabel
+                  ? `Attendance hours, ${attendance.sessionContextLabel}, ${attendance.windowLabel.replace(' - ', ' to ')}`
+                  : 'Set attendance hours'}
+                disabled={Boolean(attendance.activeCommand)}
+                onClick={() => attendance.setAttendanceHoursOpen(true)}
+              >
+                {attendance.windowLabel ? attendance.windowLabel : <Clock3 className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+            </Tooltip>
+          ) : attendance.windowLabel ? (
+            <span className="inline-flex h-9 items-center whitespace-nowrap rounded-control px-2.5 text-xs tabular-nums text-text-muted">
+              {attendance.windowLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      primary={(
+        <div className="flex min-w-0 items-center gap-1" data-testid="daily-primary-control">
           <input
             ref={dateInputRef}
             type="date"
@@ -561,45 +753,111 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             className="sr-only"
             tabIndex={-1}
           />
-          <Tooltip content="Last class">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 px-0"
-              onClick={goToLastClass}
-              disabled={!lastClassDate}
-              aria-label="Go to last class"
-            >
-              <UndoDot className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
           <DateNavigator
             label={selectedDateLabel}
+            onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
+            onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}
-            labelAriaLabel="Select attendance date"
-            showNavigation={false}
+            labelAriaLabel="Select Daily date"
+            prevAriaLabel="Previous day"
+            nextAriaLabel="Next day"
+            labelClassName="min-w-24 px-2 sm:min-w-28 sm:px-3"
             joined
           />
-          <Tooltip content="Today">
-            <Button
-              type="button"
-              variant="ghost"
+          {mobileAttendanceActions.length > 0 ? (
+            <div className="sm:hidden">
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Attendance actions"
+                tooltip="Attendance actions"
+                variant="primary"
+                icon={attendance.sessionState === 'open'
+                  ? <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+                  : <DoorOpen className="h-4 w-4" aria-hidden="true" />}
+                items={mobileAttendanceActions}
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
+                menuAriaLabel="Attendance actions"
+                menuAlign="center"
+              />
+            </div>
+          ) : null}
+          {attendance.attendanceReady && attendance.sessionState === 'open' ? (
+            <Tooltip content="Show QR">
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                className="hidden h-9 w-9 px-0 sm:inline-flex"
+                aria-label="Show QR"
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
+                onClick={attendance.openQrPresentation}
+              >
+                <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </Tooltip>
+          ) : null}
+          {attendance.attendanceReady && attendance.sessionAction ? (
+            <Tooltip content={attendance.sessionAction.label}>
+              <Button
+                type="button"
+                size="sm"
+                variant={attendance.sessionAction.command === 'open' ? 'primary' : 'secondary'}
+                className="hidden h-9 w-9 px-0 sm:inline-flex"
+                aria-label={attendance.sessionAction.label}
+                loading={attendance.activeCommand === `session:${attendance.sessionAction.command}`}
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
+                onClick={() => void attendance.submitSessionCommand(attendance.sessionAction!.command)}
+              >
+                {attendance.sessionAction.command === 'open'
+                  ? <DoorOpen className="h-4 w-4" aria-hidden="true" />
+                  : <DoorClosed className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+            </Tooltip>
+          ) : null}
+          {attendance.attendanceReady ? (
+            <TeacherWorkSurfaceMenuButton
+              label={(
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="hidden sm:inline">
+                    {attendance.selectedCount > 0 ? `${attendance.selectedCount} selected` : 'Student actions'}
+                  </span>
+                  <span className="sm:hidden" aria-hidden="true">
+                    {attendance.selectedCount > 0 ? attendance.selectedCount : <UserRoundCheck className="h-4 w-4" />}
+                  </span>
+                  <ChevronDown className="hidden h-4 w-4 sm:block" aria-hidden="true" />
+                </span>
+              )}
+              items={selectedStudentActions}
+              variant="secondary"
               size="sm"
-              className="h-9 w-9 px-0"
-              onClick={goToToday}
-              aria-label="Go to today"
-            >
-              <CircleDot className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
+              disabled={attendance.selectedCount === 0 || attendance.selectedHasPendingStudent
+                || Boolean(attendance.activeCommand) || !attendance.canMark}
+              menuAriaLabel="Selected student attendance actions"
+              menuAlign="center"
+              buttonProps={{
+                'aria-label': attendance.selectedCount > 0
+                  ? `Student actions for ${attendance.selectedCount} selected`
+                  : 'Student actions (select students to enable)',
+              }}
+            />
+          ) : null}
         </div>
-      }
+      )}
+      actions={(
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="More actions"
+          tooltip="More actions"
+          variant="ghost"
+          icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />}
+          items={moreActions}
+          menuAriaLabel="Daily more actions"
+          menuAlign="end"
+        />
+      )}
     />
   )
 
   function renderStudentTable(showLogColumn: boolean) {
-    const visibleColumnCount = 4
+    const visibleColumnCount = 3 + (showIdColumn ? 1 : 0) + (attendanceEnabled ? 3 : 0)
 
     return (
       <KeyboardNavigableTable
@@ -611,22 +869,42 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         onDeselect={handleKeyboardDeselect}
         getRowId={getAttendanceStudentRowId}
       >
-        <TableCard chrome="flush">
-          {refreshing && (
+        <>
+          {(refreshing || attendance.refreshing) && (
             <RefreshingIndicator />
           )}
           <DataTable className="table-fixed">
             <colgroup>
+              {attendanceEnabled ? <col className="w-10" /> : null}
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
-              <col
-                className={showLogColumn ? 'hidden md:table-column' : undefined}
-                style={{ width: `${columnWidths.id}px` }}
-              />
+              {showIdColumn ? (
+                <col
+                  className={attendanceEnabled ? 'hidden sm:table-column' : undefined}
+                  style={{ width: `${columnWidths.id}px` }}
+                />
+              ) : null}
+              {attendanceEnabled ? (
+                <col
+                  className="hidden md:table-column"
+                  style={{ width: `${columnWidths.checkIn}px` }}
+                />
+              ) : null}
               <col />
+              {attendanceEnabled ? <col className="w-40" /> : null}
             </colgroup>
-            <DataTableHead>
+            <DataTableHead sticky>
               <DataTableRow>
+                {attendanceEnabled ? (
+                  <TableSelectionHeaderCell
+                    checked={attendance.allSelected}
+                    indeterminate={attendance.someSelected}
+                    onChange={attendance.toggleSelectAll}
+                    ariaLabel="Select all students"
+                    disabled={!attendance.canMark || Boolean(attendance.activeCommand)
+                      || attendance.pendingStudentIds.size > 0 || attendance.students.length === 0}
+                  />
+                ) : null}
                 <SortableHeaderCell
                   label="First"
                   isActive={sortColumn === 'first_name'}
@@ -655,23 +933,40 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     onChange: (width) => setColumnWidth('last', width),
                   }}
                 />
-                <SortableHeaderCell
-                  label="ID"
-                  isActive={sortColumn === 'id'}
-                  direction={sortDirection}
-                  onClick={() => handleSort('id')}
-                  density="tight"
-                  buttonClassName="!pl-2 !pr-5"
-                  className={[
-                    showLogColumn ? 'hidden md:table-cell' : '',
-                  ].join(' ')}
-                  resize={{
-                    value: columnWidths.id,
-                    min: COLUMN_LIMITS.id.min,
-                    max: COLUMN_LIMITS.id.max,
-                    onChange: (width) => setColumnWidth('id', width),
-                  }}
-                />
+                {showIdColumn ? (
+                  <SortableHeaderCell
+                    label="ID"
+                    isActive={sortColumn === 'id'}
+                    direction={sortDirection}
+                    onClick={() => handleSort('id')}
+                    density="tight"
+                    buttonClassName="!pl-2 !pr-5"
+                    className={attendanceEnabled ? 'hidden sm:table-cell' : undefined}
+                    resize={{
+                      value: columnWidths.id,
+                      min: COLUMN_LIMITS.id.min,
+                      max: COLUMN_LIMITS.id.max,
+                      onChange: (width) => setColumnWidth('id', width),
+                    }}
+                  />
+                ) : null}
+                {attendanceEnabled ? (
+                  <SortableHeaderCell
+                    label="Check-in"
+                    isActive={sortColumn === 'check_in'}
+                    direction={sortDirection}
+                    onClick={() => handleSort('check_in')}
+                    density="tight"
+                    buttonClassName="!pl-2 !pr-5"
+                    className="hidden md:table-cell"
+                    resize={{
+                      value: columnWidths.checkIn,
+                      min: COLUMN_LIMITS.checkIn.min,
+                      max: COLUMN_LIMITS.checkIn.max,
+                      onChange: (width) => setColumnWidth('checkIn', width),
+                    }}
+                  />
+                ) : null}
                 <SortableHeaderCell
                   label="Log"
                   isActive={sortColumn === 'log'}
@@ -684,7 +979,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   trailing={isClassDay && rows.length > 0 ? (
                     <span
                       aria-label={`${completeCount} complete, ${incompleteCount} incomplete`}
-                      className="flex shrink-0 items-center gap-1"
+                      className={attendanceEnabled
+                        ? 'hidden shrink-0 items-center gap-1 sm:flex'
+                        : 'flex shrink-0 items-center gap-1'}
                     >
                       <CountBadge
                         count={completeCount}
@@ -699,28 +996,72 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     </span>
                   ) : undefined}
                 />
+                {attendanceEnabled ? (
+                  <DataTableHeaderCell
+                    density="tight"
+                    className="!p-0"
+                    aria-sort={sortColumn === 'attendance_status' ? 'other' : 'none'}
+                  >
+                    <div className="flex min-h-control items-center px-1">
+                      <span
+                        role="group"
+                        aria-label="Sort attendance by status"
+                        className="flex min-w-0 items-center"
+                      >
+                        {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
+                          <AttendanceStatusSortChip
+                            key={status}
+                            status={status}
+                            count={attendanceStatusCounts[status]}
+                            active={sortColumn === 'attendance_status' && sortStatus === status}
+                            onClick={() => handleAttendanceStatusSort(status)}
+                          />
+                        ))}
+                      </span>
+                    </div>
+                  </DataTableHeaderCell>
+                ) : null}
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
               {rows.map((row) => {
                 const isSelected = selectedStudentId === row.student_id
+                const attendanceStudent = attendance.studentsById.get(row.student_id)
+                const attendanceSelected = attendance.selectedIds.has(row.student_id)
+                const attendancePending = attendance.pendingStudentIds.has(row.student_id)
+                const attendanceEditable = Boolean(
+                  attendanceStudent && attendance.canMark && !attendancePending && !attendance.activeCommand
+                )
                 const hasLog = Boolean(row.entry && entryHasContent(row.entry))
                 const logText = hasLog ? row.entry?.text || '' : ''
                 const completionLabel = hasLog ? 'Complete' : 'Incomplete'
+                const studentName = [row.student_first_name, row.student_last_name]
+                  .filter(Boolean)
+                  .join(' ') || row.email_username
+                const checkInTime = formatTeacherAttendanceTime(attendanceStudent?.checkedInAt ?? null)
                 return (
                   <DataTableRow
                     key={row.student_id}
                     id={getAttendanceStudentRowId(row.student_id)}
-                    aria-selected={isSelected}
+                    aria-selected={isSelected || attendanceSelected}
                     tabIndex={-1}
                     className={[
                       'cursor-pointer transition-colors',
-                      isSelected
+                      isSelected || attendanceSelected
                         ? 'bg-info-bg hover:bg-info-bg-hover'
                         : 'hover:bg-surface-hover',
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
+                    {attendanceEnabled ? (
+                      <TableSelectionCell
+                        checked={attendanceSelected}
+                        onChange={() => attendance.toggleSelect(row.student_id)}
+                        ariaLabel={`Select ${studentName}`}
+                        disabled={!attendanceEditable}
+                        className="!py-0"
+                      />
+                    ) : null}
                     <DataTableCell density="tight" className="min-w-0">
                       <span className="block truncate" title={row.student_first_name || undefined}>
                         {row.student_first_name || '—'}
@@ -730,21 +1071,27 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       <span className="block truncate" title={row.student_last_name || undefined}>
                         {row.student_last_name || '—'}
                       </span>
+                      {attendanceEnabled && checkInTime ? (
+                        <span className="block whitespace-nowrap text-xs tabular-nums text-text-muted md:hidden">
+                          {checkInTime}
+                        </span>
+                      ) : null}
                     </DataTableCell>
-                    <DataTableCell
-                      density="tight"
-                      className={[
-                        'text-text-muted',
-                        showLogColumn ? 'hidden md:table-cell' : '',
-                      ].join(' ')}
-                    >
-                      <span
-                        className="block truncate"
-                        title={row.email_username}
+                    {showIdColumn ? (
+                      <DataTableCell
+                        density="tight"
+                        className={attendanceEnabled ? 'hidden text-text-muted sm:table-cell' : 'text-text-muted'}
                       >
-                        {row.email_username}
-                      </span>
-                    </DataTableCell>
+                        <span className="block truncate" title={row.email_username}>
+                          {row.email_username}
+                        </span>
+                      </DataTableCell>
+                    ) : null}
+                    {attendanceEnabled ? (
+                      <DataTableCell density="tight" className="hidden min-w-0 text-text-muted md:table-cell">
+                        {checkInTime ? <span>{checkInTime}</span> : <span className="sr-only">No QR check-in</span>}
+                      </DataTableCell>
+                    ) : null}
                     <DataTableCell
                       density="tight"
                       align={showLogColumn ? 'left' : 'center'}
@@ -753,6 +1100,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       <div
                         className={[
                           'flex min-w-0 items-center gap-2',
+                          showLogColumn && attendanceEnabled ? 'justify-center sm:justify-start' : '',
                           showLogColumn ? '' : 'justify-center',
                         ].join(' ')}
                       >
@@ -767,15 +1115,73 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                         </Tooltip>
                         {showLogColumn && (
                           hasLog ? (
-                            <span className="block truncate" title={logText}>
+                            <span
+                              className={attendanceEnabled ? 'hidden truncate sm:block' : 'block truncate'}
+                              title={logText}
+                            >
                               {logText}
                             </span>
                           ) : (
-                            <span aria-label="No log for this date">—</span>
+                            <span
+                              aria-label="No log for this date"
+                              className={attendanceEnabled ? 'hidden sm:inline' : undefined}
+                            >
+                              —
+                            </span>
                           )
                         )}
                       </div>
                     </DataTableCell>
+                    {attendanceEnabled ? (
+                      <DataTableCell density="tight" className="!py-0">
+                        {attendanceStudent ? (
+                          <div
+                            className={cn(
+                              'flex items-center gap-1',
+                              attendanceStudent.hasManualOverride && attendanceStudent.hasQrCheckIn
+                                && 'flex-col items-end gap-0',
+                            )}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <AttendanceStatusControl
+                              studentName={studentName}
+                              status={attendanceStudent.status}
+                              disabled={!attendanceEditable}
+                              onChange={(status) => {
+                                if (status !== attendanceStudent.status) {
+                                  void attendance.submitMarks([row.student_id], status)
+                                }
+                              }}
+                            />
+                            {attendanceStudent.hasManualOverride && attendanceStudent.hasQrCheckIn ? (
+                              <Tooltip content="Restore QR check-in">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  className="h-11 w-11 min-h-11 min-w-11 px-0 py-0"
+                                  aria-label={`Undo manual attendance change for ${studentName}`}
+                                  disabled={!attendanceEditable}
+                                  onClick={() => void attendance.submitMarks(
+                                    [row.student_id],
+                                    'automatic',
+                                    { successText: `${studentName}'s QR check-in restored` },
+                                  )}
+                                >
+                                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                                </Button>
+                              </Tooltip>
+                            ) : null}
+                            {attendancePending ? <span className="sr-only">Updating attendance</span> : null}
+                            {!attendancePending && attendanceStudent.commandFailed ? (
+                              <span className="sr-only">Previous attendance update failed</span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-text-muted" aria-label="Attendance unavailable for this student">—</span>
+                        )}
+                      </DataTableCell>
+                    ) : null}
                   </DataTableRow>
                 )
               })}
@@ -787,7 +1193,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               )}
             </DataTableBody>
           </DataTable>
-        </TableCard>
+        </>
       </KeyboardNavigableTable>
     )
   }
@@ -950,26 +1356,104 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     )
   )
 
-  const workspace = classDaysError && hasClassDaysSnapshot ? (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
-        <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
-        <Button type="button" size="sm" variant="secondary" onClick={() => void refreshClassDays()}>
-          Try again
-        </Button>
-      </div>
-      {workspaceContent}
+  const attendanceWarning = attendanceEnabled && (
+    attendance.error
+    || attendance.view?.integration === 'disabled'
+    || attendance.view?.integration === 'not_configured'
+    || attendance.view?.session.commandFailed
+    || attendance.failedStudentCount > 0
+  ) ? (
+    <div role="alert" className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+      {attendance.error
+        ? `${attendance.error}. Daily logs remain available.`
+        : attendance.view?.integration === 'not_configured'
+          ? 'Attendance hours are not configured. Daily logs remain available.'
+          : attendance.view?.integration === 'disabled'
+            ? 'Attendance is temporarily unavailable. Daily logs remain available.'
+            : attendance.view?.session.commandFailed
+              ? 'A previous attendance session update failed. Review the current state and try again.'
+              : `${attendance.failedStudentCount} previous attendance ${attendance.failedStudentCount === 1 ? 'update' : 'updates'} failed.`}
     </div>
-  ) : workspaceContent
+  ) : null
+
+  const workspace = (
+    classDaysError && hasClassDaysSnapshot
+      ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+              <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
+              <Button type="button" size="sm" variant="secondary" onClick={() => void refreshClassDays()}>
+                Try again
+              </Button>
+            </div>
+            {attendanceWarning}
+            {workspaceContent}
+          </div>
+        )
+      : attendanceWarning
+        ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              {attendanceWarning}
+              {workspaceContent}
+            </div>
+          )
+        : workspaceContent
+  )
+
+  const qrEntryUrl = attendance.qrPresentation && typeof window !== 'undefined'
+    ? new URL(attendance.qrPresentation.entryPath, window.location.origin).toString()
+    : null
 
   return (
-    <TeacherWorkSurfaceShell
-      state="workspace"
-      primary={actionBar}
-      summary={null}
-      workspace={workspace}
-      workspaceFrame="standalone"
-      workspaceFrameClassName="min-h-[360px] border-0 bg-page"
-    />
+    <>
+      <TeacherWorkSurfaceShell
+        state="workspace"
+        primary={actionBar}
+        summary={null}
+        workspace={workspace}
+        workspaceFrame="standalone"
+        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+      />
+      <ContentDialog
+        isOpen={attendance.qrOpen}
+        onClose={() => attendance.setQrOpen(false)}
+        title="Attendance QR"
+        subtitle={selectedDate ? format(parseISO(selectedDate), 'EEEE, MMMM d') : undefined}
+        maxWidth="max-w-md"
+      >
+        {attendance.qrLoading ? (
+          <PageState kind="loading" title="Loading QR code" compact />
+        ) : attendance.qrError ? (
+          <PageState
+            kind="error"
+            title="QR unavailable"
+            description={attendance.qrError}
+            compact
+            action={<Button type="button" onClick={() => void attendance.loadQrPresentation()}>Try again</Button>}
+          />
+        ) : qrEntryUrl && attendance.qrPresentation ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <QrCode value={qrEntryUrl} label="Student attendance check-in QR code" />
+            <div>
+              <p className="font-medium text-text-default">Scan to check in through Pika</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Available until {formatTeacherAttendanceTime(attendance.qrPresentation.expiresAt)}
+              </p>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => void attendance.copyQrLink()}>
+              <ClipboardCopy className="h-4 w-4" aria-hidden="true" /> Copy link
+            </Button>
+          </div>
+        ) : null}
+      </ContentDialog>
+      {attendanceEnabled ? (
+        <AttendanceWindowDialog
+          classroomId={classroom.id}
+          isOpen={attendance.attendanceHoursOpen}
+          onClose={() => attendance.setAttendanceHoursOpen(false)}
+          onSaved={() => void attendance.loadView(true)}
+        />
+      ) : null}
+    </>
   )
 })

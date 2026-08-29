@@ -47,8 +47,15 @@ vi.mock('@/components/CreateBlueprintModal', () => ({
 }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: ({ isOpen }: { isOpen: boolean }) => (
-    isOpen ? <div role="dialog" aria-label="Create Classroom">Create Classroom</div> : null
+  CreateClassroomModal: ({ isOpen, onSuccess }: { isOpen: boolean; onSuccess: (classroom: any) => void }) => (
+    isOpen ? (
+      <div role="dialog" aria-label="Create Classroom">
+        Create Classroom
+        <button type="button" onClick={() => onSuccess({ id: 'classroom-new' })}>
+          Complete Classroom creation
+        </button>
+      </div>
+    ) : null
   ),
 }))
 
@@ -832,6 +839,16 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }))
     expect(screen.getByRole('dialog', { name: 'Create Classroom' })).toBeInTheDocument()
+  })
+
+  it('opens a newly created classroom on the combined Daily surface', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use for Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Classroom creation' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-new?tab=daily')
   })
 
   it('requires confirmation before preparing a classroom update from the saved version', async () => {

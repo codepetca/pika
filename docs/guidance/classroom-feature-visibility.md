@@ -7,7 +7,7 @@ Teachers can tailor each classroom's navigation from **Settings → Features**. 
 | Feature preference | Teacher sidebar | Student sidebar | Hideable |
 | --- | --- | --- | --- |
 | Daily / Today | Daily | Today | No |
-| Attendance | Attendance | — | Yes |
+| Attendance | Controls and columns inside Daily | — | Yes |
 | Classwork | Assignments | Assignments | Yes |
 | Tests | Tests | Tests | Yes |
 | Gradebook | Gradebook | — | Yes, when Classwork or Tests is enabled |
@@ -24,11 +24,12 @@ All preferences default to enabled so existing and newly created classrooms reta
 
 - Gradebook is unavailable when both Classwork and Tests are hidden. Its stored preference is retained, so it returns automatically if either source feature is re-enabled.
 - Achievements is shown only when both its classroom preference and the deployment's Pal integration are enabled.
+- Attendance controls are shown inside Daily only when both the classroom preference and the server-owned teacher/classroom entitlement are active. Turning Attendance off never hides Daily or changes Daily-log data.
 - Daily/Today remains the safe fallback for invalid or newly hidden direct links.
 
 ## Enforcement Surfaces
 
-One shared availability contract controls teacher and student sidebar items, mounted tab workspaces, direct-link redirects, tab prefetching, student notification counts, and assignment/announcement items embedded in Calendar. Hiding a feature does not authorize deletion and does not change its underlying API data or archive lifecycle.
+One shared availability contract controls teacher and student sidebar items, mounted tab workspaces, direct-link redirects, tab prefetching, student notification counts, and assignment/announcement items embedded in Calendar. Attendance is the exception in presentation only: it has no standalone teacher tab, and its effective value controls the authoritative Attendance affordances composed into the always-available Daily workspace. Legacy `?tab=attendance` links fall back to Daily. Hiding a feature does not authorize deletion and does not change its underlying API data or archive lifecycle.
 
 ## Rollout
 

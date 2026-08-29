@@ -142,6 +142,31 @@ describe('AttendanceWindowDialog', () => {
     })
   })
 
+  it('re-enables a disabled automatic policy with its current revision', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ enabled: false, revision: 7 }) }))
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ enabled: true, revision: 8 }) }))
+      .mockResolvedValueOnce(jsonResponse({
+        roster: { outcome: 'applied', revision: 1 },
+        schedule: { outcome: 'applied', revision: 2 },
+      }))
+    const { onSaved } = renderDialog()
+
+    const automaticToggle = await screen.findByRole('checkbox', {
+      name: 'Open and close automatically',
+    })
+    expect(automaticToggle).not.toBeChecked()
+
+    fireEvent.click(automaticToggle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))).toMatchObject({
+      enabled: true,
+      expected_revision: 7,
+    })
+  })
+
   it('keeps optional attendance guidance in help tooltips', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
     renderDialog()
