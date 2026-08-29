@@ -363,7 +363,9 @@ role-owned heading.
   full available document range. The final browser run reported no errors.
 - Review remediation was rechecked visually: the Revised label provides a
   non-color cue, the live status text names the change kind and document block,
-  and a 1,000-block comparison completes in about 1.2 ms locally.
+  and a 1,000-block comparison completes in about 1.2 ms locally. The final
+  order-aware fallback also keeps a one-block move precise in a 5,000-block
+  document while completing in about 10.7 ms.
 - No P0, P1, or P2 visual or interaction findings remain.
 
 ### Composite-widget accessibility checklist

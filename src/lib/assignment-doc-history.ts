@@ -113,6 +113,123 @@ function findGreedyMatches(
   return matches
 }
 
+function findUniqueOrderedAnchors(
+  beforeSignatures: string[],
+  afterSignatures: string[],
+  beforeStart: number,
+  beforeEnd: number,
+  afterStart: number,
+  afterEnd: number,
+): BlockMatch[] {
+  const beforeOccurrences = new Map<string, { count: number; index: number }>()
+  const afterOccurrences = new Map<string, { count: number; index: number }>()
+
+  for (let beforeIndex = beforeStart; beforeIndex < beforeEnd; beforeIndex += 1) {
+    const signature = beforeSignatures[beforeIndex]!
+    const occurrence = beforeOccurrences.get(signature)
+    beforeOccurrences.set(signature, {
+      count: (occurrence?.count ?? 0) + 1,
+      index: beforeIndex,
+    })
+  }
+  for (let afterIndex = afterStart; afterIndex < afterEnd; afterIndex += 1) {
+    const signature = afterSignatures[afterIndex]!
+    const occurrence = afterOccurrences.get(signature)
+    afterOccurrences.set(signature, {
+      count: (occurrence?.count ?? 0) + 1,
+      index: afterIndex,
+    })
+  }
+
+  const candidates: BlockMatch[] = []
+  for (let beforeIndex = beforeStart; beforeIndex < beforeEnd; beforeIndex += 1) {
+    const signature = beforeSignatures[beforeIndex]!
+    const beforeOccurrence = beforeOccurrences.get(signature)
+    const afterOccurrence = afterOccurrences.get(signature)
+    if (beforeOccurrence?.count === 1 && afterOccurrence?.count === 1) {
+      candidates.push({ beforeIndex, afterIndex: afterOccurrence.index })
+    }
+  }
+  if (candidates.length === 0) return []
+
+  const tails: number[] = []
+  const previous = new Int32Array(candidates.length).fill(-1)
+  for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+    const afterIndex = candidates[candidateIndex]!.afterIndex
+    let low = 0
+    let high = tails.length
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2)
+      if (candidates[tails[middle]!]!.afterIndex < afterIndex) low = middle + 1
+      else high = middle
+    }
+    if (low > 0) previous[candidateIndex] = tails[low - 1]!
+    tails[low] = candidateIndex
+  }
+
+  const anchors: BlockMatch[] = []
+  let candidateIndex = tails[tails.length - 1]!
+  while (candidateIndex >= 0) {
+    anchors.push(candidates[candidateIndex]!)
+    candidateIndex = previous[candidateIndex]!
+  }
+  return anchors.reverse()
+}
+
+function findOrderAwareMatches(
+  beforeSignatures: string[],
+  afterSignatures: string[],
+  beforeStart: number,
+  beforeEnd: number,
+  afterStart: number,
+  afterEnd: number,
+): BlockMatch[] {
+  const anchors = findUniqueOrderedAnchors(
+    beforeSignatures,
+    afterSignatures,
+    beforeStart,
+    beforeEnd,
+    afterStart,
+    afterEnd,
+  )
+  if (anchors.length === 0) {
+    return findGreedyMatches(
+      beforeSignatures,
+      afterSignatures,
+      beforeStart,
+      beforeEnd,
+      afterStart,
+      afterEnd,
+    )
+  }
+
+  const matches: BlockMatch[] = []
+  let beforeCursor = beforeStart
+  let afterCursor = afterStart
+  for (const anchor of anchors) {
+    matches.push(...findGreedyMatches(
+      beforeSignatures,
+      afterSignatures,
+      beforeCursor,
+      anchor.beforeIndex,
+      afterCursor,
+      anchor.afterIndex,
+    ))
+    matches.push(anchor)
+    beforeCursor = anchor.beforeIndex + 1
+    afterCursor = anchor.afterIndex + 1
+  }
+  matches.push(...findGreedyMatches(
+    beforeSignatures,
+    afterSignatures,
+    beforeCursor,
+    beforeEnd,
+    afterCursor,
+    afterEnd,
+  ))
+  return matches
+}
+
 function findMatchingBlocks(before: TiptapNode[], after: TiptapNode[]): BlockMatch[] {
   const beforeSignatures = before.map(nodeSignature)
   const afterSignatures = after.map(nodeSignature)
@@ -152,7 +269,7 @@ function findMatchingBlocks(before: TiptapNode[], after: TiptapNode[]): BlockMat
   if (beforeCount * afterCount > MAX_LCS_CELLS) {
     return [
       ...matches,
-      ...findGreedyMatches(
+      ...findOrderAwareMatches(
         beforeSignatures,
         afterSignatures,
         beforeStart,

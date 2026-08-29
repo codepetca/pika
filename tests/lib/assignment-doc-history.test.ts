@@ -249,6 +249,23 @@ describe('assignment-doc-history reconstruction', () => {
     expect(result.deletionAnchors).toEqual([])
   })
 
+  it('keeps a large mostly stable reorder precise beyond the exact LCS bound', () => {
+    const blocks = Array.from({ length: 201 }, (_, index) => ({
+      type: 'paragraph',
+      content: [{ type: 'text', text: `Paragraph ${index}` }],
+    }))
+    const before: TiptapContent = { type: 'doc', content: blocks }
+    const after: TiptapContent = {
+      type: 'doc',
+      content: [...blocks.slice(1), blocks[0]!],
+    }
+
+    expect(compareAssignmentDocContent(before, after)).toEqual({
+      changedBlocks: [{ index: 200, kind: 'added' }],
+      deletionAnchors: [{ index: 0, position: 'before', count: 1 }],
+    })
+  })
+
   it('describes change kinds and document locations for assistive technology', () => {
     expect(describeAssignmentHistoryChange({
       changedBlocks: [

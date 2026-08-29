@@ -1669,6 +1669,10 @@ authentication, dependency, migration, deployment, or hosted state changed.
   comparisons measured about 1.2 ms), focuses the earliest location in mixed
   deletion/rewrite saves, and distinguishes Added/Revised changes with visible
   text plus a live assistive description of change kinds and locations.
+- Final cumulative review caught a threshold-edge reorder case in the bounded
+  matcher. The fallback now uses unique patience-style anchors with monotonic
+  gap matching; moving one block in a 5,000-block document remains one addition
+  plus one deletion and completes in about 10.7 ms locally.
 
 **Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
 behavior covered: yes; semantic state covered by tests: yes; remaining manual
