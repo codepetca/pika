@@ -1457,3 +1457,35 @@ lease fencing, and explicitly authorized local and production migration 141.
   application deployment was performed as part of the schema application.
 
 **Model recommendation:** GPT-5.6 Sol for the final exact-head CI and merge loop.
+
+## 2026-08-28 — Consistent classroom work-surface controls
+
+**Risk profile:** low — teacher/student presentation structure and shared
+control composition only; existing domain behavior, routes, schema,
+dependencies, deployments, and hosted state are unchanged.
+
+- Added the shared app-level `DateNavigator` composition and adopted it in
+  Daily, Attendance, and Calendar while leaving each feature's date logic and
+  picker behavior local.
+- Migrated every production consumer of the transitional floating teacher
+  action bar to the anchored, mathematically centered
+  `TeacherWorkSurfaceContextBar`: Classwork, Tests summary, Gradebook, Roster,
+  Announcements, and Calendar. Existing commands and menu contents are
+  unchanged.
+- Preserved the floating layer token on the anchored context row so open menus
+  remain above sticky operational-table headers; verified the Gradebook and
+  Roster open-menu states explicitly.
+- Documented the shared date-scope composition and removed the Calendar raw
+  value/native-control exceptions made obsolete by the refactor.
+- Visual verification passed teacher Calendar, Daily, Classwork, Tests,
+  Gradebook, Roster, and Announcements across desktop/mobile and light/dark,
+  plus student Calendar across the same matrix and student Classwork where the
+  shared page was otherwise unchanged.
+- All 608 test files / 5,254 tests pass, along with lint, architecture,
+  design/UI policy checks, production build, and diff validation. The build
+  retains the existing WorkOS Edge Runtime and browsers-data warnings.
+
+No deployment or database operation was performed.
+
+**Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
+GPT-5.6 Terra for bounded follow-up on an individual classroom surface.

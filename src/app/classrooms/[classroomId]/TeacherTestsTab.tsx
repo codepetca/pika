@@ -25,7 +25,6 @@ import {
 } from '@/components/AssessmentStatusIndicator'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
@@ -2616,8 +2615,9 @@ export function TeacherTestsTab({
       trailingClassName="overflow-visible"
     />
   ) : (
-    <TeacherWorkSurfaceActionBar
-      center={
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Test actions"
+      primary={
         <TeacherWorkSurfaceActionCluster>
           <Button
             type="button"
@@ -2639,7 +2639,6 @@ export function TeacherTestsTab({
           />
         </TeacherWorkSurfaceActionCluster>
       }
-      centerPlacement="floating"
     />
   )
 

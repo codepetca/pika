@@ -13,9 +13,9 @@ import {
 } from 'react'
 import { CircleDot, GripHorizontal, UndoDot } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { CalendarDateNavigator } from '@/components/CalendarActionBar'
+import { DateNavigator } from '@/components/DateNavigator'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { LogSummary } from './LogSummary'
@@ -548,8 +548,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   )
 
   const actionBar = (
-    <TeacherWorkSurfaceActionBar
-      center={
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Daily controls"
+      testId="daily-context-bar"
+      primary={
         <div className="flex min-w-0 items-center gap-1">
           <input
             ref={dateInputRef}
@@ -572,11 +574,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <UndoDot className="h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
-          <CalendarDateNavigator
+          <DateNavigator
             label={selectedDateLabel}
             onLabelClick={() => dateInputRef.current?.showPicker()}
             labelAriaLabel="Select attendance date"
             showNavigation={false}
+            joined
           />
           <Tooltip content="Today">
             <Button
@@ -592,7 +595,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           </Tooltip>
         </div>
       }
-      centerPlacement="floating"
     />
   )
 

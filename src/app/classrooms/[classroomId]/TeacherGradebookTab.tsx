@@ -39,7 +39,7 @@ import {
   AssessmentStatusIndicator,
   getGradebookAssessmentStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
@@ -1694,8 +1694,9 @@ export function TeacherGradebookTab({
   const hasSelectedEmailActions = selectedStudentEmails.length > 0
 
   const actionBar = (
-    <TeacherWorkSurfaceActionBar
-      center={
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Gradebook controls"
+      primary={
         <TeacherWorkSurfaceActionCluster>
           <Button
             type="button"
@@ -1728,7 +1729,6 @@ export function TeacherGradebookTab({
           />
         </TeacherWorkSurfaceActionCluster>
       }
-      centerPlacement="floating"
     />
   )
 

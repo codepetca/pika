@@ -42,7 +42,7 @@ export function TeacherWorkSurfaceContextBar({
       aria-label={ariaLabel}
       data-testid={testId}
       className={cn(
-        'grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-2 py-1 sm:gap-2 sm:px-3',
+        'relative z-floating grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 px-2 py-1 sm:gap-2 sm:px-3',
         className,
       )}
     >

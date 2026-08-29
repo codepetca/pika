@@ -667,14 +667,14 @@ describe('TeacherGradebookTab', () => {
     expect(within(detailPanel).getByText('70%')).toHaveClass('text-text-default')
   })
 
-  it('keeps gradebook floating controls on the shared overlay layer', async () => {
+  it('keeps gradebook controls centered in the shared context bar', async () => {
     renderGradebook('grades')
 
     expect(await screen.findByText('Ada')).toBeInTheDocument()
 
-    const floatingCluster = screen.getByRole('button', { name: 'Gradebook actions' }).closest('.fixed')
-    expect(floatingCluster).toHaveClass('fixed', 'z-floating')
-    expect(floatingCluster?.className).not.toContain('z-[70]')
+    const contextBar = screen.getByRole('region', { name: 'Gradebook controls' })
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
+    expect(screen.getByRole('button', { name: 'Gradebook actions' }).closest('.fixed')).toBeNull()
     expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('z-30')
     expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('z-20', 'md:z-30')
 

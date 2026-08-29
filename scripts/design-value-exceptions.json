@@ -446,18 +446,6 @@
       ]
     },
     {
-      "file": "src/components/CalendarActionBar.tsx",
-      "reviewBy": "phase-3-calendar",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "9f563f4c1d285d37",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/components/creation/CreationModalShell.tsx",
       "reviewBy": "phase-3-creation-flows",
       "values": [

@@ -144,6 +144,8 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByText('Hopper')).toBeInTheDocument()
     expect(screen.getAllByText('8:50 AM').length).toBeGreaterThan(0)
     const contextBar = screen.getByTestId('attendance-context-bar')
+    expect(screen.getByRole('region', { name: 'Attendance controls and summary' })).toBe(contextBar)
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
     const closeAttendance = within(contextBar).getByRole('button', { name: 'Stop QR check-in' })
