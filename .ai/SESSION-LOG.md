@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Version portable Test draft question identity
-
-**Risk profile:** runtime-platform — Test draft identity compatibility and the
-unapplied migration 134 backfill; no database was reset or migrated.
-
-- Added `question_identity_version: 1` as the explicit discriminator for
-  canonical Test draft question IDs. Marked drafts resolve only portable
-  artifact/source identity; unmarked legacy drafts retain exact historical row
-  ID precedence before portable fallback.
-- Migration 134 now marks every successfully converted legacy draft, validates
-  already-marked drafts strictly on replay, and makes Test draft saves preserve
-  the marker. Blueprint capture, immutable Versions, and classroom
-  instantiation also retain or introduce the portable marker at their format
-  boundaries.
-- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
-  savepoint so concurrent retries cannot overwrite a completed ledger result.
-  Test save and activation now take the Classroom update lock up front, avoiding
-  shared-lock upgrades when two Tests advance the same structural revision; the
-  disposable database contract exercises concurrent saves.
-- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
-  memory before semantic comparison. The persisted Version stays unchanged, and
-  adding the discriminator alone cannot create a false Blueprint/Classroom
-  divergence or unnecessary review flow.
-- Added collision regressions across draft GET/PATCH projection, Blueprint
-  detail GET overlay, Blueprint capture, migration replay, save, activation,
-  and Version instantiation. The known row-ID/artifact-ID collision remains
-  distinct after conversion instead of re-entering the legacy dual-identity
-  reader.
-- The focused identity suites, full 5,147-test suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, session-log validation, and production build pass. The disposable
-  database CI job remains authoritative; migration 134 was not applied locally.
-
-**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
-boundary change, with an independent compatibility review.
-
 ## 2026-08-27 — Complete the canonical Test-question identity cutover
 
 **Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
@@ -1321,3 +1285,32 @@ No deployment or database operation was performed.
 
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
+
+## 2026-08-29 — Student work-surfaces review
+
+**Risk profile:** none — documentation only, no application/schema changes.
+
+- Added
+  [`docs/guidance/ui/student-work-surfaces-review-2026-08.md`](../docs/guidance/ui/student-work-surfaces-review-2026-08.md),
+  a code-inspection review of the student product paralleling the teacher
+  work-surfaces canon/audit, done because teacher Attendance/Tests are
+  considered stable and this refreshes the Student Workflow Map in
+  `product-experience-audit-2026-07.md` against current code.
+- Re-verified in code (not just the July doc) that the P0 submit-after-
+  failed-save fix holds, the `ModalLayer` focus contract backs every student
+  dialog, and `PageState`/`EmptyState` discipline is applied consistently
+  across Today, Assignments, Tests, Calendar, Announcements, Achievements,
+  and `/student/history`.
+- Ranked findings: P1 is that `StudentTestsTab` (the largest student surface)
+  and the Assignment editor have no student-specific mobile mode, matching
+  the roadmap's already-deferred mobile items; P2 is `Card`-primitive drift
+  in four files (`StudentTodayTab`, `StudentAnnouncementsSection`,
+  `StudentClassResourcesSidebar`, `/student/history`) using raw
+  `bg-surface`/`shadow-sm` boxes instead of `Card tone="panel"`.
+- No `pnpm dev`/Playwright visual capture was run this pass; the doc calls
+  out live verification as the explicit next step before treating any
+  surface as done the way Attendance/Tests are done.
+
+**Model recommendation:** Sonnet 5 is sufficient for the suggested next
+steps (the Card-primitive convergence pass and Tests mobile-mode scoping);
+escalate only if Tests mobile mode turns into a state-machine redesign.

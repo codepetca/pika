@@ -25916,3 +25916,40 @@ no production data was changed by migration 134 and no migration retry occurred.
 
 **Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
 that preserves student-linked row identity.
+
+<!-- pika-session-log-archive-batch:072a7ba656698df4523b3a7b6518db0af2292e8f53989583a12dd614d0966ce7 -->
+## 2026-08-27 — Version portable Test draft question identity
+
+**Risk profile:** runtime-platform — Test draft identity compatibility and the
+unapplied migration 134 backfill; no database was reset or migrated.
+
+- Added `question_identity_version: 1` as the explicit discriminator for
+  canonical Test draft question IDs. Marked drafts resolve only portable
+  artifact/source identity; unmarked legacy drafts retain exact historical row
+  ID precedence before portable fallback.
+- Migration 134 now marks every successfully converted legacy draft, validates
+  already-marked drafts strictly on replay, and makes Test draft saves preserve
+  the marker. Blueprint capture, immutable Versions, and classroom
+  instantiation also retain or introduce the portable marker at their format
+  boundaries.
+- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
+  savepoint so concurrent retries cannot overwrite a completed ledger result.
+  Test save and activation now take the Classroom update lock up front, avoiding
+  shared-lock upgrades when two Tests advance the same structural revision; the
+  disposable database contract exercises concurrent saves.
+- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
+  memory before semantic comparison. The persisted Version stays unchanged, and
+  adding the discriminator alone cannot create a false Blueprint/Classroom
+  divergence or unnecessary review flow.
+- Added collision regressions across draft GET/PATCH projection, Blueprint
+  detail GET overlay, Blueprint capture, migration replay, save, activation,
+  and Version instantiation. The known row-ID/artifact-ID collision remains
+  distinct after conversion instead of re-entering the legacy dual-identity
+  reader.
+- The focused identity suites, full 5,147-test suite, TypeScript, lint,
+  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
+  validation, session-log validation, and production build pass. The disposable
+  database CI job remains authoritative; migration 134 was not applied locally.
+
+**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
+boundary change, with an independent compatibility review.
