@@ -1357,3 +1357,31 @@ No deployment or database operation was performed.
 
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
+
+## 2026-08-29 — Make local Pika startup supply safe runtime credentials
+
+**Risk profile:** runtime-platform — local development process bootstrap and
+secret handling only; no hosted configuration, database state, migrations, or
+application behavior changed.
+
+- Added a repository-scoped `pika-local-dev` skill so future agents launch Pika
+  with a generated process-only session secret and credentials derived from the
+  already-running local Supabase stack.
+- Required loopback HTTP and trusted Pika Git-common-directory identity before
+  reading or passing local Supabase credentials. Current and legacy Supabase key
+  names are supported without adding a `jq` dependency.
+- Disabled inherited shell tracing before sensitive reads and fail closed when
+  OpenSSL fails or returns anything other than a 64-character hex secret.
+- Cleared inherited Git repository selectors and required the canonical target
+  to appear in the trusted Pika repository's registered-worktree inventory
+  before the launcher reads local credentials.
+- Added behavioral coverage for credential injection, key-format compatibility,
+  missing-key diagnostics, untrusted-worktree and non-loopback rejection,
+  trace redaction, secret-generation failure, stopped-stack failure, and
+  check-only mode.
+
+**Verification:** focused skill tests (12/12), live prerequisite check, Bash and
+ShellCheck validation, and Codex skill validation pass.
+
+**Model recommendation:** current frontier coding model for bounded local
+developer tooling with security-sensitive environment handling.
