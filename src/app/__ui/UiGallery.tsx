@@ -7,7 +7,7 @@ import type { AssignmentDocHistoryEntry, Classroom, TiptapContent } from '@/type
 import { HistoryGraph } from '@/components/HistoryGraph'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
-import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 
 type Role = 'teacher' | 'student'
 
@@ -188,12 +188,13 @@ const PREVIEW_CONTENT = makePreviewContent(40)
 function HistoryPreviewGallery({ role }: { role: Role }) {
   const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
-  const entries = LONG_PROJECT_ENTRIES
+  const entries = FOCUSED_PREVIEW_ENTRIES
   const isTeacher = role === 'teacher'
-  const previewContent = useMemo(() => {
-    if (!activeEntryId) return PREVIEW_CONTENT
-    return reconstructAssignmentDocContent([...entries].reverse(), activeEntryId) ?? PREVIEW_CONTENT
+  const preview = useMemo(() => {
+    if (!activeEntryId) return null
+    return buildAssignmentHistoryPreview([...entries].reverse(), activeEntryId)
   }, [activeEntryId, entries])
+  const previewContent = preview?.content ?? PREVIEW_CONTENT
 
   return (
     <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
@@ -203,7 +204,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
             {isTeacher ? 'Teacher' : 'Student'} history preview
           </h2>
           <p className="mt-1 text-sm text-text-muted">
-            Hover the chart for the whole-document overview. Click to pin at reading size.
+            Hover a save to jump to its changed section. Click to pin it.
           </p>
         </div>
         {previewMode !== 'current' ? (
@@ -225,7 +226,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
           data-testid="history-preview-document-pane"
           className={previewMode === 'current'
             ? 'min-h-0 flex-1 bg-surface'
-            : 'min-h-0 flex-1 bg-surface ring-2 ring-inset ring-warning'}
+            : 'min-h-0 flex-1 bg-surface ring-1 ring-inset ring-primary'}
         >
           {isTeacher ? (
             <RichTextViewer
@@ -233,6 +234,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
               fillHeight
               chrome="flush"
               historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
             />
           ) : (
             <RichTextEditor
@@ -241,13 +243,14 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
               editable={false}
               className="h-full"
               historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
             />
           )}
         </div>
         <div
           className="w-full shrink-0 border-t border-border bg-page md:w-60 md:border-l md:border-t-0"
           onMouseLeave={() => {
-            if (previewMode === 'fit') {
+            if (previewMode === 'focused') {
               setPreviewMode('current')
               setActiveEntryId(null)
             }
@@ -262,7 +265,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
             onEntryHover={(entry) => {
               if (previewMode === 'locked') return
               setActiveEntryId(entry.id)
-              setPreviewMode('fit')
+              setPreviewMode('focused')
             }}
             onEntryClick={(entry) => {
               setActiveEntryId(entry.id)
@@ -294,6 +297,53 @@ function makeEntry(
     created_at: createdAt,
   }
 }
+
+function clonePreviewContent(content: TiptapContent): TiptapContent {
+  return JSON.parse(JSON.stringify(content)) as TiptapContent
+}
+
+function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
+  const baseline = makePreviewContent(40)
+  const rewrite = clonePreviewContent(baseline)
+  rewrite.content![28] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 28. The student rewrote this interpretation to connect the soil sample, the weather record, and the field observation more clearly.',
+    }],
+  }
+
+  const addition = clonePreviewContent(rewrite)
+  addition.content!.splice(16, 0, {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
+    }],
+  })
+
+  const deletion = clonePreviewContent(addition)
+  deletion.content!.splice(10, 1)
+
+  const latest = clonePreviewContent(deletion)
+  latest.content![34] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 34. The conclusion now distinguishes what the evidence demonstrates from what would require another observation.',
+    }],
+  }
+
+  return [
+    { ...makeEntry('preview-5', 6120, '2025-03-14T18:20:00Z'), snapshot: latest },
+    { ...makeEntry('preview-4', 5980, '2025-03-13T19:05:00Z'), snapshot: deletion },
+    { ...makeEntry('preview-3', 6140, '2025-03-12T17:40:00Z'), snapshot: addition },
+    { ...makeEntry('preview-2', 5980, '2025-03-11T20:10:00Z'), snapshot: rewrite },
+    { ...makeEntry('preview-1', 5860, '2025-03-10T18:00:00Z', 'baseline'), snapshot: baseline },
+  ]
+}
+
+const FOCUSED_PREVIEW_ENTRIES = makeFocusedPreviewEntries()
 
 function makeSteadyProjectEntries(): AssignmentDocHistoryEntry[] {
   const chronological: AssignmentDocHistoryEntry[] = []

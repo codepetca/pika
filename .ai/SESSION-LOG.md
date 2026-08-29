@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Close Test identity release-safety gaps
-
-**Risk profile:** runtime-platform — cross-version Test authoring compatibility
-and Classroom/Test database lock ordering; no database was reset or migrated
-and no hosted state changed.
-
-- Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
-  marked portable question IDs back to exact legacy row IDs for persistence and
-  activation while continuing to return the portable API contract. Active and
-  closed saves accept metadata/document changes only when the question graph is
-  unchanged; question edits require reopening as draft because migration 133
-  cannot hold a student-entry fence across multiple application writes.
-  Pre-migration activation is deliberately unavailable because migration 133
-  has no transactional primitive that can safely synchronize questions while
-  fencing every access override. Draft-only UUIDs remain in the legacy draft
-  until migration 134 backfills them; the atomic RPC then materializes them.
-  Draft-only/internal-row namespace collisions are rejected before writing.
-- Added a real pre-migration integration contract to the disposable CI lifecycle:
-  it runs closed-Test save and activation refusal against migration 133, covers the
-  production-shaped row-ID/portable-ID collision plus draft-only collision
-  rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
-  explicit pre-migration activation refusal, and a concurrent student-attempt
-  race; it then applies migration 134 and verifies activation through the
-  portable-only path.
-- Wrapped student attempt save and submission so both acquire Classroom before
-  Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
-  The original migration-088 implementations moved behind non-callable private
-  functions, preserving behavior without exposing a bypass.
-- Added database races for teacher question authoring versus both student
-  autosave and submission. A third lock probe proves the student writer does not
-  retain Test while waiting for Classroom, and both RPCs must complete without
-  SQLSTATE 40P01 or partial state.
-- The full 5,155-test suite, focused 63-test Test identity/API suite, TypeScript,
-  lint, Pika audit, shell syntax, diff validation, and production build pass.
-  The disposable migration replay remains CI-authoritative.
-
-**Model recommendation:** GPT-5.6 Sol for the migration/concurrency correction
-and GPT-5.6 Terra for cross-version compatibility review.
-
 ## 2026-08-27 — Make Blueprint provenance compatible with student work
 
 **Risk profile:** runtime-platform — migration 134 trigger semantics and
@@ -1676,3 +1637,37 @@ follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for pointer-relative zoom, bounded timeline
 panning, historical-document reconstruction, and cross-role browser QA.
+
+## 2026-08-29 — Focus history previews on the changed work
+
+**Risk profile:** low — shared teacher/student history preview presentation and
+client-side adjacent-save comparison only; no API contract, schema, persistence,
+authentication, dependency, migration, deployment, or hosted state changed.
+
+- Replaced the transient whole-document fit preview with a normal-size reading
+  view that scrolls directly to the first changed block while preserving the
+  existing hover-to-preview and click-to-pin lifecycle.
+- Added adjacent-save top-level block comparison so rewrites and insertions are
+  highlighted in the document. Pure deletions now leave a red `Deleted here`
+  anchor at their former position.
+- Added a narrow, non-interactive document minimap beside the preview. It shows
+  an abstract overview of the full document, change markers, and a viewport box
+  that follows manual reading scroll without duplicating content for assistive
+  technology.
+- Added a long 40-section gallery fixture with rewrite, insertion, deletion, and
+  late-document saves. The minimap hides on narrow mobile screens so the focused
+  reading view retains usable width.
+- The repository focused gate passes: workflow, architecture, UI and design
+  policy checks; 151 focused tests; 561 related tests; TypeScript; and lint.
+  Diff checks and the Pika audit also pass.
+- Playwright verification covered teacher and student desktop, student mobile,
+  and dark mode. It confirmed 100% text scale, rewrite/insertion/deletion
+  markers, pinned-save stability, viewport tracking, and no horizontal overflow
+  or browser errors.
+
+**Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
+behavior covered: yes; semantic state covered by tests: yes; remaining manual
+follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for historical diff mapping, document
+viewport coordination, and cross-role visual QA.

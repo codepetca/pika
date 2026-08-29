@@ -30,13 +30,21 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ content, historyPreviewMode }: any) => (
-    <div data-testid="student-preview-mode" data-content-blocks={content.content.length}>
+  RichTextEditor: ({ content, historyPreviewMode, historyPreviewChange }: any) => (
+    <div
+      data-testid="student-preview-mode"
+      data-content-blocks={content.content.length}
+      data-changed-blocks={historyPreviewChange?.changedBlocks.length ?? 0}
+    >
       {historyPreviewMode}
     </div>
   ),
-  RichTextViewer: ({ content, historyPreviewMode }: any) => (
-    <div data-testid="teacher-preview-mode" data-content-blocks={content.content.length}>
+  RichTextViewer: ({ content, historyPreviewMode, historyPreviewChange }: any) => (
+    <div
+      data-testid="teacher-preview-mode"
+      data-content-blocks={content.content.length}
+      data-changed-blocks={historyPreviewChange?.changedBlocks.length ?? 0}
+    >
       {historyPreviewMode}
     </div>
   ),
@@ -65,17 +73,19 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
-    expect(Number(previewPoint.getAttribute('data-entry-count'))).toBeGreaterThan(100)
+    expect(previewPoint).toHaveAttribute('data-entry-count', '5')
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
     expect(screen.getByText(/two-week project/i)).toBeInTheDocument()
     expect(screen.getByText(/final-day crunch/i)).toBeInTheDocument()
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('fit')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '2')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '41')
 
     fireEvent.mouseEnter(latestPreviewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '1')
 
     await user.click(latestPreviewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
@@ -95,8 +105,8 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('current')
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('fit')
-    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '2')
+    expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '41')
 
     fireEvent.click(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('locked')

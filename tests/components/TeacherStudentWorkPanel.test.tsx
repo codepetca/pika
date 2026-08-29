@@ -1461,7 +1461,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.hover(screen.getByRole('button', { name: 'history-older' }))
 
     expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Older saved work')
-    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'fit')
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'focused')
     expect(screen.getByText('Previewing save from Fri Feb 20 6:00 AM')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'history-older' }))

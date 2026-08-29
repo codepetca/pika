@@ -61,6 +61,8 @@ import {
   useHistoryPreviewViewport,
   type HistoryPreviewMode,
 } from '@/hooks/useHistoryPreviewViewport'
+import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
+import { HistoryPreviewMinimap } from './HistoryPreviewMinimap'
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
@@ -241,6 +243,8 @@ export interface RichTextEditorProps {
   'aria-labelledby'?: string
   /** Controls whole-document framing while inspecting assignment history. */
   historyPreviewMode?: HistoryPreviewMode
+  /** Changed blocks and deletion anchors for the active history save. */
+  historyPreviewChange?: AssignmentHistoryChange | null
 }
 
 export type RichTextToolbarPreset =
@@ -360,6 +364,7 @@ export function RichTextEditor({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
   historyPreviewMode = 'current',
+  historyPreviewChange = null,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const resolvedToolbarPreset: RichTextToolbarPreset =
@@ -372,7 +377,14 @@ export function RichTextEditor({
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const contentViewportRef = useHistoryPreviewViewport(historyPreviewMode, content)
+  const { viewportRef, minimapState } = useHistoryPreviewViewport(
+    historyPreviewMode,
+    content,
+    historyPreviewChange,
+  )
+  const showHistoryMinimap = (
+    historyPreviewMode === 'focused' || historyPreviewMode === 'locked'
+  ) && historyPreviewChange
 
   const editorAttributes = useMemo(() => {
     const attributes: Record<string, string> = {
@@ -655,13 +667,22 @@ export function RichTextEditor({
           </Toolbar>
         )}
 
-        <EditorContent
-          ref={contentViewportRef}
-          editor={editor}
-          role="presentation"
-          className="simple-editor-content"
-          data-history-preview-mode={historyPreviewMode}
-        />
+        <div className="history-preview-layout">
+          <EditorContent
+            ref={viewportRef}
+            editor={editor}
+            role="presentation"
+            className="simple-editor-content"
+            data-history-preview-mode={historyPreviewMode}
+          />
+          {showHistoryMinimap ? (
+            <HistoryPreviewMinimap
+              content={content}
+              change={historyPreviewChange}
+              state={minimapState}
+            />
+          ) : null}
+        </div>
       </EditorContext.Provider>
     </div>
   )

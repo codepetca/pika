@@ -266,6 +266,7 @@ export function TeacherStudentWorkPanel({
     historyError,
     previewEntry,
     previewContent,
+    previewChange,
     isPreviewLocked,
     scoreCompletion,
     scoreThinking,
@@ -486,7 +487,8 @@ export function TeacherStudentWorkPanel({
             content={displayContent}
             fillHeight
             chrome="flush"
-            historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'fit') : 'current'}
+            historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'focused') : 'current'}
+            historyPreviewChange={previewChange}
           />
         ) : !hasRequiredSubmissionCards ? (
           <div className="flex h-32 items-center justify-center text-text-muted">

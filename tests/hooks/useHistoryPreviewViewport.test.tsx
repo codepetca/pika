@@ -1,17 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import { useHistoryPreviewViewport, type HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
+import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
 
 function PreviewViewport({
   mode,
   contentKey,
   withImage = false,
+  change = null,
 }: {
   mode: HistoryPreviewMode
   contentKey: string
   withImage?: boolean
+  change?: AssignmentHistoryChange | null
 }) {
-  const viewportRef = useHistoryPreviewViewport(mode, contentKey)
+  const { viewportRef, minimapState } = useHistoryPreviewViewport(mode, contentKey, change)
 
   return (
     <div
@@ -20,8 +23,15 @@ function PreviewViewport({
       data-history-preview-mode={mode}
     >
       <div className="tiptap ProseMirror">
-        {withImage ? <img src="history-preview.png" alt="Saved diagram" /> : null}
+        {withImage ? <img src="history-preview.png" alt="Saved diagram" /> : (
+          <>
+            <p data-offset-top="0" data-offset-height="80">Opening</p>
+            <p data-offset-top="600" data-offset-height="80">Changed evidence</p>
+            <p data-offset-top="1200" data-offset-height="80">Conclusion</p>
+          </>
+        )}
       </div>
+      <output data-testid="minimap-state">{JSON.stringify(minimapState)}</output>
     </div>
   )
 }
@@ -49,7 +59,11 @@ describe('useHistoryPreviewViewport', () => {
       return this.classList.contains('ProseMirror') ? 800 : 0
     })
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function () {
-      return this.classList.contains('ProseMirror') ? documentHeight : 0
+      if (this.classList.contains('ProseMirror')) return documentHeight
+      return Number(this.dataset.offsetHeight || 0)
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function () {
+      return Number(this.dataset.offsetTop || 0)
     })
     vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function () {
       return this.classList.contains('ProseMirror') ? 800 : 0
@@ -104,16 +118,33 @@ describe('useHistoryPreviewViewport', () => {
     expect(viewport.style.getPropertyValue('--history-preview-scale')).toBe('0.25')
   })
 
-  it('returns a newly selected pinned save to the top at normal scale', () => {
+  it('focuses a newly selected pinned save on its changed block at normal scale', () => {
+    const change: AssignmentHistoryChange = {
+      changedBlocks: [{ index: 1, kind: 'added' }],
+      deletionAnchors: [],
+    }
     const { rerender } = render(
-      <PreviewViewport mode="locked" contentKey="save-1" />,
+      <PreviewViewport mode="locked" contentKey="save-1" change={change} />,
     )
     const viewport = document.querySelector<HTMLElement>('[data-testid="preview-viewport"]')!
     viewport.scrollTop = 240
 
-    rerender(<PreviewViewport mode="locked" contentKey="save-2" />)
+    rerender(<PreviewViewport mode="locked" contentKey="save-2" change={change} />)
 
-    expect(viewport.scrollTop).toBe(0)
+    expect(viewport.scrollTop).toBe(488)
     expect(viewport.style.getPropertyValue('--history-preview-scale')).toBe('1')
+    expect(document.querySelectorAll('[data-history-change-kind="added"]')).toHaveLength(1)
+  })
+
+  it('marks a deletion location and reports it in the minimap state', () => {
+    const change: AssignmentHistoryChange = {
+      changedBlocks: [],
+      deletionAnchors: [{ index: 2, position: 'before', count: 1 }],
+    }
+    render(<PreviewViewport mode="focused" contentKey="save-deletion" change={change} />)
+
+    const deletionAnchor = document.querySelector('[data-history-deletion-before="1"]')
+    expect(deletionAnchor).toHaveTextContent('Conclusion')
+    expect(document.querySelector('[data-testid="minimap-state"]')).toHaveTextContent('deleted')
   })
 })

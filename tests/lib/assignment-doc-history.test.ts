@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { createJsonPatch } from '@/lib/json-patch'
-import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import {
+  buildAssignmentHistoryPreview,
+  compareAssignmentDocContent,
+  reconstructAssignmentDocContent,
+} from '@/lib/assignment-doc-history'
 import type { AssignmentDocHistoryEntry, JsonPatchOperation, TiptapContent } from '@/types'
 
 describe('assignment-doc-history reconstruction', () => {
@@ -132,5 +136,89 @@ describe('assignment-doc-history reconstruction', () => {
 
     const result = reconstructAssignmentDocContent(entries, 'patch-only')
     expect(result).toBeNull()
+  })
+
+  it('identifies added, modified, and deleted document blocks', () => {
+    const before: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'heading', content: [{ type: 'text', text: 'Stable title' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Rewrite me' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Remove me' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Stable ending' }] },
+      ],
+    }
+    const after: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'heading', content: [{ type: 'text', text: 'Stable title' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Rewritten paragraph' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'New evidence' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Stable ending' }] },
+      ],
+    }
+
+    expect(compareAssignmentDocContent(before, after)).toEqual({
+      changedBlocks: [
+        { index: 1, kind: 'modified' },
+        { index: 2, kind: 'modified' },
+      ],
+      deletionAnchors: [],
+    })
+  })
+
+  it('anchors a pure deletion at its former document position', () => {
+    const before: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Keep first' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Delete this' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Keep last' }] },
+      ],
+    }
+    const after: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Keep first' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Keep last' }] },
+      ],
+    }
+
+    expect(compareAssignmentDocContent(before, after)).toEqual({
+      changedBlocks: [],
+      deletionAnchors: [{ index: 1, position: 'before', count: 1 }],
+    })
+  })
+
+  it('builds a focused preview against the immediately preceding save', () => {
+    const first: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'First' }] }],
+    }
+    const second: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'First' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Second' }] },
+      ],
+    }
+    const entries: AssignmentDocHistoryEntry[] = [
+      {
+        id: 'first', assignment_doc_id: 'doc-1', snapshot: first, patch: null,
+        word_count: 1, char_count: 5, trigger: 'baseline', created_at: '2026-01-05T00:00:00Z',
+      },
+      {
+        id: 'second', assignment_doc_id: 'doc-1', snapshot: second, patch: null,
+        word_count: 2, char_count: 11, trigger: 'autosave', created_at: '2026-01-05T00:01:00Z',
+      },
+    ]
+
+    expect(buildAssignmentHistoryPreview(entries, 'second')).toEqual({
+      content: second,
+      change: {
+        changedBlocks: [{ index: 1, kind: 'added' }],
+        deletionAnchors: [],
+      },
+    })
   })
 })

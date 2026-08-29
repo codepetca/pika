@@ -50,6 +50,16 @@ vi.mock('@/lib/assignment-doc-history', () => ({
     type: 'doc',
     content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Restored answer' }] }],
   }),
+  buildAssignmentHistoryPreview: () => ({
+    content: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Restored answer' }] }],
+    },
+    change: {
+      changedBlocks: [{ index: 0, kind: 'modified' }],
+      deletionAnchors: [],
+    },
+  }),
 }))
 
 const latestDraft = {
@@ -3270,7 +3280,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(docReads).toBe(2)
   })
 
-  it('fits hovered history, pins clicked history at reading size, and exits to the draft', async () => {
+  it('focuses hovered history, pins clicked history at reading size, and exits to the draft', async () => {
     const historyEntry = {
       id: 'history-1',
       assignment_doc_id: 'doc-1',
@@ -3321,7 +3331,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     ).toBe(true)
 
     await user.hover(savedVersionButtons[0])
-    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('fit')
+    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('focused')
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Restored answer')
 
     await user.click(savedVersionButtons[0])

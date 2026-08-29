@@ -8,6 +8,8 @@ import {
   useHistoryPreviewViewport,
   type HistoryPreviewMode,
 } from '@/hooks/useHistoryPreviewViewport'
+import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
+import { HistoryPreviewMinimap } from './HistoryPreviewMinimap'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -36,6 +38,8 @@ export interface RichTextViewerProps {
   chrome?: 'default' | 'flush'
   /** Controls whole-document framing while inspecting assignment history. */
   historyPreviewMode?: HistoryPreviewMode
+  /** Changed blocks and deletion anchors for the active history save. */
+  historyPreviewChange?: AssignmentHistoryChange | null
 }
 
 export function RichTextViewer({
@@ -44,8 +48,16 @@ export function RichTextViewer({
   fillHeight = false,
   chrome = 'default',
   historyPreviewMode = 'current',
+  historyPreviewChange = null,
 }: RichTextViewerProps) {
-  const contentViewportRef = useHistoryPreviewViewport(historyPreviewMode, content)
+  const { viewportRef, minimapState } = useHistoryPreviewViewport(
+    historyPreviewMode,
+    content,
+    historyPreviewChange,
+  )
+  const showHistoryMinimap = (
+    historyPreviewMode === 'focused' || historyPreviewMode === 'locked'
+  ) && historyPreviewChange
   const editor = useEditor({
     immediatelyRender: false,
     editable: false,
@@ -122,12 +134,21 @@ export function RichTextViewer({
           : 'bg-surface-2 rounded-none border border-border',
       ].join(' ')}
     >
-      <EditorContent
-        ref={contentViewportRef}
-        editor={editor}
-        className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
-        data-history-preview-mode={historyPreviewMode}
-      />
+      <div className="history-preview-layout">
+        <EditorContent
+          ref={viewportRef}
+          editor={editor}
+          className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
+          data-history-preview-mode={historyPreviewMode}
+        />
+        {showHistoryMinimap ? (
+          <HistoryPreviewMinimap
+            content={content}
+            change={historyPreviewChange}
+            state={minimapState}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }
