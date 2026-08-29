@@ -478,7 +478,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       checkedInAt: index % 2 === 0 ? `2026-08-17T13:${String(index).padStart(2, '0')}:00.000Z` : null,
       revision: 1,
       hasQrCheckIn: index % 2 === 0,
-      hasManualOverride: index % 2 !== 0,
+      hasManualOverride: index === 2 || index % 2 !== 0,
       pendingCommand: false,
       commandFailed: false,
     }
@@ -562,6 +562,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
           presentThroughAt: attendanceConfigured ? '2026-08-17T13:10:00.000Z' : null,
           absentAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
           revision: attendanceConfigured ? 1 : null,
+          pendingCommand: false,
           commandFailed: false,
         },
         sync: attendanceConfigured
@@ -594,6 +595,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
+  const overrideUndo = page.getByRole('button', {
+    name: 'Undo manual attendance change for Student 03 Alpha03',
+  })
+  await expect(overrideUndo).toBeVisible()
+  const overrideCell = overrideUndo.locator('xpath=ancestor::td')
+  await expect.poll(() => overrideCell.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-default.png`),

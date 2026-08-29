@@ -216,6 +216,7 @@ describe('Pika attendance derivation', () => {
     })
 
     expect(result.sync.state).toBe('pending')
+    expect(result.session.pendingCommand).toBe(true)
     expect(result.session.commandFailed).toBe(false)
     expect(result.students[0]).toMatchObject({
       pendingCommand: true,

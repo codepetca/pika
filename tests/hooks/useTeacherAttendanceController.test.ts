@@ -34,6 +34,7 @@ const classroom: Classroom = {
 }
 
 const studentId = '10000000-0000-4000-8000-000000000001'
+const secondStudentId = '10000000-0000-4000-8000-000000000002'
 
 function attendanceView(classDate: string, pendingCommand = false): TeacherAttendanceView {
   return {
@@ -49,6 +50,7 @@ function attendanceView(classDate: string, pendingCommand = false): TeacherAtten
       presentThroughAt: `${classDate}T13:10:00.000Z`,
       absentAt: `${classDate}T14:00:00.000Z`,
       revision: 1,
+      pendingCommand: false,
       commandFailed: false,
     },
     sync: { state: 'current', confirmedAt: `${classDate}T13:20:00.000Z` },
@@ -167,6 +169,87 @@ describe('useTeacherAttendanceController', () => {
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
     expect(confirmMock).not.toHaveBeenCalled()
     confirmMock.mockRestore()
+  })
+
+  it('rejects a session command while the server still owns a pending session command', async () => {
+    const pendingView = attendanceView('2026-05-05')
+    pendingView.session.pendingCommand = true
+    pendingView.sync.state = 'pending'
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(pendingView) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/session' && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: 'applied' }) }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    expect(result.current.sessionPending).toBe(true)
+    await act(async () => {
+      await result.current.submitSessionCommand('close')
+    })
+
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('intersects selection and mutations with the currently visible Daily students', async () => {
+    const base = attendanceView('2026-05-05')
+    const viewWithHiddenStudent: TeacherAttendanceView = {
+      ...base,
+      students: [
+        ...base.students,
+        {
+          ...base.students[0],
+          studentId: secondStudentId,
+          firstName: 'Grace',
+          lastName: 'Hopper',
+        },
+      ],
+    }
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(viewWithHiddenStudent) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ outcome: 'applied' }) }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result, rerender } = renderHook(
+      ({ visibleStudentIds }) => useTeacherAttendanceController({
+        classroom,
+        selectedDate: '2026-05-05',
+        enabled: true,
+        isActive: true,
+        visibleStudentIds,
+      }),
+      { initialProps: { visibleStudentIds: [studentId, secondStudentId] } },
+    )
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    act(() => result.current.toggleSelectAll())
+    expect([...result.current.selectedIds]).toEqual([studentId, secondStudentId])
+
+    rerender({ visibleStudentIds: [studentId] })
+    expect([...result.current.selectedIds]).toEqual([studentId])
+    expect(result.current.selectedCount).toBe(1)
+
+    await act(async () => {
+      await result.current.submitMarks([studentId, secondStudentId], 'late')
+    })
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
   })
 
   it('keeps a session retry pending while an older terminal failure is retained', async () => {

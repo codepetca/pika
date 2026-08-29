@@ -182,6 +182,7 @@ function combinedAttendanceView(
       presentThroughAt: '2026-05-05T13:10:00.000Z',
       absentAt: '2026-05-05T14:00:00.000Z',
       revision: 4,
+      pendingCommand: false,
       commandFailed: false,
     },
     sync: { state: 'current', confirmedAt: '2026-05-05T13:16:00.000Z' },
@@ -510,6 +511,57 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
+  it('stacks QR override recovery inside the compact attendance status column', async () => {
+    const base = combinedAttendanceView()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: base.students.map((student) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        return mockJson({
+          ...base,
+          students: base.students.map((student, index) => index === 0 ? {
+            ...student,
+            status: 'late',
+            source: 'staff',
+            hasQrCheckIn: true,
+            hasManualOverride: true,
+          } : student),
+        })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const statusGroup = await screen.findByRole('group', {
+      name: 'Attendance status for Student1 Test',
+    })
+    const undo = screen.getByRole('button', {
+      name: 'Undo manual attendance change for Student1 Test',
+    })
+    expect(statusGroup.parentElement).toHaveClass('flex-col', 'items-end', 'gap-0')
+    expect(undo).toBeInTheDocument()
+    expect(document.querySelector('colgroup col:last-child')).toHaveClass('w-40')
+  })
+
   it('keeps the entitled Attendance table stable while a date projection is not configured', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -803,6 +855,44 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
+  it('disables session actions while the authoritative view owns a pending command', async () => {
+    const base = combinedAttendanceView()
+    const pendingView = combinedAttendanceView({
+      session: { ...base.session, pendingCommand: true },
+      sync: { ...base.sync, state: 'pending' },
+    })
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: base.students.map((student) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) return mockJson(pendingView)
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    expect(await screen.findByRole('button', { name: 'Stop QR check-in' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
+
   it('loads the Pika-owned QR presentation from the combined Daily action bar', async () => {
     mockCombinedCommandFetch()
     const user = userEvent.setup()
@@ -865,6 +955,73 @@ describe('TeacherAttendanceTab', () => {
         reason_code: 'staff_correction',
       },
     ])
+  })
+
+  it('limits select-all and bulk marks to students rendered by Daily logs', async () => {
+    let attendance = combinedAttendanceView()
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        const visibleStudent = attendance.students[0]
+        return mockJson({
+          logs: [{
+            student_id: visibleStudent.studentId,
+            student_email: `${visibleStudent.studentId}@example.com`,
+            student_first_name: visibleStudent.firstName,
+            student_last_name: visibleStudent.lastName,
+            entry: null,
+            history_preview: [],
+          }],
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) return mockJson(attendance)
+      if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body)) as {
+          marks: Array<{ student_id: string; status: 'present' | 'late' | 'absent' | 'automatic' }>
+        }
+        attendance = {
+          ...attendance,
+          students: attendance.students.map((student) => {
+            const mark = body.marks.find((candidate) => candidate.student_id === student.studentId)
+            return mark ? {
+              ...student,
+              status: mark.status === 'automatic' ? 'present' : mark.status,
+              revision: (student.revision ?? 0) + 1,
+            } : student
+          }),
+        }
+        return mockJson({ outcome: 'applied', appliedCount: body.marks.length })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    await screen.findByRole('checkbox', { name: 'Select Student1 Test' })
+    expect(screen.queryByRole('checkbox', { name: 'Select Student2 Test' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Select all students' }))
+    await user.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    await user.click(within(
+      screen.getByRole('menu', { name: 'Selected student attendance actions' }),
+    ).getByRole('menuitem', { name: 'Absent' }))
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/teacher/attendance/marks')).toBe(true)
+    })
+    const marksCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/teacher/attendance/marks')
+    expect(JSON.parse(String(marksCall?.[1]?.body)).marks).toEqual([{
+      student_id: 'student-1',
+      status: 'absent',
+      reason_code: 'staff_correction',
+    }])
   })
 
   it('sorts the combined Log column by complete and incomplete status', async () => {

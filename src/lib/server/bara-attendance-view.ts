@@ -325,11 +325,13 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
       presentThroughAt: input.occurrence.presentThroughAt ?? null,
       absentAt: input.occurrence.absentAt ?? null,
       revision: projection?.revision ?? null,
+      pendingCommand: input.pendingSessionCommand ?? false,
       commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     } : {
       state: 'not_scheduled', opensAt: null, closesAt: null,
       sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
       revision: null,
+      pendingCommand: input.pendingSessionCommand ?? false,
       commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     },
     sync: { state: syncState, confirmedAt },

@@ -141,6 +141,7 @@ interface UseTeacherAttendanceControllerOptions {
   selectedDate: string
   enabled: boolean
   isActive: boolean
+  visibleStudentIds?: string[]
 }
 
 export function useTeacherAttendanceController({
@@ -148,6 +149,7 @@ export function useTeacherAttendanceController({
   selectedDate,
   enabled,
   isActive,
+  visibleStudentIds,
 }: UseTeacherAttendanceControllerOptions) {
   const { showMessage } = useAppMessage()
   const [view, setView] = useState<TeacherAttendanceView | null>(null)
@@ -262,19 +264,39 @@ export function useTeacherAttendanceController({
     () => new Map(students.map((student) => [student.studentId, student])),
     [students],
   )
+  const visibleStudentIdSet = useMemo(
+    () => visibleStudentIds ? new Set(visibleStudentIds) : null,
+    [visibleStudentIds],
+  )
   const selectableStudentIds = useMemo(
-    () => students.filter((student) => !student.pendingCommand).map((student) => student.studentId),
-    [students],
+    () => students
+      .filter((student) => (
+        !student.pendingCommand
+        && (!visibleStudentIdSet || visibleStudentIdSet.has(student.studentId))
+      ))
+      .map((student) => student.studentId),
+    [students, visibleStudentIdSet],
+  )
+  const selectableStudentIdSet = useMemo(
+    () => new Set(selectableStudentIds),
+    [selectableStudentIds],
   )
   const {
-    selectedIds,
-    toggleSelect,
+    selectedIds: tableSelectedIds,
+    toggleSelect: toggleTableSelect,
     toggleSelectAll,
     allSelected,
-    someSelected,
     clearSelection,
-    selectedCount,
   } = useTableSelection(selectableStudentIds)
+  const selectedIds = useMemo(
+    () => new Set([...tableSelectedIds].filter((studentId) => selectableStudentIdSet.has(studentId))),
+    [selectableStudentIdSet, tableSelectedIds],
+  )
+  const selectedCount = selectedIds.size
+  const someSelected = selectedCount > 0 && !allSelected
+  const toggleSelect = useCallback((studentId: string) => {
+    if (selectableStudentIdSet.has(studentId)) toggleTableSelect(studentId)
+  }, [selectableStudentIdSet, toggleTableSelect])
 
   useEffect(() => {
     clearSelection()
@@ -282,6 +304,7 @@ export function useTeacherAttendanceController({
 
   const isArchived = Boolean(classroom.archived_at)
   const sessionState = view?.session.state ?? 'not_scheduled'
+  const sessionPending = localSessionPending || Boolean(view?.session.pendingCommand)
   const attendanceReady = enabled && view?.integration === 'ready'
   const canMark = Boolean(
     attendanceReady &&
@@ -443,6 +466,7 @@ export function useTeacherAttendanceController({
       !view
       || activeCommandRequestRef.current
       || localSessionPendingRef.current
+      || view.session.pendingCommand
       || view.classroomId !== classroom.id
       || view.classDate !== selectedDate
     ) return
@@ -529,6 +553,11 @@ export function useTeacherAttendanceController({
       !view
       || activeCommandRequestRef.current
       || ids.length === 0
+      || ids.some((studentId) => !studentsById.has(studentId))
+      || Boolean(
+        visibleStudentIdSet
+        && ids.some((studentId) => !visibleStudentIdSet.has(studentId))
+      )
       || ids.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
       || ids.some((studentId) =>
         view.students.some((student) => student.studentId === studentId && student.pendingCommand)
@@ -621,7 +650,9 @@ export function useTeacherAttendanceController({
     pollForConfirmation,
     selectedDate,
     showMessage,
+    studentsById,
     view,
+    visibleStudentIdSet,
   ])
 
   const resetCheckIns = useCallback(async (studentIds: string[]) => {
@@ -629,6 +660,11 @@ export function useTeacherAttendanceController({
       !view
       || activeCommandRequestRef.current
       || studentIds.length === 0
+      || studentIds.some((studentId) => !studentsById.has(studentId))
+      || Boolean(
+        visibleStudentIdSet
+        && studentIds.some((studentId) => !visibleStudentIdSet.has(studentId))
+      )
       || studentIds.some((studentId) => localPendingStudentIdsRef.current.has(studentId))
       || studentIds.some((studentId) =>
         view.students.some((student) => student.studentId === studentId && student.pendingCommand)
@@ -717,7 +753,9 @@ export function useTeacherAttendanceController({
     pollForConfirmation,
     selectedDate,
     showMessage,
+    studentsById,
     view,
+    visibleStudentIdSet,
   ])
 
   const loadQrPresentation = useCallback(async () => {
@@ -785,7 +823,7 @@ export function useTeacherAttendanceController({
   )
   const sessionContextLabel = hasUnconfirmedView
     ? 'Last confirmed'
-    : localSessionPending || view?.sync.state === 'pending'
+    : sessionPending || view?.sync.state === 'pending'
       ? 'Updating…'
       : SESSION_LABELS[sessionState]
 
@@ -798,6 +836,7 @@ export function useTeacherAttendanceController({
     error,
     activeCommand,
     localSessionPending,
+    sessionPending,
     attendanceReady,
     canMark,
     sessionState,

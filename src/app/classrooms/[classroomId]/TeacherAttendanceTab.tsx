@@ -193,11 +193,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     direction: 'asc' | 'desc'
     status: TeacherAttendanceMark | null
   }>({ column: 'last_name', direction: 'asc', status: null })
+  const visibleStudentIds = useMemo(
+    () => logs.map((log) => log.student_id),
+    [logs],
+  )
   const attendance = useTeacherAttendanceController({
     classroom,
     selectedDate,
     enabled: attendanceEnabled,
     isActive,
+    visibleStudentIds,
   })
   currentClassroomIdRef.current = classroom.id
   currentSelectedDateRef.current = selectedDate
@@ -681,7 +686,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       id: 'show-attendance-qr',
       label: 'Show QR',
       icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
-      disabled: Boolean(attendance.activeCommand) || attendance.localSessionPending,
+      disabled: Boolean(attendance.activeCommand) || attendance.sessionPending,
       onSelect: attendance.openQrPresentation,
     }] : []),
     ...(attendance.attendanceReady && attendance.sessionAction ? [{
@@ -690,7 +695,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       icon: attendance.sessionAction.command === 'open'
         ? <DoorOpen className="h-4 w-4" aria-hidden="true" />
         : <DoorClosed className="h-4 w-4" aria-hidden="true" />,
-      disabled: Boolean(attendance.activeCommand) || attendance.localSessionPending,
+      disabled: Boolean(attendance.activeCommand) || attendance.sessionPending,
       onSelect: () => void attendance.submitSessionCommand(attendance.sessionAction!.command),
     }] : []),
     ...(!classroom.archived_at ? [{
@@ -769,7 +774,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   ? <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
                   : <DoorOpen className="h-4 w-4" aria-hidden="true" />}
                 items={mobileAttendanceActions}
-                disabled={Boolean(attendance.activeCommand) || attendance.localSessionPending}
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
                 menuAriaLabel="Attendance actions"
                 menuAlign="center"
               />
@@ -783,7 +788,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 variant="primary"
                 className="hidden h-9 w-9 px-0 sm:inline-flex"
                 aria-label="Show QR"
-                disabled={Boolean(attendance.activeCommand) || attendance.localSessionPending}
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
                 onClick={attendance.openQrPresentation}
               >
                 <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
@@ -799,7 +804,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 className="hidden h-9 w-9 px-0 sm:inline-flex"
                 aria-label={attendance.sessionAction.label}
                 loading={attendance.activeCommand === `session:${attendance.sessionAction.command}`}
-                disabled={Boolean(attendance.activeCommand) || attendance.localSessionPending}
+                disabled={Boolean(attendance.activeCommand) || attendance.sessionPending}
                 onClick={() => void attendance.submitSessionCommand(attendance.sessionAction!.command)}
               >
                 {attendance.sessionAction.command === 'open'
@@ -886,7 +891,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 />
               ) : null}
               <col />
-              {attendanceEnabled ? <col className="w-36" /> : null}
+              {attendanceEnabled ? <col className="w-40" /> : null}
             </colgroup>
             <DataTableHead sticky>
               <DataTableRow>
@@ -1131,7 +1136,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       <DataTableCell density="tight" className="!py-0">
                         {attendanceStudent ? (
                           <div
-                            className="flex items-center gap-1"
+                            className={cn(
+                              'flex items-center gap-1',
+                              attendanceStudent.hasManualOverride && attendanceStudent.hasQrCheckIn
+                                && 'flex-col items-end gap-0',
+                            )}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <AttendanceStatusControl

@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Migrate selected Test grading to the teacher work surface
-
-**Risk profile:** async-grading — teacher Test roster presentation, sorting,
-selection, and action routing changed around preserved grading mutations; no API,
-schema, persistence, authentication, dependency, or student UI changed.
-
-- Mapped the selected-Test domain before migrating it: whole-Test access remains
-  distinct from selected-student access, while AI grade, unsubmit, return, and
-  delete-work retain their existing eligibility and confirmation behavior.
-- Adopted the shared teacher context bar, internally scrolling table frame, and
-  selection bar. The whole-Test access control stays mathematically centered;
-  lifecycle context and Test utilities stay quiet at the edges; bulk actions
-  appear only after row selection.
-- Split names into sortable/resizable First and Last columns, kept compact
-  operational metrics, added sticky sortable/resizable headers, and added
-  semantic count chips that can prioritize closed, submitted, or returned rows.
-- Added a guarded long-roster fixture and responsive browser contract covering
-  default, status-sorted, scrolled, and selected states on desktop/mobile in
-  light/dark. Student UI is n/a because the surface is teacher-only.
-- Composite-widget accessibility checklist reviewed: keyboard navigation and
-  Escape behavior remain covered, semantic sort/pressed states have focused
-  tests, and remaining manual follow-up is none. Existing design guidance
-  already governs this surface, so no durable design rule was added.
-
-**Verification:** focused Test/shared work-surface tests (71/71), responsive
-Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
-checks, and production build pass. Visual review covers eight captures: default
-and selected long-roster states across desktop/mobile and light/dark.
-
-**Model recommendation:** current GPT-5 coding model for a domain-sensitive
-teacher workspace migration with responsive visual verification.
-
 ## 2026-08-27 — Tighten selected Test roster controls
 
 **Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
@@ -1494,6 +1462,7 @@ strict `main` and `production` ruleset inspection, and diff validation pass.
 **Model recommendation:** GPT-5.6 Terra for the bounded CI/browser-test
 remediation review and GPT-5.6 Sol only if the follow-up audit exposes a deeper
 workflow or safety-lane defect.
+
 ## 2026-08-29 — Combine Daily and teacher Attendance
 
 **Risk profile:** standard application behavior — teacher classroom navigation,
@@ -1538,12 +1507,22 @@ student Attendance behavior changed.
   Escape closes the active action menu, restores trigger focus, and preserves
   the selected Daily log workspace. Direct controller, server-view, component,
   shared-menu, and browser-geometry regressions cover these cases.
+- A subsequent cumulative review closed three more integration boundaries.
+  The server projection now exposes authoritative session-command ownership so
+  remounts cannot submit a duplicate open/close command. Selection and bulk
+  mutations are intersected with the current Daily log rows, immediately
+  pruning students hidden by a fresher Daily response. The rare QR check-in
+  plus manual-override recovery action now stacks below the three 44px status
+  targets inside a minimally wider status column instead of overflowing it.
+  Focused controller, server-view, component, and browser-geometry regressions
+  cover all three cases.
 - Visual verification passed Attendance-on, unconfigured Attendance, and
   Daily-only teacher states on desktop/mobile in light/dark, including
-  selection, hidden ID, open More menus, and the sticky long-roster header. The
-  unchanged student Daily flow also passed in all four browser projects.
+  selection, hidden ID, open More menus, the sticky long-roster header, and the
+  contained QR-override recovery row. The unchanged student Daily flow also
+  passed in all four browser projects.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 222 changed-path tests, 1,326 related tests, TypeScript, and
+  UI/design policy, 227 changed-path tests, 1,331 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 
