@@ -57,7 +57,6 @@ import {
   QrCode,
   RefreshingIndicator,
   SortableHeaderCell,
-  TableCard,
   TableSelectionCell,
   TableSelectionHeaderCell,
   Tooltip,
@@ -463,6 +462,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (document.querySelector('[role="menu"]')) return
       event.preventDefault()
       handleKeyboardDeselect()
     }
@@ -477,6 +477,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
       if (!selectedWorkspace) return
+      if (event.target instanceof Element && event.target.closest('[aria-label="Daily controls"]')) return
       if (event.target instanceof Node && selectedWorkspace.contains(event.target)) return
       handleDeselect()
     }
@@ -675,15 +676,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       onSelect: () => void attendance.resetCheckIns([...attendance.selectedIds]),
     },
   ]
-  const mobileAttendanceActions: TeacherWorkSurfaceActionItem[] = attendance.attendanceReady ? [
-    ...(attendance.sessionState === 'open' ? [{
+  const mobileAttendanceActions: TeacherWorkSurfaceActionItem[] = attendanceEnabled ? [
+    ...(attendance.attendanceReady && attendance.sessionState === 'open' ? [{
       id: 'show-attendance-qr',
       label: 'Show QR',
       icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
       disabled: Boolean(attendance.activeCommand) || attendance.localSessionPending,
       onSelect: attendance.openQrPresentation,
     }] : []),
-    ...(attendance.sessionAction ? [{
+    ...(attendance.attendanceReady && attendance.sessionAction ? [{
       id: `${attendance.sessionAction.command}-attendance`,
       label: attendance.sessionAction.label,
       icon: attendance.sessionAction.command === 'open'
@@ -705,7 +706,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     <TeacherWorkSurfaceContextBar
       ariaLabel="Daily controls"
       testId="daily-context-bar"
-      context={attendance.attendanceReady ? (
+      context={attendanceEnabled ? (
         <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
           {!classroom.archived_at ? (
             <Tooltip content={attendance.windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
@@ -863,7 +864,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         onDeselect={handleKeyboardDeselect}
         getRowId={getAttendanceStudentRowId}
       >
-        <TableCard chrome="flush">
+        <>
           {(refreshing || attendance.refreshing) && (
             <RefreshingIndicator />
           )}
@@ -887,7 +888,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <col />
               {attendanceEnabled ? <col className="w-36" /> : null}
             </colgroup>
-            <DataTableHead>
+            <DataTableHead sticky>
               <DataTableRow>
                 {attendanceEnabled ? (
                   <TableSelectionHeaderCell
@@ -1183,7 +1184,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               )}
             </DataTableBody>
           </DataTable>
-        </TableCard>
+        </>
       </KeyboardNavigableTable>
     )
   }

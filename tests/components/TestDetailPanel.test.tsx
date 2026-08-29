@@ -1797,7 +1797,6 @@ Current Test reference material.
 
       const editorPane = await screen.findByTestId('test-question-editor-pane')
       const markdownPane = screen.getByTestId('test-question-markdown-pane')
-      holdAutosaveDebounce()
       const user = userEvent.setup()
       const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
@@ -1805,11 +1804,9 @@ Current Test reference material.
       await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)
 
-      await waitFor(() => {
-        expect(
-          (within(markdownPane).getByTestId('test-markdown-editor') as HTMLTextAreaElement).value
-        ).toContain('Explain the amortized runtime complexity of your solution.')
-      })
+      expect(
+        (within(markdownPane).getByTestId('test-markdown-editor') as HTMLTextAreaElement).value
+      ).toContain('Explain the amortized runtime complexity of your solution.')
 
       const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
       expect(patchCalls).toHaveLength(0)

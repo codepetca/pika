@@ -463,6 +463,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
 test('combines Daily logs and entitled Attendance in one teacher work surface', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
+  let attendanceConfigured = true
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -551,19 +552,21 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       body: JSON.stringify({
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
         classDate: '2026-08-17',
-        integration: 'ready',
+        integration: attendanceConfigured ? 'ready' : 'not_configured',
         session: {
-          state: 'open',
-          opensAt: '2026-08-17T12:45:00.000Z',
-          closesAt: '2026-08-17T14:00:00.000Z',
-          sessionStartsAt: '2026-08-17T13:00:00.000Z',
-          sessionEndsAt: '2026-08-17T14:00:00.000Z',
-          presentThroughAt: '2026-08-17T13:10:00.000Z',
-          absentAt: '2026-08-17T14:00:00.000Z',
-          revision: 1,
+          state: attendanceConfigured ? 'open' : 'not_scheduled',
+          opensAt: attendanceConfigured ? '2026-08-17T12:45:00.000Z' : null,
+          closesAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
+          sessionStartsAt: attendanceConfigured ? '2026-08-17T13:00:00.000Z' : null,
+          sessionEndsAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
+          presentThroughAt: attendanceConfigured ? '2026-08-17T13:10:00.000Z' : null,
+          absentAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
+          revision: attendanceConfigured ? 1 : null,
           commandFailed: false,
         },
-        sync: { state: 'current', confirmedAt: '2026-08-17T13:20:00.000Z' },
+        sync: attendanceConfigured
+          ? { state: 'current', confirmedAt: '2026-08-17T13:20:00.000Z' }
+          : { state: 'unavailable', confirmedAt: null },
         students,
       }),
     })
@@ -597,6 +600,19 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     animations: 'disabled',
   })
 
+  const scrollPane = page.getByTestId('daily-student-scroll-pane')
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  await scrollPane.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  const [scrollPaneBox, tableHeadBox] = await Promise.all([
+    scrollPane.boundingBox(),
+    scrollPane.locator('thead').boundingBox(),
+  ])
+  expect(scrollPaneBox).not.toBeNull()
+  expect(tableHeadBox).not.toBeNull()
+  expect(Math.abs(tableHeadBox!.y - scrollPaneBox!.y)).toBeLessThanOrEqual(1)
+
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   await expect(primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
 
@@ -611,7 +627,22 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   })
   await verifyProjectContract(page, testInfo)
 
+  attendanceConfigured = false
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+  } else {
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
+  }
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-unconfigured.png`),
+    animations: 'disabled',
+  })
+  if (viewport === 'mobile') await page.keyboard.press('Escape')
+
   await page.goto('/e2e-fixtures/teacher-daily-attendance?attendance=off', { waitUntil: 'domcontentloaded' })
 
   const dailyOnlyContextBar = page.getByTestId('daily-context-bar')

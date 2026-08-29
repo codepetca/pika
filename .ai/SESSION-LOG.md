@@ -1516,7 +1516,8 @@ student Attendance behavior changed.
   bulk mark commands, session close, QR presentation, sorting, ID removal,
   menu/dialog focus, and preserved Daily split/resize behavior. Stabilized two
   unrelated Test-detail debounce assertions selected by the full dependency
-  gate by holding only their 3-second autosave timer during the assertion.
+  gate by asserting the immediate mirror update synchronously and holding the
+  other assertion's 3-second autosave timer.
 - Independent review identified that an accepted Attendance command could stay
   locally pending forever when provider confirmation arrived after the bounded
   foreground poll. Daily now keeps one cancellable background revalidation
@@ -1530,11 +1531,19 @@ student Attendance behavior changed.
   non-retryable active-versus-invalidated check-in mapping, and controller-level
   rejection of mark/reset commands for students whose authoritative view still
   reports pending command ownership.
-- Visual verification passed Attendance-on and Daily-only teacher states on
-  desktop/mobile in light/dark, including selection, hidden ID, and open More
-  menu. Student visual verification is n/a because no student surface changed.
+- Final integration review hardened four boundaries: Attendance hours remain
+  reachable when the entitlement exists but the policy is disabled or missing;
+  a current pending retry takes precedence over retained historical outbox
+  failures; long-roster headers stay sticky inside the Daily scroll pane; and
+  Escape closes the active action menu, restores trigger focus, and preserves
+  the selected Daily log workspace. Direct controller, server-view, component,
+  shared-menu, and browser-geometry regressions cover these cases.
+- Visual verification passed Attendance-on, unconfigured Attendance, and
+  Daily-only teacher states on desktop/mobile in light/dark, including
+  selection, hidden ID, open More menus, and the sticky long-roster header. The
+  unchanged student Daily flow also passed in all four browser projects.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 207 changed-path tests, 1,319 related tests, TypeScript, and
+  UI/design policy, 222 changed-path tests, 1,326 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 

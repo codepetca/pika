@@ -129,6 +129,8 @@ function TeacherWorkSurfaceActionMenuButton({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopImmediatePropagation()
         closeMenu({ restoreFocus: true })
         return
       }

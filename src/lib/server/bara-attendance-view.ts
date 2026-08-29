@@ -325,11 +325,12 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
       presentThroughAt: input.occurrence.presentThroughAt ?? null,
       absentAt: input.occurrence.absentAt ?? null,
       revision: projection?.revision ?? null,
-      commandFailed: input.failedSessionCommand ?? false,
+      commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     } : {
       state: 'not_scheduled', opensAt: null, closesAt: null,
       sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
-      revision: null, commandFailed: input.failedSessionCommand ?? false,
+      revision: null,
+      commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     },
     sync: { state: syncState, confirmedAt },
     students: input.students.map((student) => {
@@ -348,7 +349,8 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
         hasQrCheckIn: Boolean(fact),
         hasManualOverride: hasOverride,
         pendingCommand: fact ? pendingRefs.has(fact.checkInRef) : false,
-        commandFailed: failedStudentIds.has(student.studentId),
+        commandFailed: failedStudentIds.has(student.studentId)
+          && !(fact ? pendingRefs.has(fact.checkInRef) : false),
       }
     }),
   }

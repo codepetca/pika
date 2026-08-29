@@ -106,6 +106,7 @@ function confirmationOutcome(
       next.session.state === confirmation.expectedState
       && next.session.revision !== confirmation.previousRevision
     ) return 'confirmed'
+    if (next.sync.state === 'pending') return 'pending'
     return next.session.commandFailed ? 'failed' : 'pending'
   }
 
@@ -114,6 +115,7 @@ function confirmationOutcome(
       next.students.find((student) => student.studentId === studentId)
     )
     if (students.every((student) => student?.hasQrCheckIn === false)) return 'confirmed'
+    if (students.some((student) => student?.pendingCommand)) return 'pending'
     return students.some((student) => student?.commandFailed) ? 'failed' : 'pending'
   }
 

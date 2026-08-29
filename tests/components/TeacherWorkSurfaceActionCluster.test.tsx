@@ -108,7 +108,12 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'Escape' })
+    const outerEscapeHandler = vi.fn()
+    window.addEventListener('keydown', outerEscapeHandler)
+    expect(fireEvent.keyDown(window, { key: 'Escape' })).toBe(false)
+    window.removeEventListener('keydown', outerEscapeHandler)
+
+    expect(outerEscapeHandler).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
   })
 })

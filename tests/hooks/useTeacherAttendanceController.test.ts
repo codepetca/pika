@@ -169,6 +169,145 @@ describe('useTeacherAttendanceController', () => {
     confirmMock.mockRestore()
   })
 
+  it('keeps a session retry pending while an older terminal failure is retained', async () => {
+    let viewReads = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        viewReads += 1
+        const base = attendanceView('2026-05-05')
+        const retryPending = viewReads === 2
+        const retryConfirmed = viewReads >= 3
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            ...base,
+            session: {
+              ...base.session,
+              state: retryConfirmed ? 'closed' : 'open',
+              revision: retryConfirmed ? 2 : 1,
+              commandFailed: true,
+            },
+            sync: {
+              state: retryPending ? 'pending' : 'current',
+              confirmedAt: base.sync.confirmedAt,
+            },
+          }),
+        }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/session' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ outcome: 'applied' }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    vi.useFakeTimers()
+
+    let command!: Promise<void>
+    await act(async () => {
+      command = result.current.submitSessionCommand('close')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800)
+      await command
+    })
+
+    expect(viewReads).toBe(3)
+    expect(result.current.localSessionPending).toBe(false)
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Attendance closed',
+      tone: 'info',
+    })
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'Attendance could not be closed',
+      tone: 'warning',
+    })
+  })
+
+  it('keeps a check-in retry pending while an older terminal failure is retained', async () => {
+    let viewReads = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        viewReads += 1
+        const base = attendanceView('2026-05-05')
+        const retryPending = viewReads === 2
+        const retryConfirmed = viewReads >= 3
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            ...base,
+            sync: {
+              state: retryPending ? 'pending' : 'current',
+              confirmedAt: base.sync.confirmedAt,
+            },
+            students: [{
+              ...base.students[0],
+              hasQrCheckIn: !retryConfirmed,
+              checkedInAt: retryConfirmed ? null : base.students[0].checkedInAt,
+              pendingCommand: retryPending,
+              commandFailed: true,
+            }],
+          }),
+        }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/check-ins' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ outcome: 'pending' }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    vi.useFakeTimers()
+
+    let command!: Promise<void>
+    await act(async () => {
+      command = result.current.resetCheckIns([studentId])
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800)
+      await command
+    })
+
+    expect(viewReads).toBe(3)
+    expect(result.current.pendingStudentIds.has(studentId)).toBe(false)
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: '1 QR check-in removed',
+      tone: 'info',
+    })
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'QR check-ins could not be removed',
+      tone: 'warning',
+    })
+    confirmMock.mockRestore()
+  })
+
   it('cancels foreground confirmation after an A to B to A view transition', async () => {
     mockPendingMarksFetch()
     const { result, rerender } = renderHook(

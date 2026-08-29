@@ -198,6 +198,31 @@ describe('Pika attendance derivation', () => {
     expect(result.students[1].commandFailed).toBe(false)
   })
 
+  it('prioritizes current pending ownership over retained session and check-in failures', () => {
+    const checkIn = {
+      studentId: students[0].studentId,
+      checkInRef: 'check_in_retry',
+      revision: 1,
+      acceptedAt: '2026-09-02T13:01:00.000Z',
+      invalidatedAt: null,
+      updatedAt: '2026-09-02T13:01:00.000Z',
+    }
+    const result = build({
+      checkInFacts: [checkIn],
+      pendingCheckInRefs: [checkIn.checkInRef],
+      failedStudentIds: [students[0].studentId],
+      pendingSessionCommand: true,
+      failedSessionCommand: true,
+    })
+
+    expect(result.sync.state).toBe('pending')
+    expect(result.session.commandFailed).toBe(false)
+    expect(result.students[0]).toMatchObject({
+      pendingCommand: true,
+      commandFailed: false,
+    })
+  })
+
   it('maps a non-retryable invalidation only to a still-active check-in', async () => {
     const result = await loadTeacherAttendanceView({
       supabase: attendanceViewSupabase(),
