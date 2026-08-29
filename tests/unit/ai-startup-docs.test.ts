@@ -263,6 +263,13 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('return the PR to draft')
     expect(workflow).toContain('ready_for_review')
     expect(workflow).toContain('workflow_dispatch')
+    expect(workflow).toContain('Do not start `workflow_dispatch`')
+    expect(workflow).toContain('queued, in progress, or completed')
+    expect(workflow).toContain('exact reviewed SHA')
+    expect(workflow).toContain('eligible, non-skipped')
+    expect(workflow).toContain('completed draft-skipped run does not count')
+    expect(workflow).toContain('Rerun a failed eligible pull-request run through')
+    expect(workflow).toMatch(/never launch it concurrently\s+with the ready-event run/)
   })
 
   it('documents orient-only startup for read-only work', () => {

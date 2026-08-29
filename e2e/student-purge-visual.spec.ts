@@ -108,17 +108,17 @@ async function expectNoHorizontalOverflow(page: Page) {
   )).toBe(false)
 }
 
-test('captures individual-student purge and student boundary matrix', async ({ browser }, testInfo) => {
-  const discoveryContext = await browser.newContext({ storageState: '.auth/teacher.json' })
-  const discoveryPage = await discoveryContext.newPage()
-  await discoveryPage.goto('/classrooms')
-  await discoveryPage.locator('[data-testid="classroom-card"]').first().click()
-  await discoveryPage.waitForURL(/\/classrooms\/[^/?]+/)
-  const classroomId = new URL(discoveryPage.url()).pathname.split('/').at(-1)
-  await discoveryContext.close()
-  expect(classroomId).toBeTruthy()
+for (const entry of matrix) {
+  test(`captures individual-student purge and student boundary matrix (${entry.name})`, async ({ browser }, testInfo) => {
+    const discoveryContext = await browser.newContext({ storageState: '.auth/teacher.json' })
+    const discoveryPage = await discoveryContext.newPage()
+    await discoveryPage.goto('/classrooms')
+    await discoveryPage.locator('[data-testid="classroom-card"]').first().click()
+    await discoveryPage.waitForURL(/\/classrooms\/[^/?]+/)
+    const classroomId = new URL(discoveryPage.url()).pathname.split('/').at(-1)
+    await discoveryContext.close()
+    expect(classroomId).toBeTruthy()
 
-  for (const entry of matrix) {
     const { context, page } = await newRolePage(
       () => browser.newContext({ storageState: '.auth/teacher.json', viewport: entry.viewport }),
       entry.theme,
@@ -150,28 +150,26 @@ test('captures individual-student purge and student boundary matrix', async ({ b
       animations: 'disabled',
     })
     await context.close()
-  }
 
-  for (const entry of matrix) {
-    const { context, page } = await newRolePage(
+    const { context: studentContext, page: studentPage } = await newRolePage(
       () => browser.newContext({ storageState: '.auth/student.json', viewport: entry.viewport }),
       entry.theme,
     )
     let studentPurgeRequestCount = 0
-    await page.route('**/api/teacher/classrooms/*/students/*/purge**', async (route) => {
+    await studentPage.route('**/api/teacher/classrooms/*/students/*/purge**', async (route) => {
       studentPurgeRequestCount += 1
       await route.abort()
     })
-    await page.goto(`/classrooms/${classroomId}?tab=roster`)
-    await expect(page.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
-    await expect(page.getByText('Purge classroom data')).toHaveCount(0)
+    await studentPage.goto(`/classrooms/${classroomId}?tab=roster`)
+    await expect(studentPage.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
+    await expect(studentPage.getByText('Purge classroom data')).toHaveCount(0)
     expect(studentPurgeRequestCount).toBe(0)
-    await expectNoHorizontalOverflow(page)
-    await page.screenshot({
+    await expectNoHorizontalOverflow(studentPage)
+    await studentPage.screenshot({
       path: testInfo.outputPath(`student-boundary-${entry.name}.png`),
       fullPage: true,
       animations: 'disabled',
     })
-    await context.close()
-  }
-})
+    await studentContext.close()
+  })
+}
