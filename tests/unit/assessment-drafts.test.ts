@@ -7,6 +7,7 @@ import {
   ensureAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
+  publishTestFromDraftAtomic,
   saveTestDraftAtomic,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
@@ -863,6 +864,68 @@ describe('assessment drafts', () => {
       ok: false,
       status: 409,
       error: 'The Test changed after activation was requested. Review and try again.',
+    })
+  })
+
+  it('publishes a saved draft through the atomic closed-state RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        draft_version: 4,
+        test: { id: 'test-1', status: 'closed' },
+      },
+      error: null,
+    })
+
+    await expect(publishTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 4,
+    })).resolves.toEqual({
+      ok: true,
+      draftVersion: 4,
+      test: { id: 'test-1', status: 'closed' },
+    })
+    expect(rpc).toHaveBeenCalledWith('publish_test_from_draft_atomic', {
+      p_expected_draft_version: 4,
+      p_teacher_id: 'teacher-1',
+      p_test_id: 'test-1',
+    })
+  })
+
+  it('fails closed when publication does not return a closed Test', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        draft_version: 4,
+        test: { id: 'test-1', status: 'active' },
+      },
+      error: null,
+    })
+
+    await expect(publishTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 4,
+    })).resolves.toEqual({
+      ok: false,
+      status: 500,
+      error: 'Failed to publish Test',
+    })
+  })
+
+  it('reports the publication migration requirement separately from activation', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'publish_test_from_draft_atomic is missing' },
+    })
+
+    await expect(publishTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 4,
+    })).resolves.toEqual({
+      ok: false,
+      status: 503,
+      error: 'Atomic Test publication requires migration 139 to be applied',
     })
   })
 

@@ -9302,6 +9302,14 @@ export type Database = {
         }
         Returns: Json
       }
+      publish_test_from_draft_atomic: {
+        Args: {
+          p_expected_draft_version: number
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
