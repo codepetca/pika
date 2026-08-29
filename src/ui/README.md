@@ -195,6 +195,10 @@ base controls and shell styling follow the `@/ui` contracts.
   state and the same roving arrow/first/last keyboard behavior. Options may provide semantic
   `className`, `activeClassName`, and `inactiveClassName` overrides when the feature's established
   status colors carry domain meaning; the shared control continues to own targets, focus, and keys.
+- Use the app-level `DateNavigator` from `@/components/DateNavigator` for previous/date/next scope
+  controls. Callers retain date calculations and picker behavior; the shared composition owns the
+  control geometry and accessible labels. Use its joined treatment when the date is the centered
+  actionable scope in a teacher context bar.
 - Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
   from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
   row IDs so keyboard selection can move focus to the active row.

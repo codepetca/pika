@@ -466,7 +466,10 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    const contextBar = screen.getByRole('region', { name: 'Test actions' })
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     expect(screen.getByRole('button', { name: 'New test' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New test' }).closest('.fixed')).toBeNull()
     expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()

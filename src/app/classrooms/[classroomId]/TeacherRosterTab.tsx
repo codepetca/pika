@@ -23,7 +23,7 @@ import {
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { StudentPurgeDialog } from '@/components/StudentPurgeDialog'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
@@ -722,8 +722,9 @@ export function TeacherRosterTab({ classroom }: Props) {
   ]
 
   const actionBar = (
-    <TeacherWorkSurfaceActionBar
-      center={
+    <TeacherWorkSurfaceContextBar
+      ariaLabel="Roster controls"
+      primary={
         <TeacherWorkSurfaceActionCluster>
           <Button
             type="button"
@@ -753,7 +754,6 @@ export function TeacherRosterTab({ classroom }: Props) {
           />
         </TeacherWorkSurfaceActionCluster>
       }
-      centerPlacement="floating"
     />
   )
 

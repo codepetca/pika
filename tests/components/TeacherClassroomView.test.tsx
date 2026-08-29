@@ -1083,7 +1083,8 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByRole('button', { name: 'New Classwork' }).closest('.fixed')).toHaveClass('fixed')
+    expect(screen.getByRole('region', { name: 'Classwork actions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New Classwork' }).closest('.fixed')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
 
@@ -1293,7 +1294,8 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Game Jam Links' }))
 
     expect(screen.getByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
-    expect(screen.getByTestId('survey-workspace-actionbar-center').parentElement).toHaveClass('fixed')
+    expect(screen.getByRole('region', { name: 'Survey actions' })).toBeInTheDocument()
+    expect(screen.getByTestId('survey-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
     expect(screen.getByRole('button', { name: 'Edit survey' })).toBeInTheDocument()
     const closePollButton = screen.getAllByRole('button', { name: 'Close poll' })[0]
     const hideResultsButton = screen.getByRole('button', { name: 'Hide results' })
@@ -1956,7 +1958,8 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
-    expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
+    expect(screen.getByRole('region', { name: 'Assignment actions' })).toBeInTheDocument()
+    expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 

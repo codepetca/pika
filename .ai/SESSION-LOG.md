@@ -11,52 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Resolve legacy Test-question backfill collisions
-
-**Risk profile:** runtime-platform — production Test draft identity backfill;
-no production data was changed by migration 134 and no migration retry occurred.
-
-- Production already contained migration 133. The first authorized attempt to
-  apply migration 134 failed atomically because 12 legacy draft questions each
-  matched both their historical row ID and a question-zero row carrying that ID
-  as corrupted portable lineage from migrations 112/114. Migration 134 remains
-  unapplied in production.
-- Changed the unapplied migration to resolve the exact historical row ID first,
-  then use a unique artifact/source identity only when no row-ID match exists.
-  The precedence is contractual and does not infer identity from position or
-  content; genuine multiple portable matches still fail closed.
-- Added static coverage and a fresh disposable-database regression that replays
-  the migration's exact backfill statement against the production collision
-  shape, proves both draft IDs resolve to distinct portable identities, and
-  proves neither persisted question row is mutated. Extended that fixture
-  through post-backfill save and activation so the installed RPCs cannot
-  reintroduce row-ID ambiguity after the one-time conversion.
-- Removed internal row-ID matching from migration 134's post-backfill save and
-  activation functions. Materialized Blueprint capture now validates in a
-  portable-only mode while the temporary dual reader remains scoped to actual
-  legacy draft JSON.
-- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
-  lock before the question-table fence. This makes the migration wait behind an
-  in-flight save before holding a lock that save must upgrade, preventing a
-  Draft-row/question-table deadlock; the database harness now rehearses that
-  two-session ordering.
-- Scoped the legacy draft rewrite under the transaction-local identity-mapping
-  guard. The identity-only update no longer advances Classroom structural
-  revision or waits on a Classroom held by a save that is waiting at the Draft
-  fence; the database harness now rehearses both migration/save arrival orders.
-- A privacy-minimized read-only production rehearsal resolved all 351 questions
-  across 28 drafts: 212 persisted questions would receive portable draft IDs,
-  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
-  portable matches, row reuse, or duplicate portable identities remain.
-- Rebased onto current `origin/main`. The focused 56-test identity/draft suite,
-  full 5,142-test suite, TypeScript, lint, architecture/design/UI policies,
-  shell syntax, diff validation, and production build pass. Fresh-database CI
-  remains authoritative for the migration replay; migration 134 was not applied
-  or reset locally and no hosted state changed.
-
-**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
-that preserves student-linked row identity.
-
 ## 2026-08-27 — Version portable Test draft question identity
 
 **Risk profile:** runtime-platform — Test draft identity compatibility and the
@@ -1335,3 +1289,35 @@ lease fencing, and explicitly authorized local and production migration 141.
   application deployment was performed as part of the schema application.
 
 **Model recommendation:** GPT-5.6 Sol for the final exact-head CI and merge loop.
+
+## 2026-08-28 — Consistent classroom work-surface controls
+
+**Risk profile:** low — teacher/student presentation structure and shared
+control composition only; existing domain behavior, routes, schema,
+dependencies, deployments, and hosted state are unchanged.
+
+- Added the shared app-level `DateNavigator` composition and adopted it in
+  Daily, Attendance, and Calendar while leaving each feature's date logic and
+  picker behavior local.
+- Migrated every production consumer of the transitional floating teacher
+  action bar to the anchored, mathematically centered
+  `TeacherWorkSurfaceContextBar`: Classwork, Tests summary, Gradebook, Roster,
+  Announcements, and Calendar. Existing commands and menu contents are
+  unchanged.
+- Preserved the floating layer token on the anchored context row so open menus
+  remain above sticky operational-table headers; verified the Gradebook and
+  Roster open-menu states explicitly.
+- Documented the shared date-scope composition and removed the Calendar raw
+  value/native-control exceptions made obsolete by the refactor.
+- Visual verification passed teacher Calendar, Daily, Classwork, Tests,
+  Gradebook, Roster, and Announcements across desktop/mobile and light/dark,
+  plus student Calendar across the same matrix and student Classwork where the
+  shared page was otherwise unchanged.
+- All 608 test files / 5,254 tests pass, along with lint, architecture,
+  design/UI policy checks, production build, and diff validation. The build
+  retains the existing WorkOS Edge Runtime and browsers-data warnings.
+
+No deployment or database operation was performed.
+
+**Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
+GPT-5.6 Terra for bounded follow-up on an individual classroom surface.

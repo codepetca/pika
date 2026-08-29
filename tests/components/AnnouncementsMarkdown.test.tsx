@@ -218,8 +218,11 @@ describe('announcement markdown rendering', () => {
 
     await screen.findByRole('link', { name: 'course outline' })
 
+    const contextBar = screen.getByRole('region', { name: 'Announcement controls' })
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     expect(screen.getByRole('button', { name: 'New announcement' })).toBeInTheDocument()
     const actionsTrigger = screen.getByRole('button', { name: 'Announcement actions' })
+    expect(actionsTrigger.closest('.fixed')).toBeNull()
     expect(actionsTrigger).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(actionsTrigger)
 
