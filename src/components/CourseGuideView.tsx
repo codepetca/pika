@@ -1,16 +1,13 @@
-import { ExternalLink, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { RichTextViewer } from '@/components/editor/RichTextViewer'
 import {
-  formatCourseGuideDueDate,
   hasCourseGuideContent,
   type CourseGuideAssignment,
   type CourseGuideData,
   type CourseGuideTest,
 } from '@/lib/course-guide'
-import { formatAnnouncementTimestamp } from '@/lib/announcements'
 import { Button, PageContent, PageHeading, PageLayout, PageState, cn } from '@/ui'
 
 export type CourseGuideEditableSection = 'overview' | 'resources'
@@ -71,72 +68,19 @@ function CourseGuideSection({
   )
 }
 
-function AssessmentMeta({ item }: { item: CourseGuideAssignment | CourseGuideTest }) {
-  const meta: string[] = []
-
-  if ('dueAt' in item && item.dueAt) {
-    meta.push(`Due ${formatCourseGuideDueDate(item.dueAt)}`)
-  }
-  if (item.pointsPossible != null) {
-    meta.push(`${item.pointsPossible} point${item.pointsPossible === 1 ? '' : 's'}`)
-  }
-  if (!item.includeInFinal) {
-    meta.push('Not in final grade')
-  } else if (item.courseWeightPercent != null) {
-    meta.push(`${item.courseWeightPercent}% of course`)
-  }
-
-  if (meta.length === 0) return null
-
-  return (
-    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
-      {meta.map((value) => <span key={value}>{value}</span>)}
-    </div>
-  )
-}
-
 function AssessmentList({
   items,
-  kind,
 }: {
   items: Array<CourseGuideAssignment | CourseGuideTest>
-  kind: 'assignment' | 'test'
 }) {
   return (
-    <div className="divide-y divide-border">
-      {items.map((item, index) => (
-        <article key={item.key} className="py-3">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 shrink-0 text-xs font-semibold uppercase text-text-muted">
-              {kind === 'assignment' ? `A${index + 1}` : `T${index + 1}`}
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-semibold text-text-default">{item.title}</h3>
-              <AssessmentMeta item={item} />
-              {'instructionsMarkdown' in item && item.instructionsMarkdown.trim() ? (
-                <LimitedMarkdown content={item.instructionsMarkdown} className="mt-3 text-sm [&_p]:leading-6" />
-              ) : null}
-              {'documents' in item && item.documents.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {item.documents.map((document) => (
-                    <a
-                      key={document.key}
-                      href={document.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-control items-center gap-2 rounded-control border border-border px-3 py-2 text-sm font-medium text-primary transition-colors duration-fast hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation"
-                    >
-                      {document.title}
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </article>
+    <ul className="space-y-1">
+      {items.map((item) => (
+        <li key={item.key} className="py-1.5 text-sm font-medium text-text-default">
+          {item.title}
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }
 
@@ -224,43 +168,13 @@ export function CourseGuideView({
 
           {guide.visibility.assignments && guide.assignments.length > 0 ? (
             <CourseGuideSection id="assignments" title="Assignments">
-              <AssessmentList items={guide.assignments} kind="assignment" />
+              <AssessmentList items={guide.assignments} />
             </CourseGuideSection>
           ) : null}
 
           {guide.visibility.tests && guide.tests.length > 0 ? (
             <CourseGuideSection id="tests" title="Tests">
-              <AssessmentList items={guide.tests} kind="test" />
-            </CourseGuideSection>
-          ) : null}
-
-          {guide.visibility.lesson_plans && guide.lessonPlans.length > 0 ? (
-            <CourseGuideSection id="lesson-sequence" title="Lesson sequence">
-              <div className="divide-y divide-border">
-                {guide.lessonPlans.map((lesson) => (
-                  <article key={lesson.key} className="py-3">
-                    <LimitedMarkdown content={lesson.contentMarkdown} className="[&_p]:leading-6" />
-                  </article>
-                ))}
-              </div>
-            </CourseGuideSection>
-          ) : null}
-
-          {guide.visibility.announcements && guide.announcements.length > 0 ? (
-            <CourseGuideSection id="announcements" title="Announcements">
-              <div className="divide-y divide-border">
-                {guide.announcements.map((announcement) => (
-                  <article key={announcement.key} className="py-3">
-                    <div className="text-xs font-medium text-text-muted">
-                      {formatAnnouncementTimestamp(announcement.publishedAt)}
-                    </div>
-                    {announcement.title ? (
-                      <h3 className="mt-1 text-base font-semibold text-text-default">{announcement.title}</h3>
-                    ) : null}
-                    <AnnouncementContent content={announcement.content} className="mt-2" />
-                  </article>
-                ))}
-              </div>
+              <AssessmentList items={guide.tests} />
             </CourseGuideSection>
           ) : null}
         </PageContent>

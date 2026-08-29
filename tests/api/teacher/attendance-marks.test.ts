@@ -95,7 +95,6 @@ describe('POST /api/teacher/attendance/marks', () => {
       classroomId,
       classDate: '2026-09-08',
       requestId,
-      actor,
       integrationState: 'ready',
       marks: [{ studentId, status: 'present' }],
     })

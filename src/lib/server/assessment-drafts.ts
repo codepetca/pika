@@ -496,14 +496,16 @@ function getRpcErrorText(error: {
 
 function mapTestDraftRpcError(
   error: { code?: string; message?: string; details?: string | null; hint?: string | null },
-  operation: 'save' | 'activate',
+  operation: 'save' | 'activate' | 'publish',
 ): { ok: false; status: number; error: string } {
   const details = getRpcErrorText(error)
   if (isMissingAtomicTestDraftRpcError(error)) {
     return {
       ok: false,
       status: 503,
-      error: `Atomic Test draft ${operation} requires migration 134 to be applied`,
+      error: operation === 'publish'
+        ? 'Atomic Test publication requires migration 139 to be applied'
+        : `Atomic Test draft ${operation} requires migration 134 to be applied`,
     }
   }
   if (details.includes('draft_version_conflict')) {
@@ -512,7 +514,9 @@ function mapTestDraftRpcError(
       status: 409,
       error: operation === 'save'
         ? 'Draft updated elsewhere'
-        : 'The Test changed after activation was requested. Review and try again.',
+        : operation === 'publish'
+          ? 'The Test changed after publication was requested. Review and try again.'
+          : 'The Test changed after activation was requested. Review and try again.',
     }
   }
   if (details.includes('test_not_draft')) {
@@ -521,7 +525,9 @@ function mapTestDraftRpcError(
       status: 409,
       error: operation === 'save'
         ? 'This Test is no longer a draft'
-        : 'Only draft Tests can be activated',
+        : operation === 'publish'
+          ? 'Only draft Tests can be published'
+          : 'Only draft Tests can be activated',
     }
   }
   if (details.includes('document_conflict')) {
@@ -564,7 +570,11 @@ function mapTestDraftRpcError(
   return {
     ok: false,
     status: 500,
-    error: operation === 'save' ? 'Failed to save draft' : 'Failed to activate Test',
+    error: operation === 'save'
+      ? 'Failed to save draft'
+      : operation === 'publish'
+        ? 'Failed to publish Test'
+        : 'Failed to activate Test',
   }
 }
 
@@ -648,6 +658,41 @@ export async function activateTestFromDraftAtomic(
   const draftVersion = Number(result?.draft_version)
   if (!result?.test || !Number.isInteger(draftVersion) || draftVersion < 1) {
     return { ok: false, status: 500, error: 'Failed to activate Test' }
+  }
+
+  return { ok: true, draftVersion, test: result.test }
+}
+
+export async function publishTestFromDraftAtomic(
+  supabase: SupabaseLike,
+  input: {
+    teacherId: string
+    testId: string
+    expectedDraftVersion: number
+  },
+): Promise<AtomicTestActivationResult> {
+  const { data, error } = await supabase.rpc('publish_test_from_draft_atomic', {
+    p_expected_draft_version: input.expectedDraftVersion,
+    p_teacher_id: input.teacherId,
+    p_test_id: input.testId,
+  })
+
+  if (error) {
+    return mapTestDraftRpcError(error, 'publish')
+  }
+
+  const result = data as {
+    draft_version?: unknown
+    test?: Record<string, unknown>
+  } | null
+  const draftVersion = Number(result?.draft_version)
+  if (
+    !result?.test
+    || result.test.status !== 'closed'
+    || !Number.isInteger(draftVersion)
+    || draftVersion < 1
+  ) {
+    return { ok: false, status: 500, error: 'Failed to publish Test' }
   }
 
   return { ok: true, draftVersion, test: result.test }

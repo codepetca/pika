@@ -107,26 +107,31 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
   }
 }
 
-function mapResult(result: BaraStudentCheckInResult): StudentAttendanceCheckInView {
+function mapResult(
+  result: BaraStudentCheckInResult,
+  presentThroughAt?: string,
+): StudentAttendanceCheckInView {
+  const attendanceStatus = result.checkIn && presentThroughAt
+    ? Date.parse(result.checkIn.acceptedAt) <= Date.parse(presentThroughAt) ? 'present' : 'late'
+    : undefined
   switch (result.resultCode) {
-    case 'present_marked':
+    case 'check_in_accepted':
       return {
         state: 'checked_in',
         title: 'You are checked in',
         description: 'Your attendance was recorded.',
-        attendanceStatus: 'present',
-        ...(result.record ? { recordedAt: result.record.modifiedAt } : {}),
+        ...(attendanceStatus ? { attendanceStatus } : {}),
+        ...(result.checkIn ? { recordedAt: result.checkIn.acceptedAt } : {}),
       }
-    case 'already_present':
-    case 'already_late':
+    case 'already_checked_in':
       return {
         state: 'already_checked_in',
         title: 'You are already checked in',
         description: 'No additional attendance record was created.',
-        attendanceStatus: result.resultCode === 'already_late' ? 'late' : 'present',
-        ...(result.record ? { recordedAt: result.record.modifiedAt } : {}),
+        ...(attendanceStatus ? { attendanceStatus } : {}),
+        ...(result.checkIn ? { recordedAt: result.checkIn.acceptedAt } : {}),
       }
-    case 'session_closed':
+    case 'session_not_accepting':
       return {
         state: 'closed',
         title: 'Check-in is closed',
@@ -138,7 +143,6 @@ function mapResult(result: BaraStudentCheckInResult): StudentAttendanceCheckInVi
         title: 'This QR code is no longer valid',
         description: 'Ask your teacher to show the current attendance QR code.',
       }
-    case 'review_needed':
     case 'not_on_roster':
     case 'not_authorized':
       return {
@@ -157,6 +161,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   resolveActor?: typeof resolveVerifiedPikaAttendanceStudent
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
+  loadPresentThroughAt?: (input: { classroomId: string; occurrenceRef: string }) => Promise<string>
   verifyCanaryClassroom?: (input: { supabase: any; classroomId: string }) => Promise<void>
 }) {
   const transportState = input.integrationState ?? getBaraAttendanceIntegrationState()
@@ -248,7 +253,26 @@ export async function executeStudentAttendanceCheckIn(input: {
       throw new StudentAttendanceCheckInError('upstream_unavailable')
     }
   }
-  const mapped = mapResult(result)
+  let presentThroughAt: string | undefined
+  if (result.checkIn) {
+    if (input.loadPresentThroughAt) {
+      presentThroughAt = await input.loadPresentThroughAt({
+        classroomId: entry.classroomId, occurrenceRef: entry.occurrenceRef,
+      })
+    } else {
+    const { data, error } = await input.supabase
+      .from('attendance_occurrence_mappings')
+      .select('present_through_at')
+      .eq('classroom_id', entry.classroomId)
+      .eq('occurrence_ref', entry.occurrenceRef)
+      .maybeSingle()
+    const parsed = z.object({ present_through_at: z.string().datetime({ offset: true }) })
+      .strict().safeParse(data)
+    if (error || !parsed.success) throw new StudentAttendanceCheckInError('upstream_unavailable')
+    presentThroughAt = parsed.data.present_through_at
+    }
+  }
+  const mapped = mapResult(result, presentThroughAt)
   return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
     ? {
         ...mapped,

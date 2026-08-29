@@ -18,12 +18,14 @@ import { addStudentsModal } from './add-students-modal'
 import { assessmentUxParity } from './assessment-ux-parity'
 import { blueprintRollover } from './blueprint-rollover'
 import { createClassroomWizard } from './create-classroom-wizard'
+import { courseGuideCurriculumImport } from './course-guide-curriculum-import'
 
 const scenarios: Record<string, VerificationScript> = {
   'add-students-modal': addStudentsModal,
   'assessment-ux-parity': assessmentUxParity,
   'blueprint-rollover': blueprintRollover,
   'create-classroom-wizard': createClassroomWizard,
+  'course-guide-curriculum-import': courseGuideCurriculumImport,
 }
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'

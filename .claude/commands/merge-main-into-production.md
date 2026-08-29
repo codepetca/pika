@@ -2,15 +2,14 @@ Merge `main` into `production` using the protected PR workflow.
 (Vercel production deploys from `production`.)
 
 Use the repo helper and `docs/dev-workflow.md` as the canonical process. Do not
-switch the hub checkout between `main` and `production`; the helper uses a
-registered `production` worktree and creates one under
-`$HOME/.codex/worktrees/pika/production` only when needed.
+switch the hub checkout between `main` and `production`; the helper creates a
+fresh ephemeral detached worktree from the exact current `origin/main` SHA.
 
 Rules:
 - Run all commands directly.
 - Never force-push.
 - Never rewrite `main` or `production`.
-- If conflicts occur, stop and ask for help resolving them in the production worktree.
+- If conflicts occur, stop and report the preserved ephemeral worktree path.
 
 Steps:
 
@@ -21,12 +20,9 @@ Steps:
    bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh
    ```
 
-3) If the helper creates a PR, report its URL and ask the user to merge it or confirm that you should merge it.
+3) Reuse the helper's created or updated draft PR; never open a second promotion PR. Complete cumulative review, record the reviewed SHA, mark it ready, and wait for `PR Gate`.
 
-4) After the PR is merged, sync the local production worktree using the path printed by the helper:
-   ```bash
-   git -C <production-worktree> fetch origin production
-   git -C <production-worktree> merge --ff-only origin/production
-   ```
+4) After the reviewed batch is merged, confirm the ephemeral worktree was
+removed. No persistent local `production` branch should be advanced.
 
 5) Report the final `origin/production` commit SHA.

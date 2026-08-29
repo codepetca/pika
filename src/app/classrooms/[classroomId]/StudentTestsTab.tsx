@@ -1357,6 +1357,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       <PageStack>
         {visibleTests.map((test) => {
           const isSelected = selectedTestId === test.id
+          const isUnavailable =
+            test.student_status === 'not_started' &&
+            (test.effective_access ?? (test.status === 'closed' ? 'closed' : 'open')) === 'closed'
+          const showClosedListState =
+            isUnavailable || (test.status === 'closed' && test.student_status !== 'not_started')
 
           return (
             <button
@@ -1365,16 +1370,19 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
               onClick={() => {
                 void handleSelectTest(test.id)
               }}
+              disabled={isUnavailable}
               className={`block w-full rounded-card border px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] ${
                 showSelectionState && isSelected
                   ? 'border-primary bg-surface-accent ring-1 ring-primary/25 shadow-panel'
+                  : isUnavailable
+                    ? 'cursor-not-allowed border-border bg-surface-2 opacity-75'
                   : 'border-border bg-surface-panel hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel'
               }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h3 className="truncate text-base font-semibold text-text-default">{test.title}</h3>
-                  {test.status === 'closed' && (
+                  {showClosedListState && (
                     <p className="mt-1 text-sm text-text-muted">
                       This test is closed
                     </p>
@@ -1384,7 +1392,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
                     Returned
                   </span>
-                ) : test.status === 'closed' ? (
+                ) : showClosedListState ? (
                   <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('closed')}`}>
                     Closed
                   </span>
@@ -1411,6 +1419,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     hasSelectedTest &&
     selectedTest.test.student_status === 'not_started' &&
     startedTestId !== selectedTest.test.id
+  const selectedTestIsUnavailable =
+    hasSelectedTest &&
+    selectedTest.test.student_status === 'not_started' &&
+    (selectedTest.test.effective_access ?? (selectedTest.test.status === 'closed' ? 'closed' : 'open')) === 'closed'
   const isViewingResults =
     hasSelectedTest &&
     hasResponded &&
@@ -1839,7 +1851,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                           ? 'bg-info-bg text-info'
                           : selectedTest?.test.student_status === 'responded'
                             ? 'bg-surface-2 text-text-muted'
-                            : selectedTest?.test.status === 'closed'
+                            : selectedTestIsUnavailable
                               ? getTestStatusBadgeClass('closed')
                               : getTestStatusBadgeClass('active'),
                       ].join(' ')}
@@ -1848,7 +1860,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                         ? 'Returned'
                         : selectedTest?.test.student_status === 'responded'
                           ? 'Submitted'
-                          : selectedTest?.test.status === 'closed'
+                          : selectedTestIsUnavailable
                             ? 'Closed'
                             : 'New'}
                     </span>

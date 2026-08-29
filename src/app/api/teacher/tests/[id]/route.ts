@@ -8,9 +8,9 @@ import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import {
-  activateTestFromDraftAtomic,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
+  publishTestFromDraftAtomic,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import {
@@ -55,23 +55,6 @@ function toTestQuestionResponse(
   // below return the portable id via projectPortableTestQuestionIds; the
   // database row id must stay internal per the canonical identity contract).
   return { ...responseQuestion, id: getPortableTestQuestionIdentity(question) }
-}
-
-function isMissingCloseTestRpcError(error: {
-  code?: string
-  message?: string
-  details?: string | null
-  hint?: string | null
-} | null | undefined): boolean {
-  if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
-  return (
-    error.code === '42883' ||
-    error.code === 'PGRST202' ||
-    combined.includes('close_test_for_grading_atomic') ||
-    combined.includes('finalize_test_attempts_for_grading_atomic') ||
-    combined.includes('closed_for_grading')
-  )
 }
 
 // GET /api/teacher/tests/[id] - Get test with questions
@@ -207,13 +190,14 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
   const existing = access.test
   const supabase = getServiceRoleClient()
-  let activatedTest: Record<string, any> | null = null
+  let publishedTest: Record<string, any> | null = null
+  const isPublishingDraft = existing.status === 'draft' && status === 'closed'
 
   if (status !== undefined) {
     const VALID_TRANSITIONS: Record<string, string[]> = {
-      draft: ['active'],
-      active: ['closed'],
-      closed: ['active'],
+      draft: ['closed'],
+      active: [],
+      closed: [],
     }
     const allowed = VALID_TRANSITIONS[existing.status] || []
     if (!allowed.includes(status)) {
@@ -224,10 +208,10 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     }
   }
 
-  if (status === 'active' && existing.status === 'draft') {
+  if (isPublishingDraft) {
     if (title !== undefined || show_results !== undefined || documents !== undefined) {
       return NextResponse.json(
-        { error: 'Save Test draft changes before activation' },
+        { error: 'Save Test draft changes before publishing' },
         { status: 400 },
       )
     }
@@ -235,7 +219,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     const expectedDraftVersion = Number(body?.draft_version)
     if (!Number.isInteger(expectedDraftVersion) || expectedDraftVersion < 1) {
       return NextResponse.json(
-        { error: 'draft_version is required for activation' },
+        { error: 'draft_version is required for publishing' },
         { status: 400 },
       )
     }
@@ -247,8 +231,8 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     )
 
     if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-      console.error('Error loading test draft for activation:', draftError)
-      return NextResponse.json({ error: 'Failed to load draft for activation' }, { status: 500 })
+      console.error('Error loading test draft for publication:', draftError)
+      return NextResponse.json({ error: 'Failed to load draft for publication' }, { status: 500 })
     }
 
     if (!draft) {
@@ -256,7 +240,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     }
     if (draft.version !== expectedDraftVersion) {
       return NextResponse.json(
-        { error: 'The Test changed after activation was requested. Review and try again.' },
+        { error: 'The Test changed after publication was requested. Review and try again.' },
         { status: 409 },
       )
     }
@@ -288,23 +272,27 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       }
     }
 
-    const activationResult = await activateTestFromDraftAtomic(supabase, {
+    const publicationResult = await publishTestFromDraftAtomic(supabase, {
       teacherId: user.id,
       testId: id,
       expectedDraftVersion,
     })
-    if (!activationResult.ok) {
+    if (!publicationResult.ok) {
       return NextResponse.json(
-        { error: activationResult.error },
-        { status: activationResult.status },
+        { error: publicationResult.error },
+        { status: publicationResult.status },
       )
     }
-    activatedTest = activationResult.test
+    if (publicationResult.test.status !== 'closed') {
+      console.error('Atomic Test publication returned a non-closed Test')
+      return NextResponse.json({ error: 'Failed to publish test' }, { status: 500 })
+    }
+    publishedTest = publicationResult.test as Record<string, any>
   }
 
   if (
     existing.status === 'draft'
-    && status !== 'active'
+    && !isPublishingDraft
     && (title !== undefined || show_results !== undefined)
   ) {
     return NextResponse.json(
@@ -324,16 +312,10 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
   }
 
-  const shouldFinalizeOnClose = status === 'closed' && existing.status === 'active'
-
   const updates: Record<string, any> = {}
   let validatedDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
   if (title !== undefined) updates.title = title.trim()
-  if (
-    status !== undefined
-    && !shouldFinalizeOnClose
-    && !(status === 'active' && existing.status === 'draft')
-  ) updates.status = status
+  if (status !== undefined && !isPublishingDraft) updates.status = status
   if (show_results !== undefined) updates.show_results = show_results
   if (documents !== undefined) {
     const validated = validateTestDocumentsPayload(documents)
@@ -344,11 +326,11 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     updates.documents = validated.documents
   }
 
-  if (Object.keys(updates).length === 0 && !shouldFinalizeOnClose && !activatedTest) {
+  if (Object.keys(updates).length === 0 && !publishedTest) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
   }
 
-  let test: Record<string, any> = activatedTest ?? existing as Record<string, any>
+  let test: Record<string, any> = publishedTest ?? existing as Record<string, any>
 
   if (Object.keys(updates).length > 0) {
     if (validatedDocuments?.valid) {
@@ -384,24 +366,6 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
 
       test = updatedTest as Record<string, any>
     }
-  }
-
-  if (shouldFinalizeOnClose) {
-    const { error: closeError } = await supabase.rpc('close_test_for_grading_atomic', {
-      p_test_id: id,
-      p_closed_by: user.id,
-    })
-    if (closeError) {
-      if (isMissingCloseTestRpcError(closeError)) {
-        return NextResponse.json(
-          { error: 'Closing tests for grading requires migration 063 to be applied' },
-          { status: 400 }
-        )
-      }
-      console.error('Error closing test for grading:', closeError)
-      return NextResponse.json({ error: 'Failed to finalize test submissions' }, { status: 500 })
-    }
-    test = { ...test, status: 'closed' }
   }
 
   const responseTest = {

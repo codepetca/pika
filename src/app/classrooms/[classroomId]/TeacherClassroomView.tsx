@@ -56,7 +56,7 @@ import {
   type TeacherAssignmentGradePersistenceState,
   type TeacherAssignmentGradeTemplate,
 } from '@/components/TeacherStudentWorkPanel'
-import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
@@ -2583,9 +2583,10 @@ export function TeacherClassroomView({
 
   const primaryButtons =
     selection.mode === 'summary' ? (
-      <TeacherWorkSurfaceActionBar
+      <TeacherWorkSurfaceContextBar
+        ariaLabel="Classwork actions"
         testId="assignment-summary-actionbar-center"
-        center={
+        primary={
           <TeacherWorkSurfaceActionCluster>
             <TeacherWorkSurfaceMenuButton
               label={<span>New Classwork</span>}
@@ -2615,12 +2616,11 @@ export function TeacherClassroomView({
             ) : null}
           </TeacherWorkSurfaceActionCluster>
         }
-        centerPlacement="floating"
       />
     ) : (
-      <TeacherWorkSurfaceActionBar
-        center={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
-        centerPlacement="floating"
+      <TeacherWorkSurfaceContextBar
+        ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
+        primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
       />
     )
 

@@ -20,9 +20,13 @@ import {
 interface AttendanceWindowPolicy {
   classroomId: string
   timezone: 'America/Toronto'
-  opensLocal: string
-  closesLocal: string
-  closeDayOffset: 0 | 1
+  sessionStartsLocal: string
+  sessionEndsLocal: string
+  sessionEndDayOffset: 0 | 1
+  entryOpensMinutesBefore: number
+  presentGraceMinutes: number
+  entryClosesMinutesBeforeEnd: number
+  absentMinutesBeforeEnd: number
   enabled: boolean
   revision: number
   updatedAt: string
@@ -43,9 +47,13 @@ function policyUrl(classroomId: string) {
 const POLICY_KEYS = [
   'classroomId',
   'timezone',
-  'opensLocal',
-  'closesLocal',
-  'closeDayOffset',
+  'sessionStartsLocal',
+  'sessionEndsLocal',
+  'sessionEndDayOffset',
+  'entryOpensMinutesBefore',
+  'presentGraceMinutes',
+  'entryClosesMinutesBeforeEnd',
+  'absentMinutesBeforeEnd',
   'enabled',
   'revision',
   'updatedAt',
@@ -62,11 +70,15 @@ function isPolicy(value: unknown, expectedClassroomId: string): value is Attenda
     Object.keys(policy).length === POLICY_KEYS.length &&
     policy.classroomId === expectedClassroomId &&
     policy.timezone === 'America/Toronto' &&
-    typeof policy.opensLocal === 'string' &&
-    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.opensLocal) &&
-    typeof policy.closesLocal === 'string' &&
-    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.closesLocal) &&
-    (policy.closeDayOffset === 0 || policy.closeDayOffset === 1) &&
+    typeof policy.sessionStartsLocal === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.sessionStartsLocal) &&
+    typeof policy.sessionEndsLocal === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.sessionEndsLocal) &&
+    (policy.sessionEndDayOffset === 0 || policy.sessionEndDayOffset === 1) &&
+    Number.isSafeInteger(policy.entryOpensMinutesBefore) &&
+    Number.isSafeInteger(policy.presentGraceMinutes) &&
+    Number.isSafeInteger(policy.entryClosesMinutesBeforeEnd) &&
+    Number.isSafeInteger(policy.absentMinutesBeforeEnd) &&
     typeof policy.enabled === 'boolean' &&
     Number.isSafeInteger(policy.revision) &&
     Number(policy.revision) > 0 &&
@@ -98,9 +110,13 @@ export function AttendanceWindowDialog({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState<number | null>(null)
-  const [opensLocal, setOpensLocal] = useState('')
-  const [closesLocal, setClosesLocal] = useState('')
-  const [closeDayOffset, setCloseDayOffset] = useState<0 | 1>(0)
+  const [sessionStartsLocal, setSessionStartsLocal] = useState('09:00')
+  const [sessionEndsLocal, setSessionEndsLocal] = useState('10:00')
+  const [sessionEndDayOffset, setSessionEndDayOffset] = useState<0 | 1>(0)
+  const [entryOpensMinutesBefore, setEntryOpensMinutesBefore] = useState(10)
+  const [presentGraceMinutes, setPresentGraceMinutes] = useState(5)
+  const [entryClosesMinutesBeforeEnd, setEntryClosesMinutesBeforeEnd] = useState(10)
+  const [absentMinutesBeforeEnd, setAbsentMinutesBeforeEnd] = useState(0)
   const [enabled, setEnabled] = useState(true)
   const [expandedHelp, setExpandedHelp] = useState<'closing-day' | 'automatic' | null>(null)
 
@@ -113,9 +129,13 @@ export function AttendanceWindowDialog({
       })
       const policy = parsePolicyResponse(response, classroomId)
       setRevision(policy?.revision ?? null)
-      setOpensLocal(policy?.opensLocal ?? '')
-      setClosesLocal(policy?.closesLocal ?? '')
-      setCloseDayOffset(policy?.closeDayOffset ?? 0)
+      setSessionStartsLocal(policy?.sessionStartsLocal ?? '09:00')
+      setSessionEndsLocal(policy?.sessionEndsLocal ?? '10:00')
+      setSessionEndDayOffset(policy?.sessionEndDayOffset ?? 0)
+      setEntryOpensMinutesBefore(policy?.entryOpensMinutesBefore ?? 10)
+      setPresentGraceMinutes(policy?.presentGraceMinutes ?? 5)
+      setEntryClosesMinutesBeforeEnd(policy?.entryClosesMinutesBeforeEnd ?? 10)
+      setAbsentMinutesBeforeEnd(policy?.absentMinutesBeforeEnd ?? 0)
       setEnabled(policy?.enabled ?? true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
@@ -131,11 +151,18 @@ export function AttendanceWindowDialog({
     }
   }, [isOpen, loadPolicy])
 
-  const validationError = !opensLocal || !closesLocal
-    ? 'Choose both opening and closing times.'
-    : closeDayOffset === 0 && opensLocal >= closesLocal
-      ? 'Closing time must be after opening time.'
-      : ''
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
+  const duration = minutes(sessionEndsLocal) - minutes(sessionStartsLocal)
+    + sessionEndDayOffset * 1440
+  const validationError = !sessionStartsLocal || !sessionEndsLocal
+    ? 'Choose both session times.'
+    : duration <= 0
+      ? 'Session end must be after session start.'
+      : presentGraceMinutes >= duration - entryClosesMinutesBeforeEnd
+        ? 'The Present window must end before QR check-in closes.'
+        : entryClosesMinutesBeforeEnd < absentMinutesBeforeEnd
+          ? 'Students cannot become absent before QR check-in closes.'
+          : ''
 
   async function savePolicy() {
     if (saving || validationError) return
@@ -148,9 +175,13 @@ export function AttendanceWindowDialog({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             classroom_id: classroomId,
-            opens_local: opensLocal,
-            closes_local: closesLocal,
-            close_day_offset: closeDayOffset,
+            session_starts_local: sessionStartsLocal,
+            session_ends_local: sessionEndsLocal,
+            session_end_day_offset: sessionEndDayOffset,
+            entry_opens_minutes_before: entryOpensMinutesBefore,
+            present_grace_minutes: presentGraceMinutes,
+            entry_closes_minutes_before_end: entryClosesMinutesBeforeEnd,
+            absent_minutes_before_end: absentMinutesBeforeEnd,
             enabled,
             expected_revision: revision,
           }),
@@ -183,8 +214,8 @@ export function AttendanceWindowDialog({
 
       showMessage({
         text: scheduleSynced
-          ? 'Attendance hours saved'
-          : 'Hours saved; automatic schedule sync will retry',
+          ? 'Attendance timing saved'
+          : 'Timing saved; automatic schedule sync will retry',
         tone: scheduleSynced ? 'success' : 'warning',
       })
       onSaved()
@@ -200,14 +231,14 @@ export function AttendanceWindowDialog({
     <ContentDialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Attendance hours"
-      maxWidth="max-w-md"
+      title="Attendance timing"
+      maxWidth="max-w-lg"
       showHeaderClose={!saving}
       showFooterClose={false}
     >
       {loading ? (
         <PageState kind="loading" title="Loading attendance hours" compact />
-      ) : error && !opensLocal && !closesLocal ? (
+      ) : error && revision === null ? (
         <PageState
           kind="error"
           title="Attendance hours unavailable"
@@ -224,27 +255,77 @@ export function AttendanceWindowDialog({
           }}
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FormField label="Opens" required>
+            <FormField label="Session starts" required>
               <Input
                 type="time"
-                value={opensLocal}
+                value={sessionStartsLocal}
                 disabled={saving}
-                onChange={(event) => setOpensLocal(event.target.value)}
+                onChange={(event) => setSessionStartsLocal(event.target.value)}
               />
             </FormField>
-            <FormField label="Closes" required>
+            <FormField label="Session ends" required>
               <Input
                 type="time"
-                value={closesLocal}
+                value={sessionEndsLocal}
                 disabled={saving}
-                onChange={(event) => setClosesLocal(event.target.value)}
+                onChange={(event) => setSessionEndsLocal(event.target.value)}
               />
             </FormField>
           </div>
 
+          <div className="rounded-control border border-border bg-surface-2 p-3">
+            <p className="text-sm font-medium text-text-default">Timing rules</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FormField label="QR opens before start (min)">
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={entryOpensMinutesBefore}
+                  disabled={saving}
+                  onChange={(event) => setEntryOpensMinutesBefore(Number(event.target.value))}
+                />
+              </FormField>
+              <FormField label="Present grace after start (min)">
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={presentGraceMinutes}
+                  disabled={saving}
+                  onChange={(event) => setPresentGraceMinutes(Number(event.target.value))}
+                />
+              </FormField>
+              <FormField label="QR closes before end (min)">
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={entryClosesMinutesBeforeEnd}
+                  disabled={saving}
+                  onChange={(event) => setEntryClosesMinutesBeforeEnd(Number(event.target.value))}
+                />
+              </FormField>
+              <FormField label="Absent before end (min)">
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={absentMinutesBeforeEnd}
+                  disabled={saving}
+                  onChange={(event) => setAbsentMinutesBeforeEnd(Number(event.target.value))}
+                />
+              </FormField>
+            </div>
+            <p className="mt-3 text-xs text-text-muted">
+              A scan at the Present cutoff is Present. Later accepted scans are Late. Students
+              without a scan become Absent at the Absent cutoff.
+            </p>
+          </div>
+
           <div>
             <FormField
-              label="Closing day"
+              label="Session end day"
               labelAccessory={
                 <Tooltip content={CLOSING_DAY_HELP}>
                   <Button
@@ -263,13 +344,13 @@ export function AttendanceWindowDialog({
               }
             >
               <Select
-                value={String(closeDayOffset)}
+                value={String(sessionEndDayOffset)}
                 disabled={saving}
                 options={[
                   { value: '0', label: 'Same class day' },
                   { value: '1', label: 'Next day' },
                 ]}
-                onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
+                onChange={(event) => setSessionEndDayOffset(event.target.value === '1' ? 1 : 0)}
               />
             </FormField>
             {expandedHelp === 'closing-day' ? (
@@ -308,8 +389,11 @@ export function AttendanceWindowDialog({
             ) : null}
           </div>
 
-          <p className="text-xs text-text-muted">Timezone: America/Toronto</p>
-          {validationError && (opensLocal || closesLocal) ? (
+          <p className="text-xs text-text-muted">
+            Timezone: America/Toronto. Changes apply to future sessions; a session keeps its rules
+            once QR entry opens.
+          </p>
+          {validationError && (sessionStartsLocal || sessionEndsLocal) ? (
             <p role="alert" className="text-sm text-danger">{validationError}</p>
           ) : null}
           {error ? (
@@ -321,7 +405,7 @@ export function AttendanceWindowDialog({
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
             <Button type="submit" variant="primary" loading={saving} disabled={Boolean(validationError)}>
-              Save hours
+              Save timing
             </Button>
           </div>
         </form>

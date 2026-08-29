@@ -47,10 +47,17 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(menu).toBeInTheDocument()
     expect(expandedMenuTrigger).toHaveAttribute('aria-expanded', 'true')
     expect(expandedMenuTrigger).toHaveAttribute('aria-controls', menu.id)
-    expect(screen.getByRole('menuitem', { name: 'Assignment' })).toBeInTheDocument()
+    const assignmentMenuItem = screen.getByRole('menuitem', { name: 'Assignment' })
+    expect(assignmentMenuItem).toHaveClass(
+      'min-h-control',
+      'focus-visible:ring-foundation',
+      'focus-visible:ring-focus',
+      'focus-visible:ring-inset',
+    )
     expect(screen.queryByText('Work students complete')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('menuitem', { name: /Assignment/ }))
+    fireEvent.click(assignmentMenuItem)
     expect(addAssignment).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toHaveFocus()
 
     expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByText('Reorder or delete items')).not.toBeInTheDocument()
@@ -101,5 +108,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
   })
 })

@@ -423,17 +423,6 @@
       ]
     },
     {
-      "file": "src/components/CalendarActionBar.tsx",
-      "reviewBy": "phase-3-calendar-announcements",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "composite-widget"
-        }
-      ]
-    },
-    {
       "file": "src/components/CreateClassroomModal.tsx",
       "reviewBy": "phase-3-dashboard-roster",
       "controls": [

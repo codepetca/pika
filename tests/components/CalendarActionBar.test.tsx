@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CalendarActionBar, CalendarDateNavigator, getCalendarHeaderLabel } from '@/components/CalendarActionBar'
+import { CalendarActionBar, getCalendarHeaderLabel } from '@/components/CalendarActionBar'
+import { DateNavigator } from '@/components/DateNavigator'
 
 describe('CalendarActionBar', () => {
   it('keeps date-only term boundaries on their classroom calendar dates', () => {
@@ -18,7 +19,7 @@ describe('CalendarActionBar', () => {
     const onLabelClick = vi.fn()
 
     render(
-      <CalendarDateNavigator
+      <DateNavigator
         label="July 2026"
         onPrev={onPrev}
         onNext={onNext}
@@ -33,6 +34,24 @@ describe('CalendarActionBar', () => {
     expect(onPrev).toHaveBeenCalledOnce()
     expect(onLabelClick).toHaveBeenCalledOnce()
     expect(onNext).toHaveBeenCalledOnce()
+  })
+
+  it('can join the date arrows directly to a chevron-free date button', () => {
+    render(
+      <DateNavigator
+        label="Aug 17"
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onLabelClick={vi.fn()}
+        joined
+      />,
+    )
+
+    const dateButton = screen.getByRole('button', { name: 'Go to today' })
+    expect(dateButton.parentElement).toHaveClass('overflow-hidden', 'border-border-strong')
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveClass('border-r')
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveClass('border-l')
+    expect(dateButton.querySelector('svg')).toBeNull()
   })
 
   it('exposes the calendar view control and changes modes', () => {
@@ -50,6 +69,9 @@ describe('CalendarActionBar', () => {
     )
 
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
+    const contextBar = screen.getByRole('region', { name: 'Calendar controls' })
+    expect(contextBar).toHaveClass('grid')
+    expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
 

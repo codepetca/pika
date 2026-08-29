@@ -1,8 +1,6 @@
 import {
   expect,
-  request as playwrightRequest,
   test,
-  type APIRequestContext,
   type Page,
   type TestInfo,
 } from '@playwright/test'
@@ -15,7 +13,6 @@ const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
-const E2E_BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -153,9 +150,39 @@ async function mockBlueprintRollover(page: Page) {
   })
 }
 
-test('keeps Attendance hours reachable across the responsive context bar', async ({ page }, testInfo) => {
+test('keeps the Attendance roster compact with inline status controls', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  const browserErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => browserErrors.push(error.message))
   await applyProjectTheme(page, testInfo)
+
+  const attendanceStatuses = ['present', 'late', 'absent', 'unmarked'] as const
+  let hasAttendanceWindow = true
+  let attendanceSessionState: 'open' | 'closed' = 'open'
+  let attendanceStudents = Array.from({ length: 45 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(2, '0')
+    const status = attendanceStatuses[index % attendanceStatuses.length]
+    const source = index === 1 ? 'staff' : index % 3 === 0 ? 'student_qr' : index % 3 === 1 ? 'staff' : null
+    const checkedInAt = source === 'student_qr' || index === 1
+      ? `2026-08-17T12:${String(48 + (index % 12)).padStart(2, '0')}:00.000Z`
+      : null
+    return {
+      studentId: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      firstName: `Student ${ordinal}`,
+      lastName: `Alpha${ordinal}`,
+      status,
+      source,
+      checkedInAt,
+      revision: status === 'unmarked' ? null : 1,
+      hasQrCheckIn: Boolean(checkedInAt),
+      hasManualOverride: source === 'staff',
+      pendingCommand: false,
+      commandFailed: false,
+    }
+  })
 
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
     await route.fulfill({
@@ -166,26 +193,38 @@ test('keeps Attendance hours reachable across the responsive context bar', async
         classDate: '2026-08-17',
         integration: 'ready',
         session: {
-          state: 'open',
-          opensAt: '2026-08-17T12:45:00.000Z',
-          closesAt: '2026-08-17T13:15:00.000Z',
+          state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
+          opensAt: hasAttendanceWindow ? '2026-08-17T04:45:00.000Z' : null,
+          closesAt: hasAttendanceWindow ? '2026-08-18T02:34:00.000Z' : null,
+          sessionStartsAt: hasAttendanceWindow ? '2026-08-17T12:55:00.000Z' : null,
+          sessionEndsAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
+          presentThroughAt: hasAttendanceWindow ? '2026-08-17T13:00:00.000Z' : null,
+          absentAt: hasAttendanceWindow ? '2026-08-17T13:25:00.000Z' : null,
           revision: 1,
           commandFailed: false,
         },
         sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
-        students: [
-          {
-            studentId: '40000000-0000-4000-8000-000000000001',
-            firstName: 'Ada',
-            lastName: 'Lovelace',
-            status: 'present',
-            source: 'student_qr',
-            revision: 1,
-            pendingCommand: false,
-            commandFailed: false,
-          },
-        ],
+        students: attendanceStudents,
       }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/marks', async (route) => {
+    const body = route.request().postDataJSON() as {
+      marks: Array<{ student_id: string; status: typeof attendanceStatuses[number] | 'automatic' }>
+    }
+    const statusByStudentId = new Map(body.marks.map((mark) => [mark.student_id, mark.status]))
+    attendanceStudents = attendanceStudents.map((student) => {
+      const status = statusByStudentId.get(student.studentId)
+      return status === 'automatic'
+        ? { ...student, source: student.checkedInAt ? 'student_qr' as const : null, hasManualOverride: false }
+        : status
+          ? { ...student, status, source: 'staff' as const, hasManualOverride: true, revision: (student.revision ?? 0) + 1 }
+        : student
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outcome: 'applied', appliedCount: body.marks.length }),
     })
   })
   await page.route('**/api/teacher/attendance/policy?**', async (route) => {
@@ -196,9 +235,13 @@ test('keeps Attendance hours reachable across the responsive context bar', async
         policy: {
           classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
           timezone: 'America/Toronto',
-          opensLocal: '08:45',
-          closesLocal: '15:15',
-          closeDayOffset: 0,
+          sessionStartsLocal: '09:00',
+          sessionEndsLocal: '10:00',
+          sessionEndDayOffset: 0,
+          entryOpensMinutesBefore: 10,
+          presentGraceMinutes: 5,
+          entryClosesMinutesBeforeEnd: 10,
+          absentMinutesBeforeEnd: 0,
           enabled: true,
           revision: 1,
           updatedAt: '2026-08-17T12:00:00.000Z',
@@ -209,28 +252,224 @@ test('keeps Attendance hours reachable across the responsive context bar', async
 
   await page.goto('/e2e-fixtures/teacher-live-attendance', { waitUntil: 'domcontentloaded' })
 
+  const contextBar = page.getByTestId('attendance-context-bar')
+  const primaryControl = page.getByTestId('attendance-primary-control')
   const trailingActions = page.getByTestId('attendance-trailing-actions')
-  await expect(trailingActions).toBeVisible()
+  const scrollPane = page.getByTestId('attendance-student-scroll-pane')
+  const dateButton = primaryControl.getByRole('button', { name: 'Go to today' })
+  const previousDayButton = primaryControl.getByRole('button', { name: 'Previous day' })
+  const nextDayButton = primaryControl.getByRole('button', { name: 'Next day' })
+  const attendanceHours = contextBar.getByRole('button', {
+    name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+  })
+  if (viewport === 'mobile') await expect(trailingActions).toBeHidden()
+  else {
+    await expect(attendanceHours).toHaveText('12:45 AM - 10:34 PM')
+    await expect(attendanceHours).not.toContainText('Open')
+    await expect(attendanceHours).toHaveClass(/bg-success-bg/)
+    await expect(trailingActions).toBeVisible()
+    await expect(primaryControl.getByRole('button', {
+      name: 'Attendance hours, Open, 12:45 AM to 10:34 PM',
+    })).toHaveCount(0)
+    const [contextBox, attendanceHoursBox] = await Promise.all([
+      contextBar.boundingBox(),
+      attendanceHours.boundingBox(),
+    ])
+    expect(contextBox).not.toBeNull()
+    expect(attendanceHoursBox).not.toBeNull()
+    expect(attendanceHoursBox!.x - contextBox!.x).toBeLessThan(24)
+    expect(attendanceHoursBox!.width).toBeLessThan(190)
+  }
+  await expect(page.getByRole('checkbox')).toHaveCount(46)
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })).toBeDisabled()
+  await expect(dateButton.locator('svg')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sort Present first, 12 students' })).toBeVisible()
+  const [firstStudentRowHeight, presentCountWidth] = await Promise.all([
+    page.getByRole('row').nth(1).evaluate((element) => element.getBoundingClientRect().height),
+    page.getByRole('button', { name: 'Sort Present first, 12 students' })
+      .locator('span')
+      .evaluate((element) => element.getBoundingClientRect().width),
+  ])
+  expect(firstStudentRowHeight).toBeLessThanOrEqual(46)
+  expect(presentCountWidth).toBeCloseTo(28, 1)
+  await expect(page.getByRole('group', { name: 'Sort attendance by status' }).locator('xpath=ancestor::th')).not.toContainText('Status')
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerHeight + 1),
+  )
+
+  const [primaryBox, previousBox, dateBox, nextBox] = await Promise.all([
+    primaryControl.boundingBox(),
+    previousDayButton.boundingBox(),
+    dateButton.boundingBox(),
+    nextDayButton.boundingBox(),
+  ])
+  expect(primaryBox).not.toBeNull()
+  expect(previousBox).not.toBeNull()
+  expect(dateBox).not.toBeNull()
+  expect(nextBox).not.toBeNull()
+  expect(Math.abs((primaryBox!.x + primaryBox!.width / 2) - (page.viewportSize()!.width / 2))).toBeLessThan(3)
+  expect(Math.abs((previousBox!.x + previousBox!.width) - dateBox!.x)).toBeLessThan(1)
+  expect(Math.abs((dateBox!.x + dateBox!.width) - nextBox!.x)).toBeLessThan(1)
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
-    path: testInfo.outputPath(`attendance-${viewport}-context-bar.png`),
-    fullPage: true,
+    path: testInfo.outputPath(`attendance-${viewport}-default.png`),
     animations: 'disabled',
   })
 
+  const checkedInStudentSelection = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
+  await checkedInStudentSelection.click()
+  await primaryControl.getByRole('button', { name: 'Student actions for 1 selected' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-check-in.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await checkedInStudentSelection.click()
+
   if (viewport === 'mobile') {
-    const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance actions' })
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show QR' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Stop QR check-in' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  } else {
+    await primaryControl.getByRole('button', { name: 'Show QR' }).hover()
+    await expect(page.getByRole('tooltip', { name: 'Show QR' })).toBeVisible()
+  }
+
+  const firstStudentStatus = page.getByRole('group', {
+    name: 'Attendance status for Student 01 Alpha01',
+  })
+  for (const [label, selected] of [['Present', true], ['Late', false], ['Absent', false]] as const) {
+    const statusButton = firstStudentStatus.getByRole('button', { name: label })
+    await expect(statusButton.locator('svg')).toHaveCount(0)
+    const geometry = await statusButton.evaluate((element) => {
+      const styles = window.getComputedStyle(element)
+      const indicatorStyles = window.getComputedStyle(element, '::after')
+      const bounds = element.getBoundingClientRect()
+      return {
+        width: bounds.width,
+        height: bounds.height,
+        radius: Number.parseFloat(styles.borderTopLeftRadius),
+        indicatorWidth: Number.parseFloat(indicatorStyles.width),
+        indicatorHeight: Number.parseFloat(indicatorStyles.height),
+        indicatorOpacity: Number.parseFloat(indicatorStyles.opacity),
+        indicatorShadow: indicatorStyles.boxShadow,
+      }
+    })
+    expect(geometry.width).toBeCloseTo(44, 1)
+    expect(geometry.height).toBeCloseTo(44, 1)
+    expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
+    expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
+    expect(geometry.indicatorWidth).toBe(28)
+    expect(geometry.indicatorHeight).toBe(28)
+    expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
+    expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.12)
+    expect(geometry.indicatorShadow === 'none').toBe(!selected)
+  }
+  await expect(firstStudentStatus.getByRole('button', { name: 'Present' })).toHaveAttribute('aria-pressed', 'true')
+  await firstStudentStatus.getByRole('button', { name: 'Late' }).click()
+  const undoQrCorrection = page.getByRole('button', {
+    name: 'Undo manual attendance change for Student 01 Alpha01',
+  })
+  await expect(undoQrCorrection).toBeVisible()
+  const undoBounds = await undoQrCorrection.boundingBox()
+  expect(undoBounds).not.toBeNull()
+  expect(undoBounds!.width).toBeCloseTo(44, 1)
+  expect(undoBounds!.height).toBeCloseTo(44, 1)
+  await expect(page.getByTestId('app-message-overlay')).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  const selectedActions = primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })
+  await expect(selectedActions).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-manual-with-undo.png`),
+    animations: 'disabled',
+  })
+  await selectedActions.click()
+  const selectedActionsMenu = page.getByRole('menu', { name: 'Selected student attendance actions' })
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Present' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Late' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Absent' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Use automatic' })).toBeVisible()
+  await expect(selectedActionsMenu.getByRole('menuitem', { name: 'Remove QR check-in' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-selected-menu.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+
+  await scrollPane.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  await expect(scrollPane.locator('thead')).toBeVisible()
+  await page.getByRole('button', { name: 'Sort Present first, 11 students' }).click()
+  await expect(page.getByRole('button', { name: 'Sort Present first, 11 students' })).toHaveAttribute('aria-pressed', 'true')
+
+  if (viewport === 'mobile') {
+    const attendanceMenu = primaryControl.getByRole('button', { name: 'Attendance actions' })
     await expect(attendanceMenu).toBeVisible()
     await attendanceMenu.click()
     await expect(page.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
     await page.getByRole('menuitem', { name: 'Attendance hours' }).click()
   } else {
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
-    await trailingActions.getByRole('button', { name: 'Attendance hours' }).click()
+    await attendanceHours.click()
   }
-  await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Attendance timing' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
+    animations: 'disabled',
+  })
+  if (viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Save timing' }).scrollIntoViewIfNeeded()
+    await page.screenshot({
+      path: testInfo.outputPath(`attendance-${viewport}-hours-dialog-actions.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+  if (viewport === 'desktop') {
+    attendanceSessionState = 'closed'
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const closedHours = page.getByTestId('attendance-context-bar').getByRole('button', {
+      name: 'Attendance hours, Closed, 12:45 AM to 10:34 PM',
+    })
+    await expect(closedHours).toBeVisible()
+    await expect(closedHours).not.toHaveClass(/bg-success-bg|bg-warning-bg/)
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-closed.png'),
+      animations: 'disabled',
+    })
+
+    hasAttendanceWindow = false
+    await page.getByTestId('attendance-primary-control').getByRole('button', { name: 'Next day' }).click()
+    await expect(contextBar.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+    await page.screenshot({
+      path: testInfo.outputPath('attendance-desktop-no-hours.png'),
+      animations: 'disabled',
+    })
+  }
+  expect(browserErrors).toEqual([])
+})
+
+test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.goto('/e2e-fixtures/student-attendance', { waitUntil: 'domcontentloaded' })
+
+  await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+  await expect(page.getByText('Checked in at 9:07 AM')).toBeVisible()
+  await expect(page.getByText('Late', { exact: true })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-attendance-${getExperienceMetadata(testInfo).viewport}.png`),
     fullPage: true,
     animations: 'disabled',
   })
@@ -342,11 +581,13 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const scrollPane = page.getByTestId('test-grading-student-scroll-pane')
   const selectAllCheckbox = page.getByRole('checkbox', { name: 'Select all students' })
   const firstStudentCheckbox = page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })
-  await expect(contextBar).toContainText('Active')
+  await expect(contextBar).not.toContainText(/Draft|Active|Closed/)
   await expect(primaryControl.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
   await expect(trailingActions).toBeVisible()
+  const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
+  await expect(moreActionsButton).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
@@ -378,7 +619,21 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   if (viewport === 'desktop') {
     await primaryControl.getByRole('button', { name: 'Open All' }).hover()
     await expect(page.getByRole('tooltip', { name: 'Open access for all students' })).toBeVisible()
+    await moreActionsButton.hover()
+    await expect(page.getByRole('tooltip', { name: 'More actions' })).toBeVisible()
   }
+  await moreActionsButton.click()
+  const testActionsMenu = page.getByRole('menu', { name: 'Test actions' })
+  await expect(testActionsMenu.getByRole('menuitem', { name: 'Edit Test' })).toBeVisible()
+  await expect(testActionsMenu.getByRole('menuitem', { name: 'Delete Test' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-test-actions.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await expect(testActionsMenu).toBeHidden()
+  await expect(moreActionsButton).toBeFocused()
+
   await primaryControl.getByRole('button', { name: 'Close All' }).click()
   await expect(page.getByRole('dialog')).toContainText(`Close access for ${students.length} student(s)?`)
   await page.screenshot({
@@ -448,6 +703,232 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-selected.png`),
+    animations: 'disabled',
+  })
+})
+
+test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests**', async (route) => {
+    const url = new URL(route.request().url())
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}/results`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          test: {
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            title: 'Functions and Graphs Test',
+            status: 'draft',
+            grading_finalized_at: null,
+          },
+          questions: [{ id: 'question-1', question_type: 'multiple_choice' }],
+          students: [],
+          active_ai_grading_run: null,
+        }),
+      })
+      return
+    }
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}/draft`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          draft: {
+            id: 'draft-1',
+            version: 1,
+            content: {
+              title: 'Functions and Graphs Test',
+              show_results: false,
+              question_identity_version: 1,
+              questions: [{
+                id: '30000000-0000-4000-8000-000000000014',
+                question_type: 'multiple_choice',
+                question_text: 'Ready to publish?',
+                options: ['Yes', 'No'],
+                correct_option: 0,
+                answer_key: null,
+                sample_solution: null,
+                points: 1,
+                response_max_chars: 5000,
+                response_monospace: false,
+              }],
+            },
+          },
+        }),
+      })
+      return
+    }
+
+    if (url.pathname === `/api/teacher/tests/${TEST_GRADING_FIXTURE_TEST_ID}`) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          draft_version: 1,
+          questions: [{
+            id: 'question-1',
+            question_type: 'multiple_choice',
+            question_text: 'Ready to publish?',
+            options: ['Yes', 'No'],
+            correct_option: 0,
+            points: 1,
+          }],
+        }),
+      })
+      return
+    }
+
+    if (
+      url.pathname === '/api/teacher/tests' &&
+      url.searchParams.get('classroom_id') === TEST_GRADING_FIXTURE_CLASSROOM_ID
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tests: [{
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Functions and Graphs Test',
+            description: null,
+            instructions: null,
+            status: 'draft',
+            show_results: false,
+            position: 0,
+            documents: [],
+            created_at: '2026-08-27T12:00:00.000Z',
+            updated_at: '2026-08-27T12:00:00.000Z',
+            stats: {
+              total_students: 0,
+              responded: 0,
+              submitted: 0,
+              open_access: 0,
+              closed_access: 0,
+              questions_count: 1,
+            },
+          }],
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: `Unhandled Test publication fixture route: ${url.pathname}` }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading', { waitUntil: 'domcontentloaded' })
+
+  const contextBar = page.getByTestId('test-grading-context-bar')
+  await expect(contextBar).not.toContainText(/Draft|Active|Closed|Unpublished|Published/)
+  await expect(page.getByRole('button', { name: 'Open All' })).toBeDisabled()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit Test' }).click()
+  const authoringDialog = page.getByRole('dialog', { name: 'Edit test' })
+  await expect(authoringDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
+  await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
+  await expect(authoringDialog.getByText(/Failed to load assessment draft|Unhandled Test publication fixture route/)).toHaveCount(0)
+  await authoringDialog.getByRole('button', { name: 'Publish' }).click()
+
+  const publishDialog = page.getByRole('dialog', { name: 'Publish test?' })
+  await expect(publishDialog).toBeVisible()
+  await expect(publishDialog).toContainText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')
+  await expect(publishDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-publish-${viewport}-confirmation.png`),
+    animations: 'disabled',
+  })
+})
+
+test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/student/notifications**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 1,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+  })
+  await page.route('**/api/student/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000023',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Functions and Graphs Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 1,
+            documents: [],
+            student_status: 'not_started',
+            access_state: null,
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000025',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Individually Closed Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            student_status: 'not_started',
+            access_state: 'closed',
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000024',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Practice Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            student_status: 'not_started',
+            access_state: null,
+            effective_access: 'open',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
+
+  const closedTest = page.getByRole('button', { name: /Functions and Graphs Test/ })
+  await expect(closedTest).toBeVisible()
+  await expect(closedTest).toBeDisabled()
+  await expect(closedTest).toContainText('This test is closed')
+  const individuallyClosedTest = page.getByRole('button', { name: /Individually Closed Test/ })
+  await expect(individuallyClosedTest).toBeDisabled()
+  await expect(individuallyClosedTest).toContainText('Closed')
+  await expect(individuallyClosedTest).toContainText('This test is closed')
+  await expect(page.getByRole('button', { name: /Practice Test/ })).toBeEnabled()
+  await expect(page.getByText(/Unpublished|Published/, { exact: false })).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`student-test-list-${viewport}-published-closed.png`),
     animations: 'disabled',
   })
 })
@@ -680,7 +1161,7 @@ test.describe('teacher experience matrix', () => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One publication lifecycle pass is sufficient')
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
-    await page.locator('aside').getByRole('button', { name: /Computer Science 11/ }).click()
+    await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
@@ -694,21 +1175,21 @@ test.describe('teacher experience matrix', () => {
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(404)
 
       await publishCheckbox.check()
       await saveButton.click()
       await expect(saveButton).toBeEnabled()
       await expect.poll(async () => (
-        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicationSlug}`)
       ).status()).toBe(200)
     } finally {
       const restore = await page.request.patch(
-        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.blueprintId}`,
+        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.publicationBlueprintId}`,
         {
           data: {
-            planned_site_slug: PLANNED_COURSE_FIXTURE.publicSlug,
+            planned_site_slug: PLANNED_COURSE_FIXTURE.publicationSlug,
             planned_site_published: true,
             planned_site_config: {
               overview: true,
@@ -966,69 +1447,6 @@ test.describe('public planned course experience matrix', () => {
 
 test.describe('public Course Guide experience matrix', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
-
-  let teacherRequest: APIRequestContext | null = null
-  let originalClassroom: {
-    id: string
-    course_overview_markdown: string
-    actual_site_slug: string | null
-    actual_site_published: boolean
-    actual_site_config: Record<string, unknown>
-  } | null = null
-
-  test.beforeAll(async () => {
-    teacherRequest = await playwrightRequest.newContext({
-      baseURL: E2E_BASE_URL,
-      storageState: TEACHER_STORAGE,
-    })
-    const classroomsResponse = await teacherRequest.get('/api/teacher/classrooms')
-    expect(classroomsResponse.ok()).toBe(true)
-    const payload = await classroomsResponse.json() as {
-      classrooms?: Array<{ id: string; title: string }>
-    }
-    const classroomSummary = payload.classrooms?.find((item) => item.title === 'Test Classroom') ?? null
-    if (!classroomSummary) throw new Error('Teacher browser fixture is missing Test Classroom')
-
-    const classroomResponse = await teacherRequest.get(`/api/teacher/classrooms/${classroomSummary.id}`)
-    expect(classroomResponse.ok()).toBe(true)
-    const classroomPayload = await classroomResponse.json() as { classroom: typeof originalClassroom }
-    originalClassroom = classroomPayload.classroom
-    if (!originalClassroom) throw new Error('Teacher browser fixture details could not be loaded')
-
-    const guideResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
-      data: {
-        courseOverviewMarkdown: 'This course develops practical problem-solving, collaboration, and communication skills through guided study and classroom work.',
-        actualSiteSlug: PUBLIC_ACTUAL_COURSE_SLUG,
-        actualSitePublished: true,
-        actualSiteConfig: {
-          overview: true,
-          outline: false,
-          resources: true,
-          assignments: true,
-          tests: true,
-          lesson_plans: true,
-          announcements: true,
-          lesson_plan_scope: 'current_week',
-        },
-      },
-    })
-    expect(guideResponse.ok()).toBe(true)
-  })
-
-  test.afterAll(async () => {
-    if (originalClassroom && teacherRequest) {
-      const restoreResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
-        data: {
-          courseOverviewMarkdown: originalClassroom.course_overview_markdown,
-          actualSiteSlug: originalClassroom.actual_site_slug,
-          actualSitePublished: originalClassroom.actual_site_published,
-          actualSiteConfig: originalClassroom.actual_site_config,
-        },
-      })
-      expect(restoreResponse.ok()).toBe(true)
-    }
-    await teacherRequest?.dispose()
-  })
 
   test.beforeEach(async ({ page }, testInfo) => {
     await applyProjectTheme(page, testInfo)

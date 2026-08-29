@@ -8,17 +8,38 @@ export const teacherAttendancePolicyQuerySchema = z.object({
 
 export const teacherAttendancePolicyUpdateSchema = z.object({
   classroom_id: z.string().uuid(),
-  opens_local: localTimeSchema,
-  closes_local: localTimeSchema,
-  close_day_offset: z.union([z.literal(0), z.literal(1)]),
+  session_starts_local: localTimeSchema,
+  session_ends_local: localTimeSchema,
+  session_end_day_offset: z.union([z.literal(0), z.literal(1)]),
+  entry_opens_minutes_before: z.number().int().min(0).max(720),
+  present_grace_minutes: z.number().int().min(0).max(720),
+  entry_closes_minutes_before_end: z.number().int().min(0).max(720),
+  absent_minutes_before_end: z.number().int().min(0).max(720),
   enabled: z.boolean(),
   expected_revision: z.number().int().safe().positive().nullable(),
 }).strict().superRefine((value, context) => {
-  if (value.close_day_offset === 0 && value.opens_local >= value.closes_local) {
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
+  const duration = minutes(value.session_ends_local) - minutes(value.session_starts_local)
+    + value.session_end_day_offset * 1440
+  if (duration <= 0) {
     context.addIssue({
       code: 'custom',
-      path: ['closes_local'],
-      message: 'Closing time must be after opening time',
+      path: ['session_ends_local'],
+      message: 'Session end must be after session start',
+    })
+  }
+  if (value.present_grace_minutes >= duration - value.entry_closes_minutes_before_end) {
+    context.addIssue({
+      code: 'custom',
+      path: ['present_grace_minutes'],
+      message: 'The Present window must end before QR check-in closes',
+    })
+  }
+  if (value.entry_closes_minutes_before_end < value.absent_minutes_before_end) {
+    context.addIssue({
+      code: 'custom',
+      path: ['absent_minutes_before_end'],
+      message: 'Students cannot become absent before QR check-in closes',
     })
   }
 })

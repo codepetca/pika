@@ -6,6 +6,7 @@ export const PLANNED_COURSE_FIXTURE = {
   assessmentId: '90000000-0000-4000-8000-000000000203',
   lessonTemplateId: '90000000-0000-4000-8000-000000000204',
   privateBlueprintId: '90000000-0000-4000-8000-000000000205',
+  publicationBlueprintId: '90000000-0000-4000-8000-000000000211',
   questionId: '90000000-0000-4000-8000-000000000206',
   documentId: '90000000-0000-4000-8000-000000000207',
   assignmentArtifactId: '90000000-0000-4000-8000-000000000208',
@@ -13,6 +14,7 @@ export const PLANNED_COURSE_FIXTURE = {
   lessonTemplateArtifactId: '90000000-0000-4000-8000-000000000210',
   publicSlug: 'e2e-planned-computer-science-11',
   privateSlug: 'e2e-private-course-plan',
+  publicationSlug: 'e2e-publication-lifecycle',
   privateQuestion: 'Private prompt must not render',
   privateAnswer: 'PRIVATE ANSWER KEY MUST NOT RENDER',
   privateDocumentTitle: 'Private teacher document',
@@ -144,6 +146,26 @@ export async function seedPlannedCourseFixtures(
     planned_site_config: plannedSiteConfig,
     position: 81,
   }
+  const publicationBlueprint = {
+    id: fixture.publicationBlueprintId,
+    teacher_id: teacherId,
+    authority_mode: 'pika',
+    title: 'Publication Lifecycle Fixture',
+    subject: 'Computer Science',
+    grade_level: 'Grade 11',
+    course_code: 'E2E',
+    term_template: 'Semester 1',
+    overview_markdown: 'Dedicated mutable fixture for the publication lifecycle browser contract.',
+    outline_markdown: '',
+    resources_markdown: '',
+    gradebook_use_weights: false,
+    gradebook_assignments_weight: 70,
+    gradebook_tests_weight: 30,
+    planned_site_slug: fixture.publicationSlug,
+    planned_site_published: true,
+    planned_site_config: plannedSiteConfig,
+    position: 82,
+  }
   const assignment = {
     id: fixture.assignmentId,
     artifact_id: fixture.assignmentArtifactId,
@@ -204,14 +226,22 @@ export async function seedPlannedCourseFixtures(
     { table: 'course_blueprint_surveys', rows: [] },
   ] as const
 
-  const blueprintIds = [fixture.blueprintId, fixture.privateBlueprintId]
+  const blueprintIds = [
+    fixture.blueprintId,
+    fixture.privateBlueprintId,
+    fixture.publicationBlueprintId,
+  ]
   const existingBlueprints = await loadFixtureRows(
     supabase,
     'course_blueprints',
     'id',
     blueprintIds,
   )
-  let fixtureIsExact = hasExactRows(existingBlueprints, [publicBlueprint, privateBlueprint])
+  let fixtureIsExact = hasExactRows(existingBlueprints, [
+    publicBlueprint,
+    privateBlueprint,
+    publicationBlueprint,
+  ])
   for (const child of childFixtures) {
     const existingRows = await loadFixtureRows(
       supabase,
@@ -240,6 +270,11 @@ export async function seedPlannedCourseFixtures(
     'Seed unpublished planned course Blueprint',
   )
 
+  assertSeedResult(
+    await supabase.from('course_blueprints').upsert(publicationBlueprint, { onConflict: 'id' }),
+    'Seed publication lifecycle Blueprint',
+  )
+
   for (const child of childFixtures) {
     assertSeedResult(
       await supabase.from(child.table).delete().eq(
@@ -247,6 +282,13 @@ export async function seedPlannedCourseFixtures(
         fixture.privateBlueprintId,
       ),
       `Reset private ${child.table}`,
+    )
+    assertSeedResult(
+      await supabase.from(child.table).delete().eq(
+        'course_blueprint_id',
+        fixture.publicationBlueprintId,
+      ),
+      `Reset publication lifecycle ${child.table}`,
     )
 
     const canonicalRow = child.rows[0]

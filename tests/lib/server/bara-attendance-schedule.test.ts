@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildBaraScheduleSnapshot } from '@/lib/server/bara-attendance-schedule'
+import {
+  buildBaraScheduleSnapshot,
+  materializeBaraAttendanceSchedule,
+} from '@/lib/server/bara-attendance-schedule'
 
 const base = {
   installationRef: 'pika_development',
@@ -12,9 +15,14 @@ const base = {
   attendanceTitle: 'Period 1 attendance',
   policy: {
     timezone: 'America/Toronto' as const,
-    opensAtLocal: '08:50',
-    closesAtLocal: '09:20',
-    closeDayOffset: 0 as const,
+    sessionStartsAtLocal: '09:00',
+    sessionEndsAtLocal: '09:30',
+    sessionEndDayOffset: 0 as const,
+    entryOpensMinutesBefore: 10,
+    presentGraceMinutes: 5,
+    entryClosesMinutesBeforeEnd: 10,
+    absentMinutesBeforeEnd: 0,
+    policyRevision: 3,
   },
 }
 
@@ -52,15 +60,15 @@ describe('Bara attendance schedule materialization', () => {
           occurrence_ref: 'occurrence_march_six',
           date: '2026-03-06',
           title: 'Period 1 attendance',
-          opens_at: '2026-03-06T13:50:00.000Z',
-          closes_at: '2026-03-06T14:20:00.000Z',
+          accepts_at: '2026-03-06T13:50:00.000Z',
+          stops_accepting_at: '2026-03-06T14:20:00.000Z',
         },
         {
           occurrence_ref: 'occurrence_march_nine',
           date: '2026-03-09',
           title: 'Period 1 attendance',
-          opens_at: '2026-03-09T12:50:00.000Z',
-          closes_at: '2026-03-09T13:20:00.000Z',
+          accepts_at: '2026-03-09T12:50:00.000Z',
+          stops_accepting_at: '2026-03-09T13:20:00.000Z',
         },
       ],
     })
@@ -89,13 +97,13 @@ describe('Bara attendance schedule materialization', () => {
   it('rejects unsafe policy windows and missing opaque occurrence mappings', () => {
     expect(() => buildBaraScheduleSnapshot({
       ...base,
-      policy: { ...base.policy, closesAtLocal: '08:40' },
+      policy: { ...base.policy, sessionEndsAtLocal: '08:40' },
       classDays: [{
         date: '2026-03-06',
         isClassDay: true,
         occurrenceRef: 'occurrence_march_six',
       }],
-    })).toThrow('Attendance close time must be after open time')
+    })).toThrow('Attendance timing windows are contradictory')
 
     expect(() => buildBaraScheduleSnapshot({
       ...base,
@@ -114,9 +122,9 @@ describe('Bara attendance schedule materialization', () => {
       windowEnd: '2026-03-08',
       policy: {
         timezone: 'America/Toronto',
-        opensAtLocal: '02:15',
-        closesAtLocal: '03:30',
-        closeDayOffset: 0,
+        ...base.policy,
+        sessionStartsAtLocal: '02:15',
+        sessionEndsAtLocal: '03:30',
       },
       classDays: [{
         date: '2026-03-08',
@@ -133,9 +141,10 @@ describe('Bara attendance schedule materialization', () => {
       windowEnd: '2026-11-02',
       policy: {
         timezone: 'America/Toronto',
-        opensAtLocal: '23:30',
-        closesAtLocal: '00:15',
-        closeDayOffset: 1,
+        ...base.policy,
+        sessionStartsAtLocal: '23:40',
+        sessionEndsAtLocal: '00:25',
+        sessionEndDayOffset: 1,
       },
       classDays: [{
         date: '2026-11-02',
@@ -145,8 +154,50 @@ describe('Bara attendance schedule materialization', () => {
     })
 
     expect(snapshot.occurrences[0]).toMatchObject({
-      opens_at: '2026-11-03T04:30:00.000Z',
-      closes_at: '2026-11-03T05:15:00.000Z',
+      accepts_at: '2026-11-03T04:30:00.000Z',
+      stops_accepting_at: '2026-11-03T05:15:00.000Z',
+    })
+  })
+
+  it('keeps Pika-only cutoffs out of the Bara payload and preserves inclusive boundaries', () => {
+    const result = materializeBaraAttendanceSchedule({
+      ...base,
+      classDays: [{
+        date: '2026-03-06', isClassDay: true, occurrenceRef: 'occurrence_boundary',
+      }],
+    })
+    expect(result.cutoffs[0]).toMatchObject({
+      session_starts_at: '2026-03-06T14:00:00.000Z',
+      present_through_at: '2026-03-06T14:05:00.000Z',
+      stops_accepting_at: '2026-03-06T14:20:00.000Z',
+      absent_at: '2026-03-06T14:30:00.000Z',
+      policy_revision: 3,
+    })
+    expect(result.schedule.occurrences[0]).not.toHaveProperty('present_through_at')
+    expect(result.schedule.occurrences[0]).not.toHaveProperty('absent_at')
+  })
+
+  it('keeps a frozen occurrence when later policy settings change', () => {
+    const frozen = {
+      occurrence_ref: 'occurrence_frozen', date: '2026-03-06',
+      accepts_at: '2026-03-06T13:45:00.000Z',
+      session_starts_at: '2026-03-06T14:00:00.000Z',
+      present_through_at: '2026-03-06T14:05:00.000Z',
+      stops_accepting_at: '2026-03-06T14:20:00.000Z',
+      absent_at: '2026-03-06T14:30:00.000Z',
+      session_ends_at: '2026-03-06T14:30:00.000Z', policy_revision: 2,
+    }
+    const result = materializeBaraAttendanceSchedule({
+      ...base,
+      policy: { ...base.policy, entryOpensMinutesBefore: 5, policyRevision: 4 },
+      classDays: [{
+        date: '2026-03-06', isClassDay: true, occurrenceRef: 'occurrence_frozen',
+        frozenCutoffs: frozen,
+      }],
+    })
+    expect(result.cutoffs[0]).toEqual(frozen)
+    expect(result.schedule.occurrences[0]).toMatchObject({
+      accepts_at: frozen.accepts_at, stops_accepting_at: frozen.stops_accepting_at,
     })
   })
 })

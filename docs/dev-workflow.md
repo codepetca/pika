@@ -154,6 +154,56 @@ Any changes should prioritize:
 
 ---
 
+## Automatic AI pull-request lifecycle
+
+AI-authored work uses a draft-first, stable-SHA lifecycle. Agents execute this
+automatically; it is not a checklist the maintainer must remember.
+
+1. Run risk-matched local checks before publishing:
+   ```bash
+   pnpm check:focused -- --base origin/main
+   ```
+   The command uses the same fail-closed change classifier as CI. Agents still run
+   any feature-specific database harness, browser scenario, or visual verification
+   required by the routed repository guidance.
+2. Commit and push the implementation, then create the PR as a draft with
+   `gh pr create --draft`. If an existing PR is ready while implementation or
+   review remains, return it to draft with `gh pr ready --undo` before pushing.
+3. Run the smallest risk-appropriate independent review wave against the complete
+   diff. Wait for the wave, validate its findings, and batch accepted fixes into
+   one remediation pass. Do not push one commit per finding.
+4. Run affected local checks, push the batch while the PR remains draft, and use
+   targeted re-review rather than repeating the broad review. Complete the final
+   cumulative review before requesting CI.
+5. When the reviewed head commit is stable and no blocker remains, record that SHA
+   in the PR and run `gh pr ready`. The `ready_for_review` event starts the
+   risk-matched CI lanes exactly once for that candidate.
+6. Merge only when `PR Gate` passes on that same reviewed SHA and the normal review
+   authority gate is satisfied. If CI exposes a defect, return the PR to draft
+   before changing it, batch the correction, target the re-review, and mark it
+   ready again only after the new SHA is stable.
+
+CI classifies changes conservatively:
+
+- Documentation and AI-guidance-only diffs run fast workflow contracts in the
+  transition-safe `Test & Build` job.
+- Application diffs always run Test & Build; rendered UI paths add the browser
+  matrix, while database/server-contract paths add ephemeral database contracts.
+- CI configuration, dependency/runtime configuration, manual dispatches, empty
+  change evidence, and unknown paths fail closed to the full suite.
+- Same-repository production promotion PRs whose head exactly matches current
+  `main` validate with Test & Build; divergent or unproven promotion heads run
+  full CI. Risk-matched database and browser contracts already ran against the
+  exact `main` SHA.
+- `workflow_dispatch` remains the full-suite escape hatch.
+
+`Test & Build` remains compatible with the existing branch rules during rollout.
+After an owner verifies `PR Gate`, repository rules should require `PR Gate` on
+both `main` and `production`. Never weaken or bypass a required check during the
+transition.
+
+---
+
 ## Landing changes to `main` (No merge commits)
 
 `main` is configured to reject merge commits. Use linear history only.
@@ -231,39 +281,42 @@ finding. `/repo-tidy` runs the report and walks through the cleanup with you.
 Prefer the helper script in `.codex/skills/pika-main-to-production-merge`; the
 manual flow below documents the same behavior.
 
-### 1) Prepare hub + production worktree
+Agents do not start a production promotion after every main merge. When a
+promotion is explicitly authorized, the helper creates one draft batch PR or
+updates the existing open promotion PR. Complete cumulative review once, mark
+the stable SHA ready, and merge only after `PR Gate` passes.
+
+### 1) Prepare an ephemeral detached promotion worktree
 
 ```bash
 HUB="$HOME/Repos/pika"
 WT_ROOT="$HOME/.codex/worktrees/pika"
 git -C "$HUB" fetch origin
 git -C "$HUB" worktree prune
-
-PROD_WT="$(git -C "$HUB" worktree list --porcelain \
-  | awk '/^worktree / { path=$2 } /^branch refs\/heads\/production$/ { print path; exit }')"
-
-if [ -z "$PROD_WT" ]; then
-  PROD_WT="$WT_ROOT/production"
-  mkdir -p "$(dirname "$PROD_WT")"
-  git -C "$HUB" worktree add "$PROD_WT" production
-fi
+mkdir -p "$WT_ROOT"
+PROMO_TMP="$(mktemp -d "$WT_ROOT/.production-promotion.XXXXXX")"
+PROMO_WT="$PROMO_TMP/worktree"
+git -C "$HUB" worktree add --detach "$PROMO_WT" origin/main
 ```
 
-### 2) Merge latest remote branches in production worktree
+### 2) Verify the promotion head is exactly current main
 
 ```bash
-git -C "$PROD_WT" fetch origin main production
-git -C "$PROD_WT" merge --ff-only origin/production
-git -C "$PROD_WT" merge origin/main
+test "$(git -C "$PROMO_WT" rev-parse HEAD)" = "$(git -C "$HUB" rev-parse origin/main)"
 ```
+
+GitHub combines this exact reviewed main SHA with production when the PR merges.
+The promotion branch therefore receives abbreviated CI regardless of the prior
+production merge strategy; divergent or otherwise unproven heads fail closed to
+full CI.
 
 ### 3) Open PR to production
 
 ```bash
 MERGE_BRANCH="codex/merge-main-into-production-$(date +%Y%m%d)"
-git -C "$PROD_WT" push origin HEAD:"refs/heads/$MERGE_BRANCH"
+git -C "$PROMO_WT" push origin HEAD:"refs/heads/$MERGE_BRANCH"
 
-gh pr create \
+gh pr create --draft \
   --repo codepetca/pika \
   --base production \
   --head "$MERGE_BRANCH" \
@@ -271,18 +324,19 @@ gh pr create \
   --body 'Merge latest main into production.'
 ```
 
-### 4) Merge PR and sync local production
+### 4) Merge PR and remove the ephemeral worktree
 
 ```bash
 gh pr merge <pr-number> --repo codepetca/pika --merge
-git -C "$PROD_WT" fetch origin production
-git -C "$PROD_WT" merge --ff-only origin/production
+git -C "$HUB" worktree remove "$PROMO_WT"
+rmdir "$PROMO_TMP"
 ```
 
 ### Known pitfalls (and fixes)
 
-- `production` worktree path missing but listed in metadata:
-  - Run `git -C "$HOME/Repos/pika" worktree prune` then re-add.
+- A failed merge leaves the ephemeral worktree dirty:
+  - Preserve and report its exact path for conflict resolution; do not reset a
+    persistent local `production` branch.
 - Push rejected with `GH013`:
   - Expected; open/merge PR instead of direct push.
 - `gh pr create` body errors due to backticks:
