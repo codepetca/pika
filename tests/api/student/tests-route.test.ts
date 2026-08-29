@@ -494,6 +494,104 @@ describe('GET /api/student/tests', () => {
     ])
   })
 
+  it('keeps unavailable Test metadata visible without exposing documents or storage identifiers', async () => {
+    const testSelects: string[] = []
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        let statusFilter: string | null = null
+        const builder: any = {
+          select: vi.fn((columns: string) => {
+            testSelects.push(columns)
+            return builder
+          }),
+          eq: vi.fn((column: string, value: string) => {
+            if (column === 'status') statusFilter = value
+            return builder
+          }),
+          order: vi.fn(() => builder),
+          then: vi.fn((resolve: any) => {
+            if (statusFilter === 'closed') {
+              resolve({ data: [], error: null })
+              return
+            }
+            resolve({
+              data: [{
+                id: 'test-active-unavailable',
+                classroom_id: 'classroom-1',
+                title: 'Visible but closed',
+                status: 'active',
+                show_results: false,
+                position: 0,
+                documents: [{
+                  id: 'secret-document',
+                  title: 'Exam reference',
+                  source: 'text',
+                  content: 'Do not expose before access opens',
+                  managed_object_id: 'managed-object-secret',
+                  snapshot_path: 'private/snapshot-secret.pdf',
+                  snapshot_managed_object_id: 'snapshot-object-secret',
+                }],
+              }],
+              error: null,
+            })
+          }),
+        }
+        return builder
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [{ test_id: 'test-active-unavailable', state: 'closed' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(testSelects).toHaveLength(2)
+    expect(testSelects).not.toContain('*')
+    expect(data.tests).toEqual([
+      expect.objectContaining({
+        id: 'test-active-unavailable',
+        title: 'Visible but closed',
+        student_status: 'not_started',
+        effective_access: 'closed',
+        documents: [],
+      }),
+    ])
+    expect(JSON.stringify(data)).not.toContain('secret')
+  })
+
   it('does not treat placeholder graded rows as responded tests', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'tests') {

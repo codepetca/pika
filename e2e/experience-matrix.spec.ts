@@ -862,7 +862,7 @@ test('shows published closed Tests to students without opening them', async ({ p
       body: JSON.stringify({
         hasTodayEntry: true,
         unviewedAssignmentsCount: 0,
-        activeTestsCount: 2,
+        activeTestsCount: 1,
         unreadAnnouncementsCount: 0,
       }),
     })
@@ -884,6 +884,19 @@ test('shows published closed Tests to students without opening them', async ({ p
             documents: [],
             student_status: 'not_started',
             access_state: null,
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000025',
+            classroom_id: '30000000-0000-4000-8000-000000000021',
+            title: 'Individually Closed Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            documents: [],
+            student_status: 'not_started',
+            access_state: 'closed',
             effective_access: 'closed',
           },
           {
@@ -910,6 +923,10 @@ test('shows published closed Tests to students without opening them', async ({ p
   await expect(closedTest).toBeVisible()
   await expect(closedTest).toBeDisabled()
   await expect(closedTest).toContainText('This test is closed')
+  const individuallyClosedTest = page.getByRole('button', { name: /Individually Closed Test/ })
+  await expect(individuallyClosedTest).toBeDisabled()
+  await expect(individuallyClosedTest).toContainText('Closed')
+  await expect(individuallyClosedTest).toContainText('This test is closed')
   await expect(page.getByRole('button', { name: /Practice Test/ })).toBeEnabled()
   await expect(page.getByText(/Unpublished|Published/, { exact: false })).toHaveCount(0)
   await verifyProjectContract(page, testInfo)

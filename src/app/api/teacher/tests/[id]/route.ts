@@ -57,23 +57,6 @@ function toTestQuestionResponse(
   return { ...responseQuestion, id: getPortableTestQuestionIdentity(question) }
 }
 
-function isMissingCloseTestRpcError(error: {
-  code?: string
-  message?: string
-  details?: string | null
-  hint?: string | null
-} | null | undefined): boolean {
-  if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
-  return (
-    error.code === '42883' ||
-    error.code === 'PGRST202' ||
-    combined.includes('close_test_for_grading_atomic') ||
-    combined.includes('finalize_test_attempts_for_grading_atomic') ||
-    combined.includes('closed_for_grading')
-  )
-}
-
 // GET /api/teacher/tests/[id] - Get test with questions
 export const GET = withErrorHandler('GetTestById', async (_request, context) => {
   const user = await requireRole('teacher')
@@ -213,8 +196,8 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   if (status !== undefined) {
     const VALID_TRANSITIONS: Record<string, string[]> = {
       draft: ['closed'],
-      active: ['closed'],
-      closed: ['active'],
+      active: [],
+      closed: [],
     }
     const allowed = VALID_TRANSITIONS[existing.status] || []
     if (!allowed.includes(status)) {
@@ -329,16 +312,10 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
   }
 
-  const shouldFinalizeOnClose = status === 'closed' && existing.status === 'active'
-
   const updates: Record<string, any> = {}
   let validatedDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
   if (title !== undefined) updates.title = title.trim()
-  if (
-    status !== undefined
-    && !shouldFinalizeOnClose
-    && !isPublishingDraft
-  ) updates.status = status
+  if (status !== undefined && !isPublishingDraft) updates.status = status
   if (show_results !== undefined) updates.show_results = show_results
   if (documents !== undefined) {
     const validated = validateTestDocumentsPayload(documents)
@@ -349,7 +326,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     updates.documents = validated.documents
   }
 
-  if (Object.keys(updates).length === 0 && !shouldFinalizeOnClose && !publishedTest) {
+  if (Object.keys(updates).length === 0 && !publishedTest) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
   }
 
@@ -389,24 +366,6 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
 
       test = updatedTest as Record<string, any>
     }
-  }
-
-  if (shouldFinalizeOnClose) {
-    const { error: closeError } = await supabase.rpc('close_test_for_grading_atomic', {
-      p_test_id: id,
-      p_closed_by: user.id,
-    })
-    if (closeError) {
-      if (isMissingCloseTestRpcError(closeError)) {
-        return NextResponse.json(
-          { error: 'Closing tests for grading requires migration 063 to be applied' },
-          { status: 400 }
-        )
-      }
-      console.error('Error closing test for grading:', closeError)
-      return NextResponse.json({ error: 'Failed to finalize test submissions' }, { status: 500 })
-    }
-    test = { ...test, status: 'closed' }
   }
 
   const responseTest = {

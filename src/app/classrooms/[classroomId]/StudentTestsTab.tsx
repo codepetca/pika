@@ -1361,7 +1361,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
             test.student_status === 'not_started' &&
             (test.effective_access ?? (test.status === 'closed' ? 'closed' : 'open')) === 'closed'
           const showClosedListState =
-            test.status === 'closed' && (test.student_status !== 'not_started' || isUnavailable)
+            isUnavailable || (test.status === 'closed' && test.student_status !== 'not_started')
 
           return (
             <button

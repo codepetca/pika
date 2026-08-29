@@ -1318,6 +1318,18 @@ separate explicit authorizations; no application code was deployed.
   history is aligned through 139 and read-only error-level database lint reports
   no findings. The fixture-writing rollback contract was not run against
   production.
+- Independent high-risk review found three merge blockers. The remediation
+  removes legacy active/closed lifecycle mutations from the generic Test PATCH,
+  redacts document content and storage identifiers until a student can open or
+  view submitted work, and derives the student Closed treatment from effective
+  access so individually closed students no longer see a disabled New card.
+  The browser fixture count now matches the one actually open Test.
+- Post-remediation coverage passes 166 focused tests plus lint, TypeScript, the
+  Pika audit, and four student desktop/mobile light/dark Playwright cases. The
+  updated captures were reviewed and preserve a clear Closed treatment without
+  overflow. A non-blocking lost-response publication-retry reconciliation is
+  documented for follow-up because it needs a durable idempotency design beyond
+  the already-applied migration.
 
 **Model recommendation:** GPT-5.6 Sol for the migration transaction,
 publication/access state boundary, cross-role UI behavior, and high-risk PR

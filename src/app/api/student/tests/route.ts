@@ -16,6 +16,8 @@ import { withErrorHandler } from '@/lib/api-handler'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const STUDENT_TEST_LIST_COLUMNS = 'id, classroom_id, title, status, show_results, documents, position, points_possible, include_in_final, gradebook_weight, created_by, created_at, updated_at' as const
+
 // GET /api/student/tests?classroom_id=xxx - List tests for student
 export const GET = withErrorHandler('GetStudentTests', async (request, context) => {
   const user = await requireRole('student')
@@ -37,7 +39,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
   async function fetchByStatus(status: 'active' | 'closed') {
     return supabase
       .from('tests')
-      .select('*')
+      .select(STUDENT_TEST_LIST_COLUMNS)
       .eq('classroom_id', requestedClassroomId)
       .eq('status', status)
       .order('position', { ascending: false })
@@ -218,7 +220,9 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     return {
       ...test,
       assessment_type: 'test' as const,
-      documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+      documents: access.can_start_or_continue || access.can_view_submitted
+        ? normalizeTestDocuments((test as { documents?: unknown }).documents)
+        : [],
       student_status: studentStatus,
       access_state: access.access_state,
       effective_access: access.effective_access,

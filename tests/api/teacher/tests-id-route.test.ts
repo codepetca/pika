@@ -593,12 +593,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
-  it('finalizes draft attempts when closing an active test', async () => {
-    mockSupabaseClient.rpc = vi.fn(async () => ({
-      data: { closed_count: 1, finalized_attempts: 0, inserted_responses: 0 },
-      error: null,
-    }))
-
+  it('rejects the legacy active-to-closed lifecycle path', async () => {
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
       ok: true,
       test: {
@@ -617,10 +612,6 @@ describe('PATCH /api/teacher/tests/[id]', () => {
       } as any,
     })
 
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
@@ -628,24 +619,20 @@ describe('PATCH /api/teacher/tests/[id]', () => {
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.test.status).toBe('closed')
-    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('close_test_for_grading_atomic', {
-      p_test_id: 'test-1',
-      p_closed_by: 'teacher-1',
-    })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Cannot transition from active to closed' })
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
-  it('returns an error when atomic close finalization fails', async () => {
+  it('rejects the legacy closed-to-active lifecycle path', async () => {
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
       ok: true,
       test: {
         id: 'test-1',
         title: 'Unit Test',
         classroom_id: 'classroom-1',
-        status: 'active',
+        status: 'closed',
         show_results: false,
         position: 0,
         points_possible: null,
@@ -657,29 +644,17 @@ describe('PATCH /api/teacher/tests/[id]', () => {
       } as any,
     })
 
-    mockSupabaseClient.rpc = vi.fn(async () => ({
-      data: null,
-      error: { code: '23514', message: 'constraint violation' },
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'closed' }),
+        body: JSON.stringify({ status: 'active' }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
-    const data = await response.json()
 
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to finalize test submissions')
-    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('close_test_for_grading_atomic', {
-      p_test_id: 'test-1',
-      p_closed_by: 'teacher-1',
-    })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Cannot transition from closed to active' })
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })
