@@ -11,6 +11,11 @@ const todayMock = vi.hoisted(() => ({
   today: '2026-05-06',
 }))
 
+const appMessageMock = vi.hoisted(() => ({
+  showMessage: vi.fn(),
+  clearMessage: vi.fn(),
+}))
+
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => todayMock.today,
 }))
@@ -66,7 +71,7 @@ vi.mock('@/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui')>()
   return {
     ...actual,
-    useAppMessage: () => ({ showMessage: vi.fn(), clearMessage: vi.fn() }),
+    useAppMessage: () => appMessageMock,
     Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     RefreshingIndicator: () => <div data-testid="refreshing-indicator" />,
   }
@@ -338,6 +343,7 @@ function mockManyLogsFetch(count = 30) {
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     window.localStorage.clear()
     todayMock.today = '2026-05-06'
     classDaysMock.classDays = [...classDaysMock.defaultClassDays]
@@ -345,6 +351,8 @@ describe('TeacherAttendanceTab', () => {
     classDaysMock.hasLoadedSnapshot = true
     classDaysMock.isLoading = false
     classDaysMock.refresh.mockReset()
+    appMessageMock.showMessage.mockReset()
+    appMessageMock.clearMessage.mockReset()
     vi.unstubAllGlobals()
   })
 
@@ -522,6 +530,160 @@ describe('TeacherAttendanceTab', () => {
       classroom_id: classroom.id,
       date: '2026-05-05',
       command: 'close',
+    })
+  })
+
+  it('keeps revalidating a pending mark until confirmation arrives after the bounded poll', async () => {
+    let attendanceReadCount = 0
+    const initialAttendance = combinedAttendanceView()
+    const confirmedAttendance = combinedAttendanceView({
+      students: initialAttendance.students.map((student) => student.studentId === 'student-1'
+        ? {
+            ...student,
+            status: 'late',
+            source: 'staff',
+            revision: (student.revision ?? 0) + 1,
+            hasManualOverride: true,
+          }
+        : student),
+    })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: initialAttendance.students.map((student, index) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: index === 0 ? entry({ student_id: student.studentId, text: longLogText }) : null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        attendanceReadCount += 1
+        return mockJson(attendanceReadCount >= 10 ? confirmedAttendance : initialAttendance)
+      }
+      if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        return mockJson({ outcome: 'accepted', appliedCount: 0 })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const initialStatus = await screen.findByRole('group', {
+      name: 'Attendance status for Student1 Test',
+    })
+    vi.useFakeTimers()
+
+    await act(async () => {
+      fireEvent.click(within(initialStatus).getByRole('button', { name: 'Late' }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+    })
+
+    const waitingLateButton = within(screen.getByRole('group', {
+      name: 'Attendance status for Student1 Test',
+    })).getByRole('button', { name: 'Late' })
+    expect(attendanceReadCount).toBe(9)
+    expect(waitingLateButton).toBeDisabled()
+    expect(waitingLateButton).toHaveAttribute('aria-pressed', 'false')
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Update sent; waiting for attendance confirmation',
+      tone: 'info',
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    const confirmedLateButton = within(screen.getByRole('group', {
+      name: 'Attendance status for Student1 Test',
+    })).getByRole('button', { name: 'Late' })
+    expect(attendanceReadCount).toBe(10)
+    expect(confirmedLateButton).toBeEnabled()
+    expect(confirmedLateButton).toHaveAttribute('aria-pressed', 'true')
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: '1 student marked late',
+      tone: 'info',
+    })
+  })
+
+  it('releases a pending session action when background confirmation reports terminal failure', async () => {
+    let attendanceReadCount = 0
+    const initialAttendance = combinedAttendanceView()
+    const failedAttendance = combinedAttendanceView({
+      session: {
+        ...initialAttendance.session,
+        commandFailed: true,
+      },
+    })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: initialAttendance.students.map((student) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        attendanceReadCount += 1
+        return mockJson(attendanceReadCount >= 10 ? failedAttendance : initialAttendance)
+      }
+      if (url === '/api/teacher/attendance/session' && init?.method === 'POST') {
+        return mockJson({ outcome: 'pending' })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const stopButton = await screen.findByRole('button', { name: 'Stop QR check-in' })
+    vi.useFakeTimers()
+    await act(async () => {
+      fireEvent.click(stopButton)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+    })
+    expect(screen.getByRole('button', { name: 'Stop QR check-in' })).toBeDisabled()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    expect(attendanceReadCount).toBe(10)
+    expect(screen.getByRole('button', { name: 'Stop QR check-in' })).toBeEnabled()
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Attendance could not be closed',
+      tone: 'warning',
     })
   })
 

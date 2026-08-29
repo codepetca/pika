@@ -81,6 +81,13 @@ describe('Pika attendance derivation', () => {
     expect(result.students[0]).toMatchObject({ status: 'absent', hasQrCheckIn: false })
   })
 
+  it('exposes terminal check-in command failure only for the affected student', () => {
+    const result = build({ failedStudentIds: [students[0].studentId] })
+
+    expect(result.students[0].commandFailed).toBe(true)
+    expect(result.students[1].commandFailed).toBe(false)
+  })
+
   it('does not expose provider references in the browser contract', () => {
     const result = build({
       checkInFacts: [{

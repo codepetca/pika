@@ -1517,11 +1517,18 @@ student Attendance behavior changed.
   menu/dialog focus, and preserved Daily split/resize behavior. Stabilized two
   unrelated Test-detail debounce assertions selected by the full dependency
   gate by holding only their 3-second autosave timer during the assertion.
+- Independent review identified that an accepted Attendance command could stay
+  locally pending forever when provider confirmation arrived after the bounded
+  foreground poll. Daily now keeps one cancellable background revalidation
+  queue until authoritative success or terminal failure, then releases the
+  affected controls. Non-retryable check-in invalidations are surfaced through
+  the existing per-student failure contract. Regression coverage confirms both
+  delayed success after the eighth read and terminal session failure recovery.
 - Visual verification passed Attendance-on and Daily-only teacher states on
   desktop/mobile in light/dark, including selection, hidden ID, and open More
   menu. Student visual verification is n/a because no student surface changed.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
-  UI/design policy, 193 changed-path tests, 1,305 related tests, TypeScript, and
+  UI/design policy, 201 changed-path tests, 1,313 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
   covered by direct semantic, keyboard, focus, and resize tests.
 
