@@ -1150,6 +1150,8 @@ export type StudentTestStatus = 'not_started' | 'responded' | 'can_view_results'
 
 export interface StudentTestView extends TestAssessment {
   student_status: StudentTestStatus
+  access_state?: 'open' | 'closed' | null
+  effective_access?: 'open' | 'closed'
   questions?: TestAssessmentQuestion[]
   focus_summary?: TestFocusSummary | null
 }

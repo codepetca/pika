@@ -530,6 +530,9 @@ describe('TeacherRosterTab', () => {
     renderRoster()
 
     expect(await screen.findByText('Ada')).toBeInTheDocument()
+    const contextBar = screen.getByRole('region', { name: 'Roster controls' })
+    expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
+    expect(screen.getByRole('button', { name: 'Roster actions' }).closest('.fixed')).toBeNull()
     expect(screen.getByRole('region', { name: 'Classroom roster' })).toHaveAttribute(
       'aria-keyshortcuts',
       'ArrowUp ArrowDown Home End Escape',

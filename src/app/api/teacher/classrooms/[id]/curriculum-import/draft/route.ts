@@ -29,9 +29,8 @@ export const POST = withErrorHandler('PostCourseGuideCurriculumImportDraft', asy
     sourceUrl: typeof sourceUrl === 'string' ? sourceUrl : '',
   })
   const source = await decodeCourseGuideImportFormData(formData, metadata)
-  const releaseExtractionSlot = acquireCourseGuideImportExtractionSlot({
+  const releaseExtractionSlot = await acquireCourseGuideImportExtractionSlot({
     teacherId: user.id,
-    classroomId,
   })
   try {
     const draft = await extractCourseGuideImportDraft(source)
@@ -47,6 +46,6 @@ export const POST = withErrorHandler('PostCourseGuideCurriculumImportDraft', asy
       error: 'Pika could not extract this curriculum source. Try another PDF or a direct public document link.',
     }, { status: 422 })
   } finally {
-    releaseExtractionSlot()
+    await releaseExtractionSlot()
   }
 })

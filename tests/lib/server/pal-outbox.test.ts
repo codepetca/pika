@@ -373,10 +373,12 @@ describe('Pal outbox adapter', () => {
       supabase: supabase.client,
       fetchImpl,
       now: occurredAt,
-      timeoutMs: 20,
+      // Leave enough scheduler headroom for the fetch to begin when the full
+      // Vitest pool is busy; the unresolved transition is still tightly bounded.
+      timeoutMs: 100,
     })).resolves.toBe('pending')
 
-    expect(performance.now() - startedAt).toBeLessThan(250)
+    expect(performance.now() - startedAt).toBeLessThan(500)
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 

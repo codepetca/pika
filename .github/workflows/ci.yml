@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main, production]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
 
 concurrency:
@@ -10,8 +11,60 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify-changes:
+    name: Classify Changes
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.classify.outputs.mode }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      run_test_build: ${{ steps.classify.outputs.run_test_build }}
+      run_database: ${{ steps.classify.outputs.run_database }}
+      run_browser: ${{ steps.classify.outputs.run_browser }}
+
+    steps:
+      - name: Checkout code with change history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Select risk-matched checks
+        id: classify
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name }}
+          FULL_CI: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [[ "$FULL_CI" == "true" ]]; then
+            node scripts/classify-ci-changes.mjs --full --github-output "$GITHUB_OUTPUT"
+          else
+            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+            MAIN_SHA="$(git rev-parse origin/main)"
+            node scripts/classify-ci-changes.mjs \
+              --base "$BASE_SHA" \
+              --head "$HEAD_SHA" \
+              --target "$TARGET_BRANCH" \
+              --head-branch "$HEAD_BRANCH" \
+              --main-sha "$MAIN_SHA" \
+              --head-repository "$HEAD_REPOSITORY" \
+              --base-repository "$BASE_REPOSITORY" \
+              --github-output "$GITHUB_OUTPUT"
+          fi
+
   architecture-database-contracts:
     name: Architecture Database Contracts
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_database == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -51,6 +104,9 @@ jobs:
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 
+      - name: Verify Course Guide import shared lease and rate window
+        run: bash scripts/check-course-guide-import-rate-limit-database.sh
+
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
 
@@ -71,6 +127,9 @@ jobs:
 
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
+
+      - name: Verify atomic Test publication
+        run: bash scripts/check-test-publication-atomicity.sh
 
       - name: Verify atomic test grading
         run: bash scripts/check-atomic-test-grading.sh
@@ -144,6 +203,8 @@ jobs:
 
   test-and-build:
     name: Test & Build
+    needs: classify-changes
+    if: needs.classify-changes.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -176,16 +237,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check workflow and documentation contracts
+        run: pnpm run check:workflow
+
       - name: Check architecture boundaries
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run check:architecture
 
       - name: Check governed UI imports and native controls
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run check:ui-policy
 
       - name: Check governed design values
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run check:design-policy
 
       - name: "Check No dark: Classes in App Code"
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: |
           echo "Checking for dark: classes outside /ui..."
 
@@ -213,15 +281,19 @@ jobs:
           echo "All dark: classes are properly contained in /ui!"
 
       - name: Run tests with coverage
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run test:coverage
 
       - name: Check TypeScript
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: npx tsc --noEmit
 
       - name: Run linter
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run lint
 
       - name: Build production bundle
+        if: needs.classify-changes.outputs.run_test_build == 'true'
         run: pnpm run build
         env:
           # Required environment variables for build
@@ -232,7 +304,7 @@ jobs:
           SESSION_SECRET: placeholder-session-secret-at-least-32-chars-long
 
       - name: Upload coverage reports
-        if: failure()
+        if: failure() && needs.classify-changes.outputs.run_test_build == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
@@ -241,6 +313,8 @@ jobs:
 
   browser-experience-matrix:
     name: Browser Experience Matrix
+    needs: classify-changes
+    if: needs.classify-changes.outputs.run_browser == 'true'
     runs-on: ubuntu-latest
     env:
       E2E_BASE_URL: http://localhost:3000
@@ -292,14 +366,8 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run teacher and student browser matrix
-        run: pnpm e2e:matrix
-
-      - name: Run individual-student purge browser matrix
-        run: pnpm e2e:student-purge
-
-      - name: Run archive recovery browser matrix
-        run: pnpm e2e:archive-recovery
+      - name: Run combined browser contracts
+        run: pnpm e2e:ci
 
       - name: Upload browser diagnostics
         if: always()
@@ -314,3 +382,61 @@ jobs:
       - name: Stop ephemeral database
         if: always()
         run: supabase stop --no-backup
+
+  pr-gate:
+    name: PR Gate
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
+    needs:
+      - classify-changes
+      - architecture-database-contracts
+      - test-and-build
+      - browser-experience-matrix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify every selected check passed
+        shell: bash
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
+          TEST_BUILD_RESULT: ${{ needs.test-and-build.result }}
+          TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}
+          DATABASE_REQUIRED: ${{ needs.classify-changes.outputs.run_database }}
+          DATABASE_RESULT: ${{ needs.architecture-database-contracts.result }}
+          BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
+          BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
+          CI_MODE: ${{ needs.classify-changes.outputs.mode }}
+        run: |
+          printf 'CI mode: %s\n' "$CI_MODE"
+          [[ "$CLASSIFY_RESULT" == "success" ]] || {
+            echo "Change classification did not succeed: $CLASSIFY_RESULT"
+            exit 1
+          }
+          [[ "$TEST_BUILD_RESULT" == "success" ]] || {
+            echo "Test & Build did not succeed: $TEST_BUILD_RESULT"
+            exit 1
+          }
+          case "$CI_MODE:$TEST_BUILD_REQUIRED:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
+            full:true:true:true | \
+            docs-only:false:false:false | \
+            production-promotion:true:false:false | \
+            application-database:true:true:false | \
+            application-browser:true:false:true | \
+            application-database-browser:true:true:true | \
+            application-test-build:true:false:false)
+              ;;
+            *)
+              echo "Invalid or inconsistent CI selectors: mode=$CI_MODE test_build=$TEST_BUILD_REQUIRED database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
+          if [[ "$DATABASE_REQUIRED" == "true" && "$DATABASE_RESULT" != "success" ]]; then
+            echo "Architecture Database Contracts were required but ended: $DATABASE_RESULT"
+            exit 1
+          fi
+          if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_RESULT" != "success" ]]; then
+            echo "Browser Experience Matrix was required but ended: $BROWSER_RESULT"
+            exit 1
+          fi
+          echo "All risk-matched checks passed."

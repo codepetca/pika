@@ -74,6 +74,7 @@ class FixtureSupabase {
     const fixtureIds = new Set([
       PLANNED_COURSE_FIXTURE.blueprintId,
       PLANNED_COURSE_FIXTURE.privateBlueprintId,
+      PLANNED_COURSE_FIXTURE.publicationBlueprintId,
     ])
     return Object.fromEntries(
       [...this.rows.entries()]
@@ -101,6 +102,15 @@ describe('seedPlannedCourseFixtures', () => {
 
     expect(await seedPlannedCourseFixtures(supabase as never, 'teacher-1')).toEqual({ changed: true })
     const first = supabase.fixtureSnapshot()
+
+    expect(first.course_blueprints).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: PLANNED_COURSE_FIXTURE.publicationBlueprintId,
+        title: 'Publication Lifecycle Fixture',
+        planned_site_slug: PLANNED_COURSE_FIXTURE.publicationSlug,
+        planned_site_published: true,
+      }),
+    ]))
 
     const assignments = first.course_blueprint_assignments
     expect(assignments).toHaveLength(1)
