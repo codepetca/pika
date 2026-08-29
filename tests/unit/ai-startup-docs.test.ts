@@ -266,6 +266,8 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('Do not start `workflow_dispatch`')
     expect(workflow).toContain('queued, in progress, or completed')
     expect(workflow).toContain('exact reviewed SHA')
+    expect(workflow).toContain('eligible, non-skipped')
+    expect(workflow).toContain('draft-skipped')
   })
 
   it('documents orient-only startup for read-only work', () => {
