@@ -1304,6 +1304,14 @@ dependency, secret, or hosted state was changed.
   After owner approval, current `main` advanced through Course Guide limiter PR
   #1111; the speed-program PR returned to draft and merged that change while
   retaining its new database-contract step in the aggregate CI workflow.
+- The next exact-SHA CI exposed a pre-existing archive visual test that packed
+  20 context/navigation states into one 30-second case. Test & Build and database
+  contracts passed, while all browser retries timed out even though an artifact
+  snapshot showed the expected verified state arriving after the deadline.
+  Split the four viewport/theme entries into separate internally serial tests,
+  preserving every assertion and screenshot. The exact two-worker combined
+  browser command then passed 82 tests with 14 intentional skips in 2.5 minutes;
+  each split archive case passed first try in 4.3–10.2 seconds.
 
 **Model recommendation:** GPT-5.6 Sol at high reasoning for the branch-protection
 transition and initial post-rollout evidence review; use Terra for routine
