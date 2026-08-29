@@ -178,6 +178,12 @@ automatically; it is not a checklist the maintainer must remember.
 5. When the reviewed head commit is stable and no blocker remains, record that SHA
    in the PR and run `gh pr ready`. The `ready_for_review` event starts the
    risk-matched CI lanes exactly once for that candidate.
+   Do not start `workflow_dispatch` while a pull-request CI run for the
+   exact reviewed SHA is queued, in progress, or completed. If the ready event appears
+   not to have started CI, inspect the exact-head runs and allow GitHub event
+   processing to settle before rechecking. Use the manual dispatch escape hatch
+   only when no exact-head pull-request run exists or for a deliberate diagnostic
+   rerun; never launch it concurrently with the ready-event run.
 6. Merge only when `PR Gate` passes on that same reviewed SHA and the normal review
    authority gate is satisfied. If CI exposes a defect, return the PR to draft
    before changing it, batch the correction, target the re-review, and mark it
