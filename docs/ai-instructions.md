@@ -49,7 +49,7 @@ Inspect or edit source only after startup and routed docs.
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: require one-time permission naming target and migration; follow the schema rollout checklist
-- Workflow: use a worktree; include `Model recommendation: <model> - <reason>`; append `.ai/SESSION-LOG.md`; run `node scripts/trim-session-log.mjs`
+- Workflow: use a worktree; automatic draft-first stable-SHA PRs per `docs/dev-workflow.md`; include `Model recommendation: <model> - <reason>`; append and trim the session log
 - Risk profile: declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`
 
 ## Prompt And Skill Map

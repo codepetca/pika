@@ -25271,3 +25271,35 @@ API, schema, persistence, authentication, dependency, or hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for a localized
 cross-product visual-language match and responsive verification.
+
+<!-- pika-session-log-archive-batch:b557c7835ae7d4f0572950cf08b879e472462c5cf6e1298013c2b27bf44ef40b -->
+## 2026-08-27 — Align Attendance table sorting with Daily
+
+**Risk profile:** none — teacher Attendance table presentation, sorting,
+accessibility semantics, shared table tokens, regression coverage, and pending
+guidance only; no attendance writes, API, schema, authentication, dependency,
+or hosted state changed.
+
+- Added three numbered Present, Late, and Absent chips to the Status header.
+  They retain the exact TeachAssist colors, expose pressed state and descriptive
+  names, and sort the selected status to the top. Unmarked remains a neutral row
+  dot and intentionally has no fourth summary chip.
+- Matched Daily's tight roster anatomy with separate sortable First and Last
+  columns, a sortable Source column in Daily's metadata position, a trailing
+  Status column, shared sort indicators, and resizable persisted data columns.
+  The compact operational context, sticky table header, row selection, and
+  bottom bulk-action clearance remain intact.
+- Added semantic foreground tokens for the filled attendance chips and a
+  semantic sticky-table layer. Composite-widget accessibility was reviewed:
+  all chip and header controls are keyboard reachable, sorting state is
+  conveyed through `aria-pressed`/`aria-sort`, and regression tests cover the
+  interactions. No manual accessibility follow-up is required.
+- Full Vitest (5,104/5,104), lint, design/UI policy checks, and the production
+  build pass. Playwright verification covers teacher desktop/mobile in
+  light/dark across default, status-sorted, column-sorted, scrolled, and
+  selected states; it confirms the exact chip colors, 44px targets, sticky
+  header, resize handles, correct sort ordering, and no mobile wrapping.
+  Student UI is n/a because this surface is teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for this contained
+teacher-table interaction and responsive visual verification.

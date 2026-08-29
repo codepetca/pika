@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Align Attendance table sorting with Daily
-
-**Risk profile:** none — teacher Attendance table presentation, sorting,
-accessibility semantics, shared table tokens, regression coverage, and pending
-guidance only; no attendance writes, API, schema, authentication, dependency,
-or hosted state changed.
-
-- Added three numbered Present, Late, and Absent chips to the Status header.
-  They retain the exact TeachAssist colors, expose pressed state and descriptive
-  names, and sort the selected status to the top. Unmarked remains a neutral row
-  dot and intentionally has no fourth summary chip.
-- Matched Daily's tight roster anatomy with separate sortable First and Last
-  columns, a sortable Source column in Daily's metadata position, a trailing
-  Status column, shared sort indicators, and resizable persisted data columns.
-  The compact operational context, sticky table header, row selection, and
-  bottom bulk-action clearance remain intact.
-- Added semantic foreground tokens for the filled attendance chips and a
-  semantic sticky-table layer. Composite-widget accessibility was reviewed:
-  all chip and header controls are keyboard reachable, sorting state is
-  conveyed through `aria-pressed`/`aria-sort`, and regression tests cover the
-  interactions. No manual accessibility follow-up is required.
-- Full Vitest (5,104/5,104), lint, design/UI policy checks, and the production
-  build pass. Playwright verification covers teacher desktop/mobile in
-  light/dark across default, status-sorted, column-sorted, scrolled, and
-  selected states; it confirms the exact chip colors, 44px targets, sticky
-  header, resize handles, correct sort ordering, and no mobile wrapping.
-  Student UI is n/a because this surface is teacher-only.
-
-**Model recommendation:** current GPT-5 coding model for this contained
-teacher-table interaction and responsive visual verification.
-
 ## 2026-08-27 — Promote Attendance operational-table design to stable canon
 
 **Risk profile:** none — design governance, AI routing, and reusable teacher
@@ -1328,3 +1297,42 @@ production Convex worker correction.
 
 **Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
 bounded follow-up now that the coordinated rollout is complete.
+
+## 2026-08-28 — Build the automatic development-speed workflow
+
+**Risk profile:** runtime-platform — CI selection, browser concurrency, AI PR
+routing, and protected production-promotion behavior changed; no schema,
+dependency, secret, or hosted state was changed.
+
+- Measured the pre-change CI baseline: latest clean lanes took 4m41s for Test &
+  Build, 7m32s for database contracts, and 9m08s for the browser matrix; the
+  recent successful wall-time median was 563s, with 8 of 30 attempts cancelled
+  after consuming about 41 minutes.
+- Added a fail-closed, change-aware classifier and aggregate `PR Gate`. Draft
+  pushes skip heavy work; docs/AI guidance uses the fast workflow-contract lane;
+  application, database, and rendered-browser paths select their relevant lanes;
+  unknown/runtime/CI paths and manual dispatches run the full suite.
+- Made the draft-first stable-SHA lifecycle automatic for AI agents: focused
+  local checks, draft PR, risk-matched review, batched remediation, one ready-SHA
+  CI run, and return-to-draft before any correction push.
+- Combined the three Playwright CI launches, moved the public Course Guide setup
+  into deterministic seed state, and enabled two CI workers while keeping each
+  spec internally serial. Added a reusable performance measurement command and
+  rollout/rollback targets.
+- Changed production promotion to reuse one cumulative draft PR and kept direct
+  or noncanonical production PRs on fail-closed full CI. Repository ruleset
+  replacement remains an explicit owner checkpoint after the workflow proves
+  both docs-only and full classifications.
+- Local validation passed: 612 test files / 5,271 tests, 71 workflow contract
+  tests, architecture, UI/design policies, TypeScript, lint, production build,
+  actionlint, Bash syntax, Playwright discovery (85 tests), focused checks, and
+  diff validation. Ephemeral database and real-browser execution remain selected
+  for the final ready-PR CI run because local seed/migration application was not
+  authorized.
+- Tightened the Pika audit so newly introduced production `console.log` calls
+  still fail without forcing unrelated edits to clean legacy logging elsewhere
+  in the same file; regression coverage locks both cases.
+
+**Model recommendation:** GPT-5.6 Sol at high reasoning for the branch-protection
+transition and initial post-rollout evidence review; use Terra for routine
+follow-up once the aggregate gate is established.

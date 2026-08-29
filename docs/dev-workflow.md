@@ -154,6 +154,54 @@ Any changes should prioritize:
 
 ---
 
+## Automatic AI pull-request lifecycle
+
+AI-authored work uses a draft-first, stable-SHA lifecycle. Agents execute this
+automatically; it is not a checklist the maintainer must remember.
+
+1. Run risk-matched local checks before publishing:
+   ```bash
+   pnpm check:focused -- --base origin/main
+   ```
+   The command uses the same fail-closed change classifier as CI. Agents still run
+   any feature-specific database harness, browser scenario, or visual verification
+   required by the routed repository guidance.
+2. Commit and push the implementation, then create the PR as a draft with
+   `gh pr create --draft`. If an existing PR is ready while implementation or
+   review remains, return it to draft with `gh pr ready --undo` before pushing.
+3. Run the smallest risk-appropriate independent review wave against the complete
+   diff. Wait for the wave, validate its findings, and batch accepted fixes into
+   one remediation pass. Do not push one commit per finding.
+4. Run affected local checks, push the batch while the PR remains draft, and use
+   targeted re-review rather than repeating the broad review. Complete the final
+   cumulative review before requesting CI.
+5. When the reviewed head commit is stable and no blocker remains, record that SHA
+   in the PR and run `gh pr ready`. The `ready_for_review` event starts the
+   risk-matched CI lanes exactly once for that candidate.
+6. Merge only when `PR Gate` passes on that same reviewed SHA and the normal review
+   authority gate is satisfied. If CI exposes a defect, return the PR to draft
+   before changing it, batch the correction, target the re-review, and mark it
+   ready again only after the new SHA is stable.
+
+CI classifies changes conservatively:
+
+- Documentation and AI-guidance-only diffs run fast workflow contracts in the
+  transition-safe `Test & Build` job.
+- Application diffs always run Test & Build; rendered UI paths add the browser
+  matrix, while database/server-contract paths add ephemeral database contracts.
+- CI configuration, dependency/runtime configuration, manual dispatches, empty
+  change evidence, and unknown paths fail closed to the full suite.
+- Production promotion PRs validate the combined merge result with Test & Build;
+  risk-matched database and browser contracts already ran against the main PRs.
+- `workflow_dispatch` remains the full-suite escape hatch.
+
+`Test & Build` remains compatible with the existing branch rules during rollout.
+After an owner verifies `PR Gate`, repository rules should require `PR Gate` on
+both `main` and `production`. Never weaken or bypass a required check during the
+transition.
+
+---
+
 ## Landing changes to `main` (No merge commits)
 
 `main` is configured to reject merge commits. Use linear history only.
@@ -230,6 +278,11 @@ finding. `/repo-tidy` runs the report and walks through the cleanup with you.
 `production` is branch-protected and rejects direct pushes. Always merge through a PR.
 Prefer the helper script in `.codex/skills/pika-main-to-production-merge`; the
 manual flow below documents the same behavior.
+
+Agents do not start a production promotion after every main merge. When a
+promotion is explicitly authorized, the helper creates one draft batch PR or
+updates the existing open promotion PR. Complete cumulative review once, mark
+the stable SHA ready, and merge only after `PR Gate` passes.
 
 ### 1) Prepare hub + production worktree
 

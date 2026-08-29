@@ -26,10 +26,12 @@ export default defineConfig({
   snapshotDir: './e2e/__snapshots__',
 
   // Test execution settings
-  fullyParallel: false, // Run tests serially for stability
+  // Each file remains internally serial. CI uses two workers only after shared
+  // database mutations were reduced to seeded state or desktop-only contracts.
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1, // Single worker to avoid race conditions
+  workers: process.env.CI ? 2 : 1,
 
   // Reporter configuration
   reporter: [

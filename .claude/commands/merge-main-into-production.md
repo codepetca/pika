@@ -21,9 +21,9 @@ Steps:
    bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh
    ```
 
-3) If the helper creates a PR, report its URL and ask the user to merge it or confirm that you should merge it.
+3) Reuse the helper's created or updated draft PR; never open a second promotion PR. Complete cumulative review, record the reviewed SHA, mark it ready, and wait for `PR Gate`.
 
-4) After the PR is merged, sync the local production worktree using the path printed by the helper:
+4) After the reviewed batch is merged, sync the local production worktree using the path printed by the helper:
    ```bash
    git -C <production-worktree> fetch origin production
    git -C <production-worktree> merge --ff-only origin/production

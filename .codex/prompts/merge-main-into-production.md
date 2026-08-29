@@ -10,7 +10,9 @@ bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_product
 ```
 
 After the script:
-1. Merge the created PR.
-2. Fast-forward the local production worktree to `origin/production`.
-3. Report the final `origin/production` commit SHA.
-4. Stop and ask for direction if conflicts appear at any stage.
+1. Reuse the created or updated draft PR; never open a second promotion PR.
+2. Complete cumulative review, record the reviewed SHA, mark ready, and wait for `PR Gate`.
+3. Merge the reviewed batch.
+4. Fast-forward the local production worktree to `origin/production`.
+5. Report the final `origin/production` commit SHA.
+6. Stop and ask for direction if conflicts appear at any stage.
