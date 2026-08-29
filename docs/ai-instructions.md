@@ -1,6 +1,6 @@
 # AI Instructions for Pika
 
-Routing layer for repo agents. Use it after `.ai/START-HERE.md`.
+Routing after `.ai/START-HERE.md`.
 Worktree creation, cleanup, and shared `.env.local` setup live in [`docs/dev-workflow.md`](./dev-workflow.md).
 
 ## Default Startup Context

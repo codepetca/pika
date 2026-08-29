@@ -25693,7 +25693,6 @@ persistence, authentication, dependency, or hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for scoped design-system
 promotion and implementation routing.
-
 <!-- pika-session-log-archive-batch:045add07b551883ffe9498d2b3d7a04db17bfce0348b995fe99d9d85d4a2cb21 -->
 ## 2026-08-27 — Align Attendance table sorting with Daily
 
@@ -25776,34 +25775,7 @@ changed.
 **Model recommendation:** current GPT-5 coding model for a localized semantic
 contrast remediation with responsive visual verification.
 
-<!-- pika-session-log-archive-batch:fefc4e78adca04157e79a949142885a76e0e37d5e40a996e7c3a7fe597f264a8 -->
-## 2026-08-27 — Promote Attendance operational-table design to stable canon
-
-**Risk profile:** none — design governance, AI routing, and reusable teacher
-work-surface guidance only; no rendered UI, business logic, API, schema,
-persistence, authentication, dependency, or hosted state changed.
-
-- Promoted the human-approved Attendance composition from experimental guidance
-  into Pika's stable design contract. Attendance is now the named reference for
-  scan-heavy teacher operational tables with quiet edge information, an
-  obvious centered action cluster, row-derived status sorting in the table
-  header, sticky long-list behavior, and selection-triggered bottom actions.
-- Added a durable operational-table guide with executable owners, composition
-  example, status-chip rules, adoption checklist, must-not-add constraints, and
-  explicit mappings for Attendance, Classwork, Tests summary, and selected-Test
-  grading rosters. Domain statuses, colors, columns, comparisons, permissions,
-  and mutations remain feature-owned.
-- Updated `DESIGN.md`, stable guidance, teacher work-surface canon, audit, UI
-  index, and AI routing so future agents load the pattern directly. Retired the
-  superseded experimental draft after promotion.
-- Focused behavior/design coverage passes (37/37), along with design policy, UI
-  policy, lint, and diff checks. Visual dimensions are n/a because this was a
-  documentation-only promotion; the unchanged approved Attendance captures
-  remain the reference evidence.
-
-**Model recommendation:** current GPT-5 coding model for scoped design-system
-promotion and implementation routing.
-
+<!-- pika-session-log-archive-batch:3ec974d64aa7596b0488f0769a4e85bb9174d19f9e9670e79af228500c2b9f19 -->
 ## 2026-08-27 — Resolve Attendance status-dot contrast review
 
 **Risk profile:** none — teacher Attendance status presentation, semantic token
@@ -25845,3 +25817,55 @@ state changed.
 **Verification:** documentation and source guidance only; lint, continuity, and
 diff checks pass. Visual verification is n/a because rendered output is
 unchanged.
+
+## 2026-08-27 — Restore mobile access to Attendance utilities
+
+**Risk profile:** low — responsive teacher Attendance controls and regression
+coverage only; no attendance data behavior, API contract, schema, persistence,
+authentication, dependency, or hosted state changed.
+
+- Resolved the PR review blocker that hid Attendance hours and Refresh below
+  640px. Desktop retains the two direct utility icons; mobile now uses the
+  shared teacher work-surface overflow menu so the centered date/session FAB
+  stays visually primary without overlapping trailing controls.
+- Raised the Attendance action-bar stacking context with the existing semantic
+  layer token so the mobile menu remains interactive above the sticky table
+  header.
+- Added a guarded Playwright-only Attendance fixture and a 390px browser
+  regression that opens the real Attendance-hours dialog in light and dark.
+  The same regression preserves direct desktop access in both themes and checks
+  for horizontal overflow.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
+  covered by the reused menu component tests; semantic state and dialog access
+  are covered by Attendance component and browser tests; remaining manual
+  follow-up: none.
+
+**Verification:** focused Attendance component tests (14/14), full Vitest
+(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
+Pika audit, diff checks, and production build pass. Visual review covers teacher
+desktop/mobile in light/dark with both the context bar and dialog open. Student
+UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded responsive
+interaction remediation with browser verification.
+
+## 2026-08-27 — Keep Attendance browser fixture reachable in local development
+
+**Risk profile:** none — local browser-test fixture gating only; no product UI,
+business behavior, API, schema, persistence, authentication, dependency, or
+hosted state changed.
+
+- Kept the Attendance fixture closed in production unless explicitly enabled,
+  while allowing it automatically on development servers so Playwright can
+  reuse a normal unflagged local server.
+- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
+  is evaluated when the production server handles each request instead of being
+  frozen into the build artifact.
+- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
+  existing Attendance-hours regression passed on desktop/mobile in light/dark
+  and opened the real dialog in all four cases.
+- Built one production artifact with the fixture flag present, then proved that
+  same artifact returns 404 when started unflagged and 200 when started flagged.
+
+**Model recommendation:** current GPT-5 coding model for a contained test-harness
+compatibility correction and exact-workflow verification.

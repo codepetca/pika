@@ -1,50 +1,51 @@
+import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
+import { getServiceRoleClient } from '@/lib/supabase'
 
-const ATTEMPT_WINDOW_MS = 10 * 60 * 1000
-const MAX_ATTEMPTS_PER_WINDOW = 3
-const STALE_ACTIVE_SLOT_MS = 60 * 1000
+const acquisitionResultSchema = z.discriminatedUnion('ok', [
+  z.object({
+    ok: z.literal(true),
+    lease_token: z.string().uuid(),
+    lease_expires_at: z.string().datetime({ offset: true }),
+  }),
+  z.object({
+    ok: z.literal(false),
+    reason: z.enum(['active', 'rate_limited']),
+  }),
+])
 
-type ExtractionSlot = {
-  attempts: number[]
-  activeSinceMs?: number
-  activeReservation?: symbol
-}
+type RateLimitClient = Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'>
 
-const extractionSlots = new Map<string, ExtractionSlot>()
+export async function acquireCourseGuideImportExtractionSlot(args: {
+  teacherId: string
+  supabase?: RateLimitClient
+}): Promise<() => Promise<void>> {
+  const supabase = args.supabase || getServiceRoleClient()
+  const { data, error } = await supabase.rpc('acquire_course_guide_import_extraction_slot', {
+    p_teacher_id: args.teacherId,
+  })
 
-function slotKey(teacherId: string, classroomId: string): string {
-  return `${teacherId}\u0000${classroomId}`
-}
-
-export function acquireCourseGuideImportExtractionSlot(
-  args: { teacherId: string; classroomId: string },
-  nowMs = Date.now(),
-): () => void {
-  const key = slotKey(args.teacherId, args.classroomId)
-  const slot = extractionSlots.get(key) || { attempts: [] }
-  slot.attempts = slot.attempts.filter((attemptMs) => attemptMs > nowMs - ATTEMPT_WINDOW_MS)
-
-  if (
-    slot.activeReservation
-    && slot.activeSinceMs !== undefined
-    && slot.activeSinceMs > nowMs - STALE_ACTIVE_SLOT_MS
-  ) {
-    throw new ApiError(429, 'A curriculum import is already running for this Course Guide.')
+  const parsed = acquisitionResultSchema.safeParse(data)
+  if (error || !parsed.success) {
+    console.error('Course Guide curriculum import slot acquisition failed:', error || parsed.error)
+    throw new ApiError(503, 'Curriculum import is temporarily unavailable.')
   }
-  if (slot.attempts.length >= MAX_ATTEMPTS_PER_WINDOW) {
+
+  if (!parsed.data.ok) {
+    if (parsed.data.reason === 'active') {
+      throw new ApiError(429, 'A curriculum import is already running for this teacher.')
+    }
     throw new ApiError(429, 'Too many curriculum import attempts. Try again in a few minutes.')
   }
 
-  const reservation = Symbol('course-guide-import-extraction')
-  slot.activeReservation = reservation
-  slot.activeSinceMs = nowMs
-  slot.attempts.push(nowMs)
-  extractionSlots.set(key, slot)
-
-  return () => {
-    const current = extractionSlots.get(key)
-    if (!current || current.activeReservation !== reservation) return
-    delete current.activeReservation
-    delete current.activeSinceMs
+  const leaseToken = parsed.data.lease_token
+  return async () => {
+    const { error: releaseError } = await supabase.rpc('release_course_guide_import_extraction_slot', {
+      p_teacher_id: args.teacherId,
+      p_lease_token: leaseToken,
+    })
+    if (releaseError) {
+      console.error('Course Guide curriculum import slot release failed:', releaseError)
+    }
   }
 }

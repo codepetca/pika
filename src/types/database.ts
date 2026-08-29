@@ -279,6 +279,14 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  acquire_course_guide_import_extraction_slot: {
+    Args: { p_teacher_id: string }
+    Returns: Json
+  }
+  release_course_guide_import_extraction_slot: {
+    Args: { p_teacher_id: string; p_lease_token: string }
+    Returns: boolean
+  }
   save_assignment_doc_atomic: {
     Args: {
       p_assignment_id: string
