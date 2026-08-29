@@ -1,7 +1,7 @@
 'use client'
 
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { cn } from './utils'
 
@@ -51,11 +51,20 @@ export function Tooltip({
   className,
   disabled = false,
 }: TooltipProps) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (disabled) setIsOpen(false)
+  }, [disabled])
+
   return (
     <TooltipPrimitive.Root
       delayDuration={delayDuration}
       disableHoverableContent={!interactive}
-      open={disabled ? false : undefined}
+      open={disabled ? false : isOpen}
+      onOpenChange={(nextOpen) => {
+        if (!disabled) setIsOpen(nextOpen)
+      }}
     >
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
+import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -7,7 +9,7 @@ import {
   TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { TooltipProvider } from '@/ui'
+import { ModalLayer, TooltipProvider } from '@/ui'
 
 describe('TeacherWorkSurfaceActionCluster', () => {
   it('separates primary chooser actions from direct contextual toggles', () => {
@@ -119,23 +121,42 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
   })
 
-  it('keeps a tooltip-wrapped icon menu trigger mounted while its menu opens', () => {
-    render(
-      <TooltipProvider>
-        <TeacherWorkSurfaceIconMenuButton
-          ariaLabel="More actions"
-          tooltip="More actions"
-          icon={<EllipsisVertical aria-hidden="true" />}
-          items={[{ id: 'edit', label: 'Edit', onSelect: vi.fn() }]}
-        />
-      </TooltipProvider>,
-    )
+  it('keeps a tooltip-wrapped icon menu trigger mounted through a modal focus round trip', async () => {
+    const user = userEvent.setup()
+
+    function Harness() {
+      const [isDialogOpen, setIsDialogOpen] = useState(false)
+      return (
+        <TooltipProvider>
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="More actions"
+            tooltip="More actions"
+            icon={<EllipsisVertical aria-hidden="true" />}
+            items={[{ id: 'edit', label: 'Edit', onSelect: () => setIsDialogOpen(true) }]}
+          />
+          <ModalLayer
+            isOpen={isDialogOpen}
+            onClose={() => setIsDialogOpen(false)}
+            ariaLabel="Edit item"
+          >
+            <button type="button" onClick={() => setIsDialogOpen(false)}>Close</button>
+          </ModalLayer>
+        </TooltipProvider>
+      )
+    }
+
+    render(<Harness />)
 
     const trigger = screen.getByRole('button', { name: 'More actions' })
-    fireEvent.click(trigger)
+    await user.hover(trigger)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('More actions')
+    await user.click(trigger)
 
     expect(screen.getByRole('button', { name: 'More actions' })).toBe(trigger)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    await user.click(await screen.findByRole('button', { name: 'Close' }))
+    expect(document.querySelector('[role="tooltip"][data-state="delayed-open"]')).toBeNull()
     expect(trigger).toHaveFocus()
   })
 })

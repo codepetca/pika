@@ -1523,9 +1523,11 @@ student Attendance behavior changed.
   passed in all four browser projects.
 - Ready-PR CI exposed an action-menu focus race in the existing Tests workspace.
   Tooltip-wrapped icon menus now keep the same trigger mounted while their menu
-  is open and suppress only the tooltip, so a dialog reliably captures and
-  restores focus to its opener. The full Tests workspace file and a shared
-  action-cluster trigger-identity regression cover the hosted failure.
+  is open and suppress only the tooltip through one lifetime-controlled Radix
+  state, so a dialog reliably captures and restores focus to its opener without
+  an uncontrolled/controlled transition or retained hover state. The full Tests
+  workspace file and a shared action-cluster modal round-trip regression cover
+  the hosted failure.
 - `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
   UI/design policy, 228 changed-path tests, 1,868 related tests, TypeScript, and
   lint. The Pika pre-commit audit passes; the composite-widget checklist is
