@@ -267,7 +267,9 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('queued, in progress, or completed')
     expect(workflow).toContain('exact reviewed SHA')
     expect(workflow).toContain('eligible, non-skipped')
-    expect(workflow).toContain('draft-skipped')
+    expect(workflow).toContain('completed draft-skipped run does not count')
+    expect(workflow).toContain('Rerun a failed eligible pull-request run through')
+    expect(workflow).toMatch(/never launch it concurrently\s+with the ready-event run/)
   })
 
   it('documents orient-only startup for read-only work', () => {
