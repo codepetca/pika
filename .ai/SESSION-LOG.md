@@ -1711,6 +1711,9 @@ behavior changed.
   preserving the approved dark appearance.
 - Added boundary coverage for every relative-date unit, future-date omission,
   action-bar updates while navigating, and the Daily-specific header surface.
+- Independent follow-up review caught and fixed a shared `DateNavigator`
+  regression: joined static labels without subtitles retain flex centering for
+  Calendar's All-dates state, with direct regression coverage.
 - Visual verification passed the teacher desktop/mobile light views, teacher
   desktop/mobile dark views, and unchanged student mobile view. The small
   subtitle remains legible without increasing the action bar's control height.

@@ -90,7 +90,7 @@ export function DateNavigator({
           className={cn(
             'min-w-0 px-2 py-1 text-sm font-semibold text-text-default sm:text-base',
             subtitle && 'flex flex-col items-center gap-0',
-            joined && 'min-h-control justify-center',
+            joined && 'flex min-h-control items-center justify-center',
             labelClassName,
           )}
         >

@@ -68,6 +68,23 @@ describe('CalendarActionBar', () => {
     expect(screen.getByText('Yesterday')).toHaveClass('text-xs', 'font-normal')
   })
 
+  it('keeps a joined static date label vertically centered without a subtitle', () => {
+    render(
+      <DateNavigator
+        label="All dates"
+        showNavigation={false}
+        joined
+      />,
+    )
+
+    expect(screen.getByText('All dates').parentElement).toHaveClass(
+      'flex',
+      'min-h-control',
+      'items-center',
+      'justify-center',
+    )
+  })
+
   it('exposes the calendar view control and changes modes', () => {
     const onViewModeChange = vi.fn()
 
