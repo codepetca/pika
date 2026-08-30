@@ -2603,12 +2603,12 @@ export function TeacherClassroomView({
       onSelect: () => setAssignmentEditMode(!assignmentEditMode),
       disabled: isReadOnly,
     },
-    ...(showMarkdownEditorOption ? [{
+    ...(showMarkdownEditorOption && onOpenMarkdownEditor ? [{
       id: 'edit-markdown',
       label: 'Edit Markdown',
       icon: <Code className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => onOpenMarkdownEditor?.(),
-      disabled: !onOpenMarkdownEditor || isReadOnly,
+      onSelect: onOpenMarkdownEditor,
+      disabled: isReadOnly,
     }] : []),
   ]
 

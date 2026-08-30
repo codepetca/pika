@@ -1909,7 +1909,7 @@ student desktop/mobile visual matrix.
 - Preserved read-only and capability gating, existing menu semantics, focus and
   keyboard behavior, and unchanged student Classwork views.
 
-**Verification:** 50 Classwork component tests; `pnpm exec tsc --noEmit`;
+**Verification:** 51 Classwork component tests; `pnpm exec tsc --noEmit`;
 `pnpm lint`; Pika audit; `git diff --check`; Playwright teacher desktop/mobile
 light/dark tooltip and open-menu states plus unchanged student desktop/mobile;
 zero browser console errors. Composite widget checklist reviewed: yes; keyboard

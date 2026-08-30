@@ -1170,10 +1170,13 @@ describe('TeacherClassroomView', () => {
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {
+    const onOpenMarkdownEditor = vi.fn()
+
     render(
       <TeacherClassroomView
         classroom={{ ...classroom, archived_at: '2026-06-01T12:00:00Z' }}
         selectedAssignmentId={null}
+        onOpenMarkdownEditor={onOpenMarkdownEditor}
         showMarkdownEditorOption
       />,
     )
@@ -1190,6 +1193,21 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(organizeClasswork)
     expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeDisabled()
+  })
+
+  it('hides the Markdown action when its editor callback is unavailable', async () => {
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+        showMarkdownEditorOption
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+
+    expect(getClassworkOrganizeAction()).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
   })
 
   it('keeps the Markdown action hidden in organize mode when markdown editing is not enabled', async () => {
