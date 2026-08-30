@@ -1542,6 +1542,12 @@ feature behavior changed.
   regression assertions before and after keyboard selection. It also removed
   the obsolete Vercel-preview recommendation now that Pattern Lab is explicitly
   local/non-production only.
+- Ready-PR CI confirmed Test & Build and all pre-existing browser contracts,
+  then exposed that the new snapshots only had macOS baselines. The nine
+  CI-generated Linux baselines were retrieved from browser diagnostics,
+  visually reviewed, and added alongside the macOS set. The PR returned to
+  draft before this correction; the database job completed every contract step
+  but was canceled during cleanup by that draft transition.
 
 **Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
 test, and documentation consistency review.
