@@ -5,6 +5,7 @@ import { Button, cn } from '@/ui'
 
 export interface DateNavigatorProps {
   label: string
+  subtitle?: string | null
   onPrev?: () => void
   onNext?: () => void
   onLabelClick?: () => void
@@ -25,6 +26,7 @@ export interface DateNavigatorProps {
  */
 export function DateNavigator({
   label,
+  subtitle,
   onPrev,
   onNext,
   onLabelClick,
@@ -69,23 +71,35 @@ export function DateNavigator({
           size="sm"
           onClick={onLabelClick}
           className={cn(
-            'min-w-0 truncate px-2 py-1 text-sm font-semibold sm:text-base',
+            'min-w-0 px-2 py-1 text-sm font-semibold sm:text-base',
+            subtitle && 'flex-col gap-0',
             joined && 'rounded-none border-0',
             labelClassName,
           )}
           aria-label={labelAriaLabel}
         >
-          {label}
+          <span className="max-w-full truncate leading-tight">{label}</span>
+          {subtitle ? (
+            <span className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
+              {subtitle}
+            </span>
+          ) : null}
         </Button>
       ) : (
         <span
           className={cn(
-            'min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base',
-            joined && 'flex min-h-control items-center',
+            'min-w-0 px-2 py-1 text-sm font-semibold text-text-default sm:text-base',
+            subtitle && 'flex flex-col items-center gap-0',
+            joined && 'min-h-control justify-center',
             labelClassName,
           )}
         >
-          {label}
+          <span className="max-w-full truncate leading-tight">{label}</span>
+          {subtitle ? (
+            <span className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
+              {subtitle}
+            </span>
+          ) : null}
         </span>
       )}
 

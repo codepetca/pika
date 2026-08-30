@@ -712,10 +712,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     <TeacherWorkSurfaceContextBar
       ariaLabel="Daily controls"
       testId="daily-context-bar"
-      context={relativeDateLabel || attendanceEnabled ? (
-        <div className="hidden min-w-0 items-center justify-start gap-2 whitespace-nowrap sm:flex">
-          {relativeDateLabel ? <span>{relativeDateLabel}</span> : null}
-          {attendanceEnabled && !classroom.archived_at ? (
+      context={attendanceEnabled ? (
+        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
+          {!classroom.archived_at ? (
             <Tooltip content={attendance.windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
               <Button
                 type="button"
@@ -757,6 +756,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           />
           <DateNavigator
             label={selectedDateLabel}
+            subtitle={relativeDateLabel}
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}

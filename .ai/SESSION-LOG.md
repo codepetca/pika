@@ -1702,18 +1702,18 @@ rollback, history interaction correctness, and cross-role visual QA.
 formatting changed; no persistence, API, schema, Attendance commands, or student
 behavior changed.
 
-- Added quiet left-side action-bar context for past Daily dates: Today,
-  Yesterday, elapsed days, weeks, months, or years. Forward dates omit the
-  relative label, while configured Attendance context remains available.
+- Added a compact muted subtitle inside the Daily date selector for past dates:
+  Today, Yesterday, elapsed days, weeks, months, or years. Forward dates keep
+  the selector single-line, while configured Attendance context remains in the
+  action bar's left slot.
 - Gave the Daily table header a stronger light-theme surface using the existing
   `surface-3` token. The token resolves to the prior header value in dark mode,
   preserving the approved dark appearance.
 - Added boundary coverage for every relative-date unit, future-date omission,
   action-bar updates while navigating, and the Daily-specific header surface.
 - Visual verification passed the teacher desktop/mobile light views, teacher
-  desktop/mobile dark views, and unchanged student mobile view. The relative
-  label remains desktop context so the compact mobile action bar does not gain
-  another competing element.
+  desktop/mobile dark views, and unchanged student mobile view. The small
+  subtitle remains legible without increasing the action bar's control height.
 
 **Verification:** focused Daily/date tests; `pnpm check:focused -- --base
 origin/main`; exact-branch Playwright teacher/student desktop/mobile captures;

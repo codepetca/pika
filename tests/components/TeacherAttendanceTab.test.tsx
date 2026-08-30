@@ -1204,24 +1204,21 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: /^Log/ }).closest('thead')).toHaveClass('bg-surface-3')
     const previousButton = screen.getByRole('button', { name: 'Previous day' })
     const nextButton = screen.getByRole('button', { name: 'Next day' })
-    expect(within(contextBar).getByText('Yesterday')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5Yesterday')
 
     fireEvent.click(nextButton)
 
     await waitFor(() => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
     })
-    expect(within(contextBar).getByText('Today')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6Today')
 
     fireEvent.click(previousButton)
 
     await waitFor(() => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
     })
-    expect(within(contextBar).getByText('Yesterday')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5Yesterday')
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
@@ -1250,8 +1247,9 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
     })
-    expect(within(contextBar).queryByText('Today')).not.toBeInTheDocument()
-    expect(within(contextBar).queryByText(/ago$/)).not.toBeInTheDocument()
+    const dateButton = screen.getByRole('button', { name: 'Select Daily date' })
+    expect(within(dateButton).queryByText('Today')).not.toBeInTheDocument()
+    expect(within(dateButton).queryByText(/ago$/)).not.toBeInTheDocument()
   })
 
   it('shows previous and next arrows around the Daily date picker', async () => {
