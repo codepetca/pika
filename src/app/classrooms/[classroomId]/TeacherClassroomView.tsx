@@ -36,6 +36,7 @@ import {
   Paperclip,
   Percent,
   Pencil,
+  Plus,
   Reply,
   Sparkles,
   SquareMenu,
@@ -2596,13 +2597,13 @@ export function TeacherClassroomView({
   const classworkUtilityActions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'organize-classwork',
-      label: assignmentEditMode ? 'Done organizing classwork' : 'Organize classwork',
+      label: 'Edit classwork',
       icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
       checked: assignmentEditMode,
       onSelect: () => setAssignmentEditMode(!assignmentEditMode),
       disabled: isReadOnly,
     },
-    ...(assignmentEditMode && showMarkdownEditorOption ? [{
+    ...(showMarkdownEditorOption ? [{
       id: 'edit-markdown',
       label: 'Edit Markdown',
       icon: <Code className="h-4 w-4" aria-hidden="true" />,
@@ -2633,8 +2634,8 @@ export function TeacherClassroomView({
           <TeacherWorkSurfaceActionCluster>
             <TeacherWorkSurfaceIconMenuButton
               icon={<Plus className="h-4 w-4" aria-hidden="true" />}
-              ariaLabel="Create classwork"
-              tooltip="Create assignment, material, or survey"
+              ariaLabel="New classwork"
+              tooltip="New classwork"
               variant="primary"
               items={classworkCreateActions}
               disabled={isReadOnly}

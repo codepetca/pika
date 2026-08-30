@@ -1898,3 +1898,20 @@ fix.
 origin/main` (77 workflow, 124 focused, and 261 related tests);
 `pnpm exec tsc --noEmit`; `pnpm lint`; `git diff --check`; Playwright teacher and
 student desktop/mobile visual matrix.
+
+## 2026-08-30 — Refine Classwork summary actions
+
+- Replaced the Classwork summary's text-heavy `New Classwork` trigger with a
+  compact plus control whose accessible name and tooltip are `New classwork`.
+- Renamed the checked organization action to `Edit classwork` and kept `Edit
+  Markdown` visible in the More menu whenever the Markdown editor capability is
+  available, independent of edit mode.
+- Preserved read-only and capability gating, existing menu semantics, focus and
+  keyboard behavior, and unchanged student Classwork views.
+
+**Verification:** 50 Classwork component tests; `pnpm exec tsc --noEmit`;
+`pnpm lint`; Pika audit; `git diff --check`; Playwright teacher desktop/mobile
+light/dark tooltip and open-menu states plus unchanged student desktop/mobile;
+zero browser console errors. Composite widget checklist reviewed: yes; keyboard
+behavior covered by the shared menu implementation/tests: yes; semantic state
+covered by role and `aria-checked` tests: yes; remaining manual follow-up: none.

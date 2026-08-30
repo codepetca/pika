@@ -26151,6 +26151,7 @@ and selected long-roster states across desktop/mobile and light/dark.
 **Model recommendation:** current GPT-5 coding model for a domain-sensitive
 teacher workspace migration with responsive visual verification.
 <!-- pika-session-log-archive-batch:d5d90a311a75d755f065796c8eca7bde3aa3822f2f22498cd82f42c8d525a8c4 -->
+<!-- pika-session-log-archive-batch:54e73b7f44af4517d8a72b7e9d6c8c246bff3bd943629a46041c75d1cf6455e4 -->
 ## 2026-08-27 — Tighten selected Test roster controls
 
 **Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox

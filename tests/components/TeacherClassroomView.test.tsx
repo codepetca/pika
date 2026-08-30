@@ -615,7 +615,7 @@ function applySearchParamsUpdate(
 }
 
 function openAddClassworkMenu() {
-  fireEvent.click(screen.getByRole('button', { name: 'Create classwork' }))
+  fireEvent.click(screen.getByRole('button', { name: 'New classwork' }))
 }
 
 function openActionMenu(trigger: HTMLElement) {
@@ -627,7 +627,7 @@ function openActionMenu(trigger: HTMLElement) {
 function getClassworkOrganizeAction() {
   const trailingActions = screen.getByTestId('assignment-summary-trailing-actions')
   openActionMenu(within(trailingActions).getByRole('button', { name: 'More actions' }))
-  return screen.getByRole('menuitemcheckbox', { name: /organizing classwork|Organize classwork/ })
+  return screen.getByRole('menuitemcheckbox', { name: 'Edit classwork' })
 }
 
 function toggleClassworkOrganize() {
@@ -1094,7 +1094,7 @@ describe('TeacherClassroomView', () => {
     expect(detailFetchCount).toBe(1)
   })
 
-  it('keeps organize and Markdown actions in the summary More menu', async () => {
+  it('keeps Edit classwork and Markdown actions in the summary More menu', async () => {
     const onEditModeChange = vi.fn()
     const onOpenMarkdownEditor = vi.fn()
 
@@ -1112,30 +1112,33 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
+    const newClasswork = screen.getByRole('button', { name: 'New classwork' })
+    expect(newClasswork).not.toHaveTextContent('New classwork')
+    expect(newClasswork.querySelector('svg')).not.toBeNull()
+    expect(newClasswork.closest('[data-tooltip="New classwork"]')).not.toBeNull()
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
     expect(screen.getByRole('region', { name: 'Classwork actions' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create classwork' }).closest('.fixed')).toBeNull()
+    expect(newClasswork.closest('.fixed')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
-
-    toggleClassworkOrganize()
-
-    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
-    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
-    expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
 
     toggleClassworkOrganize()
+
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
+    expect(onEditModeChange).toHaveBeenLastCalledWith(true)
+
+    toggleClassworkOrganize()
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
 
@@ -1179,14 +1182,14 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    const addClasswork = screen.getByRole('button', { name: 'New Classwork' })
+    const addClasswork = screen.getByRole('button', { name: 'New classwork' })
     const organizeClasswork = getClassworkOrganizeAction()
 
     expect(addClasswork).toBeDisabled()
     expect(organizeClasswork).toBeDisabled()
 
     fireEvent.click(organizeClasswork)
-    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeDisabled()
   })
 
   it('keeps the Markdown action hidden in organize mode when markdown editing is not enabled', async () => {
@@ -1451,7 +1454,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('creates a draft survey from the New Classwork menu and opens visual editing', async () => {
+  it('creates a draft survey from the New classwork menu and opens visual editing', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -1537,7 +1540,7 @@ describe('TeacherClassroomView', () => {
 
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
-    expect(screen.getByRole('button', { name: 'Create classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
   })
 
   it('resets organize mode when the selected assignment workspace changes', async () => {
@@ -1998,7 +2001,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     expect(screen.getByRole('region', { name: 'Assignment actions' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
-    expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit classwork' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument()
