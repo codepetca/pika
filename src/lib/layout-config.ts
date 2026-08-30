@@ -226,7 +226,7 @@ export function getRouteKeyFromTab(
 ): RouteKey {
   if (tab === 'settings') return 'settings'
   if (tab === 'daily') return 'daily'
-  if (tab === 'attendance') return 'attendance'
+  if (tab === 'attendance') return 'daily'
   if (tab === 'roster') return 'roster'
   if (tab === 'gradebook') return 'gradebook'
   if (tab === 'today') return 'today'

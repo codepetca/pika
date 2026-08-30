@@ -41,9 +41,8 @@ describe('AuthKit middleware matcher', () => {
 
     const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
     expect(layout).toContain("url: '/pika-icon-light.svg'")
-    expect(layout).toContain("media: '(prefers-color-scheme: light)'")
-    expect(layout).toContain("url: '/pika-icon-dark.svg'")
-    expect(layout).toContain("media: '(prefers-color-scheme: dark)'")
+    expect(layout).not.toContain("url: '/pika-icon-dark.svg'")
+    expect(layout).not.toContain("media: '(prefers-color-scheme")
 
     for (const filename of ['pika-icon-light.svg', 'pika-icon-dark.svg']) {
       const favicon = readFileSync(resolve(process.cwd(), 'public', filename), 'utf8')

@@ -87,13 +87,13 @@ describe('LogSummary', () => {
 
     const overview = screen.getByText('Students reflected on their project progress.')
     const summaryContent = overview.parentElement
-    const generatedAt = screen.getByText('Generated Today 10:36 AM')
+    const generatedAt = screen.getByText('Today 10:36 AM')
 
     expect(summaryContent).toHaveClass('px-3')
     expect(summaryContent).not.toHaveClass('p-4')
     expect(generatedAt).not.toHaveClass('border-t', 'border-border')
     expect(screen.queryByText('Needs Attention')).not.toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'Needs attention' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Class log follow-ups' })).toBeInTheDocument()
     expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
   })
 

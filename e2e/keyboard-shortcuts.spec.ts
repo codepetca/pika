@@ -33,7 +33,7 @@ test.describe('keyboard shortcuts', () => {
     await waitForContent(page)
 
     // Get initial left sidebar state - check if expanded (has nav text visible)
-    const navText = page.getByRole('link', { name: 'Attendance' })
+    const navText = page.getByRole('link', { name: 'Daily' })
     const initiallyExpanded = await navText.isVisible()
 
     // Press Cmd/Ctrl+\ to toggle left sidebar

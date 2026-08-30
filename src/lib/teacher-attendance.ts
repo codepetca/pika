@@ -31,6 +31,7 @@ export interface TeacherAttendanceView {
     presentThroughAt: string | null
     absentAt: string | null
     revision: number | null
+    pendingCommand: boolean
     commandFailed: boolean
   }
   sync: {
