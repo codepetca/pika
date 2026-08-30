@@ -1575,3 +1575,77 @@ duplicate announcements; remaining manual follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
 rollback, history interaction correctness, and cross-role visual QA.
+## 2026-08-30 — Add Daily relative-date context and stronger light header
+
+**Risk profile:** none — teacher-only Daily presentation and pure date-label
+formatting changed; no persistence, API, schema, Attendance commands, or student
+behavior changed.
+
+- Added a compact muted subtitle inside the Daily date selector for past dates:
+  Today, Yesterday, elapsed days, weeks, months, or years. Forward dates keep
+  the selector single-line, while configured Attendance context remains in the
+  action bar's left slot.
+- Gave the Daily table header a stronger light-theme surface using the existing
+  `surface-3` token. The token resolves to the prior header value in dark mode,
+  preserving the approved dark appearance.
+- Added boundary coverage for every relative-date unit, future-date omission,
+  action-bar updates while navigating, and the Daily-specific header surface.
+- Independent follow-up review caught and fixed a shared `DateNavigator`
+  regression: joined static labels without subtitles retain flex centering for
+  Calendar's All-dates state, with direct regression coverage.
+- Visual verification passed the teacher desktop/mobile light views, teacher
+  desktop/mobile dark views, and unchanged student mobile view. The small
+  subtitle remains legible without increasing the action bar's control height.
+
+**Verification:** focused Daily/date tests; `pnpm check:focused -- --base
+origin/main`; exact-branch Playwright teacher/student desktop/mobile captures;
+browser console check; Pika audit; `git diff --check`.
+
+**Model recommendation:** current model for this bounded teacher Daily context
+and semantic-surface refinement.
+
+## 2026-08-30 — Add Daily relative-date visibility preference
+
+**Risk profile:** low — teacher-only local presentation preference; no API,
+schema, Attendance command, or student behavior changed.
+
+- Added a persistent Hide relative date / Show relative date toggle to Daily
+  More actions, following the existing ID-column preference pattern.
+- Hiding the subtitle preserves the established date selector layout and date
+  navigation; reopening Daily restores the teacher's preference.
+- Added component coverage for hide, persistence, and restore, plus browser
+  coverage across teacher desktop/mobile and light/dark variants.
+- Visual verification passed for the open menu and hidden selector states on
+  teacher desktop/mobile in light/dark themes; the student view is unchanged.
+
+**Verification:** focused Daily/date tests; targeted Daily Playwright matrix
+(6/6 including auth); repository UI verification captures; Pika audit; focused
+gate; `git diff --check`.
+
+**Model recommendation:** current model for this bounded Daily preference.
+
+## 2026-08-30 — Balance standalone teacher action-bar spacing
+
+**Risk profile:** low — shared teacher work-surface presentation only; no
+business logic, persistence, API, schema, or student behavior changed.
+
+- Added the compact content-top spacing token above standalone teacher action
+  bars. Together with the context bar's internal padding, this creates the same
+  12px visual rhythm above and below the controls and matches page side gutters.
+- Kept attached-tab shell behavior unchanged and added direct shell coverage
+  for standalone summary and workspace states.
+- Visual verification passed Daily, Classwork, Tests, Gradebook, and Roster on
+  teacher desktop/mobile, plus a dark-mode Daily spot check and unchanged
+  student baselines.
+
+**Verification:** TeacherWorkSurfaceShell, Daily, and Classwork component tests;
+repository UI verification across all five consumers; focused gate; Pika audit;
+`git diff --check`.
+
+**Model recommendation:** current model for this shared spacing refinement.
+
+**Review follow-up:** independent cumulative review identified that the Daily
+date button's explicit accessible name masked its new subtitle. Linked the
+subtitle with a stable `aria-describedby` ID and added accessible-description
+coverage for both shown and hidden states. The full focused gate remains green;
+the correction does not change visual styling or the existing control name.
