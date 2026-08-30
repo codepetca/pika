@@ -584,6 +584,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const dateButton = primaryControl.getByRole('button', { name: 'Select Daily date' })
   await expect(dateButton.getByText('Mon Aug 17', { exact: true })).toBeVisible()
   await expect(dateButton.getByText('a week ago', { exact: true })).toBeVisible()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Hide relative date' }).click()
+  await expect(dateButton.getByText('a week ago', { exact: true })).toHaveCount(0)
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Show relative date' }).click()
+  await expect(dateButton.getByText('a week ago', { exact: true })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
   if (viewport === 'desktop') {
@@ -671,8 +677,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
 
   await dailyOnlyContextBar.getByRole('button', { name: 'More actions' }).click()
-  await expect(page.getByRole('menuitem')).toHaveCount(1)
+  await expect(page.getByRole('menuitem')).toHaveCount(2)
   await expect(page.getByRole('menuitem', { name: 'Hide ID column' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Hide relative date' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`daily-only-${viewport}-more-menu.png`),
     animations: 'disabled',

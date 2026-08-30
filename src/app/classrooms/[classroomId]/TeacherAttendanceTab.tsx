@@ -160,6 +160,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [showIdColumn, setShowIdColumn] = useState(true)
+  const [showRelativeDate, setShowRelativeDate] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const studentTableNavigationRef = useRef<HTMLDivElement | null>(null)
@@ -219,6 +220,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       setSortState({ column: 'last_name', direction: 'asc', status: null })
     }
   }, [showIdColumn, sortColumn])
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('teacher-daily:show-relative-date')
+    if (stored === 'false') setShowRelativeDate(false)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem('teacher-daily:show-relative-date', String(showRelativeDate))
+  }, [showRelativeDate])
 
   const isCurrentLogsRequest = useCallback((requestId: number, classroomId: string, date: string) => {
     return (
@@ -644,6 +654,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       label: showIdColumn ? 'Hide ID column' : 'Show ID column',
       onSelect: () => setShowIdColumn((visible) => !visible),
     },
+    {
+      id: 'toggle-relative-date',
+      label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
+      onSelect: () => setShowRelativeDate((visible) => !visible),
+    },
   ]
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
@@ -756,7 +771,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           />
           <DateNavigator
             label={selectedDateLabel}
-            subtitle={relativeDateLabel}
+            subtitle={showRelativeDate ? relativeDateLabel : null}
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}

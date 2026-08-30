@@ -511,6 +511,37 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
+  it('hides and restores the relative date from Daily More actions', async () => {
+    mockLogsFetch()
+    const user = userEvent.setup()
+
+    const view = render(<TeacherAttendanceTab classroom={classroom} attendanceEnabled={false} />)
+
+    const dateButton = await screen.findByRole('button', { name: 'Select Daily date' })
+    expect(dateButton).toHaveTextContent('Tue May 5Yesterday')
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Hide relative date' }))
+
+    expect(dateButton).toHaveTextContent('Tue May 5')
+    expect(within(dateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
+
+    view.unmount()
+    render(<TeacherAttendanceTab classroom={classroom} attendanceEnabled={false} />)
+
+    const restoredDateButton = await screen.findByRole('button', { name: 'Select Daily date' })
+    await waitFor(() => {
+      expect(within(restoredDateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Show relative date' }))
+
+    expect(restoredDateButton).toHaveTextContent('Tue May 5Yesterday')
+    expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('true')
+  })
+
   it('stacks QR override recovery inside the compact attendance status column', async () => {
     const base = combinedAttendanceView()
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
