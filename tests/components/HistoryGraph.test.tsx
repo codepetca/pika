@@ -1075,9 +1075,63 @@ describe('HistoryGraph', () => {
 
     fireEvent.mouseMove(chart, { clientX: 990 })
     expect(onEntryHover).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
+    expect(screen.getByText('Jan 19 · 9:05 PM · −60 characters'))
+      .toHaveAttribute('data-history-context', 'hover')
 
     fireEvent.click(chart, { clientX: 990 })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
+
+    fireEvent.mouseLeave(chart)
+    expect(screen.queryByText('Jan 19 · 9:05 PM · −60 characters'))
+      .not.toBeInTheDocument()
+  })
+
+  it('keeps selected save context visible and summarizes daily activity in overview', () => {
+    const { rerender } = render(
+      <HistoryGraph
+        entries={entries}
+        activeEntryId="second"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    expect(screen.getByText('Jan 19 · 8:10 PM · +240 characters'))
+      .toHaveAttribute('data-history-context', 'selected')
+
+    rerender(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId="long-19"
+        onEntryClick={vi.fn()}
+        audience="teacher"
+      />
+    )
+
+    expect(screen.getByText('Jan 10 · +100 characters'))
+      .toHaveAttribute('data-history-context', 'selected')
+  })
+
+  it('keeps a large daily summary within a narrow history chart', () => {
+    const largeDailyEntries = [
+      entry('large-final', '2025-01-10T17:00:00Z', 20, 100),
+      entry('large-addition', '2025-01-10T16:00:00Z', 20000, 100100),
+      entry('large-baseline', '2025-01-01T16:00:00Z', 20, 100),
+    ]
+    render(
+      <div className="w-60">
+        <HistoryGraph
+          entries={largeDailyEntries}
+          activeEntryId="large-final"
+          onEntryClick={vi.fn()}
+          audience="student"
+        />
+      </div>
+    )
+
+    const context = screen.getByText('Jan 10 · +100,000 / −100,000 characters')
+    expect(context).toHaveClass('max-w-full', 'whitespace-normal', 'text-center')
+    expect(context).not.toHaveClass('whitespace-nowrap')
   })
 
   it('keeps a pinned save stable on hover while still allowing a new click', () => {
