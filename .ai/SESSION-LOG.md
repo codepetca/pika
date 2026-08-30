@@ -1652,12 +1652,16 @@ dependency, migration, or deployment behavior changed.
 - Added deterministic animation-frame tests covering pointer-anchored zoom,
   midpoint interpolation, reciprocal dezoom, year-long histories, interruption,
   click locking, and reduced motion, plus pure easing/window interpolation tests.
+- Independent review found three P2 transition-boundary issues in hover, click,
+  and pan handling. One remediation batch keeps hover live against the rendered
+  layer, pins the exact visible save or day, and retargets a mid-tween pan from
+  the on-screen window without snapping. Direct regressions cover all three.
 - Visual verification passed for the shared teacher and student examples at
   desktop and mobile widths, including captured zoom/dezoom intermediate frames
   and a long six-week history. Browser console errors: none. Dark mode is n/a
   because Pika does not currently expose a dark theme.
-- `pnpm check:focused -- --base origin/main` passes: 77 workflow tests, 181
-  focused tests, 573 related tests, TypeScript, lint, architecture, UI policy,
+- `pnpm check:focused -- --base origin/main` passes: 77 workflow tests, 184
+  focused tests, 576 related tests, TypeScript, lint, architecture, UI policy,
   and design policy. The Pika pre-commit audit passes.
 
 **Composite-widget accessibility checklist:** reviewed: yes; semantic slider

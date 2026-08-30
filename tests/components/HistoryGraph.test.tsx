@@ -46,6 +46,13 @@ const yearLongEntries = [
   entry('year-start', '2025-01-01T16:00:00Z', 20, 100),
 ]
 
+const transitionEntries = [
+  entry('day-final', '2025-01-10T19:00:00Z', 120, 700),
+  entry('specific-save', '2025-01-10T17:00:00Z', 80, 450),
+  entry('day-first', '2025-01-10T15:00:00Z', 40, 250),
+  entry('transition-baseline', '2025-01-01T15:00:00Z', 20, 100),
+]
+
 function installAnimationFrameHarness() {
   let nextId = 1
   const callbacks = new Map<number, FrameRequestCallback>()
@@ -522,6 +529,174 @@ describe('HistoryGraph', () => {
     expect(onEntryClick).toHaveBeenCalledTimes(1)
     secondRender.unmount()
     pointerFrames.restore()
+  })
+
+  it('keeps hover preview active against the rendered layer during a tween', () => {
+    const frames = installAnimationFrameHarness()
+    const onEntryHover = vi.fn()
+    const { unmount } = render(
+      <HistoryGraph
+        entries={transitionEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={onEntryHover}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 256,
+      top: 0,
+      right: 256,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    frames.step(0)
+    frames.step(300)
+
+    const saveGroups = Array.from(
+      chart.querySelectorAll('[data-history-view-layer="saves"] > g')
+    )
+    const specificSave = saveGroups.find((group) => (
+      group.querySelector('title')?.textContent?.includes('+200 characters since previous')
+    ))
+    const line = specificSave?.querySelector('line')
+    fireEvent.mouseMove(chart, {
+      clientX: Number(line?.getAttribute('x2')),
+      clientY: Number(line?.getAttribute('y2')),
+    })
+
+    expect(onEntryHover).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'specific-save' })
+    )
+    expect(frames.cancel).not.toHaveBeenCalled()
+    unmount()
+    frames.restore()
+  })
+
+  it('pins from the dominant rendered layer in both tween directions', () => {
+    const zoomInFrames = installAnimationFrameHarness()
+    const onZoomInClick = vi.fn()
+    const firstRender = render(
+      <HistoryGraph
+        entries={transitionEntries}
+        activeEntryId={null}
+        onEntryClick={onZoomInClick}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+    let chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const bounds = {
+      left: 0,
+      width: 256,
+      top: 0,
+      right: 256,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    const dailyGroups = Array.from(
+      chart.querySelectorAll('[data-history-view-layer="daily"] > g')
+    )
+    const finalDay = dailyGroups.find((group) => (
+      group.querySelector('title')?.textContent?.includes('Jan 10')
+    ))
+    const dayLine = finalDay?.querySelector('line')
+    fireEvent.click(chart, {
+      clientX: Number(dayLine?.getAttribute('x2')),
+      clientY: Number(dayLine?.getAttribute('y2')),
+    })
+    expect(onZoomInClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'day-final' }))
+    firstRender.unmount()
+    zoomInFrames.restore()
+
+    const zoomOutFrames = installAnimationFrameHarness()
+    const onZoomOutClick = vi.fn()
+    const secondRender = render(
+      <HistoryGraph
+        entries={transitionEntries}
+        activeEntryId={null}
+        onEntryClick={onZoomOutClick}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+    chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    zoomOutFrames.step(0)
+    zoomOutFrames.step(420)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out history' }))
+    const saveGroups = Array.from(
+      chart.querySelectorAll('[data-history-view-layer="saves"] > g')
+    )
+    const specificSave = saveGroups.find((group) => (
+      group.querySelector('title')?.textContent?.includes('+200 characters since previous')
+    ))
+    const saveLine = specificSave?.querySelector('line')
+    fireEvent.click(chart, {
+      clientX: Number(saveLine?.getAttribute('x2')),
+      clientY: Number(saveLine?.getAttribute('y2')),
+    })
+    expect(onZoomOutClick).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'specific-save' })
+    )
+    secondRender.unmount()
+    zoomOutFrames.restore()
+  })
+
+  it('retargets a mid-tween pan from the rendered window without snapping', () => {
+    const frames = installAnimationFrameHarness()
+    const { unmount } = render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    frames.step(0)
+    frames.step(210)
+    const renderedStart = chart.getAttribute('data-rendered-start-ms')
+    const renderedEnd = chart.getAttribute('data-rendered-end-ms')
+    const priorTargetStart = chart.getAttribute('data-visible-start-ms')
+    const cancelCountBeforePan = frames.cancel.mock.calls.length
+
+    fireEvent.wheel(chart, { deltaX: -250, deltaY: 0, clientX: 500 })
+
+    expect(chart.getAttribute('data-rendered-start-ms')).toBe(renderedStart)
+    expect(chart.getAttribute('data-rendered-end-ms')).toBe(renderedEnd)
+    expect(chart.getAttribute('data-visible-start-ms')).not.toBe(priorTargetStart)
+    expect(frames.cancel.mock.calls.length).toBeGreaterThan(cancelCountBeforePan)
+    unmount()
+    frames.restore()
   })
 
   it('pans with Shift plus a conventional vertical scroll wheel', () => {

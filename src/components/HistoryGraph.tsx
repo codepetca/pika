@@ -46,8 +46,9 @@ interface ZoomTweenFrame {
   window: ActivityWindow
   progress: number
   saveMaxAbsChange: number
-  fromOverview: boolean
-  toOverview: boolean
+  dailyOpacity: number
+  fromDailyOpacity: number
+  toDailyOpacity: number
 }
 
 function formatDate(timestamp: number): string {
@@ -205,8 +206,8 @@ export function HistoryGraph({
     toWindow: ActivityWindow,
     fromSaveMaxAbsChange: number,
     toSaveMaxAbsChange: number,
-    fromOverview: boolean,
-    toOverview: boolean,
+    fromDailyOpacity: number,
+    toDailyOpacity: number,
   ) => {
     if (zoomAnimationFrameRef.current !== null) {
       cancelAnimationFrame(zoomAnimationFrameRef.current)
@@ -223,8 +224,9 @@ export function HistoryGraph({
       window: fromWindow,
       progress: 0,
       saveMaxAbsChange: fromSaveMaxAbsChange,
-      fromOverview,
-      toOverview,
+      dailyOpacity: fromDailyOpacity,
+      fromDailyOpacity,
+      toDailyOpacity,
     })
 
     const drawFrame = (timestamp: number) => {
@@ -244,8 +246,10 @@ export function HistoryGraph({
         progress: easedProgress,
         saveMaxAbsChange: fromSaveMaxAbsChange
           + (toSaveMaxAbsChange - fromSaveMaxAbsChange) * easedProgress,
-        fromOverview,
-        toOverview,
+        dailyOpacity: fromDailyOpacity
+          + (toDailyOpacity - fromDailyOpacity) * easedProgress,
+        fromDailyOpacity,
+        toDailyOpacity,
       })
       zoomAnimationFrameRef.current = requestAnimationFrame(drawFrame)
     }
@@ -270,15 +274,10 @@ export function HistoryGraph({
     ...visibleDiffs.map((entry) => Math.abs(entry.charDiff)),
   )
   const saveMaxAbsChange = zoomTweenFrame?.saveMaxAbsChange ?? renderedSaveMaxAbsChange
-  const maxAbsChange = isOverview ? dailyMaxAbsChange : saveMaxAbsChange
   const viewTransitionActive = Boolean(
-    zoomTweenFrame && zoomTweenFrame.fromOverview !== zoomTweenFrame.toOverview
+    zoomTweenFrame && zoomTweenFrame.fromDailyOpacity !== zoomTweenFrame.toDailyOpacity
   )
-  const dailyLayerOpacity = viewTransitionActive && zoomTweenFrame
-    ? zoomTweenFrame.fromOverview
-      ? 1 - zoomTweenFrame.progress
-      : zoomTweenFrame.progress
-    : isOverview ? 1 : 0
+  const dailyLayerOpacity = zoomTweenFrame?.dailyOpacity ?? (isOverview ? 1 : 0)
   const saveLayerOpacity = 1 - dailyLayerOpacity
 
   const findNearestEntry = useCallback((clientX: number, clientY: number, bounds: DOMRect) => {
@@ -286,7 +285,7 @@ export function HistoryGraph({
     let nearestEntry: EntryWithDiff | null = null
     let nearestDistance = Number.POSITIVE_INFINITY
 
-    if (isOverview) {
+    if (dailyLayerOpacity >= 0.5) {
       for (let index = 0; index < visibleDailyGroups.length; index += 1) {
         const group = visibleDailyGroups[index]
         const entryX = bounds.left + (dayPositions[index] / CHART_WIDTH) * bounds.width
@@ -302,7 +301,8 @@ export function HistoryGraph({
     for (let index = 0; index < visibleDiffs.length; index += 1) {
       const entry = visibleDiffs[index]
       const entryX = bounds.left + (positions[index] / CHART_WIDTH) * bounds.width
-      const entryY = bounds.top + (pointY(entry.charDiff, maxAbsChange) / CHART_HEIGHT) * bounds.height
+      const entryY = bounds.top
+        + (pointY(entry.charDiff, saveMaxAbsChange) / CHART_HEIGHT) * bounds.height
       const distance = Math.hypot(clientX - entryX, clientY - entryY)
       if (distance < nearestDistance) {
         nearestEntry = entry
@@ -311,7 +311,7 @@ export function HistoryGraph({
     }
 
     return nearestEntry
-  }, [dayPositions, isOverview, maxAbsChange, positions, visibleDailyGroups, visibleDiffs, visibleWindow])
+  }, [dailyLayerOpacity, dayPositions, positions, saveMaxAbsChange, visibleDailyGroups, visibleDiffs, visibleWindow])
 
   const handlePointer = useCallback((event: React.MouseEvent<SVGSVGElement>, select: boolean) => {
     if (select) finishZoomTween()
@@ -364,17 +364,17 @@ export function HistoryGraph({
         nextWindow,
         saveMaxAbsChange,
         nextSaveMaxAbsChange,
-        zoomTweenFrame?.toOverview ?? isOverview,
-        nextIsOverview,
+        dailyLayerOpacity,
+        nextIsOverview ? 1 : 0,
       )
       setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
       setZoomIndex(boundedIndex)
     },
     [
       diffs,
+      dailyLayerOpacity,
       fullDuration,
       fullWindow,
-      isOverview,
       renderWindow,
       saveMaxAbsChange,
       selectedEntryMs,
@@ -382,7 +382,6 @@ export function HistoryGraph({
       visibleWindow,
       zoomAnchorMs,
       zoomDurations,
-      zoomTweenFrame?.toOverview,
     ]
   )
 
@@ -393,7 +392,7 @@ export function HistoryGraph({
   }, [])
 
   const handleWheel = useCallback((event: WheelEvent) => {
-    if (!fullWindow || !visibleWindow) return
+    if (!fullWindow || !visibleWindow || !renderWindow) return
     const bounds = chartRef.current?.getBoundingClientRect()
     if (!bounds || bounds.width <= 0) return
 
@@ -402,16 +401,34 @@ export function HistoryGraph({
       && (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY))
 
     if (isPanGesture && horizontalDelta !== 0) {
-      finishZoomTween()
       event.preventDefault()
-      const currentCenter = (visibleWindow.startMs + visibleWindow.endMs) / 2
-      const nextCenter = currentCenter + (horizontalDelta / bounds.width) * zoomDurationMs
+      const renderedDurationMs = renderWindow.endMs - renderWindow.startMs
+      const currentCenter = (renderWindow.startMs + renderWindow.endMs) / 2
+      const nextCenter = currentCenter + (horizontalDelta / bounds.width) * renderedDurationMs
       const nextWindow = computeHistoryZoomWindow(fullWindow, zoomDurationMs, nextCenter)
 
       if (
         nextWindow.startMs !== visibleWindow.startMs
         || nextWindow.endMs !== visibleWindow.endMs
       ) {
+        if (isZoomTweening) {
+          const nextVisibleDiffs = diffs.filter((entry) => {
+            const timestamp = Date.parse(entry.entry.created_at)
+            return timestamp >= nextWindow.startMs && timestamp <= nextWindow.endMs
+          })
+          const nextSaveMaxAbsChange = Math.max(
+            1,
+            ...nextVisibleDiffs.map((entry) => Math.abs(entry.charDiff)),
+          )
+          startZoomTween(
+            renderWindow,
+            nextWindow,
+            saveMaxAbsChange,
+            nextSaveMaxAbsChange,
+            dailyLayerOpacity,
+            isOverview ? 1 : 0,
+          )
+        }
         setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
       }
       return
@@ -437,11 +454,17 @@ export function HistoryGraph({
     setZoom(nextIndex, nextAnchor)
   }, [
     boundedZoomIndex,
-    finishZoomTween,
+    dailyLayerOpacity,
+    diffs,
     fullDuration,
     fullWindow,
+    isOverview,
+    isZoomTweening,
+    renderWindow,
+    saveMaxAbsChange,
     setZoom,
     showZoomControls,
+    startZoomTween,
     visibleWindow,
     zoomDurationMs,
     zoomDurations,
@@ -500,7 +523,7 @@ export function HistoryGraph({
           data-rendered-end-ms={renderWindow.endMs}
           data-zoom-tween-progress={zoomTweenFrame?.progress}
           preserveAspectRatio="none"
-          onMouseMove={variant === 'desktop' && hoverEnabled && !isZoomTweening
+          onMouseMove={variant === 'desktop' && hoverEnabled
             ? (event) => handlePointer(event, false)
             : undefined}
           onMouseLeave={() => {
