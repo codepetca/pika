@@ -1548,6 +1548,12 @@ feature behavior changed.
   visually reviewed, and added alongside the macOS set. The PR returned to
   draft before this correction; the database job completed every contract step
   but was canceled during cleanup by that draft transition.
+- Final authorization review removed the teacher-only Snapshot gallery from
+  student reference surfaces while preserving the teacher catalog. Catalog,
+  rendered-UI, and browser assertions now enforce that boundary. Updated
+  desktop/mobile light/dark baselines were visually approved on macOS and from
+  stable GitHub Linux captures; the diagnostic browser run passed 94 existing
+  scenarios and failed only the four intentionally stale student snapshots.
 
 **Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
 test, and documentation consistency review.

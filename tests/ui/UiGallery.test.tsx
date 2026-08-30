@@ -45,6 +45,7 @@ describe('UiGallery accessibility contracts', () => {
       'href',
       '/student/history',
     )
+    expect(screen.queryByRole('link', { name: 'Snapshot gallery' })).not.toBeInTheDocument()
   })
 
   it('moves tab focus and selection with arrow keys', () => {

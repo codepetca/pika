@@ -49,4 +49,14 @@ describe('Pattern Lab catalog', () => {
       }
     }
   })
+
+  it('keeps teacher-only reference surfaces out of the student catalog', () => {
+    expect(REFERENCE_ROUTES.teacher).toContainEqual({
+      label: 'Snapshot gallery',
+      href: '/snapshots-gallery',
+    })
+    expect(REFERENCE_ROUTES.student).not.toContainEqual(
+      expect.objectContaining({ href: '/snapshots-gallery' }),
+    )
+  })
 })

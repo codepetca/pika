@@ -256,6 +256,5 @@ export const REFERENCE_ROUTES = {
   student: [
     { label: 'Classrooms', href: '/classrooms' },
     { label: 'Student history', href: '/student/history' },
-    { label: 'Snapshot gallery', href: '/snapshots-gallery' },
   ],
 } as const

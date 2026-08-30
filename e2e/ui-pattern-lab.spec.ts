@@ -37,6 +37,7 @@ test.describe('student Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'student')
     await expect(page.getByText('student reference')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Student history' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Snapshot gallery' })).toHaveCount(0)
     await expect(page.getByTestId('pattern-lab-header')).toHaveScreenshot('student-pattern-header.png')
   })
 })
