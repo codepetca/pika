@@ -98,3 +98,282 @@ No actionable P0, P1, or P2 mismatch remains.
 None required. Durable teacher work-surface guidance already covers the reusable hierarchy; the status-disc opacity, clickable session range, time formatting, and no-time fallback are Attendance-specific.
 
 final result: passed
+
+# Compact assignment-history chart design QA
+
+## Source and corrected target
+
+- Visual source: the user-provided 1536 × 1024 concept image reviewed during
+  this task. It is not stored in the repository.
+- Corrected user direction: show the complete save history in one chart at the
+  existing 240–256 px sidebar size. The horizontal axis covers the student's
+  actual activity days, including work outside assigned and due dates.
+- Intended state: a teacher or student can immediately see whether work happened
+  in one clump and whether each save added or deleted content, then inspect the
+  individual saves from that same chart.
+
+## Implementation evidence
+
+- Playwright captures were reviewed locally for desktop/mobile and light/dark.
+  Generated screenshots live under the repository's intentionally gitignored
+  `artifacts/` directory, so this note records the verified matrix rather than
+  presenting those local files as durable repository evidence.
+- Teacher target width: 256 px.
+- Student target width: 240 px, matching the original desktop history column.
+
+The source and the final implementation screenshots were inspected together in one comparison input. The compact chart intentionally adapts the concept to Pika's real sidebar width instead of reproducing the concept's large inspector and lower detail view.
+
+## Comparison
+
+- Layout: one compact chart contains the complete save history across the first
+  through last activity days. Assignment, due, and submission dates do not crop
+  or extend the horizontal range.
+- Data: each save is a vertical mark around a centered zero line. Additions rise
+  in semantic success green and deletions fall in semantic danger red. Closely
+  timed saves retain chronological order and a small minimum visual separation.
+- Interaction: horizontal nearest-save selection previews individual saves.
+  Click pins the nearest save. The same chart supports Arrow, Home, and End
+  navigation as a labelled slider.
+- Typography and spacing: titles and metadata no longer compete on one row. The chart fits the original narrow history column without cramped labels or an enlarged inspector.
+- Color: semantic Pika tokens provide clear hierarchy in both light and dark
+  themes. Green and red encode change direction; the selected save receives the
+  only point marker and the zero baseline remains subordinate.
+- Responsive behavior: teacher and student examples stack cleanly on mobile. The responsive viewport reported equal document scroll and client widths, with no horizontal overflow.
+- Assets and icons: the chart is the product's existing code-native data visualization; no raster assets or icons are required for this compact state.
+- Copy: teachers see `Student activity`; students see `Version history`. The
+  only chart labels are the first and last activity dates, or one centered date
+  when the history spans a single day.
+
+## Accessibility and states
+
+- The chart is a single focusable slider labelled `Complete save history`.
+- `aria-valuenow` and `aria-valuetext` identify the selected save.
+- Arrow, Home, and End behavior is covered by component tests.
+- Hover preview, click pinning, keyboard focus, role language, empty state,
+  clustered history, desktop/mobile, and light/dark states were checked.
+- Student restore confirmation and teacher preview/pin wiring remain in the existing callers and are unchanged.
+
+## Findings
+
+- No P0, P1, or P2 findings remain.
+- The earlier two-level explorer was removed after the user clarified that the entire history must remain in one small chart.
+
+## Final result
+
+passed
+
+## History preview framing follow-up
+
+The compact chart and its dimensions remain unchanged. The document pane now has
+three deliberate states:
+
+- current: normal scale and the reader's existing scroll position;
+- hover: the complete historical document is scaled into the available pane;
+- pinned: normal readable scale, starting at the top, with ordinary scrolling.
+
+Ending a transient hover or exiting a pinned preview restores the current
+document and the scroll position captured before preview began. Selecting a
+different pinned save returns that save to the top. The fit calculation responds
+to viewport resizing and image loading.
+
+Playwright evidence was reviewed for teacher and student roles at 1440 × 900 and
+390 × 844 in light and dark themes, including both hover and pinned states. The
+captures are intentionally local and gitignored; the durable evidence here is
+the explicit matrix and review result.
+
+The whole-document signal is clear at desktop size, pinned text remains readable,
+the narrow layout contains both panes without horizontal overflow, and semantic
+colors remain legible in both themes. No P0, P1, or P2 findings remain.
+
+## Activity-day addition/deletion refinement
+
+### Change brief
+
+- Surface: the existing compact assignment-history chart shared by the teacher
+  student-work inspector and student assignment editor.
+- Reference: the established 240–256 px Pika history sidebar and its existing
+  hover-preview/click-lock interaction.
+- Affected roles: teacher and student.
+- Required viewports and themes: desktop/mobile and light/dark.
+- Key states: default, hover preview, keyboard focus, pinned preview, and empty.
+- Primary signal: vertical save marks above a centered zero line for additions
+  and below it for deletions, positioned across the actual activity days.
+- Must not add: assignment/due boundaries, judgments, legends, duplicate detail
+  charts, session summaries, or decorative labels.
+- Composite widget accessibility review: yes; the existing labelled slider and
+  Arrow/Home/End behavior remain the governing interaction.
+
+This is a refinement of the existing history chart, not a new history surface.
+The visible copy is limited to the role-owned heading, empty state when needed,
+and the first/last activity dates.
+
+### Verification result
+
+- Reviewed teacher and student screenshots at 1440 × 900 and 390 × 844 in
+  light and dark themes, plus hover, pinned, keyboard-focus, and empty states.
+- The day-based clumps and addition/deletion direction remain legible at the
+  compact sidebar size. The keyboard focus ring is visible and no tested
+  viewport has horizontal overflow.
+- Focused component and graph coverage passes 123/123. TypeScript and lint pass.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Arrow keys, Home, and End select saves.
+- Semantic state covered by tests: yes; the slider name, range position, and
+  text alternative for character change are asserted.
+- Remaining manual follow-up: none; visible focus was checked in Playwright.
+
+## Dense-history semantic zoom refinement
+
+### Change brief
+
+- Surface: the existing compact assignment-history chart and the development
+  gallery examples used to stress-test it.
+- Reference: the current 240–256 px chart, including hover preview and
+  click-to-pin behavior.
+- Affected roles: teacher and student.
+- Required viewports and themes: desktop/mobile and light/dark.
+- Key states: fit-all overview, zoomed save detail, hover, pinned selection,
+  keyboard focus, empty, long document, steady multi-week work, bursty rewrites,
+  and a dense final-day crunch.
+- Primary signal: the fit-all view aggregates additions and deletions by activity
+  day; zooming reveals individual saves. Both directions share one linear
+  character scale that recalculates for the visible range and uses the available
+  chart height. Tiny exact-scale stems use a separate dot for visibility.
+- Must not add: a permanent legend, activity judgments, assignment/due
+  boundaries, a second chart, pan controls, or explanatory body copy.
+- Composite widget accessibility review: yes. The save-history slider supports
+  Left/Right/Up/Down/Home/End and labelled zoom buttons expose the view change.
+
+The teacher surface removes the redundant visible `Student activity` heading
+while retaining the section's accessible name. The student keeps its existing
+role-owned heading.
+
+### Verification result
+
+- Reviewed teacher and student at 1440 × 900 and 390 × 844 in light and dark
+  themes. No horizontal overflow was present at 390 px.
+- Reviewed fit-all daily views for steady six-week work, bursty rewrites, a
+  100-save final-day crunch, a single save, and empty history.
+- Reviewed the long-document hover fit, 14-day individual-save zoom, pinned
+  reading-size preview, and visible keyboard focus.
+- Rechecked the review remediation in the rendered teacher gallery: clicking
+  pinned the selected save at reading size, moving across the chart left the
+  same save and slider value selected, and the Exit preview affordance remained
+  visible. The post-remediation capture was visually reviewed with no layout
+  regression.
+- Reviewed the extreme large-paste fixture after removing the stem-height floor:
+  the +530-character stem remains dominant, 20–30-character edits retain their
+  exact proportional height, and their separate dots remain clear at both the
+  240 px student and 256 px teacher widths. The mixed multi-day fixture also
+  shows a direction-neutral selection ring on the zero line rather than implying
+  that the selected save was an addition or deletion.
+- Rechecked selection layering after targeted review: the neutral ring is behind
+  the daily stems and dots, so the selected final-day deletion remains visibly
+  red in both teacher and student compact charts. The refreshed capture has no
+  console errors or layout regression.
+- The zoom controls measured 44 × 44 px. Additions and deletions remain visibly
+  distinct and share one proportional linear character scale.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Left/Right/Up/Down, Home, and End retain save
+  navigation, and zoom controls are ordinary keyboard-reachable buttons.
+- Semantic state covered by tests: yes; slider values/text, daily/save view
+  changes, zoom button state, accessible group naming, and hidden-heading region
+  naming are asserted.
+- Remaining manual follow-up: none; focus visibility and target size were checked
+  in Playwright.
+
+## Zoomed-history wheel navigation and saved-state preview
+
+### Change brief
+
+- Surface: the existing compact teacher/student assignment-history chart and
+  its long-document development fixture.
+- Affected roles: teacher and student.
+- Added gestures: vertical wheel zooms around the pointer; horizontal trackpad
+  scrolling or Shift+wheel pans the bounded window after zooming.
+- Zoom presentation: a 260 ms eased expansion/contraction keeps the chosen point
+  as the visual origin; panning stays immediate and reduced motion is respected.
+- Preserved interactions: fit-all overview, zoom buttons, Arrow-key/Home/End
+  save navigation, hover-to-fit preview, and click-to-pin reading view.
+- Visible copy remains unchanged; gesture instructions are connected to the
+  slider with `aria-describedby`.
+
+### Verification result
+
+- Teacher desktop at 1440 × 900: wheel zoom changed the fit-all daily view to
+  individual saves; a horizontal delta moved the start of the visible window
+  earlier. Hovering the left and right sides of the resulting window rendered
+  distinct four- and eighteen-paragraph saved states.
+- Student mobile at 390 × 844: the same gesture sequence moved the date window
+  and rendered distinct seven- and twenty-one-paragraph saved states without
+  horizontal overflow.
+- Light and dark screenshots were reviewed for both roles. Stems, baseline,
+  date labels, zoom controls, preview border, and fitted text remained clear.
+- A non-passive native wheel listener contains handled gestures inside the chart;
+  the final teacher and student browser runs reported zero console errors.
+- Chromium reported one active SVG animation with an intermediate scale and
+  opacity during the transition, followed by no animation and the identity
+  transform after completion; the mid-transition frame remained legible.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Left/Right/Up/Down/Home/End navigation and the
+  keyboard-reachable zoom buttons remain covered.
+- Semantic state covered by tests: yes; slider values, view mode, visible window,
+  zoom status, and the connected gesture description are exposed semantically.
+- Remaining manual follow-up: none.
+
+## Focused assignment-history document preview
+
+### Change brief
+
+- Surface: the shared teacher/student assignment-history preview beside the
+  existing compact chart.
+- Affected roles: teacher and student.
+- Preview behavior: hover keeps the document at normal reading size and scrolls
+  to the earliest changed location; click retains the existing pinned-save
+  lifecycle.
+- Change presentation: inserted and rewritten areas receive visible Added or
+  Revised labels, while deletions leave a red `Deleted here` anchor at their
+  former position.
+- Orientation: a narrow, non-interactive whole-document minimap shows change
+  marks and the current reading viewport. It is hidden at narrow mobile widths
+  to preserve the main reading area.
+
+### Verification result
+
+- Teacher and student desktop at 1440 × 900: rewrite, insertion, and deletion
+  saves each focused the correct document area at normal scale. Clicking an
+  insertion pinned it while later pointer movement left the selected save
+  unchanged.
+- Student mobile at 390 × 844: the focused changed area remained legible, the
+  minimap hid as designed, and there was no horizontal overflow.
+- Teacher dark mode: document text, changed-area label/background, minimap
+  lines, change marker, viewport outline, and history stems remained clear.
+- Manual scrolling moved the minimap viewport from 0% to 87.351%, matching the
+  full available document range. The final browser run reported no errors.
+- Review remediation was rechecked visually: the Revised label provides a
+  non-color cue, the live status text names the change kind and document block,
+  and a 1,000-block comparison completes in about 1.2 ms locally. The final
+  order-aware fallback also keeps a one-block move precise in a 5,000-block
+  document while completing in about 10.7 ms.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; the existing slider keyboard navigation and
+  Escape-to-exit behavior remain covered, and the minimap adds no focus stops.
+- Semantic state covered by tests: yes; the minimap is hidden from assistive
+  technology, while a polite status message announces added, revised, and
+  deleted locations for the active save.
+- Remaining manual follow-up: none.

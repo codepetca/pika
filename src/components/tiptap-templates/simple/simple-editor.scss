@@ -63,6 +63,191 @@
   width: 100%;
 }
 
+.history-preview-layout {
+  --history-preview-rule-size: 1px;
+  --history-preview-deletion-rule-size: 2px;
+  --history-preview-deletion-leading: 1rem;
+
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.history-preview-layout > .simple-editor-content,
+.history-preview-layout > .simple-viewer-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-preview-minimap {
+  --history-preview-minimap-rail: 4.25rem;
+  --history-preview-minimap-block-rhythm: 0.125rem;
+  --history-preview-minimap-line-rhythm: 1px;
+  --history-preview-minimap-line-size: 1px;
+  --history-preview-minimap-marker-edge: 2px;
+  --history-preview-minimap-marker-stroke: 3px;
+  --history-preview-minimap-marker-minimum: 2px;
+  --history-preview-minimap-change-layer: 1;
+  --history-preview-minimap-viewport-layer: 2;
+
+  width: var(--history-preview-minimap-rail);
+  min-height: 0;
+  flex: 0 0 var(--history-preview-minimap-rail);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-left: var(--history-preview-rule-size) solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.history-preview-minimap__document {
+  position: absolute;
+  inset: var(--space-control);
+  display: flex;
+  flex-direction: column;
+  gap: var(--history-preview-minimap-block-rhythm);
+  overflow: hidden;
+  opacity: 0.7;
+}
+
+.history-preview-minimap__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--history-preview-minimap-line-rhythm);
+}
+
+.history-preview-minimap__line {
+  display: block;
+  height: var(--history-preview-minimap-line-size);
+  min-height: var(--history-preview-minimap-line-size);
+  border-radius: var(--radius-badge);
+  background: var(--color-text-muted);
+}
+
+.history-preview-minimap__block[data-change-kind="added"] .history-preview-minimap__line {
+  background: var(--color-success);
+}
+
+.history-preview-minimap__block[data-change-kind="modified"] .history-preview-minimap__line {
+  background: var(--color-primary);
+}
+
+.history-preview-minimap__change {
+  position: absolute;
+  right: var(--history-preview-minimap-marker-edge);
+  z-index: var(--history-preview-minimap-change-layer);
+  width: var(--history-preview-minimap-marker-stroke);
+  min-height: var(--history-preview-minimap-marker-minimum);
+  border-radius: var(--radius-badge);
+  background: var(--color-primary);
+}
+
+.history-preview-minimap__change[data-change-kind="added"] {
+  background: var(--color-success);
+}
+
+.history-preview-minimap__change[data-change-kind="modified"] {
+  border: var(--history-preview-rule-size) solid var(--color-primary);
+  background: var(--color-surface-2);
+}
+
+.history-preview-minimap__change[data-change-kind="deleted"] {
+  right: 0;
+  width: var(--space-control);
+  min-height: var(--history-preview-rule-size);
+  border-radius: 0;
+  background: var(--color-danger);
+}
+
+.history-preview-minimap__viewport {
+  position: absolute;
+  left: var(--history-preview-minimap-marker-edge);
+  right: var(--history-preview-minimap-marker-edge);
+  z-index: var(--history-preview-minimap-viewport-layer);
+  min-height: var(--space-section);
+  border: 1px solid var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  pointer-events: none;
+}
+
+[data-history-change-kind] {
+  position: relative;
+}
+
+[data-history-change-kind]::before {
+  display: block;
+  width: fit-content;
+  margin-bottom: var(--space-control);
+  font-family: var(--font-family-ui);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: var(--history-preview-deletion-leading);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-history-change-kind="added"] {
+  border-radius: var(--radius-control);
+  background: var(--color-success-bg-muted);
+  box-shadow: -4px 0 0 var(--color-success);
+}
+
+[data-history-change-kind="added"]::before {
+  content: "Added";
+  color: var(--color-success);
+}
+
+[data-history-change-kind="modified"] {
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  box-shadow: -4px 0 0 var(--color-primary);
+}
+
+[data-history-change-kind="modified"]::before {
+  content: "Revised";
+  color: var(--color-primary);
+}
+
+[data-history-deletion-before],
+[data-history-deletion-after] {
+  position: relative;
+}
+
+[data-history-deletion-before]::before,
+[data-history-deletion-after]::after {
+  content: "Deleted here";
+  display: block;
+  color: var(--color-danger);
+  border-top: var(--history-preview-deletion-rule-size) solid var(--color-danger);
+  font-family: var(--font-family-ui);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: var(--history-preview-deletion-leading);
+  letter-spacing: 0.02em;
+}
+
+[data-history-deletion-before]::before {
+  margin: 0 0 var(--space-control);
+}
+
+[data-history-deletion-after]::after {
+  margin: var(--space-control) 0 0;
+}
+
+// History scrubber previews use the existing document surface as a miniature
+// whole-document overview. Pinned previews remove the transform and retain the
+// normal scrolling behavior supplied by the editor/viewer classes above.
+[data-history-preview-mode="fit"] {
+  overflow: hidden;
+}
+
+[data-history-preview-mode="fit"] > .tiptap.ProseMirror {
+  transform: scale(var(--history-preview-scale, 1));
+  transform-origin: top center;
+}
+
 // Editor padding (reasonable, no viewport-based sizing)
 .simple-editor-content .tiptap.ProseMirror.simple-editor {
   flex: 1;
@@ -75,6 +260,10 @@
 }
 
 @media screen and (max-width: 480px) {
+  .history-preview-minimap {
+    display: none;
+  }
+
   .simple-editor-content .tiptap.ProseMirror.simple-editor {
     padding: 0.75rem;
   }

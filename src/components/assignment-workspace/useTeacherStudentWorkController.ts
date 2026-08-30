@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import {
+  buildAssignmentHistoryPreview,
+  type AssignmentHistoryChange,
+} from '@/lib/assignment-doc-history'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
 import { fetchJSON } from '@/lib/request-cache'
@@ -215,6 +218,7 @@ export interface TeacherStudentWorkController {
   historyError: string
   previewEntry: AssignmentDocHistoryEntry | null
   previewContent: TiptapContent | null
+  previewChange: AssignmentHistoryChange | null
   isPreviewLocked: boolean
   scoreCompletion: string
   scoreThinking: string
@@ -283,6 +287,7 @@ export function useTeacherStudentWorkController({
   const [historyError, setHistoryError] = useState('')
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [previewChange, setPreviewChange] = useState<AssignmentHistoryChange | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
 
   const [scoreCompletion, setScoreCompletion] = useState('')
@@ -397,12 +402,13 @@ export function useTeacherStudentWorkController({
   const updatePreview = useCallback(
     (entry: AssignmentDocHistoryEntry): boolean => {
       const oldestFirst = [...historyEntries].reverse()
-      const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+      const preview = buildAssignmentHistoryPreview(oldestFirst, entry.id)
 
-      if (!reconstructed) return false
+      if (!preview) return false
 
       setPreviewEntry(entry)
-      setPreviewContent(reconstructed)
+      setPreviewContent(preview.content)
+      setPreviewChange(preview.change)
       return true
     },
     [historyEntries],
@@ -429,6 +435,7 @@ export function useTeacherStudentWorkController({
   const handleExitPreview = useCallback(() => {
     setPreviewEntry(null)
     setPreviewContent(null)
+    setPreviewChange(null)
     setLockedEntryId(null)
   }, [])
 
@@ -908,6 +915,7 @@ export function useTeacherStudentWorkController({
     historyError,
     previewEntry,
     previewContent,
+    previewChange,
     isPreviewLocked: lockedEntryId !== null,
     scoreCompletion,
     scoreThinking,
