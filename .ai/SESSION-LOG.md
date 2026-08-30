@@ -11,127 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Compact selected-student Test actions
-
-**Risk profile:** UI-only — selected-student utility controls changed from
-labeled buttons to icon buttons; no action eligibility, grading behavior,
-permissions, API, schema, persistence, authentication, migration, or student UI
-changed.
-
-- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
-  work-surface icon buttons on desktop while retaining their explicit accessible
-  names, hover tooltips, disabled states, and destructive treatment.
-- Kept the selected access split button labeled because it communicates the
-  current action and scope, and retained labeled utility actions in the narrow
-  layout overflow menu.
-- Added component coverage for icon-only accessible naming and browser coverage
-  for empty visible button text plus the AI Grade hover tooltip.
-- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
-  its fetch mock now matches URL and method instead of depending on concurrent
-  request order. Product code and preview behavior are unchanged.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes (existing split/menu Escape and focus tests remain intact);
-  semantic state covered by tests: yes; remaining manual follow-up: none.
-
-**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
-responsive long-roster Playwright matrix (4/4), TypeScript, lint,
-architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
-covers selected desktop/mobile states in light/dark and the desktop tooltip
-hover state. Student UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded accessible
-teacher-toolbar refinement.
-
-## 2026-08-27 — Adopt persistent Test grading action scopes
-
-**Risk profile:** standard — selected Test grading action placement, row access
-state changes, and AI-grading request scope changed; permissions, enrollment
-validation, test status rules, grading eligibility, persistence schema,
-authentication, dependencies, migrations, and student UI are unchanged.
-
-- Kept Open All and Close All as persistent icon commands in the centered Test
-  action cluster, with tooltips and confirmation for the global mutations.
-- Added one persistent student-actions menu that is disabled before selection,
-  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
-  Return, and Delete Work. Global access commands and selection clearing are not
-  duplicated in the menu.
-- Replaced row access icons with immediate semantic switches: green/right for
-  open and red/left for closed, with a lock-state icon, accessible state, and no
-  per-row confirmation.
-- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
-  the explicit scope through a Zod-validated API boundary into run preflight.
-  Ungraded scope now preserves any persisted grade; all scope queues eligible
-  answered responses even when previously graded.
-- Updated stable teacher operational-table guidance to combine Attendance's
-  table rhythm with selected Test grading's persistent action-scope pattern.
-  Attendance's bottom selection bar is now documented as migration debt for a
-  later focused pass.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  align Attendance with the new persistent selection-menu pattern in a separate
-  change.
-
-**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
-(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
-checks pass. Visual review covers default, global confirmation, selected menu,
-and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
-this is a teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
-for one bounded independent correctness and requirements review.
-
-## 2026-08-27 — Redesign teacher Attendance action hierarchy
-
-**Risk profile:** standard UI interaction change — teacher Attendance action
-placement and responsive grouping changed; Attendance permissions, session
-states, command eligibility, confirmation polling, API behavior, persistence,
-authentication, schema, migrations, dependencies, and student UI are unchanged.
-
-- Implemented the user-selected Option 1 using the Test grading work-surface
-  hierarchy without importing Test terminology or domain behavior.
-- Joined the previous/date/next controls into one segmented date navigator. The
-  arrows touch the date and the selectable date has no dropdown chevron.
-- Moved Present, Late, Absent, and Clear mark from the transitional bottom bar
-  into a persistent centered Student actions menu that is disabled before
-  selection and becomes a selected-count trigger.
-- Preserved explicit desktop QR and session commands. At 390 px, the same
-  session actions collapse into one centered icon menu so the quiet edge utility
-  menu cannot overlap the primary cluster.
-- Kept Attendance hours and refresh at the quiet edge, retained status-count
-  sorting and per-student status dots, and added a bordered internally scrolling
-  roster with sticky sortable/resizable headers.
-- Added component coverage for the joined date treatment, persistent selected
-  actions, command confirmation, disabled states, and menu focus/arrow/Escape
-  behavior. Expanded the Playwright experience matrix to a 45-student roster
-  with default, selected, menu, sorted/scrolled, hours, mobile session-action,
-  and browser-error checks.
-- Retained the approved design target, normalized comparison boards, and the
-  complete desktop/mobile light/dark evidence matrix under
-  `docs/guidance/ui/evidence/attendance-actions-2026-08-27/`.
-- Added no new durable rule because the reusable hierarchy was already
-  established by the merged Test grading guidance. Corrected stale audit text
-  that still described Attendance selection placement as migration debt; the
-  joined date treatment remains scoped until another surface proves it reusable.
-- One bounded independent review found that shared action-menu rows were shorter
-  than the 44 px interaction target and lacked canonical visible focus. Added
-  `min-h-control`, the inset focus ring, a regression assertion, refreshed the
-  visual evidence, and corrected the stale work-surface audit state.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused component tests (20/20), responsive Attendance
-Playwright matrix (4/4) after the mobile-overlap correction and again after the
-menu accessibility remediation, TypeScript, lint, production build, Pika audit,
-diff checks, and Product Design comparison pass.
-Visual review covers teacher desktop/mobile in light/dark, default/selected/menu
-states, internal scrolling/sticky headers, tooltips, mobile session actions, and
-Attendance hours. Student UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, responsive behavior, accessibility, and regression
-risk.
-
 ## 2026-08-27 — Close Test identity release-safety gaps
 
 **Risk profile:** runtime-platform — cross-version Test authoring compatibility
@@ -1475,6 +1354,65 @@ student Attendance behavior changed.
 **Model recommendation:** GPT-5.6 Terra high for correctness, requirements,
 responsive behavior, and compatibility review of the complete PR diff.
 
+## 2026-08-29 — Finalize assignment history exploration and focused previews
+
+**Risk profile:** low — shared teacher/student history visualization and
+client-side saved-document comparison only; no API contract, schema,
+persistence, authentication, dependency, migration, deployment, or hosted
+state changed.
+
+- Replaced fragmented snapshots with one compact complete-history chart across
+  actual activity days. Long and dense histories aggregate by day, zoom reveals
+  individual saves, vertical wheel input zooms around the pointer, and
+  horizontal or Shift-wheel input pans the bounded window with smooth,
+  reduced-motion-aware zoom transitions.
+- Kept the document at normal reading size while hovering a save and scrolled to
+  its earliest changed location. Clicking retains the existing pinned-save
+  behavior. Insertions show Added, rewrites show Revised, and deletions leave a
+  `Deleted here` anchor.
+- Added a narrow, non-interactive whole-document minimap with change marks and a
+  viewport box that follows reading scroll. It hides at narrow mobile widths,
+  remains absent from the accessibility tree, and a polite status message
+  announces change kinds, counts, and document-block locations.
+- Bounded adjacent-save matching by precomputing block signatures, capping exact
+  LCS work, and using unique patience-style anchors with monotonic gap matching
+  for large documents. A one-block move remains exactly one addition plus one
+  deletion across the 199–202 boundary and at 1,000/5,000 blocks; the 5,000
+  block case completes in about 9–11 ms locally.
+- Independent stable-SHA review found and resolved four P2 issues: unbounded
+  comparison work, mixed-save focus order, color-only change semantics, and the
+  large-reorder threshold edge. Final targeted re-review found no residual
+  P0–P2 issues.
+- Clarified the UI gallery demonstration after review: its five saves now grow
+  from 8 to 20 to 40 sections, and it opens on the mid-project save so the
+  minimap visibly ends before the final-document length. The main pane lands on
+  Sections 9–11 marked Added, making snapshot-at-that-time behavior immediate.
+- Smoothed overview zooming across the full window-size change instead of only
+  animating a clamped final step. Daily totals now crossfade into individual
+  saves on the same 420 ms easing curve, zoom-out uses the reciprocal scale,
+  and wheel zoom waits for the active transition so repeated wheel events do
+  not interrupt the motion. Follow-up review caught and removed the remaining
+  0.05–20 scale clamp; year-long histories now retain the exact zoom ratio and
+  reciprocal dezoom ratio with direct regression coverage.
+- Ready-PR CI exposed an unrelated date-boundary failure in the newly merged
+  Daily/Attendance browser fixture: its fixed August 29 summary expected a
+  relative `Today` label. The fixture now fixes its browser clock to August 29,
+  and the affected desktop/mobile light/dark matrix passes 4/4.
+
+**Verification:** the final pre-rebase focused gate passed 77 workflow tests,
+179 focused tests, and 571 related tests plus TypeScript, lint, architecture,
+UI/design policy, diff checks, and the Pika audit. Playwright covered teacher
+and student desktop, student mobile, and dark mode, including hover, pinning,
+rewrite/insertion/deletion marks, minimap scrolling, no horizontal overflow,
+and no browser errors. The post-rebase exact-SHA gate is rerun before PR handoff.
+
+**Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
+behavior covered: yes; semantic state covered by tests: yes; remaining manual
+follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for compact time-series interaction,
+historical document diffing, viewport coordination, and cross-role visual QA.
+
 ## 2026-08-30 — Keep the light Pika favicon in every theme
 
 **Risk profile:** none — root metadata and its focused regression assertion
@@ -1505,6 +1443,7 @@ surface changed.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
+
 ## 2026-08-30 — Development-speed remediation audit at 30 natural attempts
 
 **Risk profile:** workspace-state — CI evidence audit and a browser-test clock
@@ -1574,67 +1513,6 @@ TypeScript, lint), and diff validation pass. Final CI/review remains pending.
 
 **Model recommendation:** GPT-5.6 Terra high for the bounded browser-fixture
 stability review; no broad product or CI-policy redesign is indicated.
-## 2026-08-27 — Show assignment history as a work footprint
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-## 2026-08-29 — Finalize assignment history exploration and focused previews
-
-**Risk profile:** low — shared teacher/student history visualization and
-client-side saved-document comparison only; no API contract, schema,
-persistence, authentication, dependency, migration, deployment, or hosted
-state changed.
-
-- Replaced fragmented snapshots with one compact complete-history chart across
-  actual activity days. Long and dense histories aggregate by day, zoom reveals
-  individual saves, vertical wheel input zooms around the pointer, and
-  horizontal or Shift-wheel input pans the bounded window with smooth,
-  reduced-motion-aware zoom transitions.
-- Kept the document at normal reading size while hovering a save and scrolled to
-  its earliest changed location. Clicking retains the existing pinned-save
-  behavior. Insertions show Added, rewrites show Revised, and deletions leave a
-  `Deleted here` anchor.
-- Added a narrow, non-interactive whole-document minimap with change marks and a
-  viewport box that follows reading scroll. It hides at narrow mobile widths,
-  remains absent from the accessibility tree, and a polite status message
-  announces change kinds, counts, and document-block locations.
-- Bounded adjacent-save matching by precomputing block signatures, capping exact
-  LCS work, and using unique patience-style anchors with monotonic gap matching
-  for large documents. A one-block move remains exactly one addition plus one
-  deletion across the 199–202 boundary and at 1,000/5,000 blocks; the 5,000
-  block case completes in about 9–11 ms locally.
-- Independent stable-SHA review found and resolved four P2 issues: unbounded
-  comparison work, mixed-save focus order, color-only change semantics, and the
-  large-reorder threshold edge. Final targeted re-review found no residual
-  P0–P2 issues.
-- Clarified the UI gallery demonstration after review: its five saves now grow
-  from 8 to 20 to 40 sections, and it opens on the mid-project save so the
-  minimap visibly ends before the final-document length. The main pane lands on
-  Sections 9–11 marked Added, making snapshot-at-that-time behavior immediate.
-- Smoothed overview zooming across the full window-size change instead of only
-  animating a clamped final step. Daily totals now crossfade into individual
-  saves on the same 420 ms easing curve, zoom-out uses the reciprocal scale,
-  and wheel zoom waits for the active transition so repeated wheel events do
-  not interrupt the motion. Follow-up review caught and removed the remaining
-  0.05–20 scale clamp; year-long histories now retain the exact zoom ratio and
-  reciprocal dezoom ratio with direct regression coverage.
-- Ready-PR CI exposed an unrelated date-boundary failure in the newly merged
-  Daily/Attendance browser fixture: its fixed August 29 summary expected a
-  relative `Today` label. The fixture now fixes its browser clock to August 29,
-  and the affected desktop/mobile light/dark matrix passes 4/4.
-
-**Verification:** the final pre-rebase focused gate passed 77 workflow tests,
-179 focused tests, and 571 related tests plus TypeScript, lint, architecture,
-UI/design policy, diff checks, and the Pika audit. Playwright covered teacher
-and student desktop, student mobile, and dark mode, including hover, pinning,
-rewrite/insertion/deletion marks, minimap scrolling, no horizontal overflow,
-and no browser errors. The post-rebase exact-SHA gate is rerun before PR handoff.
-
-**Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
-behavior covered: yes; semantic state covered by tests: yes; remaining manual
-follow-up: none.
-
-**Model recommendation:** GPT-5.6 Sol for compact time-series interaction,
-historical document diffing, viewport coordination, and cross-role visual QA.
 
 ## 2026-08-30 — Tween history zoom through the actual time window
 
@@ -1671,3 +1549,29 @@ none.
 
 **Model recommendation:** GPT-5.6 Terra high for animation-state correctness,
 interaction interruption behavior, and shared teacher/student compatibility.
+
+## 2026-08-30 — Restore version context after discarding the separate zoom task
+
+**Risk profile:** low — shared teacher/student history presentation and
+interaction only; no API, persistence, authentication, dependency, migration,
+or deployment behavior changed.
+
+- Stopped the overlapping Smooth history zoom task and reverted only its three
+  commits, returning the product tree exactly to the existing tween baseline.
+- Added a compact chart context label: exact date, time, and character change
+  for individual saves; date and daily addition/deletion totals in overview.
+  Hover context clears on leave, while click-to-pin keeps the selected context
+  visible. Large totals wrap within the 240 px student chart.
+- Focused regression coverage passes 76/76 across the history graph, history
+  utilities, assignment-history helpers, and gallery fixtures.
+- Visual verification passed for teacher and student views, desktop/mobile
+  widths, hover and pinned states, daily and exact-save labels, and dark mode.
+  Browser console errors: none.
+
+**Composite-widget accessibility checklist:** reviewed: yes; the visible label
+is supplemental to the existing complete slider value text, keyboard behavior
+is unchanged, and the label is hidden from the accessibility tree to avoid
+duplicate announcements; remaining manual follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
+rollback, history interaction correctness, and cross-role visual QA.
