@@ -1646,10 +1646,12 @@ state changed.
   animating a clamped final step. Daily totals now crossfade into individual
   saves on the same 420 ms easing curve, zoom-out uses the reciprocal scale,
   and wheel zoom waits for the active transition so repeated wheel events do
-  not interrupt the motion.
+  not interrupt the motion. Follow-up review caught and removed the remaining
+  0.05–20 scale clamp; year-long histories now retain the exact zoom ratio and
+  reciprocal dezoom ratio with direct regression coverage.
 
 **Verification:** the final pre-rebase focused gate passed 77 workflow tests,
-178 focused tests, and 570 related tests plus TypeScript, lint, architecture,
+179 focused tests, and 571 related tests plus TypeScript, lint, architecture,
 UI/design policy, diff checks, and the Pika audit. Playwright covered teacher
 and student desktop, student mobile, and dark mode, including hover, pinning,
 rewrite/insertion/deletion marks, minimap scrolling, no horizontal overflow,

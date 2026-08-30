@@ -41,6 +41,11 @@ const multiWeekEntries = Array.from({ length: 20 }, (_, index) => {
   )
 })
 
+const yearLongEntries = [
+  entry('year-end', '2026-02-05T16:00:00Z', 200, 1200),
+  entry('year-start', '2025-01-01T16:00:00Z', 20, 100),
+]
+
 describe('HistoryGraph', () => {
   it('shows a calm empty state when no saves exist yet', () => {
     render(
@@ -331,6 +336,44 @@ describe('HistoryGraph', () => {
     const scale = Number(String(firstFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
     expect(scale).toBeCloseTo(10 / 7)
     expect(firstFrame?.transformOrigin).toBe('50% 50%')
+  })
+
+  it('keeps the exact zoom and reciprocal dezoom scales for year-long histories', () => {
+    render(
+      <HistoryGraph
+        entries={yearLongEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: animate,
+    })
+    const fullDuration = Number(chart.getAttribute('data-visible-end-ms'))
+      - Number(chart.getAttribute('data-visible-start-ms'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+
+    const zoomDuration = Number(chart.getAttribute('data-visible-end-ms'))
+      - Number(chart.getAttribute('data-visible-start-ms'))
+    const zoomFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
+    const zoomScale = Number(String(zoomFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
+    expect(zoomScale).toBeCloseTo(zoomDuration / fullDuration)
+    expect(zoomScale).toBeLessThan(0.05)
+
+    animate.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out history' }))
+
+    const dezoomFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
+    const dezoomScale = Number(String(dezoomFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
+    expect(dezoomScale).toBeCloseTo(fullDuration / zoomDuration)
+    expect(dezoomScale).toBeGreaterThan(20)
   })
 
   it('does not animate zoom when reduced motion is requested', () => {

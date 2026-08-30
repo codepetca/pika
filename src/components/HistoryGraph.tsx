@@ -38,8 +38,6 @@ const OVERVIEW_DAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
 const OVERVIEW_ENTRY_THRESHOLD = 60
 const ZOOM_ANIMATION_MS = 420
 const WHEEL_ZOOM_THROTTLE_MS = ZOOM_ANIMATION_MS
-const MIN_ZOOM_ANIMATION_SCALE = 0.05
-const MAX_ZOOM_ANIMATION_SCALE = 20
 
 function formatDate(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
@@ -288,10 +286,7 @@ export function HistoryGraph({
         // Render the new window at the exact visual scale of the old one, then
         // ease it to 1. This keeps bars spatially continuous in both directions
         // instead of jumping most of the distance before the animation begins.
-        scale: Math.max(
-          MIN_ZOOM_ANIMATION_SCALE,
-          Math.min(MAX_ZOOM_ANIMATION_SCALE, nextDuration / currentDuration),
-        ),
+        scale: nextDuration / currentDuration,
         originRatio: animationOriginRatio
           ?? positionInActivityWindow(anchorMs, visibleWindow),
         viewModeChanged,
