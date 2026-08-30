@@ -244,6 +244,9 @@ describe('HistoryGraph', () => {
     expect(screen.getByText('Showing 7 days')).toBeInTheDocument()
     const initialStart = Number(chart.getAttribute('data-visible-start-ms'))
 
+    fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
+    expect(screen.getByText('Showing 7 days')).toBeInTheDocument()
+
     fireEvent.wheel(chart, { deltaX: -500, deltaY: 0, clientX: 500 })
 
     expect(Number(chart.getAttribute('data-visible-start-ms'))).toBeLessThan(initialStart)
@@ -280,19 +283,54 @@ describe('HistoryGraph', () => {
 
     fireEvent.wheel(chart, { deltaY: -100, clientX: 250 })
 
+    expect(chart.querySelector('[data-history-view-layer="daily"]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    expect(chart.querySelector('[data-history-view-layer="saves"]')).toHaveAttribute(
+      'aria-hidden',
+      'false',
+    )
     expect(animate).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
-          opacity: 0.68,
-          transform: 'scaleX(0.72)',
+          transform: 'scaleX(0.7)',
           transformOrigin: '25% 50%',
         }),
       ]),
       expect.objectContaining({
-        duration: 260,
-        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        duration: 420,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
       })
     )
+  })
+
+  it('uses the reciprocal window scale when smoothly zooming back out', () => {
+    render(
+      <HistoryGraph
+        entries={multiWeekEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
+    Object.defineProperty(chart.querySelector('g'), 'animate', {
+      configurable: true,
+      value: animate,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    animate.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out history' }))
+
+    const firstFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
+    const scale = Number(String(firstFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
+    expect(scale).toBeCloseTo(10 / 7)
+    expect(firstFrame?.transformOrigin).toBe('50% 50%')
   })
 
   it('does not animate zoom when reduced motion is requested', () => {

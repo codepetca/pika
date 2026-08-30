@@ -36,7 +36,10 @@ const BASELINE_Y = CHART_HEIGHT / 2
 const MAX_CHANGE_HEIGHT = 28
 const OVERVIEW_DAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
 const OVERVIEW_ENTRY_THRESHOLD = 60
-const ZOOM_ANIMATION_MS = 260
+const ZOOM_ANIMATION_MS = 420
+const WHEEL_ZOOM_THROTTLE_MS = ZOOM_ANIMATION_MS
+const MIN_ZOOM_ANIMATION_SCALE = 0.05
+const MAX_ZOOM_ANIMATION_SCALE = 20
 
 function formatDate(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
@@ -76,13 +79,21 @@ export function HistoryGraph({
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [zoomIndex, setZoomIndex] = useState(0)
   const [zoomAnchorMs, setZoomAnchorMs] = useState<number | null>(null)
+  const [viewTransitionActive, setViewTransitionActive] = useState(false)
   const lastHoveredEntryIdRef = useRef<string | null>(null)
   const previousActiveEntryIdRef = useRef<string | null>(activeEntryId)
   const lastWheelZoomAtRef = useRef(0)
   const chartRef = useRef<SVGSVGElement | null>(null)
   const plotRef = useRef<SVGGElement | null>(null)
-  const pendingZoomAnimationRef = useRef<{ scale: number; originRatio: number } | null>(null)
+  const dailyPlotRef = useRef<SVGGElement | null>(null)
+  const savePlotRef = useRef<SVGGElement | null>(null)
+  const pendingZoomAnimationRef = useRef<{
+    scale: number
+    originRatio: number
+    viewModeChanged: boolean
+  } | null>(null)
   const zoomAnimationRef = useRef<Animation | null>(null)
+  const viewModeAnimationsRef = useRef<Animation[]>([])
   const zoomStatusId = useId()
   const gestureInstructionsId = useId()
   const historyKey = `${entries[0]?.id ?? 'empty'}:${entries[entries.length - 1]?.id ?? 'empty'}:${entries.length}`
@@ -94,7 +105,10 @@ export function HistoryGraph({
     lastHoveredEntryIdRef.current = null
     zoomAnimationRef.current?.cancel()
     zoomAnimationRef.current = null
+    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
+    viewModeAnimationsRef.current = []
     pendingZoomAnimationRef.current = null
+    setViewTransitionActive(false)
   }, [historyKey])
 
   useEffect(() => {
@@ -173,6 +187,9 @@ export function HistoryGraph({
     pendingZoomAnimationRef.current = null
     zoomAnimationRef.current?.cancel()
     zoomAnimationRef.current = null
+    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
+    viewModeAnimationsRef.current = []
+    setViewTransitionActive(false)
   }, [])
 
   const selectByIndex = useCallback((index: number) => {
@@ -183,9 +200,15 @@ export function HistoryGraph({
     onEntryClick(next.entry)
   }, [cancelZoomAnimation, diffs, onEntryClick])
 
-  const maxAbsChange = isOverview
-    ? Math.max(1, ...dailyGroups.flatMap((group) => [group.additions, group.deletions]))
-    : Math.max(1, ...visibleDiffs.map((entry) => Math.abs(entry.charDiff)))
+  const dailyMaxAbsChange = Math.max(
+    1,
+    ...dailyGroups.flatMap((group) => [group.additions, group.deletions]),
+  )
+  const saveMaxAbsChange = Math.max(
+    1,
+    ...visibleDiffs.map((entry) => Math.abs(entry.charDiff)),
+  )
+  const maxAbsChange = isOverview ? dailyMaxAbsChange : saveMaxAbsChange
 
   const findNearestEntry = useCallback((clientX: number, clientY: number, bounds: DOMRect) => {
     if (!visibleWindow || bounds.width <= 0) return null
@@ -258,52 +281,99 @@ export function HistoryGraph({
       )
       const currentDuration = visibleWindow.endMs - visibleWindow.startMs
       const nextDuration = nextWindow.endMs - nextWindow.startMs
+      const nextIsOverview = boundedIndex === 0
+        && (fullDuration > OVERVIEW_DAY_THRESHOLD_MS || diffs.length > OVERVIEW_ENTRY_THRESHOLD)
+      const viewModeChanged = nextIsOverview !== isOverview
       pendingZoomAnimationRef.current = {
-        scale: Math.max(0.72, Math.min(1.28, nextDuration / currentDuration)),
+        // Render the new window at the exact visual scale of the old one, then
+        // ease it to 1. This keeps bars spatially continuous in both directions
+        // instead of jumping most of the distance before the animation begins.
+        scale: Math.max(
+          MIN_ZOOM_ANIMATION_SCALE,
+          Math.min(MAX_ZOOM_ANIMATION_SCALE, nextDuration / currentDuration),
+        ),
         originRatio: animationOriginRatio
           ?? positionInActivityWindow(anchorMs, visibleWindow),
+        viewModeChanged,
       }
+      setViewTransitionActive(viewModeChanged)
       setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
       setZoomIndex(boundedIndex)
     },
-    [fullDuration, fullWindow, selectedEntryMs, visibleWindow, zoomAnchorMs, zoomDurations]
+    [diffs.length, fullDuration, fullWindow, isOverview, selectedEntryMs, visibleWindow, zoomAnchorMs, zoomDurations]
   )
 
   useLayoutEffect(() => {
     const pending = pendingZoomAnimationRef.current
     pendingZoomAnimationRef.current = null
     const plot = plotRef.current
-    if (!pending || !plot || typeof plot.animate !== 'function') return
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    if (!pending || !plot) return
+    if (
+      typeof plot.animate !== 'function'
+      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setViewTransitionActive(false)
+      return
+    }
 
     zoomAnimationRef.current?.cancel()
+    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
+    viewModeAnimationsRef.current = []
     const animation = plot.animate(
       [
         {
-          opacity: 0.68,
           transform: `scaleX(${pending.scale})`,
           transformOrigin: `${pending.originRatio * 100}% 50%`,
         },
         {
-          opacity: 1,
           transform: 'scaleX(1)',
           transformOrigin: `${pending.originRatio * 100}% 50%`,
         },
       ],
       {
         duration: ZOOM_ANIMATION_MS,
-        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
       }
     )
+    if (pending.viewModeChanged) {
+      const options: KeyframeAnimationOptions = {
+        duration: ZOOM_ANIMATION_MS,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      }
+      const dailyAnimation = typeof dailyPlotRef.current?.animate === 'function'
+        ? dailyPlotRef.current.animate(
+            isOverview
+              ? [{ opacity: 0 }, { opacity: 1 }]
+              : [{ opacity: 1 }, { opacity: 0 }],
+            options,
+          )
+        : null
+      const saveAnimation = typeof savePlotRef.current?.animate === 'function'
+        ? savePlotRef.current.animate(
+            isOverview
+              ? [{ opacity: 1 }, { opacity: 0 }]
+              : [{ opacity: 0 }, { opacity: 1 }],
+            options,
+          )
+        : null
+      viewModeAnimationsRef.current = [dailyAnimation, saveAnimation].filter(
+        (candidate): candidate is Animation => Boolean(candidate),
+      )
+    }
     zoomAnimationRef.current = animation
     animation.onfinish = () => {
       if (zoomAnimationRef.current === animation) {
         zoomAnimationRef.current = null
+        viewModeAnimationsRef.current = []
+        setViewTransitionActive(false)
       }
     }
-  }, [boundedZoomIndex])
+  }, [boundedZoomIndex, isOverview])
 
-  useEffect(() => () => zoomAnimationRef.current?.cancel(), [])
+  useEffect(() => () => {
+    zoomAnimationRef.current?.cancel()
+    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
+  }, [])
 
   const handleWheel = useCallback((event: WheelEvent) => {
     if (!fullWindow || !visibleWindow) return
@@ -340,7 +410,7 @@ export function HistoryGraph({
 
     event.preventDefault()
     const now = Date.now()
-    if (now - lastWheelZoomAtRef.current < 140) return
+    if (now - lastWheelZoomAtRef.current < WHEEL_ZOOM_THROTTLE_MS) return
     lastWheelZoomAtRef.current = now
 
     const pointerRatio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
@@ -391,11 +461,11 @@ export function HistoryGraph({
   return (
     <section className="px-3 py-2" aria-label={heading}>
       {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
-      <div className={`relative ${showHeading ? 'mt-1' : ''}`}>
+      <div className={`relative overflow-hidden ${showHeading ? 'mt-1' : ''}`}>
         <svg
           ref={chartRef}
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-          className="block h-20 w-full cursor-crosshair overflow-visible outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+          className="block h-20 w-full cursor-crosshair overflow-hidden outline-none focus-visible:ring-foundation focus-visible:ring-focus"
           role="slider"
           tabIndex={0}
           aria-label="Complete save history"
@@ -449,11 +519,18 @@ export function HistoryGraph({
             stroke="var(--color-border-strong)"
             strokeWidth={2}
           />
-            {isOverview
-            ? dailyGroups.map((group, index) => {
+            {(isOverview || viewTransitionActive) && (
+              <g
+                ref={dailyPlotRef}
+                data-history-view-layer="daily"
+                opacity={isOverview ? 1 : 0}
+                aria-hidden={!isOverview}
+                pointerEvents="none"
+              >
+                {dailyGroups.map((group, index) => {
                 const x = dayPositions[index]
-                const additionY = pointY(group.additions, maxAbsChange)
-                const deletionY = pointY(-group.deletions, maxAbsChange)
+                const additionY = pointY(group.additions, dailyMaxAbsChange)
+                const deletionY = pointY(-group.deletions, dailyMaxAbsChange)
                 const isSelected = group.entries.some(
                   (entry) => entry.entry.id === selectedEntry.entry.id
                 )
@@ -463,7 +540,7 @@ export function HistoryGraph({
                   && Math.abs(deletionY - BASELINE_Y) < 2
 
                 return (
-                  <g key={group.day} data-activity-day={group.day}>
+                  <g key={group.day} data-activity-day={isOverview ? group.day : undefined}>
                     <title>{`${formatDate(group.midpointMs)}: +${group.additions}, -${group.deletions} characters`}</title>
                     {isSelected && (group.additions > 0 || group.deletions > 0) && (
                       <circle
@@ -486,8 +563,8 @@ export function HistoryGraph({
                           stroke="var(--color-success)"
                           strokeWidth={isSelected ? 4 : 3}
                           strokeLinecap="round"
-                          data-change-direction="up"
-                          data-change-value={group.additions}
+                          data-change-direction={isOverview ? 'up' : undefined}
+                          data-change-value={isOverview ? group.additions : undefined}
                         />
                         {additionIsTiny && (
                           <circle
@@ -495,7 +572,7 @@ export function HistoryGraph({
                             cy={additionY}
                             r={2}
                             fill="var(--color-success)"
-                            data-small-change-marker="up"
+                            data-small-change-marker={isOverview ? 'up' : undefined}
                           />
                         )}
                       </>
@@ -510,8 +587,8 @@ export function HistoryGraph({
                           stroke="var(--color-danger)"
                           strokeWidth={isSelected ? 4 : 3}
                           strokeLinecap="round"
-                          data-change-direction="down"
-                          data-change-value={group.deletions}
+                          data-change-direction={isOverview ? 'down' : undefined}
+                          data-change-value={isOverview ? group.deletions : undefined}
                         />
                         {deletionIsTiny && (
                           <circle
@@ -519,7 +596,7 @@ export function HistoryGraph({
                             cy={deletionY}
                             r={2}
                             fill="var(--color-danger)"
-                            data-small-change-marker="down"
+                            data-small-change-marker={isOverview ? 'down' : undefined}
                           />
                         )}
                       </>
@@ -532,16 +609,26 @@ export function HistoryGraph({
                         fill="var(--color-text-muted)"
                         stroke={isSelected ? 'var(--color-surface)' : undefined}
                         strokeWidth={isSelected ? 2 : undefined}
-                        data-change-direction="none"
-                        data-change-value={0}
+                        data-change-direction={isOverview ? 'none' : undefined}
+                        data-change-value={isOverview ? 0 : undefined}
                       />
                     )}
                   </g>
                 )
-              })
-            : visibleDiffs.map((entry, index) => {
+                })}
+              </g>
+            )}
+            {(!isOverview || viewTransitionActive) && (
+              <g
+                ref={savePlotRef}
+                data-history-view-layer="saves"
+                opacity={isOverview ? 0 : 1}
+                aria-hidden={isOverview}
+                pointerEvents="none"
+              >
+                {visibleDiffs.map((entry, index) => {
                 const x = positions[index]
-                const y = pointY(entry.charDiff, maxAbsChange)
+                const y = pointY(entry.charDiff, saveMaxAbsChange)
                 const isSelected = entry.entry.id === selectedEntry.entry.id
                 const isBaseline = entry.entry.id === diffs[0]?.entry.id
                 const direction = entry.charDiff > 0 ? 'up' : entry.charDiff < 0 ? 'down' : 'none'
@@ -552,7 +639,10 @@ export function HistoryGraph({
                     : 'var(--color-text-muted)'
                 const isTiny = entry.charDiff !== 0 && Math.abs(y - BASELINE_Y) < 2
                 return (
-                  <g key={entry.entry.id} data-change-direction={direction}>
+                  <g
+                    key={entry.entry.id}
+                    data-change-direction={!isOverview ? direction : undefined}
+                  >
                     <title>{entryLabel(entry, isBaseline)}</title>
                     <line
                       x1={x}
@@ -562,7 +652,7 @@ export function HistoryGraph({
                       stroke={color}
                       strokeWidth={isSelected ? 4 : 3}
                       strokeLinecap="round"
-                      data-change-value={Math.abs(entry.charDiff)}
+                      data-change-value={!isOverview ? Math.abs(entry.charDiff) : undefined}
                     />
                     {isTiny && (
                       <circle
@@ -570,7 +660,7 @@ export function HistoryGraph({
                         cy={y}
                         r={2}
                         fill={color}
-                        data-small-change-marker={direction}
+                        data-small-change-marker={!isOverview ? direction : undefined}
                       />
                     )}
                     {entry.charDiff === 0 && !isSelected && (
@@ -593,7 +683,9 @@ export function HistoryGraph({
                     )}
                   </g>
                 )
-              })}
+                })}
+              </g>
+            )}
           </g>
         </svg>
       </div>

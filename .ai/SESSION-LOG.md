@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Tighten selected Test roster controls
-
-**Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
-alignment changed; no grading behavior, permissions, API, schema, persistence,
-authentication, dependency, migration, or student UI changed.
-
-- Reduced the selected Test action-to-roster gap to the established Attendance
-  work-surface spacing and kept the centered whole-Test action visually dominant.
-- Raised the action-bar stacking context with the existing semantic layer token
-  so the whole-Test split-button menu stays visible and interactive above the
-  sticky roster header.
-- Restored the shared selection-cell inset so the select-all checkbox and row
-  checkboxes align on desktop and mobile.
-- Added browser geometry regressions for the 4px maximum gap, checkbox-center
-  alignment, and an unobscured menu, plus component coverage for menu semantics,
-  Escape dismissal, and focus restoration.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (87/87 plus final Test-only
-68/68), responsive long-roster Playwright matrix (4/4), lint, design/UI policies,
-Pika audit, and diff checks pass. Visual review covers default, menu-open, and
-selected states on desktop/mobile in light/dark. Student UI is n/a because this
-is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded teacher UI
-remediation with responsive visual verification.
-
 ## 2026-08-27 — Consolidate Test grading actions at the top
 
 **Risk profile:** UI-only — selected Test grading action placement and shared
@@ -1671,9 +1642,14 @@ state changed.
   from 8 to 20 to 40 sections, and it opens on the mid-project save so the
   minimap visibly ends before the final-document length. The main pane lands on
   Sections 9–11 marked Added, making snapshot-at-that-time behavior immediate.
+- Smoothed overview zooming across the full window-size change instead of only
+  animating a clamped final step. Daily totals now crossfade into individual
+  saves on the same 420 ms easing curve, zoom-out uses the reciprocal scale,
+  and wheel zoom waits for the active transition so repeated wheel events do
+  not interrupt the motion.
 
 **Verification:** the final pre-rebase focused gate passed 77 workflow tests,
-177 focused tests, and 567 related tests plus TypeScript, lint, architecture,
+178 focused tests, and 570 related tests plus TypeScript, lint, architecture,
 UI/design policy, diff checks, and the Pika audit. Playwright covered teacher
 and student desktop, student mobile, and dark mode, including hover, pinning,
 rewrite/insertion/deletion marks, minimap scrolling, no horizontal overflow,
