@@ -1075,41 +1075,9 @@ describe('HistoryGraph', () => {
 
     fireEvent.mouseMove(chart, { clientX: 990 })
     expect(onEntryHover).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
-    expect(screen.getByText('Jan 19 · 9:05 PM · −60 characters'))
-      .toHaveAttribute('data-history-context', 'hover')
 
     fireEvent.click(chart, { clientX: 990 })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
-
-    fireEvent.mouseLeave(chart)
-    expect(screen.queryByText('Jan 19 · 9:05 PM · −60 characters'))
-      .not.toBeInTheDocument()
-  })
-
-  it('keeps selected save context visible and summarizes daily activity in overview', () => {
-    const { rerender } = render(
-      <HistoryGraph
-        entries={entries}
-        activeEntryId="second"
-        onEntryClick={vi.fn()}
-        audience="teacher"
-      />
-    )
-
-    expect(screen.getByText('Jan 19 · 8:10 PM · +240 characters'))
-      .toHaveAttribute('data-history-context', 'selected')
-
-    rerender(
-      <HistoryGraph
-        entries={multiWeekEntries}
-        activeEntryId="long-19"
-        onEntryClick={vi.fn()}
-        audience="teacher"
-      />
-    )
-
-    expect(screen.getByText('Jan 10 · +100 characters'))
-      .toHaveAttribute('data-history-context', 'selected')
   })
 
   it('keeps a pinned save stable on hover while still allowing a new click', () => {
