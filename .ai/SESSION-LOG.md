@@ -1537,6 +1537,11 @@ feature behavior changed.
   now rejects the route even if gallery/fixture flags are set; the Tabs example
   owns explicit tab-to-panel relationships and demonstrates arrow-key focus and
   selection; and remaining `/__ui` documentation now points to `/pattern-lab`.
+- Targeted re-review kept both controlled tab panels mounted so every
+  `aria-controls` target remains valid in either selection state, with direct
+  regression assertions before and after keyboard selection. It also removed
+  the obsolete Vercel-preview recommendation now that Pattern Lab is explicitly
+  local/non-production only.
 
 **Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
 test, and documentation consistency review.

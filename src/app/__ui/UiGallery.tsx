@@ -243,15 +243,22 @@ export function UiGallery({ role }: Props) {
                       { value: 'history', label: 'History' },
                     ]}
                   />
-                  <TabPanel
-                    id={`pattern-${activeTab}-panel`}
-                    labelledBy={`pattern-${activeTab}-tab`}
-                    className="min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted"
-                  >
-                    {activeTab === 'details'
-                      ? 'Tabs own panel navigation and keyboard behaviour.'
-                      : 'History is another panel in the same local context.'}
-                  </TabPanel>
+                  {([
+                    ['details', 'Tabs own panel navigation and keyboard behaviour.'],
+                    ['history', 'History is another panel in the same local context.'],
+                  ] as const).map(([value, copy]) => (
+                    <TabPanel
+                      key={value}
+                      id={`pattern-${value}-panel`}
+                      labelledBy={`pattern-${value}-tab`}
+                      className={cn(
+                        'min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted',
+                        activeTab !== value && 'hidden',
+                      )}
+                    >
+                      {copy}
+                    </TabPanel>
+                  ))}
                 </div>
                 <div>
                   <SegmentedControl

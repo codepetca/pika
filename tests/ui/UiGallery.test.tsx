@@ -24,14 +24,21 @@ describe('UiGallery accessibility contracts', () => {
 
     expect(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Pattern example panels' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute(
+    const detailsTab = screen.getByRole('tab', { name: 'Details' })
+    const historyTab = screen.getByRole('tab', { name: 'History' })
+    expect(detailsTab).toHaveAttribute(
       'aria-controls',
       'pattern-details-panel',
     )
+    expect(historyTab).toHaveAttribute('aria-controls', 'pattern-history-panel')
     expect(screen.getByRole('tabpanel', { name: 'Details' })).toHaveAttribute(
       'aria-labelledby',
       'pattern-details-tab',
     )
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+    for (const tab of [detailsTab, historyTab]) {
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
+    }
     expect(screen.getByRole('group', { name: 'Content density' })).toBeInTheDocument()
     expect(screen.getByText('student reference')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Student history' })).toHaveAttribute(
@@ -51,6 +58,8 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.getByRole('tabpanel', { name: 'History' })).toHaveTextContent(
       'History is another panel',
     )
+    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+    expect(document.getElementById('pattern-details-panel')).toBeInTheDocument()
   })
 
   it('opens and dismisses the canonical alert dialog', () => {
