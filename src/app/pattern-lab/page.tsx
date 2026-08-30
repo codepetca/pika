@@ -1,14 +1,23 @@
 import { notFound, redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
-import { UiGallery } from './UiGallery'
+import { UiGallery } from '../__ui/UiGallery'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function UiGalleryPage() {
+export default async function PatternLabPage({
+  searchParams,
+}: {
+  searchParams?: { role?: string }
+}) {
   if (process.env.ENABLE_UI_GALLERY !== 'true') {
     notFound()
+  }
+
+  if (process.env.PIKA_E2E_FIXTURES === 'true') {
+    const fixtureRole = searchParams?.role === 'student' ? 'student' : 'teacher'
+    return <UiGallery role={fixtureRole} />
   }
 
   const user = await getCurrentUser()
@@ -16,6 +25,5 @@ export default async function UiGalleryPage() {
     redirect(getServerLoginRedirectPath())
   }
 
-  const galleryProps = { role: user.role }
-  return <UiGallery {...galleryProps} />
+  return <UiGallery role={user.role} />
 }

@@ -9,6 +9,11 @@
 
 ## UI/UX Changes: MUST Verify Visually (MANDATORY)
 
+Before any user-visible UI/UX implementation, use `.codex/skills/pika-ui-change` to name the
+approved reference surface and record explicit `reuse`, `extend`, or `create` decisions. Use the
+development-only `/pattern-lab` as executable reference evidence; it does not override the
+authority order in `DESIGN.md`.
+
 After any UI/UX change, you must:
 1. Take screenshots and visually verify the result
 2. Check both teacher and student views when both roles are affected

@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Consolidate Test grading actions at the top
-
-**Risk profile:** UI-only — selected Test grading action placement and shared
-teacher context-bar chrome changed; no grading behavior, permissions, API,
-schema, persistence, authentication, dependency, migration, or student UI
-changed.
-
-- Removed the floating bottom selection bar from Test grading. Selecting rows
-  now replaces the centered whole-Test control with the selected-student action
-  toolbar in the same top command area.
-- Preserved direct bulk actions on wide layouts and kept every action available
-  from a top overflow menu on narrower layouts. Access, clear-selection, action
-  eligibility, confirmations, and terminology are unchanged.
-- Removed the 4px inset from the shared teacher context-bar floating chrome so
-  the chrome hugs the existing 44px buttons instead of making the FAB appear
-  oversized. This also keeps Attendance and Test on the same shared treatment.
-- Removed obsolete bottom scroll clearance after the selection bar moved.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (74/74, then 71/71 after
-the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
-lint, architecture/design/UI policies, Pika audit, diff checks, and live local
-browser inspection pass. Visual review covers default and selected states on
-desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
-while button height remains 44px. Student UI is n/a because this is a
-teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a focused responsive
-teacher-work-surface interaction refinement.
-
 ## 2026-08-27 — Compact selected-student Test actions
 
 **Risk profile:** UI-only — selected-student utility controls changed from
@@ -1537,3 +1505,34 @@ surface changed.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
+
+## 2026-08-30 — Add a governed Pattern Lab for consistent AI-built UI
+
+**Risk profile:** none — development-only reference route, AI guidance,
+catalog data, and regression coverage; no production data, schema, or runtime
+feature behavior changed.
+
+- Replaced the private, data-dependent UI gallery entrypoint with a guarded
+  `/pattern-lab` reference that renders deterministic production components.
+  The catalog covers stable versus experimental patterns, canonical owners,
+  use/avoid guidance, core controls, semantic page states, and role-specific
+  teacher/student reference surfaces.
+- Added an approved Lucide icon catalog and a semantic status-symbol catalog.
+  Icons remain supplemental to accessible names and visible labels; domain
+  statuses remain feature-owned unless meaning and behavior genuinely match.
+- Added the repository-owned `pika-ui-change` skill and wired it into agent and
+  UI guidance. Every UI change now records reuse/extend/create decisions, uses
+  the Pattern Lab plus a real product surface, and promotes shared components
+  only after two genuine adopters and a durable behavioral contract.
+- Added unit/accessibility coverage and deterministic Playwright snapshots for
+  teacher/student, desktop/mobile, and light/dark modes. The canonical alert
+  dialog interaction is also captured. Nine visual comparisons passed with no
+  horizontal page overflow.
+- `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
+  UI/design policy, focused and related tests, TypeScript, and lint; database
+  and browser contracts are selected for final CI. The pre-commit audit passes,
+  and its composite-widget test covers named navigation, tabs, segmented
+  controls, role-specific references, and dialog open/dismiss behavior.
+
+**Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
+test, and documentation consistency review.
