@@ -188,11 +188,16 @@ describe('AppHeader classroom theme', () => {
     const classroomLogoRule = tokens.match(
       /\.classroom-theme-appbar \.pika-logo \{(?<body>[\s\S]*?)\}/
     )?.groups?.body ?? ''
+    const darkClassroomLogoRule = tokens.match(
+      /\.dark \.classroom-theme-appbar \.pika-logo \{(?<body>[\s\S]*?)\}/
+    )?.groups?.body ?? ''
 
     expect(logoSource).toContain('pika-logo')
     expect(logoSource).not.toContain('dark:')
     expect(tokens).toContain('background-color: var(--color-text-default);')
     expect(classroomLogoRule).toContain('background-color: var(--color-text-inverse);')
+    expect(classroomLogoRule).toContain('filter: drop-shadow(')
+    expect(darkClassroomLogoRule).toContain('filter: none;')
     expect(tokens).toContain('--pika-logo-mask-image: url("data:image/png;base64,')
     expect(tokens).toContain('mask: var(--pika-logo-mask-image) center / contain no-repeat;')
     expect(tokens).not.toContain("mask: url('/pika.png')")

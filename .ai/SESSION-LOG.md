@@ -1515,11 +1515,15 @@ or dependencies changed.
 - Scoped the Pika logo's inverse semantic color to themed Classroom app bars,
   keeping the mouse white in both light and dark mode while preserving the dark
   light-mode logo on the neutral Classrooms index header.
+- Added a soft 1px mask-following edge in light mode so the white silhouette
+  separates gently from pale classroom gradients; dark mode explicitly keeps
+  the existing unfiltered treatment.
 - Added focused coverage for the themed app-bar logo rule without introducing
   component-local dark-mode utilities or raw colors.
 - Visual verification passed for teacher and student Classroom views on desktop
   and mobile in light and dark themes. The visible desktop logo renders as exact
-  white in both themes; mobile preserves the established logo-hidden header.
+  white in both themes, the edge is light-mode only, and mobile preserves the
+  established logo-hidden header.
 - `pnpm check:focused -- --base origin/main`, the Pika pre-commit audit, design
   policy, UI policy, TypeScript, lint, and the focused AppHeader tests pass.
 
