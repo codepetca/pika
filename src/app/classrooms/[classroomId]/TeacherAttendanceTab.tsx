@@ -38,7 +38,7 @@ import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/Teach
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
-import { addDaysToDateString } from '@/lib/date-string'
+import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
@@ -160,6 +160,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [showIdColumn, setShowIdColumn] = useState(true)
+  const [showRelativeDate, setShowRelativeDate] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const studentTableNavigationRef = useRef<HTMLDivElement | null>(null)
@@ -219,6 +220,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       setSortState({ column: 'last_name', direction: 'asc', status: null })
     }
   }, [showIdColumn, sortColumn])
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('teacher-daily:show-relative-date')
+    if (stored === 'false') setShowRelativeDate(false)
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem('teacher-daily:show-relative-date', String(showRelativeDate))
+  }, [showRelativeDate])
 
   const isCurrentLogsRequest = useCallback((requestId: number, classroomId: string, date: string) => {
     return (
@@ -560,6 +570,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       selectedRow.email_username
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
+  const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
 
   const handleSummaryPanelDoubleClick = useCallback(() => {
     setSummaryPanelCollapsed((collapsed) => {
@@ -642,6 +653,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       id: 'toggle-id-column',
       label: showIdColumn ? 'Hide ID column' : 'Show ID column',
       onSelect: () => setShowIdColumn((visible) => !visible),
+    },
+    {
+      id: 'toggle-relative-date',
+      label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
+      onSelect: () => setShowRelativeDate((visible) => !visible),
     },
   ]
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
@@ -736,7 +752,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 {attendance.windowLabel ? attendance.windowLabel : <Clock3 className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </Tooltip>
-          ) : attendance.windowLabel ? (
+          ) : attendanceEnabled && attendance.windowLabel ? (
             <span className="inline-flex h-9 items-center whitespace-nowrap rounded-control px-2.5 text-xs tabular-nums text-text-muted">
               {attendance.windowLabel}
             </span>
@@ -755,6 +771,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           />
           <DateNavigator
             label={selectedDateLabel}
+            subtitle={showRelativeDate ? relativeDateLabel : null}
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -893,7 +910,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <col />
               {attendanceEnabled ? <col className="w-40" /> : null}
             </colgroup>
-            <DataTableHead sticky>
+            <DataTableHead sticky className="bg-surface-3">
               <DataTableRow>
                 {attendanceEnabled ? (
                   <TableSelectionHeaderCell

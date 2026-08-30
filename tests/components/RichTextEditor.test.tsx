@@ -214,6 +214,30 @@ describe('RichTextEditor', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('announces the active history preview change', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Revised response' }] }],
+    }
+
+    render(
+      <RichTextEditor
+        content={content}
+        onChange={vi.fn()}
+        editable={false}
+        historyPreviewMode="focused"
+        historyPreviewChange={{
+          changedBlocks: [{ index: 0, kind: 'modified' }],
+          deletionAnchors: [],
+        }}
+      />,
+    )
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      '1 revised area at document block 1',
+    )
+  })
+
   it('should call onChange when content is modified', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

@@ -18,7 +18,10 @@ import {
   getAssignmentStatusBadgeClass,
   hasAssignmentSubmissionContent,
 } from '@/lib/assignments'
-import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import {
+  buildAssignmentHistoryPreview,
+  type AssignmentHistoryChange,
+} from '@/lib/assignment-doc-history'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
 import { areJsonDocumentsEqual } from '@/lib/json-patch'
 import { fetchJSONWithCache } from '@/lib/request-cache'
@@ -226,6 +229,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [historyError, setHistoryError] = useState('')
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [previewChange, setPreviewChange] = useState<AssignmentHistoryChange | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
@@ -1209,11 +1213,12 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
-    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+    const preview = buildAssignmentHistoryPreview(oldestFirst, entry.id)
 
-    if (reconstructed) {
+    if (preview) {
       setPreviewEntry(entry)
-      setPreviewContent(reconstructed)
+      setPreviewContent(preview.content)
+      setPreviewChange(preview.change)
       return true
     }
     return false
@@ -1258,6 +1263,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
     setPreviewEntry(null)
     setPreviewContent(null)
+    setPreviewChange(null)
     setShowRestoreModal(false)
     setLockedEntryId(null)
     draftBeforePreviewRef.current = null
@@ -1496,6 +1502,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             <div className={previewEntry ? 'ring-2 ring-warning rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
               <RichTextEditor
                 content={previewContent || content}
+                historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'focused') : 'current'}
+                historyPreviewChange={previewChange}
                 onChange={handleContentChange}
                 placeholder="Write your response here..."
                 disabled={submitting || !!previewEntry}
@@ -1527,7 +1535,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             >
               <div className="p-3 border-b border-border">
                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-                  History
+                  Version history
                 </h3>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">
@@ -1549,6 +1557,9 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                     activeEntryId={previewEntry?.id ?? null}
                     onEntryClick={handlePreviewLock}
                     onEntryHover={handlePreviewHover}
+                    audience="student"
+                    showHeading={false}
+                    hoverEnabled={!isPreviewLocked}
                   />
                 )}
               </div>
@@ -1602,7 +1613,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   entries={historyEntries}
                   activeEntryId={previewEntry?.id ?? null}
                   onEntryClick={handlePreviewLock}
+                  audience="student"
+                  showHeading={false}
                   variant="mobile"
+                  hoverEnabled={!isPreviewLocked}
                 />
               )}
               {isPreviewLocked && previewEntry && (

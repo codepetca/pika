@@ -25,6 +25,7 @@ vi.mock('@/lib/server/auth-redirect', () => ({
 }))
 
 import PatternLabPage from '@/app/pattern-lab/page'
+import UiGalleryPage from '@/app/ui-gallery/page'
 
 const originalGalleryFlag = process.env.ENABLE_UI_GALLERY
 const originalFixtureFlag = process.env.PIKA_E2E_FIXTURES
@@ -42,6 +43,10 @@ function restoreEnv(
 }
 
 describe('PatternLabPage guard', () => {
+  it('keeps the merged gallery URL on the same guarded owner', () => {
+    expect(UiGalleryPage).toBe(PatternLabPage)
+  })
+
   beforeEach(() => {
     mocks.getCurrentUser.mockReset()
     mocks.notFound.mockClear()

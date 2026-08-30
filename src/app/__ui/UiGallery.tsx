@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   Button,
@@ -18,7 +18,7 @@ import {
   cn,
 } from '@/ui'
 import { useTheme } from '@/contexts/ThemeContext'
-import type { AssignmentDocHistoryEntry } from '@/types'
+import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import { HistoryGraph } from '@/components/HistoryGraph'
 import {
   ICON_CATALOG,
@@ -45,6 +45,10 @@ import {
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
+import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
+import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
+import { TeacherPatterns } from './TeacherPatterns'
 
 type Role = 'teacher' | 'student'
 
@@ -88,6 +92,7 @@ export function UiGallery({ role }: Props) {
               ['icons', 'Icons'],
               ['statuses', 'Statuses'],
               ['page-states', 'Page states'],
+              ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
               ['feature-patterns', 'Feature patterns'],
             ].map(([href, label]) => (
               <a
@@ -133,9 +138,9 @@ export function UiGallery({ role }: Props) {
             {PATTERN_CATALOG.map((pattern) => (
               <Card key={pattern.id} tone="panel" padding="md">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-semibold">{pattern.name}</h3>
-                    <code className="mt-1 block text-xs text-text-muted">{pattern.owner}</code>
+                    <code className="mt-1 block break-words text-xs text-text-muted">{pattern.owner}</code>
                   </div>
                   <MaturityBadge maturity={pattern.maturity} />
                 </div>
@@ -359,13 +364,27 @@ export function UiGallery({ role }: Props) {
           </PatternSection>
         </div>
 
+        {role === 'teacher' && (
+          <PatternSection
+            id="teacher-patterns"
+            eyebrow="Teacher-family evidence"
+            title="Teacher work surfaces"
+            description="Real shared owners, reconciled with the merged Daily refinements. These examples document the existing teacher family; they do not promote Daily-specific choices into global rules."
+          >
+            <TeacherPatterns />
+          </PatternSection>
+        )}
+
         <PatternSection
           id="feature-patterns"
           eyebrow="Feature-owned evidence"
           title="Feature patterns"
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
-          <HistoryGraphGallery />
+          <div className="space-y-6">
+            <HistoryPreviewGallery role={role} />
+            <HistoryGraphGallery />
+          </div>
         </PatternSection>
       </div>
 
@@ -478,6 +497,127 @@ function StatusExample({ status }: { status: StatusCatalogEntry }) {
 
 // ── History Graph Gallery ──────────────────────────────────────────
 
+function makePreviewContent(paragraphCount: number): TiptapContent {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Field Study Reflection' }],
+      },
+      ...Array.from({ length: paragraphCount }, (_, index) => ({
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: `Section ${index + 1}. This saved response records an observation, the evidence that supports it, and the student’s developing interpretation of what happened during the field study.`,
+        }],
+      })),
+    ],
+  }
+}
+
+const PREVIEW_CONTENT = makePreviewContent(40)
+
+function HistoryPreviewGallery({ role }: { role: Role }) {
+  const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
+  const entries = FOCUSED_PREVIEW_ENTRIES
+  const isTeacher = role === 'teacher'
+
+  useEffect(() => {
+    setActiveEntryId('preview-3')
+    setPreviewMode('focused')
+  }, [])
+
+  const preview = useMemo(() => {
+    if (!activeEntryId) return null
+    return buildAssignmentHistoryPreview([...entries].reverse(), activeEntryId)
+  }, [activeEntryId, entries])
+  const previewContent = preview?.content ?? PREVIEW_CONTENT
+
+  return (
+    <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-text-default">
+            {isTeacher ? 'Teacher' : 'Student'} history preview
+          </h2>
+          <p className="mt-1 text-sm text-text-muted">
+            A mid-project save is previewed. Hover another save, or click to pin it.
+          </p>
+        </div>
+        {previewMode !== 'current' ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }}
+          >
+            Exit preview
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex h-96 min-h-0 flex-col overflow-hidden rounded-lg border border-border md:flex-row">
+        <div
+          data-testid="history-preview-document-pane"
+          className={previewMode === 'current'
+            ? 'min-h-0 flex-1 bg-surface'
+            : 'min-h-0 flex-1 bg-surface ring-1 ring-inset ring-primary'}
+        >
+          {isTeacher ? (
+            <RichTextViewer
+              content={previewContent}
+              fillHeight
+              chrome="flush"
+              historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
+            />
+          ) : (
+            <RichTextEditor
+              content={previewContent}
+              onChange={() => undefined}
+              editable={false}
+              className="h-full"
+              historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
+            />
+          )}
+        </div>
+        <div
+          className="w-full shrink-0 border-t border-border bg-page md:w-60 md:border-l md:border-t-0"
+          onMouseLeave={() => {
+            if (previewMode === 'focused') {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }
+          }}
+        >
+          <HistoryGraph
+            entries={entries}
+            activeEntryId={activeEntryId}
+            audience={role}
+            showHeading={false}
+            hoverEnabled={previewMode !== 'locked'}
+            onEntryHover={(entry) => {
+              if (previewMode === 'locked') return
+              setActiveEntryId(entry.id)
+              setPreviewMode('focused')
+            }}
+            onEntryClick={(entry) => {
+              setActiveEntryId(entry.id)
+              setPreviewMode('locked')
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function makeEntry(
   id: string,
   charCount: number,
@@ -498,8 +638,161 @@ function makeEntry(
   }
 }
 
+function clonePreviewContent(content: TiptapContent): TiptapContent {
+  return JSON.parse(JSON.stringify(content)) as TiptapContent
+}
+
+function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
+  const baseline = makePreviewContent(8)
+  const rewrite = clonePreviewContent(baseline)
+  rewrite.content![6] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 6. The student rewrote this interpretation to connect the soil sample, the weather record, and the field observation more clearly.',
+    }],
+  }
+
+  const addition = clonePreviewContent(rewrite)
+  addition.content!.push(...makePreviewContent(20).content!.slice(9))
+  addition.content!.splice(13, 0, {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
+    }],
+  })
+
+  const deletion = clonePreviewContent(addition)
+  deletion.content!.splice(4, 1)
+
+  const latest = clonePreviewContent(deletion)
+  latest.content!.push(...makePreviewContent(40).content!.slice(21))
+  latest.content![34] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 34. The conclusion now distinguishes what the evidence demonstrates from what would require another observation.',
+    }],
+  }
+
+  return [
+    { ...makeEntry('preview-5', 6120, '2025-03-14T18:20:00Z'), snapshot: latest },
+    { ...makeEntry('preview-4', 3100, '2025-03-13T19:05:00Z'), snapshot: deletion },
+    { ...makeEntry('preview-3', 3260, '2025-03-12T17:40:00Z'), snapshot: addition },
+    { ...makeEntry('preview-2', 1380, '2025-03-11T20:10:00Z'), snapshot: rewrite },
+    { ...makeEntry('preview-1', 1320, '2025-03-10T18:00:00Z', 'baseline'), snapshot: baseline },
+  ]
+}
+
+const FOCUSED_PREVIEW_ENTRIES = makeFocusedPreviewEntries()
+
+function makeSteadyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  let charCount = 90
+
+  for (let day = 0; day < 42; day += 1) {
+    const weekday = day % 7
+    if (weekday === 5 || weekday === 6) continue
+
+    const saves = 4 + (day % 4)
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const change = (day + save) % 9 === 0
+        ? -(18 + (day % 3) * 12)
+        : 24 + ((day * 11 + save * 17) % 72)
+      charCount = Math.max(30, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 0, 6 + day, 15 + save, (save * 11) % 60))
+      chronological.push(makeEntry(
+        `steady-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  }
+
+  return chronological
+    .map((entry, index) => ({
+      ...entry,
+      snapshot: makePreviewContent(Math.max(
+        1,
+        Math.ceil(((index + 1) / chronological.length) * 40)
+      )),
+    }))
+    .reverse()
+}
+
+function makeBurstyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  const activeDays = [0, 3, 6, 10, 13]
+  let charCount = 140
+
+  activeDays.forEach((day, dayIndex) => {
+    const saves = 9 + dayIndex * 2
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const isRewrite = save === Math.floor(saves / 2) && dayIndex > 0
+      const change = isRewrite
+        ? -(220 + dayIndex * 85)
+        : 38 + ((day * 19 + save * 31) % 150)
+      charCount = Math.max(70, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 2, 3 + day, 14, save * 4))
+      chronological.push(makeEntry(
+        `bursty-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  })
+
+  return chronological.reverse()
+}
+
+function makeFinalDayCrunchEntries(): AssignmentDocHistoryEntry[] {
+  const chronological = [makeEntry(
+    'crunch-001',
+    80,
+    '2025-04-01T18:00:00.000Z',
+    'baseline'
+  )]
+  let charCount = 80
+  const startMs = Date.parse('2025-04-14T14:00:00.000Z')
+
+  for (let save = 0; save < 100; save += 1) {
+    const change = save % 11 === 0
+      ? -(45 + (save % 4) * 35)
+      : 12 + ((save * 23) % 86)
+    charCount = Math.max(40, charCount + change)
+    chronological.push(makeEntry(
+      `crunch-${String(save + 2).padStart(3, '0')}`,
+      charCount,
+      new Date(startMs + save * 5 * 60 * 1000).toISOString()
+    ))
+  }
+
+  return chronological.reverse()
+}
+
+const LONG_PROJECT_ENTRIES = makeSteadyProjectEntries()
+const BURSTY_PROJECT_ENTRIES = makeBurstyProjectEntries()
+const FINAL_DAY_CRUNCH_ENTRIES = makeFinalDayCrunchEntries()
+
 // Newest-first (as from DB)
 const SCENARIOS: { label: string; entries: AssignmentDocHistoryEntry[] }[] = [
+  {
+    label: 'Six-week project — steady work on most weekdays',
+    entries: LONG_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Two-week project — bursts and large rewrites',
+    entries: BURSTY_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Final-day crunch — 100 saves after a two-week gap',
+    entries: FINAL_DAY_CRUNCH_ENTRIES,
+  },
   {
     label: 'Normal session — 18 entries, all additions',
     entries: [
@@ -610,7 +903,9 @@ function HistoryGraphGallery() {
     <div className="bg-surface rounded-lg shadow-sm p-4">
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
-        SVG timeline charts at sidebar widths. Hover to see tooltips, click stems to select.
+        One compact chart shows additions and deletions across the actual activity
+        days. It starts fitted to all activity; zoom in for individual saves.
+        Hover to preview a save; click to pin it.
       </p>
 
       {lastEvent && (
@@ -626,18 +921,23 @@ function HistoryGraphGallery() {
               {scenario.label}
             </div>
             <div className="flex gap-4 flex-wrap">
-              {[256, 240].map((w) => (
+              {([
+                [256, 'teacher'],
+                [240, 'student'],
+              ] as const).map(([w, audience]) => (
                 <div
                   key={w}
-                  className="border border-border rounded"
+                  className={`border border-border rounded ${audience === 'student' ? 'order-1 md:order-2' : 'order-2 md:order-1'}`}
                   style={{ width: w }}
                 >
                   <div className="text-[10px] text-text-muted px-2 pt-1">
-                    {w}px
+                      {audience} · {w}px
                   </div>
                   <HistoryGraph
                     entries={scenario.entries}
                     activeEntryId={activeId}
+                    audience={audience}
+                    showHeading={false}
                     onEntryClick={(entry) => {
                       setActiveId(entry.id)
                       setLastEvent(`click: ${entry.id} (${entry.char_count} chars)`)

@@ -40,6 +40,15 @@ describe('Pattern Lab catalog', () => {
     }
   })
 
+  it('keeps teacher references family-scoped and linked to their existing owners', () => {
+    for (const id of ['teacher-date-context', 'teacher-workspace-frame']) {
+      const pattern = PATTERN_CATALOG.find((entry) => entry.id === id)
+      expect(pattern?.maturity).toBe('family')
+      expect(pattern?.owner).toMatch(/^src\/components\//)
+      expect(pattern?.reference).toBeTruthy()
+    }
+  })
+
   it('provides deterministic reference routes for both roles', () => {
     for (const role of ['teacher', 'student'] as const) {
       expect(REFERENCE_ROUTES[role].length).toBeGreaterThan(0)

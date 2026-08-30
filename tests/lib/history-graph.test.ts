@@ -6,6 +6,16 @@ import {
   computeBaselineY,
   computeStemLayout,
   findNearestStem,
+  buildWorkSessions,
+  computeActivityPositions,
+  computeActivityWindow,
+  buildHistoryZoomDurations,
+  computeHistoryZoomWindow,
+  computeLinearChangeHeight,
+  easeHistoryZoomProgress,
+  groupActivityByDay,
+  interpolateActivityWindow,
+  positionInActivityWindow,
 } from '@/lib/history-graph'
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -94,6 +104,160 @@ describe('computeCharDiffs', () => {
 
     expect(result[0].charDiff).toBe(0) // baseline
     expect(result[1].charDiff).toBe(0) // no change
+  })
+})
+
+describe('activity days and sessions', () => {
+  it('uses the full Toronto calendar days containing the save history', () => {
+    const entries = makeEntries([
+      { charCount: 120, time: '2025-01-13T16:00:00Z' },
+      { charCount: 20, time: '2025-01-10T15:00:00Z' },
+    ])
+
+    const window = computeActivityWindow(entries)
+
+    expect(window).toEqual({
+      startMs: Date.parse('2025-01-10T05:00:00Z'),
+      endMs: Date.parse('2025-01-14T05:00:00Z'),
+    })
+    expect(positionInActivityWindow(Date.parse(entries[1].created_at), window!)).toBeCloseTo(10 / 96)
+  })
+
+  it('shows one complete day when every save is on the same day', () => {
+    const entries = makeEntries([
+      { charCount: 140, time: '2025-01-20T20:00:00Z' },
+      { charCount: 100, time: '2025-01-20T15:00:00Z' },
+    ])
+
+    expect(computeActivityWindow(entries)).toEqual({
+      startMs: Date.parse('2025-01-20T05:00:00Z'),
+      endMs: Date.parse('2025-01-21T05:00:00Z'),
+    })
+  })
+
+  it('groups saves separated by thirty minutes into distinct sessions', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 200, time: '2025-01-15T16:05:00Z', id: 'third' },
+      { charCount: 120, time: '2025-01-15T15:10:00Z', id: 'second' },
+      { charCount: 50, time: '2025-01-15T15:00:00Z', id: 'first' },
+    ]))
+
+    const sessions = buildWorkSessions(diffs)
+
+    expect(sessions).toHaveLength(2)
+    expect(sessions[0].entries.map((entry) => entry.entry.id)).toEqual(['first', 'second'])
+    expect(sessions[1].entries.map((entry) => entry.entry.id)).toEqual(['third'])
+  })
+
+  it('clamps timestamps outside the activity window', () => {
+    const window = { startMs: 100, endMs: 200 }
+    expect(positionInActivityWindow(0, window)).toBe(0)
+    expect(positionInActivityWindow(150, window)).toBe(0.5)
+    expect(positionInActivityWindow(300, window)).toBe(1)
+  })
+
+  it('keeps tightly clustered saves individually visible without leaving the chart', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 140, time: '2025-01-20T15:00:02Z' },
+      { charCount: 130, time: '2025-01-20T15:00:01Z' },
+      { charCount: 120, time: '2025-01-20T15:00:00Z' },
+    ]))
+    const window = computeActivityWindow(diffs.map((entry) => entry.entry))!
+
+    const positions = computeActivityPositions(diffs, window, 256, 5, 4)
+
+    expect(positions[1] - positions[0]).toBeGreaterThanOrEqual(4)
+    expect(positions[2] - positions[1]).toBeGreaterThanOrEqual(4)
+    expect(positions[0]).toBeGreaterThanOrEqual(5)
+    expect(positions[2]).toBeLessThanOrEqual(251)
+  })
+
+  it('preserves real timing when there are too many saves to space apart', () => {
+    const diffs = computeCharDiffs(makeEntries(
+      Array.from({ length: 80 }, (_, index) => ({
+        charCount: 1000 - index * 5,
+        time: new Date(Date.parse('2025-01-20T15:00:00Z') + (79 - index) * 1000).toISOString(),
+      }))
+    ))
+    const window = computeActivityWindow(diffs.map((entry) => entry.entry))!
+
+    const positions = computeActivityPositions(diffs, window, 256, 5, 4)
+
+    expect(positions[positions.length - 1] - positions[0]).toBeLessThan(1)
+  })
+
+  it('aggregates additions and deletions by Toronto activity day', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 190, time: '2025-01-17T16:00:00Z', id: 'final' },
+      { charCount: 140, time: '2025-01-16T19:00:00Z', id: 'rewrite' },
+      { charCount: 220, time: '2025-01-16T16:00:00Z', id: 'addition' },
+      { charCount: 100, time: '2025-01-15T16:00:00Z', id: 'baseline' },
+    ]))
+
+    const groups = groupActivityByDay(diffs)
+
+    expect(groups).toHaveLength(3)
+    expect(groups[1]).toMatchObject({
+      day: '2025-01-16',
+      additions: 120,
+      deletions: 80,
+    })
+    expect(groups[1].finalEntry.entry.id).toBe('rewrite')
+    expect(groups[2]).toMatchObject({ additions: 50, deletions: 0 })
+  })
+
+  it('builds useful zoom levels and clamps a centered zoom to the project range', () => {
+    const window = {
+      startMs: Date.parse('2025-01-01T00:00:00Z'),
+      endMs: Date.parse('2025-02-12T00:00:00Z'),
+    }
+    const durations = buildHistoryZoomDurations(window)
+
+    expect(durations[0]).toBe(42 * 24 * 60 * 60 * 1000)
+    expect(durations[1]).toBe(14 * 24 * 60 * 60 * 1000)
+
+    expect(computeHistoryZoomWindow(window, durations[1], window.startMs)).toEqual({
+      startMs: window.startMs,
+      endMs: window.startMs + durations[1],
+    })
+    expect(computeHistoryZoomWindow(window, durations[1], window.endMs)).toEqual({
+      startMs: window.endMs - durations[1],
+      endMs: window.endMs,
+    })
+  })
+
+  it('uses a strictly proportional shared linear character scale', () => {
+    expect(computeLinearChangeHeight(400, 400, 28)).toBe(28)
+    expect(computeLinearChangeHeight(-200, 400, 28)).toBe(14)
+    expect(computeLinearChangeHeight(100, 400, 28)).toBe(7)
+    expect(computeLinearChangeHeight(1, 400, 28)).toBeCloseTo(0.07)
+    expect(computeLinearChangeHeight(0, 400, 28)).toBe(0)
+  })
+
+  it('eases zoom symmetrically while keeping exact endpoints', () => {
+    expect(easeHistoryZoomProgress(-1)).toBe(0)
+    expect(easeHistoryZoomProgress(0)).toBe(0)
+    expect(easeHistoryZoomProgress(0.1)).toBeCloseTo(0.004)
+    expect(easeHistoryZoomProgress(0.5)).toBe(0.5)
+    expect(easeHistoryZoomProgress(0.9)).toBeCloseTo(0.996)
+    expect(easeHistoryZoomProgress(1)).toBe(1)
+    expect(easeHistoryZoomProgress(2)).toBe(1)
+  })
+
+  it('interpolates the actual history window in both directions', () => {
+    const overview = { startMs: 100, endMs: 1100 }
+    const detail = { startMs: 400, endMs: 700 }
+
+    expect(interpolateActivityWindow(overview, detail, 0)).toEqual(overview)
+    expect(interpolateActivityWindow(overview, detail, 0.5)).toEqual({
+      startMs: 250,
+      endMs: 900,
+    })
+    expect(interpolateActivityWindow(overview, detail, 1)).toEqual(detail)
+    expect(interpolateActivityWindow(detail, overview, 0.5)).toEqual({
+      startMs: 250,
+      endMs: 900,
+    })
   })
 })
 

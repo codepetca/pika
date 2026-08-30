@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -6,6 +6,11 @@ import { TooltipProvider } from '@/ui'
 
 vi.mock('@/components/HistoryGraph', () => ({
   HistoryGraph: () => <div data-testid="history-graph" />,
+}))
+
+vi.mock('@/components/editor', () => ({
+  RichTextEditor: () => <div />,
+  RichTextViewer: () => <div />,
 }))
 
 function renderGallery(role: 'teacher' | 'student' = 'teacher') {
@@ -35,7 +40,7 @@ describe('UiGallery accessibility contracts', () => {
       'aria-labelledby',
       'pattern-details-tab',
     )
-    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+    expect(within(screen.getByTestId('pattern-section-controls')).getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
     for (const tab of [detailsTab, historyTab]) {
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
@@ -46,6 +51,7 @@ describe('UiGallery accessibility contracts', () => {
       '/student/history',
     )
     expect(screen.queryByRole('link', { name: 'Snapshot gallery' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-pattern-examples')).not.toBeInTheDocument()
   })
 
   it('moves tab focus and selection with arrow keys', () => {
@@ -59,7 +65,7 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.getByRole('tabpanel', { name: 'History' })).toHaveTextContent(
       'History is another panel',
     )
-    expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+    expect(within(screen.getByTestId('pattern-section-controls')).getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
     expect(document.getElementById('pattern-details-panel')).toBeInTheDocument()
   })
 
