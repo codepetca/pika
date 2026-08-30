@@ -2859,8 +2859,8 @@ export function TeacherClassroomView({
       >
         <h2 id={gradeSelectedConfirmTitleId} className="text-base font-semibold text-text-default">
           {gradeSelectedConfirmTarget === 'comments'
-            ? `Replace comment for ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'} with this:`
-            : `Replace grade for ${batchSelectedCount} selected with this:`}
+            ? `Copy comment to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`
+            : `Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
         </h2>
         <div className="mt-3">
           {activeGradeSelectedTemplate

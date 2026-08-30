@@ -2162,7 +2162,7 @@ describe('TeacherClassroomView', () => {
 
     mockClearSelection.mockClear()
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Replace grade for 2 selected with this:')).toBeInTheDocument()
+    expect(screen.getByText('Copy grade to 2 selected students')).toBeInTheDocument()
     const gradePreview = screen.getByRole('group', { name: 'Grade to copy' })
     expect(gradePreview).toHaveTextContent('Completion710')
     expect(gradePreview).toHaveTextContent('Thinking810')
@@ -2272,7 +2272,7 @@ describe('TeacherClassroomView', () => {
 
     mockClearSelection.mockClear()
     fireEvent.click(commentsSelectedOption)
-    expect(screen.getByText('Replace comment for 2 selected students with this:')).toBeInTheDocument()
+    expect(screen.getByText('Copy comment to 2 selected students')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
       'Use this feedback for the selected students.',
     )
@@ -2399,6 +2399,7 @@ describe('TeacherClassroomView', () => {
     })
 
     fireEvent.click(gradeSelectedOption)
+    expect(screen.getByText('Copy grade to 1 selected student')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()

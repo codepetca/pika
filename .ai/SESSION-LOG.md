@@ -1841,6 +1841,34 @@ student Attendance behavior changed.
 **Model recommendation:** GPT-5.6 Terra high for correctness, requirements,
 responsive behavior, and compatibility review of the complete PR diff.
 
+## 2026-08-29 — Align Classwork teacher action bars and Return icons
+
+- Updated the Classwork teacher summary to keep `New Classwork` as its primary
+  action and move organization/import controls into a trailing vertical More
+  menu on the shared page action bar.
+- Updated the assignment grading workspace to use a shared page action bar with
+  layout controls, a selection-aware Student actions menu, and a trailing More
+  menu containing Edit Assignment and Delete Assignment.
+- Standardized teacher Return actions and returned-work status indicators on the
+  Tests-page reply-arrow icon. Extended the shared action-menu item contract so
+  the grade/comment copy actions retain their inspector hover/focus
+  behavior.
+- Renamed the selected-student grade/comment actions around copying and
+  replaced generic overwrite prose with structured confirmations. The comment
+  dialog previews only the exact comment; the grade dialog mirrors the grading
+  card with category scores, total, percentage, and Draft/Final state.
+- Added regression coverage for the new menus, selection-aware disabled states,
+  checkbox semantics, Return icon consistency, and shared hover/focus callbacks.
+- Visually verified teacher summary/workspace on desktop and mobile, both More
+  menus, zero/one-student selection, light/dark modes, the corresponding Tests
+  action menu, and unchanged student desktop/mobile views. Browser console checks
+  reported no errors.
+
+**Verification:** `bash scripts/verify-env.sh`; `pnpm check:focused -- --base
+origin/main` (77 workflow, 124 focused, and 261 related tests);
+`pnpm exec tsc --noEmit`; `pnpm lint`; `git diff --check`; Playwright teacher and
+student desktop/mobile visual matrix.
+
 ## 2026-08-30 — Keep the light Pika favicon in every theme
 
 **Risk profile:** none — root metadata and its focused regression assertion
@@ -1871,33 +1899,6 @@ surface changed.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
-## 2026-08-29 — Align Classwork teacher action bars and Return icons
-
-- Updated the Classwork teacher summary to keep `New Classwork` as its primary
-  action and move organization/import controls into a trailing vertical More
-  menu on the shared page action bar.
-- Updated the assignment grading workspace to use a shared page action bar with
-  layout controls, a selection-aware Student actions menu, and a trailing More
-  menu containing Edit Assignment and Delete Assignment.
-- Standardized teacher Return actions and returned-work status indicators on the
-  Tests-page reply-arrow icon. Extended the shared action-menu item contract so
-  the grade/comment copy actions retain their inspector hover/focus
-  behavior.
-- Renamed the selected-student grade/comment actions around copying and
-  replaced generic overwrite prose with structured confirmations. The comment
-  dialog previews only the exact comment; the grade dialog mirrors the grading
-  card with category scores, total, percentage, and Draft/Final state.
-- Added regression coverage for the new menus, selection-aware disabled states,
-  checkbox semantics, Return icon consistency, and shared hover/focus callbacks.
-- Visually verified teacher summary/workspace on desktop and mobile, both More
-  menus, zero/one-student selection, light/dark modes, the corresponding Tests
-  action menu, and unchanged student desktop/mobile views. Browser console checks
-  reported no errors.
-
-**Verification:** `bash scripts/verify-env.sh`; `pnpm check:focused -- --base
-origin/main` (77 workflow, 124 focused, and 261 related tests);
-`pnpm exec tsc --noEmit`; `pnpm lint`; `git diff --check`; Playwright teacher and
-student desktop/mobile visual matrix.
 
 ## 2026-08-30 — Refine Classwork summary actions
 
@@ -1908,6 +1909,8 @@ student desktop/mobile visual matrix.
   available, independent of edit mode.
 - Preserved read-only and capability gating, existing menu semantics, focus and
   keyboard behavior, and unchanged student Classwork views.
+- Renamed the grade/comment copy confirmation titles to `Copy grade/comment to
+  N selected student(s)` while preserving their detailed previews and actions.
 
 **Verification:** 51 Classwork component tests; `pnpm exec tsc --noEmit`;
 `pnpm lint`; Pika audit; `git diff --check`; Playwright teacher desktop/mobile
