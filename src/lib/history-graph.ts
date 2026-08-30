@@ -40,6 +40,11 @@ export interface ActivityWindow {
   endMs: number
 }
 
+export interface HistoryWindowTransform {
+  scaleX: number
+  translateX: number
+}
+
 export interface DailyActivityGroup {
   day: string
   midpointMs: number
@@ -289,6 +294,34 @@ export function interpolateActivityWindow(
     startMs: from.startMs + (to.startMs - from.startMs) * bounded,
     endMs: from.endMs + (to.endMs - from.endMs) * bounded,
   }
+}
+
+/**
+ * Map coordinates laid out in one activity window into another window.
+ *
+ * HistoryGraph uses this affine transform while zooming so the browser can
+ * move one prepared SVG scene instead of React rebuilding every bar on every
+ * animation frame.
+ */
+export function computeHistoryWindowTransform(
+  sceneWindow: ActivityWindow,
+  renderedWindow: ActivityWindow,
+  chartWidth: number,
+  inset: number = 0,
+): HistoryWindowTransform {
+  const sceneDuration = sceneWindow.endMs - sceneWindow.startMs
+  const renderedDuration = renderedWindow.endMs - renderedWindow.startMs
+  const usableWidth = Math.max(0, chartWidth - inset * 2)
+  if (sceneDuration <= 0 || renderedDuration <= 0 || usableWidth <= 0) {
+    return { scaleX: 1, translateX: 0 }
+  }
+
+  const scaleX = sceneDuration / renderedDuration
+  const translateX = inset
+    + ((sceneWindow.startMs - renderedWindow.startMs) / renderedDuration) * usableWidth
+    - scaleX * inset
+
+  return { scaleX, translateX }
 }
 
 /** Scale character changes linearly inside the current view. */

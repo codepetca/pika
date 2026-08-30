@@ -11,75 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Compact selected-student Test actions
-
-**Risk profile:** UI-only — selected-student utility controls changed from
-labeled buttons to icon buttons; no action eligibility, grading behavior,
-permissions, API, schema, persistence, authentication, migration, or student UI
-changed.
-
-- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
-  work-surface icon buttons on desktop while retaining their explicit accessible
-  names, hover tooltips, disabled states, and destructive treatment.
-- Kept the selected access split button labeled because it communicates the
-  current action and scope, and retained labeled utility actions in the narrow
-  layout overflow menu.
-- Added component coverage for icon-only accessible naming and browser coverage
-  for empty visible button text plus the AI Grade hover tooltip.
-- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
-  its fetch mock now matches URL and method instead of depending on concurrent
-  request order. Product code and preview behavior are unchanged.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes (existing split/menu Escape and focus tests remain intact);
-  semantic state covered by tests: yes; remaining manual follow-up: none.
-
-**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
-responsive long-roster Playwright matrix (4/4), TypeScript, lint,
-architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
-covers selected desktop/mobile states in light/dark and the desktop tooltip
-hover state. Student UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded accessible
-teacher-toolbar refinement.
-
-## 2026-08-27 — Adopt persistent Test grading action scopes
-
-**Risk profile:** standard — selected Test grading action placement, row access
-state changes, and AI-grading request scope changed; permissions, enrollment
-validation, test status rules, grading eligibility, persistence schema,
-authentication, dependencies, migrations, and student UI are unchanged.
-
-- Kept Open All and Close All as persistent icon commands in the centered Test
-  action cluster, with tooltips and confirmation for the global mutations.
-- Added one persistent student-actions menu that is disabled before selection,
-  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
-  Return, and Delete Work. Global access commands and selection clearing are not
-  duplicated in the menu.
-- Replaced row access icons with immediate semantic switches: green/right for
-  open and red/left for closed, with a lock-state icon, accessible state, and no
-  per-row confirmation.
-- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
-  the explicit scope through a Zod-validated API boundary into run preflight.
-  Ungraded scope now preserves any persisted grade; all scope queues eligible
-  answered responses even when previously graded.
-- Updated stable teacher operational-table guidance to combine Attendance's
-  table rhythm with selected Test grading's persistent action-scope pattern.
-  Attendance's bottom selection bar is now documented as migration debt for a
-  later focused pass.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  align Attendance with the new persistent selection-menu pattern in a separate
-  change.
-
-**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
-(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
-checks pass. Visual review covers default, global confirmation, selected menu,
-and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
-this is a teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
-for one bounded independent correctness and requirements review.
-
 ## 2026-08-27 — Redesign teacher Attendance action hierarchy
 
 **Risk profile:** standard UI interaction change — teacher Attendance action
@@ -1636,6 +1567,37 @@ follow-up: none.
 **Model recommendation:** GPT-5.6 Sol for compact time-series interaction,
 historical document diffing, viewport coordination, and cross-role visual QA.
 
+## 2026-08-30 — Keep the light Pika favicon in every theme
+
+**Risk profile:** none — root metadata and its focused regression assertion
+only; no application behavior, schema, runtime configuration, or role-specific
+surface changed.
+
+- Replaced the theme-conditioned light/dark favicon metadata with one
+  unconditional `pika-icon-light.svg` declaration so browser color preference
+  cannot select the dark asset.
+- Updated the existing middleware/favicon regression test to require the light
+  icon, reject the dark icon from root metadata, and reject favicon media
+  conditions while preserving the static-asset checks.
+- Visual verification passed in headed Chrome: the same light mouse icon appears
+  in the tab under light and dark color preferences. Playwright DOM checks also
+  confirmed the unconditional light SVG on desktop and mobile. Teacher and
+  student roles are not applicable because favicon metadata is global browser
+  chrome.
+- `pnpm check:focused -- --base origin/main` passes in application-browser mode,
+  including workflow, architecture, UI/design policy, focused/related tests,
+  TypeScript, and lint. The Pika pre-commit audit passes.
+- Ready-PR CI exposed an existing Toronto-midnight rollover in the combined
+  Daily/Attendance visual contract: a fixed August 29 timestamp was asserted as
+  “Today” after August 30 began. The browser assertion now verifies the stable
+  `10:10 AM` timestamp inside the summary while unit coverage continues to own
+  relative-day formatting. The corrected scenario passed desktop/mobile in
+  light/dark; one cold-start desktop fixture race passed on its immediate
+  targeted rerun.
+
+**Model recommendation:** current model for this narrow metadata-only visual
+fix.
+
 ## 2026-08-30 — Tween history zoom through the actual time window
 
 **Risk profile:** low — client-side motion refinement in the shared
@@ -1671,3 +1633,38 @@ none.
 
 **Model recommendation:** GPT-5.6 Terra high for animation-state correctness,
 interaction interruption behavior, and shared teacher/student compatibility.
+
+## 2026-08-30 — Remove per-frame React work from history zoom
+
+**Risk profile:** low — client-side rendering architecture for the existing
+teacher/student history-chart motion only; no API, persistence, authentication,
+dependency, migration, deployment, or product behavior changed.
+
+- Reproduced the reported choppiness in Chrome on the six-week and 100-save
+  gallery fixtures. Under 6× CPU slowdown, the 100-save zoom produced seven
+  frame gaps above 32 ms, a roughly 33.4 ms p95 frame interval, and 3,806 SVG
+  mutations during the measured transition.
+- Replaced per-frame React state, filtering, position recomputation, and SVG
+  reconstruction with one prepared union scene. Animation frames now update a
+  bounded affine SVG transform, daily/save opacity, vertical character scale,
+  fixed-shape selection markers, and diagnostic attributes imperatively.
+- Preserved the interpolated time window for hover, exact click-to-pin, and
+  mid-tween pan retargeting. Wheel zoom, horizontal and Shift-wheel pan,
+  keyboard selection, daily/save aggregation, proportional character heights,
+  and the reduced-motion instant path remain unchanged.
+- Added pure transform coverage and a React Profiler regression proving that
+  intermediate animation frames do not commit React renders.
+- The same 6× browser profile now holds a roughly 16.8 ms p95 interval, one
+  frame gap above 32 ms, and 258 SVG mutations. Teacher desktop and student
+  mobile captures cover overview, zoom/dezoom midpoint, detail, and the
+  unchanged document preview/minimap; browser interaction checks cover hover,
+  pin, wheel zoom, horizontal pan, keyboard navigation, reduced motion, zero
+  horizontal overflow, and zero console errors. Dark mode remains n/a because
+  Pika does not expose a dark theme.
+
+**Composite-widget accessibility checklist:** reviewed: yes; slider semantics,
+keyboard selection, exact pinning during tween, and reduced motion remain
+covered; remaining manual follow-up: none.
+
+**Model recommendation:** GPT-5.6 Terra high for animation profiling, SVG/React
+rendering architecture, and interaction-boundary correctness.

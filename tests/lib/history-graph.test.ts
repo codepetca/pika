@@ -11,6 +11,7 @@ import {
   computeActivityWindow,
   buildHistoryZoomDurations,
   computeHistoryZoomWindow,
+  computeHistoryWindowTransform,
   computeLinearChangeHeight,
   easeHistoryZoomProgress,
   groupActivityByDay,
@@ -257,6 +258,21 @@ describe('activity days and sessions', () => {
     expect(interpolateActivityWindow(detail, overview, 0.5)).toEqual({
       startMs: 250,
       endMs: 900,
+    })
+  })
+
+  it('maps one prepared SVG scene onto each rendered zoom window', () => {
+    const scene = { startMs: 400, endMs: 700 }
+    const overview = { startMs: 100, endMs: 1100 }
+    const detail = { startMs: 400, endMs: 700 }
+
+    expect(computeHistoryWindowTransform(scene, detail, 256, 5)).toEqual({
+      scaleX: 1,
+      translateX: 0,
+    })
+    expect(computeHistoryWindowTransform(scene, overview, 256, 5)).toEqual({
+      scaleX: 0.3,
+      translateX: 77.3,
     })
   })
 })

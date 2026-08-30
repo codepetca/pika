@@ -1,3 +1,4 @@
+import { Profiler } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HistoryGraph } from '@/components/HistoryGraph'
@@ -353,6 +354,36 @@ describe('HistoryGraph', () => {
     expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(targetStart)
     expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(targetEnd)
     expect(chart).not.toHaveAttribute('data-zoom-tween-progress')
+    unmount()
+    frames.restore()
+  })
+
+  it('moves the prepared SVG scene without committing React on each frame', () => {
+    const frames = installAnimationFrameHarness()
+    const onRender = vi.fn()
+    const { unmount } = render(
+      <Profiler id="history" onRender={onRender}>
+        <HistoryGraph
+          entries={multiWeekEntries}
+          activeEntryId={null}
+          onEntryClick={vi.fn()}
+          audience="teacher"
+          showHeading={false}
+        />
+      </Profiler>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    const commitsAfterPreparingScene = onRender.mock.calls.length
+
+    frames.step(0)
+    frames.step(105)
+    frames.step(210)
+    frames.step(315)
+
+    expect(onRender).toHaveBeenCalledTimes(commitsAfterPreparingScene)
+    expect(screen.getByRole('slider', { name: 'Complete save history' }))
+      .toHaveAttribute('data-zoom-tween-progress')
     unmount()
     frames.restore()
   })
