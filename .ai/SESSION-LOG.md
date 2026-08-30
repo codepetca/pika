@@ -1527,6 +1527,13 @@ surface changed.
 - `pnpm check:focused -- --base origin/main` passes in application-browser mode,
   including workflow, architecture, UI/design policy, focused/related tests,
   TypeScript, and lint. The Pika pre-commit audit passes.
+- Ready-PR CI exposed an existing Toronto-midnight rollover in the combined
+  Daily/Attendance visual contract: a fixed August 29 timestamp was asserted as
+  “Today” after August 30 began. The browser assertion now verifies the stable
+  `10:10 AM` timestamp inside the summary while unit coverage continues to own
+  relative-day formatting. The corrected scenario passed desktop/mobile in
+  light/dark; one cold-start desktop fixture race passed on its immediate
+  targeted rerun.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.

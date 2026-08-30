@@ -590,7 +590,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
   await expect(summary.getByText('Students reflected on their progress and next steps.')).toBeVisible()
-  await expect(summary.getByText('Today 10:10 AM')).toBeVisible()
+  await expect(summary.getByText(/10:10 AM$/)).toBeVisible()
   await expect(summary.getByText(/student02/i)).toHaveCount(0)
   await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
