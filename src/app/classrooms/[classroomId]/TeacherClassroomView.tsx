@@ -2,7 +2,7 @@
 
 import { Plus } from 'lucide-react'
 
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useState, useEffect, useId, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -489,6 +489,63 @@ function isGradeSelectedTemplateValid(template: TeacherAssignmentGradeTemplate |
   ].every((value) => isGradeSelectedScoreValueValid(value, allowBlank))
 }
 
+function formatGradeSelectedScorePreview(value: string): string {
+  const trimmed = value.trim()
+  return trimmed || '—'
+}
+
+function CopyCommentPreview({ comment }: { comment: string }) {
+  return (
+    <div
+      role="textbox"
+      aria-label="Comment to copy"
+      aria-readonly="true"
+      className="min-h-24 whitespace-pre-wrap rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default"
+    >
+      {comment || <span className="text-text-muted">No comment</span>}
+    </div>
+  )
+}
+
+function CopyGradePreview({ template }: { template: TeacherAssignmentGradeTemplate }) {
+  const scores = [
+    { label: 'Completion', value: formatGradeSelectedScorePreview(template.scoreCompletion) },
+    { label: 'Thinking', value: formatGradeSelectedScorePreview(template.scoreThinking) },
+    { label: 'Workflow', value: formatGradeSelectedScorePreview(template.scoreWorkflow) },
+  ]
+  const totalScore = [template.scoreCompletion, template.scoreThinking, template.scoreWorkflow]
+    .reduce((total, value) => total + (Number(value) || 0), 0)
+  const totalPercent = Math.round((totalScore / 30) * 100)
+
+  return (
+    <div role="group" aria-label="Grade to copy" className="space-y-2 rounded-md border border-border bg-surface-2 p-3">
+      {scores.map((score) => (
+        <div key={score.label} className="grid grid-cols-[1fr_auto] items-center gap-3">
+          <span className="text-xs font-medium text-text-muted">{score.label}</span>
+          <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded border border-border bg-surface">
+            <span className="flex min-w-11 items-center justify-center px-2 text-sm font-semibold tabular-nums text-text-default">
+              {score.value}
+            </span>
+            <span className="flex min-w-8 items-center justify-center border-l border-border bg-surface-hover px-1.5 text-xs font-medium tabular-nums text-text-muted">
+              10
+            </span>
+          </div>
+        </div>
+      ))}
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-border pt-2">
+        <span className="text-xs font-semibold text-text-default">Final grade</span>
+        <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-text-default">
+          <span>{totalScore}/30</span>
+          <span className="text-text-muted">{totalPercent}%</span>
+          <span className="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-medium text-text-muted">
+            {template.gradeMode === 'graded' ? 'Final' : 'Draft'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
   const uniqueMessages: string[] = []
   const seen = new Set<string>()
@@ -641,6 +698,7 @@ export function TeacherClassroomView({
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
     useState<GradeSelectedApplyTarget | null>(null)
+  const gradeSelectedConfirmTitleId = useId()
   const [highlightedApplyTarget, setHighlightedApplyTarget] = useState<GradeSelectedApplyTarget | null>(null)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
@@ -1686,6 +1744,7 @@ export function TeacherClassroomView({
     }
 
     const studentIds = Array.from(batchSelectedIds)
+    const copyTargetLabel = applyTarget === 'comments' ? 'comment' : 'grade'
     const expectedDocUpdatedAtByStudent = Object.fromEntries(
       studentIds.map((studentId) => {
         const student = selectedAssignmentData.students.find((row) => row.student_id === studentId)
@@ -1717,7 +1776,7 @@ export function TeacherClassroomView({
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `Failed to apply ${applyTarget}`)
+      if (!res.ok) throw new Error(data.error || `Failed to copy ${copyTargetLabel}`)
 
       const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
         ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
@@ -1752,7 +1811,7 @@ export function TeacherClassroomView({
       }
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
-      setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setInfo(`Copied ${copyTargetLabel} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
       setGradeSelectedConfirmTarget(null)
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
@@ -2138,7 +2197,7 @@ export function TeacherClassroomView({
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
   const gradeSelectedSavingLabel =
-    gradeSelectedConfirmTarget === 'comments' ? 'Applying comments' : 'Applying grade'
+    gradeSelectedConfirmTarget === 'comments' ? 'Copying comment' : 'Copying grade'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
     : isReturning
@@ -2248,7 +2307,7 @@ export function TeacherClassroomView({
     },
     {
       id: 'grade-selected',
-      label: 'Apply Grade',
+      label: `Copy grade to ${batchSelectedCount} selected`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
       onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
       onSelect: () => {
@@ -2259,7 +2318,7 @@ export function TeacherClassroomView({
     },
     {
       id: 'comments-selected',
-      label: 'Apply Comments',
+      label: `Copy comment to ${batchSelectedCount} selected`,
       icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
       onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
       onSelect: () => {
@@ -2789,32 +2848,49 @@ export function TeacherClassroomView({
       />
 
 
-      <ConfirmDialog
+      <DialogPanel
         isOpen={!!gradeSelectedConfirmTarget}
-        title={
-          gradeSelectedConfirmTarget === 'comments'
-            ? `Apply comments to ${batchSelectedCount} selected student(s)?`
-            : `Apply grade to ${batchSelectedCount} selected student(s)?`
-        }
-        description={
-          gradeSelectedConfirmTarget === 'comments'
-            ? `The current student's comments will be applied to the selected students.`
-            : `The current student's grading will be applied to the selected students.`
-        }
-        confirmLabel={
-          isGradeSelectedSaving
-            ? 'Applying...'
-            : 'Apply'
-        }
-        cancelLabel="Cancel"
-        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
-        isCancelDisabled={isGradeSelectedSaving}
-        onCancel={() => (isGradeSelectedSaving ? null : setGradeSelectedConfirmTarget(null))}
-        onConfirm={() => {
-          if (!gradeSelectedConfirmTarget) return
-          void handleGradeSelected(gradeSelectedConfirmTarget)
+        onClose={() => {
+          if (!isGradeSelectedSaving) setGradeSelectedConfirmTarget(null)
         }}
-      />
+        maxWidth="max-w-sm"
+        ariaLabelledBy={gradeSelectedConfirmTitleId}
+      >
+        <h2 id={gradeSelectedConfirmTitleId} className="text-base font-semibold text-text-default">
+          {gradeSelectedConfirmTarget === 'comments'
+            ? `Replace comment for ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'} with this:`
+            : `Replace grade for ${batchSelectedCount} selected with this:`}
+        </h2>
+        <div className="mt-3">
+          {activeGradeSelectedTemplate
+            ? gradeSelectedConfirmTarget === 'comments'
+              ? <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />
+              : <CopyGradePreview template={activeGradeSelectedTemplate} />
+            : null}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            disabled={isGradeSelectedSaving}
+            onClick={() => setGradeSelectedConfirmTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="flex-1"
+            disabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
+            onClick={() => {
+              if (!gradeSelectedConfirmTarget) return
+              void handleGradeSelected(gradeSelectedConfirmTarget)
+            }}
+          >
+            {isGradeSelectedSaving ? 'Copying...' : 'Confirm'}
+          </Button>
+        </div>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={showReturnConfirm}

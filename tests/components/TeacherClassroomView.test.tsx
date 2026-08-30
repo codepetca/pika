@@ -640,7 +640,14 @@ function getAssignmentUtilityAction(name: 'Edit Assignment' | 'Delete Assignment
   return screen.getByRole('menuitem', { name })
 }
 
-function getSelectedStudentAction(name: 'AI Grade' | 'Apply Grade' | 'Apply Comments' | 'Return') {
+function getSelectedStudentAction(
+  name:
+    | 'AI Grade'
+    | 'Copy grade to 1 selected'
+    | 'Copy grade to 2 selected'
+    | 'Copy comment to 2 selected'
+    | 'Return',
+) {
   const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
   openActionMenu(within(toolbar).getByRole('button', { name: /Student actions/ }))
   return screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })
@@ -2127,17 +2134,21 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const gradeSelectedOption = getSelectedStudentAction('Apply Grade')
+    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 2 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
     mockClearSelection.mockClear()
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
+    expect(screen.getByText('Replace grade for 2 selected with this:')).toBeInTheDocument()
+    const gradePreview = screen.getByRole('group', { name: 'Grade to copy' })
+    expect(gradePreview).toHaveTextContent('Completion710')
+    expect(gradePreview).toHaveTextContent('Thinking810')
+    expect(gradePreview).toHaveTextContent('Workflow910')
+    expect(gradePreview).toHaveTextContent('Final grade24/3080%Final')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -2158,7 +2169,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
-        text: 'Applied grade to 2 selected students',
+        text: 'Copied grade to 2 selected students',
         tone: 'info',
       })
     })
@@ -2233,17 +2244,19 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const commentsSelectedOption = getSelectedStudentAction('Apply Comments')
+    const commentsSelectedOption = getSelectedStudentAction('Copy comment to 2 selected')
     await waitFor(() => {
       expect(commentsSelectedOption).not.toBeDisabled()
     })
 
     mockClearSelection.mockClear()
     fireEvent.click(commentsSelectedOption)
-    expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
+    expect(screen.getByText('Replace comment for 2 selected students with this:')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
+      'Use this feedback for the selected students.',
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -2261,7 +2274,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
-        text: 'Applied comments to 2 selected students',
+        text: 'Copied comment to 2 selected students',
         tone: 'info',
       })
     })
@@ -2303,8 +2316,8 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     const workPanel = await screen.findByTestId('teacher-work-panel')
-    const applyGradeOption = getSelectedStudentAction('Apply Grade')
-    const applyCommentsOption = screen.getByRole('menuitem', { name: /^Apply Comments/ })
+    const applyGradeOption = getSelectedStudentAction('Copy grade to 2 selected')
+    const applyCommentsOption = screen.getByRole('menuitem', { name: 'Copy comment to 2 selected' })
     await waitFor(() => {
       expect(applyGradeOption).not.toBeDisabled()
       expect(applyCommentsOption).not.toBeDisabled()
@@ -2323,7 +2336,7 @@ describe('TeacherClassroomView', () => {
     expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
   })
 
-  it('keeps checked students selected when Apply Grade to Selected Students fails', async () => {
+  it('keeps checked students selected when copying a grade fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
 
@@ -2359,13 +2372,13 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    const gradeSelectedOption = getSelectedStudentAction('Apply Grade')
+    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 1 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
     fireEvent.click(gradeSelectedOption)
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
     expect(mockClearSelection).not.toHaveBeenCalled()

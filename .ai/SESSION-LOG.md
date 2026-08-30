@@ -1881,7 +1881,12 @@ fix.
   menu containing Edit Assignment and Delete Assignment.
 - Standardized teacher Return actions and returned-work status indicators on the
   Tests-page reply-arrow icon. Extended the shared action-menu item contract so
-  Apply Grade and Apply Comments retain their inspector hover/focus behavior.
+  the grade/comment copy actions retain their inspector hover/focus
+  behavior.
+- Renamed the selected-student grade/comment actions around copying and
+  replaced generic overwrite prose with structured confirmations. The comment
+  dialog previews only the exact comment; the grade dialog mirrors the grading
+  card with category scores, total, percentage, and Draft/Final state.
 - Added regression coverage for the new menus, selection-aware disabled states,
   checkbox semantics, Return icon consistency, and shared hover/focus callbacks.
 - Visually verified teacher summary/workspace on desktop and mobile, both More
@@ -1889,6 +1894,7 @@ fix.
   action menu, and unchanged student desktop/mobile views. Browser console checks
   reported no errors.
 
-**Verification:** `bash scripts/verify-env.sh`; 129 focused Vitest tests;
+**Verification:** `bash scripts/verify-env.sh`; `pnpm check:focused -- --base
+origin/main` (77 workflow, 124 focused, and 261 related tests);
 `pnpm exec tsc --noEmit`; `pnpm lint`; `git diff --check`; Playwright teacher and
 student desktop/mobile visual matrix.
