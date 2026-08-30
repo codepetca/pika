@@ -462,6 +462,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
 
 test('combines Daily logs and entitled Attendance in one teacher work surface', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
+  await page.clock.install({ time: new Date('2026-08-29T14:15:00.000Z') })
   await applyProjectTheme(page, testInfo)
   let attendanceConfigured = true
 

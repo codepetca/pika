@@ -1537,3 +1537,72 @@ surface changed.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
+## 2026-08-30 — Development-speed remediation audit at 30 natural attempts
+
+**Risk profile:** workspace-state — CI evidence audit and a browser-test clock
+fixture; no product behavior, schema, migration, dependency, or enforcement
+change.
+
+- Ran the approved post-remediation audit after 30 completed natural CI attempts
+  following 2026-08-29T16:09:56Z. Exact `pnpm measure:ci -- --limit 30` output:
+
+```text
+failed to get run: Get "https://api.github.com/repos/codepetca/pika/actions/workflows/217397176": read tcp 172.16.30.1:59640->140.82.114.5:443: read: operation timed out
+{
+  "sampleSize": 30,
+  "successfulSampleSize": 7,
+  "counts": { "cancelled": 1, "failure": 3, "skipped": 19, "success": 7 },
+  "cancellationRate": 0.03333333333333333,
+  "cancelledElapsedSeconds": 355,
+  "successfulQueueSeconds": { "min": 0, "p50": 0, "p95": 0, "max": 0, "average": 0 },
+  "successfulRunSeconds": { "min": 448, "p50": 464, "p95": 482, "max": 482, "average": 467 },
+  "successfulWallSeconds": { "min": 448, "p50": 464, "p95": 482, "max": 482, "average": 467 },
+  "successfulRunsWithoutPrGateEvidence": 1,
+  "prGateByMode": {
+    "application-browser": {
+      "sampleSize": 2,
+      "timeToGateStartSeconds": { "min": 445, "p50": 477, "p95": 477, "max": 477, "average": 461 },
+      "gateRunSeconds": { "min": 2, "p50": 3, "p95": 3, "max": 3, "average": 3 },
+      "timeToGatePassSeconds": { "min": 447, "p50": 480, "p95": 480, "max": 480, "average": 464 }
+    },
+    "full": {
+      "sampleSize": 4,
+      "timeToGateStartSeconds": { "min": 459, "p50": 466, "p95": 478, "max": 478, "average": 466 },
+      "gateRunSeconds": { "min": 2, "p50": 4, "p95": 4, "max": 4, "average": 3 },
+      "timeToGatePassSeconds": { "min": 461, "p50": 469, "p95": 482, "max": 482, "average": 469 }
+    }
+  }
+}
+```
+
+- Passes: cancellation rate is 3.3% (<10%); full-mode PR Gate p50 is 469
+  seconds (<480); all 19 draft runs were inspected individually and contained
+  no non-skipped jobs; the sole cancellation was a superseded PR attempt, not a
+  duplicate dispatch. All seven successful runs have a PR Gate; the one missing
+  measurement evidence was the transient GitHub API timeout above, and direct
+  rechecks proved five full and two application-browser gate modes.
+- The two application-browser and five full successes selected their expected
+  browser/database dependencies. Failed browser lanes caused PR Gate to fail,
+  never to skip. Existing strict `PR Gate` rulesets, unknown-path fail-closed
+  classification, two-worker combined browser workflow, artifact upload, and
+  canonical production-promotion behavior remain unchanged.
+- Documentation-only mode did not occur in this post-remediation sample, so its
+  under-two-minute target is not newly evidenced here (the prior audit measured
+  53 seconds). No production-promotion attempt occurred in this window.
+- The checkpoint nevertheless fails browser stability: runs 33293971804 and
+  33295218351 each exhausted all retries of the new Daily/Attendance browser
+  case because the fixture asserted `Today 10:10 AM` for a fixed
+  2026-08-29 timestamp after the calendar advanced. The third failure was an
+  unrelated Test-detail focus assertion. Preserve enforcement; remediate the
+  deterministic Daily/Attendance fixture within the approved speed program.
+- Freeze that browser test's clock at 2026-08-29T14:15:00Z before navigation so
+  the Toronto-relative fixture label remains deterministic. Targeted local
+  browser verification passes all four viewport/theme cases first try (6/6
+  including auth) in 18.7 seconds.
+
+**Verification:** targeted Daily/Attendance Playwright matrix (6/6), focused
+application-browser checks (77 workflow tests, architecture/UI/design policies,
+TypeScript, lint), and diff validation pass. Final CI/review remains pending.
+
+**Model recommendation:** GPT-5.6 Terra high for the bounded browser-fixture
+stability review; no broad product or CI-policy redesign is indicated.
