@@ -6,7 +6,11 @@ import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
-import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import {
+  buildAssignmentHistoryPreview,
+  type AssignmentHistoryChange,
+} from '@/lib/assignment-doc-history'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
@@ -49,6 +53,7 @@ export function TeacherStudentWorkModal({
   const [historyError, setHistoryError] = useState('')
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [previewChange, setPreviewChange] = useState<AssignmentHistoryChange | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
 
@@ -56,11 +61,12 @@ export function TeacherStudentWorkModal({
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
-    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+    const preview = buildAssignmentHistoryPreview(oldestFirst, entry.id)
 
-    if (reconstructed) {
+    if (preview) {
       setPreviewEntry(entry)
-      setPreviewContent(reconstructed)
+      setPreviewContent(preview.content)
+      setPreviewChange(preview.change)
       return true
     }
     return false
@@ -81,6 +87,7 @@ export function TeacherStudentWorkModal({
   function handleExitPreview() {
     setPreviewEntry(null)
     setPreviewContent(null)
+    setPreviewChange(null)
     setLockedEntryId(null)
   }
 
@@ -120,11 +127,11 @@ export function TeacherStudentWorkModal({
 
     async function loadStudentWork() {
       try {
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to load student work')
-        }
+        const result = await fetchCachedJSON<StudentWorkData>(
+          `teacher-student-work:${assignmentId}:${studentId}`,
+          `/api/teacher/assignments/${assignmentId}/students/${studentId}`,
+          { ttlMs: 0, errorMessage: 'Failed to load student work' },
+        )
         setData(result)
       } catch (err: any) {
         setError(err.message || 'Failed to load student work')
@@ -142,13 +149,11 @@ export function TeacherStudentWorkModal({
     setHistoryError('')
     async function loadHistory() {
       try {
-        const response = await fetch(
-          `/api/assignment-docs/${assignmentId}/history?student_id=${studentId}`
+        const result = await fetchCachedJSON<{ history?: AssignmentDocHistoryEntry[] }>(
+          `teacher-student-work-history:${assignmentId}:${studentId}`,
+          `/api/assignment-docs/${assignmentId}/history?student_id=${studentId}`,
+          { ttlMs: 0, errorMessage: 'Failed to load history' },
         )
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to load history')
-        }
         setHistoryEntries(result.history || [])
       } catch (err: any) {
         setHistoryError(err.message || 'Failed to load history')
@@ -275,6 +280,8 @@ export function TeacherStudentWorkModal({
                             content={previewContent || data.doc.content}
                             showPlainText={showPlainText}
                             fillHeight
+                            historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'focused') : 'current'}
+                            historyPreviewChange={previewChange}
                           />
                         </div>
                         <div className="mt-2 text-xs text-text-muted">
