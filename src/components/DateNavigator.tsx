@@ -1,6 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useId } from 'react'
 import { Button, cn } from '@/ui'
 
 export interface DateNavigatorProps {
@@ -38,6 +39,8 @@ export function DateNavigator({
   labelClassName,
   joined = false,
 }: DateNavigatorProps) {
+  const subtitleId = useId()
+
   return (
     <div
       className={cn(
@@ -77,10 +80,11 @@ export function DateNavigator({
             labelClassName,
           )}
           aria-label={labelAriaLabel}
+          aria-describedby={subtitle ? subtitleId : undefined}
         >
           <span className="max-w-full truncate leading-tight">{label}</span>
           {subtitle ? (
-            <span className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
+            <span id={subtitleId} className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
               {subtitle}
             </span>
           ) : null}

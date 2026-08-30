@@ -55,7 +55,7 @@ describe('CalendarActionBar', () => {
   })
 
   it('renders an optional compact subtitle inside the date button', () => {
-    render(
+    const { rerender } = render(
       <DateNavigator
         label="Aug 17"
         subtitle="Yesterday"
@@ -65,7 +65,12 @@ describe('CalendarActionBar', () => {
 
     const dateButton = screen.getByRole('button', { name: 'Go to today' })
     expect(dateButton).toHaveTextContent('Aug 17Yesterday')
+    expect(dateButton).toHaveAccessibleDescription('Yesterday')
     expect(screen.getByText('Yesterday')).toHaveClass('text-xs', 'font-normal')
+
+    rerender(<DateNavigator label="Aug 17" onLabelClick={vi.fn()} />)
+    expect(dateButton).not.toHaveAttribute('aria-describedby')
+    expect(dateButton).not.toHaveAccessibleDescription()
   })
 
   it('keeps a joined static date label vertically centered without a subtitle', () => {

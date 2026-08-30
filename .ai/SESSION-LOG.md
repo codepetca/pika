@@ -1643,3 +1643,9 @@ repository UI verification across all five consumers; focused gate; Pika audit;
 `git diff --check`.
 
 **Model recommendation:** current model for this shared spacing refinement.
+
+**Review follow-up:** independent cumulative review identified that the Daily
+date button's explicit accessible name masked its new subtitle. Linked the
+subtitle with a stable `aria-describedby` ID and added accessible-description
+coverage for both shown and hidden states. The full focused gate remains green;
+the correction does not change visual styling or the existing control name.
