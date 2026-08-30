@@ -230,7 +230,7 @@
 
 .classroom-theme-appbar .pika-logo {
   background-color: var(--color-text-inverse);
-  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--color-text-default) 35%, transparent));
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--color-text-default) 65%, transparent));
 }
 
 .dark .classroom-theme-appbar .pika-logo {
