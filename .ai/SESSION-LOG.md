@@ -1533,6 +1533,10 @@ feature behavior changed.
   and browser contracts are selected for final CI. The pre-commit audit passes,
   and its composite-widget test covers named navigation, tabs, segmented
   controls, role-specific references, and dialog open/dismiss behavior.
+- Independent review closed three boundaries before ready review: production
+  now rejects the route even if gallery/fixture flags are set; the Tabs example
+  owns explicit tab-to-panel relationships and demonstrates arrow-key focus and
+  selection; and remaining `/__ui` documentation now points to `/pattern-lab`.
 
 **Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
 test, and documentation consistency review.

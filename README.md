@@ -157,7 +157,7 @@ Enable the UI gallery (recommended on Vercel preview deployments):
 ENABLE_UI_GALLERY=true
 ```
 
-Visit `/__ui` (e.g. `https://your-url/__ui`).
+Visit `/pattern-lab` on a non-production server (for example, `http://localhost:3000/pattern-lab`).
 
 Run Playwright snapshots (generates local screenshots + an HTML report).
 

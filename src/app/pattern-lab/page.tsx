@@ -11,7 +11,7 @@ export default async function PatternLabPage({
 }: {
   searchParams?: { role?: string }
 }) {
-  if (process.env.ENABLE_UI_GALLERY !== 'true') {
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_UI_GALLERY !== 'true') {
     notFound()
   }
 

@@ -24,11 +24,32 @@ describe('UiGallery accessibility contracts', () => {
 
     expect(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Pattern example panels' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute(
+      'aria-controls',
+      'pattern-details-panel',
+    )
+    expect(screen.getByRole('tabpanel', { name: 'Details' })).toHaveAttribute(
+      'aria-labelledby',
+      'pattern-details-tab',
+    )
     expect(screen.getByRole('group', { name: 'Content density' })).toBeInTheDocument()
     expect(screen.getByText('student reference')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Student history' })).toHaveAttribute(
       'href',
       '/student/history',
+    )
+  })
+
+  it('moves tab focus and selection with arrow keys', () => {
+    renderGallery()
+
+    const detailsTab = screen.getByRole('tab', { name: 'Details' })
+    fireEvent.keyDown(detailsTab, { key: 'ArrowRight' })
+
+    expect(screen.getByRole('tab', { name: 'History' })).toHaveFocus()
+    expect(screen.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel', { name: 'History' })).toHaveTextContent(
+      'History is another panel',
     )
   })
 

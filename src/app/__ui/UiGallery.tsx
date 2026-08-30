@@ -12,6 +12,7 @@ import {
   SaveStatus,
   SegmentedControl,
   Select,
+  TabPanel,
   Tabs,
   Tooltip,
   cn,
@@ -235,16 +236,22 @@ export function UiGallery({ role }: Props) {
                     ariaLabel="Pattern example panels"
                     value={activeTab}
                     onValueChange={setActiveTab}
+                    getTabId={(value) => `pattern-${value}-tab`}
+                    getPanelId={(value) => `pattern-${value}-panel`}
                     items={[
                       { value: 'details', label: 'Details' },
                       { value: 'history', label: 'History' },
                     ]}
                   />
-                  <div className="min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted">
+                  <TabPanel
+                    id={`pattern-${activeTab}-panel`}
+                    labelledBy={`pattern-${activeTab}-tab`}
+                    className="min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted"
+                  >
                     {activeTab === 'details'
                       ? 'Tabs own panel navigation and keyboard behaviour.'
                       : 'History is another panel in the same local context.'}
-                  </div>
+                  </TabPanel>
                 </div>
                 <div>
                   <SegmentedControl
