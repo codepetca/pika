@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HistoryGraph } from '@/components/HistoryGraph'
 import type { AssignmentDocHistoryEntry } from '@/types'
@@ -45,6 +45,36 @@ const yearLongEntries = [
   entry('year-end', '2026-02-05T16:00:00Z', 200, 1200),
   entry('year-start', '2025-01-01T16:00:00Z', 20, 100),
 ]
+
+function installAnimationFrameHarness() {
+  let nextId = 1
+  const callbacks = new Map<number, FrameRequestCallback>()
+  const request = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    const id = nextId
+    nextId += 1
+    callbacks.set(id, callback)
+    return id
+  })
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+    callbacks.delete(id)
+  })
+
+  return {
+    request,
+    cancel,
+    step(timestamp: number) {
+      act(() => {
+        const queued = Array.from(callbacks.values())
+        callbacks.clear()
+        queued.forEach((callback) => callback(timestamp))
+      })
+    },
+    restore() {
+      request.mockRestore()
+      cancel.mockRestore()
+    },
+  }
+}
 
 describe('HistoryGraph', () => {
   it('shows a calm empty state when no saves exist yet', () => {
@@ -258,7 +288,8 @@ describe('HistoryGraph', () => {
   })
 
   it('eases wheel zoom around the pointer position', () => {
-    render(
+    const frames = installAnimationFrameHarness()
+    const { unmount } = render(
       <HistoryGraph
         entries={multiWeekEntries}
         activeEntryId={null}
@@ -280,13 +311,13 @@ describe('HistoryGraph', () => {
       y: 0,
       toJSON: () => ({}),
     })
-    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: animate,
-    })
+    const initialStart = Number(chart.getAttribute('data-rendered-start-ms'))
+    const initialEnd = Number(chart.getAttribute('data-rendered-end-ms'))
 
     fireEvent.wheel(chart, { deltaY: -100, clientX: 250 })
+
+    const targetStart = Number(chart.getAttribute('data-visible-start-ms'))
+    const targetEnd = Number(chart.getAttribute('data-visible-end-ms'))
 
     expect(chart.querySelector('[data-history-view-layer="daily"]')).toHaveAttribute(
       'aria-hidden',
@@ -296,22 +327,32 @@ describe('HistoryGraph', () => {
       'aria-hidden',
       'false',
     )
-    expect(animate).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          transform: 'scaleX(0.7)',
-          transformOrigin: '25% 50%',
-        }),
-      ]),
-      expect.objectContaining({
-        duration: 420,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-      })
-    )
+    expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(initialStart)
+    expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(initialEnd)
+
+    frames.step(0)
+    frames.step(210)
+
+    expect(Number(chart.getAttribute('data-rendered-start-ms')))
+      .toBeCloseTo((initialStart + targetStart) / 2)
+    expect(Number(chart.getAttribute('data-rendered-end-ms')))
+      .toBeCloseTo((initialEnd + targetEnd) / 2)
+    expect(chart).toHaveAttribute('data-zoom-tween-progress', '0.5')
+    expect(chart.querySelector('[data-history-view-layer="daily"]')).toHaveAttribute('opacity', '0.5')
+    expect(chart.querySelector('[data-history-view-layer="saves"]')).toHaveAttribute('opacity', '0.5')
+
+    frames.step(420)
+
+    expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(targetStart)
+    expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(targetEnd)
+    expect(chart).not.toHaveAttribute('data-zoom-tween-progress')
+    unmount()
+    frames.restore()
   })
 
-  it('uses the reciprocal window scale when smoothly zooming back out', () => {
-    render(
+  it('tweens the rendered window smoothly back out', () => {
+    const frames = installAnimationFrameHarness()
+    const { unmount } = render(
       <HistoryGraph
         entries={multiWeekEntries}
         activeEntryId={null}
@@ -322,24 +363,35 @@ describe('HistoryGraph', () => {
     )
 
     const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: animate,
-    })
+    const fullStart = Number(chart.getAttribute('data-visible-start-ms'))
+    const fullEnd = Number(chart.getAttribute('data-visible-end-ms'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
-    animate.mockClear()
+    frames.step(0)
+    frames.step(420)
+    const detailStart = Number(chart.getAttribute('data-rendered-start-ms'))
+    const detailEnd = Number(chart.getAttribute('data-rendered-end-ms'))
+
     fireEvent.click(screen.getByRole('button', { name: 'Zoom out history' }))
 
-    const firstFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
-    const scale = Number(String(firstFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
-    expect(scale).toBeCloseTo(10 / 7)
-    expect(firstFrame?.transformOrigin).toBe('50% 50%')
+    expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(detailStart)
+    expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(detailEnd)
+    frames.step(1000)
+    frames.step(1210)
+    expect(Number(chart.getAttribute('data-rendered-start-ms')))
+      .toBeCloseTo((detailStart + fullStart) / 2)
+    expect(Number(chart.getAttribute('data-rendered-end-ms')))
+      .toBeCloseTo((detailEnd + fullEnd) / 2)
+    frames.step(1420)
+    expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(fullStart)
+    expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(fullEnd)
+    unmount()
+    frames.restore()
   })
 
-  it('keeps the exact zoom and reciprocal dezoom scales for year-long histories', () => {
-    render(
+  it('tweens even a year-long history without a large first-frame jump', () => {
+    const frames = installAnimationFrameHarness()
+    const { unmount } = render(
       <HistoryGraph
         entries={yearLongEntries}
         activeEntryId={null}
@@ -350,33 +402,36 @@ describe('HistoryGraph', () => {
     )
 
     const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: animate,
-    })
+    const fullStart = Number(chart.getAttribute('data-rendered-start-ms'))
+    const fullEnd = Number(chart.getAttribute('data-rendered-end-ms'))
     const fullDuration = Number(chart.getAttribute('data-visible-end-ms'))
       - Number(chart.getAttribute('data-visible-start-ms'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
 
+    expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(fullStart)
+    expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(fullEnd)
     const zoomDuration = Number(chart.getAttribute('data-visible-end-ms'))
       - Number(chart.getAttribute('data-visible-start-ms'))
-    const zoomFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
-    const zoomScale = Number(String(zoomFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
-    expect(zoomScale).toBeCloseTo(zoomDuration / fullDuration)
-    expect(zoomScale).toBeLessThan(0.05)
+    expect(zoomDuration / fullDuration).toBeLessThan(0.05)
 
-    animate.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom out history' }))
+    frames.step(0)
+    frames.step(42)
+    const earlyDuration = Number(chart.getAttribute('data-rendered-end-ms'))
+      - Number(chart.getAttribute('data-rendered-start-ms'))
+    expect(earlyDuration).toBeGreaterThan(fullDuration * 0.99)
 
-    const dezoomFrame = animate.mock.calls[0]?.[0]?.[0] as Keyframe | undefined
-    const dezoomScale = Number(String(dezoomFrame?.transform).match(/scaleX\(([^)]+)\)/)?.[1])
-    expect(dezoomScale).toBeCloseTo(fullDuration / zoomDuration)
-    expect(dezoomScale).toBeGreaterThan(20)
+    frames.step(420)
+    expect(
+      Number(chart.getAttribute('data-rendered-end-ms'))
+      - Number(chart.getAttribute('data-rendered-start-ms'))
+    ).toBe(zoomDuration)
+    unmount()
+    frames.restore()
   })
 
   it('does not animate zoom when reduced motion is requested', () => {
+    const frames = installAnimationFrameHarness()
     const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
       matches: query === '(prefers-reduced-motion: reduce)',
       media: query,
@@ -398,19 +453,21 @@ describe('HistoryGraph', () => {
     )
 
     const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation)
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: animate,
-    })
-
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
 
-    expect(animate).not.toHaveBeenCalled()
+    expect(frames.request).not.toHaveBeenCalled()
+    expect(chart.getAttribute('data-rendered-start-ms')).toBe(
+      chart.getAttribute('data-visible-start-ms')
+    )
+    expect(chart.getAttribute('data-rendered-end-ms')).toBe(
+      chart.getAttribute('data-visible-end-ms')
+    )
     matchMedia.mockRestore()
+    frames.restore()
   })
 
   it('cancels zoom animation before panning or pointer selection', () => {
+    const panFrames = installAnimationFrameHarness()
     const { unmount } = render(
       <HistoryGraph
         entries={multiWeekEntries}
@@ -435,23 +492,21 @@ describe('HistoryGraph', () => {
       toJSON: () => ({}),
     }
     vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
-    const panCancel = vi.fn()
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: vi.fn(() => ({ cancel: panCancel }) as unknown as Animation),
-    })
     fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
 
     fireEvent.wheel(chart, { deltaX: -100, deltaY: 0, clientX: 500 })
 
-    expect(panCancel).toHaveBeenCalledTimes(1)
+    expect(panFrames.cancel).toHaveBeenCalledTimes(1)
     unmount()
+    panFrames.restore()
 
-    render(
+    const pointerFrames = installAnimationFrameHarness()
+    const onEntryClick = vi.fn()
+    const secondRender = render(
       <HistoryGraph
         entries={multiWeekEntries}
         activeEntryId={null}
-        onEntryClick={vi.fn()}
+        onEntryClick={onEntryClick}
         onEntryHover={vi.fn()}
         audience="teacher"
         showHeading={false}
@@ -459,16 +514,14 @@ describe('HistoryGraph', () => {
     )
     chart = screen.getByRole('slider', { name: 'Complete save history' })
     vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue(bounds)
-    const pointerCancel = vi.fn()
-    Object.defineProperty(chart.querySelector('g'), 'animate', {
-      configurable: true,
-      value: vi.fn(() => ({ cancel: pointerCancel }) as unknown as Animation),
-    })
     fireEvent.wheel(chart, { deltaY: -100, clientX: 500 })
 
-    fireEvent.mouseMove(chart, { clientX: 500, clientY: 39 })
+    fireEvent.click(chart, { clientX: 500, clientY: 39 })
 
-    expect(pointerCancel).toHaveBeenCalledTimes(1)
+    expect(pointerFrames.cancel).toHaveBeenCalledTimes(1)
+    expect(onEntryClick).toHaveBeenCalledTimes(1)
+    secondRender.unmount()
+    pointerFrames.restore()
   })
 
   it('pans with Shift plus a conventional vertical scroll wheel', () => {

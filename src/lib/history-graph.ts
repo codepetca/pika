@@ -270,6 +270,27 @@ export function computeHistoryZoomWindow(
   return { startMs, endMs: startMs + durationMs }
 }
 
+/** Smooth, symmetric easing for zoom-window interpolation. */
+export function easeHistoryZoomProgress(progress: number): number {
+  const bounded = Math.max(0, Math.min(1, progress))
+  return bounded < 0.5
+    ? 4 * bounded * bounded * bounded
+    : 1 - ((-2 * bounded + 2) ** 3) / 2
+}
+
+/** Interpolate the actual visible time window instead of scaling a replaced plot. */
+export function interpolateActivityWindow(
+  from: ActivityWindow,
+  to: ActivityWindow,
+  progress: number
+): ActivityWindow {
+  const bounded = Math.max(0, Math.min(1, progress))
+  return {
+    startMs: from.startMs + (to.startMs - from.startMs) * bounded,
+    endMs: from.endMs + (to.endMs - from.endMs) * bounded,
+  }
+}
+
 /** Scale character changes linearly inside the current view. */
 export function computeLinearChangeHeight(
   change: number,

@@ -26180,3 +26180,36 @@ is a teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a bounded teacher UI
 remediation with responsive visual verification.
+
+<!-- pika-session-log-archive-batch:4aa6264ddc768ef7c2301750ff119bb06d3bf1bf8d62fbb9622835bf444c9db6 -->
+## 2026-08-27 — Consolidate Test grading actions at the top
+
+**Risk profile:** UI-only — selected Test grading action placement and shared
+teacher context-bar chrome changed; no grading behavior, permissions, API,
+schema, persistence, authentication, dependency, migration, or student UI
+changed.
+
+- Removed the floating bottom selection bar from Test grading. Selecting rows
+  now replaces the centered whole-Test control with the selected-student action
+  toolbar in the same top command area.
+- Preserved direct bulk actions on wide layouts and kept every action available
+  from a top overflow menu on narrower layouts. Access, clear-selection, action
+  eligibility, confirmations, and terminology are unchanged.
+- Removed the 4px inset from the shared teacher context-bar floating chrome so
+  the chrome hugs the existing 44px buttons instead of making the FAB appear
+  oversized. This also keeps Attendance and Test on the same shared treatment.
+- Removed obsolete bottom scroll clearance after the selection bar moved.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused Test/shared component tests (74/74, then 71/71 after
+the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
+lint, architecture/design/UI policies, Pika audit, diff checks, and live local
+browser inspection pass. Visual review covers default and selected states on
+desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
+while button height remains 44px. Student UI is n/a because this is a
+teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a focused responsive
+teacher-work-surface interaction refinement.

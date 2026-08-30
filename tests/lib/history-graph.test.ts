@@ -12,7 +12,9 @@ import {
   buildHistoryZoomDurations,
   computeHistoryZoomWindow,
   computeLinearChangeHeight,
+  easeHistoryZoomProgress,
   groupActivityByDay,
+  interpolateActivityWindow,
   positionInActivityWindow,
 } from '@/lib/history-graph'
 
@@ -230,6 +232,32 @@ describe('activity days and sessions', () => {
     expect(computeLinearChangeHeight(100, 400, 28)).toBe(7)
     expect(computeLinearChangeHeight(1, 400, 28)).toBeCloseTo(0.07)
     expect(computeLinearChangeHeight(0, 400, 28)).toBe(0)
+  })
+
+  it('eases zoom symmetrically while keeping exact endpoints', () => {
+    expect(easeHistoryZoomProgress(-1)).toBe(0)
+    expect(easeHistoryZoomProgress(0)).toBe(0)
+    expect(easeHistoryZoomProgress(0.1)).toBeCloseTo(0.004)
+    expect(easeHistoryZoomProgress(0.5)).toBe(0.5)
+    expect(easeHistoryZoomProgress(0.9)).toBeCloseTo(0.996)
+    expect(easeHistoryZoomProgress(1)).toBe(1)
+    expect(easeHistoryZoomProgress(2)).toBe(1)
+  })
+
+  it('interpolates the actual history window in both directions', () => {
+    const overview = { startMs: 100, endMs: 1100 }
+    const detail = { startMs: 400, endMs: 700 }
+
+    expect(interpolateActivityWindow(overview, detail, 0)).toEqual(overview)
+    expect(interpolateActivityWindow(overview, detail, 0.5)).toEqual({
+      startMs: 250,
+      endMs: 900,
+    })
+    expect(interpolateActivityWindow(overview, detail, 1)).toEqual(detail)
+    expect(interpolateActivityWindow(detail, overview, 0.5)).toEqual({
+      startMs: 250,
+      endMs: 900,
+    })
   })
 })
 

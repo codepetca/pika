@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Consolidate Test grading actions at the top
-
-**Risk profile:** UI-only — selected Test grading action placement and shared
-teacher context-bar chrome changed; no grading behavior, permissions, API,
-schema, persistence, authentication, dependency, migration, or student UI
-changed.
-
-- Removed the floating bottom selection bar from Test grading. Selecting rows
-  now replaces the centered whole-Test control with the selected-student action
-  toolbar in the same top command area.
-- Preserved direct bulk actions on wide layouts and kept every action available
-  from a top overflow menu on narrower layouts. Access, clear-selection, action
-  eligibility, confirmations, and terminology are unchanged.
-- Removed the 4px inset from the shared teacher context-bar floating chrome so
-  the chrome hugs the existing 44px buttons instead of making the FAB appear
-  oversized. This also keeps Attendance and Test on the same shared treatment.
-- Removed obsolete bottom scroll clearance after the selection bar moved.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (74/74, then 71/71 after
-the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
-lint, architecture/design/UI policies, Pika audit, diff checks, and live local
-browser inspection pass. Visual review covers default and selected states on
-desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
-while button height remains 44px. Student UI is n/a because this is a
-teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a focused responsive
-teacher-work-surface interaction refinement.
-
 ## 2026-08-27 — Compact selected-student Test actions
 
 **Risk profile:** UI-only — selected-student utility controls changed from
@@ -1667,3 +1635,35 @@ follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for compact time-series interaction,
 historical document diffing, viewport coordination, and cross-role visual QA.
+
+## 2026-08-30 — Tween history zoom through the actual time window
+
+**Risk profile:** low — client-side motion refinement in the shared
+teacher/student history chart only; no API, persistence, authentication,
+dependency, migration, or deployment behavior changed.
+
+- Replaced the SVG scale transform with a frame-by-frame tween of the chart's
+  actual visible start and end times. Bars now move continuously between the
+  complete-history overview and the focused save window in both directions.
+- Synchronized the daily-to-save crossfade and vertical character scale with
+  the same symmetric easing curve. Hover no longer interrupts an active zoom;
+  click-to-pin, keyboard selection, wheel zoom, horizontal pan, and the reduced
+  motion instant path remain intact.
+- Added deterministic animation-frame tests covering pointer-anchored zoom,
+  midpoint interpolation, reciprocal dezoom, year-long histories, interruption,
+  click locking, and reduced motion, plus pure easing/window interpolation tests.
+- Visual verification passed for the shared teacher and student examples at
+  desktop and mobile widths, including captured zoom/dezoom intermediate frames
+  and a long six-week history. Browser console errors: none. Dark mode is n/a
+  because Pika does not currently expose a dark theme.
+- `pnpm check:focused -- --base origin/main` passes: 77 workflow tests, 181
+  focused tests, 573 related tests, TypeScript, lint, architecture, UI policy,
+  and design policy. The Pika pre-commit audit passes.
+
+**Composite-widget accessibility checklist:** reviewed: yes; semantic slider
+state and keyboard selection remain covered by component tests; click selection
+during tween is covered; reduced motion is covered; remaining manual follow-up:
+none.
+
+**Model recommendation:** GPT-5.6 Terra high for animation-state correctness,
+interaction interruption behavior, and shared teacher/student compatibility.

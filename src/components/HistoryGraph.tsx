@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Minus, Plus } from 'lucide-react'
 import type { AssignmentDocHistoryEntry } from '@/types'
@@ -10,10 +10,13 @@ import {
   computeActivityPositions,
   computeActivityWindow,
   computeCharDiffs,
+  easeHistoryZoomProgress,
   computeHistoryZoomWindow,
   computeLinearChangeHeight,
   groupActivityByDay,
+  interpolateActivityWindow,
   positionInActivityWindow,
+  type ActivityWindow,
   type EntryWithDiff,
 } from '@/lib/history-graph'
 
@@ -38,6 +41,14 @@ const OVERVIEW_DAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
 const OVERVIEW_ENTRY_THRESHOLD = 60
 const ZOOM_ANIMATION_MS = 420
 const WHEEL_ZOOM_THROTTLE_MS = ZOOM_ANIMATION_MS
+
+interface ZoomTweenFrame {
+  window: ActivityWindow
+  progress: number
+  saveMaxAbsChange: number
+  fromOverview: boolean
+  toOverview: boolean
+}
 
 function formatDate(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
@@ -77,21 +88,12 @@ export function HistoryGraph({
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [zoomIndex, setZoomIndex] = useState(0)
   const [zoomAnchorMs, setZoomAnchorMs] = useState<number | null>(null)
-  const [viewTransitionActive, setViewTransitionActive] = useState(false)
+  const [zoomTweenFrame, setZoomTweenFrame] = useState<ZoomTweenFrame | null>(null)
   const lastHoveredEntryIdRef = useRef<string | null>(null)
   const previousActiveEntryIdRef = useRef<string | null>(activeEntryId)
   const lastWheelZoomAtRef = useRef(0)
   const chartRef = useRef<SVGSVGElement | null>(null)
-  const plotRef = useRef<SVGGElement | null>(null)
-  const dailyPlotRef = useRef<SVGGElement | null>(null)
-  const savePlotRef = useRef<SVGGElement | null>(null)
-  const pendingZoomAnimationRef = useRef<{
-    scale: number
-    originRatio: number
-    viewModeChanged: boolean
-  } | null>(null)
-  const zoomAnimationRef = useRef<Animation | null>(null)
-  const viewModeAnimationsRef = useRef<Animation[]>([])
+  const zoomAnimationFrameRef = useRef<number | null>(null)
   const zoomStatusId = useId()
   const gestureInstructionsId = useId()
   const historyKey = `${entries[0]?.id ?? 'empty'}:${entries[entries.length - 1]?.id ?? 'empty'}:${entries.length}`
@@ -101,12 +103,11 @@ export function HistoryGraph({
     setZoomAnchorMs(null)
     setHoveredEntryId(null)
     lastHoveredEntryIdRef.current = null
-    zoomAnimationRef.current?.cancel()
-    zoomAnimationRef.current = null
-    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
-    viewModeAnimationsRef.current = []
-    pendingZoomAnimationRef.current = null
-    setViewTransitionActive(false)
+    if (zoomAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(zoomAnimationFrameRef.current)
+      zoomAnimationFrameRef.current = null
+    }
+    setZoomTweenFrame(null)
   }, [historyKey])
 
   useEffect(() => {
@@ -154,59 +155,131 @@ export function HistoryGraph({
   const showZoomControls = zoomDurations.length > 1 && diffs.length > 1
   const isOverview = boundedZoomIndex === 0
     && (fullDuration > OVERVIEW_DAY_THRESHOLD_MS || diffs.length > OVERVIEW_ENTRY_THRESHOLD)
+  const renderWindow = zoomTweenFrame?.window ?? visibleWindow
+  const isZoomTweening = zoomTweenFrame !== null
   const dailyGroups = useMemo(() => groupActivityByDay(diffs), [diffs])
+  const visibleDailyGroups = useMemo(
+    () => renderWindow
+      ? dailyGroups.filter((group) => (
+          group.midpointMs >= renderWindow.startMs && group.midpointMs <= renderWindow.endMs
+        ))
+      : [],
+    [dailyGroups, renderWindow]
+  )
   const visibleDiffs = useMemo(
-    () => visibleWindow
+    () => renderWindow
       ? diffs.filter((entry) => {
           const timestamp = Date.parse(entry.entry.created_at)
-          return timestamp >= visibleWindow.startMs && timestamp <= visibleWindow.endMs
+          return timestamp >= renderWindow.startMs && timestamp <= renderWindow.endMs
         })
       : [],
-    [diffs, visibleWindow]
+    [diffs, renderWindow]
   )
   const positions = useMemo(
-    () => visibleWindow
-      ? computeActivityPositions(visibleDiffs, visibleWindow, CHART_WIDTH, CHART_INSET)
+    () => renderWindow
+      ? computeActivityPositions(visibleDiffs, renderWindow, CHART_WIDTH, CHART_INSET)
       : [],
-    [visibleDiffs, visibleWindow]
+    [renderWindow, visibleDiffs]
   )
   const dayPositions = useMemo(
-    () => visibleWindow
-      ? dailyGroups.map((group) => (
+    () => renderWindow
+      ? visibleDailyGroups.map((group) => (
           CHART_INSET
-          + positionInActivityWindow(group.midpointMs, visibleWindow)
+          + positionInActivityWindow(group.midpointMs, renderWindow)
           * (CHART_WIDTH - CHART_INSET * 2)
         ))
       : [],
-    [dailyGroups, visibleWindow]
+    [renderWindow, visibleDailyGroups]
   )
 
-  const cancelZoomAnimation = useCallback(() => {
-    pendingZoomAnimationRef.current = null
-    zoomAnimationRef.current?.cancel()
-    zoomAnimationRef.current = null
-    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
-    viewModeAnimationsRef.current = []
-    setViewTransitionActive(false)
+  const finishZoomTween = useCallback(() => {
+    if (zoomAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(zoomAnimationFrameRef.current)
+      zoomAnimationFrameRef.current = null
+    }
+    setZoomTweenFrame(null)
+  }, [])
+
+  const startZoomTween = useCallback((
+    fromWindow: ActivityWindow,
+    toWindow: ActivityWindow,
+    fromSaveMaxAbsChange: number,
+    toSaveMaxAbsChange: number,
+    fromOverview: boolean,
+    toOverview: boolean,
+  ) => {
+    if (zoomAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(zoomAnimationFrameRef.current)
+      zoomAnimationFrameRef.current = null
+    }
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setZoomTweenFrame(null)
+      return
+    }
+
+    let startTime: number | null = null
+    setZoomTweenFrame({
+      window: fromWindow,
+      progress: 0,
+      saveMaxAbsChange: fromSaveMaxAbsChange,
+      fromOverview,
+      toOverview,
+    })
+
+    const drawFrame = (timestamp: number) => {
+      startTime ??= timestamp
+      const elapsed = timestamp - startTime
+      const linearProgress = Math.min(1, elapsed / ZOOM_ANIMATION_MS)
+      const easedProgress = easeHistoryZoomProgress(linearProgress)
+
+      if (linearProgress >= 1) {
+        zoomAnimationFrameRef.current = null
+        setZoomTweenFrame(null)
+        return
+      }
+
+      setZoomTweenFrame({
+        window: interpolateActivityWindow(fromWindow, toWindow, easedProgress),
+        progress: easedProgress,
+        saveMaxAbsChange: fromSaveMaxAbsChange
+          + (toSaveMaxAbsChange - fromSaveMaxAbsChange) * easedProgress,
+        fromOverview,
+        toOverview,
+      })
+      zoomAnimationFrameRef.current = requestAnimationFrame(drawFrame)
+    }
+
+    zoomAnimationFrameRef.current = requestAnimationFrame(drawFrame)
   }, [])
 
   const selectByIndex = useCallback((index: number) => {
     const next = diffs[Math.max(0, Math.min(diffs.length - 1, index))]
     if (!next) return
-    cancelZoomAnimation()
+    finishZoomTween()
     setZoomAnchorMs(Date.parse(next.entry.created_at))
     onEntryClick(next.entry)
-  }, [cancelZoomAnimation, diffs, onEntryClick])
+  }, [diffs, finishZoomTween, onEntryClick])
 
   const dailyMaxAbsChange = Math.max(
     1,
     ...dailyGroups.flatMap((group) => [group.additions, group.deletions]),
   )
-  const saveMaxAbsChange = Math.max(
+  const renderedSaveMaxAbsChange = Math.max(
     1,
     ...visibleDiffs.map((entry) => Math.abs(entry.charDiff)),
   )
+  const saveMaxAbsChange = zoomTweenFrame?.saveMaxAbsChange ?? renderedSaveMaxAbsChange
   const maxAbsChange = isOverview ? dailyMaxAbsChange : saveMaxAbsChange
+  const viewTransitionActive = Boolean(
+    zoomTweenFrame && zoomTweenFrame.fromOverview !== zoomTweenFrame.toOverview
+  )
+  const dailyLayerOpacity = viewTransitionActive && zoomTweenFrame
+    ? zoomTweenFrame.fromOverview
+      ? 1 - zoomTweenFrame.progress
+      : zoomTweenFrame.progress
+    : isOverview ? 1 : 0
+  const saveLayerOpacity = 1 - dailyLayerOpacity
 
   const findNearestEntry = useCallback((clientX: number, clientY: number, bounds: DOMRect) => {
     if (!visibleWindow || bounds.width <= 0) return null
@@ -214,8 +287,8 @@ export function HistoryGraph({
     let nearestDistance = Number.POSITIVE_INFINITY
 
     if (isOverview) {
-      for (let index = 0; index < dailyGroups.length; index += 1) {
-        const group = dailyGroups[index]
+      for (let index = 0; index < visibleDailyGroups.length; index += 1) {
+        const group = visibleDailyGroups[index]
         const entryX = bounds.left + (dayPositions[index] / CHART_WIDTH) * bounds.width
         const distance = Math.abs(clientX - entryX)
         if (distance < nearestDistance) {
@@ -238,10 +311,10 @@ export function HistoryGraph({
     }
 
     return nearestEntry
-  }, [dailyGroups, dayPositions, isOverview, maxAbsChange, positions, visibleDiffs, visibleWindow])
+  }, [dayPositions, isOverview, maxAbsChange, positions, visibleDailyGroups, visibleDiffs, visibleWindow])
 
   const handlePointer = useCallback((event: React.MouseEvent<SVGSVGElement>, select: boolean) => {
-    cancelZoomAnimation()
+    if (select) finishZoomTween()
     const entry = findNearestEntry(
       event.clientX,
       event.clientY,
@@ -262,112 +335,61 @@ export function HistoryGraph({
       setHoveredEntryId(entry.entry.id)
       onEntryHover?.(entry.entry)
     }
-  }, [cancelZoomAnimation, findNearestEntry, hoverEnabled, onEntryClick, onEntryHover])
+  }, [findNearestEntry, finishZoomTween, hoverEnabled, onEntryClick, onEntryHover])
 
   const setZoom = useCallback(
     (
       nextIndex: number,
       anchorMs: number = zoomAnchorMs ?? selectedEntryMs,
-      animationOriginRatio?: number
     ) => {
-      if (!fullWindow || !visibleWindow) return
+      if (!fullWindow || !visibleWindow || !renderWindow) return
       const boundedIndex = Math.max(0, Math.min(zoomDurations.length - 1, nextIndex))
       const nextWindow = computeHistoryZoomWindow(
         fullWindow,
         zoomDurations[boundedIndex] ?? fullDuration,
         anchorMs
       )
-      const currentDuration = visibleWindow.endMs - visibleWindow.startMs
-      const nextDuration = nextWindow.endMs - nextWindow.startMs
       const nextIsOverview = boundedIndex === 0
         && (fullDuration > OVERVIEW_DAY_THRESHOLD_MS || diffs.length > OVERVIEW_ENTRY_THRESHOLD)
-      const viewModeChanged = nextIsOverview !== isOverview
-      pendingZoomAnimationRef.current = {
-        // Render the new window at the exact visual scale of the old one, then
-        // ease it to 1. This keeps bars spatially continuous in both directions
-        // instead of jumping most of the distance before the animation begins.
-        scale: nextDuration / currentDuration,
-        originRatio: animationOriginRatio
-          ?? positionInActivityWindow(anchorMs, visibleWindow),
-        viewModeChanged,
-      }
-      setViewTransitionActive(viewModeChanged)
+      const nextVisibleDiffs = diffs.filter((entry) => {
+        const timestamp = Date.parse(entry.entry.created_at)
+        return timestamp >= nextWindow.startMs && timestamp <= nextWindow.endMs
+      })
+      const nextSaveMaxAbsChange = Math.max(
+        1,
+        ...nextVisibleDiffs.map((entry) => Math.abs(entry.charDiff)),
+      )
+      startZoomTween(
+        renderWindow,
+        nextWindow,
+        saveMaxAbsChange,
+        nextSaveMaxAbsChange,
+        zoomTweenFrame?.toOverview ?? isOverview,
+        nextIsOverview,
+      )
       setZoomAnchorMs((nextWindow.startMs + nextWindow.endMs) / 2)
       setZoomIndex(boundedIndex)
     },
-    [diffs.length, fullDuration, fullWindow, isOverview, selectedEntryMs, visibleWindow, zoomAnchorMs, zoomDurations]
+    [
+      diffs,
+      fullDuration,
+      fullWindow,
+      isOverview,
+      renderWindow,
+      saveMaxAbsChange,
+      selectedEntryMs,
+      startZoomTween,
+      visibleWindow,
+      zoomAnchorMs,
+      zoomDurations,
+      zoomTweenFrame?.toOverview,
+    ]
   )
 
-  useLayoutEffect(() => {
-    const pending = pendingZoomAnimationRef.current
-    pendingZoomAnimationRef.current = null
-    const plot = plotRef.current
-    if (!pending || !plot) return
-    if (
-      typeof plot.animate !== 'function'
-      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    ) {
-      setViewTransitionActive(false)
-      return
-    }
-
-    zoomAnimationRef.current?.cancel()
-    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
-    viewModeAnimationsRef.current = []
-    const animation = plot.animate(
-      [
-        {
-          transform: `scaleX(${pending.scale})`,
-          transformOrigin: `${pending.originRatio * 100}% 50%`,
-        },
-        {
-          transform: 'scaleX(1)',
-          transformOrigin: `${pending.originRatio * 100}% 50%`,
-        },
-      ],
-      {
-        duration: ZOOM_ANIMATION_MS,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-      }
-    )
-    if (pending.viewModeChanged) {
-      const options: KeyframeAnimationOptions = {
-        duration: ZOOM_ANIMATION_MS,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-      }
-      const dailyAnimation = typeof dailyPlotRef.current?.animate === 'function'
-        ? dailyPlotRef.current.animate(
-            isOverview
-              ? [{ opacity: 0 }, { opacity: 1 }]
-              : [{ opacity: 1 }, { opacity: 0 }],
-            options,
-          )
-        : null
-      const saveAnimation = typeof savePlotRef.current?.animate === 'function'
-        ? savePlotRef.current.animate(
-            isOverview
-              ? [{ opacity: 1 }, { opacity: 0 }]
-              : [{ opacity: 0 }, { opacity: 1 }],
-            options,
-          )
-        : null
-      viewModeAnimationsRef.current = [dailyAnimation, saveAnimation].filter(
-        (candidate): candidate is Animation => Boolean(candidate),
-      )
-    }
-    zoomAnimationRef.current = animation
-    animation.onfinish = () => {
-      if (zoomAnimationRef.current === animation) {
-        zoomAnimationRef.current = null
-        viewModeAnimationsRef.current = []
-        setViewTransitionActive(false)
-      }
-    }
-  }, [boundedZoomIndex, isOverview])
-
   useEffect(() => () => {
-    zoomAnimationRef.current?.cancel()
-    viewModeAnimationsRef.current.forEach((animation) => animation.cancel())
+    if (zoomAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(zoomAnimationFrameRef.current)
+    }
   }, [])
 
   const handleWheel = useCallback((event: WheelEvent) => {
@@ -380,7 +402,7 @@ export function HistoryGraph({
       && (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY))
 
     if (isPanGesture && horizontalDelta !== 0) {
-      cancelZoomAnimation()
+      finishZoomTween()
       event.preventDefault()
       const currentCenter = (visibleWindow.startMs + visibleWindow.endMs) / 2
       const nextCenter = currentCenter + (horizontalDelta / bounds.width) * zoomDurationMs
@@ -412,10 +434,10 @@ export function HistoryGraph({
     const pointerTime = visibleWindow.startMs + pointerRatio * zoomDurationMs
     const nextDuration = zoomDurations[nextIndex] ?? fullDuration
     const nextAnchor = pointerTime + (0.5 - pointerRatio) * nextDuration
-    setZoom(nextIndex, nextAnchor, pointerRatio)
+    setZoom(nextIndex, nextAnchor)
   }, [
     boundedZoomIndex,
-    cancelZoomAnimation,
+    finishZoomTween,
     fullDuration,
     fullWindow,
     setZoom,
@@ -433,7 +455,7 @@ export function HistoryGraph({
     return () => chart.removeEventListener('wheel', handleWheel)
   }, [handleWheel])
 
-  if (entries.length === 0 || !fullWindow || !visibleWindow || !selectedEntry) {
+  if (entries.length === 0 || !fullWindow || !visibleWindow || !renderWindow || !selectedEntry) {
     return (
       <section className="px-3 py-2" aria-label={heading}>
         {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
@@ -474,8 +496,11 @@ export function HistoryGraph({
           data-view-mode={isOverview ? 'daily' : 'saves'}
           data-visible-start-ms={visibleWindow.startMs}
           data-visible-end-ms={visibleWindow.endMs}
+          data-rendered-start-ms={renderWindow.startMs}
+          data-rendered-end-ms={renderWindow.endMs}
+          data-zoom-tween-progress={zoomTweenFrame?.progress}
           preserveAspectRatio="none"
-          onMouseMove={variant === 'desktop' && hoverEnabled
+          onMouseMove={variant === 'desktop' && hoverEnabled && !isZoomTweening
             ? (event) => handlePointer(event, false)
             : undefined}
           onMouseLeave={() => {
@@ -505,7 +530,7 @@ export function HistoryGraph({
             }
           }}
         >
-          <g ref={plotRef}>
+          <g>
             <line
             x1={CHART_INSET}
             y1={BASELINE_Y}
@@ -516,13 +541,12 @@ export function HistoryGraph({
           />
             {(isOverview || viewTransitionActive) && (
               <g
-                ref={dailyPlotRef}
                 data-history-view-layer="daily"
-                opacity={isOverview ? 1 : 0}
+                opacity={dailyLayerOpacity}
                 aria-hidden={!isOverview}
                 pointerEvents="none"
               >
-                {dailyGroups.map((group, index) => {
+                {visibleDailyGroups.map((group, index) => {
                 const x = dayPositions[index]
                 const additionY = pointY(group.additions, dailyMaxAbsChange)
                 const deletionY = pointY(-group.deletions, dailyMaxAbsChange)
@@ -615,9 +639,8 @@ export function HistoryGraph({
             )}
             {(!isOverview || viewTransitionActive) && (
               <g
-                ref={savePlotRef}
                 data-history-view-layer="saves"
-                opacity={isOverview ? 0 : 1}
+                opacity={saveLayerOpacity}
                 aria-hidden={isOverview}
                 pointerEvents="none"
               >
