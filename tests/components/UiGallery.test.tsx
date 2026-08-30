@@ -78,10 +78,6 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
     expect(screen.getByText(/two-week project/i)).toBeInTheDocument()
     expect(screen.getByText(/final-day crunch/i)).toBeInTheDocument()
-    expect(screen.getByText(/5,000 saves after six weeks/i)).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'History point' }).filter((point) => (
-      point.getAttribute('data-entry-count') === '5001'
-    ))).toHaveLength(4)
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')

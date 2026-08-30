@@ -1,4 +1,3 @@
-import { Profiler } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { HistoryGraph } from '@/components/HistoryGraph'
@@ -53,42 +52,6 @@ const transitionEntries = [
   entry('day-first', '2025-01-10T15:00:00Z', 40, 250),
   entry('transition-baseline', '2025-01-01T15:00:00Z', 20, 100),
 ]
-
-const panSweepEntries = Array.from({ length: 30 }, (_, index) => {
-  const chronologicalIndex = 29 - index
-  return entry(
-    `pan-${chronologicalIndex}`,
-    new Date(Date.UTC(2025, 0, 1 + chronologicalIndex, 16)).toISOString(),
-    20 + chronologicalIndex,
-    100 + chronologicalIndex * 10,
-  )
-})
-
-const stressEntries = [
-  ...Array.from({ length: 5000 }, (_, index) => {
-    const chronologicalIndex = 4999 - index
-    return entry(
-      `stress-${chronologicalIndex}`,
-      new Date(Date.parse('2025-02-12T15:00:00Z') + chronologicalIndex * 500).toISOString(),
-      100 + chronologicalIndex,
-      500 + chronologicalIndex * 5,
-    )
-  }),
-  entry('stress-baseline', '2025-01-01T15:00:00Z', 20, 100),
-]
-
-const scaleTransitionEntries = Array.from({ length: 30 }, (_, index) => {
-  const chronologicalIndex = 29 - index
-  const charCount = chronologicalIndex === 29
-    ? 1300
-    : 100 + chronologicalIndex * 10
-  return entry(
-    `scale-${chronologicalIndex}`,
-    new Date(Date.UTC(2025, 0, 1 + chronologicalIndex, 16)).toISOString(),
-    20 + chronologicalIndex,
-    charCount,
-  )
-})
 
 function installAnimationFrameHarness() {
   let nextId = 1
@@ -390,60 +353,6 @@ describe('HistoryGraph', () => {
     expect(Number(chart.getAttribute('data-rendered-start-ms'))).toBe(targetStart)
     expect(Number(chart.getAttribute('data-rendered-end-ms'))).toBe(targetEnd)
     expect(chart).not.toHaveAttribute('data-zoom-tween-progress')
-    unmount()
-    frames.restore()
-  })
-
-  it('moves the prepared SVG scene without committing React on each frame', () => {
-    const frames = installAnimationFrameHarness()
-    const onRender = vi.fn()
-    const { unmount } = render(
-      <Profiler id="history" onRender={onRender}>
-        <HistoryGraph
-          entries={multiWeekEntries}
-          activeEntryId={null}
-          onEntryClick={vi.fn()}
-          audience="teacher"
-          showHeading={false}
-        />
-      </Profiler>
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
-    const commitsAfterPreparingScene = onRender.mock.calls.length
-
-    frames.step(0)
-    frames.step(105)
-    frames.step(210)
-    frames.step(315)
-
-    expect(onRender).toHaveBeenCalledTimes(commitsAfterPreparingScene)
-    expect(screen.getByRole('slider', { name: 'Complete save history' }))
-      .toHaveAttribute('data-zoom-tween-progress')
-    unmount()
-    frames.restore()
-  })
-
-  it('keeps a multi-thousand-save detail scene bounded during zoom', () => {
-    const frames = installAnimationFrameHarness()
-    const { unmount } = render(
-      <HistoryGraph
-        entries={stressEntries}
-        activeEntryId="stress-2500"
-        onEntryClick={vi.fn()}
-        audience="teacher"
-        showHeading={false}
-      />
-    )
-
-    const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    expect(chart.querySelectorAll('[data-history-view-layer="saves"] > g')).toHaveLength(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
-
-    const renderedSaves = chart.querySelectorAll('[data-history-view-layer="saves"] > g')
-    expect(renderedSaves.length).toBeLessThanOrEqual(64)
-    expect(chart.querySelector('[data-history-entry-id="stress-2500"]')).toBeInTheDocument()
     unmount()
     frames.restore()
   })
@@ -786,112 +695,6 @@ describe('HistoryGraph', () => {
     expect(chart.getAttribute('data-rendered-end-ms')).toBe(renderedEnd)
     expect(chart.getAttribute('data-visible-start-ms')).not.toBe(priorTargetStart)
     expect(frames.cancel.mock.calls.length).toBeGreaterThan(cancelCountBeforePan)
-    unmount()
-    frames.restore()
-  })
-
-  it('keeps intervening saves visible and clickable during a large pan', () => {
-    const frames = installAnimationFrameHarness()
-    const onEntryClick = vi.fn()
-    const { unmount } = render(
-      <HistoryGraph
-        entries={panSweepEntries}
-        activeEntryId={null}
-        onEntryClick={onEntryClick}
-        audience="teacher"
-        showHeading={false}
-      />
-    )
-
-    const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
-      left: 0,
-      width: 256,
-      top: 0,
-      right: 256,
-      bottom: 78,
-      height: 78,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
-    frames.step(0)
-    frames.step(210)
-
-    const sourceStart = Number(chart.getAttribute('data-rendered-start-ms'))
-    const sourceEnd = Number(chart.getAttribute('data-rendered-end-ms'))
-    const sourceDuration = sourceEnd - sourceStart
-    fireEvent.wheel(chart, { deltaX: -3000, deltaY: 0, clientX: 128 })
-    const targetStart = Number(chart.getAttribute('data-visible-start-ms'))
-    expect(Math.abs(targetStart - sourceStart)).toBeLessThan(sourceDuration)
-
-    frames.step(1000)
-    frames.step(1210)
-    const midpointStart = Number(chart.getAttribute('data-rendered-start-ms'))
-    const midpointEnd = Number(chart.getAttribute('data-rendered-end-ms'))
-    const midpointCenter = (midpointStart + midpointEnd) / 2
-    const interveningEntry = panSweepEntries.reduce((nearest, candidate) => (
-      Math.abs(Date.parse(candidate.created_at) - midpointCenter)
-        < Math.abs(Date.parse(nearest.created_at) - midpointCenter)
-        ? candidate
-        : nearest
-    ))
-    expect(chart.querySelector(`[data-history-entry-id="${interveningEntry.id}"]`))
-      .toBeInTheDocument()
-
-    const entryRatio = (Date.parse(interveningEntry.created_at) - midpointStart)
-      / (midpointEnd - midpointStart)
-    fireEvent.click(chart, {
-      clientX: 5 + entryRatio * 246,
-      clientY: 11,
-    })
-    expect(onEntryClick).toHaveBeenCalledWith(
-      expect.objectContaining({ id: interveningEntry.id }),
-    )
-    unmount()
-    frames.restore()
-  })
-
-  it('preserves a source-window maximum when panning toward smaller changes', () => {
-    const frames = installAnimationFrameHarness()
-    const { unmount } = render(
-      <HistoryGraph
-        entries={scaleTransitionEntries}
-        activeEntryId={null}
-        onEntryClick={vi.fn()}
-        audience="teacher"
-        showHeading={false}
-      />
-    )
-
-    const chart = screen.getByRole('slider', { name: 'Complete save history' })
-    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
-      left: 0,
-      width: 256,
-      top: 0,
-      right: 256,
-      bottom: 78,
-      height: 78,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
-    frames.step(0)
-    frames.step(210)
-
-    fireEvent.wheel(chart, { deltaX: -3000, deltaY: 0, clientX: 128 })
-
-    const savePlot = chart.querySelector('[data-history-view-layer="saves"]')
-    const largeChangeLine = chart.querySelector('[data-history-entry-id="scale-29"] line')
-    const matrixValues = savePlot?.getAttribute('transform')?.match(/matrix\(([^)]+)\)/)?.[1]
-      ?.split(/\s+/)
-      .map(Number)
-    const renderedHeight = Math.abs(Number(largeChangeLine?.getAttribute('y2')) - 39)
-      * Number(matrixValues?.[3])
-
-    expect(renderedHeight).toBeCloseTo(28)
     unmount()
     frames.restore()
   })

@@ -549,21 +549,6 @@ const SCENARIOS: { label: string; entries: AssignmentDocHistoryEntry[] }[] = [
     }),
   },
   {
-    label: 'Stress — 5,000 saves after six weeks',
-    entries: [
-      ...Array.from({ length: 5000 }, (_, i) => {
-        const idx = 5000 - i // newest first
-        return makeEntry(
-          `stress-${String(idx).padStart(4, '0')}`,
-          100 + idx * 5,
-          new Date(Date.parse('2025-02-12T15:00:00Z') + idx * 500).toISOString(),
-          'autosave'
-        )
-      }),
-      makeEntry('stress-baseline', 50, '2025-01-01T15:00:00Z', 'baseline'),
-    ],
-  },
-  {
     label: 'Multi-day — work across two days',
     entries: [
       makeEntry('md06', 400, '2025-01-16T19:08:00Z'),

@@ -223,43 +223,6 @@ describe('assignment-doc-history reconstruction', () => {
     })
   })
 
-  it('keeps a valid snapshot preview when its predecessor cannot reconstruct', () => {
-    const baseline: TiptapContent = {
-      type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Baseline' }] }],
-    }
-    const target: TiptapContent = {
-      type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Recovered snapshot' }] }],
-    }
-    const invalidPatch: JsonPatchOperation[] = [
-      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Invalid' }] },
-    ]
-    const entries: AssignmentDocHistoryEntry[] = [
-      {
-        id: 'baseline', assignment_doc_id: 'doc-1', snapshot: baseline, patch: null,
-        word_count: 1, char_count: 8, trigger: 'baseline', created_at: '2026-01-05T00:00:00Z',
-      },
-      {
-        id: 'invalid-predecessor', assignment_doc_id: 'doc-1', snapshot: null,
-        patch: invalidPatch, word_count: 1, char_count: 9, trigger: 'autosave',
-        created_at: '2026-01-05T00:01:00Z',
-      },
-      {
-        id: 'target', assignment_doc_id: 'doc-1', snapshot: target, patch: null,
-        word_count: 2, char_count: 18, trigger: 'autosave', created_at: '2026-01-05T00:02:00Z',
-      },
-    ]
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
-    expect(buildAssignmentHistoryPreview(entries, 'target')).toEqual({
-      content: target,
-      change: null,
-    })
-    expect(consoleError).not.toHaveBeenCalled()
-    consoleError.mockRestore()
-  })
-
   it('bounds comparison work for very large, substantially changed documents', () => {
     const before: TiptapContent = {
       type: 'doc',

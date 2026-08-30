@@ -37,15 +37,14 @@ export function applyJsonPatch<TContent extends JsonObject>(
 
 export function tryApplyJsonPatch<TContent extends JsonObject>(
   base: TContent,
-  patch: JsonPatchOperation[],
-  reportError = true,
+  patch: JsonPatchOperation[]
 ): { success: boolean; content: TContent } {
   const cloned = cloneContent(base)
   try {
     const result = applyPatch(cloned, patch, true, false)
     return { success: true, content: result.newDocument as TContent }
   } catch (error) {
-    if (reportError) console.error('Error applying JSON patch:', error)
+    console.error('Error applying JSON patch:', error)
     return { success: false, content: cloned }
   }
 }

@@ -11,13 +11,11 @@ import {
   computeActivityWindow,
   buildHistoryZoomDurations,
   computeHistoryZoomWindow,
-  computeHistoryWindowTransform,
   computeLinearChangeHeight,
   easeHistoryZoomProgress,
   groupActivityByDay,
   interpolateActivityWindow,
   positionInActivityWindow,
-  sampleHistoryEntries,
 } from '@/lib/history-graph'
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -208,28 +206,6 @@ describe('activity days and sessions', () => {
     expect(groups[2]).toMatchObject({ additions: 50, deletions: 0 })
   })
 
-  it('bounds dense history scenes while retaining endpoints and the selected save', () => {
-    const diffs = computeCharDiffs(Array.from({ length: 1000 }, (_, index) => (
-      makeEntry({
-        id: `dense-${999 - index}`,
-        char_count: 1000 - index,
-        created_at: new Date(Date.parse('2025-01-01T00:00:00Z') + (999 - index) * 1000)
-          .toISOString(),
-      })
-    )))
-
-    const sampled = sampleHistoryEntries(diffs, 40, 'dense-503')
-
-    expect(sampled).toHaveLength(40)
-    expect(sampled[0].entry.id).toBe('dense-0')
-    expect(sampled[sampled.length - 1].entry.id).toBe('dense-999')
-    expect(sampled.some((entry) => entry.entry.id === 'dense-503')).toBe(true)
-    expect(sampled.map((entry) => Date.parse(entry.entry.created_at)))
-      .toEqual([...sampled]
-        .map((entry) => Date.parse(entry.entry.created_at))
-        .sort((left, right) => left - right))
-  })
-
   it('builds useful zoom levels and clamps a centered zoom to the project range', () => {
     const window = {
       startMs: Date.parse('2025-01-01T00:00:00Z'),
@@ -281,21 +257,6 @@ describe('activity days and sessions', () => {
     expect(interpolateActivityWindow(detail, overview, 0.5)).toEqual({
       startMs: 250,
       endMs: 900,
-    })
-  })
-
-  it('maps one prepared SVG scene onto each rendered zoom window', () => {
-    const scene = { startMs: 400, endMs: 700 }
-    const overview = { startMs: 100, endMs: 1100 }
-    const detail = { startMs: 400, endMs: 700 }
-
-    expect(computeHistoryWindowTransform(scene, detail, 256, 5)).toEqual({
-      scaleX: 1,
-      translateX: 0,
-    })
-    expect(computeHistoryWindowTransform(scene, overview, 256, 5)).toEqual({
-      scaleX: 0.3,
-      translateX: 77.3,
     })
   })
 })

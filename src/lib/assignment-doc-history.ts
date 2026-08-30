@@ -21,13 +21,12 @@ export interface AssignmentHistoryChange {
 
 export interface AssignmentHistoryPreview {
   content: TiptapContent
-  change: AssignmentHistoryChange | null
+  change: AssignmentHistoryChange
 }
 
-function reconstructAssignmentDocContentInternal(
+export function reconstructAssignmentDocContent(
   entries: AssignmentDocHistoryEntry[],
-  targetId: string,
-  reportFailure: boolean,
+  targetId: string
 ): TiptapContent | null {
   const targetIndex = entries.findIndex(entry => entry.id === targetId)
   if (targetIndex === -1) return null
@@ -51,11 +50,10 @@ function reconstructAssignmentDocContentInternal(
       continue
     }
     if (entry.patch) {
-      const result = tryApplyJsonPatch(content, entry.patch, reportFailure)
+      const result = tryApplyJsonPatch(content, entry.patch)
       if (!result.success) {
-        if (reportFailure) {
-          console.error('Failed to reconstruct history at entry:', entry.id)
-        }
+        // Patch failed - return null to indicate reconstruction failure
+        console.error('Failed to reconstruct history at entry:', entry.id)
         return null
       }
       content = result.content
@@ -63,13 +61,6 @@ function reconstructAssignmentDocContentInternal(
   }
 
   return content
-}
-
-export function reconstructAssignmentDocContent(
-  entries: AssignmentDocHistoryEntry[],
-  targetId: string,
-): TiptapContent | null {
-  return reconstructAssignmentDocContentInternal(entries, targetId, true)
 }
 
 function nodeSignature(node: TiptapNode): string {
@@ -413,24 +404,15 @@ export function buildAssignmentHistoryPreview(
   const targetIndex = entries.findIndex((entry) => entry.id === targetId)
   if (targetIndex === -1) return null
 
-  const content = reconstructAssignmentDocContentInternal(entries, targetId, true)
+  const content = reconstructAssignmentDocContent(entries, targetId)
   if (!content) return null
 
-  if (targetIndex === 0) {
-    return {
-      content,
-      change: compareAssignmentDocContent(null, content),
-    }
-  }
-
-  const previousContent = reconstructAssignmentDocContentInternal(
-    entries,
-    entries[targetIndex - 1]!.id,
-    false,
-  )
+  const previousContent = targetIndex > 0
+    ? reconstructAssignmentDocContent(entries, entries[targetIndex - 1]!.id)
+    : null
 
   return {
     content,
-    change: previousContent ? compareAssignmentDocContent(previousContent, content) : null,
+    change: compareAssignmentDocContent(previousContent, content),
   }
 }
