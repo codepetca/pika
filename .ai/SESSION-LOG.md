@@ -1506,23 +1506,23 @@ surface changed.
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
 
-## 2026-08-30 — Keep the Classroom Pika logo white in both themes
+## 2026-08-30 — Give the Classroom Pika logo a neutral light-mode color
 
 **Risk profile:** none — localized Classroom app-bar styling and its focused
 regression assertion only; no navigation, behavior, data, schema, permissions,
 or dependencies changed.
 
-- Scoped the Pika logo's inverse semantic color to themed Classroom app bars,
-  keeping the mouse white in both light and dark mode while preserving the dark
-  light-mode logo on the neutral Classrooms index header.
-- Added a crisp 1px mask-following blue-gray edge in light mode so the white
-  silhouette separates clearly from pale classroom gradients; dark mode
-  explicitly keeps the existing unfiltered treatment.
-- Added focused coverage for the exact 1px/65% themed app-bar edge without
-  introducing component-local dark-mode utilities or raw colors.
+- Scoped a medium neutral slate color to the Pika mouse on light Classroom app
+  bars, while dark mode keeps the existing pure-white mouse and the neutral
+  Classrooms index header keeps its normal dark brand color.
+- Removed the visually ineffective light-mode outline experiment. The final
+  treatment changes only the mouse color: no outline, shadow, or background
+  shape.
+- Added focused coverage for the exact semantic color mix and dark-mode inverse
+  color without introducing component-local dark-mode utilities or raw colors.
 - Visual verification passed for teacher and student Classroom views on desktop
-  and mobile in light and dark themes. The visible desktop logo renders as exact
-  white in both themes, the edge is light-mode only, and mobile preserves the
+  and mobile in light and dark themes. The visible desktop logo renders as a
+  medium slate in light mode and exact white in dark mode; mobile preserves the
   established logo-hidden header.
 - `pnpm check:focused -- --base origin/main`, the Pika pre-commit audit, design
   policy, UI policy, TypeScript, lint, and the focused AppHeader tests pass.

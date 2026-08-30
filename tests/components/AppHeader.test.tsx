@@ -195,11 +195,11 @@ describe('AppHeader classroom theme', () => {
     expect(logoSource).toContain('pika-logo')
     expect(logoSource).not.toContain('dark:')
     expect(tokens).toContain('background-color: var(--color-text-default);')
-    expect(classroomLogoRule).toContain('background-color: var(--color-text-inverse);')
     expect(classroomLogoRule).toContain(
-      'filter: drop-shadow(0 0 1px color-mix(in srgb, var(--color-text-default) 65%, transparent));'
+      'background-color: color-mix(in srgb, var(--color-text-muted) 72%, var(--color-surface));'
     )
-    expect(darkClassroomLogoRule).toContain('filter: none;')
+    expect(classroomLogoRule).toContain('filter: none;')
+    expect(darkClassroomLogoRule).toContain('background-color: var(--color-text-inverse);')
     expect(tokens).toContain('--pika-logo-mask-image: url("data:image/png;base64,')
     expect(tokens).toContain('mask: var(--pika-logo-mask-image) center / contain no-repeat;')
     expect(tokens).not.toContain("mask: url('/pika.png')")

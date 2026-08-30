@@ -229,12 +229,12 @@
 }
 
 .classroom-theme-appbar .pika-logo {
-  background-color: var(--color-text-inverse);
-  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--color-text-default) 65%, transparent));
+  background-color: color-mix(in srgb, var(--color-text-muted) 72%, var(--color-surface));
+  filter: none;
 }
 
 .dark .classroom-theme-appbar .pika-logo {
-  filter: none;
+  background-color: var(--color-text-inverse);
 }
 
 .classroom-theme-card {
