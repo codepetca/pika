@@ -65,7 +65,7 @@ export function TeacherWorkSurfaceContextBar({
       </div>
       <div
         className={cn(
-          'flex min-w-0 items-center justify-self-end overflow-hidden',
+          'flex min-w-0 items-center justify-self-end overflow-visible',
           trailingClassName,
         )}
       >

@@ -4,7 +4,7 @@ This audit classifies the current teacher-side work-surface family:
 
 - teacher assignments
 - teacher tests
-- teacher operational tables, with Attendance as the table reference and
+- teacher operational tables, with combined Daily + Attendance as the table reference and
   selected Test grading as the action-scope reference
 
 Use it to decide what should become a primitive, what should remain a composed pattern, and what should stay feature-local.
@@ -15,7 +15,7 @@ Included:
 
 - [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
-- [`src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx)
+- [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 - supporting layout primitives in [`src/components/PageLayout.tsx`](/src/components/PageLayout.tsx), [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx), and [`src/components/layout/RightSidebar.tsx`](/src/components/layout/RightSidebar.tsx)
 - card and workspace components used by those surfaces
 
@@ -75,7 +75,7 @@ These should remain composed feature patterns even if they use shared primitives
 | Teacher assignment focused workspace and student inspection | `TeacherClassroomView`, `TeacherStudentWorkPanel` | stable | keep composed, feed split extraction | now |
 | Teacher test authoring composition | `TeacherTestsTab`, `TestDetailPanel` | experimental | keep composed | now |
 | Teacher grading workspace composition | `TeacherTestsTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
-| Attendance operational table composition | `TeacherLiveAttendanceTab` | stable | keep as the Attendance-specific adopter of the centered persistent selection menu and compact table rhythm | now |
+| Combined Daily + Attendance operational table composition | `TeacherAttendanceTab` | stable | keep as the progressive-enhancement adopter of the centered persistent selection menu and compact table rhythm | now |
 | Selected Test grading action composition | `TeacherTestsTab` | stable | approved reference for global, selected, and inline row actions | now |
 
 ## Feature-Local Behavior

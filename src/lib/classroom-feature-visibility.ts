@@ -42,7 +42,6 @@ export const DEFAULT_CLASSROOM_FEATURE_VISIBILITY: ClassroomFeatureVisibility = 
 
 const TEACHER_TABS: readonly ClassroomTabId[] = [
   'daily',
-  'attendance',
   'assignments',
   'tests',
   'gradebook',

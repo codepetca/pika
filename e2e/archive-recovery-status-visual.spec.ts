@@ -87,8 +87,9 @@ async function expectNoHorizontalOverflow(page: Page) {
   )).toBe(false)
 }
 
-test('captures hot archive recovery availability, confirmation, and verification', async ({ browser }) => {
-  for (const entry of matrix) {
+for (const entry of matrix) {
+  const testName = `captures hot archive recovery availability, confirmation, and verification (${entry.name})`
+  test(testName, async ({ browser }) => {
     const unavailable = await newRolePage(
       () => browser.newContext({
         storageState: '.auth/teacher.json',
@@ -197,8 +198,8 @@ test('captures hot archive recovery availability, confirmation, and verification
       animations: 'disabled',
     })
     await verified.context.close()
-  }
-})
+  })
+}
 
 test('keeps archive recovery controls absent from the student classroom index', async ({ browser }) => {
   for (const entry of matrix) {

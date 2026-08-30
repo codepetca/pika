@@ -23,6 +23,13 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 - Use `docs/dev-workflow.md` for worktree creation, cleanup, and optional `pika` command helpers.
 - Avoid the legacy `scripts/wt-add.sh` helper.
 
+## AI Pull Requests (Automatic Workflow)
+
+- AI agents must follow the draft-first stable-SHA lifecycle in `docs/dev-workflow.md` automatically.
+- Run `pnpm check:focused -- --base origin/main`, publish a draft PR, complete risk-matched independent review, batch remediation, and mark ready only after the reviewed SHA is stable.
+- If ready-PR CI fails, return the PR to draft before pushing corrections; do not repeatedly launch heavy CI during review.
+- Merge only when `PR Gate` passes on the final reviewed SHA and the normal authority gate is satisfied.
+
 ## Environment Files (.env.local)
 
 - Shared `.env.local` setup is defined in `docs/dev-workflow.md`.

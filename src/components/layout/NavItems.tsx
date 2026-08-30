@@ -10,7 +10,6 @@ import {
   Megaphone,
   Settings,
   PenSquare,
-  ScanLine,
   SquarePercent,
   Trophy,
   Users,
@@ -46,7 +45,6 @@ type NavItem = {
 
 const teacherItems: NavItem[] = [
   { id: 'daily', label: 'Daily', icon: ClipboardCheck },
-  { id: 'attendance', label: 'Attendance', icon: ScanLine },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },

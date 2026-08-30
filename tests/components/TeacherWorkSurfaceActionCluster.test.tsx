@@ -1,11 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { Pencil, Plus } from 'lucide-react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { EllipsisVertical, Pencil, Plus } from 'lucide-react'
+import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
+  TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { ModalLayer, TooltipProvider } from '@/ui'
 
 describe('TeacherWorkSurfaceActionCluster', () => {
   it('separates primary chooser actions from direct contextual toggles', () => {
@@ -108,7 +112,54 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'Escape' })
+    const outerEscapeHandler = vi.fn()
+    window.addEventListener('keydown', outerEscapeHandler)
+    expect(fireEvent.keyDown(window, { key: 'Escape' })).toBe(false)
+    window.removeEventListener('keydown', outerEscapeHandler)
+
+    expect(outerEscapeHandler).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
+  })
+
+  it('keeps a tooltip-wrapped icon menu trigger mounted through a modal focus round trip', async () => {
+    const user = userEvent.setup()
+
+    function Harness() {
+      const [isDialogOpen, setIsDialogOpen] = useState(false)
+      return (
+        <TooltipProvider>
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="More actions"
+            tooltip="More actions"
+            icon={<EllipsisVertical aria-hidden="true" />}
+            items={[{ id: 'edit', label: 'Edit', onSelect: () => setIsDialogOpen(true) }]}
+          />
+          <ModalLayer
+            isOpen={isDialogOpen}
+            onClose={() => setIsDialogOpen(false)}
+            ariaLabel="Edit item"
+          >
+            <button type="button" onClick={() => setIsDialogOpen(false)}>Close</button>
+          </ModalLayer>
+        </TooltipProvider>
+      )
+    }
+
+    render(<Harness />)
+
+    const trigger = screen.getByRole('button', { name: 'More actions' })
+    await user.hover(trigger)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('More actions')
+    await user.click(trigger)
+
+    expect(screen.getByRole('button', { name: 'More actions' })).toBe(trigger)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    await user.click(await screen.findByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(trigger).toHaveFocus())
+    await act(async () => {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+    })
+    expect(document.querySelector('[data-radix-popper-content-wrapper] [role="tooltip"]')).toBeNull()
   })
 })

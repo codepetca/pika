@@ -220,6 +220,7 @@ export async function loadTeacherAttendanceView(input: {
   }
 
   const pendingCheckInRefs = new Set<string>()
+  const failedCheckInRefs = new Set<string>()
   let pendingSessionCommand = false
   let failedSessionCommand = false
   const isPending = (row: z.infer<typeof outboxRowsSchema>[number]) => row.status === 'pending'
@@ -236,8 +237,15 @@ export async function loadTeacherAttendanceView(input: {
       if (isPending(row)) pendingSessionCommand = true
       else if (row.status === 'non_retryable') failedSessionCommand = true
     }
-    if (message.message_type === 'check_in.invalidate' && isPending(row)) {
-      for (const invalidation of message.invalidations) pendingCheckInRefs.add(invalidation.check_in_ref)
+    if (message.message_type === 'check_in.invalidate') {
+      const target = isPending(row)
+        ? pendingCheckInRefs
+        : row.status === 'non_retryable'
+          ? failedCheckInRefs
+          : null
+      if (target) {
+        for (const invalidation of message.invalidations) target.add(invalidation.check_in_ref)
+      }
     }
   }
 
@@ -263,7 +271,12 @@ export async function loadTeacherAttendanceView(input: {
       studentId: row.student_id, status: row.status, active: row.active,
       revision: row.revision, updatedAt: row.updated_at,
     })),
-    pendingCheckInRefs: [...pendingCheckInRefs], pendingSessionCommand, failedSessionCommand,
+    pendingCheckInRefs: [...pendingCheckInRefs],
+    failedStudentIds: checkIns.data
+      .filter((fact) => !fact.invalidated_at && failedCheckInRefs.has(fact.check_in_ref))
+      .map((fact) => fact.student_id),
+    pendingSessionCommand,
+    failedSessionCommand,
   })
 }
 
@@ -283,6 +296,7 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
   }
   const overrides = new Map((input.statusOverrides ?? []).map((item) => [item.studentId, item]))
   const pendingRefs = new Set(input.pendingCheckInRefs ?? [])
+  const failedStudentIds = new Set(input.failedStudentIds ?? [])
   const projection = input.occurrence
     && input.sessionProjection?.occurrenceRef === input.occurrence.occurrenceRef
     ? input.sessionProjection : null
@@ -311,11 +325,14 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
       presentThroughAt: input.occurrence.presentThroughAt ?? null,
       absentAt: input.occurrence.absentAt ?? null,
       revision: projection?.revision ?? null,
-      commandFailed: input.failedSessionCommand ?? false,
+      pendingCommand: input.pendingSessionCommand ?? false,
+      commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     } : {
       state: 'not_scheduled', opensAt: null, closesAt: null,
       sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
-      revision: null, commandFailed: input.failedSessionCommand ?? false,
+      revision: null,
+      pendingCommand: input.pendingSessionCommand ?? false,
+      commandFailed: Boolean(input.failedSessionCommand && !input.pendingSessionCommand),
     },
     sync: { state: syncState, confirmedAt },
     students: input.students.map((student) => {
@@ -334,7 +351,8 @@ export function buildTeacherAttendanceView(input: BuildTeacherAttendanceViewInpu
         hasQrCheckIn: Boolean(fact),
         hasManualOverride: hasOverride,
         pendingCommand: fact ? pendingRefs.has(fact.checkInRef) : false,
-        commandFailed: false,
+        commandFailed: failedStudentIds.has(student.studentId)
+          && !(fact ? pendingRefs.has(fact.checkInRef) : false),
       }
     }),
   }
