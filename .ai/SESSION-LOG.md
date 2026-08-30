@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Tighten selected Test roster controls
-
-**Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
-alignment changed; no grading behavior, permissions, API, schema, persistence,
-authentication, dependency, migration, or student UI changed.
-
-- Reduced the selected Test action-to-roster gap to the established Attendance
-  work-surface spacing and kept the centered whole-Test action visually dominant.
-- Raised the action-bar stacking context with the existing semantic layer token
-  so the whole-Test split-button menu stays visible and interactive above the
-  sticky roster header.
-- Restored the shared selection-cell inset so the select-all checkbox and row
-  checkboxes align on desktop and mobile.
-- Added browser geometry regressions for the 4px maximum gap, checkbox-center
-  alignment, and an unobscured menu, plus component coverage for menu semantics,
-  Escape dismissal, and focus restoration.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (87/87 plus final Test-only
-68/68), responsive long-roster Playwright matrix (4/4), lint, design/UI policies,
-Pika audit, and diff checks pass. Visual review covers default, menu-open, and
-selected states on desktop/mobile in light/dark. Student UI is n/a because this
-is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded teacher UI
-remediation with responsive visual verification.
-
 ## 2026-08-27 — Consolidate Test grading actions at the top
 
 **Risk profile:** UI-only — selected Test grading action placement and shared
@@ -1535,3 +1506,27 @@ student Attendance behavior changed.
 
 **Model recommendation:** GPT-5.6 Terra high for correctness, requirements,
 responsive behavior, and compatibility review of the complete PR diff.
+
+## 2026-08-30 — Keep the light Pika favicon in every theme
+
+**Risk profile:** none — root metadata and its focused regression assertion
+only; no application behavior, schema, runtime configuration, or role-specific
+surface changed.
+
+- Replaced the theme-conditioned light/dark favicon metadata with one
+  unconditional `pika-icon-light.svg` declaration so browser color preference
+  cannot select the dark asset.
+- Updated the existing middleware/favicon regression test to require the light
+  icon, reject the dark icon from root metadata, and reject favicon media
+  conditions while preserving the static-asset checks.
+- Visual verification passed in headed Chrome: the same light mouse icon appears
+  in the tab under light and dark color preferences. Playwright DOM checks also
+  confirmed the unconditional light SVG on desktop and mobile. Teacher and
+  student roles are not applicable because favicon metadata is global browser
+  chrome.
+- `pnpm check:focused -- --base origin/main` passes in application-browser mode,
+  including workflow, architecture, UI/design policy, focused/related tests,
+  TypeScript, and lint. The Pika pre-commit audit passes.
+
+**Model recommendation:** current model for this narrow metadata-only visual
+fix.
