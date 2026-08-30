@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Close Test identity release-safety gaps
-
-**Risk profile:** runtime-platform — cross-version Test authoring compatibility
-and Classroom/Test database lock ordering; no database was reset or migrated
-and no hosted state changed.
-
-- Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
-  marked portable question IDs back to exact legacy row IDs for persistence and
-  activation while continuing to return the portable API contract. Active and
-  closed saves accept metadata/document changes only when the question graph is
-  unchanged; question edits require reopening as draft because migration 133
-  cannot hold a student-entry fence across multiple application writes.
-  Pre-migration activation is deliberately unavailable because migration 133
-  has no transactional primitive that can safely synchronize questions while
-  fencing every access override. Draft-only UUIDs remain in the legacy draft
-  until migration 134 backfills them; the atomic RPC then materializes them.
-  Draft-only/internal-row namespace collisions are rejected before writing.
-- Added a real pre-migration integration contract to the disposable CI lifecycle:
-  it runs closed-Test save and activation refusal against migration 133, covers the
-  production-shaped row-ID/portable-ID collision plus draft-only collision
-  rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
-  explicit pre-migration activation refusal, and a concurrent student-attempt
-  race; it then applies migration 134 and verifies activation through the
-  portable-only path.
-- Wrapped student attempt save and submission so both acquire Classroom before
-  Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
-  The original migration-088 implementations moved behind non-callable private
-  functions, preserving behavior without exposing a bypass.
-- Added database races for teacher question authoring versus both student
-  autosave and submission. A third lock probe proves the student writer does not
-  retain Test while waiting for Classroom, and both RPCs must complete without
-  SQLSTATE 40P01 or partial state.
-- The full 5,155-test suite, focused 63-test Test identity/API suite, TypeScript,
-  lint, Pika audit, shell syntax, diff validation, and production build pass.
-  The disposable migration replay remains CI-authoritative.
-
-**Model recommendation:** GPT-5.6 Sol for the migration/concurrency correction
-and GPT-5.6 Terra for cross-version compatibility review.
-
 ## 2026-08-27 — Make Blueprint provenance compatible with student work
 
 **Risk profile:** runtime-platform — migration 134 trigger semantics and
@@ -1649,3 +1610,99 @@ date button's explicit accessible name masked its new subtitle. Linked the
 subtitle with a stable `aria-describedby` ID and added accessible-description
 coverage for both shown and hidden states. The full focused gate remains green;
 the correction does not change visual styling or the existing control name.
+
+## 2026-08-30 — Enforce stable-SHA PR Gate launch
+
+**Risk profile:** runtime-platform — GitHub Actions admission policy and its
+workflow contract only; no product behavior, schema, dependency, secret, or
+branch-ruleset change.
+
+- Ran the approved post-#1125 audit after 25 completed natural CI attempts
+  following 2026-08-30T15:49:02Z. Exact `pnpm measure:ci -- --limit 25` output:
+
+```text
+{
+  "sampleSize": 25,
+  "successfulSampleSize": 5,
+  "counts": {
+    "cancelled": 9,
+    "skipped": 11,
+    "success": 5
+  },
+  "cancellationRate": 0.36,
+  "cancelledElapsedSeconds": 892,
+  "successfulQueueSeconds": {
+    "min": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "average": 0
+  },
+  "successfulRunSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulWallSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulRunsWithoutPrGateEvidence": 0,
+  "prGateByMode": {
+    "full": {
+      "sampleSize": 5,
+      "timeToGateStartSeconds": {
+        "min": 464,
+        "p50": 474,
+        "p95": 513,
+        "max": 513,
+        "average": 479
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 2,
+        "p95": 4,
+        "max": 4,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 466,
+        "p50": 478,
+        "p95": 517,
+        "max": 517,
+        "average": 482
+      }
+    }
+  }
+}
+```
+
+- The full-mode p50 remains within target (478 seconds), but the checkpoint
+  fails cancellation rate: 9/25 (36%). Eleven draft runs skipped every job;
+  the five successes all produced `PR Gate` evidence. There was no fresh
+  docs-only or production-promotion run, so those targets remain unevidenced.
+- Each cancellation was inspected. Eight launched or queued on the same ready
+  PR #1089 while successive commits and reverts were pushed; seven cancelled
+  already-running Test & Build, browser, and database lanes, consuming 892
+  seconds total. The remaining cancellation was draft-skipped. The two manual
+  dispatches were separate exact-head full runs and did not overlap eligible
+  pull-request runs.
+- Preserve all safety lanes and branch rulesets. The bounded remedy admits
+  heavy lanes only for `ready_for_review` or deliberate `workflow_dispatch`.
+  A ready-PR push now runs only the lightweight required `PR Gate`, which fails
+  with instructions to return to draft before pushing and mark the stable
+  reviewed SHA ready again. This prevents skipped checks from satisfying branch
+  protection and makes the documented lifecycle mechanically enforceable.
+
+**Verification:** CI workflow contract (4/4), workflow suite (77/77), focused
+full-mode checks (workflow, architecture, UI/design policy, TypeScript, lint),
+Pika audit, and diff validation pass. Independent review and exact-head CI are
+pending.
+
+**Model recommendation:** GPT-5.6 Terra high for CI admission and protected
+branch-safety review; no product-domain review is needed.

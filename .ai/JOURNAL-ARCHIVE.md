@@ -26335,3 +26335,43 @@ Attendance hours. Student UI is n/a because this is a teacher-only surface.
 **Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
 of requirements coverage, responsive behavior, accessibility, and regression
 risk.
+
+<!-- pika-session-log-archive-batch:27d958ee321069e6cc607df50c841b2dab6c30886dd8b57b3a612b1a132e178c -->
+## 2026-08-27 — Close Test identity release-safety gaps
+
+**Risk profile:** runtime-platform — cross-version Test authoring compatibility
+and Classroom/Test database lock ordering; no database was reset or migrated
+and no hosted state changed.
+
+- Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
+  marked portable question IDs back to exact legacy row IDs for persistence and
+  activation while continuing to return the portable API contract. Active and
+  closed saves accept metadata/document changes only when the question graph is
+  unchanged; question edits require reopening as draft because migration 133
+  cannot hold a student-entry fence across multiple application writes.
+  Pre-migration activation is deliberately unavailable because migration 133
+  has no transactional primitive that can safely synchronize questions while
+  fencing every access override. Draft-only UUIDs remain in the legacy draft
+  until migration 134 backfills them; the atomic RPC then materializes them.
+  Draft-only/internal-row namespace collisions are rejected before writing.
+- Added a real pre-migration integration contract to the disposable CI lifecycle:
+  it runs closed-Test save and activation refusal against migration 133, covers the
+  production-shaped row-ID/portable-ID collision plus draft-only collision
+  rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
+  explicit pre-migration activation refusal, and a concurrent student-attempt
+  race; it then applies migration 134 and verifies activation through the
+  portable-only path.
+- Wrapped student attempt save and submission so both acquire Classroom before
+  Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
+  The original migration-088 implementations moved behind non-callable private
+  functions, preserving behavior without exposing a bypass.
+- Added database races for teacher question authoring versus both student
+  autosave and submission. A third lock probe proves the student writer does not
+  retain Test while waiting for Classroom, and both RPCs must complete without
+  SQLSTATE 40P01 or partial state.
+- The full 5,155-test suite, focused 63-test Test identity/API suite, TypeScript,
+  lint, Pika audit, shell syntax, diff validation, and production build pass.
+  The disposable migration replay remains CI-authoritative.
+
+**Model recommendation:** GPT-5.6 Sol for the migration/concurrency correction
+and GPT-5.6 Terra for cross-version compatibility review.

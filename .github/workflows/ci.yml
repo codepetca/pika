@@ -13,7 +13,9 @@ concurrency:
 jobs:
   classify-changes:
     name: Classify Changes
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false && github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.classify.outputs.mode }}
@@ -399,6 +401,7 @@ jobs:
       - name: Verify every selected check passed
         shell: bash
         env:
+          CI_EVENT_ELIGIBLE: ${{ github.event_name == 'workflow_dispatch' || github.event.action == 'ready_for_review' }}
           CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
           TEST_BUILD_RESULT: ${{ needs.test-and-build.result }}
           TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}
@@ -408,6 +411,10 @@ jobs:
           BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
           CI_MODE: ${{ needs.classify-changes.outputs.mode }}
         run: |
+          [[ "$CI_EVENT_ELIGIBLE" == "true" ]] || {
+            echo "Ready pull request changed after its stable-SHA request. Convert it to draft before pushing, then mark the reviewed SHA ready again."
+            exit 1
+          }
           printf 'CI mode: %s\n' "$CI_MODE"
           [[ "$CLASSIFY_RESULT" == "success" ]] || {
             echo "Change classification did not succeed: $CLASSIFY_RESULT"

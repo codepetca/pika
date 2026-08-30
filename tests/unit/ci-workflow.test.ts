@@ -17,8 +17,9 @@ describe('CI workflow', () => {
 
     expect(workflow).toContain('group: ci-${{ github.event.pull_request.number || github.ref }}')
     expect(workflow).toContain('cancel-in-progress: true')
+    expect(workflow).toContain("github.event.action == 'ready_for_review'")
     expect(workflow).toContain(
-      "if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false",
+      'Ready pull request changed after its stable-SHA request. Convert it to draft before pushing, then mark the reviewed SHA ready again.',
     )
 
     expect(workflow).toContain('name: Classify Changes')
@@ -45,6 +46,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain("if: needs.classify-changes.result == 'success'")
     expect(workflow).toContain('run: pnpm run check:workflow')
     expect(workflow).toContain('Verify every selected check passed')
+    expect(workflow).toContain('CI_EVENT_ELIGIBLE: ${{ github.event_name == \'workflow_dispatch\' || github.event.action == \'ready_for_review\' }}')
     expect(workflow).toContain('Invalid or inconsistent CI selectors')
     expect(workflow).toContain('TEST_BUILD_REQUIRED: ${{ needs.classify-changes.outputs.run_test_build }}')
     expect(workflow).toContain('full:true:true:true')
