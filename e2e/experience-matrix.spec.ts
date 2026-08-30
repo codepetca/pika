@@ -464,6 +464,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const { viewport } = getExperienceMetadata(testInfo)
   await page.clock.install({ time: new Date('2026-08-29T14:15:00.000Z') })
   await applyProjectTheme(page, testInfo)
+  // Keep the fixture's relative "Today" timestamp stable across calendar days.
+  await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
 
   const students = Array.from({ length: 18 }, (_, index) => {

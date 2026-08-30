@@ -1649,6 +1649,10 @@ state changed.
   not interrupt the motion. Follow-up review caught and removed the remaining
   0.05–20 scale clamp; year-long histories now retain the exact zoom ratio and
   reciprocal dezoom ratio with direct regression coverage.
+- Ready-PR CI exposed an unrelated date-boundary failure in the newly merged
+  Daily/Attendance browser fixture: its fixed August 29 summary expected a
+  relative `Today` label. The fixture now fixes its browser clock to August 29,
+  and the affected desktop/mobile light/dark matrix passes 4/4.
 
 **Verification:** the final pre-rebase focused gate passed 77 workflow tests,
 179 focused tests, and 571 related tests plus TypeScript, lint, architecture,
