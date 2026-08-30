@@ -185,10 +185,14 @@ describe('AppHeader classroom theme', () => {
   it('themes the brand logo through design tokens instead of component dark utilities', () => {
     const logoSource = readFileSync(resolve(process.cwd(), 'src/components/PikaLogo.tsx'), 'utf8')
     const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+    const classroomLogoRule = tokens.match(
+      /\.classroom-theme-appbar \.pika-logo \{(?<body>[\s\S]*?)\}/
+    )?.groups?.body ?? ''
 
     expect(logoSource).toContain('pika-logo')
     expect(logoSource).not.toContain('dark:')
     expect(tokens).toContain('background-color: var(--color-text-default);')
+    expect(classroomLogoRule).toContain('background-color: var(--color-text-inverse);')
     expect(tokens).toContain('--pika-logo-mask-image: url("data:image/png;base64,')
     expect(tokens).toContain('mask: var(--pika-logo-mask-image) center / contain no-repeat;')
     expect(tokens).not.toContain("mask: url('/pika.png')")

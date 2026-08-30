@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Consolidate Test grading actions at the top
-
-**Risk profile:** UI-only — selected Test grading action placement and shared
-teacher context-bar chrome changed; no grading behavior, permissions, API,
-schema, persistence, authentication, dependency, migration, or student UI
-changed.
-
-- Removed the floating bottom selection bar from Test grading. Selecting rows
-  now replaces the centered whole-Test control with the selected-student action
-  toolbar in the same top command area.
-- Preserved direct bulk actions on wide layouts and kept every action available
-  from a top overflow menu on narrower layouts. Access, clear-selection, action
-  eligibility, confirmations, and terminology are unchanged.
-- Removed the 4px inset from the shared teacher context-bar floating chrome so
-  the chrome hugs the existing 44px buttons instead of making the FAB appear
-  oversized. This also keeps Attendance and Test on the same shared treatment.
-- Removed obsolete bottom scroll clearance after the selection bar moved.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (74/74, then 71/71 after
-the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
-lint, architecture/design/UI policies, Pika audit, diff checks, and live local
-browser inspection pass. Visual review covers default and selected states on
-desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
-while button height remains 44px. Student UI is n/a because this is a
-teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a focused responsive
-teacher-work-surface interaction refinement.
-
 ## 2026-08-27 — Compact selected-student Test actions
 
 **Risk profile:** UI-only — selected-student utility controls changed from
@@ -1537,3 +1505,22 @@ surface changed.
 
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
+
+## 2026-08-30 — Keep the Classroom Pika logo white in both themes
+
+**Risk profile:** none — localized Classroom app-bar styling and its focused
+regression assertion only; no navigation, behavior, data, schema, permissions,
+or dependencies changed.
+
+- Scoped the Pika logo's inverse semantic color to themed Classroom app bars,
+  keeping the mouse white in both light and dark mode while preserving the dark
+  light-mode logo on the neutral Classrooms index header.
+- Added focused coverage for the themed app-bar logo rule without introducing
+  component-local dark-mode utilities or raw colors.
+- Visual verification passed for teacher and student Classroom views on desktop
+  and mobile in light and dark themes. The visible desktop logo renders as exact
+  white in both themes; mobile preserves the established logo-hidden header.
+- `pnpm check:focused -- --base origin/main`, the Pika pre-commit audit, design
+  policy, UI policy, TypeScript, lint, and the focused AppHeader tests pass.
+
+**Model recommendation:** current model for this narrow semantic styling fix.

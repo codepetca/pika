@@ -228,6 +228,10 @@
   background: linear-gradient(90deg, color-mix(in srgb, var(--classroom-accent) 24%, var(--color-surface)) 0%, var(--classroom-accent-soft) 40%, var(--color-surface) 100%);
 }
 
+.classroom-theme-appbar .pika-logo {
+  background-color: var(--color-text-inverse);
+}
+
 .classroom-theme-card {
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--classroom-accent) 26%, var(--color-surface)) 0%, var(--classroom-accent-soft) 42%, var(--color-surface) 88%),
