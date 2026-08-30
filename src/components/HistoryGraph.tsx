@@ -16,6 +16,7 @@ import {
   computeLinearChangeHeight,
   groupActivityByDay,
   interpolateActivityWindow,
+  sampleHistoryEntries,
   type ActivityWindow,
   type EntryWithDiff,
 } from '@/lib/history-graph'
@@ -100,6 +101,10 @@ function pointY(change: number, maxAbsChange: number): number {
 
 function timestampInWindow(timestamp: number, window: ActivityWindow): boolean {
   return timestamp >= window.startMs && timestamp <= window.endMs
+}
+
+function timestampInWindows(timestamp: number, windows: ActivityWindow[]): boolean {
+  return windows.some((window) => timestampInWindow(timestamp, window))
 }
 
 function positionInUnclampedWindow(timestamp: number, window: ActivityWindow): number {
@@ -200,21 +205,36 @@ export function HistoryGraph({
   const isZoomTweening = zoomTween !== null
   const dailyGroups = useMemo(() => groupActivityByDay(diffs), [diffs])
   const sceneWindow = zoomTween?.toWindow ?? visibleWindow
+  const dailySceneWindows = useMemo(() => {
+    if (!sceneWindow) return []
+    if (!zoomTween) return isOverview ? [sceneWindow] : []
+
+    const windows: ActivityWindow[] = []
+    if (zoomTween.fromDailyOpacity > 0) windows.push(zoomTween.fromWindow)
+    if (zoomTween.toDailyOpacity > 0) windows.push(zoomTween.toWindow)
+    return windows
+  }, [isOverview, sceneWindow, zoomTween])
+  const saveSceneWindows = useMemo(() => {
+    if (!sceneWindow) return []
+    if (!zoomTween) return isOverview ? [] : [sceneWindow]
+
+    const windows: ActivityWindow[] = []
+    if (zoomTween.fromDailyOpacity < 1) windows.push(zoomTween.fromWindow)
+    if (zoomTween.toDailyOpacity < 1) windows.push(zoomTween.toWindow)
+    return windows
+  }, [isOverview, sceneWindow, zoomTween])
   const sceneDailyGroups = useMemo(() => {
-    if (!sceneWindow) return []
     return dailyGroups.filter((group) => (
-      timestampInWindow(group.midpointMs, sceneWindow)
-      || Boolean(zoomTween && timestampInWindow(group.midpointMs, zoomTween.fromWindow))
+      timestampInWindows(group.midpointMs, dailySceneWindows)
     ))
-  }, [dailyGroups, sceneWindow, zoomTween])
+  }, [dailyGroups, dailySceneWindows])
   const sceneDiffs = useMemo(() => {
-    if (!sceneWindow) return []
-    return diffs.filter((entry) => {
+    const candidates = diffs.filter((entry) => {
       const timestamp = Date.parse(entry.entry.created_at)
-      return timestampInWindow(timestamp, sceneWindow)
-        || Boolean(zoomTween && timestampInWindow(timestamp, zoomTween.fromWindow))
+      return timestampInWindows(timestamp, saveSceneWindows)
     })
-  }, [diffs, sceneWindow, zoomTween])
+    return sampleHistoryEntries(candidates, undefined, selectedEntry?.entry.id)
+  }, [diffs, saveSceneWindows, selectedEntry?.entry.id])
   const scenePositions = useMemo(() => {
     if (!sceneWindow) return []
     const targetDiffs = sceneDiffs.filter((entry) => (
@@ -557,7 +577,9 @@ export function HistoryGraph({
       event.preventDefault()
       const renderedDurationMs = renderedFrame.window.endMs - renderedFrame.window.startMs
       const currentCenter = (renderedFrame.window.startMs + renderedFrame.window.endMs) / 2
-      const nextCenter = currentCenter + (horizontalDelta / bounds.width) * renderedDurationMs
+      const panRatio = Math.max(-0.95, Math.min(0.95, horizontalDelta / bounds.width))
+      const panDurationMs = Math.min(renderedDurationMs, zoomDurationMs)
+      const nextCenter = currentCenter + panRatio * panDurationMs
       const nextWindow = computeHistoryZoomWindow(fullWindow, zoomDurationMs, nextCenter)
 
       if (
@@ -832,6 +854,7 @@ export function HistoryGraph({
                 return (
                   <g
                     key={entry.entry.id}
+                    data-history-entry-id={entry.entry.id}
                     data-change-direction={!isOverview ? direction : undefined}
                   >
                     <title>{entryLabel(entry, isBaseline)}</title>

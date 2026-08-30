@@ -70,6 +70,7 @@ const STEM_PADDING_X = 2 // px from left/right edges
 const STEM_WIDTH = 2
 const STEM_GAP = 1 // 1px gap between stems
 export const HISTORY_SESSION_GAP_MS = 30 * 60 * 1000
+export const MAX_RENDERED_HISTORY_SAVES = 64
 const HISTORY_DAY_MS = 24 * 60 * 60 * 1000
 const HISTORY_ZOOM_PRESETS_MS = [
   14 * HISTORY_DAY_MS,
@@ -212,6 +213,50 @@ export function computeActivityPositions(
   }
 
   return positions
+}
+
+/**
+ * Keep very dense save windows bounded while retaining an even chronological
+ * sample plus the currently selected save.
+ */
+export function sampleHistoryEntries(
+  entries: EntryWithDiff[],
+  maxEntries: number = MAX_RENDERED_HISTORY_SAVES,
+  requiredEntryId?: string,
+): EntryWithDiff[] {
+  const boundedMax = Math.max(0, Math.floor(maxEntries))
+  if (entries.length <= boundedMax) return entries
+  if (boundedMax === 0) return []
+
+  const requiredIndex = requiredEntryId
+    ? entries.findIndex((entry) => entry.entry.id === requiredEntryId)
+    : -1
+  if (boundedMax === 1) {
+    return [entries[requiredIndex >= 0 ? requiredIndex : entries.length - 1]]
+  }
+  if (boundedMax === 2 && requiredIndex > 0 && requiredIndex < entries.length - 1) {
+    return [entries[requiredIndex], entries[entries.length - 1]]
+  }
+
+  const retainedIndices = new Set<number>([0, entries.length - 1])
+  if (requiredIndex >= 0) retainedIndices.add(requiredIndex)
+
+  const remainingSlots = Math.max(0, boundedMax - retainedIndices.size)
+  if (remainingSlots > 0) {
+    const candidates = entries
+      .map((_, index) => index)
+      .filter((index) => !retainedIndices.has(index))
+    for (let slot = 0; slot < remainingSlots; slot += 1) {
+      const candidateIndex = remainingSlots === 1
+        ? Math.floor((candidates.length - 1) / 2)
+        : Math.round((slot / (remainingSlots - 1)) * (candidates.length - 1))
+      retainedIndices.add(candidates[candidateIndex])
+    }
+  }
+
+  return [...retainedIndices]
+    .sort((left, right) => left - right)
+    .map((index) => entries[index])
 }
 
 /** Aggregate chronological save changes by Toronto activity day. */

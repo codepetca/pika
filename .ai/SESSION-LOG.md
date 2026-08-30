@@ -1661,6 +1661,23 @@ dependency, migration, deployment, or product behavior changed.
   pin, wheel zoom, horizontal pan, keyboard navigation, reduced motion, zero
   horizontal overflow, and zero console errors. Dark mode remains n/a because
   Pika does not expose a dark theme.
+- Independent review found that the prepared scene could still mount every save
+  in an unbounded history and that an extreme mid-tween pan could leave a gap
+  between its endpoint scenes. One remediation batch now prepares only layers
+  that are actually visible, evenly samples dense save windows to 64 marks while
+  retaining the endpoints and selected save, and limits each pan event to an
+  overlapping window so intervening saves remain visible and exactly clickable.
+- Added a 5,000-save-after-six-weeks gallery stress case plus regressions for
+  bounded scene size, selected-save retention, and exact midpoint pinning during
+  an oversized mid-tween pan. At 6× CPU slowdown the stress zoom rendered 64
+  marks with a roughly 16.8 ms p95 frame interval, two gaps above 32 ms, and 253
+  observed SVG mutations. Teacher and student detail captures remain visually
+  aligned, and the browser console has zero errors.
+- Final `pnpm check:focused -- --base origin/main` passes: 77 workflow tests,
+  189 focused tests, 581 related tests, TypeScript, lint, architecture, UI
+  policy, and design policy. The Pika pre-commit audit passes. One unrelated
+  `TestDetailPanel` debounce assertion failed on the first related-suite run,
+  passed immediately in isolation, and passed again in the complete gate.
 
 **Composite-widget accessibility checklist:** reviewed: yes; slider semantics,
 keyboard selection, exact pinning during tween, and reduced motion remain
