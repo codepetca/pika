@@ -77,6 +77,19 @@ const stressEntries = [
   entry('stress-baseline', '2025-01-01T15:00:00Z', 20, 100),
 ]
 
+const scaleTransitionEntries = Array.from({ length: 30 }, (_, index) => {
+  const chronologicalIndex = 29 - index
+  const charCount = chronologicalIndex === 29
+    ? 1300
+    : 100 + chronologicalIndex * 10
+  return entry(
+    `scale-${chronologicalIndex}`,
+    new Date(Date.UTC(2025, 0, 1 + chronologicalIndex, 16)).toISOString(),
+    20 + chronologicalIndex,
+    charCount,
+  )
+})
+
 function installAnimationFrameHarness() {
   let nextId = 1
   const callbacks = new Map<number, FrameRequestCallback>()
@@ -836,6 +849,49 @@ describe('HistoryGraph', () => {
     expect(onEntryClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: interveningEntry.id }),
     )
+    unmount()
+    frames.restore()
+  })
+
+  it('preserves a source-window maximum when panning toward smaller changes', () => {
+    const frames = installAnimationFrameHarness()
+    const { unmount } = render(
+      <HistoryGraph
+        entries={scaleTransitionEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        audience="teacher"
+        showHeading={false}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 256,
+      top: 0,
+      right: 256,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in history' }))
+    frames.step(0)
+    frames.step(210)
+
+    fireEvent.wheel(chart, { deltaX: -3000, deltaY: 0, clientX: 128 })
+
+    const savePlot = chart.querySelector('[data-history-view-layer="saves"]')
+    const largeChangeLine = chart.querySelector('[data-history-entry-id="scale-29"] line')
+    const matrixValues = savePlot?.getAttribute('transform')?.match(/matrix\(([^)]+)\)/)?.[1]
+      ?.split(/\s+/)
+      .map(Number)
+    const renderedHeight = Math.abs(Number(largeChangeLine?.getAttribute('y2')) - 39)
+      * Number(matrixValues?.[3])
+
+    expect(renderedHeight).toBeCloseTo(28)
     unmount()
     frames.restore()
   })

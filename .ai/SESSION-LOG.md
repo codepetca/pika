@@ -1674,10 +1674,20 @@ dependency, migration, deployment, or product behavior changed.
   observed SVG mutations. Teacher and student detail captures remain visually
   aligned, and the browser console has zero errors.
 - Final `pnpm check:focused -- --base origin/main` passes: 77 workflow tests,
-  189 focused tests, 581 related tests, TypeScript, lint, architecture, UI
+  191 focused tests, 861 related tests, TypeScript, lint, architecture, UI
   policy, and design policy. The Pika pre-commit audit passes. One unrelated
   `TestDetailPanel` debounce assertion failed on the first related-suite run,
   passed immediately in isolation, and passed again in the complete gate.
+- Final cumulative review found two P2 boundary cases. Save-bar Y coordinates
+  now use the maximum across the prepared scene before applying the current
+  frame scale, so a large source-window edit cannot collapse when the target
+  window contains only smaller changes. A valid target snapshot whose immediate
+  predecessor cannot reconstruct now remains previewable with comparison
+  annotations unavailable (`null`) instead of falsely marking every block as
+  added; the expected predecessor failure is silent in the browser console.
+  Direct regressions cover both cases. The post-fix 5,000-save 6× profile remains
+  at a roughly 16.7 ms p95, two gaps above 32 ms, 253 SVG mutations, 64 rendered
+  marks, and zero console errors.
 
 **Composite-widget accessibility checklist:** reviewed: yes; slider semantics,
 keyboard selection, exact pinning during tween, and reduced motion remain

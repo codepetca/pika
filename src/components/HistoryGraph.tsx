@@ -272,6 +272,10 @@ export function HistoryGraph({
     1,
     ...targetVisibleDiffs.map((entry) => Math.abs(entry.charDiff)),
   )
+  const sceneSaveMaxAbsChange = Math.max(
+    1,
+    ...sceneDiffs.map((entry) => Math.abs(entry.charDiff)),
+  )
   const dailyMaxAbsChange = Math.max(
     1,
     ...dailyGroups.flatMap((group) => [group.additions, group.deletions]),
@@ -326,7 +330,7 @@ export function HistoryGraph({
       CHART_INSET,
     )
     const saveScaleY = scene.diffs.length > 0
-      ? targetSaveMaxAbsChange / Math.max(1, frame.saveMaxAbsChange)
+      ? sceneSaveMaxAbsChange / Math.max(1, frame.saveMaxAbsChange)
       : 1
 
     const xTransform = `matrix(${scaleX} 0 0 1 ${translateX} 0)`
@@ -389,7 +393,7 @@ export function HistoryGraph({
       visibleDiffs: visibleFrameDiffs,
       positions: framePositions,
     }
-  }, [targetSaveMaxAbsChange])
+  }, [sceneSaveMaxAbsChange])
 
   useLayoutEffect(() => {
     if (!visibleWindow) return
@@ -841,7 +845,7 @@ export function HistoryGraph({
             >
                 {sceneDiffs.map((entry, index) => {
                 const x = scenePositions[index]
-                const y = pointY(entry.charDiff, targetSaveMaxAbsChange)
+                const y = pointY(entry.charDiff, sceneSaveMaxAbsChange)
                 const isSelected = entry.entry.id === selectedEntry.entry.id
                 const isBaseline = entry.entry.id === diffs[0]?.entry.id
                 const direction = entry.charDiff > 0 ? 'up' : entry.charDiff < 0 ? 'down' : 'none'
