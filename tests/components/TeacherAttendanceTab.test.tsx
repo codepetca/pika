@@ -1201,8 +1201,10 @@ describe('TeacherAttendanceTab', () => {
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
+    expect(screen.getByRole('columnheader', { name: /^Log/ }).closest('thead')).toHaveClass('bg-surface-3')
     const previousButton = screen.getByRole('button', { name: 'Previous day' })
     const nextButton = screen.getByRole('button', { name: 'Next day' })
+    expect(within(contextBar).getByText('Yesterday')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
 
     fireEvent.click(nextButton)
@@ -1210,6 +1212,7 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
     })
+    expect(within(contextBar).getByText('Today')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
 
     fireEvent.click(previousButton)
@@ -1217,10 +1220,38 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
     })
+    expect(within(contextBar).getByText('Yesterday')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('omits the relative date label for forward Daily dates', async () => {
+    classDaysMock.classDays = [
+      ...classDaysMock.defaultClassDays,
+      {
+        id: 'day-2',
+        classroom_id: 'classroom-1',
+        date: '2026-05-06',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    await screen.findByRole('columnheader', { name: /^Log/ })
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+
+    const contextBar = screen.getByRole('region', { name: 'Daily controls' })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
+    })
+    expect(within(contextBar).queryByText('Today')).not.toBeInTheDocument()
+    expect(within(contextBar).queryByText(/ago$/)).not.toBeInTheDocument()
   })
 
   it('shows previous and next arrows around the Daily date picker', async () => {

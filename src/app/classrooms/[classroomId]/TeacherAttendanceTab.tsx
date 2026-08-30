@@ -38,7 +38,7 @@ import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/Teach
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
-import { addDaysToDateString } from '@/lib/date-string'
+import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
@@ -560,6 +560,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       selectedRow.email_username
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
+  const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
 
   const handleSummaryPanelDoubleClick = useCallback(() => {
     setSummaryPanelCollapsed((collapsed) => {
@@ -711,9 +712,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     <TeacherWorkSurfaceContextBar
       ariaLabel="Daily controls"
       testId="daily-context-bar"
-      context={attendanceEnabled ? (
-        <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
-          {!classroom.archived_at ? (
+      context={relativeDateLabel || attendanceEnabled ? (
+        <div className="hidden min-w-0 items-center justify-start gap-2 whitespace-nowrap sm:flex">
+          {relativeDateLabel ? <span>{relativeDateLabel}</span> : null}
+          {attendanceEnabled && !classroom.archived_at ? (
             <Tooltip content={attendance.windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
               <Button
                 type="button"
@@ -736,7 +738,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 {attendance.windowLabel ? attendance.windowLabel : <Clock3 className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </Tooltip>
-          ) : attendance.windowLabel ? (
+          ) : attendanceEnabled && attendance.windowLabel ? (
             <span className="inline-flex h-9 items-center whitespace-nowrap rounded-control px-2.5 text-xs tabular-nums text-text-muted">
               {attendance.windowLabel}
             </span>
@@ -893,7 +895,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <col />
               {attendanceEnabled ? <col className="w-40" /> : null}
             </colgroup>
-            <DataTableHead sticky>
+            <DataTableHead sticky className="bg-surface-3">
               <DataTableRow>
                 {attendanceEnabled ? (
                   <TableSelectionHeaderCell

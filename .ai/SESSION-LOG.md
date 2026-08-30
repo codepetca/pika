@@ -11,6 +11,127 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-27 — Compact selected-student Test actions
+
+**Risk profile:** UI-only — selected-student utility controls changed from
+labeled buttons to icon buttons; no action eligibility, grading behavior,
+permissions, API, schema, persistence, authentication, migration, or student UI
+changed.
+
+- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
+  work-surface icon buttons on desktop while retaining their explicit accessible
+  names, hover tooltips, disabled states, and destructive treatment.
+- Kept the selected access split button labeled because it communicates the
+  current action and scope, and retained labeled utility actions in the narrow
+  layout overflow menu.
+- Added component coverage for icon-only accessible naming and browser coverage
+  for empty visible button text plus the AI Grade hover tooltip.
+- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
+  its fetch mock now matches URL and method instead of depending on concurrent
+  request order. Product code and preview behavior are unchanged.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes (existing split/menu Escape and focus tests remain intact);
+  semantic state covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
+responsive long-roster Playwright matrix (4/4), TypeScript, lint,
+architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
+covers selected desktop/mobile states in light/dark and the desktop tooltip
+hover state. Student UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded accessible
+teacher-toolbar refinement.
+
+## 2026-08-27 — Adopt persistent Test grading action scopes
+
+**Risk profile:** standard — selected Test grading action placement, row access
+state changes, and AI-grading request scope changed; permissions, enrollment
+validation, test status rules, grading eligibility, persistence schema,
+authentication, dependencies, migrations, and student UI are unchanged.
+
+- Kept Open All and Close All as persistent icon commands in the centered Test
+  action cluster, with tooltips and confirmation for the global mutations.
+- Added one persistent student-actions menu that is disabled before selection,
+  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
+  Return, and Delete Work. Global access commands and selection clearing are not
+  duplicated in the menu.
+- Replaced row access icons with immediate semantic switches: green/right for
+  open and red/left for closed, with a lock-state icon, accessible state, and no
+  per-row confirmation.
+- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
+  the explicit scope through a Zod-validated API boundary into run preflight.
+  Ungraded scope now preserves any persisted grade; all scope queues eligible
+  answered responses even when previously graded.
+- Updated stable teacher operational-table guidance to combine Attendance's
+  table rhythm with selected Test grading's persistent action-scope pattern.
+  Attendance's bottom selection bar is now documented as migration debt for a
+  later focused pass.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  align Attendance with the new persistent selection-menu pattern in a separate
+  change.
+
+**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
+(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
+checks pass. Visual review covers default, global confirmation, selected menu,
+and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
+this is a teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
+for one bounded independent correctness and requirements review.
+
+## 2026-08-27 — Redesign teacher Attendance action hierarchy
+
+**Risk profile:** standard UI interaction change — teacher Attendance action
+placement and responsive grouping changed; Attendance permissions, session
+states, command eligibility, confirmation polling, API behavior, persistence,
+authentication, schema, migrations, dependencies, and student UI are unchanged.
+
+- Implemented the user-selected Option 1 using the Test grading work-surface
+  hierarchy without importing Test terminology or domain behavior.
+- Joined the previous/date/next controls into one segmented date navigator. The
+  arrows touch the date and the selectable date has no dropdown chevron.
+- Moved Present, Late, Absent, and Clear mark from the transitional bottom bar
+  into a persistent centered Student actions menu that is disabled before
+  selection and becomes a selected-count trigger.
+- Preserved explicit desktop QR and session commands. At 390 px, the same
+  session actions collapse into one centered icon menu so the quiet edge utility
+  menu cannot overlap the primary cluster.
+- Kept Attendance hours and refresh at the quiet edge, retained status-count
+  sorting and per-student status dots, and added a bordered internally scrolling
+  roster with sticky sortable/resizable headers.
+- Added component coverage for the joined date treatment, persistent selected
+  actions, command confirmation, disabled states, and menu focus/arrow/Escape
+  behavior. Expanded the Playwright experience matrix to a 45-student roster
+  with default, selected, menu, sorted/scrolled, hours, mobile session-action,
+  and browser-error checks.
+- Retained the approved design target, normalized comparison boards, and the
+  complete desktop/mobile light/dark evidence matrix under
+  `docs/guidance/ui/evidence/attendance-actions-2026-08-27/`.
+- Added no new durable rule because the reusable hierarchy was already
+  established by the merged Test grading guidance. Corrected stale audit text
+  that still described Attendance selection placement as migration debt; the
+  joined date treatment remains scoped until another surface proves it reusable.
+- One bounded independent review found that shared action-menu rows were shorter
+  than the 44 px interaction target and lacked canonical visible focus. Added
+  `min-h-control`, the inset focus ring, a regression assertion, refreshed the
+  visual evidence, and corrected the stale work-surface audit state.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused component tests (20/20), responsive Attendance
+Playwright matrix (4/4) after the mobile-overlap correction and again after the
+menu accessibility remediation, TypeScript, lint, production build, Pika audit,
+diff checks, and Product Design comparison pass.
+Visual review covers teacher desktop/mobile in light/dark, default/selected/menu
+states, internal scrolling/sticky headers, tooltips, mobile session actions, and
+Attendance hours. Student UI is n/a because this is a teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, responsive behavior, accessibility, and regression
+risk.
+
 ## 2026-08-27 — Close Test identity release-safety gaps
 
 **Risk profile:** runtime-platform — cross-version Test authoring compatibility
@@ -1575,3 +1696,28 @@ duplicate announcements; remaining manual follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
 rollback, history interaction correctness, and cross-role visual QA.
+## 2026-08-30 — Add Daily relative-date context and stronger light header
+
+**Risk profile:** none — teacher-only Daily presentation and pure date-label
+formatting changed; no persistence, API, schema, Attendance commands, or student
+behavior changed.
+
+- Added quiet left-side action-bar context for past Daily dates: Today,
+  Yesterday, elapsed days, weeks, months, or years. Forward dates omit the
+  relative label, while configured Attendance context remains available.
+- Gave the Daily table header a stronger light-theme surface using the existing
+  `surface-3` token. The token resolves to the prior header value in dark mode,
+  preserving the approved dark appearance.
+- Added boundary coverage for every relative-date unit, future-date omission,
+  action-bar updates while navigating, and the Daily-specific header surface.
+- Visual verification passed the teacher desktop/mobile light views, teacher
+  desktop/mobile dark views, and unchanged student mobile view. The relative
+  label remains desktop context so the compact mobile action bar does not gain
+  another competing element.
+
+**Verification:** focused Daily/date tests; `pnpm check:focused -- --base
+origin/main`; exact-branch Playwright teacher/student desktop/mobile captures;
+browser console check; Pika audit; `git diff --check`.
+
+**Model recommendation:** current model for this bounded teacher Daily context
+and semantic-surface refinement.
