@@ -26117,3 +26117,66 @@ migrated and no hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the Version-provenance database
 contract and final migration replay review.
+
+<!-- pika-session-log-archive-batch:5047083f231ed6c5a04ccf32e3d0d7463bd5d512965e34437eaeb815f5c7e975 -->
+## 2026-08-27 — Migrate selected Test grading to the teacher work surface
+
+**Risk profile:** async-grading — teacher Test roster presentation, sorting,
+selection, and action routing changed around preserved grading mutations; no API,
+schema, persistence, authentication, dependency, or student UI changed.
+
+- Mapped the selected-Test domain before migrating it: whole-Test access remains
+  distinct from selected-student access, while AI grade, unsubmit, return, and
+  delete-work retain their existing eligibility and confirmation behavior.
+- Adopted the shared teacher context bar, internally scrolling table frame, and
+  selection bar. The whole-Test access control stays mathematically centered;
+  lifecycle context and Test utilities stay quiet at the edges; bulk actions
+  appear only after row selection.
+- Split names into sortable/resizable First and Last columns, kept compact
+  operational metrics, added sticky sortable/resizable headers, and added
+  semantic count chips that can prioritize closed, submitted, or returned rows.
+- Added a guarded long-roster fixture and responsive browser contract covering
+  default, status-sorted, scrolled, and selected states on desktop/mobile in
+  light/dark. Student UI is n/a because the surface is teacher-only.
+- Composite-widget accessibility checklist reviewed: keyboard navigation and
+  Escape behavior remain covered, semantic sort/pressed states have focused
+  tests, and remaining manual follow-up is none. Existing design guidance
+  already governs this surface, so no durable design rule was added.
+
+**Verification:** focused Test/shared work-surface tests (71/71), responsive
+Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
+checks, and production build pass. Visual review covers eight captures: default
+and selected long-roster states across desktop/mobile and light/dark.
+
+**Model recommendation:** current GPT-5 coding model for a domain-sensitive
+teacher workspace migration with responsive visual verification.
+
+<!-- pika-session-log-archive-batch:d5d90a311a75d755f065796c8eca7bde3aa3822f2f22498cd82f42c8d525a8c4 -->
+## 2026-08-27 — Tighten selected Test roster controls
+
+**Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
+alignment changed; no grading behavior, permissions, API, schema, persistence,
+authentication, dependency, migration, or student UI changed.
+
+- Reduced the selected Test action-to-roster gap to the established Attendance
+  work-surface spacing and kept the centered whole-Test action visually dominant.
+- Raised the action-bar stacking context with the existing semantic layer token
+  so the whole-Test split-button menu stays visible and interactive above the
+  sticky roster header.
+- Restored the shared selection-cell inset so the select-all checkbox and row
+  checkboxes align on desktop and mobile.
+- Added browser geometry regressions for the 4px maximum gap, checkbox-center
+  alignment, and an unobscured menu, plus component coverage for menu semantics,
+  Escape dismissal, and focus restoration.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
+  none.
+
+**Verification:** focused Test/shared component tests (87/87 plus final Test-only
+68/68), responsive long-roster Playwright matrix (4/4), lint, design/UI policies,
+Pika audit, and diff checks pass. Visual review covers default, menu-open, and
+selected states on desktop/mobile in light/dark. Student UI is n/a because this
+is a teacher-only surface.
+
+**Model recommendation:** current GPT-5 coding model for a bounded teacher UI
+remediation with responsive visual verification.

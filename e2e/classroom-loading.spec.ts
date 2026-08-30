@@ -105,7 +105,8 @@ test.describe('classroom loading - teacher', () => {
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
     await classroomCard.click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
-    await expect(page.getByRole('link', { name: 'Attendance' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('link', { name: 'Daily' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('link', { name: 'Attendance' })).toHaveCount(0)
 
     const skeleton = page.locator('[data-testid="classroom-skeleton"]')
     await expect(skeleton).not.toBeVisible()

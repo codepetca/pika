@@ -8,7 +8,6 @@ import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-m
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
-import { TeacherLiveAttendanceTab } from './TeacherLiveAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
@@ -1166,7 +1165,6 @@ function ClassroomPageContent({
     isTeacher &&
     (
       activeTab === 'daily' ||
-      activeTab === 'attendance' ||
       activeTab === 'roster' ||
       (activeTab === 'gradebook' && gradebookSectionParam !== 'settings') ||
       (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
@@ -1302,14 +1300,7 @@ function ClassroomPageContent({
                       <TeacherAttendanceTab
                         classroom={classroom}
                         isActive={activeTab === 'daily'}
-                      />
-                    </TabContentTransition>
-                  )}
-                  {mountedTabs.attendance && (
-                    <TabContentTransition isActive={activeTab === 'attendance'}>
-                      <TeacherLiveAttendanceTab
-                        classroom={classroom}
-                        isActive={activeTab === 'attendance'}
+                        attendanceEnabled={featureVisibility.attendance}
                       />
                     </TabContentTransition>
                   )}
