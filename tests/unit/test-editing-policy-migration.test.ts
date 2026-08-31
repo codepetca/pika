@@ -30,4 +30,13 @@ describe('migration 142 Test editing boundary', () => {
     expect(snapshot).not.toContain("'sample_solution'")
     expect(snapshot).not.toContain("'correct_option'")
   })
+  it('keeps legacy and current Classroom archives restorable without weakening the lock', () => {
+    expect(sql).toContain("if p_table_name = 'tests' then")
+    expect(sql).toContain("jsonb_build_object('questions_locked_at', null)")
+    expect(sql).toContain("public.is_classroom_archive_maintenance_mode('restore')")
+    expect(sql).toContain("public.is_classroom_archive_maintenance_mode('compaction')")
+    expect(sql).toContain('create trigger restore_test_question_lock_from_attempt')
+    expect(sql).toContain('create trigger restore_test_question_lock_from_response')
+    expect(sql).toContain('set questions_locked_at = coalesce(test.questions_locked_at, new.created_at)')
+  })
 })

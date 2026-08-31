@@ -294,6 +294,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   } | null>(null)
   const [startedTestId, setStartedTestId] = useState<string | null>(null)
   const [loadingTest, setLoadingTest] = useState(false)
+  const [startingTestId, setStartingTestId] = useState<string | null>(null)
+  const [startError, setStartError] = useState('')
   const [detailError, setDetailError] = useState(false)
   const [showStartTestConfirm, setShowStartTestConfirm] = useState(false)
   const [pendingStartTestId, setPendingStartTestId] = useState<string | null>(null)
@@ -542,6 +544,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setSelectedTestId(testId)
     setLoadingTest(true)
     setDetailError(false)
+    setStartError('')
+    setStartingTestId(null)
     setActiveDoc(null)
     setRemoteClosureNotice(null)
     focusSessionIdRef.current = createFocusSessionId()
@@ -1090,6 +1094,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }
 
   function handleRequestStartTest(testId: string) {
+    setStartError('')
     setPendingStartTestId(testId)
     setShowStartTestConfirm(true)
   }
@@ -1106,7 +1111,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setPendingStartTestId(null)
     const scope = currentScopeRef.current
     const requestId = detailRequestIdRef.current
-    setLoadingTest(true)
+    setStartingTestId(testId)
+    setStartError('')
     // Begin the durable Start request before fullscreen signals can enqueue
     // telemetry. Fullscreen is still requested within the confirmation gesture.
     const startRequest = fetch(`${apiBasePath}/${testId}/start`, { method: 'POST' })
@@ -1115,7 +1121,12 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       const response = await startRequest
       const data = await response.json() as { questions?: TestAssessmentQuestion[] }
       if ((currentScopeRef.current.classroomId !== scope.classroomId) || selectedTestIdRef.current !== testId || detailRequestIdRef.current !== requestId) return
-      if (!response.ok) throw new Error('Unable to start test')
+      if (!response.ok) {
+        const message = typeof (data as { error?: unknown }).error === 'string'
+          ? String((data as { error: string }).error)
+          : 'Unable to start this test. Please try again.'
+        throw new Error(message)
+      }
       // The RPC returns the post-lock question snapshot, so the student never
       // answers a structure loaded before a simultaneous teacher save.
       if (Array.isArray(data.questions)) {
@@ -1123,11 +1134,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
           ? { ...current, questions: data.questions! }
           : current)
       }
-      setLoadingTest(false)
-    } catch {
+      setStartingTestId(null)
+    } catch (error) {
       if ((currentScopeRef.current.classroomId === scope.classroomId) && selectedTestIdRef.current === testId && detailRequestIdRef.current === requestId) {
-        setLoadingTest(false)
-        setDetailError(true)
+        setStartingTestId(null)
+        setStartError(error instanceof Error ? error.message : 'Unable to start this test. Please try again.')
       }
       return
     }
@@ -1890,13 +1901,15 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       <p className="text-sm text-text-muted">
                         Review the test details, then start when you are ready.
                       </p>
+                      {startError ? <p role="alert" className="mt-3 text-sm text-danger">{startError}</p> : null}
                       <div className="mt-4">
                         <Button
                           type="button"
                           className="w-full sm:w-auto"
+                          disabled={startingTestId === selectedTest.test.id}
                           onClick={() => handleRequestStartTest(selectedTest.test.id)}
                         >
-                          Start the Test
+                          {startingTestId === selectedTest.test.id ? 'Starting…' : startError ? 'Try Start Again' : 'Start the Test'}
                         </Button>
                       </div>
                     </div>

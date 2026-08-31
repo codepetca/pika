@@ -18,6 +18,131 @@ set questions_locked_at = coalesce((
 where exists (select 1 from public.test_attempts a where a.test_id = test.id)
    or exists (select 1 from public.test_responses r where r.test_id = test.id);
 
+-- Cold archives created before this migration do not contain the new lock
+-- column. Restore requires an exact current-schema row, so retain every
+-- existing adapter and add the missing Test field. A legacy Test stays
+-- structurally editable only when its archive contains no attempt or response;
+-- the maintenance trigger below reconstructs the boundary as student work is
+-- restored, before the Classroom is exposed.
+create or replace function public.normalize_classroom_archive_restore_row(
+  p_operation_id uuid,
+  p_table_name text,
+  p_row jsonb
+)
+returns jsonb
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  v_response_revision bigint;
+  v_missing_response_revision boolean;
+begin
+  if p_table_name = 'classrooms' then
+    if not (p_row ? 'feature_visibility') then
+      p_row := p_row || jsonb_build_object(
+        'feature_visibility',
+        '{
+          "attendance": true,
+          "classwork": true,
+          "tests": true,
+          "gradebook": true,
+          "calendar": true,
+          "syllabus": true,
+          "announcements": true,
+          "achievements": true
+        }'::jsonb
+      );
+    end if;
+    return p_row;
+  end if;
+
+  if p_table_name = 'assignment_docs' then
+    if not (p_row ? 'save_session_id') then
+      p_row := p_row || jsonb_build_object('save_session_id', null);
+    end if;
+    if not (p_row ? 'save_sequence') then
+      p_row := p_row || jsonb_build_object('save_sequence', null);
+    end if;
+    return p_row;
+  end if;
+
+  if p_table_name = 'tests' then
+    if not (p_row ? 'questions_locked_at') then
+      p_row := p_row || jsonb_build_object('questions_locked_at', null);
+    end if;
+    return p_row;
+  end if;
+
+  if p_table_name = 'test_responses' then
+    if not (p_row ? 'revision') or jsonb_typeof(p_row->'revision') = 'null' then
+      p_row := p_row || jsonb_build_object('revision', 1);
+    end if;
+    if not (p_row ? 'ai_suggested_score') then
+      p_row := p_row || jsonb_build_object('ai_suggested_score', null);
+    end if;
+    if not (p_row ? 'ai_suggested_feedback') then
+      p_row := p_row || jsonb_build_object('ai_suggested_feedback', null);
+    end if;
+    return p_row;
+  end if;
+
+  if p_table_name = 'test_ai_grading_run_items' then
+    v_missing_response_revision := not (p_row ? 'response_revision')
+      or jsonb_typeof(p_row->'response_revision') = 'null';
+    if v_missing_response_revision then
+      select coalesce((staged.row_data->>'revision')::bigint, 1)
+      into v_response_revision
+      from public.classroom_archive_restore_staging staged
+      where staged.operation_id = p_operation_id
+        and staged.table_name = 'test_responses'
+        and staged.row_id::text = p_row->>'response_id';
+
+      p_row := p_row || jsonb_build_object(
+        'response_revision', coalesce(v_response_revision, 1)
+      );
+    end if;
+    if p_row->>'status' in ('queued', 'processing') then
+      p_row := p_row || jsonb_build_object(
+        'status', 'failed',
+        'next_retry_at', null,
+        'last_error_code', case
+          when v_missing_response_revision then 'revision_baseline_unavailable'
+          when p_row->>'last_error_code' is null then 'archive_restore_invalidated'
+          else p_row->>'last_error_code'
+        end,
+        'last_error_message', 'Retry this response in a new AI grading run',
+        'completed_at', coalesce(p_row->'updated_at', p_row->'created_at')
+      );
+    end if;
+    if not (p_row ? 'question_grading_snapshot') then
+      p_row := p_row || jsonb_build_object('question_grading_snapshot', null);
+    end if;
+    return p_row;
+  end if;
+
+  if p_table_name = 'test_ai_grading_runs'
+    and p_row->>'status' in ('queued', 'running')
+  then
+    p_row := p_row || jsonb_build_object(
+      'status', 'failed',
+      'processed_count', coalesce((p_row->>'queued_response_count')::integer, 0),
+      'failed_count', greatest(
+        coalesce((p_row->>'failed_count')::integer, 0),
+        coalesce((p_row->>'queued_response_count')::integer, 0)
+          - coalesce((p_row->>'completed_count')::integer, 0)
+      ),
+      'lease_token', null,
+      'lease_expires_at', null,
+      'completed_at', coalesce(p_row->'updated_at', p_row->'created_at')
+    );
+    return p_row;
+  end if;
+
+  return p_row;
+end;
+$$;
+
 create function private.preserve_test_question_lock()
 returns trigger language plpgsql set search_path = '' as $$
 begin
@@ -59,6 +184,18 @@ begin
   -- Parent cascades already own the Test row and must remain recoverable.
   if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
     return old;
+  end if;
+
+  -- Archive restore and compaction run only inside owner-scoped maintenance
+  -- transactions. They must be able to recreate an archived locked Test's
+  -- question identities without opening the same path to API callers.
+  if public.is_classroom_archive_maintenance_mode('restore')
+    or public.is_classroom_archive_maintenance_mode('compaction')
+  then
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+    return new;
   end if;
 
   -- The owner-run Classroom finalizer already holds the Classroom lifecycle
@@ -189,6 +326,37 @@ begin
   return new;
 end;
 $$;
+
+-- Pre-142 archives store student work but no explicit Test boundary. Both
+-- restore contract versions insert attempts/responses before questions while
+-- the owner-scoped maintenance flag is active, so rebuild the irreversible
+-- boundary in the same transaction before any question rows are restored.
+create function private.restore_test_question_lock_from_work()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if public.is_classroom_archive_maintenance_mode('restore') then
+    update public.tests test
+    set questions_locked_at = coalesce(test.questions_locked_at, new.created_at)
+    where test.id = new.test_id
+      and test.questions_locked_at is null;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger restore_test_question_lock_from_attempt
+after insert on public.test_attempts
+for each row execute function private.restore_test_question_lock_from_work();
+
+create trigger restore_test_question_lock_from_response
+after insert on public.test_responses
+for each row execute function private.restore_test_question_lock_from_work();
+
+revoke all on function private.restore_test_question_lock_from_work()
+from public, anon, authenticated, service_role;
 
 
 create or replace function public.save_test_attempt_atomic(

@@ -497,6 +497,23 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
   })
 
+  it('keeps details visible and retries when durable Start fails', async () => {
+    queueTestList()
+    queueTestDetail()
+    render(<StudentTestsTab classroom={classroom} />)
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Test editing requires migration 142 to be applied' }, false))
+    fireEvent.click(await screen.findByText('Start test'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('migration 142'))
+    expect(screen.getByRole('heading', { name: 'Midterm Test' })).toBeInTheDocument()
+    expect(screen.queryByText("Pika couldn't load this test.")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try Start Again' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
+    fireEvent.click(await screen.findByText('Start test'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument())
+  })
+
   it('shows total test points before starting and during the attempt', async () => {
     queueTestList()
     queueTestDetail()
