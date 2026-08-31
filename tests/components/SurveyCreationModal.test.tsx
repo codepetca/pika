@@ -14,6 +14,8 @@ describe('SurveyCreationModal', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'New Survey' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'New Survey' })).not.toHaveClass('sr-only')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Enter survey title')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()

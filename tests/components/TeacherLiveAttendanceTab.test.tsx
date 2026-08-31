@@ -258,8 +258,8 @@ describe('TeacherLiveAttendanceTab', () => {
         'min-h-11',
         'min-w-11',
         'rounded-full',
-        'after:h-7',
-        'after:w-7',
+        'after:h-5',
+        'after:w-5',
         'after:rounded-full',
       )
       expect(statusButton.querySelector('svg')).not.toBeInTheDocument()

@@ -42,9 +42,11 @@ describe('CreationModalShell', () => {
             closeLabel="Close material"
             onClose={() => setOpen(false)}
             tall
+            showTitle
+            headerCenter={<span role="status">Saved</span>}
             footer={<button onClick={() => setOpen(false)}>Save draft</button>}
           >
-            <input aria-label="Title" />
+            <input aria-label="Title" data-modal-initial-focus="" />
           </CreationModalShell>
         </>
       )
@@ -55,12 +57,14 @@ describe('CreationModalShell', () => {
     const dialog = screen.getByRole('dialog', { name: 'New material' })
     expect(dialog).toHaveClass('h-[90dvh]')
     expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(within(dialog).getByRole('heading', { name: 'New material' })).not.toHaveClass('sr-only')
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Saved')
     const save = within(dialog).getByRole('button', { name: 'Save draft' })
     const body = within(dialog).getByRole('textbox', { name: 'Title' }).parentElement!
     expect(body).toHaveClass('overflow-y-auto')
     expect(body).not.toContainElement(save)
     expect(save.parentElement).toHaveClass('shrink-0')
-    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement))
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())
     save.focus()
     await user.tab()
     expect(within(dialog).getByRole('button', { name: 'Close material' })).toHaveFocus()

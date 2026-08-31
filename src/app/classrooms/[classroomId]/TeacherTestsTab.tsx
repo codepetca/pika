@@ -1,5 +1,7 @@
 'use client'
 
+import { Plus } from 'lucide-react'
+
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import {
   DndContext,
@@ -67,6 +69,7 @@ import {
 } from '@/hooks/useTestWorkspaceNavigation'
 import {
   Button,
+  IconButton,
   ConfirmDialog,
   ColumnResizeHandle,
   DataTable,
@@ -2619,16 +2622,14 @@ export function TeacherTestsTab({
       ariaLabel="Test actions"
       primary={
         <TeacherWorkSurfaceActionCluster>
-          <Button
-            type="button"
+          <IconButton
+            icon={Plus}
+            label="Create test"
             variant="primary"
-            size="sm"
-            aria-label="New test"
             onClick={handleNewTest}
-            disabled={isReadOnly || isCreatingTest || loading}
-          >
-            {isCreatingTest ? 'Creating...' : 'New Test'}
-          </Button>
+            loading={isCreatingTest}
+            disabled={isReadOnly || loading}
+          />
           <TeacherWorkSurfaceIconButton
             ariaLabel="Organize tests"
             icon={<Pencil className="h-4 w-4" aria-hidden="true" />}

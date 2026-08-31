@@ -271,9 +271,9 @@ describe('TeacherBlueprintsPage', () => {
 
     expect(screen.getByText('Course Blueprint')).toBeInTheDocument()
     expect(screen.getByText('Build, publish, export, and reuse course packages.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New Course Blueprint' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create course blueprint' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Import Course Package' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Use for Classroom' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create classroom from blueprint' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export Course Package' })).toBeInTheDocument()
     expect(screen.getByText('Course blueprint saved from Semester 2. Review it here, then use it for another classroom or export the course package.')).toBeInTheDocument()
     expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
@@ -535,7 +535,7 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
     await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Course Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create course blueprint' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete Blueprint creation' }))
 
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull())
@@ -833,7 +833,7 @@ describe('TeacherBlueprintsPage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: 'Unsaved title' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Use for Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create classroom from blueprint' }))
 
     expect(screen.getByRole('dialog', { name: 'Use the saved Blueprint?' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).toBeNull()
@@ -845,7 +845,7 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
     await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use for Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create classroom from blueprint' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete Classroom creation' }))
 
     expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-new?tab=daily')

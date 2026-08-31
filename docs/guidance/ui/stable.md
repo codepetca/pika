@@ -79,12 +79,13 @@ Source grounding:
 
 ### 3a. Page structure comes from `@/ui`
 
+- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
 - Use `PageLayout`, `PageHeading`, `PageActionBar`, `PageContent`, and `PageStack` for page framing.
 - Select a named width instead of adding feature-local `max-w-*` values.
 - Use teacher density for scan-heavy operational surfaces and student density for standard content
   rhythm; density must not hide data or replace a narrow-screen workflow mode.
-- Keep page context and actions in one responsive row. Secondary actions collapse into the shared
-  mobile overflow menu; do not duplicate feature-local menu behavior.
+- Keep page context and actions in one responsive row. Secondary actions use the shared
+  rightmost More actions menu at every width; do not duplicate feature-local menu behavior.
 - Preserve the compact classroom shell and table-first teacher workflows. These primitives govern
   alignment and rhythm, not product information architecture.
 

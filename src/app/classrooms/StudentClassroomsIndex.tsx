@@ -50,7 +50,8 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
           [
             {
               id: 'join-classroom',
-              label: '+ Join classroom',
+              label: 'Join classroom',
+              primary: true,
               onSelect: () => router.push('/join'),
             },
           ] satisfies ActionBarItem[]

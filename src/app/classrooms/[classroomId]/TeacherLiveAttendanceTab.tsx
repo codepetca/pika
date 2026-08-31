@@ -159,7 +159,7 @@ function AttendanceStatusControl({
         label: STATUS_LABELS[optionStatus],
         disabled,
         className: cn(
-          "relative h-11 w-11 min-h-11 min-w-11 rounded-full after:pointer-events-none after:absolute after:h-7 after:w-7 after:rounded-full after:content-['']",
+          "relative h-11 w-11 min-h-11 min-w-11 rounded-full after:pointer-events-none after:absolute after:h-5 after:w-5 after:rounded-full after:content-['']",
           STATUS_BUTTON_CLASSES[optionStatus],
         ),
         activeClassName: 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm',

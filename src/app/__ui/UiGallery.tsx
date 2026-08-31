@@ -8,6 +8,9 @@ import {
   Card,
   FormField,
   Input,
+  IconButton,
+  PageActionBar,
+  PageHeading,
   PageState,
   SaveStatus,
   SegmentedControl,
@@ -42,6 +45,9 @@ import {
   LockKeyhole,
   Menu,
   Pencil,
+  Plus,
+  RotateCw,
+  MoreVertical,
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
@@ -49,9 +55,11 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
+import { StatusPatterns } from './StatusPatterns'
+import { MaterialCreationPattern } from './MaterialCreationPattern'
+import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 
 type Role = 'teacher' | 'student'
 
@@ -64,7 +72,6 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [creationDialogOpen, setCreationDialogOpen] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
 
   return (
@@ -175,6 +182,23 @@ export function UiGallery({ role }: Props) {
             description="These examples render the canonical @/ui owners. Feature code should compose them instead of reproducing their geometry, focus, or disabled states."
           >
           <div className="space-y-5">
+            <div data-testid="page-action-icons-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Page actions" owner="src/ui/Page.tsx; src/ui/IconButton.tsx" />
+                <div className="mt-4">
+                  <PageActionBar
+                    primary={<PageHeading title="Assignments" size="section" />}
+                    actions={[
+                      { id: 'create', label: 'Create assignment', icon: Plus, primary: true, onSelect: () => setDialogOpen(true) },
+                      { id: 'export', label: 'Export assignments', onSelect: () => setDialogOpen(true) },
+                      { id: 'unavailable', label: 'Archive selected', disabled: true, onSelect: () => undefined },
+                    ]}
+                  />
+                </div>
+                <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.</p>
+              </Card>
+            </div>
+            <StatusPatterns />
             <Card tone="panel" padding="md">
               <PatternHeading title="Buttons" owner="src/ui/Button.tsx" />
               <div className="mt-4 flex flex-wrap gap-3">
@@ -339,6 +363,9 @@ export function UiGallery({ role }: Props) {
             title="Status symbols and labels"
             description="These are cross-product examples, not a universal domain component. Attendance, submissions, tests, and other workflows keep their precise labels and behaviour."
           >
+          <p className="mb-4 text-sm">
+            <Link href="#status-colors" className="text-primary underline">View Attendance, Classwork, and Test colors and count chips</Link>
+          </p>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {STATUS_CATALOG.map((status) => (
               <StatusExample key={status.id} status={status} />
@@ -361,8 +388,8 @@ export function UiGallery({ role }: Props) {
           >
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card tone="panel" padding="none"><PageState compact kind="loading" title="Loading classroom" description="The initial read is still pending." /></Card>
-            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<Button size="sm">Try again</Button>} /></Card>
-            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<Button size="sm">Create assignment</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<IconButton icon={RotateCw} label="Try again" onClick={() => setDialogOpen(true)} />} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<IconButton icon={Plus} label="Create assignment" onClick={() => setDialogOpen(true)} />} /></Card>
             <Card tone="panel" padding="none"><PageState compact kind="forbidden" title="Page unavailable" description="The current identity cannot use this surface." /></Card>
           </div>
           </PatternSection>
@@ -386,17 +413,8 @@ export function UiGallery({ role }: Props) {
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6">
-            {role === 'teacher' && (
-              <Card tone="panel" padding="md">
-                <h3 className="font-semibold">Classwork creation dialog</h3>
-                <p className="mt-2 text-sm text-text-muted">
-                  Assignments and materials share the tall creation shell. Content scrolls while actions remain available.
-                </p>
-                <Button className="mt-3" variant="surface" onClick={() => setCreationDialogOpen(true)}>
-                  Open creation dialog
-                </Button>
-              </Card>
-            )}
+            {role === 'teacher' && <MaterialCreationPattern />}
+            {role === 'teacher' && <AssignmentCreationPattern />}
           <PatternSection
             id="student-tests"
             eyebrow="Experimental · student workflow"
@@ -420,22 +438,6 @@ export function UiGallery({ role }: Props) {
         variant="success"
         buttonLabel="Close example"
       />
-      <CreationModalShell
-        isOpen={creationDialogOpen}
-        onClose={() => setCreationDialogOpen(false)}
-        title="Classwork creation example"
-        titleId="pattern-creation-title"
-        closeLabel="Close creation example"
-        tall
-        footer={<Button variant="secondary" onClick={() => setCreationDialogOpen(false)}>Done</Button>}
-      >
-        <div className="space-y-4 pr-8">
-          <h3 className="font-semibold">Classwork creation example</h3>
-          {Array.from({ length: 24 }, (_, index) => (
-            <p key={index} className="text-sm text-text-muted">Example content section {index + 1}</p>
-          ))}
-        </div>
-      </CreationModalShell>
     </main>
   )
 }
@@ -453,6 +455,9 @@ const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
   'external-link': ExternalLink,
   'chevron-down': ChevronDown,
   menu: Menu,
+  plus: Plus,
+  refresh: RotateCw,
+  'more-actions': MoreVertical,
 }
 
 const STATUS_TONE_CLASSES: Record<StatusTone, string> = {

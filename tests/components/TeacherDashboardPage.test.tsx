@@ -266,7 +266,7 @@ describe('Teacher dashboard page', () => {
 
     renderDashboard()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Create Classroom' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Create classroom' }))
     fireEvent.click(screen.getByRole('button', { name: 'Complete mocked blueprint classroom' }))
 
     expect(await screen.findByText('student@example.com')).toBeInTheDocument()

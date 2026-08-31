@@ -45,6 +45,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 ```
 
+### IconButton
+
+Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
+the label supplies the accessible name and tooltip. Targets remain 44px, including
+loading/disabled states. Creation entry points use `Plus`; classroom read retries
+use `RotateCw`. Menu choices and final form confirmations retain explicit text.
+
+```tsx
+<IconButton icon={Plus} label="Create assignment" onClick={openCreate} />
+```
+
 ### Input (bare - no label/error)
 
 ```typescript
@@ -91,6 +102,8 @@ interface AlertDialogProps {
   autoDismiss?: boolean
 }
 ```
+
+Success alerts use the default icon-free layout so the title, description and action align to the same content width. Error alerts retain their error indicator.
 
 ### ConfirmDialog
 
@@ -155,8 +168,10 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
-- `PageActionBar` keeps primary context and actions on one row, renders full actions on desktop,
-  and uses the keyboard-accessible overflow menu on mobile.
+- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- `PageActionBar` keeps primary context and actions on one row. Actions marked `primary` stay
+  visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
+  use the keyboard-accessible More actions menu at the far right, after any trailing content.
 - Action-bar controls and menu items preserve the shared 44px target and focus-visible treatment.
 
 ### Page states
@@ -170,7 +185,7 @@ failed request.
   kind="error"
   title="Could not load classrooms"
   description="The classroom list could not be retrieved."
-  action={<Button onClick={retry}>Try again</Button>}
+  action={<IconButton icon={RotateCw} label="Try again" onClick={retry} />}
 />
 ```
 
