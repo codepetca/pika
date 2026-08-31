@@ -27119,3 +27119,183 @@ unchanged and migration 137 is not authorized for hosted application.
 
 **Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
 deletion review; GPT-5.6 Terra for compatibility and operability review.
+
+<!-- pika-session-log-archive-batch:54993ff44b271d677f66e495e180c14213f210aa2049a2afa65c176cc45ce67d -->
+## 2026-08-28 — Preserve linked Tests during Blueprint purge
+
+**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
+no migration was applied, no database was reset, and no hosted state changed.
+
+- Extended the owner-only provenance exception so Blueprint purge finalization
+  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
+  after student work exists. Authored Test content and identity remain frozen.
+- Added a transactional database regression covering an active linked Test,
+  question, submitted attempt, and response. The old trigger fails purge
+  permanently; the revised trigger completes purge while preserving all Test
+  and student-work records and clearing only Blueprint lineage.
+- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
+  lint, the production build, SQL diff validation, and transaction-only local
+  before/after database proofs. Migration 134 remains unapplied to production.
+
+**Model recommendation:** current frontier coding model for the bounded
+PostgreSQL trigger and deletion-contract fix.
+
+<!-- pika-session-log-archive-batch:90a8c1872d57cf628cb63d6936e5cd585354ef81a9c7a141a25dd29ffbf05f72 -->
+## 2026-08-28 — Restore selected-student Attendance actions
+
+**Risk profile:** standard application behavior — teacher Attendance selection
+and batch-action composition changed; existing permissions, command polling,
+QR provenance, API/schema behavior, authentication, and student UI are unchanged.
+
+- Restored row and select-all checkboxes plus the persistent Student actions
+  menu, disabled with no selection and labeled with the selected count when
+  enabled. Removed the superseded whole-roster Present/Late/Absent controls.
+- Retained the inline per-student Present/Late/Absent segmented control,
+  Check-in time, and QR correction Undo. Removed only the visible `Status`
+  column-header label while retaining accessible sortable status counts.
+- Preserved the joined date navigator, centered session/action hierarchy, quiet
+  utilities, compact internally scrolling roster, sticky sortable/resizable
+  headers, archived/closed-state permissions, and mobile action access.
+- Refreshed desktop/mobile light/dark evidence for default, selected, open-menu,
+  manual-with-Undo, and hours states. The Tailscale gallery on port 8792 was
+  refreshed and left running. Durable guidance changed only where its
+  Attendance-specific mapping described the superseded whole-roster direction.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic selection, menu, sortable-count, and pressed-state
+  behavior covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** focused component/UI tests (25/25), responsive Attendance
+Playwright matrix (4/4), TypeScript, lint, production build, architecture,
+design policy, UI policy, Pika audit, diff checks, and combined source/rendered
+Product Design comparison pass. Student UI is n/a because this remains a
+teacher-only surface.
+
+**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
+of requirements coverage, selection behavior, accessibility, evidence, and
+responsive regression risk.
+
+<!-- pika-session-log-archive-batch:ac575e466b27e93a5f5a9de78b9a76a37980ae83433e169840c6b8fd1ab593fe -->
+## 2026-08-28 — Refine Attendance row status targets
+
+**Risk profile:** low visual/composite-widget refinement — only the appearance
+of the existing teacher row status targets changed; status semantics, commands,
+permissions, selection, QR Undo, API/schema behavior, and student UI are
+unchanged.
+
+- Removed the check, clock, and x icons from each row's Present/Late/Absent
+  targets and changed the three 44 x 44 targets from rounded squares to circles.
+- Preserved fixed Present/Late/Absent order, semantic attendance colors,
+  tooltips, named `aria-pressed` buttons, and roving Arrow/Home/End keyboard
+  behavior.
+- Added component and browser assertions for icon absence and circular geometry,
+  then refreshed desktop/mobile light/dark default, selected-menu,
+  manual-with-Undo, and hours evidence plus before/after comparison boards.
+- No durable guidance changed because the treatment is Attendance-specific.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic state, tooltip naming, icon absence, and geometry
+  covered by tests: yes; remaining manual follow-up: none.
+
+**Verification:** focused component/UI tests (20/20), responsive Attendance
+Playwright matrix (4/4) with no browser/page errors, TypeScript, lint, Pika
+audit, diff checks, and combined source/rendered Product Design comparison pass.
+Student UI is n/a because this remains a teacher-only surface.
+
+<!-- pika-session-log-archive-batch:cba0717b7579c5635842e0242e207f9cde0c5b74de89323bb9d5fd32de695f98 -->
+## 2026-08-28 — Strengthen Attendance selected-state clarity
+
+**Risk profile:** low visual/copy refinement — only the visible size and selected
+emphasis of existing teacher row status controls plus Attendance time formatting
+changed; hit targets, status commands, permissions, selection, QR Undo,
+API/schema behavior, and student UI are unchanged.
+
+- Reduced each visible Present/Late/Absent disc from 44 x 44 to 36 x 36 while
+  retaining its 44 x 44 interactive target and existing keyboard/focus behavior.
+- Added a semantic primary ring and subtle shadow to the selected status; inactive
+  states remain identifiable at lower emphasis in light and dark themes.
+- Standardized session-window, Check-in, and QR-expiry times to uppercase AM/PM.
+- Added component and browser assertions for disc geometry, selected/inactive
+  styling, and time labels, then refreshed desktop/mobile light/dark evidence,
+  gallery images, and matching before/after comparison boards.
+- No durable guidance changed because the visual treatment and time copy are
+  Attendance-specific.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic pressed state, hit geometry, visible-disc geometry,
+  selected ring, inactive opacity, and time labels covered by tests: yes;
+  remaining manual follow-up: none.
+- One bounded independent review found the browser regression test described the
+  44 x 44 hit target without asserting its exact size. Added explicit tolerant
+  width/height assertions and reran the four-project matrix successfully.
+
+**Verification:** focused component/UI tests and responsive Attendance Playwright
+matrix (4/4) pass; TypeScript, lint, Pika audit, and diff checks pass; CI and
+bounded independent re-review are pending before handoff. Student UI is n/a
+because this remains a teacher-only surface.
+
+<!-- pika-session-log-archive-batch:2365dd3d869c6c6bf1d383c3f424770e6a722be812b00854741ae18b92ef2393 -->
+## 2026-08-28 — Finalize approved always-editable Attendance controls
+
+**Risk profile:** low visual/composite-widget refinement — teacher Attendance
+presentation and interaction placement changed without changing API/schema,
+session/mark permissions, command polling, QR provenance, or student UI.
+
+- Made the per-student Present/Late/Absent controls permanently visible within
+  existing Attendance permission gates, removed their segmented track, and
+  reduced inactive discs to 12% opacity while retaining the full-color selected
+  disc and semantic blue ring.
+- Aligned the three 36 px count pills with the three 36 px row discs on a fixed
+  44 px target grid; retained accessible names, pressed state, tooltips, and
+  keyboard movement.
+- Replaced the trailing Attendance hours icon with a right-justified clickable
+  session range using uppercase AM/PM and spaced-dash formatting. Added the
+  approved clock fallback for dates without a session range and retained mobile
+  hours access in the condensed action menu.
+- Preserved checkboxes, the persistent disabled-until-selection Student actions
+  menu, Check-in time, QR correction Undo, sticky sortable/resizable headers,
+  compact internal roster scrolling, and Attendance-specific terminology.
+- Refreshed the approved Product Design reference and desktop/mobile light/dark
+  evidence for default, selection, menu, Undo, hours-dialog, and no-hours states.
+  Durable design guidance did not change because the reusable work-surface rules
+  already cover the shared hierarchy.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  covered: yes; semantic selection, pressed state, 44 px hit targets, 36 px
+  status/count alignment, inactive opacity, time-control naming, and no-time
+  fallback are covered by component/browser checks; remaining manual follow-up:
+  none.
+- One bounded independent review found no actionable issues. After rebasing onto
+  the latest `main`, CI's governed-design check rejected an arbitrary minimum
+  width; replaced it with the standard `min-w-40` token and confirmed design/UI
+  policy checks locally.
+
+**Verification:** focused component tests (17/17), responsive Attendance
+Playwright matrix (4/4), TypeScript, lint, architecture boundaries, Pika audit,
+diff checks, and same-viewport source/implementation Product Design comparison
+pass. Student UI is n/a because this remains a teacher-only surface. Bounded
+independent review passed; rerun PR CI remains before handoff.
+
+<!-- pika-session-log-archive-batch:d31d5b6f8d812b4abc8183a540a842ed45afdf2018124ff7ee45b5a427a5ac8e -->
+## 2026-08-28 — Fit Attendance time and tighten row controls
+
+**Risk profile:** low teacher-only visual/composite-widget refinement — no
+Attendance commands, permissions, session state, QR provenance, API/schema, or
+student behavior changed.
+
+- Left-aligned the clickable Attendance time control and made it shrink to its
+  content. Verified the full `Open · 12:45 AM - 10:34 PM` label without
+  stretching the leading context track.
+- Reduced each row Present/Late/Absent target from 44 px to 36 px and its visible
+  disc from 36 px to 32 px. Matched the sortable count pills to the 32 px disc
+  width and reduced the QR-correction Undo target so it does not hold rows open.
+- Kept mobile Check-in time on one line so the reduced controls materially lower
+  row height at the narrow viewport as well as desktop.
+- Updated the live Open Design mock, approved reference, brief, Product Design
+  QA, and desktop/mobile light/dark evidence. No durable guidance changed because
+  these remain Attendance-specific density and placement choices.
+- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
+  unchanged and covered; semantic names, pressed state, focus rings, tooltips,
+  36 px target geometry, 32 px disc/count geometry, longest-time alignment, and
+  compact row height are covered by component/browser checks.
+
+**Verification:** focused component tests (18/18), responsive Attendance
+Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
+architecture, design policy, UI policy, Pika audit, diff checks, and same-view
+source/implementation Product Design comparison pass. Student UI is n/a.

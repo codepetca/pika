@@ -11,180 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
-no migration was applied, no database was reset, and no hosted state changed.
-
-- Extended the owner-only provenance exception so Blueprint purge finalization
-  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
-  after student work exists. Authored Test content and identity remain frozen.
-- Added a transactional database regression covering an active linked Test,
-  question, submitted attempt, and response. The old trigger fails purge
-  permanently; the revised trigger completes purge while preserving all Test
-  and student-work records and clearing only Blueprint lineage.
-- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
-  lint, the production build, SQL diff validation, and transaction-only local
-  before/after database proofs. Migration 134 remains unapplied to production.
-
-**Model recommendation:** current frontier coding model for the bounded
-PostgreSQL trigger and deletion-contract fix.
-
-## 2026-08-28 — Restore selected-student Attendance actions
-
-**Risk profile:** standard application behavior — teacher Attendance selection
-and batch-action composition changed; existing permissions, command polling,
-QR provenance, API/schema behavior, authentication, and student UI are unchanged.
-
-- Restored row and select-all checkboxes plus the persistent Student actions
-  menu, disabled with no selection and labeled with the selected count when
-  enabled. Removed the superseded whole-roster Present/Late/Absent controls.
-- Retained the inline per-student Present/Late/Absent segmented control,
-  Check-in time, and QR correction Undo. Removed only the visible `Status`
-  column-header label while retaining accessible sortable status counts.
-- Preserved the joined date navigator, centered session/action hierarchy, quiet
-  utilities, compact internally scrolling roster, sticky sortable/resizable
-  headers, archived/closed-state permissions, and mobile action access.
-- Refreshed desktop/mobile light/dark evidence for default, selected, open-menu,
-  manual-with-Undo, and hours states. The Tailscale gallery on port 8792 was
-  refreshed and left running. Durable guidance changed only where its
-  Attendance-specific mapping described the superseded whole-roster direction.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic selection, menu, sortable-count, and pressed-state
-  behavior covered by tests: yes; remaining manual follow-up: none.
-
-**Verification:** focused component/UI tests (25/25), responsive Attendance
-Playwright matrix (4/4), TypeScript, lint, production build, architecture,
-design policy, UI policy, Pika audit, diff checks, and combined source/rendered
-Product Design comparison pass. Student UI is n/a because this remains a
-teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, selection behavior, accessibility, evidence, and
-responsive regression risk.
-
-## 2026-08-28 — Refine Attendance row status targets
-
-**Risk profile:** low visual/composite-widget refinement — only the appearance
-of the existing teacher row status targets changed; status semantics, commands,
-permissions, selection, QR Undo, API/schema behavior, and student UI are
-unchanged.
-
-- Removed the check, clock, and x icons from each row's Present/Late/Absent
-  targets and changed the three 44 x 44 targets from rounded squares to circles.
-- Preserved fixed Present/Late/Absent order, semantic attendance colors,
-  tooltips, named `aria-pressed` buttons, and roving Arrow/Home/End keyboard
-  behavior.
-- Added component and browser assertions for icon absence and circular geometry,
-  then refreshed desktop/mobile light/dark default, selected-menu,
-  manual-with-Undo, and hours evidence plus before/after comparison boards.
-- No durable guidance changed because the treatment is Attendance-specific.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state, tooltip naming, icon absence, and geometry
-  covered by tests: yes; remaining manual follow-up: none.
-
-**Verification:** focused component/UI tests (20/20), responsive Attendance
-Playwright matrix (4/4) with no browser/page errors, TypeScript, lint, Pika
-audit, diff checks, and combined source/rendered Product Design comparison pass.
-Student UI is n/a because this remains a teacher-only surface.
-
-## 2026-08-28 — Strengthen Attendance selected-state clarity
-
-**Risk profile:** low visual/copy refinement — only the visible size and selected
-emphasis of existing teacher row status controls plus Attendance time formatting
-changed; hit targets, status commands, permissions, selection, QR Undo,
-API/schema behavior, and student UI are unchanged.
-
-- Reduced each visible Present/Late/Absent disc from 44 x 44 to 36 x 36 while
-  retaining its 44 x 44 interactive target and existing keyboard/focus behavior.
-- Added a semantic primary ring and subtle shadow to the selected status; inactive
-  states remain identifiable at lower emphasis in light and dark themes.
-- Standardized session-window, Check-in, and QR-expiry times to uppercase AM/PM.
-- Added component and browser assertions for disc geometry, selected/inactive
-  styling, and time labels, then refreshed desktop/mobile light/dark evidence,
-  gallery images, and matching before/after comparison boards.
-- No durable guidance changed because the visual treatment and time copy are
-  Attendance-specific.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic pressed state, hit geometry, visible-disc geometry,
-  selected ring, inactive opacity, and time labels covered by tests: yes;
-  remaining manual follow-up: none.
-- One bounded independent review found the browser regression test described the
-  44 x 44 hit target without asserting its exact size. Added explicit tolerant
-  width/height assertions and reran the four-project matrix successfully.
-
-**Verification:** focused component/UI tests and responsive Attendance Playwright
-matrix (4/4) pass; TypeScript, lint, Pika audit, and diff checks pass; CI and
-bounded independent re-review are pending before handoff. Student UI is n/a
-because this remains a teacher-only surface.
-
-## 2026-08-28 — Finalize approved always-editable Attendance controls
-
-**Risk profile:** low visual/composite-widget refinement — teacher Attendance
-presentation and interaction placement changed without changing API/schema,
-session/mark permissions, command polling, QR provenance, or student UI.
-
-- Made the per-student Present/Late/Absent controls permanently visible within
-  existing Attendance permission gates, removed their segmented track, and
-  reduced inactive discs to 12% opacity while retaining the full-color selected
-  disc and semantic blue ring.
-- Aligned the three 36 px count pills with the three 36 px row discs on a fixed
-  44 px target grid; retained accessible names, pressed state, tooltips, and
-  keyboard movement.
-- Replaced the trailing Attendance hours icon with a right-justified clickable
-  session range using uppercase AM/PM and spaced-dash formatting. Added the
-  approved clock fallback for dates without a session range and retained mobile
-  hours access in the condensed action menu.
-- Preserved checkboxes, the persistent disabled-until-selection Student actions
-  menu, Check-in time, QR correction Undo, sticky sortable/resizable headers,
-  compact internal roster scrolling, and Attendance-specific terminology.
-- Refreshed the approved Product Design reference and desktop/mobile light/dark
-  evidence for default, selection, menu, Undo, hours-dialog, and no-hours states.
-  Durable design guidance did not change because the reusable work-surface rules
-  already cover the shared hierarchy.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic selection, pressed state, 44 px hit targets, 36 px
-  status/count alignment, inactive opacity, time-control naming, and no-time
-  fallback are covered by component/browser checks; remaining manual follow-up:
-  none.
-- One bounded independent review found no actionable issues. After rebasing onto
-  the latest `main`, CI's governed-design check rejected an arbitrary minimum
-  width; replaced it with the standard `min-w-40` token and confirmed design/UI
-  policy checks locally.
-
-**Verification:** focused component tests (17/17), responsive Attendance
-Playwright matrix (4/4), TypeScript, lint, architecture boundaries, Pika audit,
-diff checks, and same-viewport source/implementation Product Design comparison
-pass. Student UI is n/a because this remains a teacher-only surface. Bounded
-independent review passed; rerun PR CI remains before handoff.
-
-## 2026-08-28 — Fit Attendance time and tighten row controls
-
-**Risk profile:** low teacher-only visual/composite-widget refinement — no
-Attendance commands, permissions, session state, QR provenance, API/schema, or
-student behavior changed.
-
-- Left-aligned the clickable Attendance time control and made it shrink to its
-  content. Verified the full `Open · 12:45 AM - 10:34 PM` label without
-  stretching the leading context track.
-- Reduced each row Present/Late/Absent target from 44 px to 36 px and its visible
-  disc from 36 px to 32 px. Matched the sortable count pills to the 32 px disc
-  width and reduced the QR-correction Undo target so it does not hold rows open.
-- Kept mobile Check-in time on one line so the reduced controls materially lower
-  row height at the narrow viewport as well as desktop.
-- Updated the live Open Design mock, approved reference, brief, Product Design
-  QA, and desktop/mobile light/dark evidence. No durable guidance changed because
-  these remain Attendance-specific density and placement choices.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  unchanged and covered; semantic names, pressed state, focus rings, tooltips,
-  36 px target geometry, 32 px disc/count geometry, longest-time alignment, and
-  compact row height are covered by component/browser checks.
-
-**Verification:** focused component tests (18/18), responsive Attendance
-Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
-architecture, design policy, UI policy, Pika audit, diff checks, and same-view
-source/implementation Product Design comparison pass. Student UI is n/a.
-
 ## 2026-08-28 — Center Attendance time and further compact row controls
 
 **Risk profile:** low teacher-only visual/composite-widget refinement — no
@@ -1512,3 +1338,27 @@ review, with at most one follow-up launch inside the remaining review budget.
 - Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
 - This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
 - Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.
+
+## 2026-08-31 — UI consistency approach (read-only review)
+
+Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures, committed Pattern Lab visual evidence, and current product-experience progress. Recommended a page/role/state adoption matrix, family-scoped reference compositions, a Roster pilot, and incremental visual/interaction verification. No product code changed; no fresh live page audit performed. Next: baseline active routes and approve missing family patterns before implementation.
+
+## 2026-08-31 — Reference-page audit and local preview
+
+Started local Pika preview at localhost:3000 with the governed launcher and seeded local accounts. Captured Student Tests list/submitted detail, teacher Daily unselected/selected, and live Pattern Lab teacher examples. Initial findings: test Closed labels hide submitted progress; Daily first names truncate in current width configuration; Lab lacks complete source-page state examples. Preliminary audit and eight screenshots saved under the task visualization directory, pika-reference-audit/audit.md. No product code changed. Next: agree one small source-page preview before broader adoption.
+
+## 2026-08-31 — Relative-date clipping local preview
+
+Fixed clipped descenders in both DateNavigator subtitle render paths by restoring 16px line height. Local Daily/Lab preview updated, 44px control retained. Six component tests and four Pattern Lab browser matrix checks passed; all default captures reviewed; UI/design policy pass. Evidence: task visualization relative-date-fix/brief.md. Local preview on codex/fix-relative-date-descenders; awaiting visual acceptance before publishing.
+
+## 2026-08-31 — History timestamp local preview
+
+Extended shared HistoryGraph so hover/selected context shows only Toronto date/time below the chart, with a reserved line to prevent hover layout shifts. Removed overlay and character-count summary; kept detailed accessible slider labels and existing selection behavior. Updated Pattern Lab explanation and existing semantic tests. All 27 HistoryGraph tests, UI/design policy, and diff checks pass. Playwright verified both authenticated roles at desktop/mobile sizes in light/dark, with hover, pin, keyboard, clear and daily overview checks; screenshots visually reviewed. Evidence: task visualization history-tooltip-fix/brief.md. Local preview only, preserving relative-date fix; not published.
+
+## 2026-08-31 — Stack history date above time
+
+Refined the local HistoryGraph preview per user request: date on the first line, time below, both beneath the graph. Reserved two lines to avoid hover shifts; shared owner and existing interactions retained. All 27 component tests and UI/design policies pass. Playwright repeated both roles, desktop/mobile, light/dark with two-line, no-overlap, stable-layout, pin/keyboard/clear and daily-overview checks; screenshots reviewed. Evidence: task visualization history-tooltip-fix/stacked. Local only, not published.
+
+## 2026-08-31 — Prepare UI fixes PR and authorized main merge
+
+User authorized PR and merge of the relative-date descender fix and stacked history timestamp. Sole writer: current task on codex/fix-relative-date-descenders. Risk profile: none (localized UI presentation); no API, schema, dependency, or permission changes. Model recommendation: GPT-5.6 Terra/medium for one independent fixed-commit review. Ledger starts at 0 launches and 0 fix batches; limits 5 launches, 3 remediation batches, 45 minutes total and 20 minutes per reviewer. Existing visual evidence covers DateNavigator's four-project matrix and history's eight role/viewport/theme combinations, including hover/pin/keyboard/clear. Removed incidental gallery explanatory-copy edit; Pattern Lab still renders the changed production components directly. Focused checks, independent review and exact-head CI follow; results will be recorded on the PR without post-review commits.
