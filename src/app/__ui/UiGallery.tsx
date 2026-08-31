@@ -1,13 +1,54 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, EmptyState } from '@/ui'
-import type { AssignmentDocHistoryEntry, Classroom, TiptapContent } from '@/types'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  AlertDialog,
+  Button,
+  Card,
+  FormField,
+  Input,
+  PageState,
+  SaveStatus,
+  SegmentedControl,
+  Select,
+  TabPanel,
+  Tabs,
+  Tooltip,
+  cn,
+} from '@/ui'
+import { useTheme } from '@/contexts/ThemeContext'
+import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import { HistoryGraph } from '@/components/HistoryGraph'
+import {
+  ICON_CATALOG,
+  PATTERN_CATALOG,
+  REFERENCE_ROUTES,
+  STATUS_CATALOG,
+  type ApprovedIconName,
+  type PatternMaturity,
+  type StatusCatalogEntry,
+  type StatusTone,
+} from './catalog'
+import {
+  CheckCircle2,
+  ChevronDown,
+  CircleAlert,
+  Clock3,
+  ExternalLink,
+  Inbox,
+  Info,
+  LoaderCircle,
+  LockKeyhole,
+  Menu,
+  Pencil,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
+import { TeacherPatterns } from './TeacherPatterns'
 
 type Role = 'teacher' | 'student'
 
@@ -16,148 +57,441 @@ interface Props {
 }
 
 export function UiGallery({ role }: Props) {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string>('')
-  const [classrooms, setClassrooms] = useState<Classroom[]>([])
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError('')
-      try {
-        const url = role === 'teacher'
-          ? '/api/teacher/classrooms'
-          : '/api/student/classrooms'
-        const res = await fetch(url)
-        const data = await res.json()
-
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load classrooms')
-        }
-
-        const next = role === 'teacher'
-          ? (data.classrooms || [])
-          : (data.classrooms || [])
-        setClassrooms(next)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [role])
-
-  const teacherLinks = useMemo(() => {
-    return classrooms.map((c) => ({
-      id: c.id,
-      title: c.title,
-      links: [
-        { label: 'Daily', href: `/classrooms/${c.id}?tab=daily` },
-        { label: 'Classwork', href: `/classrooms/${c.id}?tab=assignments` },
-        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
-        { label: 'Gradebook', href: `/classrooms/${c.id}?tab=gradebook` },
-        { label: 'Roster', href: `/classrooms/${c.id}?tab=roster` },
-        { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
-        { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
-        { label: 'Settings', href: `/classrooms/${c.id}?tab=settings` },
-      ],
-    }))
-  }, [classrooms])
-
-  const studentLinks = useMemo(() => {
-    return classrooms.map((c) => ({
-      id: c.id,
-      title: c.title,
-      links: [
-        { label: 'Today', href: `/classrooms/${c.id}?tab=today` },
-        { label: 'Classwork', href: `/classrooms/${c.id}?tab=assignments` },
-        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
-        { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
-        { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
-      ],
-    }))
-  }, [classrooms])
+  const { theme, mounted, toggleTheme } = useTheme()
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const referenceRoutes = REFERENCE_ROUTES[role]
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-text-default">UI Gallery</h1>
-        <p className="text-text-muted mt-1">
-          Quick links to key views for visual review (spacing, layout, UI flow).
-        </p>
-      </div>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">Common</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/classrooms">
-            Classrooms
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/join">
-            Join (student)
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/logout">
-            Logout
-          </Link>
-        </div>
-      </Card>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">Logged-out (open in a private window)</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/login">
-            Login
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/signup">
-            Signup
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/forgot-password">
-            Forgot password
-          </Link>
-        </div>
-      </Card>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">
-          {role === 'teacher' ? 'Teacher' : 'Student'} Views
-        </h2>
-
-        {loading ? (
-          <div className="mt-3 text-sm text-text-muted">Loading…</div>
-        ) : error ? (
-          <div className="mt-3 text-sm text-danger">{error}</div>
-        ) : classrooms.length === 0 ? (
-          <div className="mt-3">
-            <EmptyState title="No classrooms found." tone="muted" />
+    <main className="min-h-screen bg-page text-text-default">
+      <div className="mx-auto max-w-wide space-y-8 px-4 py-8 sm:px-6">
+        <header className="space-y-5" data-testid="pattern-lab-header">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                <span>Pika design system</span>
+                <span aria-hidden="true">·</span>
+                <span>{role} reference</span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Pattern Lab</h1>
+              <p className="mt-2 text-sm leading-6 text-text-muted sm:text-base">
+                Executable examples of Pika&apos;s approved controls, symbols, statuses, and page states.
+                Production components remain the source of truth; this page makes their contracts easy to inspect.
+              </p>
+            </div>
+            <Button type="button" variant="surface" size="sm" onClick={toggleTheme}>
+              {mounted && theme === 'dark' ? 'Use light theme' : 'Use dark theme'}
+            </Button>
           </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {(role === 'teacher' ? teacherLinks : studentLinks).map((group) => (
-              <Card key={group.id} tone="muted" padding="md">
-                <div className="text-sm font-semibold text-text-default">{group.title}</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {group.links.map((l) => (
-                    <Link
-                      key={l.href}
-                      className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover"
-                      href={l.href}
-                    >
-                      {l.label}
-                    </Link>
-                  ))}
+
+          <nav aria-label="Pattern Lab sections" className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              ['catalog', 'Catalog'],
+              ['controls', 'Controls'],
+              ['icons', 'Icons'],
+              ['statuses', 'Statuses'],
+              ['page-states', 'Page states'],
+              ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
+              ['feature-patterns', 'Feature patterns'],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={`#${href}`}
+                className="inline-flex min-h-control shrink-0 items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <Card tone="panel" padding="sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Reference surfaces</p>
+                <p className="mt-0.5 text-xs text-text-muted">
+                  Use these alongside the catalog when comparing a complete {role} workflow.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {referenceRoutes.map((route) => (
+                  <Link
+                    key={route.href}
+                    href={route.href}
+                    className="inline-flex min-h-control items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+                  >
+                    {route.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </header>
+
+        <PatternSection
+          id="catalog"
+          eyebrow="Governance"
+          title="Pattern catalog"
+          description="Start every UI change here: name the closest owner, then decide whether to reuse, extend, or create. Experimental entries require human promotion before they become defaults."
+        >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {PATTERN_CATALOG.map((pattern) => (
+              <Card key={pattern.id} tone="panel" padding="md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold">{pattern.name}</h3>
+                    <code className="mt-1 block break-words text-xs text-text-muted">{pattern.owner}</code>
+                  </div>
+                  <MaturityBadge maturity={pattern.maturity} />
                 </div>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div>
+                    <dt className="font-medium text-success">Use when</dt>
+                    <dd className="mt-0.5 text-text-muted">{pattern.useWhen}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-danger">Avoid when</dt>
+                    <dd className="mt-0.5 text-text-muted">{pattern.avoidWhen}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">Reference</dt>
+                    <dd className="mt-0.5 break-words text-text-muted">{pattern.reference}</dd>
+                  </div>
+                </dl>
               </Card>
             ))}
           </div>
-        )}
-      </Card>
+        </PatternSection>
 
-      <HistoryPreviewGallery role={role} />
-      <HistoryGraphGallery />
+        <div data-testid="pattern-lab-contracts" className="space-y-8">
+          <PatternSection
+            id="controls"
+            eyebrow="Stable foundation"
+            title="Core controls"
+            description="These examples render the canonical @/ui owners. Feature code should compose them instead of reproducing their geometry, focus, or disabled states."
+          >
+          <div className="space-y-5">
+            <Card tone="panel" padding="md">
+              <PatternHeading title="Buttons" owner="src/ui/Button.tsx" />
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button size="sm">Primary</Button>
+                <Button size="sm" variant="secondary">Secondary</Button>
+                <Button size="sm" variant="surface">Surface</Button>
+                <Button size="sm" variant="subtle">Subtle</Button>
+                <Button size="sm" variant="success">Success</Button>
+                <Button size="sm" variant="danger">Danger</Button>
+                <Button size="sm" variant="ghost">Ghost</Button>
+                <Button size="sm" loading>Saving</Button>
+                <Button size="sm" disabled>Disabled</Button>
+                <Tooltip content="Edit example" side="top">
+                  <Button type="button" size="sm" variant="surface" className="px-0" aria-label="Edit example">
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Form fields" owner="src/ui/FormField.tsx" />
+                <div className="mt-4 space-y-4">
+                  <FormField label="Class name" hint="Use the name students already recognize." required>
+                    <Input defaultValue="Computer Science 11" />
+                  </FormField>
+                  <FormField label="Term" error="Choose an active term.">
+                    <Select
+                      defaultValue=""
+                      placeholder="Choose a term"
+                      options={[
+                        { value: 'semester-1', label: 'Semester 1' },
+                        { value: 'semester-2', label: 'Semester 2' },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label="Archived field">
+                    <Input defaultValue="Unavailable in this state" disabled />
+                  </FormField>
+                </div>
+              </Card>
+
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Content surfaces" owner="src/ui/Card.tsx" />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {(['default', 'muted', 'panel', 'accent', 'selected'] as const).map((tone) => (
+                    <Card key={tone} tone={tone} padding="sm">
+                      <p className="text-sm font-semibold capitalize">{tone}</p>
+                      <p className="mt-1 text-xs text-text-muted">Semantic surface tone</p>
+                    </Card>
+                  ))}
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-4" aria-label="Save status examples">
+                  <SaveStatus status="saved" />
+                  <SaveStatus status="saving" />
+                  <SaveStatus status="unsaved" />
+                  <SaveStatus status="error" errorMessage="Save failed" />
+                </div>
+              </Card>
+            </div>
+
+            <Card tone="panel" padding="md">
+              <PatternHeading title="Selection controls" owner="src/ui/Tabs.tsx; src/ui/SegmentedControl.tsx" />
+              <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <Tabs
+                    ariaLabel="Pattern example panels"
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    getTabId={(value) => `pattern-${value}-tab`}
+                    getPanelId={(value) => `pattern-${value}-panel`}
+                    items={[
+                      { value: 'details', label: 'Details' },
+                      { value: 'history', label: 'History' },
+                    ]}
+                  />
+                  {([
+                    ['details', 'Tabs own panel navigation and keyboard behaviour.'],
+                    ['history', 'History is another panel in the same local context.'],
+                  ] as const).map(([value, copy]) => (
+                    <TabPanel
+                      key={value}
+                      id={`pattern-${value}-panel`}
+                      labelledBy={`pattern-${value}-tab`}
+                      className={cn(
+                        'min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted',
+                        activeTab !== value && 'hidden',
+                      )}
+                    >
+                      {copy}
+                    </TabPanel>
+                  ))}
+                </div>
+                <div>
+                  <SegmentedControl
+                    ariaLabel="Content density"
+                    value={density}
+                    onChange={setDensity}
+                    options={[
+                      { value: 'comfortable', label: 'Comfortable' },
+                      { value: 'compact', label: 'Compact' },
+                    ]}
+                  />
+                  <p className="mt-3 text-sm text-text-muted">
+                    Segmented controls change a peer mode; they do not replace navigation tabs.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="surface" size="sm" onClick={() => setDialogOpen(true)}>
+                  Open alert dialog
+                </Button>
+                <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+              </div>
+            </Card>
+          </div>
+          </PatternSection>
+
+          <PatternSection
+            id="icons"
+            eyebrow="Approved symbols"
+            title="Icon catalog"
+            description="Lucide is Pika's default icon source. Symbols clarify meaning but do not replace visible labels, accessible names, or product-specific status language."
+          >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {ICON_CATALOG.map((icon) => {
+              const Icon = ICON_COMPONENTS[icon.id]
+              return (
+                <Card key={icon.id} tone="panel" padding="sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-border bg-surface-2">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold">{icon.label}</h3>
+                        <span className="rounded-badge bg-surface-2 px-2 py-0.5 text-xs text-text-muted">
+                          {icon.category}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-text-default">{icon.meaning}</p>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">{icon.rule}</p>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+          <Card tone="accent" padding="sm" className="mt-4">
+            <p className="text-sm font-medium">Icon governance</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Prefer an approved Lucide symbol. A custom asset needs a documented semantic gap and review.
+              Emoji, text glyphs, and handcrafted SVG approximations are not interface icons.
+            </p>
+          </Card>
+          </PatternSection>
+
+          <PatternSection
+            id="statuses"
+            eyebrow="Semantic language"
+            title="Status symbols and labels"
+            description="These are cross-product examples, not a universal domain component. Attendance, submissions, tests, and other workflows keep their precise labels and behaviour."
+          >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {STATUS_CATALOG.map((status) => (
+              <StatusExample key={status.id} status={status} />
+            ))}
+          </div>
+          <Card tone="muted" padding="sm" className="mt-4">
+            <p className="text-sm font-semibold">Domain rule</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Prefer precise labels such as Present, Late, Absent, Submitted, Returned, or Missing.
+              Reuse a shared status owner only when both meaning and behaviour match—not merely the colour or icon.
+            </p>
+          </Card>
+          </PatternSection>
+
+          <PatternSection
+            id="page-states"
+            eyebrow="Route responsibility"
+            title="Page states"
+            description="Loading, error, empty, and forbidden are deliberately different. Keep the surrounding shell mounted whenever possible."
+          >
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card tone="panel" padding="none"><PageState compact kind="loading" title="Loading classroom" description="The initial read is still pending." /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<Button size="sm">Try again</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<Button size="sm">Create assignment</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="forbidden" title="Page unavailable" description="The current identity cannot use this surface." /></Card>
+          </div>
+          </PatternSection>
+        </div>
+
+        {role === 'teacher' && (
+          <PatternSection
+            id="teacher-patterns"
+            eyebrow="Teacher-family evidence"
+            title="Teacher work surfaces"
+            description="Real shared owners, reconciled with the merged Daily refinements. These examples document the existing teacher family; they do not promote Daily-specific choices into global rules."
+          >
+            <TeacherPatterns />
+          </PatternSection>
+        )}
+
+        <PatternSection
+          id="feature-patterns"
+          eyebrow="Feature-owned evidence"
+          title="Feature patterns"
+          description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
+        >
+          <div className="space-y-6">
+            <HistoryPreviewGallery role={role} />
+            <HistoryGraphGallery />
+          </div>
+        </PatternSection>
+      </div>
+
+      <AlertDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Pattern confirmed"
+        description="This dialog is rendered by the canonical shared owner."
+        variant="success"
+        buttonLabel="Close example"
+      />
+    </main>
+  )
+}
+
+const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
+  'check-circle': CheckCircle2,
+  clock: Clock3,
+  'alert-circle': CircleAlert,
+  info: Info,
+  lock: LockKeyhole,
+  loader: LoaderCircle,
+  inbox: Inbox,
+  pencil: Pencil,
+  trash: Trash2,
+  'external-link': ExternalLink,
+  'chevron-down': ChevronDown,
+  menu: Menu,
+}
+
+const STATUS_TONE_CLASSES: Record<StatusTone, string> = {
+  success: 'border-success bg-success-bg text-success',
+  warning: 'border-warning bg-warning-bg text-warning',
+  danger: 'border-danger bg-danger-bg text-danger',
+  info: 'border-primary bg-info-bg text-info',
+  neutral: 'border-border bg-surface-2 text-text-muted',
+}
+
+const MATURITY_CLASSES: Record<PatternMaturity, string> = {
+  stable: 'bg-success-bg text-success',
+  family: 'bg-info-bg text-info',
+  experimental: 'bg-warning-bg text-warning',
+}
+
+function PatternSection({
+  id,
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  id: string
+  eyebrow: string
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section id={id} data-testid={`pattern-section-${id}`} className="scroll-mt-6">
+      <div className="mb-4 max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">{eyebrow}</p>
+        <h2 className="mt-1 text-2xl font-bold tracking-tight">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-text-muted">{description}</p>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function PatternHeading({ title, owner }: { title: string; owner: string }) {
+  return (
+    <div>
+      <h3 className="font-semibold">{title}</h3>
+      <code className="mt-1 block text-xs text-text-muted">{owner}</code>
     </div>
+  )
+}
+
+function MaturityBadge({ maturity }: { maturity: PatternMaturity }) {
+  return (
+    <span className={cn('rounded-badge px-2 py-0.5 text-xs font-semibold capitalize', MATURITY_CLASSES[maturity])}>
+      {maturity}
+    </span>
+  )
+}
+
+function StatusExample({ status }: { status: StatusCatalogEntry }) {
+  const Icon = ICON_COMPONENTS[status.icon]
+
+  return (
+    <Card tone="panel" padding="md">
+      <div className="flex items-start gap-3">
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
+          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold">{status.label}</h3>
+            <span className={cn('rounded-badge border px-2 py-0.5 text-xs font-semibold', STATUS_TONE_CLASSES[status.tone])}>
+              {status.tone}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-text-default">{status.meaning}</p>
+          <p className="mt-1 text-xs leading-5 text-text-muted">{status.usage}</p>
+        </div>
+      </div>
+    </Card>
   )
 }
 

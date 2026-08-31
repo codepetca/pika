@@ -11,140 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Consolidate selected-Test actions menu
-
-**Risk profile:** none — teacher Test grading UI and shared menu focus behavior only.
-
-- Moved Edit Test into the selected Test grading view's three-dot menu beside
-  Delete Test on every viewport, and renamed the trigger tooltip and accessible
-  label to More actions.
-- Fixed shared work-surface menus to restore focus after Escape/click-away and
-  to hand dialog focus back to the menu trigger after a menu action.
-- Added component and browser coverage for menu contents, tooltip copy, focus
-  restoration, and open-menu screenshots. Focused Vitest (70/70), lint,
-  architecture boundaries, and the light/dark desktop/mobile grading matrix pass.
-- Confirmed the selected-screen Active label is raw Test lifecycle state and can
-  be misleading for archived Classrooms or fully closed student access; no status
-  presentation change was included in this task.
-
-## 2026-08-28 — Repair post-134 database lint findings
-
-**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
-individual-student purge failure path and the legacy archive snapshot engine;
-no persistent local, staging, or production migration was applied.
-
-- Added migration 135. `fail_student_purge_object` now qualifies the joined
-  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
-  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
-  runtime by the existing rollback regression; its lint finding was a
-  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
-  `pg_temp`-scoped dynamic references while preserving archive behavior.
-- Extended the rollback-only student-purge database fixture through the real
-  storage-deletion failure path. It now proves object/operation failure state,
-  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
-  and a fresh retry lease before successful completion.
-- Independent high-risk review found and remediation added operation-first row
-  locking plus post-lock live-lease validation, preventing a deadlock or stale
-  failure write when an expired lease is reclaimed concurrently. A disposable
-  two-session regression now proves the stale reporter waits, loses authority,
-  and cannot overwrite the replacement lease or operation retry state.
-- The disposable race harness accepts only its reserved database-name prefix
-  and drops the database only after a successful create, so an unsafe override
-  or pre-existing database cannot be removed during failed setup.
-- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
-  project. Error-level database lint reports zero findings and is now an
-  all-schema, fail-on-error CI gate; focused student
-  purge and archive database contracts, generated database types, 5,172-test
-  coverage, TypeScript, lint, architecture/UI/design policies, migration
-  lineage, diff/shell checks, the Pika audit, and the production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
-static-analysis/runtime reconciliation.
-
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
-no migration was applied, no database was reset, and no hosted state changed.
-
-- Extended the owner-only provenance exception so Blueprint purge finalization
-  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
-  after student work exists. Authored Test content and identity remain frozen.
-- Added a transactional database regression covering an active linked Test,
-  question, submitted attempt, and response. The old trigger fails purge
-  permanently; the revised trigger completes purge while preserving all Test
-  and student-work records and clearing only Blueprint lineage.
-- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
-  lint, the production build, SQL diff validation, and transaction-only local
-  before/after database proofs. Migration 134 remains unapplied to production.
-
-**Model recommendation:** current frontier coding model for the bounded
-PostgreSQL trigger and deletion-contract fix.
-
-## 2026-08-28 — Complete Blueprint identity and database-lint rollout
-
-**Risk profile:** runtime-platform — protected production release, hosted
-migrations 134–135, and authenticated production Blueprint verification.
-
-- Merged the reviewed Test-question identity and Blueprint purge corrections
-  through production, then applied migration 134 after an exact clean preflight.
-  Production migration history matched local through 134 and the production
-  Blueprint capture/reuse smoke passed with a real disposable student attempt.
-- The smoke verified portable Test-question identity and ordering across initial
-  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
-  student enrollment, attempts, responses, submissions, grades, and activity did
-  not. The source submission remained intact.
-- Merged PR #1097 and applied migration 135 after a sole-migration production
-  dry run. Production now matches local through 135, a second dry run is empty,
-  and error-level database lint reports zero findings.
-- Full PR CI covered migration replay, Test identity rehearsal, student-purge
-  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
-  TypeScript, and the production build.
-
-**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
-verification; GPT-5.6 Terra for release compatibility and continuity review.
-
-## 2026-08-28 — Repair Classroom and Blueprint purge finalization
-
-**Risk profile:** runtime-platform — migration 137 changes trusted purge trigger
-semantics, cross-purge ordering, and retained retry evidence; production remains
-unchanged and migration 137 is not authorized for hosted application.
-
-- Reproduced the retained smoke failure against a production-schema clone. Hot
-  Classroom purge deleted `test_questions` before `test_attempts`, so migration
-  134's student-work freeze correctly rejected the direct question deletion.
-- Migration 137 permits only owner-run whole-Classroom finalization to delete
-  those questions; ordinary authored Test changes remain frozen. The database
-  regression now includes a closed Test, question, submitted attempt, and
-  response and proves the complete Classroom graph is deleted.
-- Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
-  the second deletion from starting. One canonical lineage relation now covers
-  direct, proposal, operation, and editing-session links for atomic advisory
-  locking, conflict detection, and upgrade repair. Three synchronized two-session
-  database races prove exactly one purge installs a fence for indirect links.
-  The fixture identifies each backend, proves the coordinator owns the pair
-  lock and both contenders are waiting before release, and runs in the CI
-  Architecture Database Contracts job.
-- Preserved the cold-Classroom lifecycle fence that migration 122 added. A
-  rollback database regression proves both the shared guard and cold tombstone
-  trigger still reject mutations while a cold purge is active.
-- Legacy interleaved operations drain in Classroom-then-Blueprint order. The
-  retained-failure repair now includes operation-only and editing-session-only
-  links and is covered by a database fixture for both omitted upgrade shapes.
-- Expanded both rollback-only purge contracts for linked versions, completed
-  capture lineage, applied proposals, retained fences, and worker-role access.
-  Before the rebase/resequence, a clean 001-136 replay, all four database
-  contracts, 5,181 tests, lint, build, and database lint passed; lint reported
-  only established warning-level findings. CI will replay the resequenced
-  migration 137 after main's new migration 136.
-- During the isolated replay, `supabase db reset --db-url` recognized the local
-  container and recreated its default local database rather than the named
-  disposable database. No hosted database was touched. The local database was
-  a clean replay of the pre-resequence branch through its former migration
-  136. No hosted environment was changed.
-
-**Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
-deletion review; GPT-5.6 Terra for compatibility and operability review.
-
 ## 2026-08-28 — Preserve linked Tests during Blueprint purge
 
 **Risk profile:** runtime-platform — pending migration 134 trigger semantics;
@@ -1206,6 +1072,58 @@ surface changed.
 **Model recommendation:** current model for this narrow metadata-only visual
 fix.
 
+## 2026-08-30 — Add a governed Pattern Lab for consistent AI-built UI
+
+**Risk profile:** none — development-only reference route, AI guidance,
+catalog data, and regression coverage; no production data, schema, or runtime
+feature behavior changed.
+
+- Replaced the private, data-dependent UI gallery entrypoint with a guarded
+  `/pattern-lab` reference that renders deterministic production components.
+  The catalog covers stable versus experimental patterns, canonical owners,
+  use/avoid guidance, core controls, semantic page states, and role-specific
+  teacher/student reference surfaces.
+- Added an approved Lucide icon catalog and a semantic status-symbol catalog.
+  Icons remain supplemental to accessible names and visible labels; domain
+  statuses remain feature-owned unless meaning and behavior genuinely match.
+- Added the repository-owned `pika-ui-change` skill and wired it into agent and
+  UI guidance. Every UI change now records reuse/extend/create decisions, uses
+  the Pattern Lab plus a real product surface, and promotes shared components
+  only after two genuine adopters and a durable behavioral contract.
+- Added unit/accessibility coverage and deterministic Playwright snapshots for
+  teacher/student, desktop/mobile, and light/dark modes. The canonical alert
+  dialog interaction is also captured. Nine visual comparisons passed with no
+  horizontal page overflow.
+- `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
+  UI/design policy, focused and related tests, TypeScript, and lint; database
+  and browser contracts are selected for final CI. The pre-commit audit passes,
+  and its composite-widget test covers named navigation, tabs, segmented
+  controls, role-specific references, and dialog open/dismiss behavior.
+- Independent review closed three boundaries before ready review: production
+  now rejects the route even if gallery/fixture flags are set; the Tabs example
+  owns explicit tab-to-panel relationships and demonstrates arrow-key focus and
+  selection; and remaining `/__ui` documentation now points to `/pattern-lab`.
+- Targeted re-review kept both controlled tab panels mounted so every
+  `aria-controls` target remains valid in either selection state, with direct
+  regression assertions before and after keyboard selection. It also removed
+  the obsolete Vercel-preview recommendation now that Pattern Lab is explicitly
+  local/non-production only.
+- Ready-PR CI confirmed Test & Build and all pre-existing browser contracts,
+  then exposed that the new snapshots only had macOS baselines. The nine
+  CI-generated Linux baselines were retrieved from browser diagnostics,
+  visually reviewed, and added alongside the macOS set. The PR returned to
+  draft before this correction; the database job completed every contract step
+  but was canceled during cleanup by that draft transition.
+- Final authorization review removed the teacher-only Snapshot gallery from
+  student reference surfaces while preserving the teacher catalog. Catalog,
+  rendered-UI, and browser assertions now enforce that boundary. Updated
+  desktop/mobile light/dark baselines were visually approved on macOS and from
+  stable GitHub Linux captures; the diagnostic browser run passed 94 existing
+  scenarios and failed only the four intentionally stale student snapshots.
+
+**Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
+test, and documentation consistency review.
+
 ## 2026-08-30 — Development-speed remediation audit at 30 natural attempts
 
 **Risk profile:** workspace-state — CI evidence audit and a browser-test clock
@@ -1413,6 +1331,60 @@ subtitle with a stable `aria-describedby` ID and added accessible-description
 coverage for both shown and hidden states. The full focused gate remains green;
 the correction does not change visual styling or the existing control name.
 
+## 2026-08-30 — Reconcile Pattern Lab with merged teacher refinements
+
+**Risk profile:** none — development-only examples and merge integration; no
+new production behavior, schema, dependencies, or stable-guidance promotion.
+
+- Integrated main through `16ec69ea` (Daily date context and standalone spacing),
+  preserving the concurrently merged history-preview gallery from PR #1089.
+- Added real-owner teacher examples for DateNavigator, the context bar,
+  standalone shell spacing, and attached workspace modes. Catalog entries are
+  family-scoped; no new shared component was extracted. Fixed fixture dates,
+  temporary controls, and mounted tabpanel targets keep the examples reproducible.
+- Kept Daily's saved preference, stronger table-header treatment, commands, and
+  status meanings feature-owned. Existing icon/status guidance is unchanged.
+- Reconciled the `/ui-gallery` compatibility route with the guarded Pattern Lab
+  owner; preserved teacher/student history-preview interaction coverage.
+- Visual review refined the Lab's embedding margins without altering shared
+  owners. Composite checklist reviewed; date descriptions, toggle semantics,
+  keyboard focus, panel relationships, and student isolation are tested.
+
+**Verification:** focused gate passed (77 workflow, 261 focused, 807 related
+tests, architecture/UI/design policy, TypeScript and lint); final targeted suite
+19/19; Pattern Lab browser matrix 13 passed / 3 intentional dialog skips with
+unchanged existing baselines. Teacher examples captured in desktop 1440x900 and
+mobile 390x844, light/dark, default/hidden-subtitle/future/selected-focus states.
+Repository screenshot procedure also run with explicit teacher/student fixture
+roles. New captures are local review evidence, not promoted visual baselines.
+
+**Checkpoint:** user visual approval is pending. PR #1124 remains draft;
+independent review of this reconciliation and fresh final CI follow acceptance.
+No merge authorized or performed. No new reviewer launched this turn.
+
+**Model recommendation:** current coding model for implementation; one bounded
+Terra review of the new integration scope after the visual checkpoint.
+
+## 2026-08-30 — Clarify Daily-only relative-date scope
+
+**Risk profile:** none. **Model recommendation:** current coding model for
+this bounded Pattern Lab wording correction.
+
+- Per user clarification, labeled the relative-date example page-specific and
+  explicitly prohibited copying its relative-date text to other pages. The
+  shared catalog now describes only date-navigation structure, spacing, and
+  accessible labels. No production component or interaction changed.
+- Added scope regression assertions. Focused gate passed (77 workflow and 20
+  Pattern Lab tests, related tests, policies, TypeScript, lint). Browser matrix
+  passed 13/13 with 3 intentional skips and unchanged baselines; inspected the
+  updated desktop/mobile light/dark wording. Existing composite behavior and
+  student isolation remain covered.
+- Explained the future correction workflow: identify local drift versus a
+  shared-owner issue versus a proposed design change; show before/after; update
+  Pattern Lab, guidance, and reviewed baselines only where the approved contract
+  actually changes. Visual approval, independent review, and final CI remain
+  pending; PR #1124 stays draft.
+
 ## 2026-08-30 — Enforce stable-SHA PR Gate launch
 
 **Risk profile:** runtime-platform — GitHub Actions admission policy and its
@@ -1509,9 +1481,34 @@ pending.
 **Model recommendation:** GPT-5.6 Terra high for CI admission and protected
 branch-safety review; no product-domain review is needed.
 
+## 2026-08-30 — Prepare final Pattern Lab integration review
+
+**Risk profile:** none for the remaining development-only UI reconciliation.
+**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
+review, with at most one follow-up launch inside the remaining review budget.
+
+- User authorized final independent review and CI for PR #1124, not merging.
+- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
+  workflow and both sides of the session-history conflict. No product source
+  changed in this sync; Daily-only relative-date scope remains intact.
+- Existing local UI checks passed at `471020c2`; the final integrated revision
+  receives refreshed focused checks before ready-for-review. Review results and
+  exact-head CI evidence will be recorded on the PR so evidence does not require
+  an unreviewed post-review commit.
+- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
+  this checkpoint allows at most 2 additional launches and 2 remaining batches,
+  20 minutes per reviewer, and 45 minutes for the review session. The integration
+  preparation is not remediation of a reviewer finding.
+
 ## 2026-08-30 — Focused check and agent workflow efficiency
 
 - Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
 - Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
 - Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
 - Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
+
+## 2026-08-30 — Sync Pattern Lab after PR #1128
+
+- Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
+- This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
+- Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.

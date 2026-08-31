@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { TooltipProvider } from '@/ui'
+
+function renderGallery(role: 'teacher' | 'student') {
+  return render(<ThemeProvider><TooltipProvider><UiGallery role={role} /></TooltipProvider></ThemeProvider>)
+}
 
 vi.mock('@/components/HistoryGraph', () => ({
   HistoryGraph: ({ entries, hoverEnabled = true, onEntryClick, onEntryHover, showHeading }: any) => {
@@ -64,7 +70,7 @@ describe('UiGallery history preview fixture', () => {
 
   it('demonstrates teacher hover, pin, and exit states', async () => {
     const user = userEvent.setup()
-    render(<UiGallery role="teacher" />)
+    renderGallery('teacher')
 
     expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
     const [previewPoint, latestPreviewPoint] = screen.getAllByRole('button', {
@@ -102,7 +108,7 @@ describe('UiGallery history preview fixture', () => {
   })
 
   it('uses the same preview lifecycle for the student surface', () => {
-    render(<UiGallery role="student" />)
+    renderGallery('student')
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')

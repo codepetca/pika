@@ -150,14 +150,14 @@ pnpm run test:watch
 pnpm run test:ui
 ```
 
-### UI Review (Gallery + Snapshots)
+### UI Review (Pattern Lab + Snapshots)
 
-Enable the UI gallery (recommended on Vercel preview deployments):
+Enable the Pattern Lab on a local, non-production server:
 ```env
 ENABLE_UI_GALLERY=true
 ```
 
-Visit `/__ui` (e.g. `https://your-url/__ui`).
+Visit `/pattern-lab` on a non-production server (for example, `http://localhost:3000/pattern-lab`).
 
 Run Playwright snapshots (generates local screenshots + an HTML report).
 

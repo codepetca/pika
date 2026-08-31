@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika UI Change"
+  short_description: "Govern consistent, reusable Pika UI changes"
+  default_prompt: "Use $pika-ui-change to plan and implement this Pika UI change consistently."
