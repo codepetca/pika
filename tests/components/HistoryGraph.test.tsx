@@ -878,18 +878,18 @@ describe('HistoryGraph', () => {
 
     fireEvent.mouseMove(chart, { clientX: 990 })
     expect(onEntryHover).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
-    expect(screen.getByText('Jan 19 · 9:05 PM · −60 characters'))
+    expect(screen.getByText('Jan 19 9:05 PM'))
       .toHaveAttribute('data-history-context', 'hover')
 
     fireEvent.click(chart, { clientX: 990 })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
 
     fireEvent.mouseLeave(chart)
-    expect(screen.queryByText('Jan 19 · 9:05 PM · −60 characters'))
+    expect(screen.queryByText('Jan 19 9:05 PM'))
       .not.toBeInTheDocument()
   })
 
-  it('keeps selected save context visible and summarizes daily activity in overview', () => {
+  it('keeps the selected save timestamp visible in both saves and daily overview', () => {
     const { rerender } = render(
       <HistoryGraph
         entries={entries}
@@ -899,7 +899,7 @@ describe('HistoryGraph', () => {
       />
     )
 
-    expect(screen.getByText('Jan 19 · 8:10 PM · +240 characters'))
+    expect(screen.getByText('Jan 19 8:10 PM'))
       .toHaveAttribute('data-history-context', 'selected')
 
     rerender(
@@ -911,11 +911,11 @@ describe('HistoryGraph', () => {
       />
     )
 
-    expect(screen.getByText('Jan 10 · +100 characters'))
+    expect(screen.getByText('Jan 10 11:00 AM'))
       .toHaveAttribute('data-history-context', 'selected')
   })
 
-  it('keeps a large daily summary within a narrow history chart', () => {
+  it('shows only the timestamp visually while retaining accessible change details', () => {
     const largeDailyEntries = [
       entry('large-final', '2025-01-10T17:00:00Z', 20, 100),
       entry('large-addition', '2025-01-10T16:00:00Z', 20000, 100100),
@@ -932,9 +932,11 @@ describe('HistoryGraph', () => {
       </div>
     )
 
-    const context = screen.getByText('Jan 10 · +100,000 / −100,000 characters')
-    expect(context).toHaveClass('max-w-full', 'whitespace-normal', 'text-center')
-    expect(context).not.toHaveClass('whitespace-nowrap')
+    const context = screen.getByText('Jan 10 12:00 PM')
+    expect(context).toHaveAttribute('data-history-context', 'selected')
+    expect(context).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('slider', { name: 'Complete save history' }))
+      .toHaveAttribute('aria-valuetext', 'Jan 10, 12:00 PM, -100000 characters since previous')
   })
 
   it('keeps a pinned save stable on hover while still allowing a new click', () => {
