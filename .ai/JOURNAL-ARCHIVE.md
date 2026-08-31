@@ -27299,3 +27299,289 @@ student behavior changed.
 Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
 architecture, design policy, UI policy, Pika audit, diff checks, and same-view
 source/implementation Product Design comparison pass. Student UI is n/a.
+
+<!-- pika-session-log-archive-batch:40a5bb6b21bdde4ca063daea338d87f6958d6ce53506d3b81f270d21075e4617 -->
+## 2026-08-28 — Center Attendance time and further compact row controls
+
+**Risk profile:** low teacher-only visual/composite-widget refinement — no
+Attendance commands, permissions, session state, QR provenance, API/schema, or
+student behavior changed.
+
+- Moved the content-sized Attendance time control into the centered primary
+  action cluster immediately after the joined date navigator.
+- Removed the visible `Open` label and status dot. The open state now uses a
+  subtle semantic success background while the accessible name still announces
+  the state; mobile hours access remains in the condensed action menu.
+- Reduced each row's visible Present/Late/Absent disc from 32 px to 28 px and
+  matched the count-pill width. Preserved 44 px status and QR Undo hit targets,
+  pressed state, focus rings, tooltips, and keyboard behavior.
+- Refreshed the live Open Design mock, approved reference, change brief, Product
+  Design QA, and desktop/mobile light/dark evidence. No durable shared guidance
+  changed because the adjustments remain Attendance-specific.
+
+**Verification:** focused component tests (18/18) and responsive Attendance
+Playwright matrix (4/4) pass; same-viewport Product Design source and production
+captures were reviewed together. Student UI is n/a because this remains a
+teacher-only surface. TypeScript, lint, policy checks, Pika audit, and PR CI
+pass. Bounded independent review found and prompted correction of a 32 px
+hit-target regression, then confirmed the 44 px target/28 px visual treatment.
+The final integration pass found no behavior blocker and identified two P3
+documentation gaps: the teacher-view contract now records QR-origin provenance
+fields with a route assertion, and superseded 36 px comparison captures are
+explicitly marked historical. One targeted documentation confirmation remains
+before handoff.
+
+<!-- pika-session-log-archive-batch:368cb56459bea1cd2694641fbc422c88fe0f801b388d40f3c7a627ea9c1e0423 -->
+## 2026-08-28 — Restore Attendance time to leading context
+
+**Risk profile:** low teacher-only visual refinement — no Attendance commands,
+permissions, session state, QR provenance, API/schema, or student behavior
+changed.
+
+- Restored the content-sized clickable Attendance range to the quiet left
+  context slot while keeping the date and action hierarchy centered.
+- Limited the subtle success background to a confirmed open session. Closed,
+  scheduled, cancelled, stale, and pending states remain neutral; the accessible
+  name continues to announce the actual state.
+- Added explicit light/dark closed-session browser captures and assertions, and
+  refreshed the live two-state Open Design comparison, evidence record, and
+  Product Design QA. Mobile continues to expose Attendance hours through the
+  condensed actions menu.
+- No durable shared guidance changed because this placement and open-only state
+  cue are Attendance-specific refinements.
+
+**Verification:** focused component tests (19/19) and the responsive Attendance
+Playwright matrix (4/4) pass with explicit leading-placement, longest-label,
+open-background, neutral-closed, stale, and pending assertions. Open and closed
+source/production captures were visually compared in desktop light/dark; mobile
+light/dark remained free of overflow. Student UI is n/a because this remains a
+teacher-only surface.
+
+<!-- pika-session-log-archive-batch:11675ecb89bf5e4063592f9fca2ecb83256eadf5d40e3f88f74c69ab487ba9ec -->
+## 2026-08-28 — Integrate Attendance redesign with timing rules
+
+**Risk profile:** standard integration of a teacher-only UI with newly merged
+Attendance timing and automatic-status behavior; no authorization boundary or
+schema was added by this branch.
+
+- Merged current `main`, including configurable Attendance timing rules and the
+  reviewed Course Guide import, into the feature branch before final review.
+- Preserved the approved compact roster and persistent selected-student menu.
+  Mapped the new `Use automatic` and confirmed `Remove QR check-in` actions into
+  that menu instead of restoring a separate bulk action bar.
+- Updated per-row QR correction Undo to clear the manual override and reveal the
+  timing-derived automatic status. Check-in time now comes from the durable
+  check-in fact introduced by the timing work.
+- Retained the leading session-time control, open-only success treatment,
+  neutral closed/stale/pending states, compact 28 px discs in 44 px targets, and
+  mobile condensed action hierarchy.
+- Refreshed Product Design QA and desktop/mobile light/dark evidence for the
+  integrated selected-student menu and Attendance timing dialog. No new durable
+  shared design guidance was needed.
+
+**Verification:** TypeScript passes; five focused Attendance test files pass
+(40 tests); the integrated teacher/student Playwright matrix passes in all
+eight desktop/mobile light/dark cases with no browser or page errors. Visual
+comparison passed for default, selection menu, timing dialog, and dark/mobile
+states. Final policy, lint, audit, independent review, and PR merge gates follow.
+
+### Final-review privacy correction
+
+- Independent review identified a merge-blocking provider-boundary leak: the
+  timing integration exposed Bara's opaque `check_in_ref` in the Pika-owned
+  teacher browser contract even though the UI only needed existence state.
+- Replaced the public reference with provider-neutral `hasQrCheckIn`, retained
+  `pendingCommand` separately, and updated selection filtering, removal
+  confirmation polling, and per-row automatic-status Undo.
+- Updated the typed session-route fixture, privacy assertions, builder tests,
+  durable teacher-surface contract, and visual evidence record. Serialized view
+  tests now explicitly reject private check-in references.
+
+**Verification:** TypeScript and six focused Attendance test files pass (48
+tests). The targeted browser matrix, policy gates, audit, targeted independent
+confirmation, and GitHub checks follow before merge.
+
+<!-- pika-session-log-archive-batch:d0ce8d0f533dbd540ec81b0ff284a42d39e30b4e89d0d8f545a7515f01398926 -->
+## 2026-08-28 — Define configurable Attendance timing semantics
+
+**Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
+status, persistence, and versioned-contract behavior; no product code,
+migration, deployment, PR, merge, production state, or Bara file changed.
+
+- Completed the mandatory Pika startup contract in a fresh detached worktree at
+  the fetched `origin/main` head `09bb0c54`; installed locked dependencies and
+  passed `verify-env.sh`.
+- Audited native Pika Attendance policy creation, Toronto/DST schedule
+  materialization, teacher/student permissions, QR entry and idempotency,
+  projections, persistence, API validators, and focused tests. The current v1
+  model has only absolute open/close instants: every accepted QR scan becomes
+  Present and closing finalizes Unmarked students as Absent.
+- Inspected open PR #1094. It preserves teacher corrections and Undo while
+  exposing original QR check-in time from signed Bara events, but it does not
+  add timing cutoffs; reconciliation cannot yet recover immutable first-QR
+  evidence if the original event was missed.
+- Inspected `/Users/stew/Repos/bara` read-only at local `main` `f66850f`.
+  Bara's server clock and Convex mutation are authoritative, the entry interval
+  currently closes exclusively at `closesAt`, manual Pika corrections are
+  allowed after close, and automatic close turns only Unmarked records Absent.
+- Recommended separating session start/end, QR entry open/close, Present grace,
+  and Absent finalization; using explicit boundary semantics and a v2 contract;
+  preserving existing policies in legacy mode until a teacher opts in; and
+  waiting for maintainer agreement before any implementation plan or change.
+
+**Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
+cross-repository, time-boundary, persistence, and compatibility implementation.
+
+<!-- pika-session-log-archive-batch:c052c6325e6693962cf7465f6e11a6e6141441c0fa12f8c4d0aca8b9accc19f9 -->
+## 2026-08-28 — Implement configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
+PostgreSQL migration, QR acceptance ledger, derived status rules, and teacher UI;
+no migration was applied and no PR, commit, deployment, or hosted state changed.
+
+- Rewrote the shared v1 contract in place because neither integration is in use.
+  Bara now receives only concrete `[accepts_at, stops_accepting_at)` gates and
+  publishes authoritative accepted/invalidated check-in facts; it no longer
+  assigns Pika Present/Late/Absent outcomes.
+- Added Pika timing policy defaults and occurrence snapshots for session start/end,
+  QR open/close, inclusive Present grace, and Absent cutoff. Frozen occurrences
+  retain their policy after QR entry opens, including scans already accepted.
+- Added Pika-side status derivation, audited teacher overrides with Undo, and
+  audited individual/bulk QR check-in invalidation. Invalidation preserves the
+  fact history and permits a new scan while Bara's gate remains open.
+- Updated the teacher timing dialog, live roster timestamps/source labels,
+  automatic-status control, removal confirmation, student confirmation reads,
+  Toronto DST/cross-midnight handling, validation, reconciliation, and docs.
+- Pika passed 591 files/5,180 tests, TypeScript, lint, production build, the
+  repository audit, and an eight-case Playwright matrix covering teacher/student,
+  desktop/mobile, and light/dark states. Bara passed 34 files/180 tests,
+  TypeScript, and lint with only four generated-file warnings.
+
+**Rollout note:** migration 138 remains unapplied and requires exact one-time
+authorization. Deploy Pika's migration/API and Bara's matching v1 contract as a
+coordinated pre-release cutover; there is intentionally no legacy compatibility
+mode.
+
+**Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
+cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
+
+<!-- pika-session-log-archive-batch:5d76cf6a02ffbb927f2f3ffa1c0d73281d87759f6a8965772217f0597c5db7e1 -->
+## 2026-08-28 — Course Guide Phase 2 curriculum import
+
+**Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
+extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
+classroom synchronization. Migration 140 adds a durable provider-call lease and
+rate window; it has not been applied to local or hosted state.
+
+- Added an Import curriculum assistant to Guide options with explicit Source,
+  Review, and Confirm steps. Teachers can upload a validated PDF up to 4 MB or
+  provide a public HTTPS document URL, then edit the extracted overview,
+  expectations, and useful links before anything is applied.
+- Added a server-side structured Responses API extraction boundary with
+  non-stored requests, untrusted-document instructions, bounded validated
+  output, safe failures, and source provenance. The confirmed apply path always
+  attaches the citation server-side so review edits cannot remove it.
+- Preserved existing teacher content by appending the reviewed import, and used
+  an expected-overview compare guard to return a conflict instead of silently
+  overwriting a Course Guide changed during review.
+- Applied the owner refinement that the Course Guide is orientation, not an
+  activity feed. The shared teacher/student/public display model now contains
+  only overview/resources visibility plus title-only Assignment and Test
+  records. Lesson sequence, Announcements, instructions, dates, scores,
+  statuses, documents, and grading details are absent from the payload and UI;
+  their classroom features remain unchanged. Guide options exposes only the
+  four orientation sections.
+- Added domain, provider-boundary, API authorization/concurrency, component,
+  fixture, and regression coverage. All 5,223 tests pass, along with lint,
+  architecture, design/UI policy checks, production build, Pika audit, and diff
+  validation.
+- Visual verification passed 13 teacher/student/public checks across desktop
+  and mobile, light and dark, covering the narrowed options, title-only lists,
+  removed activity sections, source, editable cited review, confirmation,
+  extraction failure, overflow, and absence of teacher controls for students.
+- Independent review remediation lowered PDF uploads to the hosting-safe 4 MB
+  boundary; added extraction timeout/output limits; moved apply authorization
+  before body parsing; signed source provenance to the teacher/classroom;
+  normalized and previewed the locked citation; preserved existing overview
+  bytes; used raw classroom content when visibility is off; and cancelled stale
+  client operations across classroom switches. Final hardening canonicalized
+  public URLs, rejected credentials and control/format characters, emitted the
+  locked citation as safe plain text, and removed redundant provenance-token
+  fields so maximum valid inputs still fit the apply contract.
+- Final merge review rebased the branch onto Attendance PR #1103 and closed the
+  remaining provider-cost boundary: public curriculum URLs are fetched through
+  the existing DNS-pinned, redirect-revalidated 4 MB document path before they
+  reach OpenAI. A teacher-scoped database lease now permits one active extraction
+  and three attempts per ten minutes across all deployed server instances. The
+  confirmed write now also rechecks teacher ownership and non-archived state in
+  the atomic update predicates.
+- Updated production continuity to the user-confirmed baseline: production
+  commit 530d444a with migrations through 136 applied and zero error-level
+  database lint findings. Migration 140 was added but not applied to local or
+  hosted state; nothing was merged or deployed.
+- Recorded `epic-gradebook-general-breakdown` as separate future work for a
+  general Attendance, Term Work, and Final breakdown; no mark breakdown was
+  added to the Course Guide.
+
+<!-- pika-session-log-archive-batch:6802bc95e5800549f0673540a93c56c327e76728604ac4d5afde8eab5f8808e4 -->
+## 2026-08-28 — Stop feature branches from consuming Vercel deployments
+
+**Risk profile:** runtime-platform — repository deployment-trigger configuration
+only; no application behavior, database, or hosted state changed.
+
+- Replaced the single-segment `*` deployment exclusion with recursive `**`, so
+  slash-containing feature branches such as `codex/*` and `claude/*` are
+  rejected before Vercel creates a deployment. `main` preview and `production`
+  release deployments remain explicitly enabled.
+- Added a regression test that locks the exact three-rule deployment policy.
+  The focused test, lint, JSON policy assertion, and diff validation pass.
+
+<!-- pika-session-log-archive-batch:4d93ff18c28ad2d7e95f756d13d2333e54f3e26f1185ec0a683b029b67877f98 -->
+## 2026-08-28 — Clarify compact operational control targets
+
+**Risk profile:** none — durable design guidance only; no product code,
+behavior, schema, dependency, deployment, or hosted state changed.
+
+- Clarified in the canonical design contract that dense visible control
+  geometry may be smaller than its interaction geometry only while preserving
+  a non-overlapping 44 by 44 CSS-pixel target and perceptible focus/state cues.
+- Clarified the teacher operational-table contract for mutually exclusive
+  inline statuses: inactive choices remain available but subordinate, while
+  the selected choice combines domain color, semantic pressed state, and a
+  non-color boundary.
+
+**Model recommendation:** GPT-5.6 Terra for a low-risk, cross-page design
+guidance clarification grounded in the reviewed Attendance implementation.
+
+<!-- pika-session-log-archive-batch:9ddf5ab1dab41c1d097336451439de2b087e81d3b6c11dfe17e3036847de930d -->
+## 2026-08-28 — Release configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated Pika/Supabase/Bara production
+release with protected-branch merges, exact Git-source deployments, and a
+production Convex worker correction.
+
+- Merged configurable Attendance timing through Pika production PR #1106 at
+  `f895b240` and Bara production PR #49, followed by the worker correction in
+  PRs #50/#51 at `8515a4ca`. Exact Git-source Vercel production deployments are
+  Ready and own the stable Pika and Bara aliases.
+- Verified production Supabase migrations 001–138 are aligned. Migration 138
+  owns timing-policy persistence, occurrence snapshots, Pika-side status
+  derivation, immutable accepted-check-in facts, and audited invalidation.
+- Kept service ownership explicit: Bara enforces only the concrete half-open QR
+  gate and records authoritative timestamps; Pika derives Present/Late/Absent,
+  applies teacher overrides/Undo, and invalidates or clears accepted facts.
+- Corrected Bara's scheduled worker after production logs exposed two paginated
+  queries in one Convex transaction. The coordinator is now an internal action
+  whose open and close pages run as separate mutations. Full Bara tests,
+  typecheck, build, and lint passed; repeated production cron runs are clean.
+- Restricted Vercel deployment creation in both repositories to `main` and
+  `production`; slash-containing feature branches are rejected before a preview
+  deployment is created. Main preview and production release paths remain on.
+- Restored the configured canary teacher's missing entitlement through the
+  separately authorized, audited production operation. The active revision-1
+  grant has no expiry, classroom access returns `ready`, and the final deployed
+  `enabled`/`teacher_entitlements` signed smoke passed 4/4 across canary scope,
+  transition health, Pika-to-Bara authentication, and Bara-to-Pika callback.
+
+**Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
+bounded follow-up now that the coordinated rollout is complete.
