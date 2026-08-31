@@ -308,6 +308,30 @@ describe('AttendanceWindowDialog', () => {
     expect(screen.getByLabelText('Session starts*')).toHaveValue('14:00')
   })
 
+  it('blocks Escape and backdrop dismissal until persistence and delivery finish', async () => {
+    let finishSave!: (response: Response) => void
+    let finishSync!: (response: Response) => void
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishSave = resolve }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishSync = resolve }))
+    const { onSaved, onClose } = renderDialog()
+    await screen.findByLabelText('Session starts*')
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    await act(async () => { finishSave(jsonResponse({ policy: savedPolicy({ revision: 2 }) })) })
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    expect(onClose).not.toHaveBeenCalled()
+    await act(async () => { finishSync(jsonResponse({ error: 'Unavailable' }, 503)) })
+    expect(onSaved).toHaveBeenCalledWith(savedPolicy({ revision: 2 }), false)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('ignores a late load from a previous opening', async () => {
     let finishRead!: (response: Response) => void
     vi.mocked(fetch)

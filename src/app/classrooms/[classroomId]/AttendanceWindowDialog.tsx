@@ -187,7 +187,7 @@ function AttendanceWindowDialogContent({
   return (
     <ContentDialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => { if (!saving) onClose() }}
       title="Attendance timing"
       maxWidth="max-w-lg"
       showHeaderClose={!saving}

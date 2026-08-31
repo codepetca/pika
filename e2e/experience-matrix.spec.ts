@@ -707,6 +707,8 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await applyProjectTheme(page, testInfo)
   await page.clock.setFixedTime(new Date('2026-08-31T18:30:00Z'))
   let policyReadFails = false
+  let finishSave!: () => void
+  const saveGate = new Promise<void>((resolve) => { finishSave = resolve })
   let policy = {
     classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, timezone: 'America/Toronto',
     sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
@@ -722,6 +724,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
       body = { class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: '2026-08-28', prompt_text: null, is_class_day: true }] }
     } else if (url.pathname === '/api/teacher/attendance/policy') {
       if (route.request().method() === 'PUT') {
+        await saveGate
         policy = { ...policy, revision: policy.revision + 1 }
       } else if (policyReadFails) status = 503
       body = status === 200 ? { policy } : { error: 'Attendance settings are temporarily unavailable' }
@@ -762,6 +765,11 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await expect(page.getByLabel('Session ends*')).toHaveValue('15:00')
   await capture('future-date-dialog')
   await page.getByRole('button', { name: 'Save timing' }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click({ position: { x: 2, y: 2 } })
+  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  finishSave()
   await expect(page.getByRole('alert').filter({ hasText: 'last save did not confirm schedule delivery' })).toBeVisible()
   if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
   await capture('saved-delivery-unconfirmed')
