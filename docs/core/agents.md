@@ -2,6 +2,12 @@
 
 Adopt a specialized agent role based on your task type. All agents must first read `docs/ai-instructions.md` and follow its constraints.
 
+The roles and sequences below describe responsibilities, not a requirement to
+launch a separate agent for each phase. Use the smallest delegation appropriate
+to the work. Branch ownership, separate reviewer checkouts, and compact context
+are defined in [the development workflow](../dev-workflow.md#agent-ownership-and-context);
+the draft-first independent PR review lifecycle remains mandatory.
+
 ---
 
 ## Agent Activation
