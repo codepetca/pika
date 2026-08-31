@@ -59,6 +59,13 @@ describe('Pattern Lab catalog', () => {
     }
   })
 
+  it('keeps relative-date text out of the shared date-navigation contract', () => {
+    const pattern = PATTERN_CATALOG.find((entry) => entry.id === 'teacher-date-context')
+    expect(pattern?.name).toBe('Shared date navigation')
+    expect(pattern?.useWhen).not.toContain('relative')
+    expect(pattern?.avoidWhen).toContain('Relative-date text is Daily-only')
+  })
+
   it('keeps teacher-only reference surfaces out of the student catalog', () => {
     expect(REFERENCE_ROUTES.teacher).toContainEqual({
       label: 'Snapshot gallery',

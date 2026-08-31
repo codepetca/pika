@@ -67,11 +67,11 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   },
   {
     id: 'teacher-date-context',
-    name: 'Teacher date context',
+    name: 'Shared date navigation',
     owner: 'src/components/DateNavigator.tsx',
     maturity: 'family',
-    useWhen: 'A teacher date scope needs shared previous/date/next controls; Daily supplies optional relative context.',
-    avoidWhen: 'Copying Daily-specific saved preferences, picker behavior, or attendance commands into another feature.',
+    useWhen: 'A teacher date scope needs the shared previous/date/next control structure, spacing, and accessible labels.',
+    avoidWhen: 'Relative-date text is Daily-only. Do not copy it, Daily saved preferences, picker behavior, or attendance commands into other pages.',
     reference: 'src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx; src/components/CalendarActionBar.tsx',
   },
   {

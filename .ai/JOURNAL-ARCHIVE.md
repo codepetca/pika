@@ -26696,3 +26696,20 @@ surface.
 **Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
 of requirements coverage, QR provenance projection, accessibility, and
 responsive regression risk.
+
+<!-- pika-session-log-archive-batch:99f975863ae3953e4824bebc8c67de7426d4e4d6b545d9e48f8564b53b76c510 -->
+## 2026-08-28 — Consolidate selected-Test actions menu
+
+**Risk profile:** none — teacher Test grading UI and shared menu focus behavior only.
+
+- Moved Edit Test into the selected Test grading view's three-dot menu beside
+  Delete Test on every viewport, and renamed the trigger tooltip and accessible
+  label to More actions.
+- Fixed shared work-surface menus to restore focus after Escape/click-away and
+  to hand dialog focus back to the menu trigger after a menu action.
+- Added component and browser coverage for menu contents, tooltip copy, focus
+  restoration, and open-menu screenshots. Focused Vitest (70/70), lint,
+  architecture boundaries, and the light/dark desktop/mobile grading matrix pass.
+- Confirmed the selected-screen Active label is raw Test lifecycle state and can
+  be misleading for archived Classrooms or fully closed student access; no status
+  presentation change was included in this task.

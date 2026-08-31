@@ -23,9 +23,9 @@ export function TeacherPatterns() {
       <Card tone="panel" padding="md">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="font-semibold">Standalone date context</h3>
+            <h3 className="font-semibold">Daily date context (page-specific)</h3>
             <p className="mt-1 text-sm text-text-muted">
-              Daily reference · compact date subtitle and balanced action-bar spacing.
+              Relative-date text is Daily-only. The date control and action-bar spacing are shared.
             </p>
           </div>
           <Button
@@ -72,7 +72,8 @@ export function TeacherPatterns() {
         </div>
         <p className="mt-3 text-xs leading-5 text-text-muted">
           Fixture today: Sun Aug 30, 2026. Use the arrows for past/today/future states; click the date to
-          reset to today. Future dates have no subtitle. This Lab toggle is temporary; Daily owns its
+          reset to today. Future dates have no subtitle. Do not add relative-date text to other pages.
+          This Lab toggle is temporary; Daily owns its
           saved Show/Hide relative date preference and its date picker.
         </p>
       </Card>

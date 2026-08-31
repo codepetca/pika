@@ -7,6 +7,8 @@ describe('Pattern Lab teacher-family examples', () => {
     const storage = vi.spyOn(Storage.prototype, 'setItem')
     render(<TeacherPatterns />)
 
+    expect(screen.getByRole('heading', { name: 'Daily date context (page-specific)' })).toBeInTheDocument()
+    expect(screen.getByText(/Relative-date text is Daily-only/)).toBeInTheDocument()
     const date = screen.getByRole('button', { name: 'Go to reference today' })
     expect(date).toHaveTextContent('Fri Aug 28')
     expect(date).toHaveAccessibleDescription('2 days ago')

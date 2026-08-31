@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Consolidate selected-Test actions menu
-
-**Risk profile:** none — teacher Test grading UI and shared menu focus behavior only.
-
-- Moved Edit Test into the selected Test grading view's three-dot menu beside
-  Delete Test on every viewport, and renamed the trigger tooltip and accessible
-  label to More actions.
-- Fixed shared work-surface menus to restore focus after Escape/click-away and
-  to hand dialog focus back to the menu trigger after a menu action.
-- Added component and browser coverage for menu contents, tooltip copy, focus
-  restoration, and open-menu screenshots. Focused Vitest (70/70), lint,
-  architecture boundaries, and the light/dark desktop/mobile grading matrix pass.
-- Confirmed the selected-screen Active label is raw Test lifecycle state and can
-  be misleading for archived Classrooms or fully closed student access; no status
-  presentation change was included in this task.
-
 ## 2026-08-28 — Repair post-134 database lint findings
 
 **Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
@@ -1498,3 +1482,23 @@ No merge authorized or performed. No new reviewer launched this turn.
 
 **Model recommendation:** current coding model for implementation; one bounded
 Terra review of the new integration scope after the visual checkpoint.
+
+## 2026-08-30 — Clarify Daily-only relative-date scope
+
+**Risk profile:** none. **Model recommendation:** current coding model for
+this bounded Pattern Lab wording correction.
+
+- Per user clarification, labeled the relative-date example page-specific and
+  explicitly prohibited copying its relative-date text to other pages. The
+  shared catalog now describes only date-navigation structure, spacing, and
+  accessible labels. No production component or interaction changed.
+- Added scope regression assertions. Focused gate passed (77 workflow and 20
+  Pattern Lab tests, related tests, policies, TypeScript, lint). Browser matrix
+  passed 13/13 with 3 intentional skips and unchanged baselines; inspected the
+  updated desktop/mobile light/dark wording. Existing composite behavior and
+  student isolation remain covered.
+- Explained the future correction workflow: identify local drift versus a
+  shared-owner issue versus a proposed design change; show before/after; update
+  Pattern Lab, guidance, and reviewed baselines only where the approved contract
+  actually changes. Visual approval, independent review, and final CI remain
+  pending; PR #1124 stays draft.
