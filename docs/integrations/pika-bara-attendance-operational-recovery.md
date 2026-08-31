@@ -179,6 +179,13 @@ ID and arguments; do not create a replacement operation.
 After success, verify the exact old rows are superseded, entitlement/audit
 revisions advanced once, other classroom policy and attendance state are
 unchanged, and the queue is empty before creating fresh current/future snapshots
-through normal sync. Repairing the Bara tenant link and running this Pika
-operation are separate approvals. The subsequent normal delivery, retry cadence,
-and production canary are separate approvals as well.
+through normal sync. This supersession and empty-old-queue proof must normally
+finish **before** the Bara tenant link is restored, because restoring the link can
+make ordinary delivery able to claim the old rows. The only permitted alternate
+order requires a separately approved, verified Pika delivery-worker pause that
+starts before the Bara restore and remains active through supersession and the
+empty-old-queue proof; do not pause unrelated classroom work implicitly. Resume
+only after that proof. Repairing the Bara tenant link and running this Pika
+operation remain separate approvals even though their safe order is mandatory.
+The subsequent fresh current/future sync, normal delivery, retry cadence, and
+production canary are separate approvals as well.

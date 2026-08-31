@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Balance standalone teacher action-bar spacing
-
-**Risk profile:** low — shared teacher work-surface presentation only; no
-business logic, persistence, API, schema, or student behavior changed.
-
-- Added the compact content-top spacing token above standalone teacher action
-  bars. Together with the context bar's internal padding, this creates the same
-  12px visual rhythm above and below the controls and matches page side gutters.
-- Kept attached-tab shell behavior unchanged and added direct shell coverage
-  for standalone summary and workspace states.
-- Visual verification passed Daily, Classwork, Tests, Gradebook, and Roster on
-  teacher desktop/mobile, plus a dark-mode Daily spot check and unchanged
-  student baselines.
-
-**Verification:** TeacherWorkSurfaceShell, Daily, and Classwork component tests;
-repository UI verification across all five consumers; focused gate; Pika audit;
-`git diff --check`.
-
-**Model recommendation:** current model for this shared spacing refinement.
-
-**Review follow-up:** independent cumulative review identified that the Daily
-date button's explicit accessible name masked its new subtitle. Linked the
-subtitle with a stable `aria-describedby` ID and added accessible-description
-coverage for both shown and hidden states. The full focused gate remains green;
-the correction does not change visual styling or the existing control name.
-
 ## 2026-08-30 — Reconcile Pattern Lab with merged teacher refinements
 
 **Risk profile:** none — development-only examples and merge integration; no
@@ -385,3 +359,7 @@ User chose color-only status count chips: retain colored fills and numeric count
 ## 2026-08-31 — Attendance current-main integration and bounded queue recovery candidate
 
 User confirmed the retained Bara organization is the intended Codepet production workspace and that its one staff and three student memberships must be preserved. This resolves ownership only; no deployment, migration, mapping repair, queue mutation or production canary was authorized or performed. Integrated current main `983f9de4` into `codex/daily-checkbox-investigation`, preserving both sides of the sole shared archive-history conflict. Added proposed migration 142: a service-role-only, idempotent recovery that requires the exact teacher, active entitlement epoch and complete unresolved roster/schedule row set; rejects changed scope and live leases; rotates the entitlement epoch and supersedes the exact old rows atomically; and writes an immutable audit. Added a dry-run-first operator command whose execution gate is bound to the exact target, operation, teacher, epoch, row IDs, actor and reason; added static migration, authorization, launcher and rollback-scoped database contract coverage plus generated types and runbook guidance. Local targeted tests and TypeScript pass. The integrated 14-check teacher/student desktop/mobile light/dark browser matrix passes and representative screenshots were visually reviewed, including 2:00–3:00 PM on Aug 28 and the student notice. One unrelated CourseBlueprint purge-dialog timing assertion failed during an earlier focused run and remains to be rechecked in the final candidate run. User approved exactly one additional final fixed-SHA review after complete verification; no later reviewer is authorized. Production remains unchanged. Next: finish canonical checks, commit/push the draft candidate, run the one approved review and exact-head CI, then prepare fresh backup and exact production approval requests.
+
+## 2026-08-31 — Close attendance recovery ordering blocker
+
+The one owner-approved final fixed-SHA reviewer found one P1 operational sequencing gap and otherwise rated the SQL concurrency/idempotency/privileges, tenant boundaries, authorization binding, Bara identity preservation, UI async ownership and coverage clean. The gap was that restoring the Bara tenant mapping could make Pika's 10 obsolete rows claimable before migration 142 superseded them. Corrected both Pika and Bara runbooks: the default mandatory order is exact old-epoch supersession plus empty/non-claimable queue proof before Bara restore; the only alternate requires a separately approved verified Pika worker pause beginning before restore and spanning supersession/proof, with no implicit unrelated-classroom pause. Fresh snapshot delivery remains separately approved. Reviewer ran 65 focused Pika and 15 Bara tests. These documentation corrections are post-review changes; no additional reviewer is authorized without a new owner decision. No production mutation occurred.

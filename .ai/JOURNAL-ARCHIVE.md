@@ -28738,3 +28738,30 @@ schema, Attendance command, or student behavior changed.
 gate; `git diff --check`.
 
 **Model recommendation:** current model for this bounded Daily preference.
+
+<!-- pika-session-log-archive-batch:f52758e6dc0f9a87a545bf8e987aa0fdd1367a69b35e6e7a861d251b8faaa998 -->
+## 2026-08-30 — Balance standalone teacher action-bar spacing
+
+**Risk profile:** low — shared teacher work-surface presentation only; no
+business logic, persistence, API, schema, or student behavior changed.
+
+- Added the compact content-top spacing token above standalone teacher action
+  bars. Together with the context bar's internal padding, this creates the same
+  12px visual rhythm above and below the controls and matches page side gutters.
+- Kept attached-tab shell behavior unchanged and added direct shell coverage
+  for standalone summary and workspace states.
+- Visual verification passed Daily, Classwork, Tests, Gradebook, and Roster on
+  teacher desktop/mobile, plus a dark-mode Daily spot check and unchanged
+  student baselines.
+
+**Verification:** TeacherWorkSurfaceShell, Daily, and Classwork component tests;
+repository UI verification across all five consumers; focused gate; Pika audit;
+`git diff --check`.
+
+**Model recommendation:** current model for this shared spacing refinement.
+
+**Review follow-up:** independent cumulative review identified that the Daily
+date button's explicit accessible name masked its new subtitle. Linked the
+subtitle with a stable `aria-describedby` ID and added accessible-description
+coverage for both shown and hidden states. The full focused gate remains green;
+the correction does not change visual styling or the existing control name.
