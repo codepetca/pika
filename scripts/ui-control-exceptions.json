@@ -187,7 +187,7 @@
       ]
     },
     {
-      "file": "src/app/forgot-password/page.tsx",
+      "file": "src/app/forgot-password/ForgotPasswordClient.tsx",
       "reviewBy": "phase-6-auth-verification",
       "controls": [
         {
@@ -225,7 +225,7 @@
       ]
     },
     {
-      "file": "src/app/reset-password/page.tsx",
+      "file": "src/app/reset-password/ResetPasswordClient.tsx",
       "reviewBy": "phase-6-auth-verification",
       "controls": [
         {
@@ -310,7 +310,7 @@
       ]
     },
     {
-      "file": "src/app/verify-signup/page.tsx",
+      "file": "src/app/verify-signup/VerifySignupClient.tsx",
       "reviewBy": "phase-6-auth-verification",
       "controls": [
         {

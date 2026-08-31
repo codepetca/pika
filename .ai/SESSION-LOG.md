@@ -531,6 +531,34 @@ No deployment or database operation was performed.
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
 
+## 2026-08-29 — Redirect legacy password pages under the WorkOS pilot
+
+**Risk profile:** authentication — changes which auth screens render. No schema,
+persistence, or session-format change; behavior is unchanged while
+`WORKOS_MAGIC_AUTH_PILOT` is off.
+
+- Follow-up to gating the legacy password API routes. `/login` and `/signup`
+  already branch on the pilot flag, but `/create-password`, `/verify-signup`,
+  `/forgot-password`, and `/reset-password` did not, so with the pilot on they
+  rendered password forms whose API routes now refuse the submission.
+- Split each into the server `page.tsx` + client component shape `/login` and
+  `/signup` already use. The server page redirects to `/login` when
+  `isWorkOSMagicAuthPilotEnabled()`, otherwise renders the unchanged client
+  form. Pages reading `useSearchParams` keep a `Suspense` boundary.
+- Repointed three `scripts/ui-control-exceptions.json` entries at the extracted
+  client components, since the governed native controls moved with them.
+  `check:ui-policy` caught this and now passes (178 controls, 58 files).
+- New `tests/components/LegacyAuthPagePilotRedirects.test.tsx` covers all four
+  pages in both flag states (8 cases). Confirmed it fails when a page is
+  reverted to its pre-split form.
+- Verification: full suite 5,315/5,317, lint, `tsc --noEmit`, architecture
+  boundaries (818 modules), UI policy, design policy, and the production build
+  all pass. The two failures are known and unrelated:
+  `tests/unit/ai-startup-docs.test.ts` shells out to `scripts/verify-env.sh`,
+  which rejects the sandbox's Node 22.22.2 against the required 24.x, and
+  `tests/components/TestDetailPanel.test.tsx` is flaky — it passed on re-run and
+  this change does not touch it.
+
 ## 2026-08-29 — Make local Pika startup supply safe runtime credentials
 
 **Risk profile:** runtime-platform — local development process bootstrap and
