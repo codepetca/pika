@@ -28800,3 +28800,24 @@ No merge authorized or performed. No new reviewer launched this turn.
 
 **Model recommendation:** current coding model for implementation; one bounded
 Terra review of the new integration scope after the visual checkpoint.
+
+<!-- pika-session-log-archive-batch:6b821a1c3d5a86bf99e73547d4cd8b52e86627e1fc532b0f93a392d7ca661f94 -->
+## 2026-08-30 — Clarify Daily-only relative-date scope
+
+**Risk profile:** none. **Model recommendation:** current coding model for
+this bounded Pattern Lab wording correction.
+
+- Per user clarification, labeled the relative-date example page-specific and
+  explicitly prohibited copying its relative-date text to other pages. The
+  shared catalog now describes only date-navigation structure, spacing, and
+  accessible labels. No production component or interaction changed.
+- Added scope regression assertions. Focused gate passed (77 workflow and 20
+  Pattern Lab tests, related tests, policies, TypeScript, lint). Browser matrix
+  passed 13/13 with 3 intentional skips and unchanged baselines; inspected the
+  updated desktop/mobile light/dark wording. Existing composite behavior and
+  student isolation remain covered.
+- Explained the future correction workflow: identify local drift versus a
+  shared-owner issue versus a proposed design change; show before/after; update
+  Pattern Lab, guidance, and reviewed baselines only where the approved contract
+  actually changes. Visual approval, independent review, and final CI remain
+  pending; PR #1124 stays draft.

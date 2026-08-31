@@ -1800,6 +1800,7 @@ Current Test reference material.
       const user = userEvent.setup()
       const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
+      holdAutosaveDebounce()
       promptField.focus()
       await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)

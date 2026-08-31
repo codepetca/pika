@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Clarify Daily-only relative-date scope
-
-**Risk profile:** none. **Model recommendation:** current coding model for
-this bounded Pattern Lab wording correction.
-
-- Per user clarification, labeled the relative-date example page-specific and
-  explicitly prohibited copying its relative-date text to other pages. The
-  shared catalog now describes only date-navigation structure, spacing, and
-  accessible labels. No production component or interaction changed.
-- Added scope regression assertions. Focused gate passed (77 workflow and 20
-  Pattern Lab tests, related tests, policies, TypeScript, lint). Browser matrix
-  passed 13/13 with 3 intentional skips and unchanged baselines; inspected the
-  updated desktop/mobile light/dark wording. Existing composite behavior and
-  student isolation remain covered.
-- Explained the future correction workflow: identify local drift versus a
-  shared-owner issue versus a proposed design change; show before/after; update
-  Pattern Lab, guidance, and reviewed baselines only where the approved contract
-  actually changes. Visual approval, independent review, and final CI remain
-  pending; PR #1124 stays draft.
-
 ## 2026-08-30 — Enforce stable-SHA PR Gate launch
 
 **Risk profile:** runtime-platform — GitHub Actions admission policy and its
@@ -333,3 +313,7 @@ The one owner-approved final fixed-SHA reviewer found one P1 operational sequenc
 ## 2026-08-31 — Exact-head CI generated-type ordering correction
 
 After the clean owner-approved targeted runbook re-review, Pika PR #1134 was marked ready and exact-head CI run `33449330779` started on `d0e6dc7d`. Ephemeral migration replay succeeded, then the database lane stopped because the migration-142 table and RPC definitions in `database.generated.ts` were manually placed before Supabase's generated alphabetical positions. The PR was immediately returned to draft. The coverage and browser lanes were canceled by that draft transition, not failed assertions; their partial logs show the attendance tests and 28 browser checks reached before cancellation were passing. Applied the exact inverse of CI's generated diff: unchanged 53-line table/RPC blocks moved only to the generated positions. Seven focused recovery/authorization/launcher tests and TypeScript pass; diff check confirms a pure 53-line move. No migration was applied locally, no CI retry has been requested, and production remains unchanged. This mechanical generated-artifact correction does not change the reviewed SQL or runtime behavior. Next: canonical focused checks, commit/push, then follow the stable-head review/CI gate without treating canceled lanes as failures.
+
+## 2026-08-31 — Stabilize TestDetailPanel autosave timing coverage
+
+Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database-contract lane, including migration replay/generated types, and the complete browser matrix. Its Test & Build job failed twice at the same TestDetailPanel assertion while 5,474 tests passed: the test typed a long prompt in real time and assumed the production three-second autosave could not elapse before asserting zero PATCH calls. Under hosted full-coverage contention, the typing crossed that valid debounce boundary. Reused the file's existing `holdAutosaveDebounce()` helper in that test so it verifies the intended pre-autosave markdown-mirror behavior independent of machine speed; no production source or behavior changed. Local exact-file tests pass 43/43, focused checks pass 127 tests in 10 files plus architecture/TypeScript/lint, changed-source audit passes, and full locked-dependency coverage passes. PR #1134 remains draft pending the stable-head review/CI decision. No production mutation occurred.
