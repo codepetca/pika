@@ -129,6 +129,8 @@ function TeacherWorkSurfaceActionMenuButton({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopImmediatePropagation()
         closeMenu({ restoreFocus: true })
         return
       }
@@ -350,6 +352,8 @@ export function TeacherWorkSurfaceIconMenuButton({
   menuClassName,
   buttonProps,
 }: TeacherWorkSurfaceIconMenuButtonProps) {
+  const [isTooltipSuppressed, setIsTooltipSuppressed] = useState(false)
+  const isMenuOpenRef = useRef(false)
   const { className: buttonClassName, ...restButtonProps } = buttonProps ?? {}
 
   return (
@@ -362,6 +366,7 @@ export function TeacherWorkSurfaceIconMenuButton({
       menuClassName={menuClassName}
     >
       {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, menuId }) => {
+        isMenuOpenRef.current = isOpen
         const button = (
           <Button
             ref={ref}
@@ -373,7 +378,10 @@ export function TeacherWorkSurfaceIconMenuButton({
             aria-haspopup="menu"
             aria-controls={menuId}
             aria-expanded={isOpen}
-            onClick={onClick}
+            onClick={(event) => {
+              if (!isOpen) setIsTooltipSuppressed(true)
+              onClick(event)
+            }}
             disabled={resolvedDisabled}
             className={cn('h-9 w-9 p-0', className, buttonClassName)}
             {...restButtonProps}
@@ -382,11 +390,27 @@ export function TeacherWorkSurfaceIconMenuButton({
           </Button>
         )
 
-        if (!tooltip || isOpen) return button
+        if (!tooltip) return button
 
         return (
-          <Tooltip content={tooltip}>
-            <span className="inline-flex">{button}</span>
+          <Tooltip content={tooltip} disabled={isOpen || isTooltipSuppressed}>
+            <span
+              className="inline-flex"
+              onBlur={() => {
+                window.requestAnimationFrame(() => {
+                  if (isMenuOpenRef.current) return
+                  if (document.querySelector('[aria-modal="true"]')) return
+                  setIsTooltipSuppressed(false)
+                })
+              }}
+              onPointerMove={() => {
+                if (isMenuOpenRef.current) return
+                if (document.querySelector('[aria-modal="true"]')) return
+                setIsTooltipSuppressed(false)
+              }}
+            >
+              {button}
+            </span>
           </Tooltip>
         )
       }}

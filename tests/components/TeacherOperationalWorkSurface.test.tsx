@@ -34,6 +34,9 @@ describe('TeacherWorkSurfaceContextBar', () => {
     expect(screen.getByRole('button', { name: 'Aug 26' }).parentElement).not.toHaveClass('p-1')
     expect(screen.getByText('18 present').parentElement).toHaveClass('hidden', 'xl:flex')
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Refresh' }).parentElement?.parentElement).toHaveClass(
+      'overflow-visible',
+    )
   })
 })
 

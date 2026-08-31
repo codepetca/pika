@@ -1769,7 +1769,7 @@ export default function TeacherBlueprintsPage() {
         initialBlueprintId={selectedBlueprintId}
         onSuccess={(classroom) => {
           setShowCreateClassroom(false)
-          router.push(`/classrooms/${classroom.id}?tab=attendance`)
+          router.push(`/classrooms/${classroom.id}?tab=daily`)
         }}
       />
 

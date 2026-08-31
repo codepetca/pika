@@ -59,7 +59,11 @@ export function TeacherWorkSurfaceShell({
         primary={primary}
         actions={actions}
         trailing={trailing}
-        className={cn(!isSummary && usesAttachedTabsFrame ? 'pl-0 pr-2' : '', actionBarClassName)}
+        className={cn(
+          !isSummary && usesAttachedTabsFrame ? 'pl-0 pr-2' : '',
+          usesStandaloneFrame ? 'pt-density-compact-content-top' : '',
+          actionBarClassName,
+        )}
       />
 
       <PageContent

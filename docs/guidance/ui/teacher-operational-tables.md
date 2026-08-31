@@ -8,7 +8,7 @@ executable_owners:
   - src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx
   - src/ui/DataTable.tsx
 reference_surface:
-  - src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx
+  - src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx
   - src/app/classrooms/[classroomId]/TeacherTestsTab.tsx
 ---
 
@@ -156,7 +156,7 @@ the overall composition fits.
 
 | Section/state | Centered action focus | Table adaptation | Status-chip rule |
 | --- | --- | --- | --- |
-| Attendance | Date plus QR/open/close commands and a persistent selected-student actions menu | Selection, First, Last, Check-in, and inline three-state corrections | Present/Late/Absent controls remain in the trailing header; Unmarked has no control |
+| Daily with Attendance enabled | Date plus QR/open/close commands and a persistent selected-student actions menu | Daily Log plus Selection, First, Last, Check-in, and inline three-state corrections | Present/Late/Absent controls remain in the trailing header; Unmarked has no control |
 | Classwork operational list | Active collection, range, or selected assignment plus immediate commands | Title or student identity, relevant dates/metadata, Status | Use only for a small set of row states teachers actively triage |
 | Tests summary | Active filter/scope and immediate create or management command | Test title, availability, response metadata, Status | Use only when counts map to visible test rows |
 | Selected Test grading roster | Persistent Open All/Close All icons plus the disabled-until-selection student-actions menu | First, Last, Access, score/activity metadata, Status | Suitable for a small mutually meaningful set such as submission/review states |

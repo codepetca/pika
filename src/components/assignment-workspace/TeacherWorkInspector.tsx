@@ -506,6 +506,9 @@ export function TeacherWorkInspector({
                 activeEntryId={previewEntry?.id ?? null}
                 onEntryClick={onEntryClick}
                 onEntryHover={onEntryHover}
+                audience="teacher"
+                showHeading={false}
+                hoverEnabled={!isPreviewLocked}
               />
             )}
           </div>

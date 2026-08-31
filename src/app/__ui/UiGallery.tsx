@@ -1,10 +1,54 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { Card, EmptyState } from '@/ui'
-import type { AssignmentDocHistoryEntry, Classroom } from '@/types'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  AlertDialog,
+  Button,
+  Card,
+  FormField,
+  Input,
+  PageState,
+  SaveStatus,
+  SegmentedControl,
+  Select,
+  TabPanel,
+  Tabs,
+  Tooltip,
+  cn,
+} from '@/ui'
+import { useTheme } from '@/contexts/ThemeContext'
+import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import { HistoryGraph } from '@/components/HistoryGraph'
+import {
+  ICON_CATALOG,
+  PATTERN_CATALOG,
+  REFERENCE_ROUTES,
+  STATUS_CATALOG,
+  type ApprovedIconName,
+  type PatternMaturity,
+  type StatusCatalogEntry,
+  type StatusTone,
+} from './catalog'
+import {
+  CheckCircle2,
+  ChevronDown,
+  CircleAlert,
+  Clock3,
+  ExternalLink,
+  Inbox,
+  Info,
+  LoaderCircle,
+  LockKeyhole,
+  Menu,
+  Pencil,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react'
+import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
+import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
+import { TeacherPatterns } from './TeacherPatterns'
 
 type Role = 'teacher' | 'student'
 
@@ -13,151 +57,566 @@ interface Props {
 }
 
 export function UiGallery({ role }: Props) {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string>('')
-  const [classrooms, setClassrooms] = useState<Classroom[]>([])
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError('')
-      try {
-        const url = role === 'teacher'
-          ? '/api/teacher/classrooms'
-          : '/api/student/classrooms'
-        const res = await fetch(url)
-        const data = await res.json()
-
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load classrooms')
-        }
-
-        const next = role === 'teacher'
-          ? (data.classrooms || [])
-          : (data.classrooms || [])
-        setClassrooms(next)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [role])
-
-  const teacherLinks = useMemo(() => {
-    return classrooms.map((c) => ({
-      id: c.id,
-      title: c.title,
-      links: [
-        { label: 'Daily', href: `/classrooms/${c.id}?tab=attendance` },
-        { label: 'Classwork', href: `/classrooms/${c.id}?tab=assignments` },
-        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
-        { label: 'Gradebook', href: `/classrooms/${c.id}?tab=gradebook` },
-        { label: 'Roster', href: `/classrooms/${c.id}?tab=roster` },
-        { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
-        { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
-        { label: 'Settings', href: `/classrooms/${c.id}?tab=settings` },
-      ],
-    }))
-  }, [classrooms])
-
-  const studentLinks = useMemo(() => {
-    return classrooms.map((c) => ({
-      id: c.id,
-      title: c.title,
-      links: [
-        { label: 'Today', href: `/classrooms/${c.id}?tab=today` },
-        { label: 'Classwork', href: `/classrooms/${c.id}?tab=assignments` },
-        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
-        { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
-        { label: 'Course Guide', href: `/classrooms/${c.id}?tab=resources` },
-        { label: 'Announcements', href: `/classrooms/${c.id}?tab=announcements` },
-      ],
-    }))
-  }, [classrooms])
+  const { theme, mounted, toggleTheme } = useTheme()
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const referenceRoutes = REFERENCE_ROUTES[role]
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-text-default">UI Gallery</h1>
-        <p className="text-text-muted mt-1">
-          Quick links to key views for visual review (spacing, layout, UI flow).
-        </p>
-      </div>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">Common</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/classrooms">
-            Classrooms
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/join">
-            Join (student)
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/logout">
-            Logout
-          </Link>
-        </div>
-      </Card>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">Logged-out (open in a private window)</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/login">
-            Login
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/signup">
-            Signup
-          </Link>
-          <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/forgot-password">
-            Forgot password
-          </Link>
-        </div>
-      </Card>
-
-      <Card tone="panel" padding="md">
-        <h2 className="text-lg font-semibold text-text-default">
-          {role === 'teacher' ? 'Teacher' : 'Student'} Views
-        </h2>
-
-        {loading ? (
-          <div className="mt-3 text-sm text-text-muted">Loading…</div>
-        ) : error ? (
-          <div className="mt-3 text-sm text-danger">{error}</div>
-        ) : classrooms.length === 0 ? (
-          <div className="mt-3">
-            <EmptyState title="No classrooms found." tone="muted" />
+    <main className="min-h-screen bg-page text-text-default">
+      <div className="mx-auto max-w-wide space-y-8 px-4 py-8 sm:px-6">
+        <header className="space-y-5" data-testid="pattern-lab-header">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                <span>Pika design system</span>
+                <span aria-hidden="true">·</span>
+                <span>{role} reference</span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Pattern Lab</h1>
+              <p className="mt-2 text-sm leading-6 text-text-muted sm:text-base">
+                Executable examples of Pika&apos;s approved controls, symbols, statuses, and page states.
+                Production components remain the source of truth; this page makes their contracts easy to inspect.
+              </p>
+            </div>
+            <Button type="button" variant="surface" size="sm" onClick={toggleTheme}>
+              {mounted && theme === 'dark' ? 'Use light theme' : 'Use dark theme'}
+            </Button>
           </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {(role === 'teacher' ? teacherLinks : studentLinks).map((group) => (
-              <Card key={group.id} tone="muted" padding="md">
-                <div className="text-sm font-semibold text-text-default">{group.title}</div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {group.links.map((l) => (
-                    <Link
-                      key={l.href}
-                      className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover"
-                      href={l.href}
-                    >
-                      {l.label}
-                    </Link>
-                  ))}
+
+          <nav aria-label="Pattern Lab sections" className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              ['catalog', 'Catalog'],
+              ['controls', 'Controls'],
+              ['icons', 'Icons'],
+              ['statuses', 'Statuses'],
+              ['page-states', 'Page states'],
+              ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
+              ['feature-patterns', 'Feature patterns'],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={`#${href}`}
+                className="inline-flex min-h-control shrink-0 items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <Card tone="panel" padding="sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Reference surfaces</p>
+                <p className="mt-0.5 text-xs text-text-muted">
+                  Use these alongside the catalog when comparing a complete {role} workflow.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {referenceRoutes.map((route) => (
+                  <Link
+                    key={route.href}
+                    href={route.href}
+                    className="inline-flex min-h-control items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+                  >
+                    {route.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </header>
+
+        <PatternSection
+          id="catalog"
+          eyebrow="Governance"
+          title="Pattern catalog"
+          description="Start every UI change here: name the closest owner, then decide whether to reuse, extend, or create. Experimental entries require human promotion before they become defaults."
+        >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {PATTERN_CATALOG.map((pattern) => (
+              <Card key={pattern.id} tone="panel" padding="md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold">{pattern.name}</h3>
+                    <code className="mt-1 block break-words text-xs text-text-muted">{pattern.owner}</code>
+                  </div>
+                  <MaturityBadge maturity={pattern.maturity} />
                 </div>
+                <dl className="mt-4 space-y-3 text-sm">
+                  <div>
+                    <dt className="font-medium text-success">Use when</dt>
+                    <dd className="mt-0.5 text-text-muted">{pattern.useWhen}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium text-danger">Avoid when</dt>
+                    <dd className="mt-0.5 text-text-muted">{pattern.avoidWhen}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-medium">Reference</dt>
+                    <dd className="mt-0.5 break-words text-text-muted">{pattern.reference}</dd>
+                  </div>
+                </dl>
               </Card>
             ))}
           </div>
-        )}
-      </Card>
+        </PatternSection>
 
-      <HistoryGraphGallery />
+        <div data-testid="pattern-lab-contracts" className="space-y-8">
+          <PatternSection
+            id="controls"
+            eyebrow="Stable foundation"
+            title="Core controls"
+            description="These examples render the canonical @/ui owners. Feature code should compose them instead of reproducing their geometry, focus, or disabled states."
+          >
+          <div className="space-y-5">
+            <Card tone="panel" padding="md">
+              <PatternHeading title="Buttons" owner="src/ui/Button.tsx" />
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button size="sm">Primary</Button>
+                <Button size="sm" variant="secondary">Secondary</Button>
+                <Button size="sm" variant="surface">Surface</Button>
+                <Button size="sm" variant="subtle">Subtle</Button>
+                <Button size="sm" variant="success">Success</Button>
+                <Button size="sm" variant="danger">Danger</Button>
+                <Button size="sm" variant="ghost">Ghost</Button>
+                <Button size="sm" loading>Saving</Button>
+                <Button size="sm" disabled>Disabled</Button>
+                <Tooltip content="Edit example" side="top">
+                  <Button type="button" size="sm" variant="surface" className="px-0" aria-label="Edit example">
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Form fields" owner="src/ui/FormField.tsx" />
+                <div className="mt-4 space-y-4">
+                  <FormField label="Class name" hint="Use the name students already recognize." required>
+                    <Input defaultValue="Computer Science 11" />
+                  </FormField>
+                  <FormField label="Term" error="Choose an active term.">
+                    <Select
+                      defaultValue=""
+                      placeholder="Choose a term"
+                      options={[
+                        { value: 'semester-1', label: 'Semester 1' },
+                        { value: 'semester-2', label: 'Semester 2' },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label="Archived field">
+                    <Input defaultValue="Unavailable in this state" disabled />
+                  </FormField>
+                </div>
+              </Card>
+
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Content surfaces" owner="src/ui/Card.tsx" />
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {(['default', 'muted', 'panel', 'accent', 'selected'] as const).map((tone) => (
+                    <Card key={tone} tone={tone} padding="sm">
+                      <p className="text-sm font-semibold capitalize">{tone}</p>
+                      <p className="mt-1 text-xs text-text-muted">Semantic surface tone</p>
+                    </Card>
+                  ))}
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-4" aria-label="Save status examples">
+                  <SaveStatus status="saved" />
+                  <SaveStatus status="saving" />
+                  <SaveStatus status="unsaved" />
+                  <SaveStatus status="error" errorMessage="Save failed" />
+                </div>
+              </Card>
+            </div>
+
+            <Card tone="panel" padding="md">
+              <PatternHeading title="Selection controls" owner="src/ui/Tabs.tsx; src/ui/SegmentedControl.tsx" />
+              <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <Tabs
+                    ariaLabel="Pattern example panels"
+                    value={activeTab}
+                    onValueChange={setActiveTab}
+                    getTabId={(value) => `pattern-${value}-tab`}
+                    getPanelId={(value) => `pattern-${value}-panel`}
+                    items={[
+                      { value: 'details', label: 'Details' },
+                      { value: 'history', label: 'History' },
+                    ]}
+                  />
+                  {([
+                    ['details', 'Tabs own panel navigation and keyboard behaviour.'],
+                    ['history', 'History is another panel in the same local context.'],
+                  ] as const).map(([value, copy]) => (
+                    <TabPanel
+                      key={value}
+                      id={`pattern-${value}-panel`}
+                      labelledBy={`pattern-${value}-tab`}
+                      className={cn(
+                        'min-h-20 border-x border-b border-border bg-surface px-4 py-3 text-sm text-text-muted',
+                        activeTab !== value && 'hidden',
+                      )}
+                    >
+                      {copy}
+                    </TabPanel>
+                  ))}
+                </div>
+                <div>
+                  <SegmentedControl
+                    ariaLabel="Content density"
+                    value={density}
+                    onChange={setDensity}
+                    options={[
+                      { value: 'comfortable', label: 'Comfortable' },
+                      { value: 'compact', label: 'Compact' },
+                    ]}
+                  />
+                  <p className="mt-3 text-sm text-text-muted">
+                    Segmented controls change a peer mode; they do not replace navigation tabs.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="surface" size="sm" onClick={() => setDialogOpen(true)}>
+                  Open alert dialog
+                </Button>
+                <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+              </div>
+            </Card>
+          </div>
+          </PatternSection>
+
+          <PatternSection
+            id="icons"
+            eyebrow="Approved symbols"
+            title="Icon catalog"
+            description="Lucide is Pika's default icon source. Symbols clarify meaning but do not replace visible labels, accessible names, or product-specific status language."
+          >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {ICON_CATALOG.map((icon) => {
+              const Icon = ICON_COMPONENTS[icon.id]
+              return (
+                <Card key={icon.id} tone="panel" padding="sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-border bg-surface-2">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold">{icon.label}</h3>
+                        <span className="rounded-badge bg-surface-2 px-2 py-0.5 text-xs text-text-muted">
+                          {icon.category}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-text-default">{icon.meaning}</p>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">{icon.rule}</p>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+          <Card tone="accent" padding="sm" className="mt-4">
+            <p className="text-sm font-medium">Icon governance</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Prefer an approved Lucide symbol. A custom asset needs a documented semantic gap and review.
+              Emoji, text glyphs, and handcrafted SVG approximations are not interface icons.
+            </p>
+          </Card>
+          </PatternSection>
+
+          <PatternSection
+            id="statuses"
+            eyebrow="Semantic language"
+            title="Status symbols and labels"
+            description="These are cross-product examples, not a universal domain component. Attendance, submissions, tests, and other workflows keep their precise labels and behaviour."
+          >
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {STATUS_CATALOG.map((status) => (
+              <StatusExample key={status.id} status={status} />
+            ))}
+          </div>
+          <Card tone="muted" padding="sm" className="mt-4">
+            <p className="text-sm font-semibold">Domain rule</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Prefer precise labels such as Present, Late, Absent, Submitted, Returned, or Missing.
+              Reuse a shared status owner only when both meaning and behaviour match—not merely the colour or icon.
+            </p>
+          </Card>
+          </PatternSection>
+
+          <PatternSection
+            id="page-states"
+            eyebrow="Route responsibility"
+            title="Page states"
+            description="Loading, error, empty, and forbidden are deliberately different. Keep the surrounding shell mounted whenever possible."
+          >
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card tone="panel" padding="none"><PageState compact kind="loading" title="Loading classroom" description="The initial read is still pending." /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<Button size="sm">Try again</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<Button size="sm">Create assignment</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="forbidden" title="Page unavailable" description="The current identity cannot use this surface." /></Card>
+          </div>
+          </PatternSection>
+        </div>
+
+        {role === 'teacher' && (
+          <PatternSection
+            id="teacher-patterns"
+            eyebrow="Teacher-family evidence"
+            title="Teacher work surfaces"
+            description="Real shared owners, reconciled with the merged Daily refinements. These examples document the existing teacher family; they do not promote Daily-specific choices into global rules."
+          >
+            <TeacherPatterns />
+          </PatternSection>
+        )}
+
+        <PatternSection
+          id="feature-patterns"
+          eyebrow="Feature-owned evidence"
+          title="Feature patterns"
+          description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
+        >
+          <div className="space-y-6">
+            <HistoryPreviewGallery role={role} />
+            <HistoryGraphGallery />
+          </div>
+        </PatternSection>
+      </div>
+
+      <AlertDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Pattern confirmed"
+        description="This dialog is rendered by the canonical shared owner."
+        variant="success"
+        buttonLabel="Close example"
+      />
+    </main>
+  )
+}
+
+const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
+  'check-circle': CheckCircle2,
+  clock: Clock3,
+  'alert-circle': CircleAlert,
+  info: Info,
+  lock: LockKeyhole,
+  loader: LoaderCircle,
+  inbox: Inbox,
+  pencil: Pencil,
+  trash: Trash2,
+  'external-link': ExternalLink,
+  'chevron-down': ChevronDown,
+  menu: Menu,
+}
+
+const STATUS_TONE_CLASSES: Record<StatusTone, string> = {
+  success: 'border-success bg-success-bg text-success',
+  warning: 'border-warning bg-warning-bg text-warning',
+  danger: 'border-danger bg-danger-bg text-danger',
+  info: 'border-primary bg-info-bg text-info',
+  neutral: 'border-border bg-surface-2 text-text-muted',
+}
+
+const MATURITY_CLASSES: Record<PatternMaturity, string> = {
+  stable: 'bg-success-bg text-success',
+  family: 'bg-info-bg text-info',
+  experimental: 'bg-warning-bg text-warning',
+}
+
+function PatternSection({
+  id,
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  id: string
+  eyebrow: string
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section id={id} data-testid={`pattern-section-${id}`} className="scroll-mt-6">
+      <div className="mb-4 max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">{eyebrow}</p>
+        <h2 className="mt-1 text-2xl font-bold tracking-tight">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-text-muted">{description}</p>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function PatternHeading({ title, owner }: { title: string; owner: string }) {
+  return (
+    <div>
+      <h3 className="font-semibold">{title}</h3>
+      <code className="mt-1 block text-xs text-text-muted">{owner}</code>
     </div>
   )
 }
 
+function MaturityBadge({ maturity }: { maturity: PatternMaturity }) {
+  return (
+    <span className={cn('rounded-badge px-2 py-0.5 text-xs font-semibold capitalize', MATURITY_CLASSES[maturity])}>
+      {maturity}
+    </span>
+  )
+}
+
+function StatusExample({ status }: { status: StatusCatalogEntry }) {
+  const Icon = ICON_COMPONENTS[status.icon]
+
+  return (
+    <Card tone="panel" padding="md">
+      <div className="flex items-start gap-3">
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
+          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold">{status.label}</h3>
+            <span className={cn('rounded-badge border px-2 py-0.5 text-xs font-semibold', STATUS_TONE_CLASSES[status.tone])}>
+              {status.tone}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-text-default">{status.meaning}</p>
+          <p className="mt-1 text-xs leading-5 text-text-muted">{status.usage}</p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 // ── History Graph Gallery ──────────────────────────────────────────
+
+function makePreviewContent(paragraphCount: number): TiptapContent {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Field Study Reflection' }],
+      },
+      ...Array.from({ length: paragraphCount }, (_, index) => ({
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: `Section ${index + 1}. This saved response records an observation, the evidence that supports it, and the student’s developing interpretation of what happened during the field study.`,
+        }],
+      })),
+    ],
+  }
+}
+
+const PREVIEW_CONTENT = makePreviewContent(40)
+
+function HistoryPreviewGallery({ role }: { role: Role }) {
+  const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
+  const entries = FOCUSED_PREVIEW_ENTRIES
+  const isTeacher = role === 'teacher'
+
+  useEffect(() => {
+    setActiveEntryId('preview-3')
+    setPreviewMode('focused')
+  }, [])
+
+  const preview = useMemo(() => {
+    if (!activeEntryId) return null
+    return buildAssignmentHistoryPreview([...entries].reverse(), activeEntryId)
+  }, [activeEntryId, entries])
+  const previewContent = preview?.content ?? PREVIEW_CONTENT
+
+  return (
+    <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-text-default">
+            {isTeacher ? 'Teacher' : 'Student'} history preview
+          </h2>
+          <p className="mt-1 text-sm text-text-muted">
+            A mid-project save is previewed. Hover another save, or click to pin it.
+          </p>
+        </div>
+        {previewMode !== 'current' ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }}
+          >
+            Exit preview
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex h-96 min-h-0 flex-col overflow-hidden rounded-lg border border-border md:flex-row">
+        <div
+          data-testid="history-preview-document-pane"
+          className={previewMode === 'current'
+            ? 'min-h-0 flex-1 bg-surface'
+            : 'min-h-0 flex-1 bg-surface ring-1 ring-inset ring-primary'}
+        >
+          {isTeacher ? (
+            <RichTextViewer
+              content={previewContent}
+              fillHeight
+              chrome="flush"
+              historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
+            />
+          ) : (
+            <RichTextEditor
+              content={previewContent}
+              onChange={() => undefined}
+              editable={false}
+              className="h-full"
+              historyPreviewMode={previewMode}
+              historyPreviewChange={preview?.change}
+            />
+          )}
+        </div>
+        <div
+          className="w-full shrink-0 border-t border-border bg-page md:w-60 md:border-l md:border-t-0"
+          onMouseLeave={() => {
+            if (previewMode === 'focused') {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }
+          }}
+        >
+          <HistoryGraph
+            entries={entries}
+            activeEntryId={activeEntryId}
+            audience={role}
+            showHeading={false}
+            hoverEnabled={previewMode !== 'locked'}
+            onEntryHover={(entry) => {
+              if (previewMode === 'locked') return
+              setActiveEntryId(entry.id)
+              setPreviewMode('focused')
+            }}
+            onEntryClick={(entry) => {
+              setActiveEntryId(entry.id)
+              setPreviewMode('locked')
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function makeEntry(
   id: string,
@@ -179,8 +638,161 @@ function makeEntry(
   }
 }
 
+function clonePreviewContent(content: TiptapContent): TiptapContent {
+  return JSON.parse(JSON.stringify(content)) as TiptapContent
+}
+
+function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
+  const baseline = makePreviewContent(8)
+  const rewrite = clonePreviewContent(baseline)
+  rewrite.content![6] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 6. The student rewrote this interpretation to connect the soil sample, the weather record, and the field observation more clearly.',
+    }],
+  }
+
+  const addition = clonePreviewContent(rewrite)
+  addition.content!.push(...makePreviewContent(20).content!.slice(9))
+  addition.content!.splice(13, 0, {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
+    }],
+  })
+
+  const deletion = clonePreviewContent(addition)
+  deletion.content!.splice(4, 1)
+
+  const latest = clonePreviewContent(deletion)
+  latest.content!.push(...makePreviewContent(40).content!.slice(21))
+  latest.content![34] = {
+    type: 'paragraph',
+    content: [{
+      type: 'text',
+      text: 'Section 34. The conclusion now distinguishes what the evidence demonstrates from what would require another observation.',
+    }],
+  }
+
+  return [
+    { ...makeEntry('preview-5', 6120, '2025-03-14T18:20:00Z'), snapshot: latest },
+    { ...makeEntry('preview-4', 3100, '2025-03-13T19:05:00Z'), snapshot: deletion },
+    { ...makeEntry('preview-3', 3260, '2025-03-12T17:40:00Z'), snapshot: addition },
+    { ...makeEntry('preview-2', 1380, '2025-03-11T20:10:00Z'), snapshot: rewrite },
+    { ...makeEntry('preview-1', 1320, '2025-03-10T18:00:00Z', 'baseline'), snapshot: baseline },
+  ]
+}
+
+const FOCUSED_PREVIEW_ENTRIES = makeFocusedPreviewEntries()
+
+function makeSteadyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  let charCount = 90
+
+  for (let day = 0; day < 42; day += 1) {
+    const weekday = day % 7
+    if (weekday === 5 || weekday === 6) continue
+
+    const saves = 4 + (day % 4)
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const change = (day + save) % 9 === 0
+        ? -(18 + (day % 3) * 12)
+        : 24 + ((day * 11 + save * 17) % 72)
+      charCount = Math.max(30, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 0, 6 + day, 15 + save, (save * 11) % 60))
+      chronological.push(makeEntry(
+        `steady-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  }
+
+  return chronological
+    .map((entry, index) => ({
+      ...entry,
+      snapshot: makePreviewContent(Math.max(
+        1,
+        Math.ceil(((index + 1) / chronological.length) * 40)
+      )),
+    }))
+    .reverse()
+}
+
+function makeBurstyProjectEntries(): AssignmentDocHistoryEntry[] {
+  const chronological: AssignmentDocHistoryEntry[] = []
+  const activeDays = [0, 3, 6, 10, 13]
+  let charCount = 140
+
+  activeDays.forEach((day, dayIndex) => {
+    const saves = 9 + dayIndex * 2
+    for (let save = 0; save < saves; save += 1) {
+      const index = chronological.length
+      const isRewrite = save === Math.floor(saves / 2) && dayIndex > 0
+      const change = isRewrite
+        ? -(220 + dayIndex * 85)
+        : 38 + ((day * 19 + save * 31) % 150)
+      charCount = Math.max(70, charCount + change)
+      const timestamp = new Date(Date.UTC(2025, 2, 3 + day, 14, save * 4))
+      chronological.push(makeEntry(
+        `bursty-${String(index + 1).padStart(3, '0')}`,
+        charCount,
+        timestamp.toISOString(),
+        index === 0 ? 'baseline' : 'autosave'
+      ))
+    }
+  })
+
+  return chronological.reverse()
+}
+
+function makeFinalDayCrunchEntries(): AssignmentDocHistoryEntry[] {
+  const chronological = [makeEntry(
+    'crunch-001',
+    80,
+    '2025-04-01T18:00:00.000Z',
+    'baseline'
+  )]
+  let charCount = 80
+  const startMs = Date.parse('2025-04-14T14:00:00.000Z')
+
+  for (let save = 0; save < 100; save += 1) {
+    const change = save % 11 === 0
+      ? -(45 + (save % 4) * 35)
+      : 12 + ((save * 23) % 86)
+    charCount = Math.max(40, charCount + change)
+    chronological.push(makeEntry(
+      `crunch-${String(save + 2).padStart(3, '0')}`,
+      charCount,
+      new Date(startMs + save * 5 * 60 * 1000).toISOString()
+    ))
+  }
+
+  return chronological.reverse()
+}
+
+const LONG_PROJECT_ENTRIES = makeSteadyProjectEntries()
+const BURSTY_PROJECT_ENTRIES = makeBurstyProjectEntries()
+const FINAL_DAY_CRUNCH_ENTRIES = makeFinalDayCrunchEntries()
+
 // Newest-first (as from DB)
 const SCENARIOS: { label: string; entries: AssignmentDocHistoryEntry[] }[] = [
+  {
+    label: 'Six-week project — steady work on most weekdays',
+    entries: LONG_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Two-week project — bursts and large rewrites',
+    entries: BURSTY_PROJECT_ENTRIES,
+  },
+  {
+    label: 'Final-day crunch — 100 saves after a two-week gap',
+    entries: FINAL_DAY_CRUNCH_ENTRIES,
+  },
   {
     label: 'Normal session — 18 entries, all additions',
     entries: [
@@ -291,7 +903,9 @@ function HistoryGraphGallery() {
     <div className="bg-surface rounded-lg shadow-sm p-4">
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
-        SVG timeline charts at sidebar widths. Hover to see tooltips, click stems to select.
+        One compact chart shows additions and deletions across the actual activity
+        days. It starts fitted to all activity; zoom in for individual saves.
+        Hover to preview a save; click to pin it.
       </p>
 
       {lastEvent && (
@@ -307,18 +921,23 @@ function HistoryGraphGallery() {
               {scenario.label}
             </div>
             <div className="flex gap-4 flex-wrap">
-              {[256, 240].map((w) => (
+              {([
+                [256, 'teacher'],
+                [240, 'student'],
+              ] as const).map(([w, audience]) => (
                 <div
                   key={w}
-                  className="border border-border rounded"
+                  className={`border border-border rounded ${audience === 'student' ? 'order-1 md:order-2' : 'order-2 md:order-1'}`}
                   style={{ width: w }}
                 >
                   <div className="text-[10px] text-text-muted px-2 pt-1">
-                    {w}px
+                      {audience} · {w}px
                   </div>
                   <HistoryGraph
                     entries={scenario.entries}
                     activeEntryId={activeId}
+                    audience={audience}
+                    showHeading={false}
                     onEntryClick={(entry) => {
                       setActiveId(entry.id)
                       setLastEvent(`click: ${entry.id} (${entry.char_count} chars)`)

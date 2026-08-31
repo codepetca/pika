@@ -54,6 +54,42 @@ describe('CalendarActionBar', () => {
     expect(dateButton.querySelector('svg')).toBeNull()
   })
 
+  it('renders an optional compact subtitle inside the date button', () => {
+    const { rerender } = render(
+      <DateNavigator
+        label="Aug 17"
+        subtitle="Yesterday"
+        onLabelClick={vi.fn()}
+      />,
+    )
+
+    const dateButton = screen.getByRole('button', { name: 'Go to today' })
+    expect(dateButton).toHaveTextContent('Aug 17Yesterday')
+    expect(dateButton).toHaveAccessibleDescription('Yesterday')
+    expect(screen.getByText('Yesterday')).toHaveClass('text-xs', 'font-normal')
+
+    rerender(<DateNavigator label="Aug 17" onLabelClick={vi.fn()} />)
+    expect(dateButton).not.toHaveAttribute('aria-describedby')
+    expect(dateButton).not.toHaveAccessibleDescription()
+  })
+
+  it('keeps a joined static date label vertically centered without a subtitle', () => {
+    render(
+      <DateNavigator
+        label="All dates"
+        showNavigation={false}
+        joined
+      />,
+    )
+
+    expect(screen.getByText('All dates').parentElement).toHaveClass(
+      'flex',
+      'min-h-control',
+      'items-center',
+      'justify-center',
+    )
+  })
+
   it('exposes the calendar view control and changes modes', () => {
     const onViewModeChange = vi.fn()
 

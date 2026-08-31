@@ -4,6 +4,11 @@ This directory contains the canonical UI primitives for the Pika application.
 
 **All app code must import from `@/ui`, not from legacy `@/components/*` paths.**
 
+The development-only `/pattern-lab` renders these owners with deterministic fixtures and
+records approved icon/status usage. Update its catalog when a stable primitive contract or
+cross-product symbol meaning changes. The component implementation and this API reference remain
+authoritative over the gallery.
+
 Root [`DESIGN.md`](/DESIGN.md) owns global design principles and authority.
 This file owns canonical component APIs and semantic-token usage; executable
 values remain in [`src/styles/tokens.css`](/src/styles/tokens.css).

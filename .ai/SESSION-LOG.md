@@ -11,791 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Restore mobile access to Attendance utilities
-
-**Risk profile:** low — responsive teacher Attendance controls and regression
-coverage only; no attendance data behavior, API contract, schema, persistence,
-authentication, dependency, or hosted state changed.
-
-- Resolved the PR review blocker that hid Attendance hours and Refresh below
-  640px. Desktop retains the two direct utility icons; mobile now uses the
-  shared teacher work-surface overflow menu so the centered date/session FAB
-  stays visually primary without overlapping trailing controls.
-- Raised the Attendance action-bar stacking context with the existing semantic
-  layer token so the mobile menu remains interactive above the sticky table
-  header.
-- Added a guarded Playwright-only Attendance fixture and a 390px browser
-  regression that opens the real Attendance-hours dialog in light and dark.
-  The same regression preserves direct desktop access in both themes and checks
-  for horizontal overflow.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior is
-  covered by the reused menu component tests; semantic state and dialog access
-  are covered by Attendance component and browser tests; remaining manual
-  follow-up: none.
-
-**Verification:** focused Attendance component tests (14/14), full Vitest
-(5,118/5,118), responsive Playwright regression (4/4), lint, design/UI policy,
-Pika audit, diff checks, and production build pass. Visual review covers teacher
-desktop/mobile in light/dark with both the context bar and dialog open. Student
-UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded responsive
-interaction remediation with browser verification.
-
-## 2026-08-27 — Keep Attendance browser fixture reachable in local development
-
-**Risk profile:** none — local browser-test fixture gating only; no product UI,
-business behavior, API, schema, persistence, authentication, dependency, or
-hosted state changed.
-
-- Kept the Attendance fixture closed in production unless explicitly enabled,
-  while allowing it automatically on development servers so Playwright can
-  reuse a normal unflagged local server.
-- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
-  is evaluated when the production server handles each request instead of being
-  frozen into the build artifact.
-- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
-  existing Attendance-hours regression passed on desktop/mobile in light/dark
-  and opened the real dialog in all four cases.
-- Built one production artifact with the fixture flag present, then proved that
-  same artifact returns 404 when started unflagged and 200 when started flagged.
-
-**Model recommendation:** current GPT-5 coding model for a contained test-harness
-compatibility correction and exact-workflow verification.
-
-## 2026-08-27 — Resolve legacy Test-question backfill collisions
-
-**Risk profile:** runtime-platform — production Test draft identity backfill;
-no production data was changed by migration 134 and no migration retry occurred.
-
-- Production already contained migration 133. The first authorized attempt to
-  apply migration 134 failed atomically because 12 legacy draft questions each
-  matched both their historical row ID and a question-zero row carrying that ID
-  as corrupted portable lineage from migrations 112/114. Migration 134 remains
-  unapplied in production.
-- Changed the unapplied migration to resolve the exact historical row ID first,
-  then use a unique artifact/source identity only when no row-ID match exists.
-  The precedence is contractual and does not infer identity from position or
-  content; genuine multiple portable matches still fail closed.
-- Added static coverage and a fresh disposable-database regression that replays
-  the migration's exact backfill statement against the production collision
-  shape, proves both draft IDs resolve to distinct portable identities, and
-  proves neither persisted question row is mutated. Extended that fixture
-  through post-backfill save and activation so the installed RPCs cannot
-  reintroduce row-ID ambiguity after the one-time conversion.
-- Removed internal row-ID matching from migration 134's post-backfill save and
-  activation functions. Materialized Blueprint capture now validates in a
-  portable-only mode while the temporary dual reader remains scoped to actual
-  legacy draft JSON.
-- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
-  lock before the question-table fence. This makes the migration wait behind an
-  in-flight save before holding a lock that save must upgrade, preventing a
-  Draft-row/question-table deadlock; the database harness now rehearses that
-  two-session ordering.
-- Scoped the legacy draft rewrite under the transaction-local identity-mapping
-  guard. The identity-only update no longer advances Classroom structural
-  revision or waits on a Classroom held by a save that is waiting at the Draft
-  fence; the database harness now rehearses both migration/save arrival orders.
-- A privacy-minimized read-only production rehearsal resolved all 351 questions
-  across 28 drafts: 212 persisted questions would receive portable draft IDs,
-  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
-  portable matches, row reuse, or duplicate portable identities remain.
-- Rebased onto current `origin/main`. The focused 56-test identity/draft suite,
-  full 5,142-test suite, TypeScript, lint, architecture/design/UI policies,
-  shell syntax, diff validation, and production build pass. Fresh-database CI
-  remains authoritative for the migration replay; migration 134 was not applied
-  or reset locally and no hosted state changed.
-
-**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
-that preserves student-linked row identity.
-
-## 2026-08-27 — Version portable Test draft question identity
-
-**Risk profile:** runtime-platform — Test draft identity compatibility and the
-unapplied migration 134 backfill; no database was reset or migrated.
-
-- Added `question_identity_version: 1` as the explicit discriminator for
-  canonical Test draft question IDs. Marked drafts resolve only portable
-  artifact/source identity; unmarked legacy drafts retain exact historical row
-  ID precedence before portable fallback.
-- Migration 134 now marks every successfully converted legacy draft, validates
-  already-marked drafts strictly on replay, and makes Test draft saves preserve
-  the marker. Blueprint capture, immutable Versions, and classroom
-  instantiation also retain or introduce the portable marker at their format
-  boundaries.
-- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
-  savepoint so concurrent retries cannot overwrite a completed ledger result.
-  Test save and activation now take the Classroom update lock up front, avoiding
-  shared-lock upgrades when two Tests advance the same structural revision; the
-  disposable database contract exercises concurrent saves.
-- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
-  memory before semantic comparison. The persisted Version stays unchanged, and
-  adding the discriminator alone cannot create a false Blueprint/Classroom
-  divergence or unnecessary review flow.
-- Added collision regressions across draft GET/PATCH projection, Blueprint
-  detail GET overlay, Blueprint capture, migration replay, save, activation,
-  and Version instantiation. The known row-ID/artifact-ID collision remains
-  distinct after conversion instead of re-entering the legacy dual-identity
-  reader.
-- The focused identity suites, full 5,147-test suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, session-log validation, and production build pass. The disposable
-  database CI job remains authoritative; migration 134 was not applied locally.
-
-**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
-boundary change, with an independent compatibility review.
-
-## 2026-08-27 — Complete the canonical Test-question identity cutover
-
-**Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
-archive reuse, and migration concurrency contracts; no database was reset or
-migrated and no hosted state changed.
-
-- Defined one persisted portable question identity,
-  `coalesce(source_artifact_id, artifact_id)`, while keeping
-  `test_questions.id` internal. Post-backfill save, activation, and Blueprint
-  capture no longer union portable identity with internal row identity.
-- Made `question_identity_version: 1` mandatory for new and updated Test drafts.
-  The pre-migration application can still project unmarked live drafts with
-  exact internal-row precedence; migration 134 marks every live Test draft and
-  installs an at-rest constraint that makes that compatibility branch
-  unreachable after commit.
-- Added uniqueness constraints for active Tests and Test questions at their
-  portable identity boundaries. Capture selects only the active Test generation
-  and remains read-only with respect to Test and question identity.
-- Standardized write locking as Classroom, Test, Draft, then questions,
-  including the shared question-mutation trigger. The database contract now
-  runs save and activation against the real archived-Classroom reuse operation
-  in both arrival orders.
-- Preserved immutable Blueprint Versions byte-for-byte and kept legacy identity
-  translation at the explicit cold-archive restore boundary. Restored resources
-  are normalized in memory into the canonical marked format before reuse.
-- Added a CI-only lifecycle contract that resets an ephemeral database to
-  migration 133, seeds the known production row-ID/artifact-ID collision,
-  applies 134, and continues through save and activation. It was syntax-checked
-  locally but intentionally not executed outside CI.
-- The focused 44-test identity/archive/capture suite, full 5,150-test suite,
-  TypeScript, lint, architecture/design/UI policies, managed-storage lineage,
-  shell syntax, diff validation, and production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
-database concurrency review, and migration lifecycle verification.
-
-## 2026-08-27 — Separate captured Test membership from source identity
-
-**Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
-application contracts in unapplied migration 134; no database was reset or
-migrated and no hosted state changed.
-
-- Stopped treating `source_artifact_id` as both portable lineage and Blueprint
-  membership. A captured origin Test now keeps `source_artifact_id = null` and
-  records membership through the immutable capture Version.
-- Active and archived Classroom capture record
-  `source_blueprint_version_id` on participating Tests and materialized
-  questions. The application layer only classifies a source-null Test as
-  tracked when its Version matches the Classroom's current Blueprint Version.
-- Replaced the migration 112 classroom-proposal apply RPC in migration 134 so
-  Test matching and removal use source-first portable identity plus Version
-  provenance. Classroom-only Tests without that provenance remain untouched.
-- Added unit coverage for Version-based counting and snapshot filtering, plus a
-  disposable-database capture → Blueprint edit → apply regression that updates
-  the original Test row, creates no duplicate portable identity, and preserves
-  an unrelated local Test.
-- The focused 39-test identity/proposal suite, TypeScript, lint,
-  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
-  validation, and production build pass. The full suite passed 5,150 of 5,151
-  tests; its single unrelated Test-editor timing failure passed immediately in
-  isolation. CI remains authoritative for the ephemeral migration replay.
-
-**Model recommendation:** GPT-5.6 Sol for the Version-provenance database
-contract and final migration replay review.
-
-## 2026-08-27 — Migrate selected Test grading to the teacher work surface
-
-**Risk profile:** async-grading — teacher Test roster presentation, sorting,
-selection, and action routing changed around preserved grading mutations; no API,
-schema, persistence, authentication, dependency, or student UI changed.
-
-- Mapped the selected-Test domain before migrating it: whole-Test access remains
-  distinct from selected-student access, while AI grade, unsubmit, return, and
-  delete-work retain their existing eligibility and confirmation behavior.
-- Adopted the shared teacher context bar, internally scrolling table frame, and
-  selection bar. The whole-Test access control stays mathematically centered;
-  lifecycle context and Test utilities stay quiet at the edges; bulk actions
-  appear only after row selection.
-- Split names into sortable/resizable First and Last columns, kept compact
-  operational metrics, added sticky sortable/resizable headers, and added
-  semantic count chips that can prioritize closed, submitted, or returned rows.
-- Added a guarded long-roster fixture and responsive browser contract covering
-  default, status-sorted, scrolled, and selected states on desktop/mobile in
-  light/dark. Student UI is n/a because the surface is teacher-only.
-- Composite-widget accessibility checklist reviewed: keyboard navigation and
-  Escape behavior remain covered, semantic sort/pressed states have focused
-  tests, and remaining manual follow-up is none. Existing design guidance
-  already governs this surface, so no durable design rule was added.
-
-**Verification:** focused Test/shared work-surface tests (71/71), responsive
-Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, diff
-checks, and production build pass. Visual review covers eight captures: default
-and selected long-roster states across desktop/mobile and light/dark.
-
-**Model recommendation:** current GPT-5 coding model for a domain-sensitive
-teacher workspace migration with responsive visual verification.
-
-## 2026-08-27 — Tighten selected Test roster controls
-
-**Risk profile:** UI-only — selected Test grading spacing, stacking, and checkbox
-alignment changed; no grading behavior, permissions, API, schema, persistence,
-authentication, dependency, migration, or student UI changed.
-
-- Reduced the selected Test action-to-roster gap to the established Attendance
-  work-surface spacing and kept the centered whole-Test action visually dominant.
-- Raised the action-bar stacking context with the existing semantic layer token
-  so the whole-Test split-button menu stays visible and interactive above the
-  sticky roster header.
-- Restored the shared selection-cell inset so the select-all checkbox and row
-  checkboxes align on desktop and mobile.
-- Added browser geometry regressions for the 4px maximum gap, checkbox-center
-  alignment, and an unobscured menu, plus component coverage for menu semantics,
-  Escape dismissal, and focus restoration.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (87/87 plus final Test-only
-68/68), responsive long-roster Playwright matrix (4/4), lint, design/UI policies,
-Pika audit, and diff checks pass. Visual review covers default, menu-open, and
-selected states on desktop/mobile in light/dark. Student UI is n/a because this
-is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded teacher UI
-remediation with responsive visual verification.
-
-## 2026-08-27 — Consolidate Test grading actions at the top
-
-**Risk profile:** UI-only — selected Test grading action placement and shared
-teacher context-bar chrome changed; no grading behavior, permissions, API,
-schema, persistence, authentication, dependency, migration, or student UI
-changed.
-
-- Removed the floating bottom selection bar from Test grading. Selecting rows
-  now replaces the centered whole-Test control with the selected-student action
-  toolbar in the same top command area.
-- Preserved direct bulk actions on wide layouts and kept every action available
-  from a top overflow menu on narrower layouts. Access, clear-selection, action
-  eligibility, confirmations, and terminology are unchanged.
-- Removed the 4px inset from the shared teacher context-bar floating chrome so
-  the chrome hugs the existing 44px buttons instead of making the FAB appear
-  oversized. This also keeps Attendance and Test on the same shared treatment.
-- Removed obsolete bottom scroll clearance after the selection bar moved.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused Test/shared component tests (74/74, then 71/71 after
-the final guard fixes), responsive long-roster Playwright matrix (4/4 twice),
-lint, architecture/design/UI policies, Pika audit, diff checks, and live local
-browser inspection pass. Visual review covers default and selected states on
-desktop/mobile in light/dark; the live selected toolbar has 0px wrapper padding
-while button height remains 44px. Student UI is n/a because this is a
-teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a focused responsive
-teacher-work-surface interaction refinement.
-
-## 2026-08-27 — Compact selected-student Test actions
-
-**Risk profile:** UI-only — selected-student utility controls changed from
-labeled buttons to icon buttons; no action eligibility, grading behavior,
-permissions, API, schema, persistence, authentication, migration, or student UI
-changed.
-
-- Converted AI Grade, Unsubmit, Return, and Delete Work to shared teacher
-  work-surface icon buttons on desktop while retaining their explicit accessible
-  names, hover tooltips, disabled states, and destructive treatment.
-- Kept the selected access split button labeled because it communicates the
-  current action and scope, and retained labeled utility actions in the narrow
-  layout overflow menu.
-- Added component coverage for icon-only accessible naming and browser coverage
-  for empty visible button text plus the AI Grade hover tooltip.
-- Hardened an unrelated in-app Test preview regression exposed by CI coverage:
-  its fetch mock now matches URL and method instead of depending on concurrent
-  request order. Product code and preview behavior are unchanged.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes (existing split/menu Escape and focus tests remain intact);
-  semantic state covered by tests: yes; remaining manual follow-up: none.
-
-**Verification:** full Vitest suite and full coverage suite (5,139/5,139),
-responsive long-roster Playwright matrix (4/4), TypeScript, lint,
-architecture/design/UI policies, Pika audit, and diff checks pass. Visual review
-covers selected desktop/mobile states in light/dark and the desktop tooltip
-hover state. Student UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** current GPT-5 coding model for a bounded accessible
-teacher-toolbar refinement.
-
-## 2026-08-27 — Adopt persistent Test grading action scopes
-
-**Risk profile:** standard — selected Test grading action placement, row access
-state changes, and AI-grading request scope changed; permissions, enrollment
-validation, test status rules, grading eligibility, persistence schema,
-authentication, dependencies, migrations, and student UI are unchanged.
-
-- Kept Open All and Close All as persistent icon commands in the centered Test
-  action cluster, with tooltips and confirmation for the global mutations.
-- Added one persistent student-actions menu that is disabled before selection,
-  becomes a selected-count trigger, and contains only AI Grade, Unsubmit,
-  Return, and Delete Work. Global access commands and selection clearing are not
-  duplicated in the menu.
-- Replaced row access icons with immediate semantic switches: green/right for
-  open and red/left for closed, with a lock-state icon, accessible state, and no
-  per-row confirmation.
-- Added an AI Grade scope prompt for Only ungraded versus Regrade all and passed
-  the explicit scope through a Zod-validated API boundary into run preflight.
-  Ungraded scope now preserves any persisted grade; all scope queues eligible
-  answered responses even when previously graded.
-- Updated stable teacher operational-table guidance to combine Attendance's
-  table rhythm with selected Test grading's persistent action-scope pattern.
-  Attendance's bottom selection bar is now documented as migration debt for a
-  later focused pass.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  align Attendance with the new persistent selection-menu pattern in a separate
-  change.
-
-**Verification:** TypeScript, lint, focused Test/UI/API/validation tests
-(117/117), responsive long-roster Playwright matrix (4/4), Pika audit, and diff
-checks pass. Visual review covers default, global confirmation, selected menu,
-and AI scope states on desktop/mobile in light/dark. Student UI is n/a because
-this is a teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Sol for implementation and GPT-5.6 Terra/high
-for one bounded independent correctness and requirements review.
-
-## 2026-08-27 — Redesign teacher Attendance action hierarchy
-
-**Risk profile:** standard UI interaction change — teacher Attendance action
-placement and responsive grouping changed; Attendance permissions, session
-states, command eligibility, confirmation polling, API behavior, persistence,
-authentication, schema, migrations, dependencies, and student UI are unchanged.
-
-- Implemented the user-selected Option 1 using the Test grading work-surface
-  hierarchy without importing Test terminology or domain behavior.
-- Joined the previous/date/next controls into one segmented date navigator. The
-  arrows touch the date and the selectable date has no dropdown chevron.
-- Moved Present, Late, Absent, and Clear mark from the transitional bottom bar
-  into a persistent centered Student actions menu that is disabled before
-  selection and becomes a selected-count trigger.
-- Preserved explicit desktop QR and session commands. At 390 px, the same
-  session actions collapse into one centered icon menu so the quiet edge utility
-  menu cannot overlap the primary cluster.
-- Kept Attendance hours and refresh at the quiet edge, retained status-count
-  sorting and per-student status dots, and added a bordered internally scrolling
-  roster with sticky sortable/resizable headers.
-- Added component coverage for the joined date treatment, persistent selected
-  actions, command confirmation, disabled states, and menu focus/arrow/Escape
-  behavior. Expanded the Playwright experience matrix to a 45-student roster
-  with default, selected, menu, sorted/scrolled, hours, mobile session-action,
-  and browser-error checks.
-- Retained the approved design target, normalized comparison boards, and the
-  complete desktop/mobile light/dark evidence matrix under
-  `docs/guidance/ui/evidence/attendance-actions-2026-08-27/`.
-- Added no new durable rule because the reusable hierarchy was already
-  established by the merged Test grading guidance. Corrected stale audit text
-  that still described Attendance selection placement as migration debt; the
-  joined date treatment remains scoped until another surface proves it reusable.
-- One bounded independent review found that shared action-menu rows were shorter
-  than the 44 px interaction target and lacked canonical visible focus. Added
-  `min-h-control`, the inset focus ring, a regression assertion, refreshed the
-  visual evidence, and corrected the stale work-surface audit state.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused component tests (20/20), responsive Attendance
-Playwright matrix (4/4) after the mobile-overlap correction and again after the
-menu accessibility remediation, TypeScript, lint, production build, Pika audit,
-diff checks, and Product Design comparison pass.
-Visual review covers teacher desktop/mobile in light/dark, default/selected/menu
-states, internal scrolling/sticky headers, tooltips, mobile session actions, and
-Attendance hours. Student UI is n/a because this is a teacher-only surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, responsive behavior, accessibility, and regression
-risk.
-
-## 2026-08-27 — Close Test identity release-safety gaps
-
-**Risk profile:** runtime-platform — cross-version Test authoring compatibility
-and Classroom/Test database lock ordering; no database was reset or migrated
-and no hosted state changed.
-
-- Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
-  marked portable question IDs back to exact legacy row IDs for persistence and
-  activation while continuing to return the portable API contract. Active and
-  closed saves accept metadata/document changes only when the question graph is
-  unchanged; question edits require reopening as draft because migration 133
-  cannot hold a student-entry fence across multiple application writes.
-  Pre-migration activation is deliberately unavailable because migration 133
-  has no transactional primitive that can safely synchronize questions while
-  fencing every access override. Draft-only UUIDs remain in the legacy draft
-  until migration 134 backfills them; the atomic RPC then materializes them.
-  Draft-only/internal-row namespace collisions are rejected before writing.
-- Added a real pre-migration integration contract to the disposable CI lifecycle:
-  it runs closed-Test save and activation refusal against migration 133, covers the
-  production-shaped row-ID/portable-ID collision plus draft-only collision
-  rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
-  explicit pre-migration activation refusal, and a concurrent student-attempt
-  race; it then applies migration 134 and verifies activation through the
-  portable-only path.
-- Wrapped student attempt save and submission so both acquire Classroom before
-  Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
-  The original migration-088 implementations moved behind non-callable private
-  functions, preserving behavior without exposing a bypass.
-- Added database races for teacher question authoring versus both student
-  autosave and submission. A third lock probe proves the student writer does not
-  retain Test while waiting for Classroom, and both RPCs must complete without
-  SQLSTATE 40P01 or partial state.
-- The full 5,155-test suite, focused 63-test Test identity/API suite, TypeScript,
-  lint, Pika audit, shell syntax, diff validation, and production build pass.
-  The disposable migration replay remains CI-authoritative.
-
-**Model recommendation:** GPT-5.6 Sol for the migration/concurrency correction
-and GPT-5.6 Terra for cross-version compatibility review.
-
-## 2026-08-27 — Make Blueprint provenance compatible with student work
-
-**Risk profile:** runtime-platform — migration 134 trigger semantics and
-production cutover controls; no database was reset or migrated and no hosted
-state changed.
-
-- Fixed the Test-question freeze so owner-run Blueprint identity mapping may
-  update only `source_blueprint_version_id` after student work exists. The
-  exception runs after Classroom/Test parent locks and requires both the
-  transaction-local identity guard and the PostgreSQL owner; authored content
-  and portable identity remain frozen.
-- Added database regressions for active Blueprint capture and archived reuse
-  with retained attempts and responses. They verify provenance is recorded,
-  student work and question identity/content are unchanged, and an authored
-  question mutation still raises `test_questions_locked`.
-- Corrected production continuity to migrations 001–133 applied with only 134
-  pending. Migration 134 now has a 10-second lock timeout and 15-minute
-  per-statement timeout, with an idle-window preflight and fresh-authorization
-  retry runbook. The production-shaped lifecycle deliberately blocks the
-  migration, proves the timeout leaves 134 unapplied, then proves a clean retry.
-- PR #1095 passed targeted independent safety review with no P0/P1/P2 findings.
-  Full local tests pass (588 files, 5,168 tests), as do lint, TypeScript, build,
-  Pika audit, focused migration tests, and all CI jobs. Production migration 134
-  remains unapplied and still requires exact one-time authorization.
-
-**Model recommendation:** GPT-5.6 Sol for migration and concurrency changes;
-GPT-5.6 Terra for bounded compatibility review.
-
-## 2026-08-27 — Course Guide Phase 1
-
-**Risk profile:** cross-role UI plus authenticated and public-read APIs — a
-classroom-backed guide, optional public sharing, teacher-managed guide content,
-and one resource-save ordering migration applied to local only; staging and
-production remain unchanged.
-
-- Replaced user-facing Syllabus terminology with Course Guide while preserving
-  the existing internal `syllabus` feature key and `/actual/[slug]` route for
-  compatibility.
-- Added one safe Course Guide projection and shared presentation for the
-  authenticated teacher/student tab and optional public course webpage. The
-  in-Pika guide is always available to the teacher and enrolled students; a
-  public slug or publication state is no longer required. Removed the iframe
-  preview and its message protocol.
-- Published configured classroom sections: curriculum overview and
-  expectations, resources, assignments, tests, lesson sequence, and
-  announcements. Test questions/private uploads are excluded and document
-  links are restricted to public HTTP(S) URLs; disabled sections are omitted
-  from the public API payload.
-- Added one consolidated curriculum overview and expectations editor plus the
-  existing autosaving rules/links/reference resources editor directly inside
-  the guide. Teacher-authored section headings become keyboard-clickable in
-  edit mode, while derived assignments, tests, lesson sequence, and
-  announcements remain read-only projections of the live classroom.
-- Moved section visibility, lesson-sequence scope, and optional public sharing
-  into an accessible Guide options dialog launched from the guide's focused
-  floating action cluster. Removed the visible Course Guide Settings subtab;
-  legacy `section=syllabus` URLs fall back to General while stored compatibility
-  fields and APIs remain intact.
-- Removed the redundant `Course Guide` page title from the guide content area;
-  the classroom title now leads the document while teacher actions remain in
-  the action bar.
-- Removed the internal section jump links and kept all enabled guide sections
-  in one continuous document with an explicit desktop scroll container inside
-  the constrained classroom shell. Reduced doubled horizontal rules so only
-  major-section and between-item separators remain.
-- Removed course date ranges, term labels, and per-lesson dates from the guide.
-  Retired the separate outline setting, visibility control, and rendered
-  section while preserving its stored compatibility field. Seeded the local
-  demo classroom overview with two Lorem Ipsum paragraphs for visual review.
-- Added domain, server projection, authenticated/public API, component,
-  settings, navigation, focus, mutation-failure, and regression tests. The full
-  suite passes 5,146 tests across 591 files; lint, TypeScript, the production
-  build, design/UI policy checks, and the Pika audit pass.
-- Visual verification passed for teacher and student at desktop/mobile in
-  light/dark, including read, edit, overview editor, resources editor, private
-  and public options, saving, and save-error states. Semantic coverage also
-  verifies loading, empty, retry, unpublished, archived read-only, unsaved
-  discard, dialog focus/Escape/return, and section pressed states. No course
-  dates added by the guide, outline section, second narrative editor, iframe,
-  settings duplicate, or horizontal overflow remains. The local fixture stays
-  private.
-- Follow-up density pass reduced the guide header, section, assessment,
-  lesson, announcement, and options spacing; shortened both authored editor
-  canvases; and replaced the tall empty-resources checklist with one compact
-  prompt. The title band is now slimmer, and the edit toggle plus its contextual
-  Guide options/Done controls use the top-centred floating action position shared
-  with Attendance. The Course Guide floating shell has no inset padding, so its
-  shadow hugs the action edges. Focused tests and the 10-case cross-role browser
-  matrix remain green.
-- PR review removed the classroom join credential from every public/shared guide
-  path, filtered future scheduled assignments, corrected duplicate-title grade
-  matching, added unload-beacon POST support, made resource load failures
-  non-editable/retryable, and restored the shared E2E classroom fixture after
-  anonymous public-guide coverage.
-- Final concurrency remediation adds migration 136 with a persisted
-  monotonic resource `save_revision`, rejects stale PUT/beacon writes in the
-  database, serializes and generation-fences client autosaves across classroom
-  switches, and snapshots fixture state from the full classroom endpoint. The
-  final local gate passes 5,191 tests across 594 files, lint, architecture,
-  production build, and the Pika audit.
-- With explicit one-time authorization, migrations 135 and 136 were applied to
-  the local database only. Migration history now matches through 136, and the
-  generated Supabase types were regenerated from and checked against that local
-  schema. No hosted environment was touched.
-
-## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
-
-**Risk profile:** standard application behavior — teacher Attendance interaction,
-read-model projection, and shared segmented-control styling API changed; existing
-authorization, session/mark commands, confirmation polling, schema, migrations,
-dependencies, authentication, and student UI are unchanged.
-
-- Removed Attendance row-selection checkboxes and the selected-student actions
-  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
-  to the centered cluster; each opens an explicit scope confirmation before
-  posting marks for all enrolled students.
-- Replaced static row statuses with an accessible three-state segmented control.
-  Row corrections are immediate and reversible, use icons plus `aria-pressed`
-  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
-  keyboard navigation through the shared `SegmentedControl` primitive.
-- Replaced Source with QR Check-in time. The teacher read model validates Pika's
-  existing signed `attendance.record.changed` inbox events and projects the
-  earliest QR-origin time/status per student, so a later staff correction can
-  expose Restore QR check-in without losing durable provenance. No provider
-  reference or raw integration payload is returned to the browser.
-- Preserved Attendance-specific permissions, archived/closed states, session
-  actions, command failures, status-count sorting, column resizing, internal
-  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
-- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
-  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
-  stale Attendance-specific durable guidance; generic selection guidance remains
-  conditional on selection feeding real batch actions.
-- One bounded independent review found that QR inbox history was filtered by
-  classroom/occurrence but not the active installation. Added query-level and
-  defensive payload installation checks plus a rotation regression fixture, so
-  an old provider installation cannot supply the Check-in time or Undo target.
-  The same remediation batch historicalized a stale Test evidence note that
-  still described the now-removed Attendance selection bar as active debt.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused API/server/component/UI tests (43/43), responsive
-Attendance Playwright matrix (4/4), TypeScript, lint, production build,
-architecture check, design-policy check, Pika audit, diff checks, and visual
-reference comparison pass. Student UI is n/a because this remains a teacher-only
-surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, QR provenance projection, accessibility, and
-responsive regression risk.
-
-## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
-
-**Risk profile:** standard application behavior — teacher Attendance interaction,
-read-model projection, and shared segmented-control styling API changed; existing
-authorization, session/mark commands, confirmation polling, schema, migrations,
-dependencies, authentication, and student UI are unchanged.
-
-- Removed Attendance row-selection checkboxes and the selected-student actions
-  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
-  to the centered cluster; each opens an explicit scope confirmation before
-  posting marks for all enrolled students.
-- Replaced static row statuses with an accessible three-state segmented control.
-  Row corrections are immediate and reversible, use icons plus `aria-pressed`
-  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
-  keyboard navigation through the shared `SegmentedControl` primitive.
-- Replaced Source with QR Check-in time. The teacher read model validates Pika's
-  existing signed `attendance.record.changed` inbox events and projects the
-  earliest QR-origin time/status per student, so a later staff correction can
-  expose Restore QR check-in without losing durable provenance. No provider
-  reference or raw integration payload is returned to the browser.
-- Preserved Attendance-specific permissions, archived/closed states, session
-  actions, command failures, status-count sorting, column resizing, internal
-  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
-- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
-  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
-  stale Attendance-specific durable guidance; generic selection guidance remains
-  conditional on selection feeding real batch actions.
-- One bounded independent review found that QR inbox history was filtered by
-  classroom/occurrence but not the active installation. Added query-level and
-  defensive payload installation checks plus a rotation regression fixture, so
-  an old provider installation cannot supply the Check-in time or Undo target.
-  The same remediation batch historicalized a stale Test evidence note that
-  still described the now-removed Attendance selection bar as active debt.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused API/server/component/UI tests (43/43), responsive
-Attendance Playwright matrix (4/4), TypeScript, lint, production build,
-architecture check, design-policy check, Pika audit, diff checks, and visual
-reference comparison pass. Student UI is n/a because this remains a teacher-only
-surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, QR provenance projection, accessibility, and
-responsive regression risk.
-
-## 2026-08-28 — Consolidate selected-Test actions menu
-
-**Risk profile:** none — teacher Test grading UI and shared menu focus behavior only.
-
-- Moved Edit Test into the selected Test grading view's three-dot menu beside
-  Delete Test on every viewport, and renamed the trigger tooltip and accessible
-  label to More actions.
-- Fixed shared work-surface menus to restore focus after Escape/click-away and
-  to hand dialog focus back to the menu trigger after a menu action.
-- Added component and browser coverage for menu contents, tooltip copy, focus
-  restoration, and open-menu screenshots. Focused Vitest (70/70), lint,
-  architecture boundaries, and the light/dark desktop/mobile grading matrix pass.
-- Confirmed the selected-screen Active label is raw Test lifecycle state and can
-  be misleading for archived Classrooms or fully closed student access; no status
-  presentation change was included in this task.
-
-## 2026-08-28 — Repair post-134 database lint findings
-
-**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
-individual-student purge failure path and the legacy archive snapshot engine;
-no persistent local, staging, or production migration was applied.
-
-- Added migration 135. `fail_student_purge_object` now qualifies the joined
-  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
-  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
-  runtime by the existing rollback regression; its lint finding was a
-  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
-  `pg_temp`-scoped dynamic references while preserving archive behavior.
-- Extended the rollback-only student-purge database fixture through the real
-  storage-deletion failure path. It now proves object/operation failure state,
-  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
-  and a fresh retry lease before successful completion.
-- Independent high-risk review found and remediation added operation-first row
-  locking plus post-lock live-lease validation, preventing a deadlock or stale
-  failure write when an expired lease is reclaimed concurrently. A disposable
-  two-session regression now proves the stale reporter waits, loses authority,
-  and cannot overwrite the replacement lease or operation retry state.
-- The disposable race harness accepts only its reserved database-name prefix
-  and drops the database only after a successful create, so an unsafe override
-  or pre-existing database cannot be removed during failed setup.
-- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
-  project. Error-level database lint reports zero findings and is now an
-  all-schema, fail-on-error CI gate; focused student
-  purge and archive database contracts, generated database types, 5,172-test
-  coverage, TypeScript, lint, architecture/UI/design policies, migration
-  lineage, diff/shell checks, the Pika audit, and the production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
-static-analysis/runtime reconciliation.
-
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
-no migration was applied, no database was reset, and no hosted state changed.
-
-- Extended the owner-only provenance exception so Blueprint purge finalization
-  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
-  after student work exists. Authored Test content and identity remain frozen.
-- Added a transactional database regression covering an active linked Test,
-  question, submitted attempt, and response. The old trigger fails purge
-  permanently; the revised trigger completes purge while preserving all Test
-  and student-work records and clearing only Blueprint lineage.
-- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
-  lint, the production build, SQL diff validation, and transaction-only local
-  before/after database proofs. Migration 134 remains unapplied to production.
-
-**Model recommendation:** current frontier coding model for the bounded
-PostgreSQL trigger and deletion-contract fix.
-
-## 2026-08-28 — Complete Blueprint identity and database-lint rollout
-
-**Risk profile:** runtime-platform — protected production release, hosted
-migrations 134–135, and authenticated production Blueprint verification.
-
-- Merged the reviewed Test-question identity and Blueprint purge corrections
-  through production, then applied migration 134 after an exact clean preflight.
-  Production migration history matched local through 134 and the production
-  Blueprint capture/reuse smoke passed with a real disposable student attempt.
-- The smoke verified portable Test-question identity and ordering across initial
-  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
-  student enrollment, attempts, responses, submissions, grades, and activity did
-  not. The source submission remained intact.
-- Merged PR #1097 and applied migration 135 after a sole-migration production
-  dry run. Production now matches local through 135, a second dry run is empty,
-  and error-level database lint reports zero findings.
-- Full PR CI covered migration replay, Test identity rehearsal, student-purge
-  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
-  TypeScript, and the production build.
-
-**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
-verification; GPT-5.6 Terra for release compatibility and continuity review.
-
-## 2026-08-28 — Repair Classroom and Blueprint purge finalization
-
-**Risk profile:** runtime-platform — migration 137 changes trusted purge trigger
-semantics, cross-purge ordering, and retained retry evidence; production remains
-unchanged and migration 137 is not authorized for hosted application.
-
-- Reproduced the retained smoke failure against a production-schema clone. Hot
-  Classroom purge deleted `test_questions` before `test_attempts`, so migration
-  134's student-work freeze correctly rejected the direct question deletion.
-- Migration 137 permits only owner-run whole-Classroom finalization to delete
-  those questions; ordinary authored Test changes remain frozen. The database
-  regression now includes a closed Test, question, submitted attempt, and
-  response and proves the complete Classroom graph is deleted.
-- Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
-  the second deletion from starting. One canonical lineage relation now covers
-  direct, proposal, operation, and editing-session links for atomic advisory
-  locking, conflict detection, and upgrade repair. Three synchronized two-session
-  database races prove exactly one purge installs a fence for indirect links.
-  The fixture identifies each backend, proves the coordinator owns the pair
-  lock and both contenders are waiting before release, and runs in the CI
-  Architecture Database Contracts job.
-- Preserved the cold-Classroom lifecycle fence that migration 122 added. A
-  rollback database regression proves both the shared guard and cold tombstone
-  trigger still reject mutations while a cold purge is active.
-- Legacy interleaved operations drain in Classroom-then-Blueprint order. The
-  retained-failure repair now includes operation-only and editing-session-only
-  links and is covered by a database fixture for both omitted upgrade shapes.
-- Expanded both rollback-only purge contracts for linked versions, completed
-  capture lineage, applied proposals, retained fences, and worker-role access.
-  Before the rebase/resequence, a clean 001-136 replay, all four database
-  contracts, 5,181 tests, lint, build, and database lint passed; lint reported
-  only established warning-level findings. CI will replay the resequenced
-  migration 137 after main's new migration 136.
-- During the isolated replay, `supabase db reset --db-url` recognized the local
-  container and recreated its default local database rather than the named
-  disposable database. No hosted database was touched. The local database was
-  a clean replay of the pre-resequence branch through its former migration
-  136. No hosted environment was changed.
-
-**Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
-deletion review; GPT-5.6 Terra for compatibility and operability review.
-
 ## 2026-08-28 — Preserve linked Tests during Blueprint purge
 
 **Risk profile:** runtime-platform — pending migration 134 trigger semantics;
@@ -1489,3 +704,811 @@ No deployment or database operation was performed.
 
 **Model recommendation:** GPT-5.6 Sol for the cross-surface consistency review;
 GPT-5.6 Terra for bounded follow-up on an individual classroom surface.
+
+## 2026-08-29 — Make local Pika startup supply safe runtime credentials
+
+**Risk profile:** runtime-platform — local development process bootstrap and
+secret handling only; no hosted configuration, database state, migrations, or
+application behavior changed.
+
+- Added a repository-scoped `pika-local-dev` skill so future agents launch Pika
+  with a generated process-only session secret and credentials derived from the
+  already-running local Supabase stack.
+- Required loopback HTTP and trusted Pika Git-common-directory identity before
+  reading or passing local Supabase credentials. Current and legacy Supabase key
+  names are supported without adding a `jq` dependency.
+- Disabled inherited shell tracing before sensitive reads and fail closed when
+  OpenSSL fails or returns anything other than a 64-character hex secret.
+- Cleared inherited Git repository selectors and required the canonical target
+  to appear in the trusted Pika repository's registered-worktree inventory
+  before the launcher reads local credentials.
+- Added behavioral coverage for credential injection, key-format compatibility,
+  missing-key diagnostics, untrusted-worktree and non-loopback rejection,
+  trace redaction, secret-generation failure, stopped-stack failure, and
+  check-only mode.
+
+**Verification:** focused skill tests (12/12), live prerequisite check, Bash and
+ShellCheck validation, and Codex skill validation pass.
+
+**Model recommendation:** current frontier coding model for bounded local
+developer tooling with security-sensitive environment handling.
+
+## 2026-08-29 — Audit development-speed rollout after 20 CI attempts
+
+**Risk profile:** standard — CI operating guidance and browser-test scheduling;
+no product behavior, branch enforcement, dependencies, schema, migrations, or
+hosted data changed.
+
+- Measured the first 20 completed natural CI attempts after rollout commit
+  `12336121b05ae55fa0ea97fb5bf81e21ff7b9f6a` at
+  `2026-08-29T03:20:41Z` with `pnpm measure:ci -- --limit 20`. Exact output:
+
+```json
+{
+  "sampleSize": 20,
+  "successfulSampleSize": 8,
+  "counts": {
+    "cancelled": 3,
+    "skipped": 9,
+    "success": 8
+  },
+  "cancellationRate": 0.15,
+  "cancelledElapsedSeconds": 116,
+  "successfulQueueSeconds": {
+    "min": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "average": 0
+  },
+  "successfulRunSeconds": {
+    "min": 54,
+    "p50": 464,
+    "p95": 533,
+    "max": 533,
+    "average": 409
+  },
+  "successfulWallSeconds": {
+    "min": 54,
+    "p50": 464,
+    "p95": 533,
+    "max": 533,
+    "average": 409
+  },
+  "successfulRunsWithoutPrGateEvidence": 1,
+  "prGateByMode": {
+    "application-test-build": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 376,
+        "p50": 376,
+        "p95": 376,
+        "max": 376,
+        "average": 376
+      },
+      "gateRunSeconds": {
+        "min": 3,
+        "p50": 3,
+        "p95": 3,
+        "max": 3,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 379,
+        "p50": 379,
+        "p95": 379,
+        "max": 379,
+        "average": 379
+      }
+    },
+    "docs-only": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 49,
+        "p50": 49,
+        "p95": 49,
+        "max": 49,
+        "average": 49
+      },
+      "gateRunSeconds": {
+        "min": 4,
+        "p50": 4,
+        "p95": 4,
+        "max": 4,
+        "average": 4
+      },
+      "timeToGatePassSeconds": {
+        "min": 53,
+        "p50": 53,
+        "p95": 53,
+        "max": 53,
+        "average": 53
+      }
+    },
+    "full": {
+      "sampleSize": 4,
+      "timeToGateStartSeconds": {
+        "min": 460,
+        "p50": 496,
+        "p95": 528,
+        "max": 528,
+        "average": 486
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 4,
+        "p95": 4,
+        "max": 4,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 462,
+        "p50": 500,
+        "p95": 532,
+        "max": 532,
+        "average": 489
+      }
+    },
+    "production-promotion": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 393,
+        "p50": 393,
+        "p95": 393,
+        "max": 393,
+        "average": 393
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 2,
+        "p95": 2,
+        "max": 2,
+        "average": 2
+      },
+      "timeToGatePassSeconds": {
+        "min": 395,
+        "p50": 395,
+        "p95": 395,
+        "max": 395,
+        "average": 395
+      }
+    }
+  }
+}
+```
+
+- The initial checkpoint failed two targets: cancellation rate was 15% rather
+  than below 10%, and full-mode time to PR Gate pass had a 500-second p50 rather
+  than below 480 seconds. Docs-only passed at 53 seconds. The one successful run
+  without PR Gate evidence was an intentional `workflow_dispatch` diagnostic.
+- Inspected every skipped, cancelled, failed, and missing-evidence attempt. All
+  nine skipped attempts were draft pushes with no heavy jobs. Two cancellations
+  came from a production promotion opened ready by a stale personal skill; that
+  skill now delegates to the repository's draft-first exact-main workflow. The
+  third was a redundant manual dispatch launched beside the exact-SHA ready-event
+  run; the workflow guidance now prohibits this concurrency.
+- Two of four full-mode runs paid two 30-second timeouts in the single packed
+  student-purge visual matrix before retry #2 passed. Split the unchanged
+  desktop/mobile and light/dark teacher/student assertions into four separately
+  timed cases. Local verification passed all four on the first attempt in
+  2.4–8.8 seconds while retaining every screenshot path.
+- Safety targets remained intact: both active branch rulesets still require the
+  strict `PR Gate`; selected database/browser lanes fed that gate; unknown-path
+  PR #1114 failed closed to full mode; browser specs and artifacts remained in
+  the stable two-worker combined job; and production promotion #1115 ultimately
+  passed in provenance-checked promotion mode from exact `main`.
+- Because the initial checkpoint failed, the development-speed goal remains
+  open. After this bounded remediation merges, collect 20 new natural attempts
+  and repeat the complete audit before declaring success.
+
+**Verification:** startup workflow contract (41/41), split Playwright discovery
+(four target cases), local student-purge browser suite (6/6 including auth),
+strict `main` and `production` ruleset inspection, and diff validation pass.
+
+**Model recommendation:** GPT-5.6 Terra for the bounded CI/browser-test
+remediation review and GPT-5.6 Sol only if the follow-up audit exposes a deeper
+workflow or safety-lane defect.
+
+## 2026-08-29 — Combine Daily and teacher Attendance
+
+**Risk profile:** standard application behavior — teacher classroom navigation,
+authoritative Attendance commands, responsive operational-table composition,
+and existing Daily logs/summary; no schema, migration, hosted configuration, or
+student Attendance behavior changed.
+
+- Removed the standalone teacher Attendance destination and composed entitled,
+  classroom-enabled Attendance hours, QR/session commands, selected-student
+  actions, Check-in, and Present/Late/Absent controls into Daily.
+- Preserved Daily date selection, First/Last/ID/Log sorting, resizable columns,
+  log hover text, student-log inspection, and the dotted resizable Class Log
+  Summary. The summary timestamp now omits “Generated,” uses the existing
+  Toronto-relative formatter, and names its action list “Class log follow-ups.”
+- Kept the Daily-only state stable when Attendance is unavailable or disabled:
+  centered date navigation and a trailing More menu containing only Show/Hide
+  ID. Legacy `?tab=attendance` links and new Blueprint classrooms resolve to
+  Daily. Daily-log content never infers Attendance.
+- Added production-path tests for entitlement/setting composition, status and
+  bulk mark commands, session close, QR presentation, sorting, ID removal,
+  menu/dialog focus, and preserved Daily split/resize behavior. Stabilized two
+  unrelated Test-detail debounce assertions selected by the full dependency
+  gate by asserting the immediate mirror update synchronously and holding the
+  other assertion's 3-second autosave timer.
+- Independent review identified that an accepted Attendance command could stay
+  locally pending forever when provider confirmation arrived after the bounded
+  foreground poll. Daily now keeps one cancellable background revalidation
+  queue until authoritative success or terminal failure, then releases the
+  affected controls. Non-retryable check-in invalidations are surfaced through
+  the existing per-student failure contract. Request-scoped ownership rejects
+  overlapping commands for a still-pending student, and a monotonic view
+  generation cancels stale foreground work across A-to-B-to-A date transitions.
+  Regression coverage confirms delayed success after the eighth read, terminal
+  session failure recovery, overlap rejection, view-generation cancellation,
+  non-retryable active-versus-invalidated check-in mapping, and controller-level
+  rejection of mark/reset commands for students whose authoritative view still
+  reports pending command ownership.
+- Final integration review hardened four boundaries: Attendance hours remain
+  reachable when the entitlement exists but the policy is disabled or missing;
+  a current pending retry takes precedence over retained historical outbox
+  failures; long-roster headers stay sticky inside the Daily scroll pane; and
+  Escape closes the active action menu, restores trigger focus, and preserves
+  the selected Daily log workspace. Direct controller, server-view, component,
+  shared-menu, and browser-geometry regressions cover these cases.
+- A subsequent cumulative review closed three more integration boundaries.
+  The server projection now exposes authoritative session-command ownership so
+  remounts cannot submit a duplicate open/close command. Selection and bulk
+  mutations are intersected with the current Daily log rows, immediately
+  pruning students hidden by a fresher Daily response. The rare QR check-in
+  plus manual-override recovery action now stacks below the three 44px status
+  targets inside a minimally wider status column instead of overflowing it.
+  Focused controller, server-view, component, and browser-geometry regressions
+  cover all three cases.
+- Visual verification passed Attendance-on, unconfigured Attendance, and
+  Daily-only teacher states on desktop/mobile in light/dark, including
+  selection, hidden ID, open More menus, the sticky long-roster header, and the
+  contained QR-override recovery row. The unchanged student Daily flow also
+  passed in all four browser projects.
+- Ready-PR CI exposed an action-menu focus race in the existing Tests workspace.
+  Tooltip-wrapped icon menus now keep the same trigger mounted while their menu
+  is open and suppress only the tooltip through one lifetime-controlled Radix
+  state, so a dialog reliably captures and restores focus to its opener without
+  an uncontrolled/controlled transition or retained hover state. The full Tests
+  workspace file and a shared action-cluster modal round-trip regression cover
+  the hosted failure.
+- `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
+  UI/design policy, 228 changed-path tests, 1,868 related tests, TypeScript, and
+  lint. The Pika pre-commit audit passes; the composite-widget checklist is
+  covered by direct semantic, keyboard, focus, and resize tests.
+
+**Model recommendation:** GPT-5.6 Terra high for correctness, requirements,
+responsive behavior, and compatibility review of the complete PR diff.
+
+## 2026-08-29 — Finalize assignment history exploration and focused previews
+
+**Risk profile:** low — shared teacher/student history visualization and
+client-side saved-document comparison only; no API contract, schema,
+persistence, authentication, dependency, migration, deployment, or hosted
+state changed.
+
+- Replaced fragmented snapshots with one compact complete-history chart across
+  actual activity days. Long and dense histories aggregate by day, zoom reveals
+  individual saves, vertical wheel input zooms around the pointer, and
+  horizontal or Shift-wheel input pans the bounded window with smooth,
+  reduced-motion-aware zoom transitions.
+- Kept the document at normal reading size while hovering a save and scrolled to
+  its earliest changed location. Clicking retains the existing pinned-save
+  behavior. Insertions show Added, rewrites show Revised, and deletions leave a
+  `Deleted here` anchor.
+- Added a narrow, non-interactive whole-document minimap with change marks and a
+  viewport box that follows reading scroll. It hides at narrow mobile widths,
+  remains absent from the accessibility tree, and a polite status message
+  announces change kinds, counts, and document-block locations.
+- Bounded adjacent-save matching by precomputing block signatures, capping exact
+  LCS work, and using unique patience-style anchors with monotonic gap matching
+  for large documents. A one-block move remains exactly one addition plus one
+  deletion across the 199–202 boundary and at 1,000/5,000 blocks; the 5,000
+  block case completes in about 9–11 ms locally.
+- Independent stable-SHA review found and resolved four P2 issues: unbounded
+  comparison work, mixed-save focus order, color-only change semantics, and the
+  large-reorder threshold edge. Final targeted re-review found no residual
+  P0–P2 issues.
+- Clarified the UI gallery demonstration after review: its five saves now grow
+  from 8 to 20 to 40 sections, and it opens on the mid-project save so the
+  minimap visibly ends before the final-document length. The main pane lands on
+  Sections 9–11 marked Added, making snapshot-at-that-time behavior immediate.
+- Smoothed overview zooming across the full window-size change instead of only
+  animating a clamped final step. Daily totals now crossfade into individual
+  saves on the same 420 ms easing curve, zoom-out uses the reciprocal scale,
+  and wheel zoom waits for the active transition so repeated wheel events do
+  not interrupt the motion. Follow-up review caught and removed the remaining
+  0.05–20 scale clamp; year-long histories now retain the exact zoom ratio and
+  reciprocal dezoom ratio with direct regression coverage.
+- Ready-PR CI exposed an unrelated date-boundary failure in the newly merged
+  Daily/Attendance browser fixture: its fixed August 29 summary expected a
+  relative `Today` label. The fixture now fixes its browser clock to August 29,
+  and the affected desktop/mobile light/dark matrix passes 4/4.
+
+**Verification:** the final pre-rebase focused gate passed 77 workflow tests,
+179 focused tests, and 571 related tests plus TypeScript, lint, architecture,
+UI/design policy, diff checks, and the Pika audit. Playwright covered teacher
+and student desktop, student mobile, and dark mode, including hover, pinning,
+rewrite/insertion/deletion marks, minimap scrolling, no horizontal overflow,
+and no browser errors. The post-rebase exact-SHA gate is rerun before PR handoff.
+
+**Composite-widget accessibility checklist:** checklist reviewed: yes; keyboard
+behavior covered: yes; semantic state covered by tests: yes; remaining manual
+follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for compact time-series interaction,
+historical document diffing, viewport coordination, and cross-role visual QA.
+
+## 2026-08-30 — Keep the light Pika favicon in every theme
+
+**Risk profile:** none — root metadata and its focused regression assertion
+only; no application behavior, schema, runtime configuration, or role-specific
+surface changed.
+
+- Replaced the theme-conditioned light/dark favicon metadata with one
+  unconditional `pika-icon-light.svg` declaration so browser color preference
+  cannot select the dark asset.
+- Updated the existing middleware/favicon regression test to require the light
+  icon, reject the dark icon from root metadata, and reject favicon media
+  conditions while preserving the static-asset checks.
+- Visual verification passed in headed Chrome: the same light mouse icon appears
+  in the tab under light and dark color preferences. Playwright DOM checks also
+  confirmed the unconditional light SVG on desktop and mobile. Teacher and
+  student roles are not applicable because favicon metadata is global browser
+  chrome.
+- `pnpm check:focused -- --base origin/main` passes in application-browser mode,
+  including workflow, architecture, UI/design policy, focused/related tests,
+  TypeScript, and lint. The Pika pre-commit audit passes.
+- Ready-PR CI exposed an existing Toronto-midnight rollover in the combined
+  Daily/Attendance visual contract: a fixed August 29 timestamp was asserted as
+  “Today” after August 30 began. The browser assertion now verifies the stable
+  `10:10 AM` timestamp inside the summary while unit coverage continues to own
+  relative-day formatting. The corrected scenario passed desktop/mobile in
+  light/dark; one cold-start desktop fixture race passed on its immediate
+  targeted rerun.
+
+**Model recommendation:** current model for this narrow metadata-only visual
+fix.
+
+## 2026-08-30 — Add a governed Pattern Lab for consistent AI-built UI
+
+**Risk profile:** none — development-only reference route, AI guidance,
+catalog data, and regression coverage; no production data, schema, or runtime
+feature behavior changed.
+
+- Replaced the private, data-dependent UI gallery entrypoint with a guarded
+  `/pattern-lab` reference that renders deterministic production components.
+  The catalog covers stable versus experimental patterns, canonical owners,
+  use/avoid guidance, core controls, semantic page states, and role-specific
+  teacher/student reference surfaces.
+- Added an approved Lucide icon catalog and a semantic status-symbol catalog.
+  Icons remain supplemental to accessible names and visible labels; domain
+  statuses remain feature-owned unless meaning and behavior genuinely match.
+- Added the repository-owned `pika-ui-change` skill and wired it into agent and
+  UI guidance. Every UI change now records reuse/extend/create decisions, uses
+  the Pattern Lab plus a real product surface, and promotes shared components
+  only after two genuine adopters and a durable behavioral contract.
+- Added unit/accessibility coverage and deterministic Playwright snapshots for
+  teacher/student, desktop/mobile, and light/dark modes. The canonical alert
+  dialog interaction is also captured. Nine visual comparisons passed with no
+  horizontal page overflow.
+- `pnpm check:focused -- --base origin/main` passes: workflow, architecture,
+  UI/design policy, focused and related tests, TypeScript, and lint; database
+  and browser contracts are selected for final CI. The pre-commit audit passes,
+  and its composite-widget test covers named navigation, tabs, segmented
+  controls, role-specific references, and dialog open/dismiss behavior.
+- Independent review closed three boundaries before ready review: production
+  now rejects the route even if gallery/fixture flags are set; the Tabs example
+  owns explicit tab-to-panel relationships and demonstrates arrow-key focus and
+  selection; and remaining `/__ui` documentation now points to `/pattern-lab`.
+- Targeted re-review kept both controlled tab panels mounted so every
+  `aria-controls` target remains valid in either selection state, with direct
+  regression assertions before and after keyboard selection. It also removed
+  the obsolete Vercel-preview recommendation now that Pattern Lab is explicitly
+  local/non-production only.
+- Ready-PR CI confirmed Test & Build and all pre-existing browser contracts,
+  then exposed that the new snapshots only had macOS baselines. The nine
+  CI-generated Linux baselines were retrieved from browser diagnostics,
+  visually reviewed, and added alongside the macOS set. The PR returned to
+  draft before this correction; the database job completed every contract step
+  but was canceled during cleanup by that draft transition.
+- Final authorization review removed the teacher-only Snapshot gallery from
+  student reference surfaces while preserving the teacher catalog. Catalog,
+  rendered-UI, and browser assertions now enforce that boundary. Updated
+  desktop/mobile light/dark baselines were visually approved on macOS and from
+  stable GitHub Linux captures; the diagnostic browser run passed 94 existing
+  scenarios and failed only the four intentionally stale student snapshots.
+
+**Model recommendation:** GPT-5.6 Terra medium for a low-risk UI governance,
+test, and documentation consistency review.
+
+## 2026-08-30 — Development-speed remediation audit at 30 natural attempts
+
+**Risk profile:** workspace-state — CI evidence audit and a browser-test clock
+fixture; no product behavior, schema, migration, dependency, or enforcement
+change.
+
+- Ran the approved post-remediation audit after 30 completed natural CI attempts
+  following 2026-08-29T16:09:56Z. Exact `pnpm measure:ci -- --limit 30` output:
+
+```text
+failed to get run: Get "https://api.github.com/repos/codepetca/pika/actions/workflows/217397176": read tcp 172.16.30.1:59640->140.82.114.5:443: read: operation timed out
+{
+  "sampleSize": 30,
+  "successfulSampleSize": 7,
+  "counts": { "cancelled": 1, "failure": 3, "skipped": 19, "success": 7 },
+  "cancellationRate": 0.03333333333333333,
+  "cancelledElapsedSeconds": 355,
+  "successfulQueueSeconds": { "min": 0, "p50": 0, "p95": 0, "max": 0, "average": 0 },
+  "successfulRunSeconds": { "min": 448, "p50": 464, "p95": 482, "max": 482, "average": 467 },
+  "successfulWallSeconds": { "min": 448, "p50": 464, "p95": 482, "max": 482, "average": 467 },
+  "successfulRunsWithoutPrGateEvidence": 1,
+  "prGateByMode": {
+    "application-browser": {
+      "sampleSize": 2,
+      "timeToGateStartSeconds": { "min": 445, "p50": 477, "p95": 477, "max": 477, "average": 461 },
+      "gateRunSeconds": { "min": 2, "p50": 3, "p95": 3, "max": 3, "average": 3 },
+      "timeToGatePassSeconds": { "min": 447, "p50": 480, "p95": 480, "max": 480, "average": 464 }
+    },
+    "full": {
+      "sampleSize": 4,
+      "timeToGateStartSeconds": { "min": 459, "p50": 466, "p95": 478, "max": 478, "average": 466 },
+      "gateRunSeconds": { "min": 2, "p50": 4, "p95": 4, "max": 4, "average": 3 },
+      "timeToGatePassSeconds": { "min": 461, "p50": 469, "p95": 482, "max": 482, "average": 469 }
+    }
+  }
+}
+```
+
+- Passes: cancellation rate is 3.3% (<10%); full-mode PR Gate p50 is 469
+  seconds (<480); all 19 draft runs were inspected individually and contained
+  no non-skipped jobs; the sole cancellation was a superseded PR attempt, not a
+  duplicate dispatch. All seven successful runs have a PR Gate; the one missing
+  measurement evidence was the transient GitHub API timeout above, and direct
+  rechecks proved five full and two application-browser gate modes.
+- The two application-browser and five full successes selected their expected
+  browser/database dependencies. Failed browser lanes caused PR Gate to fail,
+  never to skip. Existing strict `PR Gate` rulesets, unknown-path fail-closed
+  classification, two-worker combined browser workflow, artifact upload, and
+  canonical production-promotion behavior remain unchanged.
+- Documentation-only mode did not occur in this post-remediation sample, so its
+  under-two-minute target is not newly evidenced here (the prior audit measured
+  53 seconds). No production-promotion attempt occurred in this window.
+- The checkpoint nevertheless fails browser stability: runs 33293971804 and
+  33295218351 each exhausted all retries of the new Daily/Attendance browser
+  case because the fixture asserted `Today 10:10 AM` for a fixed
+  2026-08-29 timestamp after the calendar advanced. The third failure was an
+  unrelated Test-detail focus assertion. Preserve enforcement; remediate the
+  deterministic Daily/Attendance fixture within the approved speed program.
+- Freeze that browser test's clock at 2026-08-29T14:15:00Z before navigation so
+  the Toronto-relative fixture label remains deterministic. Targeted local
+  browser verification passes all four viewport/theme cases first try (6/6
+  including auth) in 18.7 seconds.
+
+**Verification:** targeted Daily/Attendance Playwright matrix (6/6), focused
+application-browser checks (77 workflow tests, architecture/UI/design policies,
+TypeScript, lint), and diff validation pass. Final CI/review remains pending.
+
+**Model recommendation:** GPT-5.6 Terra high for the bounded browser-fixture
+stability review; no broad product or CI-policy redesign is indicated.
+
+## 2026-08-30 — Tween history zoom through the actual time window
+
+**Risk profile:** low — client-side motion refinement in the shared
+teacher/student history chart only; no API, persistence, authentication,
+dependency, migration, or deployment behavior changed.
+
+- Replaced the SVG scale transform with a frame-by-frame tween of the chart's
+  actual visible start and end times. Bars now move continuously between the
+  complete-history overview and the focused save window in both directions.
+- Synchronized the daily-to-save crossfade and vertical character scale with
+  the same symmetric easing curve. Hover no longer interrupts an active zoom;
+  click-to-pin, keyboard selection, wheel zoom, horizontal pan, and the reduced
+  motion instant path remain intact.
+- Added deterministic animation-frame tests covering pointer-anchored zoom,
+  midpoint interpolation, reciprocal dezoom, year-long histories, interruption,
+  click locking, and reduced motion, plus pure easing/window interpolation tests.
+- Independent review found three P2 transition-boundary issues in hover, click,
+  and pan handling. One remediation batch keeps hover live against the rendered
+  layer, pins the exact visible save or day, and retargets a mid-tween pan from
+  the on-screen window without snapping. Direct regressions cover all three.
+- Visual verification passed for the shared teacher and student examples at
+  desktop and mobile widths, including captured zoom/dezoom intermediate frames
+  and a long six-week history. Browser console errors: none. Dark mode is n/a
+  because Pika does not currently expose a dark theme.
+- `pnpm check:focused -- --base origin/main` passes: 77 workflow tests, 184
+  focused tests, 576 related tests, TypeScript, lint, architecture, UI policy,
+  and design policy. The Pika pre-commit audit passes.
+
+**Composite-widget accessibility checklist:** reviewed: yes; semantic slider
+state and keyboard selection remain covered by component tests; click selection
+during tween is covered; reduced motion is covered; remaining manual follow-up:
+none.
+
+**Model recommendation:** GPT-5.6 Terra high for animation-state correctness,
+interaction interruption behavior, and shared teacher/student compatibility.
+
+## 2026-08-30 — Restore version context after discarding the separate zoom task
+
+**Risk profile:** low — shared teacher/student history presentation and
+interaction only; no API, persistence, authentication, dependency, migration,
+or deployment behavior changed.
+
+- Stopped the overlapping Smooth history zoom task and reverted only its three
+  commits, returning the product tree exactly to the existing tween baseline.
+- Added a compact chart context label: exact date, time, and character change
+  for individual saves; date and daily addition/deletion totals in overview.
+  Hover context clears on leave, while click-to-pin keeps the selected context
+  visible. Large totals wrap within the 240 px student chart.
+- Focused regression coverage passes 76/76 across the history graph, history
+  utilities, assignment-history helpers, and gallery fixtures.
+- Visual verification passed for teacher and student views, desktop/mobile
+  widths, hover and pinned states, daily and exact-save labels, and dark mode.
+  Browser console errors: none.
+
+**Composite-widget accessibility checklist:** reviewed: yes; the visible label
+is supplemental to the existing complete slider value text, keyboard behavior
+is unchanged, and the label is hidden from the accessibility tree to avoid
+duplicate announcements; remaining manual follow-up: none.
+
+**Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
+rollback, history interaction correctness, and cross-role visual QA.
+
+## 2026-08-30 — Add Daily relative-date context and stronger light header
+
+**Risk profile:** none — teacher-only Daily presentation and pure date-label
+formatting changed; no persistence, API, schema, Attendance commands, or student
+behavior changed.
+
+- Added a compact muted subtitle inside the Daily date selector for past dates:
+  Today, Yesterday, elapsed days, weeks, months, or years. Forward dates keep
+  the selector single-line, while configured Attendance context remains in the
+  action bar's left slot.
+- Gave the Daily table header a stronger light-theme surface using the existing
+  `surface-3` token. The token resolves to the prior header value in dark mode,
+  preserving the approved dark appearance.
+- Added boundary coverage for every relative-date unit, future-date omission,
+  action-bar updates while navigating, and the Daily-specific header surface.
+- Independent follow-up review caught and fixed a shared `DateNavigator`
+  regression: joined static labels without subtitles retain flex centering for
+  Calendar's All-dates state, with direct regression coverage.
+- Visual verification passed the teacher desktop/mobile light views, teacher
+  desktop/mobile dark views, and unchanged student mobile view. The small
+  subtitle remains legible without increasing the action bar's control height.
+
+**Verification:** focused Daily/date tests; `pnpm check:focused -- --base
+origin/main`; exact-branch Playwright teacher/student desktop/mobile captures;
+browser console check; Pika audit; `git diff --check`.
+
+**Model recommendation:** current model for this bounded teacher Daily context
+and semantic-surface refinement.
+
+## 2026-08-30 — Add Daily relative-date visibility preference
+
+**Risk profile:** low — teacher-only local presentation preference; no API,
+schema, Attendance command, or student behavior changed.
+
+- Added a persistent Hide relative date / Show relative date toggle to Daily
+  More actions, following the existing ID-column preference pattern.
+- Hiding the subtitle preserves the established date selector layout and date
+  navigation; reopening Daily restores the teacher's preference.
+- Added component coverage for hide, persistence, and restore, plus browser
+  coverage across teacher desktop/mobile and light/dark variants.
+- Visual verification passed for the open menu and hidden selector states on
+  teacher desktop/mobile in light/dark themes; the student view is unchanged.
+
+**Verification:** focused Daily/date tests; targeted Daily Playwright matrix
+(6/6 including auth); repository UI verification captures; Pika audit; focused
+gate; `git diff --check`.
+
+**Model recommendation:** current model for this bounded Daily preference.
+
+## 2026-08-30 — Balance standalone teacher action-bar spacing
+
+**Risk profile:** low — shared teacher work-surface presentation only; no
+business logic, persistence, API, schema, or student behavior changed.
+
+- Added the compact content-top spacing token above standalone teacher action
+  bars. Together with the context bar's internal padding, this creates the same
+  12px visual rhythm above and below the controls and matches page side gutters.
+- Kept attached-tab shell behavior unchanged and added direct shell coverage
+  for standalone summary and workspace states.
+- Visual verification passed Daily, Classwork, Tests, Gradebook, and Roster on
+  teacher desktop/mobile, plus a dark-mode Daily spot check and unchanged
+  student baselines.
+
+**Verification:** TeacherWorkSurfaceShell, Daily, and Classwork component tests;
+repository UI verification across all five consumers; focused gate; Pika audit;
+`git diff --check`.
+
+**Model recommendation:** current model for this shared spacing refinement.
+
+**Review follow-up:** independent cumulative review identified that the Daily
+date button's explicit accessible name masked its new subtitle. Linked the
+subtitle with a stable `aria-describedby` ID and added accessible-description
+coverage for both shown and hidden states. The full focused gate remains green;
+the correction does not change visual styling or the existing control name.
+
+## 2026-08-30 — Reconcile Pattern Lab with merged teacher refinements
+
+**Risk profile:** none — development-only examples and merge integration; no
+new production behavior, schema, dependencies, or stable-guidance promotion.
+
+- Integrated main through `16ec69ea` (Daily date context and standalone spacing),
+  preserving the concurrently merged history-preview gallery from PR #1089.
+- Added real-owner teacher examples for DateNavigator, the context bar,
+  standalone shell spacing, and attached workspace modes. Catalog entries are
+  family-scoped; no new shared component was extracted. Fixed fixture dates,
+  temporary controls, and mounted tabpanel targets keep the examples reproducible.
+- Kept Daily's saved preference, stronger table-header treatment, commands, and
+  status meanings feature-owned. Existing icon/status guidance is unchanged.
+- Reconciled the `/ui-gallery` compatibility route with the guarded Pattern Lab
+  owner; preserved teacher/student history-preview interaction coverage.
+- Visual review refined the Lab's embedding margins without altering shared
+  owners. Composite checklist reviewed; date descriptions, toggle semantics,
+  keyboard focus, panel relationships, and student isolation are tested.
+
+**Verification:** focused gate passed (77 workflow, 261 focused, 807 related
+tests, architecture/UI/design policy, TypeScript and lint); final targeted suite
+19/19; Pattern Lab browser matrix 13 passed / 3 intentional dialog skips with
+unchanged existing baselines. Teacher examples captured in desktop 1440x900 and
+mobile 390x844, light/dark, default/hidden-subtitle/future/selected-focus states.
+Repository screenshot procedure also run with explicit teacher/student fixture
+roles. New captures are local review evidence, not promoted visual baselines.
+
+**Checkpoint:** user visual approval is pending. PR #1124 remains draft;
+independent review of this reconciliation and fresh final CI follow acceptance.
+No merge authorized or performed. No new reviewer launched this turn.
+
+**Model recommendation:** current coding model for implementation; one bounded
+Terra review of the new integration scope after the visual checkpoint.
+
+## 2026-08-30 — Clarify Daily-only relative-date scope
+
+**Risk profile:** none. **Model recommendation:** current coding model for
+this bounded Pattern Lab wording correction.
+
+- Per user clarification, labeled the relative-date example page-specific and
+  explicitly prohibited copying its relative-date text to other pages. The
+  shared catalog now describes only date-navigation structure, spacing, and
+  accessible labels. No production component or interaction changed.
+- Added scope regression assertions. Focused gate passed (77 workflow and 20
+  Pattern Lab tests, related tests, policies, TypeScript, lint). Browser matrix
+  passed 13/13 with 3 intentional skips and unchanged baselines; inspected the
+  updated desktop/mobile light/dark wording. Existing composite behavior and
+  student isolation remain covered.
+- Explained the future correction workflow: identify local drift versus a
+  shared-owner issue versus a proposed design change; show before/after; update
+  Pattern Lab, guidance, and reviewed baselines only where the approved contract
+  actually changes. Visual approval, independent review, and final CI remain
+  pending; PR #1124 stays draft.
+
+## 2026-08-30 — Enforce stable-SHA PR Gate launch
+
+**Risk profile:** runtime-platform — GitHub Actions admission policy and its
+workflow contract only; no product behavior, schema, dependency, secret, or
+branch-ruleset change.
+
+- Ran the approved post-#1125 audit after 25 completed natural CI attempts
+  following 2026-08-30T15:49:02Z. Exact `pnpm measure:ci -- --limit 25` output:
+
+```text
+{
+  "sampleSize": 25,
+  "successfulSampleSize": 5,
+  "counts": {
+    "cancelled": 9,
+    "skipped": 11,
+    "success": 5
+  },
+  "cancellationRate": 0.36,
+  "cancelledElapsedSeconds": 892,
+  "successfulQueueSeconds": {
+    "min": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "average": 0
+  },
+  "successfulRunSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulWallSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulRunsWithoutPrGateEvidence": 0,
+  "prGateByMode": {
+    "full": {
+      "sampleSize": 5,
+      "timeToGateStartSeconds": {
+        "min": 464,
+        "p50": 474,
+        "p95": 513,
+        "max": 513,
+        "average": 479
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 2,
+        "p95": 4,
+        "max": 4,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 466,
+        "p50": 478,
+        "p95": 517,
+        "max": 517,
+        "average": 482
+      }
+    }
+  }
+}
+```
+
+- The full-mode p50 remains within target (478 seconds), but the checkpoint
+  fails cancellation rate: 9/25 (36%). Eleven draft runs skipped every job;
+  the five successes all produced `PR Gate` evidence. There was no fresh
+  docs-only or production-promotion run, so those targets remain unevidenced.
+- Each cancellation was inspected. Eight launched or queued on the same ready
+  PR #1089 while successive commits and reverts were pushed; seven cancelled
+  already-running Test & Build, browser, and database lanes, consuming 892
+  seconds total. The remaining cancellation was draft-skipped. The two manual
+  dispatches were separate exact-head full runs and did not overlap eligible
+  pull-request runs.
+- Preserve all safety lanes and branch rulesets. The bounded remedy admits
+  heavy lanes only for `ready_for_review` or deliberate `workflow_dispatch`.
+  A ready-PR push now runs only the lightweight required `PR Gate`, which fails
+  with instructions to return to draft before pushing and mark the stable
+  reviewed SHA ready again. This prevents skipped checks from satisfying branch
+  protection and makes the documented lifecycle mechanically enforceable.
+
+**Verification:** CI workflow contract (4/4), workflow suite (77/77), focused
+full-mode checks (workflow, architecture, UI/design policy, TypeScript, lint),
+Pika audit, and diff validation pass. Independent review and exact-head CI are
+pending.
+
+**Model recommendation:** GPT-5.6 Terra high for CI admission and protected
+branch-safety review; no product-domain review is needed.
+
+## 2026-08-30 — Prepare final Pattern Lab integration review
+
+**Risk profile:** none for the remaining development-only UI reconciliation.
+**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
+review, with at most one follow-up launch inside the remaining review budget.
+
+- User authorized final independent review and CI for PR #1124, not merging.
+- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
+  workflow and both sides of the session-history conflict. No product source
+  changed in this sync; Daily-only relative-date scope remains intact.
+- Existing local UI checks passed at `471020c2`; the final integrated revision
+  receives refreshed focused checks before ready-for-review. Review results and
+  exact-head CI evidence will be recorded on the PR so evidence does not require
+  an unreviewed post-review commit.
+- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
+  this checkpoint allows at most 2 additional launches and 2 remaining batches,
+  20 minutes per reviewer, and 45 minutes for the review session. The integration
+  preparation is not remediation of a reviewer finding.
+
+## 2026-08-30 — Focused check and agent workflow efficiency
+
+- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
+- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
+- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
+- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
+
+## 2026-08-30 — Sync Pattern Lab after PR #1128
+
+- Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
+- This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
+- Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.

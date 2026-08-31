@@ -198,7 +198,7 @@ Source grounding:
 - [`docs/guidance/ui/teacher-operational-tables.md`](/docs/guidance/ui/teacher-operational-tables.md)
 - [`src/components/teacher-work-surface/TeacherWorkSurfaceContextBar.tsx`](/src/components/teacher-work-surface/TeacherWorkSurfaceContextBar.tsx)
 - [`src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx`](/src/components/teacher-work-surface/TeacherWorkSurfaceTableFrame.tsx)
-- [`src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherLiveAttendanceTab.tsx)
+- [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
 
 ### 4. Attendance stays presence-first and scan-friendly

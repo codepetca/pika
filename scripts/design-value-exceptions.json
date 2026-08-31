@@ -512,18 +512,6 @@
       ]
     },
     {
-      "file": "src/components/HistoryGraph.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "0cdc4f2501aa4779",
-          "reason": "legacy-visual-value"
-        }
-      ]
-    },
-    {
       "file": "src/components/layout/LeftSidebar.tsx",
       "reviewBy": "phase-2-shared-shell",
       "values": [

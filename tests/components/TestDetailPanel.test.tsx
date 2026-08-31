@@ -20,6 +20,13 @@ function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): Te
   } as TestAssessmentWithStats
 }
 
+function holdAutosaveDebounce() {
+  const nativeSetTimeout = globalThis.setTimeout
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback, delay, ...args) => (
+    nativeSetTimeout(callback, delay === 3_000 ? 60_000 : delay, ...args)
+  )) as typeof setTimeout)
+}
+
 const sampleQuestions: TestAssessmentQuestion[] = [
   createMockTestQuestion({ id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], position: 0 }),
   createMockTestQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
@@ -1797,11 +1804,9 @@ Current Test reference material.
       await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)
 
-      await waitFor(() => {
-        expect(
-          (within(markdownPane).getByTestId('test-markdown-editor') as HTMLTextAreaElement).value
-        ).toContain('Explain the amortized runtime complexity of your solution.')
-      })
+      expect(
+        (within(markdownPane).getByTestId('test-markdown-editor') as HTMLTextAreaElement).value
+      ).toContain('Explain the amortized runtime complexity of your solution.')
 
       const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
       expect(patchCalls).toHaveLength(0)
@@ -2399,6 +2404,8 @@ Correct Option: 2
       await waitFor(() => {
         expect(screen.getByText('Markdown')).toBeInTheDocument()
       })
+
+      holdAutosaveDebounce()
 
       fireEvent.click(screen.getByText('Markdown'))
       fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))

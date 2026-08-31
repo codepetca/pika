@@ -9,7 +9,7 @@ If the task is small but still user-visible, answer this briefly in the plan or 
 Record these items before coding:
 
 - Surface: page, tab, modal, menu, card, or shell being changed
-- Reference: existing Pika surface or governed canon that the new work should resemble
+- Reference: existing Pika surface, Pattern Lab entry, or governed canon that the new work should resemble
 - Affected roles: teacher, student, unauthenticated, or not-applicable
 - Required viewports: desktop, mobile, or both
 - Required themes: light, dark, or both
@@ -17,6 +17,14 @@ Record these items before coding:
 - Primary signal: the one visual cue that should do the work, such as accent edge, gradient, icon, or elevation
 - Must not add: visual treatments or extra UI elements that are explicitly out of scope
 - Composite widget accessibility review needed: yes/no
+
+Record component ownership before implementation:
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+
+Use `reuse`, `extend`, or `create` for each decision. Creating a shared component requires at
+least two genuine adopters and a stable shared behavior; visual similarity alone is not enough.
 
 ## Recommended Acceptance Language
 

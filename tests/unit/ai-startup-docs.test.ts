@@ -263,6 +263,13 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('return the PR to draft')
     expect(workflow).toContain('ready_for_review')
     expect(workflow).toContain('workflow_dispatch')
+    expect(workflow).toContain('Do not start `workflow_dispatch`')
+    expect(workflow).toContain('queued, in progress, or completed')
+    expect(workflow).toContain('exact reviewed SHA')
+    expect(workflow).toContain('eligible, non-skipped')
+    expect(workflow).toContain('completed draft-skipped run does not count')
+    expect(workflow).toContain('Rerun a failed eligible pull-request run through')
+    expect(workflow).toMatch(/never launch it concurrently\s+with the ready-event run/)
   })
 
   it('documents orient-only startup for read-only work', () => {
@@ -328,6 +335,33 @@ describe('AI startup docs', () => {
 
       expect(output).toContain('FEATURE SUMMARY MARKER')
       expect(output).toContain('FEATURE NEXT MARKER')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('can reuse already-loaded guidance without skipping environment verification', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+    writeFileSync(join(repoRoot, 'scripts/verify-env.sh'), '#!/usr/bin/env bash\necho VERIFIED MARKER\n')
+    try {
+      const output = execFileSync('bash', [scriptPath, '--context-loaded'], {
+        cwd: repoRoot, env: { ...process.env, HOME: repoRoot }, encoding: 'utf8',
+      })
+      expect(output).toContain('VERIFIED MARKER')
+      expect(output).toContain('CURRENT MARKER')
+      expect(output).toContain('FEATURE SUMMARY MARKER')
+      expect(output).toContain('FEATURE NEXT MARKER')
+      expect(output).not.toContain('START HERE MARKER')
+      expect(output).not.toContain('AI INSTRUCTIONS MARKER')
+      expect(output).not.toContain('FEATURES MARKER')
+      expect(output).toContain('already loaded')
+
+      writeFileSync(join(repoRoot, 'scripts/verify-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
+      const failed = spawnSync('bash', [scriptPath, '--context-loaded'], {
+        cwd: repoRoot, env: { ...process.env, HOME: repoRoot }, encoding: 'utf8',
+      })
+      expect(failed.status).not.toBe(0)
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

@@ -19,7 +19,7 @@ After startup, load only task-specific docs:
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
-| UI/UX | [`DESIGN.md`](../DESIGN.md), [`src/ui/README.md`](../src/ui/README.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| UI/UX | Use [`.codex/skills/pika-ui-change`](../.codex/skills/pika-ui-change/SKILL.md), then `DESIGN.md`, `docs/guidance/ui/README.md`, and `docs/guidance/ui/stable.md` |
 | Teacher work surfaces | [canon](./guidance/ui/teacher-work-surfaces.md), [operational tables](./guidance/ui/teacher-operational-tables.md), [assignment language](./guidance/assignment-ux-language.md), [audit](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
 | Legacy quiz/tests contract cleanup | [`docs/guidance/legacy-quiz-contract-cleanup.md`](./guidance/legacy-quiz-contract-cleanup.md), [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
