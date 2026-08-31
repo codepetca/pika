@@ -475,7 +475,7 @@ function TeacherMaterialDialog({
           />
         </FormField>
 
-        <ContentField label="Content" className="flex min-h-0 flex-1 flex-col">
+        <ContentField label="Content" className="flex min-h-64 flex-1 flex-col">
           <RichTextEditor
             content={content}
             onChange={setContent}

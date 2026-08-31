@@ -90,8 +90,8 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    FormField: ({ label, children }: any) => (
-      <label>
+    FormField: ({ label, children, className }: any) => (
+      <label className={className}>
         <span>{label}</span>
         {children}
       </label>
@@ -1120,6 +1120,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
 
     const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
+    expect(materialEditor.closest('label')).toHaveClass('min-h-64')
     const dialog = screen.getByRole('dialog', { name: 'New Material' })
     expect(dialog).toHaveClass('h-[90dvh]')
     const footer = within(dialog).getByRole('button', { name: 'Post Material' }).closest('.shrink-0')
