@@ -77,7 +77,8 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.queryByTestId('teacher-pattern-examples')).not.toBeInTheDocument()
   })
 
-  it('keeps page mockups teacher-only and exposes named interactive owners', () => {
+  it('keeps page mockups teacher-only and exposes named interactive owners', async () => {
+    const user = userEvent.setup()
     const { unmount } = renderGallery('teacher')
     expect(screen.getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
     const mockups = within(screen.getByTestId('page-mockups'))
@@ -85,6 +86,21 @@ describe('UiGallery accessibility contracts', () => {
     expect(mockups.getByRole('group', { name: 'Score display' })).toBeInTheDocument()
     expect(mockups.getByRole('button', { name: 'More actions' })).toHaveAttribute('aria-haspopup', 'menu')
     expect(mockups.getByRole('table')).toBeInTheDocument()
+    for (const name of ['Gradebook', 'Calendar', 'Announcements', 'Roster']) {
+      const tab = mockups.getByRole('tab', { name })
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
+    }
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'error')
+    await user.click(mockups.getByRole('button', { name: 'Try loading gradebook again' }))
+    expect(mockups.getByRole('table')).toBeInTheDocument()
+    await user.click(mockups.getByRole('checkbox', { name: 'Select Maya Chen' }))
+    await user.click(mockups.getByRole('button', { name: 'Selected students (1)' }))
+    await user.click(mockups.getByRole('menuitem', { name: 'Email 1 selected' }))
+    expect(mockups.getByRole('status')).toHaveTextContent('Email students selected. Example only')
+    await user.click(mockups.getByRole('tab', { name: 'Announcements' }))
+    expect(mockups.getByRole('tabpanel', { name: 'Announcements' })).toBeVisible()
+    await user.click(mockups.getByRole('button', { name: 'Create announcement' }))
+    expect(mockups.getByRole('status')).toHaveTextContent('Create announcement selected. Example only')
     unmount()
     renderGallery('student')
     expect(screen.queryByTestId('page-mockups')).not.toBeInTheDocument()

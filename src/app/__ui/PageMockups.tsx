@@ -114,16 +114,18 @@ function MoreMenu({ label, items }: { label: string; items: TeacherWorkSurfaceAc
   )
 }
 
-function StateBoundary({ state, page, children }: { state: FixtureState; page: string; children: React.ReactNode }) {
+function StateBoundary({ state, page, onRetry, children }: { state: FixtureState; page: string; onRetry: () => void; children: React.ReactNode }) {
   if (state === 'loading') return <PageState kind="loading" title={`Loading ${page}`} compact />
   if (state === 'empty') return <PageState kind="empty" title={`No ${page.toLowerCase()} records`} description="This is the successful empty state." compact />
-  if (state === 'error') return <PageState kind="error" title={`${page} couldn't load`} description="Nothing was changed." action={<IconButton icon={RotateCw} label={`Try loading ${page.toLowerCase()} again`} variant="secondary" />} compact />
+  if (state === 'error') return <PageState kind="error" title={`${page} couldn't load`} description="Nothing was changed." action={<IconButton icon={RotateCw} label={`Try loading ${page.toLowerCase()} again`} variant="secondary" onClick={onRetry} />} compact />
   return <>{children}</>
 }
 
 export function PageMockups() {
   const [page, setPage] = useState<PageId>('gradebook')
   const [state, setState] = useState<FixtureState>('populated')
+  const [prototypeMessage, setPrototypeMessage] = useState('Example controls never read or write live data.')
+  const explain = (action: string) => setPrototypeMessage(`${action} selected. Example only—nothing was changed.`)
 
   return (
     <div className="space-y-4" data-testid="page-mockups">
@@ -149,14 +151,17 @@ export function PageMockups() {
         getTabId={(value) => `mockup-${value}-tab`}
         getPanelId={(value) => `mockup-${value}-panel`}
       />
-      <section id={`mockup-${page}-panel`} role="tabpanel" aria-labelledby={`mockup-${page}-tab`} className="rounded-card border border-border bg-page p-2 sm:p-4">
-        <StateBoundary state={state} page={PAGE_ITEMS.find((item) => item.value === page)?.label ?? page}>
-          {page === 'gradebook' ? <GradebookMockup /> : null}
-          {page === 'calendar' ? <CalendarMockup /> : null}
-          {page === 'announcements' ? <AnnouncementsMockup /> : null}
-          {page === 'roster' ? <RosterMockup /> : null}
-        </StateBoundary>
-      </section>
+      {PAGE_ITEMS.map((item) => (
+        <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="rounded-card border border-border bg-page p-2 sm:p-4">
+          <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
+            {item.value === 'gradebook' ? <GradebookMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
+          </StateBoundary>
+        </section>
+      ))}
+      <p role="status" className="text-xs text-text-muted">{prototypeMessage}</p>
       <Description>
         Human review required before adoption. Page-specific statuses and operations stay local; this set proposes hierarchy and component reuse rather than one universal page template.
       </Description>
@@ -164,7 +169,7 @@ export function PageMockups() {
   )
 }
 
-function GradebookMockup() {
+function GradebookMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [scoreMode, setScoreMode] = useState<ScoreMode>('percent')
   const [selected, setSelected] = useState<string[]>([])
   const [sort, setSort] = useState<{ key: 'first' | 'last'; direction: SortDirection }>({ key: 'last', direction: 'asc' })
@@ -186,15 +191,15 @@ function GradebookMockup() {
           <SegmentedControl<ScoreMode> ariaLabel="Score display" value={scoreMode} onChange={setScoreMode} options={[{ value: 'percent', label: '%' }, { value: 'raw', label: 'Raw' }]} />
           <TeacherWorkSurfaceMenuButton
             label={selectedLabel}
-            items={[{ id: 'email', label: `Email ${selected.length} selected`, onSelect: () => undefined }]}
+            items={[{ id: 'email', label: `Email ${selected.length} selected`, onSelect: () => onPrototypeAction('Email students') }]}
             disabled={!selected.length}
             variant={selected.length ? 'primary' : 'secondary'}
             buttonProps={{ 'aria-label': selected.length ? `Selected students (${selected.length})` : 'Selected students (0)' }}
           />
         </TeacherWorkSurfaceActionCluster>}
         actions={<MoreMenu label="Gradebook" items={[
-          { id: 'columns', label: 'Column controls', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => undefined },
-          { id: 'export', label: 'Export gradebook', onSelect: () => undefined },
+          { id: 'columns', label: 'Column controls', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction('Column controls') },
+          { id: 'export', label: 'Export gradebook', onSelect: () => onPrototypeAction('Export gradebook') },
         ]} />}
       />
       <TeacherWorkSurfaceTableFrame className="max-h-80 border border-border">
@@ -225,13 +230,13 @@ function GradebookMockup() {
   )
 }
 
-function CalendarMockup() {
+function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [view, setView] = useState<CalendarViewMode>('week')
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
   const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : 'All dates'
   const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
-  viewItems.push({ id: 'markdown', label: 'Edit calendar in Markdown', dividerBefore: true, onSelect: () => undefined })
+  viewItems.push({ id: 'markdown', label: 'Edit calendar in Markdown', dividerBefore: true, onSelect: () => onPrototypeAction('Edit calendar in Markdown') })
   return <div className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
@@ -251,7 +256,7 @@ const ANNOUNCEMENTS = [
   { id: 'lab', title: 'Lab groups', body: 'Your lab groups will be posted before class.', date: 'Scheduled Sep 15 · 7:00 AM', state: 'scheduled' as const },
 ]
 
-function AnnouncementsMockup() {
+function AnnouncementsMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [filter, setFilter] = useState<AnnouncementFilter>('all')
   const [preview, setPreview] = useState<typeof ANNOUNCEMENTS[number] | null>(null)
   const visible = ANNOUNCEMENTS.filter((item) => filter === 'all' || item.state === filter)
@@ -259,7 +264,7 @@ function AnnouncementsMockup() {
     <TeacherWorkSurfaceContextBar
       ariaLabel="Announcement mockup controls"
       context={<span className="hidden truncate sm:inline">{visible.length} announcements</span>}
-      primary={<TeacherWorkSurfaceActionCluster><IconButton icon={Plus} label="Create announcement" variant="primary" onClick={() => undefined} /></TeacherWorkSurfaceActionCluster>}
+      primary={<TeacherWorkSurfaceActionCluster><IconButton icon={Plus} label="Create announcement" variant="primary" onClick={() => onPrototypeAction('Create announcement')} /></TeacherWorkSurfaceActionCluster>}
       actions={<MoreMenu label="Announcement" items={(['all', 'posted', 'scheduled'] as const).map((value, index) => ({ id: value, label: value[0].toUpperCase() + value.slice(1), icon: index === 0 ? <ListFilter className="h-4 w-4" aria-hidden="true" /> : undefined, checked: filter === value, checkedRole: 'menuitemradio', onSelect: () => setFilter(value) }))} />}
     />
     <div className="space-y-3">{visible.length ? visible.map((item) => <Card key={item.id} tone="panel" padding="md">
@@ -271,7 +276,7 @@ function AnnouncementsMockup() {
   </div>
 }
 
-function RosterMockup() {
+function RosterMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [selected, setSelected] = useState<string[]>([])
   const [sort, setSort] = useState<{ key: 'first' | 'last'; direction: SortDirection }>({ key: 'last', direction: 'asc' })
   const toggle = (id: string) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
@@ -282,10 +287,10 @@ function RosterMockup() {
       ariaLabel="Roster mockup controls"
       context={<span className="hidden truncate sm:inline">3 joined · 1 invited</span>}
       primary={<TeacherWorkSurfaceActionCluster>
-        <IconButton icon={Plus} label="Add students" variant="primary" onClick={() => undefined} />
-        <TeacherWorkSurfaceMenuButton label={<span className="inline-flex items-center gap-1"><Mail className="h-4 w-4" aria-hidden="true" />{selected.length}</span>} items={[{ id: 'email', label: `Email ${selected.length} selected`, onSelect: () => undefined }, { id: 'remove', label: `Remove ${selected.length} from roster`, destructive: true, onSelect: () => undefined }]} disabled={!selected.length} variant={selected.length ? 'primary' : 'secondary'} buttonProps={{ 'aria-label': selected.length ? `Selected students (${selected.length})` : 'Selected students (0)' }} />
+        <IconButton icon={Plus} label="Add students" variant="primary" onClick={() => onPrototypeAction('Add students')} />
+        <TeacherWorkSurfaceMenuButton label={<span className="inline-flex items-center gap-1"><Mail className="h-4 w-4" aria-hidden="true" />{selected.length}</span>} items={[{ id: 'email', label: `Email ${selected.length} selected`, onSelect: () => onPrototypeAction('Email students') }, { id: 'remove', label: `Remove ${selected.length} from roster`, destructive: true, onSelect: () => onPrototypeAction('Remove students') }]} disabled={!selected.length} variant={selected.length ? 'primary' : 'secondary'} buttonProps={{ 'aria-label': selected.length ? `Selected students (${selected.length})` : 'Selected students (0)' }} />
       </TeacherWorkSurfaceActionCluster>}
-      actions={<MoreMenu label="Roster" items={[{ id: 'csv', label: 'Import CSV', icon: <Upload className="h-4 w-4" aria-hidden="true" />, onSelect: () => undefined }, { id: 'copy', label: 'Copy all emails', onSelect: () => undefined }]} />}
+      actions={<MoreMenu label="Roster" items={[{ id: 'csv', label: 'Import CSV', icon: <Upload className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction('Import CSV') }, { id: 'copy', label: 'Copy all emails', onSelect: () => onPrototypeAction('Copy all emails') }]} />}
     />
     <TeacherWorkSurfaceTableFrame className="max-h-80 border border-border"><DataTable density="tight">
       <DataTableHead sticky><DataTableRow><TableSelectionHeaderCell checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all roster students" /><SortableHeaderCell label="First" isActive={sort.key === 'first'} direction={sort.direction} onClick={() => changeSort('first')} /><SortableHeaderCell label="Last" isActive={sort.key === 'last'} direction={sort.direction} onClick={() => changeSort('last')} /><DataTableHeaderCell className="hidden sm:table-cell">Email</DataTableHeaderCell><DataTableHeaderCell>Joined</DataTableHeaderCell></DataTableRow></DataTableHead>

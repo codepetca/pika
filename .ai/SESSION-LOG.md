@@ -856,3 +856,4 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 ## 2026-08-31 Pattern Lab remaining classroom page mockups
 - Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
 - Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
+- Independent review found missing inactive tabpanel targets, inert retry/prototype commands, and insufficient durable coverage. Fixed all findings in one batch, added explicit local-only feedback and a reusable 35-check browser scenario; focused checks pass 13 files / 101 tests.
