@@ -1185,12 +1185,26 @@ review, with at most one follow-up launch inside the remaining review budget.
 dependency, enforcement, or branch-ruleset change.
 
 - Ran `pnpm measure:ci -- --limit 36` after the post-#1127 sample exceeded 20
-  completed natural attempts. Exact output: `sampleSize: 35`, `success: 15`,
-  `skipped: 16`, `cancelled: 3`, `failure: 1`, cancellation rate
-  `0.08571428571428572`, cancelled elapsed seconds `22`, and zero successful
-  runs without PR Gate evidence. Full-mode PR Gate p50 was 501 seconds;
-  application-browser was 514 seconds (one run); production-promotion was 296
-  seconds (one run). No docs-only success was observed.
+  completed natural attempts. Exact output:
+
+```text
+{
+  "sampleSize": 35,
+  "successfulSampleSize": 15,
+  "counts": {"cancelled": 3, "failure": 1, "skipped": 16, "success": 15},
+  "cancellationRate": 0.08571428571428572,
+  "cancelledElapsedSeconds": 22,
+  "successfulQueueSeconds": {"min": 0, "p50": 0, "p95": 820, "max": 820, "average": 124},
+  "successfulRunSeconds": {"min": 297, "p50": 485, "p95": 532, "max": 532, "average": 458},
+  "successfulWallSeconds": {"min": 297, "p50": 501, "p95": 1135, "max": 1135, "average": 582},
+  "successfulRunsWithoutPrGateEvidence": 0,
+  "prGateByMode": {
+    "application-browser": {"sampleSize": 1, "timeToGateStartSeconds": {"min": 510, "p50": 510, "p95": 510, "max": 510, "average": 510}, "gateRunSeconds": {"min": 4, "p50": 4, "p95": 4, "max": 4, "average": 4}, "timeToGatePassSeconds": {"min": 514, "p50": 514, "p95": 514, "max": 514, "average": 514}},
+    "full": {"sampleSize": 13, "timeToGateStartSeconds": {"min": 473, "p50": 497, "p95": 1131, "max": 1131, "average": 606}, "gateRunSeconds": {"min": 2, "p50": 3, "p95": 4, "max": 4, "average": 3}, "timeToGatePassSeconds": {"min": 476, "p50": 501, "p95": 1134, "max": 1134, "average": 609}},
+    "production-promotion": {"sampleSize": 1, "timeToGateStartSeconds": {"min": 293, "p50": 293, "p95": 293, "max": 293, "average": 293}, "gateRunSeconds": {"min": 3, "p50": 3, "p95": 3, "max": 3, "average": 3}, "timeToGatePassSeconds": {"min": 296, "p50": 296, "p95": 296, "max": 296, "average": 296}}
+  }
+}
+```
 - All 16 skipped draft attempts were individually inspected and contained no
   non-skipped job. The three cancellations and one failure were ready-PR guard
   events: PR Gate failed within 2–4 seconds while every heavy lane was skipped,
