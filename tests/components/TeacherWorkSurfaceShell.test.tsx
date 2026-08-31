@@ -71,6 +71,24 @@ describe('TeacherWorkSurfaceShell', () => {
       'flex-1',
     )
     expect(content).not.toHaveClass('px-0', 'pt-0')
+
+    const actionBar = screen.getByText('Gradebook').parentElement?.parentElement?.parentElement
+    expect(actionBar).toHaveClass('pt-density-compact-content-top')
+  })
+
+  it('balances standalone summary action bars with the content gutter rhythm', () => {
+    render(
+      <TeacherWorkSurfaceShell
+        state="summary"
+        primary={<div>Classwork</div>}
+        summary={<div>Assignment list</div>}
+        workspace={<div>Workspace</div>}
+        workspaceFrame="standalone"
+      />,
+    )
+
+    const actionBar = screen.getByText('Classwork').parentElement?.parentElement?.parentElement
+    expect(actionBar).toHaveClass('pt-density-compact-content-top')
   })
 
   it('keeps workspace children mounted across non-destructive shell updates', () => {

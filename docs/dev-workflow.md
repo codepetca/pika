@@ -178,6 +178,9 @@ automatically; it is not a checklist the maintainer must remember.
 5. When the reviewed head commit is stable and no blocker remains, record that SHA
    in the PR and run `gh pr ready`. The `ready_for_review` event starts the
    risk-matched CI lanes exactly once for that candidate.
+   A push to a ready PR is rejected by the lightweight `PR Gate` without
+   launching heavy lanes; return the PR to draft before changing it, then mark
+   the new reviewed SHA ready again.
    Do not start `workflow_dispatch` while an eligible, non-skipped pull-request
    CI run for the exact reviewed SHA is queued, in progress, or completed. A
    completed draft-skipped run does not count. If the ready event appears not to

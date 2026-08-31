@@ -4,6 +4,15 @@ import { useEffect } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
+import {
+  useHistoryPreviewViewport,
+  type HistoryPreviewMode,
+} from '@/hooks/useHistoryPreviewViewport'
+import type { AssignmentHistoryChange } from '@/lib/assignment-doc-history'
+import {
+  HistoryPreviewChangeSummary,
+  HistoryPreviewMinimap,
+} from './HistoryPreviewMinimap'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -30,6 +39,10 @@ export interface RichTextViewerProps {
   showPlainText?: boolean
   fillHeight?: boolean
   chrome?: 'default' | 'flush'
+  /** Controls whole-document framing while inspecting assignment history. */
+  historyPreviewMode?: HistoryPreviewMode
+  /** Changed blocks and deletion anchors for the active history save. */
+  historyPreviewChange?: AssignmentHistoryChange | null
 }
 
 export function RichTextViewer({
@@ -37,7 +50,17 @@ export function RichTextViewer({
   showPlainText = false,
   fillHeight = false,
   chrome = 'default',
+  historyPreviewMode = 'current',
+  historyPreviewChange = null,
 }: RichTextViewerProps) {
+  const { viewportRef, minimapState } = useHistoryPreviewViewport(
+    historyPreviewMode,
+    content,
+    historyPreviewChange,
+  )
+  const showHistoryMinimap = (
+    historyPreviewMode === 'focused' || historyPreviewMode === 'locked'
+  ) && historyPreviewChange
   const editor = useEditor({
     immediatelyRender: false,
     editable: false,
@@ -94,14 +117,19 @@ export function RichTextViewer({
 
   if (showPlainText) {
     return (
-      <pre
-        className={[
-          'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
-          fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
-        ].join(' ')}
-      >
-        {editor.getText()}
-      </pre>
+      <>
+        {showHistoryMinimap ? (
+          <HistoryPreviewChangeSummary change={historyPreviewChange} />
+        ) : null}
+        <pre
+          className={[
+            'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
+            fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
+          ].join(' ')}
+        >
+          {editor.getText()}
+        </pre>
+      </>
     )
   }
 
@@ -114,10 +142,24 @@ export function RichTextViewer({
           : 'bg-surface-2 rounded-none border border-border',
       ].join(' ')}
     >
-      <EditorContent
-        editor={editor}
-        className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
-      />
+      {showHistoryMinimap ? (
+        <HistoryPreviewChangeSummary change={historyPreviewChange} />
+      ) : null}
+      <div className="history-preview-layout">
+        <EditorContent
+          ref={viewportRef}
+          editor={editor}
+          className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
+          data-history-preview-mode={historyPreviewMode}
+        />
+        {showHistoryMinimap ? (
+          <HistoryPreviewMinimap
+            content={content}
+            change={historyPreviewChange}
+            state={minimapState}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }
