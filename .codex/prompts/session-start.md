@@ -12,6 +12,10 @@ For report-only, docs-only, or review work:
 bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only
 ```
 
+Do not reread documents the script already rendered. Use `--context-loaded` only
+when required startup guidance is already loaded and unchanged in this conversation.
+Follow `docs/dev-workflow.md` for branch ownership and reviewer isolation.
+
 Manual fallback:
 1. Resolve the repo root with `git rev-parse --show-toplevel` and verify it is not `$HOME/Repos/pika` for branch work.
 2. Ensure `.env.local` exists: maintainer setups usually symlink it to `$HOME/Repos/.env/pika/.env.local`; collaborators may `cp .env.example .env.local`.

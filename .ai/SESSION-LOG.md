@@ -11,205 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-27 — Make Blueprint provenance compatible with student work
-
-**Risk profile:** runtime-platform — migration 134 trigger semantics and
-production cutover controls; no database was reset or migrated and no hosted
-state changed.
-
-- Fixed the Test-question freeze so owner-run Blueprint identity mapping may
-  update only `source_blueprint_version_id` after student work exists. The
-  exception runs after Classroom/Test parent locks and requires both the
-  transaction-local identity guard and the PostgreSQL owner; authored content
-  and portable identity remain frozen.
-- Added database regressions for active Blueprint capture and archived reuse
-  with retained attempts and responses. They verify provenance is recorded,
-  student work and question identity/content are unchanged, and an authored
-  question mutation still raises `test_questions_locked`.
-- Corrected production continuity to migrations 001–133 applied with only 134
-  pending. Migration 134 now has a 10-second lock timeout and 15-minute
-  per-statement timeout, with an idle-window preflight and fresh-authorization
-  retry runbook. The production-shaped lifecycle deliberately blocks the
-  migration, proves the timeout leaves 134 unapplied, then proves a clean retry.
-- PR #1095 passed targeted independent safety review with no P0/P1/P2 findings.
-  Full local tests pass (588 files, 5,168 tests), as do lint, TypeScript, build,
-  Pika audit, focused migration tests, and all CI jobs. Production migration 134
-  remains unapplied and still requires exact one-time authorization.
-
-**Model recommendation:** GPT-5.6 Sol for migration and concurrency changes;
-GPT-5.6 Terra for bounded compatibility review.
-
-## 2026-08-27 — Course Guide Phase 1
-
-**Risk profile:** cross-role UI plus authenticated and public-read APIs — a
-classroom-backed guide, optional public sharing, teacher-managed guide content,
-and one resource-save ordering migration applied to local only; staging and
-production remain unchanged.
-
-- Replaced user-facing Syllabus terminology with Course Guide while preserving
-  the existing internal `syllabus` feature key and `/actual/[slug]` route for
-  compatibility.
-- Added one safe Course Guide projection and shared presentation for the
-  authenticated teacher/student tab and optional public course webpage. The
-  in-Pika guide is always available to the teacher and enrolled students; a
-  public slug or publication state is no longer required. Removed the iframe
-  preview and its message protocol.
-- Published configured classroom sections: curriculum overview and
-  expectations, resources, assignments, tests, lesson sequence, and
-  announcements. Test questions/private uploads are excluded and document
-  links are restricted to public HTTP(S) URLs; disabled sections are omitted
-  from the public API payload.
-- Added one consolidated curriculum overview and expectations editor plus the
-  existing autosaving rules/links/reference resources editor directly inside
-  the guide. Teacher-authored section headings become keyboard-clickable in
-  edit mode, while derived assignments, tests, lesson sequence, and
-  announcements remain read-only projections of the live classroom.
-- Moved section visibility, lesson-sequence scope, and optional public sharing
-  into an accessible Guide options dialog launched from the guide's focused
-  floating action cluster. Removed the visible Course Guide Settings subtab;
-  legacy `section=syllabus` URLs fall back to General while stored compatibility
-  fields and APIs remain intact.
-- Removed the redundant `Course Guide` page title from the guide content area;
-  the classroom title now leads the document while teacher actions remain in
-  the action bar.
-- Removed the internal section jump links and kept all enabled guide sections
-  in one continuous document with an explicit desktop scroll container inside
-  the constrained classroom shell. Reduced doubled horizontal rules so only
-  major-section and between-item separators remain.
-- Removed course date ranges, term labels, and per-lesson dates from the guide.
-  Retired the separate outline setting, visibility control, and rendered
-  section while preserving its stored compatibility field. Seeded the local
-  demo classroom overview with two Lorem Ipsum paragraphs for visual review.
-- Added domain, server projection, authenticated/public API, component,
-  settings, navigation, focus, mutation-failure, and regression tests. The full
-  suite passes 5,146 tests across 591 files; lint, TypeScript, the production
-  build, design/UI policy checks, and the Pika audit pass.
-- Visual verification passed for teacher and student at desktop/mobile in
-  light/dark, including read, edit, overview editor, resources editor, private
-  and public options, saving, and save-error states. Semantic coverage also
-  verifies loading, empty, retry, unpublished, archived read-only, unsaved
-  discard, dialog focus/Escape/return, and section pressed states. No course
-  dates added by the guide, outline section, second narrative editor, iframe,
-  settings duplicate, or horizontal overflow remains. The local fixture stays
-  private.
-- Follow-up density pass reduced the guide header, section, assessment,
-  lesson, announcement, and options spacing; shortened both authored editor
-  canvases; and replaced the tall empty-resources checklist with one compact
-  prompt. The title band is now slimmer, and the edit toggle plus its contextual
-  Guide options/Done controls use the top-centred floating action position shared
-  with Attendance. The Course Guide floating shell has no inset padding, so its
-  shadow hugs the action edges. Focused tests and the 10-case cross-role browser
-  matrix remain green.
-- PR review removed the classroom join credential from every public/shared guide
-  path, filtered future scheduled assignments, corrected duplicate-title grade
-  matching, added unload-beacon POST support, made resource load failures
-  non-editable/retryable, and restored the shared E2E classroom fixture after
-  anonymous public-guide coverage.
-- Final concurrency remediation adds migration 136 with a persisted
-  monotonic resource `save_revision`, rejects stale PUT/beacon writes in the
-  database, serializes and generation-fences client autosaves across classroom
-  switches, and snapshots fixture state from the full classroom endpoint. The
-  final local gate passes 5,191 tests across 594 files, lint, architecture,
-  production build, and the Pika audit.
-- With explicit one-time authorization, migrations 135 and 136 were applied to
-  the local database only. Migration history now matches through 136, and the
-  generated Supabase types were regenerated from and checked against that local
-  schema. No hosted environment was touched.
-
-## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
-
-**Risk profile:** standard application behavior — teacher Attendance interaction,
-read-model projection, and shared segmented-control styling API changed; existing
-authorization, session/mark commands, confirmation polling, schema, migrations,
-dependencies, authentication, and student UI are unchanged.
-
-- Removed Attendance row-selection checkboxes and the selected-student actions
-  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
-  to the centered cluster; each opens an explicit scope confirmation before
-  posting marks for all enrolled students.
-- Replaced static row statuses with an accessible three-state segmented control.
-  Row corrections are immediate and reversible, use icons plus `aria-pressed`
-  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
-  keyboard navigation through the shared `SegmentedControl` primitive.
-- Replaced Source with QR Check-in time. The teacher read model validates Pika's
-  existing signed `attendance.record.changed` inbox events and projects the
-  earliest QR-origin time/status per student, so a later staff correction can
-  expose Restore QR check-in without losing durable provenance. No provider
-  reference or raw integration payload is returned to the browser.
-- Preserved Attendance-specific permissions, archived/closed states, session
-  actions, command failures, status-count sorting, column resizing, internal
-  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
-- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
-  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
-  stale Attendance-specific durable guidance; generic selection guidance remains
-  conditional on selection feeding real batch actions.
-- One bounded independent review found that QR inbox history was filtered by
-  classroom/occurrence but not the active installation. Added query-level and
-  defensive payload installation checks plus a rotation regression fixture, so
-  an old provider installation cannot supply the Check-in time or Undo target.
-  The same remediation batch historicalized a stale Test evidence note that
-  still described the now-removed Attendance selection bar as active debt.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused API/server/component/UI tests (43/43), responsive
-Attendance Playwright matrix (4/4), TypeScript, lint, production build,
-architecture check, design-policy check, Pika audit, diff checks, and visual
-reference comparison pass. Student UI is n/a because this remains a teacher-only
-surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, QR provenance projection, accessibility, and
-responsive regression risk.
-
-## 2026-08-27 — Revise teacher Attendance controls after Option 1 selection
-
-**Risk profile:** standard application behavior — teacher Attendance interaction,
-read-model projection, and shared segmented-control styling API changed; existing
-authorization, session/mark commands, confirmation polling, schema, migrations,
-dependencies, authentication, and student UI are unchanged.
-
-- Removed Attendance row-selection checkboxes and the selected-student actions
-  menu. Added square, tooltip-backed Present/Late/Absent whole-roster controls
-  to the centered cluster; each opens an explicit scope confirmation before
-  posting marks for all enrolled students.
-- Replaced static row statuses with an accessible three-state segmented control.
-  Row corrections are immediate and reversible, use icons plus `aria-pressed`
-  instead of color alone, retain 44 px targets, and support roving Arrow/Home/End
-  keyboard navigation through the shared `SegmentedControl` primitive.
-- Replaced Source with QR Check-in time. The teacher read model validates Pika's
-  existing signed `attendance.record.changed` inbox events and projects the
-  earliest QR-origin time/status per student, so a later staff correction can
-  expose Restore QR check-in without losing durable provenance. No provider
-  reference or raw integration payload is returned to the browser.
-- Preserved Attendance-specific permissions, archived/closed states, session
-  actions, command failures, status-count sorting, column resizing, internal
-  roster scrolling, and mobile access to QR/open/close/hours/refresh utilities.
-- Refreshed Product Design evidence for desktop/mobile, light/dark, default,
-  manual-with-Undo, whole-roster confirmation, and hours states. Updated only
-  stale Attendance-specific durable guidance; generic selection guidance remains
-  conditional on selection feeding real batch actions.
-- One bounded independent review found that QR inbox history was filtered by
-  classroom/occurrence but not the active installation. Added query-level and
-  defensive payload installation checks plus a rotation regression fixture, so
-  an old provider installation cannot supply the Check-in time or Undo target.
-  The same remediation batch historicalized a stale Test evidence note that
-  still described the now-removed Attendance selection bar as active debt.
-- Composite-widget accessibility checklist reviewed: yes; keyboard behavior
-  covered: yes; semantic state covered by tests: yes; remaining manual follow-up:
-  none.
-
-**Verification:** focused API/server/component/UI tests (43/43), responsive
-Attendance Playwright matrix (4/4), TypeScript, lint, production build,
-architecture check, design-policy check, Pika audit, diff checks, and visual
-reference comparison pass. Student UI is n/a because this remains a teacher-only
-surface.
-
-**Model recommendation:** GPT-5.6 Terra/high for one bounded independent review
-of requirements coverage, QR provenance projection, accessibility, and
-responsive regression risk.
-
 ## 2026-08-28 — Consolidate selected-Test actions menu
 
 **Risk profile:** none — teacher Test grading UI and shared menu focus behavior only.
@@ -1536,6 +1337,7 @@ duplicate announcements; remaining manual follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
 rollback, history interaction correctness, and cross-role visual QA.
+
 ## 2026-08-30 — Add Daily relative-date context and stronger light header
 
 **Risk profile:** none — teacher-only Daily presentation and pure date-label
@@ -1706,3 +1508,10 @@ pending.
 
 **Model recommendation:** GPT-5.6 Terra high for CI admission and protected
 branch-safety review; no product-domain review is needed.
+
+## 2026-08-30 — Focused check and agent workflow efficiency
+
+- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
+- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
+- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
+- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
