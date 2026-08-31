@@ -87,6 +87,9 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.getAllByText('ClipboardCheck', { exact: true })).toHaveLength(2)
     expect(screen.getByText('SquarePen', { exact: true })).toBeInTheDocument()
     expect(screen.getByText('Compass', { exact: true })).toBeInTheDocument()
+    const icons = within(screen.getByTestId('pattern-section-icons'))
+    expect(icons.getByRole('heading', { name: 'Eye' })).toBeInTheDocument()
+    expect(icons.getByText('Preview content')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Student history' })).toHaveAttribute(
       'href',
       '/student/history',

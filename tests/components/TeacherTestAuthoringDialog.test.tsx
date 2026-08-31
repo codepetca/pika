@@ -92,7 +92,9 @@ describe('TeacherTestAuthoringDialog', () => {
     )
     expect(codeButton).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Preview' }))
+    const preview = within(dialog).getByRole('button', { name: 'Preview' })
+    expect(preview).toHaveTextContent(/^$/)
+    fireEvent.click(preview)
     expect(onRequestPreview).toHaveBeenCalledWith({
       testId: 'test-1',
       title: 'Unit Test',
