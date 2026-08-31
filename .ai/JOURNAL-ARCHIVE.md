@@ -27399,3 +27399,34 @@ states. Final policy, lint, audit, independent review, and PR merge gates follow
 **Verification:** TypeScript and six focused Attendance test files pass (48
 tests). The targeted browser matrix, policy gates, audit, targeted independent
 confirmation, and GitHub checks follow before merge.
+
+<!-- pika-session-log-archive-batch:70ef01f9a42f44041b279b2aaea10e945c1575d2a8df51c63afb1ae9b8b116ef -->
+## 2026-08-28 — Define configurable Attendance timing semantics
+
+**Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
+status, persistence, and versioned-contract behavior; no product code,
+migration, deployment, PR, merge, production state, or Bara file changed.
+
+- Completed the mandatory Pika startup contract in a fresh detached worktree at
+  the fetched `origin/main` head `09bb0c54`; installed locked dependencies and
+  passed `verify-env.sh`.
+- Audited native Pika Attendance policy creation, Toronto/DST schedule
+  materialization, teacher/student permissions, QR entry and idempotency,
+  projections, persistence, API validators, and focused tests. The current v1
+  model has only absolute open/close instants: every accepted QR scan becomes
+  Present and closing finalizes Unmarked students as Absent.
+- Inspected open PR #1094. It preserves teacher corrections and Undo while
+  exposing original QR check-in time from signed Bara events, but it does not
+  add timing cutoffs; reconciliation cannot yet recover immutable first-QR
+  evidence if the original event was missed.
+- Inspected `/Users/stew/Repos/bara` read-only at local `main` `f66850f`.
+  Bara's server clock and Convex mutation are authoritative, the entry interval
+  currently closes exclusively at `closesAt`, manual Pika corrections are
+  allowed after close, and automatic close turns only Unmarked records Absent.
+- Recommended separating session start/end, QR entry open/close, Present grace,
+  and Absent finalization; using explicit boundary semantics and a v2 contract;
+  preserving existing policies in legacy mode until a teacher opts in; and
+  waiting for maintainer agreement before any implementation plan or change.
+
+**Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
+cross-repository, time-boundary, persistence, and compatibility implementation.
