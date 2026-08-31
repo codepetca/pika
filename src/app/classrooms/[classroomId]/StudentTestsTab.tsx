@@ -4,18 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ClockAlert, LogOut, Maximize } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
-import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
   getTestExitCount,
-  getTestStatusBadgeClass,
   mergeTestFocusSummaries,
   TEST_EXIT_BURST_WINDOW_MS,
 } from '@/lib/tests'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
-import { Button, ConfirmDialog, EmptyState, PageState } from '@/ui'
+import { Button, Card, ConfirmDialog, PageContent, PageHeading, PageLayout, PageStack, PageState } from '@/ui'
+import { StudentTestListItem } from '@/components/StudentTestListItem'
+import { getStudentTestPresentation } from '@/lib/student-test-presentation'
 import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -294,6 +294,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   } | null>(null)
   const [startedTestId, setStartedTestId] = useState<string | null>(null)
   const [loadingTest, setLoadingTest] = useState(false)
+  const [detailError, setDetailError] = useState(false)
   const [showStartTestConfirm, setShowStartTestConfirm] = useState(false)
   const [pendingStartTestId, setPendingStartTestId] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -325,6 +326,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const testsRegionRef = useRef<HTMLDivElement>(null)
+  const detailBackRef = useRef<HTMLButtonElement>(null)
+  const listItemRefs = useRef(new Map<string, HTMLButtonElement>())
+  const returnFocusTestIdRef = useRef<string | null>(null)
   const currentScopeRef = useRef({ classroomId: classroom.id })
   const apiBasePath = '/api/student/tests'
   const currentTestsScope = classroom.id
@@ -487,6 +491,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     selectedTestIdRef.current = null
     setSelectedTestId(null)
     setSelectedTest(null)
+    setDetailError(false)
+    returnFocusTestIdRef.current = null
     setFocusSummary(null)
     setStartedTestId(null)
     setShowStartTestConfirm(false)
@@ -535,6 +541,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     selectedTestIdRef.current = testId
     setSelectedTestId(testId)
     setLoadingTest(true)
+    setDetailError(false)
     setActiveDoc(null)
     setRemoteClosureNotice(null)
     focusSessionIdRef.current = createFocusSessionId()
@@ -557,6 +564,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       ) {
         return
       }
+      if (!res.ok) throw new Error('Failed to load test')
       const responseTest = readTestFromPayload<StudentTestView>(data)
       const listTest = tests.find((test) => test.id === testId)
       const nextTest = responseTest ?? listTest
@@ -575,6 +583,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         currentScopeRef.current.classroomId === classroomId
       ) {
         console.error('Error loading test:', err)
+        setDetailError(true)
       }
     } finally {
       if (
@@ -1037,6 +1046,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   ])
 
   const performBackToAssessmentList = useCallback(() => {
+    returnFocusTestIdRef.current = selectedTestIdRef.current
+    setDetailError(false)
     detailRequestIdRef.current += 1
     clearPendingNonCompliantTimeout()
     selectedTestIdRef.current = null
@@ -1344,74 +1355,34 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
   }, [logRouteExitAttempt])
 
-  const renderAssessmentList = (showSelectionState: boolean) => {
-    if (visibleTests.length === 0) {
-      return (
-        <p className="text-text-muted text-center py-8">
-          No tests available.
-        </p>
-      )
+  useEffect(() => {
+    if (!isActive) return
+    if (selectedTestId === null && returnFocusTestIdRef.current) {
+      const item = listItemRefs.current.get(returnFocusTestIdRef.current)
+      if (item && !item.disabled) item.focus()
+      else testsRegionRef.current?.focus()
+      returnFocusTestIdRef.current = null
+    } else if (selectedTestId && !focusEnabled) {
+      detailBackRef.current?.focus()
     }
+  }, [selectedTestId, loadingTest, focusEnabled, isActive])
 
-    return (
-      <PageStack>
-        {visibleTests.map((test) => {
-          const isSelected = selectedTestId === test.id
-          const isUnavailable =
-            test.student_status === 'not_started' &&
-            (test.effective_access ?? (test.status === 'closed' ? 'closed' : 'open')) === 'closed'
-          const showClosedListState =
-            isUnavailable || (test.status === 'closed' && test.student_status !== 'not_started')
-
-          return (
-            <button
-              key={test.id}
-              type="button"
-              onClick={() => {
-                void handleSelectTest(test.id)
-              }}
-              disabled={isUnavailable}
-              className={`block w-full rounded-card border px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] ${
-                showSelectionState && isSelected
-                  ? 'border-primary bg-surface-accent ring-1 ring-primary/25 shadow-panel'
-                  : isUnavailable
-                    ? 'cursor-not-allowed border-border bg-surface-2 opacity-75'
-                  : 'border-border bg-surface-panel hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h3 className="truncate text-base font-semibold text-text-default">{test.title}</h3>
-                  {showClosedListState && (
-                    <p className="mt-1 text-sm text-text-muted">
-                      This test is closed
-                    </p>
-                  )}
-                </div>
-                {test.student_status === 'can_view_results' ? (
-                  <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
-                    Returned
-                  </span>
-                ) : showClosedListState ? (
-                  <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('closed')}`}>
-                    Closed
-                  </span>
-                ) : test.student_status === 'responded' ? (
-                  <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
-                    Submitted
-                  </span>
-                ) : (
-                  <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
-                    New
-                  </span>
-                )}
-              </div>
-            </button>
-          )
-        })}
-      </PageStack>
-    )
-  }
+  const renderAssessmentList = (showSelectionState: boolean) => (
+    <PageStack>
+      {visibleTests.map((test) => (
+        <StudentTestListItem
+          key={test.id}
+          ref={(element) => {
+            if (element) listItemRefs.current.set(test.id, element)
+            else listItemRefs.current.delete(test.id)
+          }}
+          test={test}
+          selected={showSelectionState && selectedTestId === test.id}
+          onClick={() => { void handleSelectTest(test.id) }}
+        />
+      ))}
+    </PageStack>
+  )
 
   const hasSelectedTest = selectedTestId !== null && selectedTest !== null
   const hasResponded = hasSelectedTest && selectedTest.test.student_status !== 'not_started'
@@ -1419,10 +1390,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     hasSelectedTest &&
     selectedTest.test.student_status === 'not_started' &&
     startedTestId !== selectedTest.test.id
-  const selectedTestIsUnavailable =
-    hasSelectedTest &&
-    selectedTest.test.student_status === 'not_started' &&
-    (selectedTest.test.effective_access ?? (selectedTest.test.status === 'closed' ? 'closed' : 'open')) === 'closed'
+
   const isViewingResults =
     hasSelectedTest &&
     hasResponded &&
@@ -1778,6 +1746,21 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     )}
                   </section>
                 </div>
+            ) : selectedTestId && (loadingTest || detailError) ? (
+                <div>
+                  <Button ref={detailBackRef} type="button" variant="ghost" size="sm" onClick={handleBack} className="mb-4">
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    Back to tests
+                  </Button>
+                  {detailError ? (
+                    <PageState
+                      kind="error"
+                      title="Test unavailable"
+                      description="Pika couldn't load this test. Try again or return to the list."
+                      action={<Button type="button" onClick={() => { void handleSelectTest(selectedTestId) }}>Retry</Button>}
+                    />
+                  ) : <PageState kind="loading" title="Loading test" />}
+                </div>
             ) : !hasSelectedTest ? (
                 !hasCurrentTestsSnapshot ? (
                   listError ? (
@@ -1804,7 +1787,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       </div>
                     ) : null}
                     {visibleTests.length === 0 ? (
-                      <EmptyState
+                      <PageState
+                        kind="empty"
                         title="No tests available."
                         description="When your teacher publishes a test, it will show up here."
                       />
@@ -1815,26 +1799,26 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     )}
                   </div>
                 )
-            ) : selectedTestId && loadingTest ? (
-                <div className="flex justify-center py-12">
-                  <Spinner size="lg" />
-                </div>
             ) : (
                 <div className="min-w-0">
-                  <button
+                  <Button
+                    ref={detailBackRef}
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={handleBack}
-                    className="mb-4 flex items-center gap-1 text-sm text-text-muted hover:text-text-default"
+                    className="mb-4"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                     Back to tests
-                  </button>
+                  </Button>
 
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="truncate text-xl font-bold text-text-default">
-                        {selectedTestPanelTitle}
-                      </h2>
+                      <PageHeading
+                        level="h2"
+                        title={<span className="block whitespace-normal break-words">{selectedTestPanelTitle}</span>}
+                      />
                       {selectedTestOverviewLabel ? (
                         <p className="mt-1 text-sm text-text-muted">{selectedTestOverviewLabel}</p>
                       ) : null}
@@ -1844,25 +1828,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                         </p>
                       ) : null}
                     </div>
-                    <span
-                      className={[
-                        'rounded-badge px-2.5 py-1 text-xs font-semibold',
-                        selectedTest?.test.student_status === 'can_view_results'
-                          ? 'bg-info-bg text-info'
-                          : selectedTest?.test.student_status === 'responded'
-                            ? 'bg-surface-2 text-text-muted'
-                            : selectedTestIsUnavailable
-                              ? getTestStatusBadgeClass('closed')
-                              : getTestStatusBadgeClass('active'),
-                      ].join(' ')}
-                    >
-                      {selectedTest?.test.student_status === 'can_view_results'
-                        ? 'Returned'
-                        : selectedTest?.test.student_status === 'responded'
-                          ? 'Submitted'
-                          : selectedTestIsUnavailable
-                            ? 'Closed'
-                            : 'New'}
+                    <span className={`shrink-0 rounded-badge px-2.5 py-1 text-xs font-semibold ${getStudentTestPresentation(selectedTest.test).badgeClass}`}>
+                      {getStudentTestPresentation(selectedTest.test).label}
                     </span>
                   </div>
 
@@ -1906,7 +1873,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       showSubmissionBanner={false}
                     />
                   ) : hasResponded ? (
-                    <div className="rounded-card border border-success bg-success-bg p-5 text-center shadow-elevated">
+                    <Card tone="muted" padding="md">
                       <p className="font-medium text-success">Response Submitted</p>
                       {selectedTest.test.status !== 'closed' ? (
                         <p className="mt-1 text-sm text-text-muted">
@@ -1917,7 +1884,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                           Results will be available after your teacher returns this test.
                         </p>
                       )}
-                    </div>
+                    </Card>
                   ) : (
                     <StudentTestForm
                       testId={selectedTestId!}
