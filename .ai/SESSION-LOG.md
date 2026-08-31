@@ -1574,6 +1574,7 @@ duplicate announcements; remaining manual follow-up: none.
 
 **Model recommendation:** GPT-5.6 Sol for branch-conflict recovery, scoped UI
 rollback, history interaction correctness, and cross-role visual QA.
+
 ## 2026-08-30 — Add Daily relative-date context and stronger light header
 
 **Risk profile:** none — teacher-only Daily presentation and pure date-label
@@ -1744,3 +1745,10 @@ pending.
 
 **Model recommendation:** GPT-5.6 Terra high for CI admission and protected
 branch-safety review; no product-domain review is needed.
+
+## 2026-08-30 — Focused check and agent workflow efficiency
+
+- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
+- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
+- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
+- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.

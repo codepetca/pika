@@ -6,17 +6,22 @@ PASS="\033[0;32m✅\033[0m"
 FAIL="\033[0;31m❌\033[0m"
 INFO="\033[0;34mℹ️ \033[0m"
 ORIENT_ONLY=0
+CONTEXT_LOADED=0
 
 for arg in "$@"; do
   case "$arg" in
     --orient-only|--read-only)
       ORIENT_ONLY=1
       ;;
+    --context-loaded)
+      CONTEXT_LOADED=1
+      ;;
     -h|--help)
-      echo "Usage: bash .codex/skills/pika-session-start/scripts/session_start.sh [--orient-only]"
+      echo "Usage: bash .codex/skills/pika-session-start/scripts/session_start.sh [--orient-only] [--context-loaded]"
       echo ""
       echo "Default: verify worktree, repair .env.local when missing, run verify-env.sh, and render startup docs."
       echo "  --orient-only, --read-only: render startup context without mutating .env.local or running verify-env.sh."
+      echo "  --context-loaded: omit unchanged guidance already read in this conversation; keep current state and verification."
       exit 0
       ;;
     *)
@@ -144,10 +149,17 @@ CURRENT="$WORKTREE/.ai/CURRENT.md"
 FEATURES_FILE="$WORKTREE/.ai/features.json"
 AI_INSTRUCTIONS="$WORKTREE/docs/ai-instructions.md"
 
-print_required_doc "4. Startup contract (.ai/START-HERE.md)" "$START_HERE" '1,200p'
-print_required_doc "5. Current context (.ai/CURRENT.md)" "$CURRENT" '1,220p'
-print_required_doc "6. Feature inventory (.ai/features.json)" "$FEATURES_FILE" '1,220p'
-print_required_doc "7. AI routing (docs/ai-instructions.md)" "$AI_INSTRUCTIONS" '1,260p'
+if [[ "$CONTEXT_LOADED" -eq 1 ]]; then
+  echo ""
+  echo "── Guidance already loaded (use only when unchanged since your last read)"
+  echo "   .ai/START-HERE.md, .ai/features.json, docs/ai-instructions.md"
+  print_required_doc "5. Current context (.ai/CURRENT.md)" "$CURRENT" '1,220p'
+else
+  print_required_doc "4. Startup contract (.ai/START-HERE.md)" "$START_HERE" '1,200p'
+  print_required_doc "5. Current context (.ai/CURRENT.md)" "$CURRENT" '1,220p'
+  print_required_doc "6. Feature inventory (.ai/features.json)" "$FEATURES_FILE" '1,220p'
+  print_required_doc "7. AI routing (docs/ai-instructions.md)" "$AI_INSTRUCTIONS" '1,260p'
+fi
 
 # ── 8. Feature summary ──────────────────────────────
 echo ""
@@ -164,7 +176,11 @@ fi
 
 echo ""
 echo "── 9. Reminder"
-echo -e "${INFO} The required startup docs were rendered above."
+if [[ "$CONTEXT_LOADED" -eq 1 ]]; then
+  echo -e "${INFO} Reusing guidance already loaded; changed or missing context must still be read."
+else
+  echo -e "${INFO} The required startup docs were rendered above; do not read them a second time."
+fi
 echo -e "${INFO} Load only the task-specific docs routed by docs/ai-instructions.md before coding."
 echo -e "${INFO} Use .ai/SESSION-LOG.md only for recent handoff context."
 echo -e "${INFO} Use .ai/JOURNAL-ARCHIVE.md only for historical investigation."
