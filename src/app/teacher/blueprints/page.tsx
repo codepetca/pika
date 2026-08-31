@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, ConfirmDialog, FormField, Input, SaveStatus } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -1026,7 +1027,9 @@ export default function TeacherBlueprintsPage() {
           },
           {
             id: 'new-blueprint',
-            label: 'New Course Blueprint',
+            label: 'Create course blueprint',
+            icon: Plus,
+            primary: true,
             disabled: editorWriteLocked,
             onSelect: () => requestDiscardingAction(
               () => setShowCreate(true),
@@ -1048,7 +1051,8 @@ export default function TeacherBlueprintsPage() {
             ? [
                 {
                   id: 'create-classroom',
-                  label: 'Use for Classroom',
+                  label: 'Create classroom from blueprint',
+                  icon: Plus,
                   primary: true,
                   disabled: editorWriteLocked,
                   onSelect: () => requestSavedVersionAction(

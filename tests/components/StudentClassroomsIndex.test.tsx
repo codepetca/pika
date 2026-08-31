@@ -100,21 +100,12 @@ describe('StudentClassroomsIndex', () => {
       .not.toBeInTheDocument()
   })
 
-  it('uses the governed page heading and keyboard-ready mobile actions menu', async () => {
+  it('keeps joining a classroom directly available beside the page heading', () => {
     render(<StudentClassroomsIndex initialClassrooms={[]} />)
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Classrooms' })).toHaveClass(
-      'text-2xl',
-      'font-semibold',
-    )
-
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
-    fireEvent.click(menuButton)
-
-    const joinItem = within(screen.getByRole('menu')).getByRole('menuitem', {
-      name: '+ Join classroom',
-    })
-    await waitFor(() => expect(joinItem).toHaveFocus())
-    expect(joinItem).toHaveClass('min-h-control', 'focus-visible:ring-foundation')
+    expect(screen.getByRole('heading', { level: 1, name: 'Classrooms' })).toBeInTheDocument()
+    const join = screen.getAllByRole('button', { name: 'Join classroom' })[0]
+    fireEvent.click(join)
+    expect(push).toHaveBeenCalledWith('/join')
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
   })
 })

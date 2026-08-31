@@ -129,7 +129,7 @@ test.describe('teacher assessment URL state', () => {
     await expectNoSearchParam(page, 'testStudentId')
 
     await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('button', { name: 'New Test' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create test' })).toBeVisible()
 
     await page.getByRole('button', { name: new RegExp(escapeRegExp(testRecord.title)) }).first().click()
     await expectSearchParam(page, 'testId', testRecord.id)
@@ -148,7 +148,7 @@ test.describe('teacher assessment URL state', () => {
 
     await page.goBack()
     await expectSummaryUrl(page, classroom.id, 'tests')
-    await expect(page.getByRole('button', { name: 'New Test' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create test' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Authoring' })).toHaveCount(0)
 
     await page.goto(
@@ -159,6 +159,6 @@ test.describe('teacher assessment URL state', () => {
 
     await page.getByRole('link', { name: 'Tests' }).click()
     await expectSummaryUrl(page, classroom.id, 'tests')
-    await expect(page.getByRole('button', { name: 'New Test' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Create test' })).toBeVisible()
   })
 })

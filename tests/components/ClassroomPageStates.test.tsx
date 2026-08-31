@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/ui'
 import ClassroomError from '@/app/classrooms/[classroomId]/error'
 import ClassroomLoading from '@/app/classrooms/[classroomId]/loading'
 import ClassroomNotFound from '@/app/classrooms/[classroomId]/not-found'
@@ -31,7 +32,7 @@ describe('classroom route page states', () => {
 
   it('offers a bounded retry from the route error boundary', () => {
     const reset = vi.fn()
-    render(<ClassroomError error={new Error('database unavailable')} reset={reset} />)
+    render(<TooltipProvider><ClassroomError error={new Error('database unavailable')} reset={reset} /></TooltipProvider>)
 
     expect(screen.queryByText('database unavailable')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))

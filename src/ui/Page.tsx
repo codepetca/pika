@@ -2,8 +2,10 @@
 
 import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from './Button'
+import { IconButton } from './IconButton'
+import { Tooltip } from './Tooltip'
 import { cn } from './utils'
 
 export type PageDensity = 'default' | 'teacher' | 'student'
@@ -49,6 +51,7 @@ export type ActionBarItem = {
   disabled?: boolean
   destructive?: boolean
   primary?: boolean
+  icon?: LucideIcon
 }
 
 export const ACTIONBAR_BUTTON_CLASSNAME = buttonVariants({ variant: 'subtle', size: 'sm' })
@@ -275,27 +278,29 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
     'min-h-control w-full px-3 py-2 text-left text-sm focus:outline-none focus-visible:ring-foundation focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
-    <div className="relative" ref={containerRef}>
-      <button
-        ref={buttonRef}
-        type="button"
-        className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-        disabled={!hasEnabledItems}
-        onClick={() => {
-          if (!hasEnabledItems) return
-          if (open) {
-            closeMenu({ restoreFocus: true })
-            return
-          }
-          setOpen(true)
-        }}
-        aria-label="Open actions menu"
-        aria-haspopup="menu"
-        aria-controls={hasEnabledItems ? menuId : undefined}
-        aria-expanded={open}
-      >
-        <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
-      </button>
+    <div className="relative shrink-0" ref={containerRef}>
+      <Tooltip content="More actions" disabled={open}>
+        <button
+          ref={buttonRef}
+          type="button"
+          className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+          disabled={!hasEnabledItems}
+          onClick={() => {
+            if (!hasEnabledItems) return
+            if (open) {
+              closeMenu({ restoreFocus: true })
+              return
+            }
+            setOpen(true)
+          }}
+          aria-label="More actions"
+          aria-haspopup="menu"
+          aria-controls={hasEnabledItems ? menuId : undefined}
+          aria-expanded={open}
+        >
+          <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
+        </button>
+      </Tooltip>
 
       {open && hasEnabledItems && (
         <div
@@ -349,7 +354,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
 export interface PageActionBarProps {
   primary: ReactNode
   actions?: ActionBarItem[]
-  actionsAlign?: 'start' | 'end'
+  center?: ReactNode
   trailing?: ReactNode
   className?: string
 }
@@ -357,48 +362,56 @@ export interface PageActionBarProps {
 export function PageActionBar({
   primary,
   actions = [],
-  actionsAlign = 'end',
+  center,
   trailing,
   className,
 }: PageActionBarProps) {
   const density = useContext(PageDensityContext)
-  const actionAlignment = actionsAlign === 'start' ? 'justify-start' : 'justify-end'
+  const primaryActions = actions.filter((item) => item.primary)
+  const secondaryActions = actions.filter((item) => !item.primary)
+  const hasCenter = center != null || primaryActions.length > 0
 
   return (
     <div className={cn('w-full bg-page', PAGE_DENSITY_CLASSES[density].gutter, className)}>
-      <div className="flex min-w-0 items-start gap-3">
-        <div className={cn('min-w-0', actionsAlign === 'end' ? 'flex-1' : '')}>{primary}</div>
-
-        {actions.length > 0 && (
-          <>
-            <div className={cn('hidden flex-wrap items-center gap-2 sm:flex', actionAlignment)}>
-              {actions.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={cn(
-                    item.primary
-                      ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
-                      : ACTIONBAR_BUTTON_CLASSNAME,
-                    item.destructive
-                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
-                      : '',
-                  )}
-                  onClick={item.onSelect}
-                  disabled={item.disabled}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <div className="shrink-0 sm:hidden">
-              <ActionBarMenu items={actions} />
-            </div>
-          </>
-        )}
-
-        {actionsAlign === 'start' ? <div className="flex-1" /> : null}
-        {trailing ? <div className="shrink-0">{trailing}</div> : null}
+      <div className={cn(
+        'min-w-0 items-center gap-3',
+        hasCenter ? 'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'flex',
+      )}>
+        <div className={cn('min-w-0', !hasCenter && 'flex-1')}>{primary}</div>
+        {hasCenter ? (
+          <div className="flex min-w-0 flex-wrap items-center justify-center gap-2">
+            {center}
+            {primaryActions.map((item) => item.icon ? (
+              <IconButton
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                variant={item.destructive ? 'danger' : 'primary'}
+                onClick={item.onSelect}
+                disabled={item.disabled}
+              />
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                className={cn(
+                  ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
+                  item.destructive && 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover',
+                )}
+                onClick={item.onSelect}
+                disabled={item.disabled}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {hasCenter || trailing || secondaryActions.length > 0 ? (
+          <div className="flex min-w-0 items-center justify-self-end gap-2">
+            {trailing}
+            {secondaryActions.length > 0 ? <ActionBarMenu items={secondaryActions} /> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   )

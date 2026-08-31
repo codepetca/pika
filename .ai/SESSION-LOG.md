@@ -1929,3 +1929,78 @@ Task Resize classwork creation modals owns codex/classwork-creation-modal-size. 
 ## 2026-08-31 — Consume published Pal badge-label cleanup
 
 Task owns codex/pal-widget-alpha6. User authorized widget publication and Pika PR/review/main merge; production promotion is excluded. Pinned @codepet/pal-widget 0.1.0-alpha.6 and its registry integrity after Pal #102 merged and the guarded alpha release passed. Reused StudentAchievementsTab and PalWidgetThemeBoundary without host UI/API/schema changes (runtime-platform dependency risk). Regression tests fail against alpha.5 and pass against alpha.6: 25 Pal integration tests verify exact package version, name-only earned labels, focusability, unfinished status, and progress. Playwright inspected the real student achievement component with synthetic local data at 1440x900 and 390x844 in both themes, hover and keyboard focus; final mobile width 390/390, no broken images. Pattern Lab reference inspected; teacher badge surface is n/a. Evidence: /tmp/pika-pal-alpha6-visual.nEY1f9; temporary fixture removed, no authenticated classroom or production-data validation claimed. Focused checks, draft PR, one independent Terra/high fixed-commit review, and exact-head PR Gate follow; record final results on the PR without post-review commits.
+
+## 2026-08-31 — Preview centered creation and page action icons
+
+- Worktree `codex/standardize-page-action-icons`: shared IconButton composes Button/Tooltip; classroom, classwork, test, announcement and blueprint creation entry points use Plus with contextual names. Final form submissions and chooser labels retain text. Classroom-load retry uses RotateCw.
+- PageActionBar primary actions/custom center slot use equal side columns; secondary actions use the rightmost More actions menu at every width. Announcements now uses the same centered create/right overflow arrangement. Pattern Lab and UI canon document the user-approved direction.
+- Focused checks passed: 134 files / 1,332 tests plus architecture, UI/design, TypeScript and lint. Eight centered-action browser contracts passed across both roles, desktop/mobile and light/dark; screenshots and keyboard/menu/tooltip states inspected. Real classroom and announcement creation entry points verified without creating records.
+- Preview runs on localhost:3004; no commit, PR or merge for this new change. Screenshot contract baseline refresh (Darwin/Linux) remains a pre-publication step after visual acceptance. Evidence is in the session visualization folder under `page-action-icons`.
+
+## 2026-08-31 — Inspect Attendance catalog direction
+
+- Audited current combined Daily/Attendance controls, semantic colors, count ownership/sorting behavior, student confirmation semantics and older attendance implementations. Recorded findings in `docs/guidance/ui/changes/status-catalog-audit.md`; catalog implementation awaits the number-only versus icon-plus-count design choice.
+- Current direction: green Present, yellow Late, red Absent; rounded tabular-number header pills with contextual tooltips and active-sort rings; click sorts rather than filters; Unmarked has no count chip. Student Checked in stays separate from teacher-derived marks.
+- Fixed an incidental regression from this worktree's earlier PageActionBar change: omit an empty trailing flex slot for primary-only bars to remove a 6px left shift. Existing Attendance browser contracts pass 4/4 (desktop/mobile, light/dark); screenshots inspected and saved under session artifacts `attendance-catalog-review`. No business logic, API, schema or permissions changed.
+
+## 2026-08-31 — Confirm number-only status count chips
+
+User chose color-only status count chips: retain colored fills and numeric counts without added status icons. Recorded the decision in the status-catalog audit and operational-table guidance. Preserve contextual tooltips, accessible names, focus and active-sort rings. Documentation only; existing Attendance controls already match this choice. No UI or business behavior changed.
+
+## 2026-08-31 — Render the agreed status examples in Pattern Lab
+
+- Corrected the documentation-only handoff: Controls now visibly includes an interactive Attendance example with production green/yellow/red number-only count chips and row controls, plus actual Classwork/Test status labels and colors. Direct preview: localhost:3004/pattern-lab#status-colors; Statuses links back to it.
+- Five fixed sample students support count sorting, local status changes, zero counts and reset. Reused existing production controls and display mappings; no API, saved attendance, grading or permission changes. Added catalog owner entries and semantic/browser tests.
+- Focused checks passed: 135 files / 1,335 tests plus architecture, UI/design, TypeScript and lint. Eight role/viewport/theme browser contracts pass; screenshots inspected, with teacher/student captures identical in each visual variant. Artifacts saved under `status-catalog-preview` in this session's visualization folder. Existing screenshot baseline acceptance remains required before publication. Changes remain local and uncommitted.
+
+## 2026-08-31 — Reduce visible attendance selection circles
+
+- User requested smaller attendance selection circles. Reduced visible discs from 28px to 20px in the production Attendance controls and matching standalone Attendance implementation; preserved 44px targets, count-chip size, colors, selection rings and behavior. Pattern Lab reflects the production owner automatically.
+- Updated existing geometry assertions. Verification: 56 component tests and 12 browser contracts pass; inspected Lab role/theme/viewport screenshots and confirmed 20px visible discs in the user's local preview. Evidence saved in session artifacts under `smaller-attendance-circles`. Explained that local preview changes do not require a production merge. No commit or publication.
+
+## 2026-08-31 — Sync main and audit Classwork creation
+
+- Synced page-action-icons worktree to main de3f73cd (#1132), preserving local UI work. Resolved Pattern Lab imports and archive history; retained applied safety stash 0950d7fb. No publish or production merge.
+- Focused checks: 135 files / 1,338 tests plus architecture, UI/design, TypeScript and lint pass. Inspected Assignment draft/action menu, Material and Survey creation in local teacher browser without changing content or publishing.
+- Recorded source-backed comparison, screenshots, reuse decisions and proposed shared top bar in docs/guidance/ui/changes/classwork-creation-audit.md. Recommend Material first; survey composer consolidation and new scheduling/autosave behavior remain separate proposals. Dark desktop audit only.
+
+## 2026-08-31 — Standardize Material creation controls
+
+- Material now uses the Assignment-style pinned title/action row, eye-only Preview with tooltip, and Post/Save draft split action. Removed Ungraded classwork; added an opt-in visible modal heading. Existing manual persistence, permissions and delete confirmation remain; Assignment/Survey unchanged.
+- Added a deterministic production-owner example at /pattern-lab#material-creation. Preview shows unsaved content through the student RichTextViewer without saving. Fixed initial focus through the existing ModalLayer marker.
+- Verification: 1,341 focused tests; after an equivalent spacing-token correction, 59 affected tests and architecture/UI/design/TypeScript/lint passed. Four browser variants passed with inspected editor/menu/preview/error captures under material-creation-bar. Local only; full Pattern Lab snapshot baseline acceptance remains pre-publication work.
+
+## 2026-08-31 — Show Classwork modal headings and center save status
+
+- User refined the proposed above-editor status placement to the modal header. Assignment now shows its existing autosave status centered between the visible modal heading and Close; Saved is muted. Survey opts into the same visible heading as Material. Manual-save modals do not show false autosave status.
+- Extended CreationModalShell with an optional center slot and aligned the 44px Close target in the header. Updated the deterministic Pattern Lab creation example. Preserved scheduled-release context, save logic and focus behavior.
+- Verification: 45 component tests, eight browser contracts, architecture/UI/design policy, TypeScript and lint pass. Inspected actual Assignment/Survey and Material example screenshots at desktop/mobile × light/dark; actual-route verification made no write requests. Evidence: session visualization folder modal-headings. Local and uncommitted; baseline acceptance still required before publication.
+
+## 2026-08-31 — Replace the misleading generic creation preview
+
+- User found that Open creation dialog showed placeholder paragraphs instead of a real authoring form. Removed the generic shell example and added clearly named Open assignment example beside Open material example.
+- Assignment example reuses production form/editor/submission, shell, preview and scheduling components with gallery-local state. Publication outcomes are simulated; no API calls or production controller changes. Same modal frame, with Assignment-specific date/submission controls.
+- Eight browser contracts and architecture/UI/design/TypeScript/lint pass. Inspected desktop/mobile × light/dark form/preview/schedule captures; verified centered/pinned status, edited-content preview, nested Escape/focus, draft selection, reopen reset and zero API writes. Artifacts: real-creation-examples in session visualization folder. Local only.
+
+## 2026-08-31 — Make Assignment Preview icon-only
+
+- Reused Material's IconButton in AssignmentForm, removing the visible Preview text at every width while retaining its tooltip, accessible name, disabled behavior and 44px target. Production and Pattern Lab update together; no save or preview-content behavior changed.
+- Forty component tests, four browser contracts, UI/design policy, TypeScript and lint pass. Inspected desktop/mobile × light/dark screenshots; keyboard tooltip/activation and nested Escape/focus return pass. Evidence: assignment-preview-icon in session visualization folder. Local only.
+
+## 2026-08-31 — Remove the success-alert checkmark
+
+- User disliked the success checkmark shifting alert text. Removed the decorative icon from shared AlertDialog; its conditional indentation now disappears too, aligning title, description and action to the same content width. Error alerts, dismissal, focus and auto-dismiss behavior remain unchanged.
+- Forty dialog/gallery tests and UI/design/TypeScript/lint pass. Eight Playwright role/viewport/theme checks passed with inspected screenshots, aligned bounds, accessible description, keyboard/button dismissal and focus return. Evidence: alert-alignment in session visualization folder. Local only; full Lab snapshot-baseline acceptance remains pre-publication work.
+
+## 2026-08-31 — Discuss simpler assignment attachments
+
+- Audited teacher requirement fields, validation modes, image formats and student submission flow for the user's proposed single-label rows and missing-attachment warning. Basic/Reachable/Expected site are Link validation settings; supported images are PNG/JPEG/GIF/WebP, 10 MB maximum.
+- No current Assignment submit confirmation exists. Missing required items block Submit in the client, submit API and database guard, so the proposed confirmation requires coordinated behavior changes. Recorded proposed UI, pending URL-save handling, legacy-policy and migration-rollout considerations in submission-area-audit.md. Discussion only; no product behavior or database changes.
+
+## 2026-08-31 — Checkpoint UI standardization before attachment redesign
+
+- User approved a local checkpoint and a separate task for simplifying assignment attachments. This checkpoint contains the shared creation/action icons, centered action bars, attendance/status catalog, smaller attendance circles, consistent Classwork headings/Material creation bar, centered Assignment save status, real Pattern Lab creation examples, icon-only Preview and aligned success alerts. Attachment behavior remains unchanged.
+- Updated obsolete gallery assertions and direct keyboard/accessibility coverage for attendance controls, the visible modal heading/initial title focus, and both production-owner creation examples. Pika audit passes; focused checks pass 137 files / 1,343 tests plus architecture, UI/design policy, TypeScript and lint.
+- Reviewed and refreshed five Darwin and five Linux teacher screenshot references; student references remain unchanged. Full macOS Pattern Lab suite: 37 passed / 3 intentional skips. Linux: 36 passed / 3 skips plus one Chromium launch SIGSEGV before any assertion; the affected case passed twice in isolation. All 37 browser contracts therefore verified on each platform. Linux used Playwright 1.58.0 Noble with fonts-dejavu-core, matching the existing student references; no project dependency changes.
+- Visual matrix covers teacher/student, desktop/mobile, light/dark and relevant interaction/focus states. Evidence and final check logs saved under the session visualization folder `checkpoint-verification`. Earlier pending-baseline notes are superseded by this verification.
+- Checkpoint stays local on codex/standardize-page-action-icons; no push, PR, merge, deployment or database change. Separate attachment task creation is queued; its prompt carries the agreed design, compatibility and database-rollout constraints, and instructs it to use its own worktree.

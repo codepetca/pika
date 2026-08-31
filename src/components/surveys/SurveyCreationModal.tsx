@@ -80,6 +80,7 @@ export function SurveyCreationModal({
       closeLabel="Close survey modal"
       closeDisabled={saving}
       maxWidth="!max-w-2xl"
+      showTitle
     >
       <form onSubmit={handleSubmit} className="w-full space-y-4">
         <CreationModalTopRow

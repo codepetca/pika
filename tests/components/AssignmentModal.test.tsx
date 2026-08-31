@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render as renderWithProviders, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
+import { TooltipProvider } from '@/ui'
+
+function render(ui: ReactElement) {
+  return renderWithProviders(ui, { wrapper: TooltipProvider })
+}
 
 describe('AssignmentModal', () => {
   const baseAssignment: Assignment = {
@@ -64,6 +70,10 @@ describe('AssignmentModal', () => {
       )
 
       expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
+      const heading = screen.getByRole('heading', { name: 'Edit Draft' })
+      expect(heading).not.toHaveClass('sr-only')
+      expect(heading.parentElement).toContainElement(screen.getByRole('status'))
+      expect(screen.getByRole('status')).toHaveTextContent('Saved')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Wed Jan 15' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Previous day' })).not.toBeInTheDocument()

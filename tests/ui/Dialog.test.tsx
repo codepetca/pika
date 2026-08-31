@@ -70,9 +70,10 @@ describe('AlertDialog', () => {
     expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })
 
-  it('shows success icon for success variant', () => {
+  it('keeps success alerts free of decorative icons', () => {
     render(<AlertDialog {...defaultProps} variant="success" />)
-    expect(screen.getByRole('alertdialog').querySelector('.text-success')).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog').querySelector('svg')).not.toBeInTheDocument()
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Alert Title')
   })
 
   it('shows error icon for error variant', () => {

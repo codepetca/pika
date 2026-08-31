@@ -14,7 +14,7 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
     id: 'core-actions',
     name: 'Core actions',
-    owner: 'src/ui/Button.tsx',
+    owner: 'src/ui/Button.tsx; src/ui/IconButton.tsx',
     maturity: 'stable',
     useWhen: 'A user initiates an immediate product action.',
     avoidWhen: 'The destination is navigation; use a link with clear destination text.',
@@ -84,6 +84,24 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
     reference: 'docs/guidance/ui/teacher-work-surfaces.md#implemented-primitive-map',
   },
   {
+    id: 'attendance-status-counts',
+    name: 'Attendance colors and count chips',
+    owner: 'src/app/classrooms/[classroomId]/TeacherAttendanceControls.tsx',
+    maturity: 'family',
+    useWhen: 'Present, Late, and Absent counts help teachers prioritize rows. Use colored, number-only pills with contextual tooltips.',
+    avoidWhen: 'Do not add status icons to count chips, treat sorting as filtering, or infer attendance from Daily log completion.',
+    reference: 'docs/guidance/ui/teacher-operational-tables.md#status-count-sorting',
+  },
+  {
+    id: 'assessment-status-colors',
+    name: 'Assessment status colors',
+    owner: 'src/components/AssessmentStatusIndicator.tsx',
+    maturity: 'family',
+    useWhen: 'Classwork, Tests, or Gradebook need their existing work-status labels and semantic colors.',
+    avoidWhen: 'Do not collapse Graded into Returned or confuse actions such as Grade and Return with status labels.',
+    reference: 'src/app/__ui/StatusPatterns.tsx',
+  },
+  {
     id: 'status-language',
     name: 'Semantic status language',
     owner: 'Feature owner plus semantic tokens',
@@ -107,6 +125,9 @@ export type ApprovedIconName =
   | 'external-link'
   | 'chevron-down'
   | 'menu'
+  | 'plus'
+  | 'refresh'
+  | 'more-actions'
 
 export interface IconCatalogEntry {
   id: ApprovedIconName
@@ -117,6 +138,9 @@ export interface IconCatalogEntry {
 }
 
 export const ICON_CATALOG: readonly IconCatalogEntry[] = [
+  { id: 'plus', label: 'Plus', category: 'action', meaning: 'Create a new item', rule: 'Use an icon-only creation entry point with a contextual tooltip and accessible name. Keep menu choices and form confirmations explicit.' },
+  { id: 'refresh', label: 'RotateCw', category: 'action', meaning: 'Retry loading', rule: 'Use for a safe read retry, retaining the accessible name and tooltip.' },
+  { id: 'more-actions', label: 'MoreVertical', category: 'action', meaning: 'More actions', rule: 'Place the PageActionBar overflow at the far right at every width; keep primary actions visible.' },
   {
     id: 'check-circle',
     label: 'CheckCircle2',

@@ -181,7 +181,7 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
     expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
@@ -774,11 +774,11 @@ describe('TeacherClassroomsIndex', () => {
       within(bottomControls).getByRole('button', { name: 'Organize classrooms' })
     ).toBe(editButton)
     expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
 
     fireEvent.click(editButton)
 
-    const newButton = screen.getByRole('button', { name: 'New' })
+    const newButton = screen.getByRole('button', { name: 'Create classroom' })
     expect(card.compareDocumentPosition(newButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -830,7 +830,7 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(screen.queryByRole('group', { name: 'Classroom view' })).not.toBeInTheDocument()
     expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create classroom' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
 
@@ -903,7 +903,7 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
 
     expect(screen.queryByRole('button', { name: 'Blueprints' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create classroom' })).toBeInTheDocument()
   })
 
   it('shows immediate feedback while opening a classroom', async () => {
