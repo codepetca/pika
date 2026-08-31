@@ -65,6 +65,21 @@ import { PageMockups } from './PageMockups'
 
 type Role = 'teacher' | 'student'
 
+interface PatternLabDestination {
+  value: string
+  label: string
+}
+
+const QUICK_LINK_LABELS: Record<string, string> = {
+  'page-mockups': 'Page mockups',
+  'page-actions': 'Page actions',
+  'status-colors': 'Status colors',
+  'assignment-creation': 'Assignment dialog',
+  controls: 'Controls',
+  'student-tests': 'Student tests',
+  'history-preview': 'History preview',
+}
+
 interface Props {
   role: Role
 }
@@ -75,6 +90,21 @@ export function UiGallery({ role }: Props) {
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
+  const navigationDestinations = getPatternLabDestinations(role)
+  const quickLinkIds = role === 'teacher'
+    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-creation']
+    : ['controls', 'status-colors', 'student-tests', 'history-preview']
+  const quickLinks = quickLinkIds
+    .map((id) => navigationDestinations.find((destination) => destination.value === id))
+    .filter((destination): destination is PatternLabDestination => Boolean(destination))
+
+  function jumpToPattern(targetId: string) {
+    const target = document.getElementById(targetId)
+    if (!target) return
+    window.history.replaceState(null, '', `#${targetId}`)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
 
   return (
     <main className="min-h-screen bg-page text-text-default">
@@ -98,27 +128,6 @@ export function UiGallery({ role }: Props) {
             </Button>
           </div>
 
-          <nav aria-label="Pattern Lab sections" className="flex gap-2 overflow-x-auto pb-1">
-            {[
-              ['catalog', 'Catalog'],
-              ['controls', 'Controls'],
-              ['icons', 'Icons'],
-              ['statuses', 'Statuses'],
-              ['page-states', 'Page states'],
-              ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
-              ...(role === 'teacher' ? [['page-mockups', 'Page mockups']] : []),
-              ['feature-patterns', 'Feature patterns'],
-            ].map(([href, label]) => (
-              <a
-                key={href}
-                href={`#${href}`}
-                className="inline-flex min-h-control shrink-0 items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-
           <Card tone="panel" padding="sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -141,6 +150,41 @@ export function UiGallery({ role }: Props) {
             </div>
           </Card>
         </header>
+
+        <nav
+          aria-label="Pattern Lab sections"
+          className="sticky top-2 z-app-chrome -mx-1 rounded-card border border-border bg-surface p-2 shadow-sm"
+        >
+          <div className="flex items-end gap-3">
+            <div className="min-w-0 flex-1 sm:max-w-sm">
+              <label htmlFor="pattern-lab-jump" className="mb-1 block text-xs font-semibold text-text-muted">
+                Find a pattern
+              </label>
+              <Select
+                id="pattern-lab-jump"
+                defaultValue=""
+                placeholder="Jump to a section…"
+                options={navigationDestinations}
+                onChange={(event) => {
+                  jumpToPattern(event.currentTarget.value)
+                  event.currentTarget.value = ''
+                }}
+              />
+            </div>
+            <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto lg:flex">
+              <span className="shrink-0 text-xs font-semibold text-text-muted">Quick links</span>
+              {quickLinks.map((destination) => (
+                <a
+                  key={destination.value}
+                  href={`#${destination.value}`}
+                  className="inline-flex min-h-control shrink-0 items-center rounded-control border border-border bg-page px-3 py-2 text-sm font-medium text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+                >
+                  {QUICK_LINK_LABELS[destination.value]}
+                </a>
+              ))}
+            </div>
+          </div>
+        </nav>
 
         <PatternSection
           id="catalog"
@@ -185,7 +229,7 @@ export function UiGallery({ role }: Props) {
             description="These examples render the canonical @/ui owners. Feature code should compose them instead of reproducing their geometry, focus, or disabled states."
           >
           <div className="space-y-5">
-            <div data-testid="page-action-icons-example">
+            <div id="page-actions" data-testid="page-action-icons-example" className="scroll-mt-28">
               <Card tone="panel" padding="md">
                 <PatternHeading title="Page actions" owner="src/ui/Page.tsx; src/ui/IconButton.tsx" />
                 <div className="mt-4">
@@ -426,7 +470,7 @@ export function UiGallery({ role }: Props) {
           title="Feature patterns"
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
-          <div className="space-y-6">
+          <div className="space-y-6 [&>section]:scroll-mt-28">
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
@@ -489,6 +533,27 @@ const MATURITY_CLASSES: Record<PatternMaturity, string> = {
   experimental: 'bg-warning-bg text-warning',
 }
 
+function getPatternLabDestinations(role: Role): PatternLabDestination[] {
+  return [
+    { value: 'catalog', label: 'Overview — Pattern catalog' },
+    { value: 'controls', label: 'Controls — Buttons, fields, tabs, and dialogs' },
+    { value: 'page-actions', label: 'Controls — Page action bar' },
+    { value: 'icons', label: 'Icons — Approved symbols' },
+    { value: 'statuses', label: 'Statuses — Labels and meanings' },
+    { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
+    { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
+    ...(role === 'teacher' ? [
+      { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
+      { value: 'page-mockups', label: 'Page mockups — Gradebook, calendar, announcements, and roster' },
+      { value: 'material-creation', label: 'Creation dialogs — Material' },
+      { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
+    ] : []),
+    { value: 'student-tests', label: 'Student tests — Progress and access' },
+    { value: 'history-preview', label: 'History — Document preview' },
+    { value: 'history-graph', label: 'History — Activity graph scenarios' },
+  ]
+}
+
 function PatternSection({
   id,
   eyebrow,
@@ -503,7 +568,7 @@ function PatternSection({
   children: ReactNode
 }) {
   return (
-    <section id={id} data-testid={`pattern-section-${id}`} className="scroll-mt-6">
+    <section id={id} data-testid={`pattern-section-${id}`} className="scroll-mt-28">
       <div className="mb-4 max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">{eyebrow}</p>
         <h2 className="mt-1 text-2xl font-bold tracking-tight">{title}</h2>
@@ -622,7 +687,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
   const previewContent = preview?.content ?? PREVIEW_CONTENT
 
   return (
-    <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
+    <div id="history-preview" data-testid="history-preview-gallery" className="scroll-mt-28 bg-surface rounded-lg shadow-sm p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-text-default">
@@ -985,7 +1050,7 @@ function HistoryGraphGallery() {
   const [activeId, setActiveId] = useState<string | null>(null)
 
   return (
-    <div className="bg-surface rounded-lg shadow-sm p-4">
+    <div id="history-graph" className="scroll-mt-28 bg-surface rounded-lg shadow-sm p-4">
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
         One compact chart shows additions and deletions across the actual activity

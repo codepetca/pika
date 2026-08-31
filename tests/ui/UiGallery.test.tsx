@@ -51,6 +51,7 @@ describe('UiGallery accessibility contracts', () => {
     renderGallery('student')
 
     expect(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Find a pattern' })).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Pattern example panels' })).toBeInTheDocument()
     const detailsTab = screen.getByRole('tab', { name: 'Details' })
     const historyTab = screen.getByRole('tab', { name: 'History' })
@@ -75,6 +76,28 @@ describe('UiGallery accessibility contracts', () => {
     )
     expect(screen.queryByRole('link', { name: 'Snapshot gallery' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-pattern-examples')).not.toBeInTheDocument()
+  })
+
+  it('jumps directly to specific patterns from the persistent navigator', async () => {
+    const user = userEvent.setup()
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+    renderGallery('teacher')
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      'page-mockups',
+    )
+
+    expect(window.location.hash).toBe('#page-mockups')
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(screen.getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
+      'href',
+      '#page-mockups',
+    )
   })
 
   it('keeps page mockups teacher-only and exposes named interactive owners', async () => {

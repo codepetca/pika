@@ -20,9 +20,23 @@ export const patternLabPageMockups: VerificationScript = {
     fs.mkdirSync(artifactDir, { recursive: true })
 
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
-    await page.goto(`${baseUrl}/pattern-lab?role=teacher#page-mockups`)
+    await page.goto(`${baseUrl}/pattern-lab?role=teacher`)
+    const navigator = page.getByRole('navigation', { name: 'Pattern Lab sections' })
+    const jumpSelect = navigator.getByRole('combobox', { name: 'Find a pattern' })
     const section = page.locator('#page-mockups')
-    await section.scrollIntoViewIfNeeded()
+    await jumpSelect.selectOption('page-mockups')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator jumps directly to the page mockups',
+      passed: await page.evaluate(() => window.location.hash === '#page-mockups'),
+    })
+    checks.push({
+      name: 'Navigator remains visible after a deep-page jump',
+      passed: await navigator.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return bounds.top >= 0 && bounds.top < 24 && bounds.bottom <= window.innerHeight
+      }),
+    })
 
     for (const theme of ['light', 'dark'] as const) {
       const wantedButton = theme === 'dark' ? 'Use dark theme' : 'Use light theme'
@@ -50,6 +64,34 @@ export const patternLabPageMockups: VerificationScript = {
     }
 
     await page.setViewportSize(VIEWPORTS.desktop)
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
+    const lightButton = page.getByRole('button', { name: 'Use light theme' })
+    if (await lightButton.isVisible().catch(() => false)) await lightButton.click()
+    await jumpSelect.selectOption('page-actions')
+    await page.waitForTimeout(100)
+    const desktopNavigatorArtifact = path.join(artifactDir, 'navigator-desktop-light.png')
+    await page.screenshot({ path: desktopNavigatorArtifact })
+    artifacts.push(desktopNavigatorArtifact)
+    checks.push({
+      name: 'Desktop navigator exposes quick links',
+      passed: await navigator.getByRole('link', { name: 'Page mockups' }).isVisible(),
+    })
+
+    await page.setViewportSize(VIEWPORTS.mobile)
+    const darkButton = page.getByRole('button', { name: 'Use dark theme' })
+    if (await darkButton.isVisible().catch(() => false)) await darkButton.click()
+    await jumpSelect.selectOption('assignment-creation')
+    await page.waitForTimeout(100)
+    const mobileNavigatorArtifact = path.join(artifactDir, 'navigator-mobile-dark.png')
+    await page.screenshot({ path: mobileNavigatorArtifact })
+    artifacts.push(mobileNavigatorArtifact)
+    checks.push({
+      name: 'Mobile navigator stays visible without page overflow',
+      passed: await navigator.isVisible() && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+
+    await page.setViewportSize(VIEWPORTS.desktop)
+    await jumpSelect.selectOption('page-mockups')
     await section.getByRole('tab', { name: 'Gradebook' }).click()
     await section.getByRole('combobox', { name: 'Example state' }).selectOption('error')
     await section.getByRole('button', { name: 'Try loading gradebook again' }).click()
