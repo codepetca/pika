@@ -114,7 +114,7 @@ values
     'closed',
     10,
     '11000000-0000-4000-8000-000000000001',
-    '2026-08-30T12:00:00Z'
+    null
   ),
   (
     '27000000-0000-4000-8000-000000000002',
@@ -123,7 +123,7 @@ values
     'published',
     2,
     '11000000-0000-4000-8000-000000000001',
-    '2026-08-30T13:00:00Z'
+    null
   ),
   (
     '27000000-0000-4000-8000-000000000003',
@@ -161,6 +161,21 @@ insert into public.test_responses (
 ) values
   ('27000000-0000-4000-8000-000000000021', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000011', '11000000-0000-4000-8000-000000000002', 'Legacy response', clock_timestamp()),
   ('27000000-0000-4000-8000-000000000022', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000012', '11000000-0000-4000-8000-000000000002', 'Current response', clock_timestamp());
+
+-- Build authored content before setting the irreversible boundary. Ordinary
+-- application writes must not be able to insert questions after these locks.
+update public.tests
+set questions_locked_at = case id
+  when '27000000-0000-4000-8000-000000000001'::uuid
+    then '2026-08-30T12:00:00Z'::timestamptz
+  when '27000000-0000-4000-8000-000000000002'::uuid
+    then '2026-08-30T13:00:00Z'::timestamptz
+  else questions_locked_at
+end
+where id in (
+  '27000000-0000-4000-8000-000000000001',
+  '27000000-0000-4000-8000-000000000002'
+);
 
 insert into public.test_ai_grading_runs (
   id, test_id, status, triggered_by, model, selection_hash, requested_count,
