@@ -27330,3 +27330,72 @@ documentation gaps: the teacher-view contract now records QR-origin provenance
 fields with a route assertion, and superseded 36 px comparison captures are
 explicitly marked historical. One targeted documentation confirmation remains
 before handoff.
+
+<!-- pika-session-log-archive-batch:3e8840775c68873ef5bc4b6515c07edf8c68075eb0931ee1a95d0ca16b7ad6f9 -->
+## 2026-08-28 — Restore Attendance time to leading context
+
+**Risk profile:** low teacher-only visual refinement — no Attendance commands,
+permissions, session state, QR provenance, API/schema, or student behavior
+changed.
+
+- Restored the content-sized clickable Attendance range to the quiet left
+  context slot while keeping the date and action hierarchy centered.
+- Limited the subtle success background to a confirmed open session. Closed,
+  scheduled, cancelled, stale, and pending states remain neutral; the accessible
+  name continues to announce the actual state.
+- Added explicit light/dark closed-session browser captures and assertions, and
+  refreshed the live two-state Open Design comparison, evidence record, and
+  Product Design QA. Mobile continues to expose Attendance hours through the
+  condensed actions menu.
+- No durable shared guidance changed because this placement and open-only state
+  cue are Attendance-specific refinements.
+
+**Verification:** focused component tests (19/19) and the responsive Attendance
+Playwright matrix (4/4) pass with explicit leading-placement, longest-label,
+open-background, neutral-closed, stale, and pending assertions. Open and closed
+source/production captures were visually compared in desktop light/dark; mobile
+light/dark remained free of overflow. Student UI is n/a because this remains a
+teacher-only surface.
+
+## 2026-08-28 — Integrate Attendance redesign with timing rules
+
+**Risk profile:** standard integration of a teacher-only UI with newly merged
+Attendance timing and automatic-status behavior; no authorization boundary or
+schema was added by this branch.
+
+- Merged current `main`, including configurable Attendance timing rules and the
+  reviewed Course Guide import, into the feature branch before final review.
+- Preserved the approved compact roster and persistent selected-student menu.
+  Mapped the new `Use automatic` and confirmed `Remove QR check-in` actions into
+  that menu instead of restoring a separate bulk action bar.
+- Updated per-row QR correction Undo to clear the manual override and reveal the
+  timing-derived automatic status. Check-in time now comes from the durable
+  check-in fact introduced by the timing work.
+- Retained the leading session-time control, open-only success treatment,
+  neutral closed/stale/pending states, compact 28 px discs in 44 px targets, and
+  mobile condensed action hierarchy.
+- Refreshed Product Design QA and desktop/mobile light/dark evidence for the
+  integrated selected-student menu and Attendance timing dialog. No new durable
+  shared design guidance was needed.
+
+**Verification:** TypeScript passes; five focused Attendance test files pass
+(40 tests); the integrated teacher/student Playwright matrix passes in all
+eight desktop/mobile light/dark cases with no browser or page errors. Visual
+comparison passed for default, selection menu, timing dialog, and dark/mobile
+states. Final policy, lint, audit, independent review, and PR merge gates follow.
+
+### Final-review privacy correction
+
+- Independent review identified a merge-blocking provider-boundary leak: the
+  timing integration exposed Bara's opaque `check_in_ref` in the Pika-owned
+  teacher browser contract even though the UI only needed existence state.
+- Replaced the public reference with provider-neutral `hasQrCheckIn`, retained
+  `pendingCommand` separately, and updated selection filtering, removal
+  confirmation polling, and per-row automatic-status Undo.
+- Updated the typed session-route fixture, privacy assertions, builder tests,
+  durable teacher-surface contract, and visual evidence record. Serialized view
+  tests now explicitly reject private check-in references.
+
+**Verification:** TypeScript and six focused Attendance test files pass (48
+tests). The targeted browser matrix, policy gates, audit, targeted independent
+confirmation, and GitHub checks follow before merge.

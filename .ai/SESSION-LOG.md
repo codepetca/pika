@@ -11,74 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Restore Attendance time to leading context
-
-**Risk profile:** low teacher-only visual refinement — no Attendance commands,
-permissions, session state, QR provenance, API/schema, or student behavior
-changed.
-
-- Restored the content-sized clickable Attendance range to the quiet left
-  context slot while keeping the date and action hierarchy centered.
-- Limited the subtle success background to a confirmed open session. Closed,
-  scheduled, cancelled, stale, and pending states remain neutral; the accessible
-  name continues to announce the actual state.
-- Added explicit light/dark closed-session browser captures and assertions, and
-  refreshed the live two-state Open Design comparison, evidence record, and
-  Product Design QA. Mobile continues to expose Attendance hours through the
-  condensed actions menu.
-- No durable shared guidance changed because this placement and open-only state
-  cue are Attendance-specific refinements.
-
-**Verification:** focused component tests (19/19) and the responsive Attendance
-Playwright matrix (4/4) pass with explicit leading-placement, longest-label,
-open-background, neutral-closed, stale, and pending assertions. Open and closed
-source/production captures were visually compared in desktop light/dark; mobile
-light/dark remained free of overflow. Student UI is n/a because this remains a
-teacher-only surface.
-
-## 2026-08-28 — Integrate Attendance redesign with timing rules
-
-**Risk profile:** standard integration of a teacher-only UI with newly merged
-Attendance timing and automatic-status behavior; no authorization boundary or
-schema was added by this branch.
-
-- Merged current `main`, including configurable Attendance timing rules and the
-  reviewed Course Guide import, into the feature branch before final review.
-- Preserved the approved compact roster and persistent selected-student menu.
-  Mapped the new `Use automatic` and confirmed `Remove QR check-in` actions into
-  that menu instead of restoring a separate bulk action bar.
-- Updated per-row QR correction Undo to clear the manual override and reveal the
-  timing-derived automatic status. Check-in time now comes from the durable
-  check-in fact introduced by the timing work.
-- Retained the leading session-time control, open-only success treatment,
-  neutral closed/stale/pending states, compact 28 px discs in 44 px targets, and
-  mobile condensed action hierarchy.
-- Refreshed Product Design QA and desktop/mobile light/dark evidence for the
-  integrated selected-student menu and Attendance timing dialog. No new durable
-  shared design guidance was needed.
-
-**Verification:** TypeScript passes; five focused Attendance test files pass
-(40 tests); the integrated teacher/student Playwright matrix passes in all
-eight desktop/mobile light/dark cases with no browser or page errors. Visual
-comparison passed for default, selection menu, timing dialog, and dark/mobile
-states. Final policy, lint, audit, independent review, and PR merge gates follow.
-
-### Final-review privacy correction
-
-- Independent review identified a merge-blocking provider-boundary leak: the
-  timing integration exposed Bara's opaque `check_in_ref` in the Pika-owned
-  teacher browser contract even though the UI only needed existence state.
-- Replaced the public reference with provider-neutral `hasQrCheckIn`, retained
-  `pendingCommand` separately, and updated selection filtering, removal
-  confirmation polling, and per-row automatic-status Undo.
-- Updated the typed session-route fixture, privacy assertions, builder tests,
-  durable teacher-surface contract, and visual evidence record. Serialized view
-  tests now explicitly reject private check-in references.
-
-**Verification:** TypeScript and six focused Attendance test files pass (48
-tests). The targeted browser matrix, policy gates, audit, targeted independent
-confirmation, and GitHub checks follow before merge.
-
 ## 2026-08-28 — Define configurable Attendance timing semantics
 
 **Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
@@ -1336,3 +1268,17 @@ User authorized PR and merge of the relative-date descender fix and stacked hist
 ## 2026-08-31 — Match and enlarge Classwork creation dialogs
 
 Task Resize classwork creation modals owns codex/classwork-creation-modal-size. Extended CreationModalShell with opt-in 90dvh height and a non-scrolling footer; reused it for materials and expanded assignment/material editors. Other creation shells retain content-driven sizing. Assignment actions stay above the scrolling form; material actions stay below it. No business logic, dependencies, schema, or permissions changed (risk profile none). Pattern Lab includes a deterministic shell example; no new stable design pattern or unrelated refactor. Component tests cover sizing, footer placement, focus containment/return, and the gallery example. Playwright verified teacher desktop 1440x900 and mobile 390x844 in both themes, empty and long/scrolled content: matching 896x810 desktop and 374x759.6 mobile bounds, visible actions, no horizontal overflow, and keyboard containment/Escape. Student creation is n/a; standard both-role Classwork smoke screenshots also captured. Local evidence: output/playwright/ and /tmp/pika-modal-matrix.log. Focused checks passed; final check, one independent Terra/medium review, and draft-first PR follow. Merge requires user authorization.
+
+## 2026-08-31 — Student Tests local redesign review
+
+- Worktree `/Users/stew/.codex/worktrees/9667/pika`, branch `codex/student-tests-page-review`: progress-first test cards, mobile title wrapping, shared Back/focus return, and explicit detail read recovery. API, data, exam rules, and grading untouched.
+- Experimental brief: `docs/guidance/ui/experimental/student-tests-progress.md`; deterministic production-owner examples under Pattern Lab feature patterns. Unrelated date/history fixes left to their owning task.
+- Evidence: `/Users/stew/.codex/visualizations/2026/08/31/01a057fb-2a22-7e92-88f4-9d582c079959/student-tests/`. Focused checks: 176 tests plus policy/types/lint; 66 targeted access/exam regressions; four browser combinations; semantic-token contrast passes. Local preview runs on port 3001 with its own worktree build and local Supabase credentials.
+- User accepted moving the preview through commit, draft PR, and independent review; leave card/page spacing and active exam workspace unchanged. Merge remains a separate approval; no migration or test-data writes.
+- Risk profile: workspace-state. Model recommendation: GPT-5.6 Terra/high for one independent fixed-commit review in a detached checkout. Review budget: five launches, three remediation batches, 45 minutes maximum; final review and CI evidence will be recorded on the PR without changing the reviewed commit.
+
+## 2026-08-31 — Approve Student Tests merge and integrate current main
+
+- User manually verified the student preview and authorized PR review and main merge for #1131. This task remains sole writer of `codex/student-tests-page-review`; no production promotion is authorized.
+- Integrated the Classwork-dialog change from current main. Preserved both Pattern Lab examples and both continuity histories; Student Tests application files and existing spacing are unchanged from the reviewed preview.
+- Risk profile: none for integration (underlying PR workspace-state). Model recommendation: GPT-5.6 Terra/medium for one targeted fixed-commit integration review; earlier Terra/high behavioral review remains valid. Prior ledger: one review, zero remediation batches. Final focused checks, integration review, and CI will be recorded on the PR without post-review commits.

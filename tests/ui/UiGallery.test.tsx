@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
@@ -24,6 +25,28 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  // Exercise StudentTestListItem through its real gallery composition, including disabled-card tab order.
+  it.each(['teacher', 'student'] as const)('demonstrates student Test access and keyboard selection for %s reviewers', async (role) => {
+    const user = userEvent.setup()
+    renderGallery(role)
+    const examples = within(screen.getByTestId('pattern-section-student-tests'))
+    const available = examples.getByRole('button', { name: /Functions and Graphs/ })
+    const closed = examples.getByRole('button', { name: /Polynomial Expressions/ })
+    const submitted = examples.getByRole('button', { name: /Linear Equations/ })
+    expect(closed).toBeDisabled()
+    expect(examples.getByRole('button', { name: /Quadratic Relations/ })).toHaveTextContent('Awaiting results · Access closed')
+    expect(examples.getByRole('button', { name: /Rates of Change/ })).toHaveTextContent('Returned')
+    available.focus()
+    await user.keyboard('{Enter}')
+    expect(available).toHaveAttribute('aria-current', 'true')
+    expect(examples.getByRole('status')).toHaveTextContent('Selected example: Functions and Graphs')
+    await user.tab()
+    expect(submitted).toHaveFocus()
+    await user.keyboard(' ')
+    expect(submitted).toHaveAttribute('aria-current', 'true')
+    expect(available).not.toHaveAttribute('aria-current')
+  })
+
   it('keeps section navigation and composite controls explicitly named', () => {
     renderGallery('student')
 
