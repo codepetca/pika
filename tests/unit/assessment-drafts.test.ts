@@ -934,7 +934,7 @@ describe('assessment drafts', () => {
       data: null,
       error: {
         code: '55000',
-        message: 'test_questions_locked: Test questions cannot be changed after student work exists',
+        message: 'test_questions_locked: Only question wording can change after a student starts. Reload the saved draft to resolve structural changes.',
       },
     })
 
@@ -946,7 +946,7 @@ describe('assessment drafts', () => {
     })).resolves.toEqual({
       ok: false,
       status: 409,
-      error: 'Test questions cannot be changed after student work exists',
+      error: 'Only question wording can change after a student starts. Reload the saved draft to resolve structural changes.',
     })
   })
 

@@ -576,6 +576,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         studentResponses: data.student_responses || {},
       })
       setFocusSummary((data.focus_summary as TestFocusSummary | null) || null)
+      return true
     } catch (err) {
       if (
         detailRequestIdRef.current === requestId &&
@@ -1098,12 +1099,40 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setPendingStartTestId(null)
   }
 
-  function handleConfirmStartTest() {
+  async function handleConfirmStartTest() {
     const testId = pendingStartTestId
     if (!testId) return
     setShowStartTestConfirm(false)
     setPendingStartTestId(null)
+    const scope = currentScopeRef.current
+    const requestId = detailRequestIdRef.current
+    setLoadingTest(true)
+    // Begin the durable Start request before fullscreen signals can enqueue
+    // telemetry. Fullscreen is still requested within the confirmation gesture.
+    const startRequest = fetch(`${apiBasePath}/${testId}/start`, { method: 'POST' })
+    const fullscreenRequest = requestExamFullscreen('start_test_confirm')
+    try {
+      const response = await startRequest
+      const data = await response.json() as { questions?: TestAssessmentQuestion[] }
+      if ((currentScopeRef.current.classroomId !== scope.classroomId) || selectedTestIdRef.current !== testId || detailRequestIdRef.current !== requestId) return
+      if (!response.ok) throw new Error('Unable to start test')
+      // The RPC returns the post-lock question snapshot, so the student never
+      // answers a structure loaded before a simultaneous teacher save.
+      if (Array.isArray(data.questions)) {
+        setSelectedTest((current) => current && current.test.id === testId
+          ? { ...current, questions: data.questions! }
+          : current)
+      }
+      setLoadingTest(false)
+    } catch {
+      if ((currentScopeRef.current.classroomId === scope.classroomId) && selectedTestIdRef.current === testId && detailRequestIdRef.current === requestId) {
+        setLoadingTest(false)
+        setDetailError(true)
+      }
+      return
+    }
     setStartedTestId(testId)
+    focusEnabledRef.current = true
     focusSessionIdRef.current = createFocusSessionId()
     examIncidentStateRef.current = createExamIncidentState()
     clearPendingBlurTimeout()
@@ -1112,9 +1141,14 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
-    void requestExamFullscreen('start_test_confirm')
-    if (selectedTestIdRef.current !== testId || !selectedTest) {
-      void handleSelectTest(testId)
+    await fullscreenRequest
+    const complianceSnapshot = getExamWindowComplianceSnapshot()
+    applyWindowComplianceSnapshot(complianceSnapshot)
+    if (complianceSnapshot.isCompliant) {
+      clearPendingNonCompliantTimeout()
+      setIsWindowCompliantStable(true)
+    } else {
+      setIsWindowCompliantStable(false)
     }
   }
 
