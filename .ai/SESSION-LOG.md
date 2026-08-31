@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Repair post-134 database lint findings
-
-**Risk profile:** runtime-platform — replacement PL/pgSQL definitions for the
-individual-student purge failure path and the legacy archive snapshot engine;
-no persistent local, staging, or production migration was applied.
-
-- Added migration 135. `fail_student_purge_object` now qualifies the joined
-  retry expression as `object.attempt_count`, fixing the reproduced PostgreSQL
-  `42702` runtime failure. The archive-v082 actor temp table was proven safe at
-  runtime by the existing rollback regression; its lint finding was a
-  `plpgsql_check` limitation, resolved with runtime-bound, explicitly
-  `pg_temp`-scoped dynamic references while preserving archive behavior.
-- Extended the rollback-only student-purge database fixture through the real
-  storage-deletion failure path. It now proves object/operation failure state,
-  error evidence, exponential backoff, lease cleanup, stale-lease rejection,
-  and a fresh retry lease before successful completion.
-- Independent high-risk review found and remediation added operation-first row
-  locking plus post-lock live-lease validation, preventing a deadlock or stale
-  failure write when an expired lease is reclaimed concurrently. A disposable
-  two-session regression now proves the stale reporter waits, loses authority,
-  and cannot overwrite the replacement lease or operation retry state.
-- The disposable race harness accepts only its reserved database-name prefix
-  and drops the database only after a successful create, so an unsafe override
-  or pre-existing database cannot be removed during failed setup.
-- Replayed migrations 001-135 from scratch in a disposable isolated Supabase
-  project. Error-level database lint reports zero findings and is now an
-  all-schema, fail-on-error CI gate; focused student
-  purge and archive database contracts, generated database types, 5,172-test
-  coverage, TypeScript, lint, architecture/UI/design policies, migration
-  lineage, diff/shell checks, the Pika audit, and the production build pass.
-
-**Model recommendation:** GPT-5.6 Sol for high-risk PostgreSQL migration and
-static-analysis/runtime reconciliation.
-
-## 2026-08-28 — Preserve linked Tests during Blueprint purge
-
-**Risk profile:** runtime-platform — pending migration 134 trigger semantics;
-no migration was applied, no database was reset, and no hosted state changed.
-
-- Extended the owner-only provenance exception so Blueprint purge finalization
-  may clear only `test_questions.source_blueprint_version_id` and `updated_at`
-  after student work exists. Authored Test content and identity remain frozen.
-- Added a transactional database regression covering an active linked Test,
-  question, submitted attempt, and response. The old trigger fails purge
-  permanently; the revised trigger completes purge while preserving all Test
-  and student-work records and clearing only Blueprint lineage.
-- Full Vitest passes (588 files, 5,168 tests), as do focused migration tests,
-  lint, the production build, SQL diff validation, and transaction-only local
-  before/after database proofs. Migration 134 remains unapplied to production.
-
-**Model recommendation:** current frontier coding model for the bounded
-PostgreSQL trigger and deletion-contract fix.
-
 ## 2026-08-28 — Complete Blueprint identity and database-lint rollout
 
 **Risk profile:** runtime-platform — protected production release, hosted
@@ -1502,3 +1449,118 @@ this bounded Pattern Lab wording correction.
   Pattern Lab, guidance, and reviewed baselines only where the approved contract
   actually changes. Visual approval, independent review, and final CI remain
   pending; PR #1124 stays draft.
+
+## 2026-08-30 — Enforce stable-SHA PR Gate launch
+
+**Risk profile:** runtime-platform — GitHub Actions admission policy and its
+workflow contract only; no product behavior, schema, dependency, secret, or
+branch-ruleset change.
+
+- Ran the approved post-#1125 audit after 25 completed natural CI attempts
+  following 2026-08-30T15:49:02Z. Exact `pnpm measure:ci -- --limit 25` output:
+
+```text
+{
+  "sampleSize": 25,
+  "successfulSampleSize": 5,
+  "counts": {
+    "cancelled": 9,
+    "skipped": 11,
+    "success": 5
+  },
+  "cancellationRate": 0.36,
+  "cancelledElapsedSeconds": 892,
+  "successfulQueueSeconds": {
+    "min": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "average": 0
+  },
+  "successfulRunSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulWallSeconds": {
+    "min": 467,
+    "p50": 479,
+    "p95": 518,
+    "max": 518,
+    "average": 483
+  },
+  "successfulRunsWithoutPrGateEvidence": 0,
+  "prGateByMode": {
+    "full": {
+      "sampleSize": 5,
+      "timeToGateStartSeconds": {
+        "min": 464,
+        "p50": 474,
+        "p95": 513,
+        "max": 513,
+        "average": 479
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 2,
+        "p95": 4,
+        "max": 4,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 466,
+        "p50": 478,
+        "p95": 517,
+        "max": 517,
+        "average": 482
+      }
+    }
+  }
+}
+```
+
+- The full-mode p50 remains within target (478 seconds), but the checkpoint
+  fails cancellation rate: 9/25 (36%). Eleven draft runs skipped every job;
+  the five successes all produced `PR Gate` evidence. There was no fresh
+  docs-only or production-promotion run, so those targets remain unevidenced.
+- Each cancellation was inspected. Eight launched or queued on the same ready
+  PR #1089 while successive commits and reverts were pushed; seven cancelled
+  already-running Test & Build, browser, and database lanes, consuming 892
+  seconds total. The remaining cancellation was draft-skipped. The two manual
+  dispatches were separate exact-head full runs and did not overlap eligible
+  pull-request runs.
+- Preserve all safety lanes and branch rulesets. The bounded remedy admits
+  heavy lanes only for `ready_for_review` or deliberate `workflow_dispatch`.
+  A ready-PR push now runs only the lightweight required `PR Gate`, which fails
+  with instructions to return to draft before pushing and mark the stable
+  reviewed SHA ready again. This prevents skipped checks from satisfying branch
+  protection and makes the documented lifecycle mechanically enforceable.
+
+**Verification:** CI workflow contract (4/4), workflow suite (77/77), focused
+full-mode checks (workflow, architecture, UI/design policy, TypeScript, lint),
+Pika audit, and diff validation pass. Independent review and exact-head CI are
+pending.
+
+**Model recommendation:** GPT-5.6 Terra high for CI admission and protected
+branch-safety review; no product-domain review is needed.
+
+## 2026-08-30 — Prepare final Pattern Lab integration review
+
+**Risk profile:** none for the remaining development-only UI reconciliation.
+**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
+review, with at most one follow-up launch inside the remaining review budget.
+
+- User authorized final independent review and CI for PR #1124, not merging.
+- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
+  workflow and both sides of the session-history conflict. No product source
+  changed in this sync; Daily-only relative-date scope remains intact.
+- Existing local UI checks passed at `471020c2`; the final integrated revision
+  receives refreshed focused checks before ready-for-review. Review results and
+  exact-head CI evidence will be recorded on the PR so evidence does not require
+  an unreviewed post-review commit.
+- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
+  this checkpoint allows at most 2 additional launches and 2 remaining batches,
+  20 minutes per reviewer, and 45 minutes for the review session. The integration
+  preparation is not remediation of a reviewer finding.
