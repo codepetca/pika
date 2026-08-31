@@ -27430,3 +27430,36 @@ migration, deployment, PR, merge, production state, or Bara file changed.
 
 **Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
 cross-repository, time-boundary, persistence, and compatibility implementation.
+
+<!-- pika-session-log-archive-batch:8ef6ec1ebd5df3959a74150597fe3a1abdc15875faea335fc263440fbd0a7f5f -->
+## 2026-08-28 — Implement configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
+PostgreSQL migration, QR acceptance ledger, derived status rules, and teacher UI;
+no migration was applied and no PR, commit, deployment, or hosted state changed.
+
+- Rewrote the shared v1 contract in place because neither integration is in use.
+  Bara now receives only concrete `[accepts_at, stops_accepting_at)` gates and
+  publishes authoritative accepted/invalidated check-in facts; it no longer
+  assigns Pika Present/Late/Absent outcomes.
+- Added Pika timing policy defaults and occurrence snapshots for session start/end,
+  QR open/close, inclusive Present grace, and Absent cutoff. Frozen occurrences
+  retain their policy after QR entry opens, including scans already accepted.
+- Added Pika-side status derivation, audited teacher overrides with Undo, and
+  audited individual/bulk QR check-in invalidation. Invalidation preserves the
+  fact history and permits a new scan while Bara's gate remains open.
+- Updated the teacher timing dialog, live roster timestamps/source labels,
+  automatic-status control, removal confirmation, student confirmation reads,
+  Toronto DST/cross-midnight handling, validation, reconciliation, and docs.
+- Pika passed 591 files/5,180 tests, TypeScript, lint, production build, the
+  repository audit, and an eight-case Playwright matrix covering teacher/student,
+  desktop/mobile, and light/dark states. Bara passed 34 files/180 tests,
+  TypeScript, and lint with only four generated-file warnings.
+
+**Rollout note:** migration 138 remains unapplied and requires exact one-time
+authorization. Deploy Pika's migration/API and Bara's matching v1 contract as a
+coordinated pre-release cutover; there is intentionally no legacy compatibility
+mode.
+
+**Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
+cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
