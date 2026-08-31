@@ -61,6 +61,7 @@ import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
+import { PageMockups } from './PageMockups'
 
 type Role = 'teacher' | 'student'
 
@@ -105,6 +106,7 @@ export function UiGallery({ role }: Props) {
               ['statuses', 'Statuses'],
               ['page-states', 'Page states'],
               ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
+              ...(role === 'teacher' ? [['page-mockups', 'Page mockups']] : []),
               ['feature-patterns', 'Feature patterns'],
             ].map(([href, label]) => (
               <a
@@ -404,6 +406,17 @@ export function UiGallery({ role }: Props) {
             description="Real shared owners, reconciled with the merged Daily refinements. These examples document the existing teacher family; they do not promote Daily-specific choices into global rules."
           >
             <TeacherPatterns />
+          </PatternSection>
+        )}
+
+        {role === 'teacher' && (
+          <PatternSection
+            id="page-mockups"
+            eyebrow="Experimental · page compositions"
+            title="Remaining classroom pages"
+            description="Interactive action bars and representative page content for Gradebook, Calendar, Announcements, and Roster. These local-only fixtures support comparison before live-page implementation."
+          >
+            <PageMockups />
           </PatternSection>
         )}
 

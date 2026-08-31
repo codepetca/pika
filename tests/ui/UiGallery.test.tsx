@@ -77,6 +77,19 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.queryByTestId('teacher-pattern-examples')).not.toBeInTheDocument()
   })
 
+  it('keeps page mockups teacher-only and exposes named interactive owners', () => {
+    const { unmount } = renderGallery('teacher')
+    expect(screen.getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
+    const mockups = within(screen.getByTestId('page-mockups'))
+    expect(mockups.getByRole('tablist', { name: 'Classroom page mockups' })).toBeInTheDocument()
+    expect(mockups.getByRole('group', { name: 'Score display' })).toBeInTheDocument()
+    expect(mockups.getByRole('button', { name: 'More actions' })).toHaveAttribute('aria-haspopup', 'menu')
+    expect(mockups.getByRole('table')).toBeInTheDocument()
+    unmount()
+    renderGallery('student')
+    expect(screen.queryByTestId('page-mockups')).not.toBeInTheDocument()
+  })
+
   it('moves tab focus and selection with arrow keys', () => {
     renderGallery()
 
