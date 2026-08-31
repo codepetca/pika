@@ -1254,6 +1254,25 @@ describe('AssignmentModal', () => {
   })
 
   describe('autosave behavior', () => {
+    it('saves raw Markdown through the existing assignment update on blur', async () => {
+      const source = '# Read this\n\n- Keep **Markdown**'
+      const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+        assignment: { ...baseAssignment, instructions_markdown: source },
+      }) })
+      render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment}
+        instructionsMode="markdown" onClose={vi.fn()} onSuccess={vi.fn()} />)
+      const editor = screen.getByRole('textbox', { name: 'Instructions Markdown' })
+      expect(editor).toHaveValue(baseAssignment.instructions_markdown)
+      expect(fetchMock).not.toHaveBeenCalled()
+      fireEvent.change(editor, { target: { value: source } })
+      fireEvent.blur(editor)
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/assignments/assignment-1')
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ instructions_markdown: source })
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
+    })
+
     it('shows "Unsaved" after making changes', async () => {
       render(
         <AssignmentModal

@@ -120,12 +120,13 @@ interface AssignmentModalProps {
   isOpen: boolean
   classroomId: string
   assignment?: Assignment | null // null/undefined for create mode
+  instructionsMode?: 'visual' | 'markdown'
   classDays?: ClassDay[]
   onClose: () => void
   onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
-export function AssignmentModal({ isOpen, classroomId, assignment, classDays, onClose, onSuccess }: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   // The current assignment being edited (created on first save in create mode)
@@ -707,6 +708,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           fillHeight
           title={title}
           instructionsMarkdown={instructionsMarkdown}
+          instructionsMode={instructionsMode}
           dueAt={dueAt}
           classDays={classDays}
           onTitleChange={handleTitleChange}

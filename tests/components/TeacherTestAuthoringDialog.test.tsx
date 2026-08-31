@@ -43,17 +43,20 @@ function renderDialog({
   onRequestPublish = vi.fn(async () => true),
   onClose = vi.fn(),
   testOverride = test,
+  initialView = 'edit',
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
   onRequestPublish?: () => Promise<boolean>
   onClose?: () => void
   testOverride?: TestAssessmentWithStats
+  initialView?: 'edit' | 'markdown'
 } = {}) {
   render(
     <TooltipProvider>
       <TeacherTestAuthoringDialog
         isOpen
+        initialView={initialView}
         test={testOverride}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
@@ -99,6 +102,13 @@ describe('TeacherTestAuthoringDialog', () => {
       testId: 'test-1',
       title: 'Unit Test',
     })
+  })
+
+  it('starts in Markdown when requested while allowing the visual mode', () => {
+    renderDialog({ initialView: 'markdown' })
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
+    fireEvent.click(screen.getByRole('button', { name: 'Code' }))
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-question-layout', 'editor-only')
   })
 
   it('locks preview while markdown changes are pending', () => {

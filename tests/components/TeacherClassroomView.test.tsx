@@ -196,9 +196,9 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/AssignmentModal', () => ({
-  AssignmentModal: ({ isOpen, assignment, onClose }: any) => (
+  AssignmentModal: ({ isOpen, assignment, instructionsMode = 'visual', onClose }: any) => (
     isOpen ? (
-      <div role="dialog">
+      <div role="dialog" data-instructions-mode={instructionsMode}>
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
         <button type="button" onClick={onClose}>
           Close assignment modal
@@ -1121,16 +1121,16 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('region', { name: 'Classwork actions' })).toBeInTheDocument()
     expect(newClasswork.closest('.fixed')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit all assignments in Markdown' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit all assignments in Markdown' }))
     expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
 
     toggleClassworkOrganize()
 
     expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit all assignments in Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 
@@ -1138,8 +1138,31 @@ describe('TeacherClassroomView', () => {
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit all assignments in Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
+  })
+
+  it('opens selected assignment Markdown and returns to visual mode on normal edit', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({ ok: true, json: async () =>
+        url.endsWith('/assignment-1') ? makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1') :
+        url.includes('class-days') ? { class_days: [] } :
+        url.includes('materials') ? { materials: [] } :
+        url.includes('surveys') ? { surveys: [] } :
+        { assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] }
+      })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Assignment grading actions' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'visual')
   })
 
   it('uses the compact WYSIWYG preset for material content', async () => {
@@ -1192,7 +1215,7 @@ describe('TeacherClassroomView', () => {
     expect(organizeClasswork).toBeDisabled()
 
     fireEvent.click(organizeClasswork)
-    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Edit all assignments in Markdown' })).toBeDisabled()
   })
 
   it('hides the Markdown action when its editor callback is unavailable', async () => {
@@ -1207,7 +1230,7 @@ describe('TeacherClassroomView', () => {
     await screen.findByRole('button', { name: 'Assignment One' })
 
     expect(getClassworkOrganizeAction()).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Edit all assignments in Markdown' })).not.toBeInTheDocument()
   })
 
   it('keeps the Markdown action hidden in organize mode when markdown editing is not enabled', async () => {
@@ -1225,7 +1248,7 @@ describe('TeacherClassroomView', () => {
     toggleClassworkOrganize()
 
     expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
-    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Edit all assignments in Markdown' })).not.toBeInTheDocument()
   })
 
   it('exits classwork organize mode on Escape', async () => {

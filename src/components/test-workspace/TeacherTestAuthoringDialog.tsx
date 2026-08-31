@@ -14,6 +14,7 @@ type AuthoringView = 'edit' | 'markdown'
 
 interface TeacherTestAuthoringDialogProps {
   isOpen: boolean
+  initialView?: AuthoringView
   test: TestAssessmentWithStats | null
   classroomId: string
   apiBasePath: string
@@ -28,6 +29,7 @@ interface TeacherTestAuthoringDialogProps {
 
 export function TeacherTestAuthoringDialog({
   isOpen,
+  initialView = 'edit',
   test,
   classroomId,
   apiBasePath,
@@ -47,9 +49,9 @@ export function TeacherTestAuthoringDialog({
 
   useEffect(() => {
     if (isOpen) {
-      setAuthoringView('edit')
+      setAuthoringView(initialView)
     }
-  }, [isOpen, test?.id])
+  }, [isOpen, test?.id, initialView])
 
   const handleClose = async () => {
     if (isClosing) return
