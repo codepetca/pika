@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Implement configurable Attendance timing
-
-**Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
-PostgreSQL migration, QR acceptance ledger, derived status rules, and teacher UI;
-no migration was applied and no PR, commit, deployment, or hosted state changed.
-
-- Rewrote the shared v1 contract in place because neither integration is in use.
-  Bara now receives only concrete `[accepts_at, stops_accepting_at)` gates and
-  publishes authoritative accepted/invalidated check-in facts; it no longer
-  assigns Pika Present/Late/Absent outcomes.
-- Added Pika timing policy defaults and occurrence snapshots for session start/end,
-  QR open/close, inclusive Present grace, and Absent cutoff. Frozen occurrences
-  retain their policy after QR entry opens, including scans already accepted.
-- Added Pika-side status derivation, audited teacher overrides with Undo, and
-  audited individual/bulk QR check-in invalidation. Invalidation preserves the
-  fact history and permits a new scan while Bara's gate remains open.
-- Updated the teacher timing dialog, live roster timestamps/source labels,
-  automatic-status control, removal confirmation, student confirmation reads,
-  Toronto DST/cross-midnight handling, validation, reconciliation, and docs.
-- Pika passed 591 files/5,180 tests, TypeScript, lint, production build, the
-  repository audit, and an eight-case Playwright matrix covering teacher/student,
-  desktop/mobile, and light/dark states. Bara passed 34 files/180 tests,
-  TypeScript, and lint with only four generated-file warnings.
-
-**Rollout note:** migration 138 remains unapplied and requires exact one-time
-authorization. Deploy Pika's migration/API and Bara's matching v1 contract as a
-coordinated pre-release cutover; there is intentionally no legacy compatibility
-mode.
-
-**Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
-cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
-
 ## 2026-08-28 — Course Guide Phase 2 curriculum import
 
 **Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
@@ -1210,6 +1178,40 @@ review, with at most one follow-up launch inside the remaining review budget.
 - Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
 - This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
 - Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.
+
+## 2026-08-31 — Stable-SHA CI admission audit at 35 natural attempts
+
+**Risk profile:** workspace-state — CI evidence audit only; no product, schema,
+dependency, enforcement, or branch-ruleset change.
+
+- Ran `pnpm measure:ci -- --limit 36` after the post-#1127 sample exceeded 20
+  completed natural attempts. Exact output: `sampleSize: 35`, `success: 15`,
+  `skipped: 16`, `cancelled: 3`, `failure: 1`, cancellation rate
+  `0.08571428571428572`, cancelled elapsed seconds `22`, and zero successful
+  runs without PR Gate evidence. Full-mode PR Gate p50 was 501 seconds;
+  application-browser was 514 seconds (one run); production-promotion was 296
+  seconds (one run). No docs-only success was observed.
+- All 16 skipped draft attempts were individually inspected and contained no
+  non-skipped job. The three cancellations and one failure were ready-PR guard
+  events: PR Gate failed within 2–4 seconds while every heavy lane was skipped,
+  then the succeeding ready event ran the exact-head full suite. This confirms
+  #1127 prevents duplicate heavy work and cannot silently satisfy protection.
+- The cancellation target passes (8.6% under 10%); selected browser/database
+  dependencies passed in successful full runs, the application-browser lane
+  passed, the production-promotion lane passed, and browser artifacts/two-worker
+  combined execution remain selected. Existing fail-closed classifier and
+  rulesets are unchanged.
+- The audit does not pass: full-mode p50 exceeds the under-eight-minute target
+  by 21 seconds, and fresh docs-only evidence is absent. These are evidence and
+  traffic/queue issues, not a safe bounded workflow correction; preserve all
+  enforcement and request a decision before changing performance targets or
+  broad CI topology.
+
+**Verification:** GitHub run-level inspection of every skipped, cancelled, and
+failed attempt; exact measurement above; no new test execution.
+
+**Model recommendation:** GPT-5.6 Terra high for any owner-approved CI topology
+or target revision; no automatic remediation is justified.
 
 ## 2026-08-31 — UI consistency approach (read-only review)
 
