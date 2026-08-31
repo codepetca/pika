@@ -62,11 +62,17 @@ When a task touches UI/UX, the implementation plan or issue note should declare:
 
 - guidance read
 - acceptance target captured
+- nearest Pattern Lab or approved product reference
+- component decisions recorded as `reuse`, `extend`, or `create`
 - stable guidance followed
 - experimental guidance introduced: yes/no
 - experimental draft file updated or created, if any
 - human promotion needed: yes/no
 - composite widget accessibility checklist reviewed: yes/no when applicable
+
+Use [`.codex/skills/pika-ui-change`](/.codex/skills/pika-ui-change/SKILL.md) to produce this record.
+The `/pattern-lab` page renders deterministic examples of real owners for review; it is evidence
+and an index, not a higher authority than `DESIGN.md`, semantic tokens, or `src/ui`.
 
 ## Related Files
 

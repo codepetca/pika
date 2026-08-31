@@ -3,8 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const resolvedBaseUrl = new URL(baseURL)
 const resolvedPort = resolvedBaseUrl.port || (resolvedBaseUrl.protocol === 'https:' ? '443' : '80')
-const webServerCommand = `PIKA_E2E_FIXTURES=true pnpm exec next dev --port ${resolvedPort}`
+const webServerCommand = `ENABLE_UI_GALLERY=true PIKA_E2E_FIXTURES=true pnpm exec next dev --port ${resolvedPort}`
 const experienceMatrixSpec = /experience-matrix\.spec\.ts/
+const patternLabSpec = /ui-pattern-lab\.spec\.ts/
 
 const desktop = {
   ...devices['Desktop Chrome'],
@@ -82,12 +83,49 @@ export default defineConfig({
     // across every project so CI does not multiply expensive feature E2E specs.
     {
       name: 'chromium-desktop',
+      testIgnore: patternLabSpec,
       metadata: { theme: 'light', viewport: 'desktop' },
       use: {
         ...desktop,
         colorScheme: 'light',
       },
       dependencies: ['setup'],
+    },
+    {
+      name: 'pattern-lab-desktop-light',
+      testMatch: patternLabSpec,
+      metadata: { theme: 'light', viewport: 'desktop' },
+      use: {
+        ...desktop,
+        colorScheme: 'light',
+      },
+    },
+    {
+      name: 'pattern-lab-desktop-dark',
+      testMatch: patternLabSpec,
+      metadata: { theme: 'dark', viewport: 'desktop' },
+      use: {
+        ...desktop,
+        colorScheme: 'dark',
+      },
+    },
+    {
+      name: 'pattern-lab-mobile-light',
+      testMatch: patternLabSpec,
+      metadata: { theme: 'light', viewport: 'mobile' },
+      use: {
+        ...mobile,
+        colorScheme: 'light',
+      },
+    },
+    {
+      name: 'pattern-lab-mobile-dark',
+      testMatch: patternLabSpec,
+      metadata: { theme: 'dark', viewport: 'mobile' },
+      use: {
+        ...mobile,
+        colorScheme: 'dark',
+      },
     },
     {
       name: 'chromium-desktop-dark',

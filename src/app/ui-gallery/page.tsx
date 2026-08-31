@@ -1,1 +1,1 @@
-export { default, dynamic, revalidate } from '../__ui/page'
+export { default, dynamic, revalidate } from '../pattern-lab/page'
