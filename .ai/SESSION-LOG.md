@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Define configurable Attendance timing semantics
-
-**Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
-status, persistence, and versioned-contract behavior; no product code,
-migration, deployment, PR, merge, production state, or Bara file changed.
-
-- Completed the mandatory Pika startup contract in a fresh detached worktree at
-  the fetched `origin/main` head `09bb0c54`; installed locked dependencies and
-  passed `verify-env.sh`.
-- Audited native Pika Attendance policy creation, Toronto/DST schedule
-  materialization, teacher/student permissions, QR entry and idempotency,
-  projections, persistence, API validators, and focused tests. The current v1
-  model has only absolute open/close instants: every accepted QR scan becomes
-  Present and closing finalizes Unmarked students as Absent.
-- Inspected open PR #1094. It preserves teacher corrections and Undo while
-  exposing original QR check-in time from signed Bara events, but it does not
-  add timing cutoffs; reconciliation cannot yet recover immutable first-QR
-  evidence if the original event was missed.
-- Inspected `/Users/stew/Repos/bara` read-only at local `main` `f66850f`.
-  Bara's server clock and Convex mutation are authoritative, the entry interval
-  currently closes exclusively at `closesAt`, manual Pika corrections are
-  allowed after close, and automatic close turns only Unmarked records Absent.
-- Recommended separating session start/end, QR entry open/close, Present grace,
-  and Absent finalization; using explicit boundary semantics and a v2 contract;
-  preserving existing policies in legacy mode until a teacher opts in; and
-  waiting for maintainer agreement before any implementation plan or change.
-
-**Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
-cross-repository, time-boundary, persistence, and compatibility implementation.
-
 ## 2026-08-28 — Implement configurable Attendance timing
 
 **Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
@@ -1282,3 +1252,7 @@ Task Resize classwork creation modals owns codex/classwork-creation-modal-size. 
 - User manually verified the student preview and authorized PR review and main merge for #1131. This task remains sole writer of `codex/student-tests-page-review`; no production promotion is authorized.
 - Integrated the Classwork-dialog change from current main. Preserved both Pattern Lab examples and both continuity histories; Student Tests application files and existing spacing are unchanged from the reviewed preview.
 - Risk profile: none for integration (underlying PR workspace-state). Model recommendation: GPT-5.6 Terra/medium for one targeted fixed-commit integration review; earlier Terra/high behavioral review remains valid. Prior ledger: one review, zero remediation batches. Final focused checks, integration review, and CI will be recorded on the PR without post-review commits.
+
+## 2026-08-31 — Consume published Pal badge-label cleanup
+
+Task owns codex/pal-widget-alpha6. User authorized widget publication and Pika PR/review/main merge; production promotion is excluded. Pinned @codepet/pal-widget 0.1.0-alpha.6 and its registry integrity after Pal #102 merged and the guarded alpha release passed. Reused StudentAchievementsTab and PalWidgetThemeBoundary without host UI/API/schema changes (runtime-platform dependency risk). Regression tests fail against alpha.5 and pass against alpha.6: 25 Pal integration tests verify exact package version, name-only earned labels, focusability, unfinished status, and progress. Playwright inspected the real student achievement component with synthetic local data at 1440x900 and 390x844 in both themes, hover and keyboard focus; final mobile width 390/390, no broken images. Pattern Lab reference inspected; teacher badge surface is n/a. Evidence: /tmp/pika-pal-alpha6-visual.nEY1f9; temporary fixture removed, no authenticated classroom or production-data validation claimed. Focused checks, draft PR, one independent Terra/high fixed-commit review, and exact-head PR Gate follow; record final results on the PR without post-review commits.
