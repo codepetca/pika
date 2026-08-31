@@ -35,14 +35,6 @@ export interface AlertDialogProps extends AlertDialogState {
   onClose: () => void
 }
 
-function SuccessIcon() {
-  return (
-    <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-
 function ErrorIcon() {
   return (
     <svg className="w-6 h-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +76,7 @@ export function AlertDialog({
   }, [isOpen, autoDismiss, onClose])
 
   const buttonVariant = variant === 'error' ? 'danger' : 'primary'
-  const icon = variant === 'success' ? <SuccessIcon /> : variant === 'error' ? <ErrorIcon /> : null
+  const icon = variant === 'error' ? <ErrorIcon /> : null
 
   return (
     <ModalLayer

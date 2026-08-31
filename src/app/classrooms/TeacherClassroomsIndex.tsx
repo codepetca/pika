@@ -37,7 +37,7 @@ import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl, Tooltip } from '@/ui'
+import { Button, IconButton, ConfirmDialog, PageContent, PageLayout, SegmentedControl, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
@@ -620,16 +620,15 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             /* Empty active: center the CTA on screen */
             <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
               <p className="text-sm text-text-muted">Create your first classroom</p>
-              <Button
+              <IconButton
                 type="button"
                 variant="primary"
                 size="sm"
                 className="mt-4"
                 onClick={() => setShowCreate(true)}
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                <span>New</span>
-              </Button>
+                icon={Plus}
+                label="Create classroom"
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -638,16 +637,15 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 Archived classrooms will appear here so you can unarchive them later.
               </p>
               {showCreateClassroomButton ? (
-                <Button
+                <IconButton
                   type="button"
                   variant="primary"
                   size="sm"
                   className="mt-4"
                   onClick={() => setShowCreate(true)}
-                >
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>New</span>
-                </Button>
+                  icon={Plus}
+                  label="Create classroom"
+                />
               ) : null}
             </div>
           )
@@ -880,15 +878,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
         {visibleClassrooms.length > 0 && showCreateClassroomButton ? (
           <div className="flex justify-center pt-3">
-            <Button
+            <IconButton
               type="button"
               variant="primary"
               size="sm"
               onClick={() => setShowCreate(true)}
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>New</span>
-            </Button>
+              icon={Plus}
+              label="Create classroom"
+            />
           </div>
         ) : null}
       </PageContent>

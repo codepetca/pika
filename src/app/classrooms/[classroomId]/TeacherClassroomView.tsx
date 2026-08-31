@@ -1,5 +1,7 @@
 'use client'
 
+import { Plus } from 'lucide-react'
+
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import {
   DndContext,
@@ -38,8 +40,8 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { Button, ConfirmDialog, DialogPanel, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -61,13 +63,12 @@ import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
-  TeacherWorkSurfaceMenuButton,
+  TeacherWorkSurfaceIconMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { ContentField, RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -416,84 +417,21 @@ function TeacherMaterialDialog({
   }
 
   return (
-    <CreationModalShell
+    <MaterialCreationDialog
       isOpen={isOpen}
+      isExisting={!!material}
+      isDraft={isDraft}
+      readOnly={isReadOnly}
+      saving={saving}
+      error={error}
+      title={title}
+      content={content}
+      onTitleChange={setTitle}
+      onContentChange={setContent}
+      onSave={(asDraft) => { void saveMaterial(asDraft) }}
       onClose={onClose}
-      title={material ? 'Material' : 'New Material'}
-      titleId="material-modal-title"
-      closeLabel="Close material modal"
-      closeDisabled={saving}
-      tall
-      footer={(
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            {material && !isReadOnly ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => onRequestDelete(material)}
-                disabled={saving}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => saveMaterial(true)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMaterial(false)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
-            </Button>
-          </div>
-        </div>
-      )}
-    >
-      <div className="flex h-full min-h-0 flex-col gap-4">
-        <div className="shrink-0 pr-8">
-          <h3 className="text-base font-semibold text-text-default">{material ? 'Material' : 'New Material'}</h3>
-          <p className="mt-0.5 text-xs text-text-muted">Ungraded classwork</p>
-        </div>
-        <FormField label="Title" className="shrink-0">
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={saving || isReadOnly}
-            placeholder="Reading, link, handout..."
-          />
-        </FormField>
-
-        <ContentField label="Content" className="flex min-h-64 flex-1 flex-col">
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            editable={!saving && !isReadOnly}
-            placeholder="Add links, notes, readings, or instructions..."
-            toolbarPreset="compact"
-            aria-label="Material content"
-            className="simple-editor-wrapper--fill-height min-h-0 flex-1"
-          />
-        </ContentField>
-
-        {error && (
-          <div className="shrink-0 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-      </div>
-    </CreationModalShell>
+      onDelete={material && !isReadOnly ? () => onRequestDelete(material) : undefined}
+    />
   )
 }
 
@@ -2596,8 +2534,11 @@ export function TeacherClassroomView({
         testId="assignment-summary-actionbar-center"
         primary={
           <TeacherWorkSurfaceActionCluster>
-            <TeacherWorkSurfaceMenuButton
-              label={<span>New Classwork</span>}
+            <TeacherWorkSurfaceIconMenuButton
+              icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+              ariaLabel="Create classwork"
+              tooltip="Create assignment, material, or survey"
+              variant="primary"
               items={classworkCreateActions}
               disabled={isReadOnly}
               menuAriaLabel="New classwork"
