@@ -40,7 +40,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 3,
+          "count": 1,
           "reason": "legacy-form-control"
         }
       ]

@@ -49,6 +49,9 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { StudentTestListItem } from '@/components/StudentTestListItem'
+import type { StudentTestSummary } from '@/lib/student-test-presentation'
 
 type Role = 'teacher' | 'student'
 
@@ -61,6 +64,7 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [creationDialogOpen, setCreationDialogOpen] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
 
   return (
@@ -382,6 +386,26 @@ export function UiGallery({ role }: Props) {
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6">
+            {role === 'teacher' && (
+              <Card tone="panel" padding="md">
+                <h3 className="font-semibold">Classwork creation dialog</h3>
+                <p className="mt-2 text-sm text-text-muted">
+                  Assignments and materials share the tall creation shell. Content scrolls while actions remain available.
+                </p>
+                <Button className="mt-3" variant="surface" onClick={() => setCreationDialogOpen(true)}>
+                  Open creation dialog
+                </Button>
+              </Card>
+            )}
+          <PatternSection
+            id="student-tests"
+            eyebrow="Experimental · student workflow"
+            title="Student Tests: progress and access"
+            description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
+          >
+            <StudentTestExamples />
+          </PatternSection>
+
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
           </div>
@@ -396,6 +420,22 @@ export function UiGallery({ role }: Props) {
         variant="success"
         buttonLabel="Close example"
       />
+      <CreationModalShell
+        isOpen={creationDialogOpen}
+        onClose={() => setCreationDialogOpen(false)}
+        title="Classwork creation example"
+        titleId="pattern-creation-title"
+        closeLabel="Close creation example"
+        tall
+        footer={<Button variant="secondary" onClick={() => setCreationDialogOpen(false)}>Done</Button>}
+      >
+        <div className="space-y-4 pr-8">
+          <h3 className="font-semibold">Classwork creation example</h3>
+          {Array.from({ length: 24 }, (_, index) => (
+            <p key={index} className="text-sm text-text-muted">Example content section {index + 1}</p>
+          ))}
+        </div>
+      </CreationModalShell>
     </main>
   )
 }
@@ -468,6 +508,31 @@ function MaturityBadge({ maturity }: { maturity: PatternMaturity }) {
     <span className={cn('rounded-badge px-2 py-0.5 text-xs font-semibold capitalize', MATURITY_CLASSES[maturity])}>
       {maturity}
     </span>
+  )
+}
+
+const STUDENT_TEST_EXAMPLES: StudentTestSummary[] = [
+  { title: 'Functions and Graphs', status: 'active', student_status: 'not_started', effective_access: 'open' },
+  { title: 'Polynomial Expressions and Rational Functions — Unit Review', status: 'closed', student_status: 'not_started', effective_access: 'closed' },
+  { title: 'Linear Equations', status: 'active', student_status: 'responded', effective_access: 'open' },
+  { title: 'Quadratic Relations', status: 'closed', student_status: 'responded', effective_access: 'closed' },
+  { title: 'Rates of Change', status: 'closed', student_status: 'can_view_results', effective_access: 'closed' },
+]
+
+function StudentTestExamples() {
+  const [selected, setSelected] = useState<string | null>(null)
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-text-muted">src/components/StudentTestListItem.tsx · Preview only; no test opens or starts.</p>
+      <div className="space-y-3">
+        {STUDENT_TEST_EXAMPLES.map((test) => (
+          <StudentTestListItem key={test.title} test={test} selected={selected === test.title} onClick={() => setSelected(test.title)} />
+        ))}
+      </div>
+      <p role="status" className="text-sm text-text-muted">
+        {selected ? `Selected example: ${selected}` : 'Select an available example to inspect its focus and selection treatment.'}
+      </p>
+    </div>
   )
 }
 

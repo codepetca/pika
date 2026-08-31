@@ -874,6 +874,7 @@ describe('AssignmentModal', () => {
 
       // Initially shows "Creating Draft..."
       expect(screen.getByText('Creating Draft...')).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Creating Draft...' })).toHaveClass('h-[90dvh]')
 
       // After creation, shows "Edit Draft"
       await waitFor(() => {
@@ -881,6 +882,7 @@ describe('AssignmentModal', () => {
       })
 
       expect(screen.getByPlaceholderText('Add a title')).toHaveValue('')
+      expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toHaveClass('h-[90dvh]')
       expect(screen.queryByDisplayValue('Untitled Assignment')).not.toBeInTheDocument()
 
       // Should have called POST to create the draft

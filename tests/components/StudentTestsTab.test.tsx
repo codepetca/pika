@@ -119,6 +119,47 @@ describe('StudentTestsTab exam mode', () => {
     })
   }
 
+  it('keeps failed detail reads separate from list metadata and restores focus after recovery', async () => {
+    queueTestList()
+    const detail = createDeferred<Response>()
+    fetchMock.mockReturnValueOnce(detail.promise)
+
+    render(<StudentTestsTab classroom={classroom} />)
+    const opener = await screen.findByRole('button', { name: /Midterm Test/ })
+    opener.focus()
+    fireEvent.click(opener)
+
+    expect(screen.getByText('Loading test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toHaveFocus()
+    await act(async () => { detail.resolve(jsonResponse({ error: 'Access denied' }, false)) })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Test unavailable')
+    expect(screen.queryByRole('button', { name: 'Start the Test' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Response Submitted')).not.toBeInTheDocument()
+    queueTestDetail()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toHaveFocus()
+
+    queueTestList()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+    expect(await screen.findByRole('button', { name: /Midterm Test/ })).toHaveFocus()
+  })
+
+  it('ignores a failed detail request that resolves after returning to the list', async () => {
+    queueTestList()
+    const detail = createDeferred<Response>()
+    fetchMock.mockReturnValueOnce(detail.promise)
+    render(<StudentTestsTab classroom={classroom} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Midterm Test/ }))
+    queueTestList()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+    await act(async () => { detail.resolve(jsonResponse({ error: 'Late failure' }, false)) })
+    expect(screen.queryByText('Test unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByText('Loading test')).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Midterm Test/ })).toHaveFocus()
+  })
+
   it('shows a retryable error instead of an empty state when the tests list fails', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ error: 'Database unavailable' }, false))
@@ -820,7 +861,7 @@ describe('StudentTestsTab exam mode', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('This test is closed.')).not.toBeInTheDocument()
-      expect(screen.getByText('This test is closed')).toBeInTheDocument()
+      expect(screen.getByText('Awaiting results · Access closed')).toBeInTheDocument()
     })
   })
 
@@ -2225,13 +2266,15 @@ describe('StudentTestsTab exam mode', () => {
     const notOpenCard = screen.getByRole('button', { name: /Individually Closed Test/i })
     const openedPublishedCard = screen.getByRole('button', { name: /Opened Published Test/i })
 
-    expect(within(closedCard).getByText('Closed')).toBeInTheDocument()
+    expect(within(closedCard).getByText('Submitted')).toBeInTheDocument()
+    expect(within(closedCard).getByText('Awaiting results · Access closed')).toBeInTheDocument()
+    expect(closedCard).toBeEnabled()
     expect(within(submittedCard).getByText('Submitted')).toBeInTheDocument()
     expect(within(returnedCard).getByText('Returned')).toBeInTheDocument()
     expect(within(notOpenCard).getByText('Closed')).toBeInTheDocument()
     expect(within(notOpenCard).getByText('This test is closed')).toBeInTheDocument()
     expect(notOpenCard).toBeDisabled()
-    expect(within(openedPublishedCard).getByText('New')).toBeInTheDocument()
+    expect(within(openedPublishedCard).getByText('Available')).toBeInTheDocument()
     expect(openedPublishedCard).toBeEnabled()
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
   })

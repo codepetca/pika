@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -68,6 +68,19 @@ describe('UiGallery history preview fixture', () => {
     vi.unstubAllGlobals()
   })
 
+  it('demonstrates the tall creation dialog and returns focus when dismissed', async () => {
+    const user = userEvent.setup()
+    renderGallery('teacher')
+    const opener = screen.getByRole('button', { name: 'Open creation dialog' })
+    await user.click(opener)
+    const dialog = screen.getByRole('dialog', { name: 'Classwork creation example' })
+    expect(dialog).toHaveClass('h-[90dvh]')
+    expect(within(dialog).getByText('Example content section 24')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(opener).toHaveFocus())
+  })
+
   it('demonstrates teacher hover, pin, and exit states', async () => {
     const user = userEvent.setup()
     renderGallery('teacher')
@@ -109,6 +122,7 @@ describe('UiGallery history preview fixture', () => {
 
   it('uses the same preview lifecycle for the student surface', () => {
     renderGallery('student')
+    expect(screen.queryByRole('button', { name: 'Open creation dialog' })).not.toBeInTheDocument()
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')

@@ -11,152 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Build the automatic development-speed workflow
-
-**Risk profile:** runtime-platform — CI selection, browser concurrency, AI PR
-routing, and protected production-promotion behavior changed; no schema,
-dependency, secret, or hosted state was changed.
-
-- Measured the pre-change CI baseline: latest clean lanes took 4m41s for Test &
-  Build, 7m32s for database contracts, and 9m08s for the browser matrix; the
-  recent successful wall-time median was 563s, with 8 of 30 attempts cancelled
-  after consuming about 41 minutes.
-- Added a fail-closed, change-aware classifier and aggregate `PR Gate`. Draft
-  pushes skip heavy work; docs/AI guidance uses the fast workflow-contract lane;
-  application, database, and rendered-browser paths select their relevant lanes;
-  unknown/runtime/CI paths and manual dispatches run the full suite.
-- Made the draft-first stable-SHA lifecycle automatic for AI agents: focused
-  local checks, draft PR, risk-matched review, batched remediation, one ready-SHA
-  CI run, and return-to-draft before any correction push.
-- Combined the three Playwright CI launches, moved the public Course Guide setup
-  into deterministic seed state, and enabled two CI workers while keeping each
-  spec internally serial. Added a reusable performance measurement command and
-  rollout/rollback targets.
-- Changed production promotion to reuse one cumulative draft PR and kept direct
-  or noncanonical production PRs on fail-closed full CI. Repository ruleset
-  replacement remains an explicit owner checkpoint after the workflow proves
-  both docs-only and full classifications.
-- Independent Sol/Terra review found and batch-remediated spoofable production
-  provenance, deletion omission, over-broad runtime safe classification, a
-  shared Playwright mutation, persistent production-worktree divergence,
-  malformed aggregate selectors, and metrics that could not prove per-mode
-  targets. Production abbreviation now requires same-repository head = current
-  `main`; all other cases fail closed. Mutable publication coverage has a
-  dedicated fixture, promotion worktrees are ephemeral, and metrics inspect
-  actual `PR Gate` timing by classifier mode.
-- A targeted remediation review then closed four remaining integration gaps:
-  the helper now publishes the exact `origin/main` SHA even when production is
-  divergent; all three aggregate selectors are validated together; fork PRs
-  cannot enter promotion discovery; and unrecognized `.github` paths fail
-  closed. Executable temporary-repository coverage exercises merge, squash,
-  rebase, and subsequent promotion preparation.
-- Validation on current `main` passed 77 workflow contracts, architecture,
-  UI/design policies, TypeScript, lint, production build, actionlint, Bash
-  syntax, Playwright discovery (93 tests), focused checks, and diff validation.
-  Two full-suite attempts each passed 5,287/5,288 but exposed different
-  non-repeating timing failures; both affected files passed immediately in
-  isolation. The PAL timeout test now has scheduler headroom while retaining a
-  strict bound. Final GitHub CI remains authoritative. Ephemeral database and
-  real-browser execution remain selected for the final ready-PR run because
-  local seed/migration application was not authorized.
-- Tightened the Pika audit so newly introduced production `console.log` calls
-  still fail without forcing unrelated edits to clean legacy logging elsewhere
-  in the same file; regression coverage locks both cases.
-- Final exact-SHA GitHub CI passed every selected full-mode safeguard: aggregate
-  `PR Gate` in 7m34s, database contracts in 7m17s, Test & Build in 6m21s, and
-  the combined browser matrix in 5m13s versus the 9m08s browser baseline.
-  After owner approval, current `main` advanced through Course Guide limiter PR
-  #1111; the speed-program PR returned to draft and merged that change while
-  retaining its new database-contract step in the aggregate CI workflow.
-- The next exact-SHA CI exposed a pre-existing archive visual test that packed
-  20 context/navigation states into one 30-second case. Test & Build and database
-  contracts passed, while all browser retries timed out even though an artifact
-  snapshot showed the expected verified state arriving after the deadline.
-  Split the four viewport/theme entries into separate internally serial tests,
-  preserving every assertion and screenshot. The exact two-worker combined
-  browser command then passed 82 tests with 14 intentional skips in 2.5 minutes;
-  each split archive case passed first try in 4.3–10.2 seconds.
-
-**Model recommendation:** GPT-5.6 Sol at high reasoning for the branch-protection
-transition and initial post-rollout evidence review; use Terra for routine
-follow-up once the aggregate gate is established.
-
-## 2026-08-28 — Limit Test publication wording to the publish transition
-
-**Risk profile:** none — teacher Test workspace labels and confirmation copy only.
-
-- Removed the raw Draft/Active/Closed lifecycle indicator from the selected-Test
-  workspace; publication state is no longer persistently labelled there.
-- Renamed the irreversible Draft-to-Active confirmation to Publish test and made
-  its one-way effect explicit while preserving the existing API lifecycle.
-- Added component and browser coverage proving lifecycle wording stays absent
-  from the workspace and publication wording appears in the confirmation only.
-  Focused Vitest (70/70), lint, architecture boundaries, and eight light/dark
-  desktop/mobile browser cases pass; screenshots were reviewed visually.
-
-## 2026-08-28 — Separate Test publication from student access
-
-**Risk profile:** runtime-platform — atomic publication RPC, teacher publication
-and roster controls, and student Test-list visibility.
-Migration 139 was applied to the local and production Supabase databases with
-separate explicit authorizations; no application code was deployed.
-
-- Moved Edit Test into the selected Test's three-dot More actions menu and
-  removed persistent Draft/Active/Closed wording from the grading workspace.
-- Added an irreversible Publish action to draft authoring. Publication validates
-  and materializes the saved draft as a closed Test; direct Draft-to-Active
-  requests are rejected. Open All and Close All now only change student access
-  and remain disabled before publication.
-- Published closed Tests now remain visible in the student list with a clear
-  closed treatment, while not-started students cannot open them until access is
-  granted. Once access opens, the card becomes actionable and the teacher's live
-  grading refresh resumes even though the internal published-default status is
-  closed. Submitted and returned work remains governed by the existing access
-  contract.
-- Added migration 139 with a service-role-only atomic publication RPC. It wraps
-  draft materialization and the published-but-closed transition in one database
-  transaction so a close failure restores the draft, materialized questions,
-  and Classroom revision. Added a rollback contract script and CI wiring.
-- Replaced the route's prior two-step activation/close sequence with that RPC
-  and made the server fail closed if the result is not a closed Test. Repaired
-  the publication browser fixture so it waits for the loaded editor and cannot
-  pass while an editor-load error is present.
-- Focused post-migration coverage passes (165 tests), as do lint, TypeScript, the
-  production build, architecture, design-policy, UI-policy, managed-storage
-  lineage, the Pika audit, shell syntax, and diff validation. The affected
-  Playwright matrix passes 12 cases across teacher/student, desktop/mobile, and
-  light/dark; all screenshots were reviewed and visual verification passed.
-  The full Vitest run passes all 609 files and 5,264 tests.
-- After the authorized local migration application, migration history is aligned
-  through 139, the real success-and-forced-failure rollback contract passes,
-  generated database types include the publication RPC and match the migrated
-  schema, and error-level database lint reports no findings.
-- After the separately authorized production application, remote migration
-  history is aligned through 139 and read-only error-level database lint reports
-  no findings. The fixture-writing rollback contract was not run against
-  production.
-- Independent high-risk review found three merge blockers. The remediation
-  removes legacy active/closed lifecycle mutations from the generic Test PATCH,
-  redacts document content and storage identifiers until a student can open or
-  view submitted work, and derives the student Closed treatment from effective
-  access so individually closed students no longer see a disabled New card.
-  The browser fixture count now matches the one actually open Test.
-- Post-remediation coverage passes 166 focused tests plus lint, TypeScript, the
-  Pika audit, and four student desktop/mobile light/dark Playwright cases. The
-  updated captures were reviewed and preserve a clear Closed treatment without
-  overflow. A non-blocking lost-response publication-retry reconciliation is
-  documented for follow-up because it needs a durable idempotency design beyond
-  the already-applied migration.
-- Final integration review found and corrected a partial-success failure path:
-  if the published-closed Test query fails, the student list now returns 500 so
-  the existing retry/stale-snapshot UI can preserve prior data instead of
-  replacing it with a misleading active-only list. Regression coverage proves
-  the request fails rather than emitting partial data.
-
-**Model recommendation:** GPT-5.6 Sol for the migration transaction,
-publication/access state boundary, cross-role UI behavior, and high-risk PR
-review.
-
 ## 2026-08-28 — Resequence Course Guide import rate-limit migration
 
 **Risk profile:** workspace-state/schema-numbering — migration filename and
@@ -1127,3 +981,21 @@ Active goal: reliable future-course attendance, with separate exact approval req
 Daily now reads the saved classroom policy independently of the selected date and QR entry offsets, shares strict decoding/cache with the timing dialog, and ignores stale classroom/opening/save responses. Last-save delivery warning is separate from saved hours and does not claim later worker retries are still failing. Sync acknowledgement requires a validated schedule result. Archived occurrence display remains read-only without calling the active-policy endpoint. Regression coverage includes past/current/future dates, wrong classroom, late reads, reopen during save, malformed acknowledgement, read failure and retry. Live Pattern Lab reference and teacher/student desktop/mobile light/dark captures verified existing layout; the four-project saved-hours flow covers Aug 28, Sep 1, dialog, delivery failure, read failure and keyboard focus return.
 
 Paired Bara work adds disabled-by-default internal exact-scope inspection/repair with bounded retained identity checks, evidence digest, atomic mapping/audit insertion, idempotent replay and cleanup/retention safeguards. Bara 199 tests, typecheck, lint and build pass. Pika focused checks passed 208 tests plus architecture/UI/design/type/lint; 14 final browser checks passed across teacher/student and saved-hours flows. Plan/evidence live in this task's attendance-fix-plan.md artifact. Drafts are Pika #1134 and Bara #54. Initial Sol/Terra review completed: fixed Escape/backdrop dismissal during pending save with deferred persistence/delivery and four-project browser regressions; clarified the privileged Convex CLI recovery procedure after official docs and installed CLI code disproved a claimed internal-function invocation blocker. One correction batch; targeted/final review and exact-head CI remain required. No production changes, migration application, delivery recovery or attendance check-in performed.
+
+## 2026-08-31 — Match and enlarge Classwork creation dialogs
+
+Task Resize classwork creation modals owns codex/classwork-creation-modal-size. Extended CreationModalShell with opt-in 90dvh height and a non-scrolling footer; reused it for materials and expanded assignment/material editors. Other creation shells retain content-driven sizing. Assignment actions stay above the scrolling form; material actions stay below it. No business logic, dependencies, schema, or permissions changed (risk profile none). Pattern Lab includes a deterministic shell example; no new stable design pattern or unrelated refactor. Component tests cover sizing, footer placement, focus containment/return, and the gallery example. Playwright verified teacher desktop 1440x900 and mobile 390x844 in both themes, empty and long/scrolled content: matching 896x810 desktop and 374x759.6 mobile bounds, visible actions, no horizontal overflow, and keyboard containment/Escape. Student creation is n/a; standard both-role Classwork smoke screenshots also captured. Local evidence: output/playwright/ and /tmp/pika-modal-matrix.log. Focused checks passed; final check, one independent Terra/medium review, and draft-first PR follow. Merge requires user authorization.
+
+## 2026-08-31 — Student Tests local redesign review
+
+- Worktree `/Users/stew/.codex/worktrees/9667/pika`, branch `codex/student-tests-page-review`: progress-first test cards, mobile title wrapping, shared Back/focus return, and explicit detail read recovery. API, data, exam rules, and grading untouched.
+- Experimental brief: `docs/guidance/ui/experimental/student-tests-progress.md`; deterministic production-owner examples under Pattern Lab feature patterns. Unrelated date/history fixes left to their owning task.
+- Evidence: `/Users/stew/.codex/visualizations/2026/08/31/01a057fb-2a22-7e92-88f4-9d582c079959/student-tests/`. Focused checks: 176 tests plus policy/types/lint; 66 targeted access/exam regressions; four browser combinations; semantic-token contrast passes. Local preview runs on port 3001 with its own worktree build and local Supabase credentials.
+- User accepted moving the preview through commit, draft PR, and independent review; leave card/page spacing and active exam workspace unchanged. Merge remains a separate approval; no migration or test-data writes.
+- Risk profile: workspace-state. Model recommendation: GPT-5.6 Terra/high for one independent fixed-commit review in a detached checkout. Review budget: five launches, three remediation batches, 45 minutes maximum; final review and CI evidence will be recorded on the PR without changing the reviewed commit.
+
+## 2026-08-31 — Approve Student Tests merge and integrate current main
+
+- User manually verified the student preview and authorized PR review and main merge for #1131. This task remains sole writer of `codex/student-tests-page-review`; no production promotion is authorized.
+- Integrated the Classwork-dialog change from current main. Preserved both Pattern Lab examples and both continuity histories; Student Tests application files and existing spacing are unchanged from the reviewed preview.
+- Risk profile: none for integration (underlying PR workspace-state). Model recommendation: GPT-5.6 Terra/medium for one targeted fixed-commit integration review; earlier Terra/high behavioral review remains valid. Prior ledger: one review, zero remediation batches. Final focused checks, integration review, and CI will be recorded on the PR without post-review commits.

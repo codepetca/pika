@@ -1225,6 +1225,27 @@ test('shows published closed Tests to students without opening them', async ({ p
             effective_access: 'closed',
           },
           {
+            id: '30000000-0000-4000-8000-000000000026',
+            title: 'Submitted Closed Test',
+            status: 'closed',
+            student_status: 'responded',
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000027',
+            title: 'Submitted Open Test',
+            status: 'active',
+            student_status: 'responded',
+            effective_access: 'open',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000028',
+            title: 'Returned Test',
+            status: 'closed',
+            student_status: 'can_view_results',
+            effective_access: 'closed',
+          },
+          {
             id: '30000000-0000-4000-8000-000000000024',
             classroom_id: '30000000-0000-4000-8000-000000000021',
             title: 'Practice Test',
@@ -1242,6 +1263,23 @@ test('shows published closed Tests to students without opening them', async ({ p
     })
   })
 
+  let detailRequests = 0
+  await page.route('**/api/student/tests/30000000-0000-4000-8000-000000000026', async (route) => {
+    detailRequests += 1
+    await route.fulfill({
+      status: detailRequests === 1 ? 503 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(detailRequests === 1 ? { error: 'Fixture read failure' } : {
+        test: {
+          id: '30000000-0000-4000-8000-000000000026',
+          title: 'Submitted Closed Test', status: 'closed',
+          student_status: 'responded', effective_access: 'closed',
+        },
+        questions: [], student_status: 'responded',
+      }),
+    })
+  })
+
   await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
 
   const closedTest = page.getByRole('button', { name: /Functions and Graphs Test/ })
@@ -1254,11 +1292,37 @@ test('shows published closed Tests to students without opening them', async ({ p
   await expect(individuallyClosedTest).toContainText('This test is closed')
   await expect(page.getByRole('button', { name: /Practice Test/ })).toBeEnabled()
   await expect(page.getByText(/Unpublished|Published/, { exact: false })).toHaveCount(0)
+  const submittedClosed = page.getByRole('button', { name: /Submitted Closed Test/ })
+  await expect(submittedClosed).toBeEnabled()
+  await expect(submittedClosed).toContainText('Submitted')
+  await expect(submittedClosed).toContainText('Access closed')
+  await expect(page.getByRole('button', { name: /Submitted Open Test/ })).toContainText('Awaiting results')
+  await expect(page.getByRole('button', { name: /Returned Test/ })).toContainText('Returned')
+  await expect(page.getByRole('button', { name: /Practice Test/ })).toContainText('Available')
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
     path: testInfo.outputPath(`student-test-list-${viewport}-published-closed.png`),
     animations: 'disabled',
   })
+
+  await submittedClosed.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Tests' }).getByRole('alert')).toContainText('Test unavailable')
+  await expect(page.getByRole('button', { name: 'Start the Test' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Back to tests' })).toBeFocused()
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-detail-error.png`), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByText('Response Submitted', { exact: true })).toBeVisible()
+  await expect(page.getByText('Results will be available after your teacher returns this test.')).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  const back = page.getByRole('button', { name: 'Back to tests' })
+  const backBounds = await back.boundingBox()
+  expect(backBounds?.height).toBeGreaterThanOrEqual(44)
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-submitted.png`), animations: 'disabled' })
+  await back.press('Enter')
+  await expect(submittedClosed).toBeFocused()
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-return-focus.png`), animations: 'disabled' })
+
 })
 
 test.describe('teacher experience matrix', () => {

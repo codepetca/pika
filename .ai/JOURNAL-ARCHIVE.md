@@ -27301,6 +27301,7 @@ architecture, design policy, UI policy, Pika audit, diff checks, and same-view
 source/implementation Product Design comparison pass. Student UI is n/a.
 
 <!-- pika-session-log-archive-batch:40a5bb6b21bdde4ca063daea338d87f6958d6ce53506d3b81f270d21075e4617 -->
+<!-- pika-session-log-archive-batch:f971e4c52c958662c3a536a0795450626c3611be4cc0b0e5f14103fdcba2fa27 -->
 ## 2026-08-28 — Center Attendance time and further compact row controls
 
 **Risk profile:** low teacher-only visual/composite-widget refinement — no
@@ -27332,6 +27333,7 @@ explicitly marked historical. One targeted documentation confirmation remains
 before handoff.
 
 <!-- pika-session-log-archive-batch:368cb56459bea1cd2694641fbc422c88fe0f801b388d40f3c7a627ea9c1e0423 -->
+<!-- pika-session-log-archive-batch:3e8840775c68873ef5bc4b6515c07edf8c68075eb0931ee1a95d0ca16b7ad6f9 -->
 ## 2026-08-28 — Restore Attendance time to leading context
 
 **Risk profile:** low teacher-only visual refinement — no Attendance commands,
@@ -27585,3 +27587,329 @@ production Convex worker correction.
 
 **Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
 bounded follow-up now that the coordinated rollout is complete.
+
+<!-- pika-session-log-archive-batch:73e4dc52fb1cb9d418de6b68ec189d18d6f97bd258dadc939d7ab880a0146153 -->
+## 2026-08-28 — Define configurable Attendance timing semantics
+
+**Risk profile:** runtime-platform — proposed Pika/Bara timing, lifecycle,
+status, persistence, and versioned-contract behavior; no product code,
+migration, deployment, PR, merge, production state, or Bara file changed.
+
+- Completed the mandatory Pika startup contract in a fresh detached worktree at
+  the fetched `origin/main` head `09bb0c54`; installed locked dependencies and
+  passed `verify-env.sh`.
+- Audited native Pika Attendance policy creation, Toronto/DST schedule
+  materialization, teacher/student permissions, QR entry and idempotency,
+  projections, persistence, API validators, and focused tests. The current v1
+  model has only absolute open/close instants: every accepted QR scan becomes
+  Present and closing finalizes Unmarked students as Absent.
+- Inspected open PR #1094. It preserves teacher corrections and Undo while
+  exposing original QR check-in time from signed Bara events, but it does not
+  add timing cutoffs; reconciliation cannot yet recover immutable first-QR
+  evidence if the original event was missed.
+- Inspected `/Users/stew/Repos/bara` read-only at local `main` `f66850f`.
+  Bara's server clock and Convex mutation are authoritative, the entry interval
+  currently closes exclusively at `closesAt`, manual Pika corrections are
+  allowed after close, and automatic close turns only Unmarked records Absent.
+- Recommended separating session start/end, QR entry open/close, Present grace,
+  and Absent finalization; using explicit boundary semantics and a v2 contract;
+  preserving existing policies in legacy mode until a teacher opts in; and
+  waiting for maintainer agreement before any implementation plan or change.
+
+**Model recommendation:** GPT-5.6 Sol with high reasoning for the eventual
+cross-repository, time-boundary, persistence, and compatibility implementation.
+
+## 2026-08-28 — Implement configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated pre-release Pika/Bara contract,
+PostgreSQL migration, QR acceptance ledger, derived status rules, and teacher UI;
+no migration was applied and no PR, commit, deployment, or hosted state changed.
+
+- Rewrote the shared v1 contract in place because neither integration is in use.
+  Bara now receives only concrete `[accepts_at, stops_accepting_at)` gates and
+  publishes authoritative accepted/invalidated check-in facts; it no longer
+  assigns Pika Present/Late/Absent outcomes.
+- Added Pika timing policy defaults and occurrence snapshots for session start/end,
+  QR open/close, inclusive Present grace, and Absent cutoff. Frozen occurrences
+  retain their policy after QR entry opens, including scans already accepted.
+- Added Pika-side status derivation, audited teacher overrides with Undo, and
+  audited individual/bulk QR check-in invalidation. Invalidation preserves the
+  fact history and permits a new scan while Bara's gate remains open.
+- Updated the teacher timing dialog, live roster timestamps/source labels,
+  automatic-status control, removal confirmation, student confirmation reads,
+  Toronto DST/cross-midnight handling, validation, reconciliation, and docs.
+- Pika passed 591 files/5,180 tests, TypeScript, lint, production build, the
+  repository audit, and an eight-case Playwright matrix covering teacher/student,
+  desktop/mobile, and light/dark states. Bara passed 34 files/180 tests,
+  TypeScript, and lint with only four generated-file warnings.
+
+**Rollout note:** migration 138 remains unapplied and requires exact one-time
+authorization. Deploy Pika's migration/API and Bara's matching v1 contract as a
+coordinated pre-release cutover; there is intentionally no legacy compatibility
+mode.
+
+**Model recommendation:** GPT-5.6 Sol for the migration review and coordinated
+cutover; GPT-5.6 Terra for bounded UI and contract follow-up.
+
+## 2026-08-28 — Course Guide Phase 2 curriculum import
+
+**Risk profile:** teacher AI-assisted content mutation — one-time PDF/public-URL
+extraction into the live classroom-backed Course Guide; no ongoing Blueprint or
+classroom synchronization. Migration 140 adds a durable provider-call lease and
+rate window; it has not been applied to local or hosted state.
+
+- Added an Import curriculum assistant to Guide options with explicit Source,
+  Review, and Confirm steps. Teachers can upload a validated PDF up to 4 MB or
+  provide a public HTTPS document URL, then edit the extracted overview,
+  expectations, and useful links before anything is applied.
+- Added a server-side structured Responses API extraction boundary with
+  non-stored requests, untrusted-document instructions, bounded validated
+  output, safe failures, and source provenance. The confirmed apply path always
+  attaches the citation server-side so review edits cannot remove it.
+- Preserved existing teacher content by appending the reviewed import, and used
+  an expected-overview compare guard to return a conflict instead of silently
+  overwriting a Course Guide changed during review.
+- Applied the owner refinement that the Course Guide is orientation, not an
+  activity feed. The shared teacher/student/public display model now contains
+  only overview/resources visibility plus title-only Assignment and Test
+  records. Lesson sequence, Announcements, instructions, dates, scores,
+  statuses, documents, and grading details are absent from the payload and UI;
+  their classroom features remain unchanged. Guide options exposes only the
+  four orientation sections.
+- Added domain, provider-boundary, API authorization/concurrency, component,
+  fixture, and regression coverage. All 5,223 tests pass, along with lint,
+  architecture, design/UI policy checks, production build, Pika audit, and diff
+  validation.
+- Visual verification passed 13 teacher/student/public checks across desktop
+  and mobile, light and dark, covering the narrowed options, title-only lists,
+  removed activity sections, source, editable cited review, confirmation,
+  extraction failure, overflow, and absence of teacher controls for students.
+- Independent review remediation lowered PDF uploads to the hosting-safe 4 MB
+  boundary; added extraction timeout/output limits; moved apply authorization
+  before body parsing; signed source provenance to the teacher/classroom;
+  normalized and previewed the locked citation; preserved existing overview
+  bytes; used raw classroom content when visibility is off; and cancelled stale
+  client operations across classroom switches. Final hardening canonicalized
+  public URLs, rejected credentials and control/format characters, emitted the
+  locked citation as safe plain text, and removed redundant provenance-token
+  fields so maximum valid inputs still fit the apply contract.
+- Final merge review rebased the branch onto Attendance PR #1103 and closed the
+  remaining provider-cost boundary: public curriculum URLs are fetched through
+  the existing DNS-pinned, redirect-revalidated 4 MB document path before they
+  reach OpenAI. A teacher-scoped database lease now permits one active extraction
+  and three attempts per ten minutes across all deployed server instances. The
+  confirmed write now also rechecks teacher ownership and non-archived state in
+  the atomic update predicates.
+- Updated production continuity to the user-confirmed baseline: production
+  commit 530d444a with migrations through 136 applied and zero error-level
+  database lint findings. Migration 140 was added but not applied to local or
+  hosted state; nothing was merged or deployed.
+- Recorded `epic-gradebook-general-breakdown` as separate future work for a
+  general Attendance, Term Work, and Final breakdown; no mark breakdown was
+  added to the Course Guide.
+
+## 2026-08-28 — Stop feature branches from consuming Vercel deployments
+
+**Risk profile:** runtime-platform — repository deployment-trigger configuration
+only; no application behavior, database, or hosted state changed.
+
+- Replaced the single-segment `*` deployment exclusion with recursive `**`, so
+  slash-containing feature branches such as `codex/*` and `claude/*` are
+  rejected before Vercel creates a deployment. `main` preview and `production`
+  release deployments remain explicitly enabled.
+- Added a regression test that locks the exact three-rule deployment policy.
+  The focused test, lint, JSON policy assertion, and diff validation pass.
+
+## 2026-08-28 — Clarify compact operational control targets
+
+**Risk profile:** none — durable design guidance only; no product code,
+behavior, schema, dependency, deployment, or hosted state changed.
+
+- Clarified in the canonical design contract that dense visible control
+  geometry may be smaller than its interaction geometry only while preserving
+  a non-overlapping 44 by 44 CSS-pixel target and perceptible focus/state cues.
+- Clarified the teacher operational-table contract for mutually exclusive
+  inline statuses: inactive choices remain available but subordinate, while
+  the selected choice combines domain color, semantic pressed state, and a
+  non-color boundary.
+
+**Model recommendation:** GPT-5.6 Terra for a low-risk, cross-page design
+guidance clarification grounded in the reviewed Attendance implementation.
+
+## 2026-08-28 — Release configurable Attendance timing
+
+**Risk profile:** runtime-platform — coordinated Pika/Supabase/Bara production
+release with protected-branch merges, exact Git-source deployments, and a
+production Convex worker correction.
+
+- Merged configurable Attendance timing through Pika production PR #1106 at
+  `f895b240` and Bara production PR #49, followed by the worker correction in
+  PRs #50/#51 at `8515a4ca`. Exact Git-source Vercel production deployments are
+  Ready and own the stable Pika and Bara aliases.
+- Verified production Supabase migrations 001–138 are aligned. Migration 138
+  owns timing-policy persistence, occurrence snapshots, Pika-side status
+  derivation, immutable accepted-check-in facts, and audited invalidation.
+- Kept service ownership explicit: Bara enforces only the concrete half-open QR
+  gate and records authoritative timestamps; Pika derives Present/Late/Absent,
+  applies teacher overrides/Undo, and invalidates or clears accepted facts.
+- Corrected Bara's scheduled worker after production logs exposed two paginated
+  queries in one Convex transaction. The coordinator is now an internal action
+  whose open and close pages run as separate mutations. Full Bara tests,
+  typecheck, build, and lint passed; repeated production cron runs are clean.
+- Restricted Vercel deployment creation in both repositories to `main` and
+  `production`; slash-containing feature branches are rejected before a preview
+  deployment is created. Main preview and production release paths remain on.
+- Restored the configured canary teacher's missing entitlement through the
+  separately authorized, audited production operation. The active revision-1
+  grant has no expiry, classroom access returns `ready`, and the final deployed
+  `enabled`/`teacher_entitlements` signed smoke passed 4/4 across canary scope,
+  transition health, Pika-to-Bara authentication, and Bara-to-Pika callback.
+
+**Model recommendation:** GPT-5.6 Terra for routine Attendance monitoring and
+bounded follow-up now that the coordinated rollout is complete.
+
+## 2026-08-28 — Build the automatic development-speed workflow
+
+**Risk profile:** runtime-platform — CI selection, browser concurrency, AI PR
+routing, and protected production-promotion behavior changed; no schema,
+dependency, secret, or hosted state was changed.
+
+- Measured the pre-change CI baseline: latest clean lanes took 4m41s for Test &
+  Build, 7m32s for database contracts, and 9m08s for the browser matrix; the
+  recent successful wall-time median was 563s, with 8 of 30 attempts cancelled
+  after consuming about 41 minutes.
+- Added a fail-closed, change-aware classifier and aggregate `PR Gate`. Draft
+  pushes skip heavy work; docs/AI guidance uses the fast workflow-contract lane;
+  application, database, and rendered-browser paths select their relevant lanes;
+  unknown/runtime/CI paths and manual dispatches run the full suite.
+- Made the draft-first stable-SHA lifecycle automatic for AI agents: focused
+  local checks, draft PR, risk-matched review, batched remediation, one ready-SHA
+  CI run, and return-to-draft before any correction push.
+- Combined the three Playwright CI launches, moved the public Course Guide setup
+  into deterministic seed state, and enabled two CI workers while keeping each
+  spec internally serial. Added a reusable performance measurement command and
+  rollout/rollback targets.
+- Changed production promotion to reuse one cumulative draft PR and kept direct
+  or noncanonical production PRs on fail-closed full CI. Repository ruleset
+  replacement remains an explicit owner checkpoint after the workflow proves
+  both docs-only and full classifications.
+- Independent Sol/Terra review found and batch-remediated spoofable production
+  provenance, deletion omission, over-broad runtime safe classification, a
+  shared Playwright mutation, persistent production-worktree divergence,
+  malformed aggregate selectors, and metrics that could not prove per-mode
+  targets. Production abbreviation now requires same-repository head = current
+  `main`; all other cases fail closed. Mutable publication coverage has a
+  dedicated fixture, promotion worktrees are ephemeral, and metrics inspect
+  actual `PR Gate` timing by classifier mode.
+- A targeted remediation review then closed four remaining integration gaps:
+  the helper now publishes the exact `origin/main` SHA even when production is
+  divergent; all three aggregate selectors are validated together; fork PRs
+  cannot enter promotion discovery; and unrecognized `.github` paths fail
+  closed. Executable temporary-repository coverage exercises merge, squash,
+  rebase, and subsequent promotion preparation.
+- Validation on current `main` passed 77 workflow contracts, architecture,
+  UI/design policies, TypeScript, lint, production build, actionlint, Bash
+  syntax, Playwright discovery (93 tests), focused checks, and diff validation.
+  Two full-suite attempts each passed 5,287/5,288 but exposed different
+  non-repeating timing failures; both affected files passed immediately in
+  isolation. The PAL timeout test now has scheduler headroom while retaining a
+  strict bound. Final GitHub CI remains authoritative. Ephemeral database and
+  real-browser execution remain selected for the final ready-PR run because
+  local seed/migration application was not authorized.
+- Tightened the Pika audit so newly introduced production `console.log` calls
+  still fail without forcing unrelated edits to clean legacy logging elsewhere
+  in the same file; regression coverage locks both cases.
+- Final exact-SHA GitHub CI passed every selected full-mode safeguard: aggregate
+  `PR Gate` in 7m34s, database contracts in 7m17s, Test & Build in 6m21s, and
+  the combined browser matrix in 5m13s versus the 9m08s browser baseline.
+  After owner approval, current `main` advanced through Course Guide limiter PR
+  #1111; the speed-program PR returned to draft and merged that change while
+  retaining its new database-contract step in the aggregate CI workflow.
+- The next exact-SHA CI exposed a pre-existing archive visual test that packed
+  20 context/navigation states into one 30-second case. Test & Build and database
+  contracts passed, while all browser retries timed out even though an artifact
+  snapshot showed the expected verified state arriving after the deadline.
+  Split the four viewport/theme entries into separate internally serial tests,
+  preserving every assertion and screenshot. The exact two-worker combined
+  browser command then passed 82 tests with 14 intentional skips in 2.5 minutes;
+  each split archive case passed first try in 4.3–10.2 seconds.
+
+**Model recommendation:** GPT-5.6 Sol at high reasoning for the branch-protection
+transition and initial post-rollout evidence review; use Terra for routine
+follow-up once the aggregate gate is established.
+
+## 2026-08-28 — Limit Test publication wording to the publish transition
+
+**Risk profile:** none — teacher Test workspace labels and confirmation copy only.
+
+- Removed the raw Draft/Active/Closed lifecycle indicator from the selected-Test
+  workspace; publication state is no longer persistently labelled there.
+- Renamed the irreversible Draft-to-Active confirmation to Publish test and made
+  its one-way effect explicit while preserving the existing API lifecycle.
+- Added component and browser coverage proving lifecycle wording stays absent
+  from the workspace and publication wording appears in the confirmation only.
+  Focused Vitest (70/70), lint, architecture boundaries, and eight light/dark
+  desktop/mobile browser cases pass; screenshots were reviewed visually.
+
+## 2026-08-28 — Separate Test publication from student access
+
+**Risk profile:** runtime-platform — atomic publication RPC, teacher publication
+and roster controls, and student Test-list visibility.
+Migration 139 was applied to the local and production Supabase databases with
+separate explicit authorizations; no application code was deployed.
+
+- Moved Edit Test into the selected Test's three-dot More actions menu and
+  removed persistent Draft/Active/Closed wording from the grading workspace.
+- Added an irreversible Publish action to draft authoring. Publication validates
+  and materializes the saved draft as a closed Test; direct Draft-to-Active
+  requests are rejected. Open All and Close All now only change student access
+  and remain disabled before publication.
+- Published closed Tests now remain visible in the student list with a clear
+  closed treatment, while not-started students cannot open them until access is
+  granted. Once access opens, the card becomes actionable and the teacher's live
+  grading refresh resumes even though the internal published-default status is
+  closed. Submitted and returned work remains governed by the existing access
+  contract.
+- Added migration 139 with a service-role-only atomic publication RPC. It wraps
+  draft materialization and the published-but-closed transition in one database
+  transaction so a close failure restores the draft, materialized questions,
+  and Classroom revision. Added a rollback contract script and CI wiring.
+- Replaced the route's prior two-step activation/close sequence with that RPC
+  and made the server fail closed if the result is not a closed Test. Repaired
+  the publication browser fixture so it waits for the loaded editor and cannot
+  pass while an editor-load error is present.
+- Focused post-migration coverage passes (165 tests), as do lint, TypeScript, the
+  production build, architecture, design-policy, UI-policy, managed-storage
+  lineage, the Pika audit, shell syntax, and diff validation. The affected
+  Playwright matrix passes 12 cases across teacher/student, desktop/mobile, and
+  light/dark; all screenshots were reviewed and visual verification passed.
+  The full Vitest run passes all 609 files and 5,264 tests.
+- After the authorized local migration application, migration history is aligned
+  through 139, the real success-and-forced-failure rollback contract passes,
+  generated database types include the publication RPC and match the migrated
+  schema, and error-level database lint reports no findings.
+- After the separately authorized production application, remote migration
+  history is aligned through 139 and read-only error-level database lint reports
+  no findings. The fixture-writing rollback contract was not run against
+  production.
+- Independent high-risk review found three merge blockers. The remediation
+  removes legacy active/closed lifecycle mutations from the generic Test PATCH,
+  redacts document content and storage identifiers until a student can open or
+  view submitted work, and derives the student Closed treatment from effective
+  access so individually closed students no longer see a disabled New card.
+  The browser fixture count now matches the one actually open Test.
+- Post-remediation coverage passes 166 focused tests plus lint, TypeScript, the
+  Pika audit, and four student desktop/mobile light/dark Playwright cases. The
+  updated captures were reviewed and preserve a clear Closed treatment without
+  overflow. A non-blocking lost-response publication-retry reconciliation is
+  documented for follow-up because it needs a durable idempotency design beyond
+  the already-applied migration.
+- Final integration review found and corrected a partial-success failure path:
+  if the published-closed Test query fails, the student list now returns 500 so
+  the existing retry/stale-snapshot UI can preserve prior data instead of
+  replacing it with a misleading active-only list. Regression coverage proves
+  the request fails rather than emitting partial data.
+
+**Model recommendation:** GPT-5.6 Sol for the migration transaction,
+publication/access state boundary, cross-role UI behavior, and high-risk PR
+review.
