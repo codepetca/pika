@@ -11,71 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Complete Blueprint identity and database-lint rollout
-
-**Risk profile:** runtime-platform — protected production release, hosted
-migrations 134–135, and authenticated production Blueprint verification.
-
-- Merged the reviewed Test-question identity and Blueprint purge corrections
-  through production, then applied migration 134 after an exact clean preflight.
-  Production migration history matched local through 134 and the production
-  Blueprint capture/reuse smoke passed with a real disposable student attempt.
-- The smoke verified portable Test-question identity and ordering across initial
-  reuse and recapture/current reuse. Assignments, materials, and Tests copied;
-  student enrollment, attempts, responses, submissions, grades, and activity did
-  not. The source submission remained intact.
-- Merged PR #1097 and applied migration 135 after a sole-migration production
-  dry run. Production now matches local through 135, a second dry run is empty,
-  and error-level database lint reports zero findings.
-- Full PR CI covered migration replay, Test identity rehearsal, student-purge
-  failure concurrency, archive recovery, browser matrices, 5,172 tests, lint,
-  TypeScript, and the production build.
-
-**Model recommendation:** GPT-5.6 Sol for production migration and concurrency
-verification; GPT-5.6 Terra for release compatibility and continuity review.
-
-## 2026-08-28 — Repair Classroom and Blueprint purge finalization
-
-**Risk profile:** runtime-platform — migration 137 changes trusted purge trigger
-semantics, cross-purge ordering, and retained retry evidence; production remains
-unchanged and migration 137 is not authorized for hosted application.
-
-- Reproduced the retained smoke failure against a production-schema clone. Hot
-  Classroom purge deleted `test_questions` before `test_attempts`, so migration
-  134's student-work freeze correctly rejected the direct question deletion.
-- Migration 137 permits only owner-run whole-Classroom finalization to delete
-  those questions; ordinary authored Test changes remain frozen. The database
-  regression now includes a closed Test, question, submitted attempt, and
-  response and proves the complete Classroom graph is deleted.
-- Added explicit Classroom/Blueprint purge ordering. A linked purge fence blocks
-  the second deletion from starting. One canonical lineage relation now covers
-  direct, proposal, operation, and editing-session links for atomic advisory
-  locking, conflict detection, and upgrade repair. Three synchronized two-session
-  database races prove exactly one purge installs a fence for indirect links.
-  The fixture identifies each backend, proves the coordinator owns the pair
-  lock and both contenders are waiting before release, and runs in the CI
-  Architecture Database Contracts job.
-- Preserved the cold-Classroom lifecycle fence that migration 122 added. A
-  rollback database regression proves both the shared guard and cold tombstone
-  trigger still reject mutations while a cold purge is active.
-- Legacy interleaved operations drain in Classroom-then-Blueprint order. The
-  retained-failure repair now includes operation-only and editing-session-only
-  links and is covered by a database fixture for both omitted upgrade shapes.
-- Expanded both rollback-only purge contracts for linked versions, completed
-  capture lineage, applied proposals, retained fences, and worker-role access.
-  Before the rebase/resequence, a clean 001-136 replay, all four database
-  contracts, 5,181 tests, lint, build, and database lint passed; lint reported
-  only established warning-level findings. CI will replay the resequenced
-  migration 137 after main's new migration 136.
-- During the isolated replay, `supabase db reset --db-url` recognized the local
-  container and recreated its default local database rather than the named
-  disposable database. No hosted database was touched. The local database was
-  a clean replay of the pre-resequence branch through its former migration
-  136. No hosted environment was changed.
-
-**Model recommendation:** GPT-5.6 Sol for migration, trigger, and concurrent
-deletion review; GPT-5.6 Terra for compatibility and operability review.
-
 ## 2026-08-28 — Preserve linked Tests during Blueprint purge
 
 **Risk profile:** runtime-platform — pending migration 134 trigger semantics;
@@ -1564,3 +1499,16 @@ review, with at most one follow-up launch inside the remaining review budget.
   this checkpoint allows at most 2 additional launches and 2 remaining batches,
   20 minutes per reviewer, and 45 minutes for the review session. The integration
   preparation is not remediation of a reviewer finding.
+
+## 2026-08-30 — Focused check and agent workflow efficiency
+
+- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
+- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
+- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
+- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
+
+## 2026-08-30 — Sync Pattern Lab after PR #1128
+
+- Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
+- This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
+- Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.

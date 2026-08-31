@@ -138,6 +138,33 @@ If unsure which worktree to use:
 
 ---
 
+## Agent ownership and context
+
+- One active writer owns a branch and its PR. Before continuing existing work,
+  inspect active tasks and worktrees and identify the owner; use an explicit
+  handoff rather than launching a second writer. Record the task and branch in
+  the task's progress or handoff note, not a new shared registry.
+- Before committing or pushing, check for unexpected working-tree or remote-head
+  changes. Stop mutations and reconcile ownership if another task has changed
+  the branch. Do not repeatedly revert or reapply another active task's edits.
+- Reviewers inspect a fixed commit in a separate detached worktree. They do not
+  edit the implementation checkout, commit, push, or change PR state. A detached
+  checkout prevents accidental shared edits; it does not revoke filesystem or
+  GitHub permissions. The implementation owner remains the only writer.
+- Give reviewers the requirements, repository, base/head commits, relevant
+  invariants, and verification results. Prefer a clean context over a copy of
+  the entire implementation conversation. Keep the independent review and
+  remediation requirements below; role labels are not extra review rounds.
+- Read required guidance once. The startup script renders the default documents;
+  do not also read them manually. If they are already loaded and unchanged in
+  the current conversation, use `session_start.sh --context-loaded` to retain
+  fresh environment/git/current-state checks without repeating their text.
+  Read changed guidance after a rebase or handoff, and load task-specific
+  sections as needed. This does not waive any startup or safety requirement.
+- Keep large command logs on disk. Report counts, timings, failures, and the log
+  location instead of repeatedly pasting successful output. Keep routine session
+  entries brief (outcome, evidence, next step); append and trim as required.
+
 ## Scope and evolution
 
 This workflow is intentionally minimal (v1).
@@ -166,6 +193,18 @@ automatically; it is not a checklist the maintainer must remember.
    The command uses the same fail-closed change classifier as CI. Agents still run
    any feature-specific database harness, browser scenario, or visual verification
    required by the routed repository guidance.
+   The focused runner executes the union of the canonical `check:workflow`
+   tests, changed tests, and tests related to changed source in one Vitest run.
+   Success output contains summaries and timings; full logs are retained in the
+   printed temporary directory, and failures print their complete check log.
+   `--dry-run` prints classification and commands without executing checks.
+   `check:workflow` remains the canonical explicit test-path list in
+   `package.json`; unsupported changes to that command fail closed.
+   During iteration, run the affected tests. Reuse a successful local check only
+   when its source tree, dependencies, configuration, environment, and relevant
+   base are unchanged, and record the checked commit/tree and command. Do not
+   rerun solely for a newer timestamp. New commits still require their own
+   required CI gate; local evidence never substitutes for it.
 2. Commit and push the implementation, then create the PR as a draft with
    `gh pr create --draft`. If an existing PR is ready while implementation or
    review remains, return it to draft with `gh pr ready --undo` before pushing.
@@ -190,6 +229,9 @@ automatically; it is not a checklist the maintainer must remember.
    escape hatch only when no eligible, non-skipped exact-head pull-request run
    exists or for a deliberate diagnostic rerun; never launch it concurrently
    with the ready-event run.
+   Use one watcher per candidate with bounded waits/backoff, and summarize only
+   changed status. Do not start multiple watchers or repeatedly dump full job
+   logs while the same run is pending.
 6. Merge only when `PR Gate` passes on that same reviewed SHA and the normal review
    authority gate is satisfied. If CI exposes a defect, return the PR to draft
    before changing it, batch the correction, target the re-review, and mark it

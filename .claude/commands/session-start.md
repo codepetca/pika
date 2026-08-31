@@ -7,6 +7,11 @@ Rules:
 - Stop if the resolved root is `$HOME/Repos/pika` for branch work.
 - Stop and report clearly if any check fails.
 
+Prefer the session-start script to the manual checklist below. Do not reread
+rendered documents; `--context-loaded` is for unchanged startup guidance already
+loaded in this conversation. Follow `docs/dev-workflow.md` for branch ownership
+and reviewer isolation.
+
 Steps:
 
 1) Verify worktree environment

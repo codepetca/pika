@@ -19,6 +19,10 @@ Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with 
    ```bash
    bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only
    ```
+   If the required startup guidance is already loaded in this conversation and
+   unchanged, add `--context-loaded` to avoid printing it again. This preserves
+   environment verification and fresh git/current-state/feature summaries.
+   Otherwise use the default output and do not reread the documents it renders.
 2. Review the output — confirm worktree, branch, `.ai/CURRENT.md`, and feature status.
 3. If an issue number is provided, load it with `gh issue view <number>`.
 4. Propose implementation plan before writing any code.
