@@ -27299,3 +27299,34 @@ student behavior changed.
 Playwright matrix (4/4) with zero browser/page errors, TypeScript, lint,
 architecture, design policy, UI policy, Pika audit, diff checks, and same-view
 source/implementation Product Design comparison pass. Student UI is n/a.
+
+<!-- pika-session-log-archive-batch:f971e4c52c958662c3a536a0795450626c3611be4cc0b0e5f14103fdcba2fa27 -->
+## 2026-08-28 — Center Attendance time and further compact row controls
+
+**Risk profile:** low teacher-only visual/composite-widget refinement — no
+Attendance commands, permissions, session state, QR provenance, API/schema, or
+student behavior changed.
+
+- Moved the content-sized Attendance time control into the centered primary
+  action cluster immediately after the joined date navigator.
+- Removed the visible `Open` label and status dot. The open state now uses a
+  subtle semantic success background while the accessible name still announces
+  the state; mobile hours access remains in the condensed action menu.
+- Reduced each row's visible Present/Late/Absent disc from 32 px to 28 px and
+  matched the count-pill width. Preserved 44 px status and QR Undo hit targets,
+  pressed state, focus rings, tooltips, and keyboard behavior.
+- Refreshed the live Open Design mock, approved reference, change brief, Product
+  Design QA, and desktop/mobile light/dark evidence. No durable shared guidance
+  changed because the adjustments remain Attendance-specific.
+
+**Verification:** focused component tests (18/18) and responsive Attendance
+Playwright matrix (4/4) pass; same-viewport Product Design source and production
+captures were reviewed together. Student UI is n/a because this remains a
+teacher-only surface. TypeScript, lint, policy checks, Pika audit, and PR CI
+pass. Bounded independent review found and prompted correction of a 32 px
+hit-target regression, then confirmed the 44 px target/28 px visual treatment.
+The final integration pass found no behavior blocker and identified two P3
+documentation gaps: the teacher-view contract now records QR-origin provenance
+fields with a route assertion, and superseded 36 px comparison captures are
+explicitly marked historical. One targeted documentation confirmation remains
+before handoff.

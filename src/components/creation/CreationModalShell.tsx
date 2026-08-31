@@ -13,6 +13,9 @@ interface CreationModalShellProps {
   closeDisabled?: boolean
   maxWidth?: string
   contentClassName?: string
+  /** Use a consistent viewport-relative height for long authoring forms. */
+  tall?: boolean
+  footer?: ReactNode
   onClose: () => void
   children: ReactNode
 }
@@ -58,6 +61,8 @@ export function CreationModalShell({
   closeDisabled = false,
   maxWidth = '!max-w-4xl',
   contentClassName,
+  tall = false,
+  footer,
   onClose,
   children,
 }: CreationModalShellProps) {
@@ -71,7 +76,7 @@ export function CreationModalShell({
       isOpen={isOpen}
       onClose={handleRequestClose}
       maxWidth={maxWidth}
-      className={CREATION_PANEL_CLASS}
+      className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]')}
       viewportPaddingClassName="p-2 sm:p-4"
       ariaLabelledBy={titleId}
     >
@@ -95,6 +100,11 @@ export function CreationModalShell({
       <div className={cn('min-h-0 flex-1 overflow-y-auto p-3 sm:p-4', contentClassName)}>
         {children}
       </div>
+      {footer && (
+        <div className="shrink-0 border-t border-border p-3 sm:p-4">
+          {footer}
+        </div>
+      )}
     </DialogPanel>
   )
 }

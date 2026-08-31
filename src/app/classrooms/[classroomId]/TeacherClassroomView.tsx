@@ -38,7 +38,8 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -415,41 +416,15 @@ function TeacherMaterialDialog({
   }
 
   return (
-    <ContentDialog
+    <CreationModalShell
       isOpen={isOpen}
-      onClose={saving ? () => {} : onClose}
+      onClose={onClose}
       title={material ? 'Material' : 'New Material'}
-      subtitle="Ungraded classwork"
-      maxWidth="max-w-4xl"
-      showFooterClose={false}
-    >
-      <div className="space-y-4">
-        <FormField label="Title">
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={saving || isReadOnly}
-            placeholder="Reading, link, handout..."
-          />
-        </FormField>
-
-        <ContentField label="Content">
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            editable={!saving && !isReadOnly}
-            placeholder="Add links, notes, readings, or instructions..."
-            toolbarPreset="compact"
-            aria-label="Material content"
-          />
-        </ContentField>
-
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-
+      titleId="material-modal-title"
+      closeLabel="Close material modal"
+      closeDisabled={saving}
+      tall
+      footer={(
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             {material && !isReadOnly ? (
@@ -484,8 +459,41 @@ function TeacherMaterialDialog({
             </Button>
           </div>
         </div>
+      )}
+    >
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <div className="shrink-0 pr-8">
+          <h3 className="text-base font-semibold text-text-default">{material ? 'Material' : 'New Material'}</h3>
+          <p className="mt-0.5 text-xs text-text-muted">Ungraded classwork</p>
+        </div>
+        <FormField label="Title" className="shrink-0">
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            disabled={saving || isReadOnly}
+            placeholder="Reading, link, handout..."
+          />
+        </FormField>
+
+        <ContentField label="Content" className="flex min-h-0 flex-1 flex-col">
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            editable={!saving && !isReadOnly}
+            placeholder="Add links, notes, readings, or instructions..."
+            toolbarPreset="compact"
+            aria-label="Material content"
+            className="simple-editor-wrapper--fill-height min-h-0 flex-1"
+          />
+        </ContentField>
+
+        {error && (
+          <div className="shrink-0 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
+          </div>
+        )}
       </div>
-    </ContentDialog>
+    </CreationModalShell>
   )
 }
 

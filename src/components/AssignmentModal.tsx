@@ -699,8 +699,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
         closeDisabled={saving || releasing}
+        tall
       >
         <AssignmentForm
+          fillHeight
           title={title}
           instructionsMarkdown={instructionsMarkdown}
           dueAt={dueAt}

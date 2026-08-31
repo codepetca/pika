@@ -83,9 +83,9 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    DialogPanel: ({ isOpen, children }: any) => (
+    DialogPanel: ({ isOpen, children, ariaLabelledBy, className }: any) => (
       isOpen ? (
-        <div role="dialog">
+        <div role="dialog" aria-labelledby={ariaLabelledBy} className={className}>
           {children}
         </div>
       ) : null
@@ -1120,6 +1120,10 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
 
     const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
+    const dialog = screen.getByRole('dialog', { name: 'New Material' })
+    expect(dialog).toHaveClass('h-[90dvh]')
+    const footer = within(dialog).getByRole('button', { name: 'Post Material' }).closest('.shrink-0')
+    expect(footer?.parentElement).toBe(dialog)
     expect(materialEditor).toHaveAttribute('contenteditable', 'true')
     expect(
       within(screen.getByRole('dialog', { name: 'New Material' }))
