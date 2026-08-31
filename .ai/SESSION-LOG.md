@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-28 — Center Attendance time and further compact row controls
-
-**Risk profile:** low teacher-only visual/composite-widget refinement — no
-Attendance commands, permissions, session state, QR provenance, API/schema, or
-student behavior changed.
-
-- Moved the content-sized Attendance time control into the centered primary
-  action cluster immediately after the joined date navigator.
-- Removed the visible `Open` label and status dot. The open state now uses a
-  subtle semantic success background while the accessible name still announces
-  the state; mobile hours access remains in the condensed action menu.
-- Reduced each row's visible Present/Late/Absent disc from 32 px to 28 px and
-  matched the count-pill width. Preserved 44 px status and QR Undo hit targets,
-  pressed state, focus rings, tooltips, and keyboard behavior.
-- Refreshed the live Open Design mock, approved reference, change brief, Product
-  Design QA, and desktop/mobile light/dark evidence. No durable shared guidance
-  changed because the adjustments remain Attendance-specific.
-
-**Verification:** focused component tests (18/18) and responsive Attendance
-Playwright matrix (4/4) pass; same-viewport Product Design source and production
-captures were reviewed together. Student UI is n/a because this remains a
-teacher-only surface. TypeScript, lint, policy checks, Pika audit, and PR CI
-pass. Bounded independent review found and prompted correction of a 32 px
-hit-target regression, then confirmed the 44 px target/28 px visual treatment.
-The final integration pass found no behavior blocker and identified two P3
-documentation gaps: the teacher-view contract now records QR-origin provenance
-fields with a route assertion, and superseded 36 px comparison captures are
-explicitly marked historical. One targeted documentation confirmation remains
-before handoff.
-
 ## 2026-08-28 — Restore Attendance time to leading context
 
 **Risk profile:** low teacher-only visual refinement — no Attendance commands,
@@ -1362,3 +1332,7 @@ Refined the local HistoryGraph preview per user request: date on the first line,
 ## 2026-08-31 — Prepare UI fixes PR and authorized main merge
 
 User authorized PR and merge of the relative-date descender fix and stacked history timestamp. Sole writer: current task on codex/fix-relative-date-descenders. Risk profile: none (localized UI presentation); no API, schema, dependency, or permission changes. Model recommendation: GPT-5.6 Terra/medium for one independent fixed-commit review. Ledger starts at 0 launches and 0 fix batches; limits 5 launches, 3 remediation batches, 45 minutes total and 20 minutes per reviewer. Existing visual evidence covers DateNavigator's four-project matrix and history's eight role/viewport/theme combinations, including hover/pin/keyboard/clear. Removed incidental gallery explanatory-copy edit; Pattern Lab still renders the changed production components directly. Focused checks, independent review and exact-head CI follow; results will be recorded on the PR without post-review commits.
+
+## 2026-08-31 — Match and enlarge Classwork creation dialogs
+
+Task Resize classwork creation modals owns codex/classwork-creation-modal-size. Extended CreationModalShell with opt-in 90dvh height and a non-scrolling footer; reused it for materials and expanded assignment/material editors. Other creation shells retain content-driven sizing. Assignment actions stay above the scrolling form; material actions stay below it. No business logic, dependencies, schema, or permissions changed (risk profile none). Pattern Lab includes a deterministic shell example; no new stable design pattern or unrelated refactor. Component tests cover sizing, footer placement, focus containment/return, and the gallery example. Playwright verified teacher desktop 1440x900 and mobile 390x844 in both themes, empty and long/scrolled content: matching 896x810 desktop and 374x759.6 mobile bounds, visible actions, no horizontal overflow, and keyboard containment/Escape. Student creation is n/a; standard both-role Classwork smoke screenshots also captured. Local evidence: output/playwright/ and /tmp/pika-modal-matrix.log. Focused checks passed; final check, one independent Terra/medium review, and draft-first PR follow. Merge requires user authorization.

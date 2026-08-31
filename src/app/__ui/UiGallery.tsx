@@ -49,6 +49,7 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 
 type Role = 'teacher' | 'student'
 
@@ -61,6 +62,7 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [creationDialogOpen, setCreationDialogOpen] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
 
   return (
@@ -382,6 +384,17 @@ export function UiGallery({ role }: Props) {
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6">
+            {role === 'teacher' && (
+              <Card tone="panel" padding="md">
+                <h3 className="font-semibold">Classwork creation dialog</h3>
+                <p className="mt-2 text-sm text-text-muted">
+                  Assignments and materials share the tall creation shell. Content scrolls while actions remain available.
+                </p>
+                <Button className="mt-3" variant="surface" onClick={() => setCreationDialogOpen(true)}>
+                  Open creation dialog
+                </Button>
+              </Card>
+            )}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
           </div>
@@ -396,6 +409,22 @@ export function UiGallery({ role }: Props) {
         variant="success"
         buttonLabel="Close example"
       />
+      <CreationModalShell
+        isOpen={creationDialogOpen}
+        onClose={() => setCreationDialogOpen(false)}
+        title="Classwork creation example"
+        titleId="pattern-creation-title"
+        closeLabel="Close creation example"
+        tall
+        footer={<Button variant="secondary" onClick={() => setCreationDialogOpen(false)}>Done</Button>}
+      >
+        <div className="space-y-4 pr-8">
+          <h3 className="font-semibold">Classwork creation example</h3>
+          {Array.from({ length: 24 }, (_, index) => (
+            <p key={index} className="text-sm text-text-muted">Example content section {index + 1}</p>
+          ))}
+        </div>
+      </CreationModalShell>
     </main>
   )
 }
