@@ -1,38 +1,42 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { Plus } from 'lucide-react'
+import { TooltipProvider } from '@/ui'
+import { fireEvent, render as renderRTL, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { PageActionBar, type ActionBarItem } from '@/ui'
 
-function renderActionBar(actions: ActionBarItem[], actionsAlign: 'start' | 'end' = 'end') {
+function renderActionBar(actions: ActionBarItem[]) {
   return render(
     <PageActionBar
       primary={<div>Primary content</div>}
       actions={actions}
-      actionsAlign={actionsAlign}
       trailing={<button type="button">Trailing action</button>}
     />,
   )
 }
 
+function render(ui: ReactNode) { return renderRTL(<TooltipProvider>{ui}</TooltipProvider>) }
+
 describe('PageActionBar', () => {
-  it('renders desktop actions and mobile overflow menu containers with responsive classes', () => {
+  it('keeps primary creation visible and secondary actions in the rightmost menu', () => {
+    const onCreate = vi.fn()
     renderActionBar([
+      { id: 'create', label: 'Create assignment', icon: Plus, primary: true, onSelect: onCreate },
       { id: 'archive', label: 'Archive', onSelect: vi.fn() },
-      { id: 'delete', label: 'Delete', destructive: true, onSelect: vi.fn() },
     ])
-
-    const desktopActions = screen.getByRole('button', { name: 'Archive' }).parentElement
-    expect(desktopActions).toHaveClass('hidden', 'sm:flex', 'justify-end')
-
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const create = screen.getByRole('button', { name: 'Create assignment' })
+    expect(create).toHaveTextContent('')
+    fireEvent.click(create)
+    expect(onCreate).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
     expect(menuButton).toHaveAttribute('aria-haspopup', 'menu')
-    expect(menuButton).toHaveAttribute('aria-controls')
     expect(menuButton).toHaveAttribute('aria-expanded', 'false')
-    expect(menuButton.parentElement?.parentElement).toHaveClass('sm:hidden')
-    expect(menuButton).toHaveClass('h-11', 'w-11')
+    expect(screen.getByRole('button', { name: 'Trailing action' }).compareDocumentPosition(menuButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('opens mobile actions, groups destructive items last, and closes after selection', async () => {
+  it('opens secondary actions, groups destructive items last, and closes after selection', async () => {
     const onArchive = vi.fn()
     const onDelete = vi.fn()
 
@@ -41,7 +45,7 @@ describe('PageActionBar', () => {
       { id: 'archive', label: 'Archive', onSelect: onArchive },
     ])
 
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
     fireEvent.click(menuButton)
 
     expect(menuButton).toHaveAttribute('aria-expanded', 'true')
@@ -73,7 +77,7 @@ describe('PageActionBar', () => {
       { id: 'delete', label: 'Delete', destructive: true, onSelect: vi.fn() },
     ])
 
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
 
     fireEvent.click(menuButton)
     const menu = screen.getByRole('menu')
@@ -109,7 +113,7 @@ describe('PageActionBar', () => {
     const onArchive = vi.fn()
     renderActionBar([{ id: 'archive', label: 'Archive', onSelect: onArchive }])
 
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
     await user.click(menuButton)
     const archiveItem = screen.getByRole('menuitem', { name: 'Archive' })
     await waitFor(() => expect(archiveItem).toHaveFocus())
@@ -122,12 +126,12 @@ describe('PageActionBar', () => {
     expect(menuButton).toHaveFocus()
   })
 
-  it('closes the mobile actions menu on escape and outside click', async () => {
+  it('closes the secondary actions menu on escape and outside click', async () => {
     renderActionBar([
       { id: 'archive', label: 'Archive', onSelect: vi.fn() },
     ])
 
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
 
     fireEvent.click(menuButton)
     expect(screen.getByRole('menu')).toBeInTheDocument()
@@ -145,14 +149,14 @@ describe('PageActionBar', () => {
     expect(menuButton).toHaveFocus()
   })
 
-  it('disables the mobile overflow trigger when every action is unavailable', () => {
+  it('disables the overflow trigger when every action is unavailable', () => {
     const onArchive = vi.fn()
 
     renderActionBar([
       { id: 'archive', label: 'Archive', disabled: true, onSelect: onArchive },
     ])
 
-    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    const menuButton = screen.getByRole('button', { name: 'More actions' })
 
     expect(menuButton).toBeDisabled()
     expect(menuButton).not.toHaveAttribute('aria-controls')
@@ -161,18 +165,12 @@ describe('PageActionBar', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('supports start-aligned desktop action groups while retaining the mobile menu', () => {
-    renderActionBar(
-      [
-        { id: 'archive', label: 'Archive', onSelect: vi.fn() },
-      ],
-      'start',
-    )
-
-    const desktopActions = screen.getByRole('button', { name: 'Archive' }).parentElement
-    expect(desktopActions).toHaveClass('hidden', 'sm:flex', 'justify-start')
-    expect(screen.getByRole('button', { name: 'Open actions menu' }).parentElement?.parentElement).toHaveClass(
-      'sm:hidden',
-    )
+  it('keeps centered primary actions before trailing content and the menu', () => {
+    renderActionBar([
+      { id: 'create', label: 'Create test', icon: Plus, primary: true, onSelect: vi.fn() },
+      { id: 'archive', label: 'Archive', onSelect: vi.fn() },
+    ])
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map((button) => button.getAttribute('aria-label') || button.textContent)).toEqual(['Create test', 'Trailing action', 'More actions'])
   })
 })

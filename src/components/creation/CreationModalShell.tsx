@@ -15,6 +15,10 @@ interface CreationModalShellProps {
   contentClassName?: string
   /** Use a consistent viewport-relative height for long authoring forms. */
   tall?: boolean
+  /** Show the dialog's name above the editable item title. */
+  showTitle?: boolean
+  /** Optional metadata centered in the visible heading row. */
+  headerCenter?: ReactNode
   footer?: ReactNode
   onClose: () => void
   children: ReactNode
@@ -28,6 +32,7 @@ interface CreationModalTopRowProps {
   titleRequired?: boolean
   titleDisabled?: boolean
   titleInputRef?: Ref<HTMLInputElement>
+  titleInitialFocus?: boolean
   titleInputClassName?: string
   titleFieldClassName?: string
   titleStatus?: ReactNode
@@ -62,6 +67,8 @@ export function CreationModalShell({
   maxWidth = '!max-w-4xl',
   contentClassName,
   tall = false,
+  showTitle = false,
+  headerCenter,
   footer,
   onClose,
   children,
@@ -70,6 +77,21 @@ export function CreationModalShell({
     if (closeDisabled) return
     onClose()
   }
+
+  const closeControl = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className={cn('z-20 h-11 w-11 px-0 text-text-default', !showTitle && 'absolute right-1 top-1')}
+      onClick={handleRequestClose}
+      disabled={closeDisabled}
+      aria-label={closeLabel}
+      title="Close"
+    >
+      <X className="h-4 w-4" aria-hidden="true" />
+    </Button>
+  )
 
   return (
     <DialogPanel
@@ -80,22 +102,19 @@ export function CreationModalShell({
       viewportPaddingClassName="p-2 sm:p-4"
       ariaLabelledBy={titleId}
     >
-      <h2 id={titleId} className="sr-only">
-        {title}
-      </h2>
+      {showTitle ? (
+        <div className={cn('grid h-12 shrink-0 items-center gap-2 px-3 sm:px-4', headerCenter ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_auto]')}>
+          <h2 id={titleId} className="min-w-0 truncate text-base font-semibold text-text-default" title={title}>
+            {title}
+          </h2>
+          {headerCenter && <div className="flex items-center justify-center">{headerCenter}</div>}
+          <div className="flex justify-end">{closeControl}</div>
+        </div>
+      ) : (
+        <h2 id={titleId} className="sr-only">{title}</h2>
+      )}
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="absolute right-1 top-1 z-20 h-9 w-9 px-0 text-text-default"
-        onClick={handleRequestClose}
-        disabled={closeDisabled}
-        aria-label={closeLabel}
-        title="Close"
-      >
-        <X className="h-4 w-4" aria-hidden="true" />
-      </Button>
+      {!showTitle && closeControl}
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto p-3 sm:p-4', contentClassName)}>
         {children}
@@ -117,6 +136,7 @@ export function CreationModalTopRow({
   titleRequired = true,
   titleDisabled = false,
   titleInputRef,
+  titleInitialFocus = false,
   titleInputClassName,
   titleFieldClassName,
   titleStatus,
@@ -132,6 +152,7 @@ export function CreationModalTopRow({
   const titleInput = (
     <Input
       ref={titleInputRef}
+      data-modal-initial-focus={titleInitialFocus && !titleDisabled ? '' : undefined}
       id={titleFieldId}
       type="text"
       value={title}

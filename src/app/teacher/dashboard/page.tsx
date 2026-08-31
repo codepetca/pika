@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Plus, RotateCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   AlertDialog,
   Button,
+  IconButton,
   ContentDialog,
   DataTable,
   DataTableBody,
@@ -284,16 +286,15 @@ export default function TeacherDashboardPage() {
               title="Could not load classrooms"
               description="The dashboard could not retrieve your classrooms."
               action={
-                <Button
-                  type="button"
+                <IconButton
+                  icon={RotateCw}
+                  label="Try again"
                   onClick={() => {
                     pageRegionRef.current?.focus()
                     invalidateTeacherClassrooms()
                     void loadClassrooms()
                   }}
-                >
-                  Try again
-                </Button>
+                />
               }
             />
           </PageContent>
@@ -322,9 +323,7 @@ export default function TeacherDashboardPage() {
                 description="Create your first classroom or start from a course blueprint."
                 action={
                   <div className="flex flex-wrap justify-center gap-3">
-                    <Button onClick={() => setShowCreateModal(true)}>
-                      Create Classroom
-                    </Button>
+                    <IconButton icon={Plus} label="Create classroom" onClick={() => setShowCreateModal(true)} />
                     <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
                       Course Blueprints
                     </Button>

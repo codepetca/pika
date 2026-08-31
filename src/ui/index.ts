@@ -77,3 +77,4 @@ export {
 
 // Utilities
 export { cn } from './utils'
+export { IconButton, type IconButtonProps } from './IconButton'

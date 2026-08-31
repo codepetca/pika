@@ -2,7 +2,7 @@
 
 import type { ReactNode, RefObject } from 'react'
 import { Eye } from 'lucide-react'
-import { Button } from '@/ui'
+import { IconButton } from '@/ui'
 import { ContentField, MarkdownContentEditor } from '@/components/editor'
 import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
@@ -66,18 +66,13 @@ export function AssignmentForm({
         afterTitle={(
           <div className="flex items-end gap-2">
             {onPreviewInstructions && (
-              <Button
-                type="button"
+              <IconButton
+                icon={Eye}
+                label="Preview"
                 variant="secondary"
-                size="sm"
                 onClick={onPreviewInstructions}
                 disabled={disabled}
-                className="h-9 w-9 px-0 sm:w-auto sm:px-3 sm:gap-1.5"
-                aria-label="Preview"
-              >
-                <Eye className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Preview</span>
-              </Button>
+              />
             )}
             <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
               {(() => {

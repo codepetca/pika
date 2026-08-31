@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   attendanceEntitlementAuthorizationBinding,
   attendanceEntitlementAuthorizationMatches,
+  attendanceOutboxRecoveryAuthorizationBinding,
   exactAttendanceEntitlementTarget,
 } from '@/lib/server/bara-attendance-entitlement-authorization'
 
@@ -44,5 +45,34 @@ describe('attendance entitlement operator authorization', () => {
       .toThrow('target is invalid')
     expect(() => exactAttendanceEntitlementTarget('http://project.supabase.co'))
       .toThrow('target is invalid')
+  })
+
+  it('binds stale outbox recovery to the exact sorted row set and epoch', () => {
+    const recovery = {
+      targetOrigin: input.targetOrigin,
+      operationId: input.operationId,
+      teacherId: input.teacherId,
+      expectedEntitlementRevision: 1,
+      outboxIds: [
+        '30000000-0000-4000-8000-000000000003',
+        '30000000-0000-4000-8000-000000000002',
+      ],
+      actorRef: input.actorRef,
+      reasonCode: 'tenant_link_recovery',
+    }
+    const binding = attendanceOutboxRecoveryAuthorizationBinding(recovery)
+    expect(binding).toMatch(new RegExp(`^${input.operationId}:[a-f0-9]{64}$`))
+    expect(attendanceOutboxRecoveryAuthorizationBinding({
+      ...recovery,
+      outboxIds: [...recovery.outboxIds].reverse(),
+    })).toBe(binding)
+    expect(attendanceOutboxRecoveryAuthorizationBinding({
+      ...recovery,
+      expectedEntitlementRevision: 2,
+    })).not.toBe(binding)
+    expect(attendanceOutboxRecoveryAuthorizationBinding({
+      ...recovery,
+      outboxIds: recovery.outboxIds.slice(0, 1),
+    })).not.toBe(binding)
   })
 })

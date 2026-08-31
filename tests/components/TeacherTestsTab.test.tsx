@@ -468,8 +468,8 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     const contextBar = screen.getByRole('region', { name: 'Test actions' })
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
-    expect(screen.getByRole('button', { name: 'New test' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New test' }).closest('.fixed')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Create test' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create test' }).closest('.fixed')).toBeNull()
     expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
@@ -606,8 +606,8 @@ describe('TeacherTestsTab', () => {
 
     const view = renderTab({ classroom })
 
-    expect(await screen.findByRole('button', { name: 'New test' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+    expect(await screen.findByRole('button', { name: 'Create test' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
 
     await waitFor(() => {
       expect(pendingCreate).toBeTruthy()
@@ -666,8 +666,8 @@ describe('TeacherTestsTab', () => {
 
     const view = renderTab({ classroom })
 
-    expect(await screen.findByRole('button', { name: 'New test' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+    expect(await screen.findByRole('button', { name: 'Create test' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
 
     await waitFor(() => {
       expect(pendingCreates.some((request) => request.classroomId === classroom.id)).toBe(true)
@@ -680,13 +680,13 @@ describe('TeacherTestsTab', () => {
     )
 
     expect(await screen.findByText('Class B Test')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
 
     await waitFor(() => {
       expect(pendingCreates.some((request) => request.classroomId === secondClassroom.id)).toBe(true)
     })
 
-    const newTestButton = screen.getByRole('button', { name: 'New test' })
+    const newTestButton = screen.getByRole('button', { name: 'Create test' })
     expect(newTestButton).toBeDisabled()
 
     const oldRequest = pendingCreates.find((request) => request.classroomId === classroom.id)
@@ -700,7 +700,7 @@ describe('TeacherTestsTab', () => {
       await Promise.resolve()
     })
 
-    expect(screen.getByRole('button', { name: 'New test' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create test' })).toBeDisabled()
     expect(screen.queryByText('Created In Class A')).not.toBeInTheDocument()
     expect(screen.getByText('Class B Test')).toBeInTheDocument()
   })
@@ -716,7 +716,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
 
-    const newTest = screen.getByRole('button', { name: 'New test' })
+    const newTest = screen.getByRole('button', { name: 'Create test' })
     const organizeTests = screen.getByRole('button', { name: 'Organize tests' })
 
     expect(newTest).toBeDisabled()
@@ -1084,7 +1084,7 @@ describe('TeacherTestsTab', () => {
       return Promise.reject(new Error(`Unexpected fetch ${String(url)}`))
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Untitled 2026-05-14 10:45:00')
     const dialog = screen.getByRole('dialog')

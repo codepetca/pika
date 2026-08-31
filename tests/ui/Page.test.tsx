@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { TooltipProvider } from '@/ui'
+import { fireEvent, render as renderRTL, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -10,6 +12,8 @@ import {
   PageLayout,
   PageStack,
 } from '@/ui'
+
+function render(ui: ReactNode) { return renderRTL(<TooltipProvider>{ui}</TooltipProvider>) }
 
 describe('Page primitives', () => {
   it('applies canonical content widths without feature-local max-width classes', () => {
@@ -61,7 +65,7 @@ describe('Page primitives', () => {
     )
   })
 
-  it('keeps the mobile title and overflow action in one stable row', () => {
+  it('keeps the title and overflow action in one stable row', () => {
     render(
       <PageActionBar
         primary={<PageHeading title="Classrooms" />}
@@ -71,10 +75,10 @@ describe('Page primitives', () => {
 
     const row = screen.getByRole('heading', { name: 'Classrooms' }).parentElement?.parentElement
       ?.parentElement
-    expect(row).toHaveClass('flex', 'items-start', 'gap-3')
+    expect(row).toHaveClass('flex', 'items-center', 'gap-3')
     expect(
-      screen.getByRole('button', { name: 'Open actions menu' }).parentElement?.parentElement,
-    ).toHaveClass('shrink-0', 'sm:hidden')
+      screen.getByRole('button', { name: 'More actions' }).parentElement?.parentElement?.parentElement,
+    ).toHaveClass('flex', 'items-center', 'gap-3')
   })
 
   it('preserves 44px targets and focus treatment for action buttons and menu items', () => {
@@ -89,7 +93,7 @@ describe('Page primitives', () => {
         actions={[{ id: 'archive', label: 'Archive', onSelect: vi.fn() }]}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Open actions menu' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
 
     const item = within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Archive' })
     expect(item).toHaveClass(
@@ -111,7 +115,7 @@ describe('Page primitives', () => {
       </>,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Open actions menu' }))
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
     await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Archive' })).toHaveFocus())
 
     await user.tab()

@@ -682,7 +682,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
-  const saveStatusContent = <SaveStatus status={saveStatus} />
 
   return (
     <>
@@ -700,6 +699,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         closeLabel="Close assignment modal"
         closeDisabled={saving || releasing}
         tall
+        showTitle
+        headerCenter={<SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />}
       >
         <AssignmentForm
           fillHeight
@@ -724,16 +725,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
               disabled={saving || releasing || creating}
             />
           )}
-          statusContent={(
-            <span className="inline-flex items-center gap-2">
-              {saveStatusContent}
-              {currentAssignment && isScheduled && currentAssignment.released_at && (
-                <span className="text-xs font-medium text-warning">
-                  {formatReleaseDate(currentAssignment.released_at)}
-                </span>
-              )}
+          statusContent={currentAssignment && isScheduled && currentAssignment.released_at ? (
+            <span className="text-xs font-medium text-warning">
+              {formatReleaseDate(currentAssignment.released_at)}
             </span>
-          )}
+          ) : undefined}
           topRowActions={
             currentAssignment && !isLive ? (
               <div className="flex items-end">

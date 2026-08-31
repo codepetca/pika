@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button, AlertDialog } from '@/ui'
+import { Plus } from 'lucide-react'
+import { Button, IconButton, AlertDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -476,9 +477,7 @@ export default function CalendarPage() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
             <p className="text-text-muted mb-6">Create your first classroom to get started</p>
-            <Button onClick={() => setShowCreateModal(true)}>
-              Create Classroom
-            </Button>
+            <IconButton icon={Plus} label="Create classroom" onClick={() => setShowCreateModal(true)} />
           </div>
         </div>
 

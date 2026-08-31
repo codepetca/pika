@@ -128,3 +128,57 @@ same authorization with a fresh request ID and the exact returned `nextCursor`.
 The normal outbox worker, not the recovery operation, performs delivery. Never
 delete, rewrite, or bulk-select hosted events, and never use this command for
 the nine known pre-repair failures without fresh explicit authorization.
+
+## Pika stale-epoch outbox recovery
+
+A missing tenant link can leave Pika roster and schedule snapshots pending long
+enough that their date window is no longer the current recovery window. Never
+deliver those rows merely to unblock a newer snapshot, and never update their
+signed payloads, idempotency keys, entitlement revisions, or dates in place.
+
+Migration 142 adds an operator-only atomic recovery for this case. It requires
+the exact complete set of unresolved outbox UUIDs for one teacher, the current
+active entitlement revision, a unique operation UUID, and opaque actor/reason
+references. It accepts only roster/schedule snapshots from that exact epoch,
+rejects an omitted or newly appeared row, rejects a live delivery lease, rotates
+the still-active entitlement through its existing audit setter, marks the exact
+old rows `superseded`, and appends a separate immutable audit. The transaction
+rolls back completely on drift. Same-input replay returns the original aggregate
+result; changed-input replay fails. It does not deliver anything.
+
+Before even requesting execution authorization:
+
+1. Re-read every unresolved Pika attendance row for the teacher, the current
+   entitlement, all affected classroom states, and the target tenant-link state.
+2. Take the restricted backup required by the tenant-repair checkpoint. Record
+   an evidence digest and backup reference without exposing payload PII.
+3. Select every unresolved roster/schedule outbox ID—never a subset—and verify
+   no row is actively leased. The approved list must be no larger than 100.
+4. Run a dry-run from an environment holding the exact production Pika values:
+
+   ```bash
+   pnpm attendance:outbox:recover-epoch -- \
+     --operation-id "<unique-uuid>" \
+     --teacher-id "<exact-teacher-uuid>" \
+     --expected-entitlement-revision "<exact-positive-revision>" \
+     --outbox-id "<exact-outbox-uuid-1>" \
+     --outbox-id "<exact-outbox-uuid-2>" \
+     --actor-ref "<opaque-operator-ref>" \
+     --reason-code "tenant_link_recovery"
+   ```
+
+The dry-run is not authority. Fresh execution approval must name the production
+Supabase target, reviewed Pika commit and migration 142, operation ID, teacher,
+expected revision, every outbox ID, actor/reason references, backup/evidence
+references, and the exact authorization binding printed by the dry-run. Only
+then set `PIKA_ATTENDANCE_OUTBOX_RECOVERY_AUTHORIZATION` to that binding and
+repeat the same command with `--execute`. Remove the process-only value
+immediately. If the response is uncertain, repeat only the identical operation
+ID and arguments; do not create a replacement operation.
+
+After success, verify the exact old rows are superseded, entitlement/audit
+revisions advanced once, other classroom policy and attendance state are
+unchanged, and the queue is empty before creating fresh current/future snapshots
+through normal sync. Repairing the Bara tenant link and running this Pika
+operation are separate approvals. The subsequent normal delivery, retry cadence,
+and production canary are separate approvals as well.
