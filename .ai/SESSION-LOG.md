@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Reconcile Pattern Lab with merged teacher refinements
-
-**Risk profile:** none — development-only examples and merge integration; no
-new production behavior, schema, dependencies, or stable-guidance promotion.
-
-- Integrated main through `16ec69ea` (Daily date context and standalone spacing),
-  preserving the concurrently merged history-preview gallery from PR #1089.
-- Added real-owner teacher examples for DateNavigator, the context bar,
-  standalone shell spacing, and attached workspace modes. Catalog entries are
-  family-scoped; no new shared component was extracted. Fixed fixture dates,
-  temporary controls, and mounted tabpanel targets keep the examples reproducible.
-- Kept Daily's saved preference, stronger table-header treatment, commands, and
-  status meanings feature-owned. Existing icon/status guidance is unchanged.
-- Reconciled the `/ui-gallery` compatibility route with the guarded Pattern Lab
-  owner; preserved teacher/student history-preview interaction coverage.
-- Visual review refined the Lab's embedding margins without altering shared
-  owners. Composite checklist reviewed; date descriptions, toggle semantics,
-  keyboard focus, panel relationships, and student isolation are tested.
-
-**Verification:** focused gate passed (77 workflow, 261 focused, 807 related
-tests, architecture/UI/design policy, TypeScript and lint); final targeted suite
-19/19; Pattern Lab browser matrix 13 passed / 3 intentional dialog skips with
-unchanged existing baselines. Teacher examples captured in desktop 1440x900 and
-mobile 390x844, light/dark, default/hidden-subtitle/future/selected-focus states.
-Repository screenshot procedure also run with explicit teacher/student fixture
-roles. New captures are local review evidence, not promoted visual baselines.
-
-**Checkpoint:** user visual approval is pending. PR #1124 remains draft;
-independent review of this reconciliation and fresh final CI follow acceptance.
-No merge authorized or performed. No new reviewer launched this turn.
-
-**Model recommendation:** current coding model for implementation; one bounded
-Terra review of the new integration scope after the visual checkpoint.
-
 ## 2026-08-30 — Clarify Daily-only relative-date scope
 
 **Risk profile:** none. **Model recommendation:** current coding model for
@@ -363,3 +329,7 @@ User confirmed the retained Bara organization is the intended Codepet production
 ## 2026-08-31 — Close attendance recovery ordering blocker
 
 The one owner-approved final fixed-SHA reviewer found one P1 operational sequencing gap and otherwise rated the SQL concurrency/idempotency/privileges, tenant boundaries, authorization binding, Bara identity preservation, UI async ownership and coverage clean. The gap was that restoring the Bara tenant mapping could make Pika's 10 obsolete rows claimable before migration 142 superseded them. Corrected both Pika and Bara runbooks: the default mandatory order is exact old-epoch supersession plus empty/non-claimable queue proof before Bara restore; the only alternate requires a separately approved verified Pika worker pause beginning before restore and spanning supersession/proof, with no implicit unrelated-classroom pause. Fresh snapshot delivery remains separately approved. Reviewer ran 65 focused Pika and 15 Bara tests. These documentation corrections are post-review changes; no additional reviewer is authorized without a new owner decision. No production mutation occurred.
+
+## 2026-08-31 — Exact-head CI generated-type ordering correction
+
+After the clean owner-approved targeted runbook re-review, Pika PR #1134 was marked ready and exact-head CI run `33449330779` started on `d0e6dc7d`. Ephemeral migration replay succeeded, then the database lane stopped because the migration-142 table and RPC definitions in `database.generated.ts` were manually placed before Supabase's generated alphabetical positions. The PR was immediately returned to draft. The coverage and browser lanes were canceled by that draft transition, not failed assertions; their partial logs show the attendance tests and 28 browser checks reached before cancellation were passing. Applied the exact inverse of CI's generated diff: unchanged 53-line table/RPC blocks moved only to the generated positions. Seven focused recovery/authorization/launcher tests and TypeScript pass; diff check confirms a pure 53-line move. No migration was applied locally, no CI retry has been requested, and production remains unchanged. This mechanical generated-artifact correction does not change the reviewed SQL or runtime behavior. Next: canonical focused checks, commit/push, then follow the stable-head review/CI gate without treating canceled lanes as failures.

@@ -28765,3 +28765,38 @@ date button's explicit accessible name masked its new subtitle. Linked the
 subtitle with a stable `aria-describedby` ID and added accessible-description
 coverage for both shown and hidden states. The full focused gate remains green;
 the correction does not change visual styling or the existing control name.
+
+<!-- pika-session-log-archive-batch:837febfcb7fcee637a1f4ea86bbfff768ead5e6861ce300b9d6816f2c0a7f33e -->
+## 2026-08-30 — Reconcile Pattern Lab with merged teacher refinements
+
+**Risk profile:** none — development-only examples and merge integration; no
+new production behavior, schema, dependencies, or stable-guidance promotion.
+
+- Integrated main through `16ec69ea` (Daily date context and standalone spacing),
+  preserving the concurrently merged history-preview gallery from PR #1089.
+- Added real-owner teacher examples for DateNavigator, the context bar,
+  standalone shell spacing, and attached workspace modes. Catalog entries are
+  family-scoped; no new shared component was extracted. Fixed fixture dates,
+  temporary controls, and mounted tabpanel targets keep the examples reproducible.
+- Kept Daily's saved preference, stronger table-header treatment, commands, and
+  status meanings feature-owned. Existing icon/status guidance is unchanged.
+- Reconciled the `/ui-gallery` compatibility route with the guarded Pattern Lab
+  owner; preserved teacher/student history-preview interaction coverage.
+- Visual review refined the Lab's embedding margins without altering shared
+  owners. Composite checklist reviewed; date descriptions, toggle semantics,
+  keyboard focus, panel relationships, and student isolation are tested.
+
+**Verification:** focused gate passed (77 workflow, 261 focused, 807 related
+tests, architecture/UI/design policy, TypeScript and lint); final targeted suite
+19/19; Pattern Lab browser matrix 13 passed / 3 intentional dialog skips with
+unchanged existing baselines. Teacher examples captured in desktop 1440x900 and
+mobile 390x844, light/dark, default/hidden-subtitle/future/selected-focus states.
+Repository screenshot procedure also run with explicit teacher/student fixture
+roles. New captures are local review evidence, not promoted visual baselines.
+
+**Checkpoint:** user visual approval is pending. PR #1124 remains draft;
+independent review of this reconciliation and fresh final CI follow acceptance.
+No merge authorized or performed. No new reviewer launched this turn.
+
+**Model recommendation:** current coding model for implementation; one bounded
+Terra review of the new integration scope after the visual checkpoint.
