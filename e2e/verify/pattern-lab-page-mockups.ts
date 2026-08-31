@@ -76,6 +76,16 @@ export const patternLabPageMockups: VerificationScript = {
       name: 'Desktop navigator exposes quick links',
       passed: await navigator.getByRole('link', { name: 'Page mockups' }).isVisible(),
     })
+    await jumpSelect.selectOption('status-colors')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Nested status-color destination clears the sticky navigator',
+      passed: await page.evaluate(() => {
+        const navigation = document.querySelector<HTMLElement>('nav[aria-label="Pattern Lab sections"]')
+        const target = document.getElementById('status-colors')
+        return Boolean(navigation && target && target.getBoundingClientRect().top >= navigation.getBoundingClientRect().bottom)
+      }),
+    })
 
     await page.setViewportSize(VIEWPORTS.mobile)
     const darkButton = page.getByRole('button', { name: 'Use dark theme' })

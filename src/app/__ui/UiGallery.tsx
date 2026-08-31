@@ -245,7 +245,9 @@ export function UiGallery({ role }: Props) {
                 <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.</p>
               </Card>
             </div>
-            <StatusPatterns />
+            <div className="[&>section]:scroll-mt-28">
+              <StatusPatterns />
+            </div>
             <Card tone="panel" padding="md">
               <PatternHeading title="Buttons" owner="src/ui/Button.tsx" />
               <div className="mt-4 flex flex-wrap gap-3">

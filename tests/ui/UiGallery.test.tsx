@@ -98,6 +98,13 @@ describe('UiGallery accessibility contracts', () => {
       'href',
       '#page-mockups',
     )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      'status-colors',
+    )
+    expect(window.location.hash).toBe('#status-colors')
+    expect(scrollIntoView).toHaveBeenCalledTimes(2)
   })
 
   it('keeps page mockups teacher-only and exposes named interactive owners', async () => {
