@@ -39,6 +39,7 @@ import {
   CircleAlert,
   Clock3,
   ExternalLink,
+  Eye,
   Inbox,
   Info,
   LoaderCircle,
@@ -443,6 +444,7 @@ export function UiGallery({ role }: Props) {
 }
 
 const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
+  eye: Eye,
   'check-circle': CheckCircle2,
   clock: Clock3,
   'alert-circle': CircleAlert,

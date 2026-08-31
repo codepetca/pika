@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Code, ExternalLink } from 'lucide-react'
+import { Code, Eye } from 'lucide-react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
-import { Button, DialogPanel, Tooltip } from '@/ui'
+import { Button, DialogPanel, IconButton, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   TestAssessmentWithStats,
@@ -115,20 +115,16 @@ export function TeacherTestAuthoringDialog({
             <span>Code</span>
           </Button>
         </Tooltip>
-        <Button
-          type="button"
+        <IconButton
+          icon={Eye}
+          label="Preview"
           variant="secondary"
-          size="sm"
           onClick={() => {
             if (!test) return
             onRequestPreview({ testId: test.id, title: test.title })
           }}
           disabled={hasPendingMarkdownImport || !test}
-          className="gap-1.5"
-        >
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          Preview
-        </Button>
+        />
         {test?.status === 'draft' ? (
           <Button
             type="button"

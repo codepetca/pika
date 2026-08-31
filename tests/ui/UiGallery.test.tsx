@@ -69,6 +69,9 @@ describe('UiGallery accessibility contracts', () => {
     }
     expect(screen.getByRole('group', { name: 'Content density' })).toBeInTheDocument()
     expect(screen.getByText('student reference')).toBeInTheDocument()
+    const icons = within(screen.getByTestId('pattern-section-icons'))
+    expect(icons.getByRole('heading', { name: 'Eye' })).toBeInTheDocument()
+    expect(icons.getByText('Preview content')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Student history' })).toHaveAttribute(
       'href',
       '/student/history',

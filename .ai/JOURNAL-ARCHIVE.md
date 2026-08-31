@@ -27850,3 +27850,180 @@ ShellCheck validation, and Codex skill validation pass.
 
 **Model recommendation:** current frontier coding model for bounded local
 developer tooling with security-sensitive environment handling.
+
+<!-- pika-session-log-archive-batch:30a03e54a9df9615f6a2d41d4deaf3691aaf14b91ff4cee027e7bfca2cb9889c -->
+## 2026-08-29 — Audit development-speed rollout after 20 CI attempts
+
+**Risk profile:** standard — CI operating guidance and browser-test scheduling;
+no product behavior, branch enforcement, dependencies, schema, migrations, or
+hosted data changed.
+
+- Measured the first 20 completed natural CI attempts after rollout commit
+  `12336121b05ae55fa0ea97fb5bf81e21ff7b9f6a` at
+  `2026-08-29T03:20:41Z` with `pnpm measure:ci -- --limit 20`. Exact output:
+
+```json
+{
+  "sampleSize": 20,
+  "successfulSampleSize": 8,
+  "counts": {
+    "cancelled": 3,
+    "skipped": 9,
+    "success": 8
+  },
+  "cancellationRate": 0.15,
+  "cancelledElapsedSeconds": 116,
+  "successfulQueueSeconds": {
+    "min": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "average": 0
+  },
+  "successfulRunSeconds": {
+    "min": 54,
+    "p50": 464,
+    "p95": 533,
+    "max": 533,
+    "average": 409
+  },
+  "successfulWallSeconds": {
+    "min": 54,
+    "p50": 464,
+    "p95": 533,
+    "max": 533,
+    "average": 409
+  },
+  "successfulRunsWithoutPrGateEvidence": 1,
+  "prGateByMode": {
+    "application-test-build": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 376,
+        "p50": 376,
+        "p95": 376,
+        "max": 376,
+        "average": 376
+      },
+      "gateRunSeconds": {
+        "min": 3,
+        "p50": 3,
+        "p95": 3,
+        "max": 3,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 379,
+        "p50": 379,
+        "p95": 379,
+        "max": 379,
+        "average": 379
+      }
+    },
+    "docs-only": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 49,
+        "p50": 49,
+        "p95": 49,
+        "max": 49,
+        "average": 49
+      },
+      "gateRunSeconds": {
+        "min": 4,
+        "p50": 4,
+        "p95": 4,
+        "max": 4,
+        "average": 4
+      },
+      "timeToGatePassSeconds": {
+        "min": 53,
+        "p50": 53,
+        "p95": 53,
+        "max": 53,
+        "average": 53
+      }
+    },
+    "full": {
+      "sampleSize": 4,
+      "timeToGateStartSeconds": {
+        "min": 460,
+        "p50": 496,
+        "p95": 528,
+        "max": 528,
+        "average": 486
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 4,
+        "p95": 4,
+        "max": 4,
+        "average": 3
+      },
+      "timeToGatePassSeconds": {
+        "min": 462,
+        "p50": 500,
+        "p95": 532,
+        "max": 532,
+        "average": 489
+      }
+    },
+    "production-promotion": {
+      "sampleSize": 1,
+      "timeToGateStartSeconds": {
+        "min": 393,
+        "p50": 393,
+        "p95": 393,
+        "max": 393,
+        "average": 393
+      },
+      "gateRunSeconds": {
+        "min": 2,
+        "p50": 2,
+        "p95": 2,
+        "max": 2,
+        "average": 2
+      },
+      "timeToGatePassSeconds": {
+        "min": 395,
+        "p50": 395,
+        "p95": 395,
+        "max": 395,
+        "average": 395
+      }
+    }
+  }
+}
+```
+
+- The initial checkpoint failed two targets: cancellation rate was 15% rather
+  than below 10%, and full-mode time to PR Gate pass had a 500-second p50 rather
+  than below 480 seconds. Docs-only passed at 53 seconds. The one successful run
+  without PR Gate evidence was an intentional `workflow_dispatch` diagnostic.
+- Inspected every skipped, cancelled, failed, and missing-evidence attempt. All
+  nine skipped attempts were draft pushes with no heavy jobs. Two cancellations
+  came from a production promotion opened ready by a stale personal skill; that
+  skill now delegates to the repository's draft-first exact-main workflow. The
+  third was a redundant manual dispatch launched beside the exact-SHA ready-event
+  run; the workflow guidance now prohibits this concurrency.
+- Two of four full-mode runs paid two 30-second timeouts in the single packed
+  student-purge visual matrix before retry #2 passed. Split the unchanged
+  desktop/mobile and light/dark teacher/student assertions into four separately
+  timed cases. Local verification passed all four on the first attempt in
+  2.4–8.8 seconds while retaining every screenshot path.
+- Safety targets remained intact: both active branch rulesets still require the
+  strict `PR Gate`; selected database/browser lanes fed that gate; unknown-path
+  PR #1114 failed closed to full mode; browser specs and artifacts remained in
+  the stable two-worker combined job; and production promotion #1115 ultimately
+  passed in provenance-checked promotion mode from exact `main`.
+- Because the initial checkpoint failed, the development-speed goal remains
+  open. After this bounded remediation merges, collect 20 new natural attempts
+  and repeat the complete audit before declaring success.
+
+**Verification:** startup workflow contract (41/41), split Playwright discovery
+(four target cases), local student-purge browser suite (6/6 including auth),
+strict `main` and `production` ruleset inspection, and diff validation pass.
+
+**Model recommendation:** GPT-5.6 Terra for the bounded CI/browser-test
+remediation review and GPT-5.6 Sol only if the follow-up audit exposes a deeper
+workflow or safety-lane defect.

@@ -1370,7 +1370,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Close test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reopen test' })).not.toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'Preview Unit Test' })).toHaveTextContent('Preview')
+    expect(screen.getByRole('button', { name: 'Preview Unit Test' })).toHaveTextContent(/^$/)
     fireEvent.click(screen.getByRole('button', { name: 'Preview Unit Test' }))
 
     expect(onRequestTestPreview).toHaveBeenCalledWith({

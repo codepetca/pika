@@ -12,6 +12,15 @@ export interface PatternCatalogEntry {
 
 export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
+    id: 'preview-action',
+    name: 'Preview',
+    owner: 'src/ui/IconButton.tsx + Lucide Eye',
+    maturity: 'stable',
+    useWhen: 'Previewing content in a dialog, workspace, or separate window. Use the eye-only button with a contextual tooltip.',
+    avoidWhen: 'Navigating to an external destination; use ExternalLink. Keep preview routing and saving in the feature owner.',
+    reference: 'src/ui/README.md#iconbutton',
+  },
+  {
     id: 'core-actions',
     name: 'Core actions',
     owner: 'src/ui/Button.tsx; src/ui/IconButton.tsx',
@@ -128,6 +137,7 @@ export type ApprovedIconName =
   | 'plus'
   | 'refresh'
   | 'more-actions'
+  | 'eye'
 
 export interface IconCatalogEntry {
   id: ApprovedIconName
@@ -138,6 +148,7 @@ export interface IconCatalogEntry {
 }
 
 export const ICON_CATALOG: readonly IconCatalogEntry[] = [
+  { id: 'eye', label: 'Eye', category: 'action', meaning: 'Preview content', rule: 'Use an icon-only Preview button with a contextual tooltip and accessible name, even when the preview opens a separate window.' },
   { id: 'plus', label: 'Plus', category: 'action', meaning: 'Create a new item', rule: 'Use an icon-only creation entry point with a contextual tooltip and accessible name. Keep menu choices and form confirmations explicit.' },
   { id: 'refresh', label: 'RotateCw', category: 'action', meaning: 'Retry loading', rule: 'Use for a safe read retry, retaining the accessible name and tooltip.' },
   { id: 'more-actions', label: 'MoreVertical', category: 'action', meaning: 'More actions', rule: 'Place the PageActionBar overflow at the far right at every width; keep primary actions visible.' },
@@ -209,7 +220,7 @@ export const ICON_CATALOG: readonly IconCatalogEntry[] = [
     label: 'ExternalLink',
     category: 'action',
     meaning: 'Open an external destination or separate context',
-    rule: 'The link text still names the destination.',
+    rule: 'The link text still names the destination. Preview actions use Eye instead, even in a separate window.',
   },
   {
     id: 'chevron-down',
