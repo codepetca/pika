@@ -37,6 +37,7 @@ describe('migration 142 Test editing boundary', () => {
     expect(sql).toContain("public.is_classroom_archive_maintenance_mode('compaction')")
     expect(sql).toContain('create trigger restore_test_question_lock_from_attempt')
     expect(sql).toContain('create trigger restore_test_question_lock_from_response')
-    expect(sql).toContain('set questions_locked_at = coalesce(test.questions_locked_at, new.created_at)')
+    expect(sql).toContain("(to_jsonb(new)->>'created_at')::timestamptz")
+    expect(sql).toContain("(to_jsonb(new)->>'submitted_at')::timestamptz")
   })
 })

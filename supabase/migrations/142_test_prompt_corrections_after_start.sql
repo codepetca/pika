@@ -13,7 +13,7 @@ update public.tests test
 set questions_locked_at = coalesce((
   select min(attempt.created_at) from public.test_attempts attempt where attempt.test_id = test.id
 ), (
-  select min(response.created_at) from public.test_responses response where response.test_id = test.id
+  select min(response.submitted_at) from public.test_responses response where response.test_id = test.id
 ))
 where exists (select 1 from public.test_attempts a where a.test_id = test.id)
    or exists (select 1 from public.test_responses r where r.test_id = test.id);
@@ -339,7 +339,11 @@ as $$
 begin
   if public.is_classroom_archive_maintenance_mode('restore') then
     update public.tests test
-    set questions_locked_at = coalesce(test.questions_locked_at, new.created_at)
+    set questions_locked_at = coalesce(
+      test.questions_locked_at,
+      (to_jsonb(new)->>'created_at')::timestamptz,
+      (to_jsonb(new)->>'submitted_at')::timestamptz
+    )
     where test.id = new.test_id
       and test.questions_locked_at is null;
   end if;

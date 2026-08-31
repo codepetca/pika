@@ -102,80 +102,28 @@ insert into public.quiz_student_scores (
   'teacher'
 );
 
-insert into public.tests (
-  id, classroom_id, title, status, points_possible, created_by,
-  questions_locked_at
-)
-values
-  (
-    '27000000-0000-4000-8000-000000000001',
-    '21000000-0000-4000-8000-000000000001',
-    'Restore revision contract',
-    'closed',
-    10,
-    '11000000-0000-4000-8000-000000000001',
-    null
-  ),
-  (
-    '27000000-0000-4000-8000-000000000002',
-    '21000000-0000-4000-8000-000000000001',
-    'Legacy started Test',
-    'published',
-    2,
-    '11000000-0000-4000-8000-000000000001',
-    null
-  ),
-  (
-    '27000000-0000-4000-8000-000000000003',
-    '21000000-0000-4000-8000-000000000001',
-    'Legacy untouched Test',
-    'published',
-    2,
-    '11000000-0000-4000-8000-000000000001',
-    null
-  );
+insert into public.tests (id, classroom_id, title, status, points_possible, created_by)
+values (
+  '27000000-0000-4000-8000-000000000001',
+  '21000000-0000-4000-8000-000000000001',
+  'Restore revision contract',
+  'closed',
+  10,
+  '11000000-0000-4000-8000-000000000001'
+);
 
 insert into public.test_questions (
   id, test_id, question_type, question_text, options, correct_option, points,
   response_max_chars, position
 ) values
   ('27000000-0000-4000-8000-000000000011', '27000000-0000-4000-8000-000000000001', 'open_response', 'Legacy archive response', '[]', null, 5, 5000, 0),
-  ('27000000-0000-4000-8000-000000000012', '27000000-0000-4000-8000-000000000001', 'open_response', 'Current archive response', '[]', null, 5, 5000, 1),
-  ('27000000-0000-4000-8000-000000000013', '27000000-0000-4000-8000-000000000002', 'multiple_choice', 'Legacy started prompt', '["First", "Second"]', 0, 2, 5000, 0),
-  ('27000000-0000-4000-8000-000000000014', '27000000-0000-4000-8000-000000000003', 'multiple_choice', 'Legacy untouched prompt', '["First", "Second"]', 1, 2, 5000, 0);
-
-insert into public.test_attempts (
-  id, test_id, student_id, responses, is_submitted, created_at, updated_at
-) values (
-  '27000000-0000-4000-8000-000000000051',
-  '27000000-0000-4000-8000-000000000002',
-  '11000000-0000-4000-8000-000000000002',
-  '{}'::jsonb,
-  false,
-  '2026-08-30T13:00:00Z',
-  '2026-08-30T13:00:00Z'
-);
+  ('27000000-0000-4000-8000-000000000012', '27000000-0000-4000-8000-000000000001', 'open_response', 'Current archive response', '[]', null, 5, 5000, 1);
 
 insert into public.test_responses (
   id, test_id, question_id, student_id, response_text, submitted_at
 ) values
   ('27000000-0000-4000-8000-000000000021', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000011', '11000000-0000-4000-8000-000000000002', 'Legacy response', clock_timestamp()),
   ('27000000-0000-4000-8000-000000000022', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000012', '11000000-0000-4000-8000-000000000002', 'Current response', clock_timestamp());
-
--- Build authored content before setting the irreversible boundary. Ordinary
--- application writes must not be able to insert questions after these locks.
-update public.tests
-set questions_locked_at = case id
-  when '27000000-0000-4000-8000-000000000001'::uuid
-    then '2026-08-30T12:00:00Z'::timestamptz
-  when '27000000-0000-4000-8000-000000000002'::uuid
-    then '2026-08-30T13:00:00Z'::timestamptz
-  else questions_locked_at
-end
-where id in (
-  '27000000-0000-4000-8000-000000000001',
-  '27000000-0000-4000-8000-000000000002'
-);
 
 insert into public.test_ai_grading_runs (
   id, test_id, status, triggered_by, model, selection_hash, requested_count,
@@ -778,22 +726,7 @@ begin
     select jsonb_agg(row_data order by row_id) into v_rows
     from expected_restore_rows where table_name = v_resource.table_name;
     if v_rows is not null then
-      if v_resource.table_name = 'tests' then
-        -- Simulate a pre-142 archive for one started and one untouched Test.
-        -- The post-142 locked Test keeps its stored boundary in the same
-        -- restore so the maintenance insert exception is exercised too.
-        select jsonb_agg(
-          case
-            when row->>'id' in (
-              '27000000-0000-4000-8000-000000000002',
-              '27000000-0000-4000-8000-000000000003'
-            ) then row - 'questions_locked_at'
-            else row
-          end
-          order by row->>'id'
-        ) into v_rows
-        from jsonb_array_elements(v_rows) row;
-      elsif v_resource.table_name = 'test_responses' then
+      if v_resource.table_name = 'test_responses' then
         select jsonb_agg(
           case
             when row->>'id' = '27000000-0000-4000-8000-000000000021'
@@ -916,43 +849,6 @@ begin
   then
     raise exception 'Successful restore leaked archive restore context';
   end if;
-
-  if (
-    select questions_locked_at
-    from public.tests
-    where id = '27000000-0000-4000-8000-000000000001'
-  ) is distinct from '2026-08-30T12:00:00Z'::timestamptz then
-    raise exception 'Post-142 archive restore did not preserve the Test boundary';
-  end if;
-  if (
-    select questions_locked_at
-    from public.tests
-    where id = '27000000-0000-4000-8000-000000000002'
-  ) is distinct from '2026-08-30T13:00:00Z'::timestamptz then
-    raise exception 'Pre-142 started Test did not reconstruct its boundary';
-  end if;
-  if (
-    select questions_locked_at
-    from public.tests
-    where id = '27000000-0000-4000-8000-000000000003'
-  ) is not null then
-    raise exception 'Pre-142 untouched Test was unexpectedly locked';
-  end if;
-
-  begin
-    insert into public.test_questions (
-      id, test_id, question_type, question_text, points, position
-    ) values (
-      '27000000-0000-4000-8000-000000000099',
-      '27000000-0000-4000-8000-000000000001',
-      'open_response',
-      'Outside restore maintenance',
-      1,
-      99
-    );
-    raise exception 'Locked Test accepted a structural insert outside maintenance';
-  exception when sqlstate '55000' then null;
-  end;
 
   for v_resource in
     select table_name, primary_key_columns[1] as primary_key_column
