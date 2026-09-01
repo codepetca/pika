@@ -381,6 +381,8 @@ describe('TeacherAttendanceTab', () => {
     const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
     expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
     expect(hours).not.toHaveTextContent('8:45')
+    expect(hours).toHaveClass('bg-success-bg', 'text-success')
+    expect(hours).not.toHaveClass('bg-page')
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
@@ -389,6 +391,35 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
     expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toHaveLength(1)
+  })
+
+  it('matches the Daily action-bar background when saved hours are not confirmed open', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      session: {
+        ...combinedAttendanceView().session,
+        state: 'scheduled',
+      },
+    }))
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+
+    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
+    expect(hours).toHaveClass('bg-page')
+    expect(hours).not.toHaveClass('bg-success-bg', 'text-success')
+  })
+
+  it('keeps saved hours neutral when an open session is stale', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      sync: { state: 'stale', confirmedAt: '2026-05-05T13:16:00.000Z' },
+    }))
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+
+    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
+    expect(hours).toHaveClass('bg-page')
+    expect(hours).not.toHaveClass('bg-success-bg', 'text-success')
   })
 
   it('shows a policy read failure as unavailable, not as unset hours', async () => {

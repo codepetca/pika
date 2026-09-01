@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — History timestamp local preview
-
-Extended shared HistoryGraph so hover/selected context shows only Toronto date/time below the chart, with a reserved line to prevent hover layout shifts. Removed overlay and character-count summary; kept detailed accessible slider labels and existing selection behavior. Updated Pattern Lab explanation and existing semantic tests. All 27 HistoryGraph tests, UI/design policy, and diff checks pass. Playwright verified both authenticated roles at desktop/mobile sizes in light/dark, with hover, pin, keyboard, clear and daily overview checks; screenshots visually reviewed. Evidence: task visualization history-tooltip-fix/brief.md. Local preview only, preserving relative-date fix; not published.
-
-## 2026-08-31 — Stack history date above time
-
-Refined the local HistoryGraph preview per user request: date on the first line, time below, both beneath the graph. Reserved two lines to avoid hover shifts; shared owner and existing interactions retained. All 27 component tests and UI/design policies pass. Playwright repeated both roles, desktop/mobile, light/dark with two-line, no-overlap, stable-layout, pin/keyboard/clear and daily-overview checks; screenshots reviewed. Evidence: task visualization history-tooltip-fix/stacked. Local only, not published.
-
-## 2026-08-31 — Prepare UI fixes PR and authorized main merge
-
-User authorized PR and merge of the relative-date descender fix and stacked history timestamp. Sole writer: current task on codex/fix-relative-date-descenders. Risk profile: none (localized UI presentation); no API, schema, dependency, or permission changes. Model recommendation: GPT-5.6 Terra/medium for one independent fixed-commit review. Ledger starts at 0 launches and 0 fix batches; limits 5 launches, 3 remediation batches, 45 minutes total and 20 minutes per reviewer. Existing visual evidence covers DateNavigator's four-project matrix and history's eight role/viewport/theme combinations, including hover/pin/keyboard/clear. Removed incidental gallery explanatory-copy edit; Pattern Lab still renders the changed production components directly. Focused checks, independent review and exact-head CI follow; results will be recorded on the PR without post-review commits.
-
-## 2026-08-31 — Codepet Labs Daily attendance diagnosis
-
-Read-only browser inspection found Daily on Aug 29 with disabled row selection; the attendance dialog shows 09:00–10:00 with automatic hours enabled. Class Days ends Aug 29, with Aug 30–31 disabled. Today's Daily also has no session hours. Source confirms saving timing syncs only today through 90 days ahead, while Daily displays occurrence hours and permits selection only for open/closed sessions. No future eligible class days remain, and saving does not backfill historical sessions; the Set attendance hours label obscures this distinction. Restored the user's Aug 29 view; no app code, classroom settings, attendance records, or hosted state changed. Next: clarify whether the user needs historical manual attendance or an extended/new class schedule before implementing or mutating anything.
-
-## 2026-08-31 — Confirm existing future attendance scheduling
-
-User paused proposed historical changes and asked to confirm the current one-range-per-classroom future check-in behavior. Verified the classroom-keyed policy, save-triggered 90-day sync, scheduled-class-day filtering, Toronto/DST materialization, QR opening/closing offsets, roster-before-schedule delivery, and rolling daily automation. Eight focused suites passed, 46/46 tests; these use local mocks/contracts and do not prove a fresh hosted delivery. Forward scheduling already supports the clarified future-only requirement; historical selection is separate and no implementation is authorized or needed for this confirmation. No production commands or settings changes performed.
-
-## 2026-08-31 — Future-course reliability scope clarified
-
-User explicitly excluded Codepet Labs historical attendance and wants future-course reliability only. Existing entitlement mode admits new active classrooms for an entitled teacher; hours must be configured independently per classroom. Four additional access/student/readiness suites passed, 26/26 (72 relevant tests total with prior unchanged checks). The aggregate-only production readiness command using the canonical local env failed its target guard before database access; no target override attempted. Fresh new-classroom save isolation and actual Bara schedule/student check-in remain live verification gaps, not established defects. Need explicit authorization for dedicated production test setup before creating a future-dated test course or recording a test check-in. No product implementation or hosted mutations.
-
-## 2026-08-31 — Authorized future-course production test setup
-
-User approved a dedicated production classroom and test-student check-in. Created Attendance verification — 2026-08-31 for September 2026 only through signed-in teacher UI. The whole-month August–September attempt was rejected before execution; switched to the materially safer verified September-only range. Saved automatic 09:00–10:00 Toronto hours, QR open/close offsets 0, Present grace 5 minutes, Absent offset 0. Sep 1 and Sep 2 both display the same hours, but UI says Last confirmed, so this is not proof of Bara acknowledgement. No test student enrolled or check-in performed; requested user sign in an authorized test student in the in-app browser. Automatic opening cannot yet be checked before Sep 1 09:00. Local configured database/origin/credentials are not production and were not overridden. Existing real classrooms untouched. Browser handoff remains on Sep 1; no code, flags, entitlements, migrations, manual session-open, or recovery commands changed. Test classroom retained, not archived/deleted; no follow-up automation created. Detailed handoff is in the task visualization directory.
-
 ## 2026-08-31 — Test enrollment confirmed
 
 User reported joining the dedicated production test classroom. Teacher roster confirms one student named Test Attendance. Separate in-app browser is signed out; opened its login and asked user to sign in, without reading credentials. Teacher page changed during inspection because the user was editing attendance timing; left the form untouched and warned that changing hours does not add Aug 31 to the Sep-only calendar. No attendance commands, records, or settings changed by this task. Live delivery, automatic opening, and student check-in remain unverified; no follow-up automation exists.
@@ -231,12 +203,6 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
 - Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
 
-## 2026-09-01 — Record AI PR lifecycle evidence
-
-- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
-- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
-- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
-- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
 ## 2026-08-31 Pattern Lab remaining classroom page mockups
 - Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
 - Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
@@ -263,6 +229,17 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Extended the experimental teacher Page mockups with the main Classrooms list. Its borderless bottom three-dot menu offers New Classroom, Edit classrooms, and one contextual Show Archived/Show Active toggle; edit and archived states expose a visible Back to classrooms control, and both that control and Escape restore the active non-editing list. The production Classrooms route remains unchanged.
 - Added a direct Find a pattern destination plus semantic and durable browser coverage. Visual verification covers desktop/mobile, light/dark, menu-open, editing, and archived states. The focused gate passes 14 files / 149 tests plus architecture, UI policy, design policy, TypeScript, and lint.
 - Independent review found that the first Escape listener also reacted while the mounted Classrooms panel was hidden. The listener now exists only while Classrooms is active, and a semantic regression test proves Escape in another mockup preserves the Classrooms edit state.
+
+## 2026-09-01 — Subtle saved attendance-hours action
+
+Updated the teacher Daily attendance-hours action so configured hours reuse the neutral PageActionBar background unless the current attendance session is confirmed open, when the existing success-green state remains. Added component coverage for confirmed-open, scheduled, and stale-open states. Focused tests, lint, UI/design policy checks, and teacher/student desktop/mobile visual verification passed in light and dark themes; no API, schema, attendance data, or student UI behavior changed. Draft-first PR review follows; merge is not yet authorized.
+
+## 2026-09-01 — Record AI PR lifecycle evidence
+
+- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
+- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
+- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
+- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
 
 ## 2026-09-01 — Cache immutable CI setup inputs
 

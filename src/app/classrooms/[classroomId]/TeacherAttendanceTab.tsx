@@ -749,6 +749,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 className={cn(
                   'h-9 w-fit max-w-full justify-start whitespace-nowrap px-2.5 text-left tabular-nums text-text-muted hover:text-text-default',
                   !hours.label && 'w-9 justify-center px-0',
+                  hours.label && 'bg-page',
+                  hours.label
+                    && attendance.attendanceReady
+                    && attendance.sessionState === 'open'
+                    && !attendance.hasUnconfirmedView
+                    && !attendance.sessionPending
+                    && attendance.view?.sync.state !== 'pending'
+                    && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
                 )}
                 aria-label={hoursActionLabel}
                 disabled={Boolean(attendance.activeCommand)}
