@@ -87,13 +87,13 @@ begin
     raise exception 'Migration 142 is not applied to the local database';
   end if;
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '144'
+    select 1 from supabase_migrations.schema_migrations where version = '145'
   ) or to_regprocedure(
     'public.attendance_roster_source_document_v1(uuid)'
   ) is null or to_regprocedure(
     'public.attendance_schedule_source_document_v1(uuid,date,date)'
   ) is null then
-    raise exception 'Migration 144 is not applied to the local database';
+    raise exception 'Migration 145 is not applied to the local database';
   end if;
 end;
 $migration$;

@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/144_attendance_source_epoch_revisions.sql'),
+  resolve(process.cwd(), 'supabase/migrations/145_attendance_source_epoch_revisions.sql'),
   'utf8',
 )
 const databaseHarness = readFileSync(

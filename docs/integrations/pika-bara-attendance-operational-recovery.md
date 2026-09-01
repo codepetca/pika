@@ -137,11 +137,11 @@ deliver those rows merely to unblock a newer snapshot, and never update their
 signed payloads, idempotency keys, entitlement revisions, or dates in place.
 
 Migration 142 adds an operator-only atomic recovery for this case. Migration
-144 is its required restaging companion: it binds both private source documents
+145 is its required restaging companion: it binds both private source documents
 to the entitlement revision so the epoch rotation produces strictly newer
 roster and schedule revisions instead of reusing superseded idempotency keys.
 Apply and verify both migrations before authorizing recovery; running the
-migration-142 operation without migration 144 leaves normal fresh sync unable
+migration-142 operation without migration 145 leaves normal fresh sync unable
 to create a Bara-acceptable replacement snapshot.
 
 The recovery requires
@@ -176,7 +176,7 @@ Before even requesting execution authorization:
    ```
 
 The dry-run is not authority. Fresh execution approval must name the production
-Supabase target, reviewed Pika commit, migrations 142 and 144, operation ID,
+Supabase target, reviewed Pika commit, migrations 142 and 145, operation ID,
 teacher, expected revision, every outbox ID, actor/reason references,
 backup/evidence references, and the exact authorization binding printed by the
 dry-run. Only then set `PIKA_ATTENDANCE_OUTBOX_RECOVERY_AUTHORIZATION` to that
