@@ -134,11 +134,10 @@ export const patternLabPageMockups: VerificationScript = {
     const classrooms = section.getByTestId('classrooms-mockup')
     await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
     checks.push({
-      name: 'Classroom bottom menu contains create, edit, Active, and Archived actions',
-      passed: await classrooms.getByRole('menuitem', { name: 'Create classroom' }).isVisible()
+      name: 'Classroom bottom menu contains New Classroom, edit, and Show Archived actions',
+      passed: await classrooms.getByRole('menuitem', { name: 'New Classroom' }).isVisible()
         && await classrooms.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }).isVisible()
-        && await classrooms.getByRole('menuitemradio', { name: 'Active' }).isVisible()
-        && await classrooms.getByRole('menuitemradio', { name: 'Archived' }).isVisible(),
+        && await classrooms.getByRole('menuitem', { name: 'Show Archived' }).isVisible(),
     })
     const classroomMenuArtifact = path.join(artifactDir, 'desktop-light-classrooms-menu.png')
     await section.screenshot({ path: classroomMenuArtifact })
@@ -148,7 +147,7 @@ export const patternLabPageMockups: VerificationScript = {
     await section.screenshot({ path: classroomEditArtifact })
     artifacts.push(classroomEditArtifact)
     await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
-    await classrooms.getByRole('menuitemradio', { name: 'Archived' }).click()
+    await classrooms.getByRole('menuitem', { name: 'Show Archived' }).click()
     checks.push({
       name: 'Archived Classroom scope leaves edit mode',
       passed: await classrooms.getByText('Archived classrooms').isVisible()
@@ -157,6 +156,12 @@ export const patternLabPageMockups: VerificationScript = {
     const classroomArchivedArtifact = path.join(artifactDir, 'desktop-light-classrooms-archived.png')
     await section.screenshot({ path: classroomArchivedArtifact })
     artifacts.push(classroomArchivedArtifact)
+    await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
+    checks.push({
+      name: 'Archived Classroom menu offers Show Active toggle',
+      passed: await classrooms.getByRole('menuitem', { name: 'Show Active' }).isVisible(),
+    })
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
     checks.push({
       name: 'Escape returns Classrooms to the active list outside edit mode',

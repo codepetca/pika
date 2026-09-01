@@ -49,7 +49,7 @@ describe('PageMockups', () => {
     const classrooms = within(mockups).getByTestId('classrooms-mockup')
 
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
-    expect(within(classrooms).getByRole('menuitem', { name: 'Create classroom' })).toBeInTheDocument()
+    expect(within(classrooms).getByRole('menuitem', { name: 'New Classroom' })).toBeInTheDocument()
     await user.click(within(classrooms).getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
     expect(within(classrooms).getByText('Editing')).toBeVisible()
     expect(within(classrooms).getByRole('button', { name: 'Archive Grade 10 Science' })).toBeVisible()
@@ -60,10 +60,16 @@ describe('PageMockups', () => {
     expect(within(classrooms).getByText('Editing')).toBeVisible()
 
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
-    await user.click(within(classrooms).getByRole('menuitemradio', { name: 'Archived' }))
+    await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Archived' }))
     expect(within(classrooms).getByText('Archived classrooms')).toBeVisible()
     expect(within(classrooms).queryByText('Editing')).not.toBeInTheDocument()
     expect(within(classrooms).getByRole('button', { name: 'Unarchive Earth and Space Science' })).toBeVisible()
+    await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
+    await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Active' }))
+    expect(within(classrooms).getByText('Active classrooms')).toBeVisible()
+
+    await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
+    await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Archived' }))
 
     await user.keyboard('{Escape}')
     expect(within(classrooms).getByText('Active classrooms')).toBeVisible()

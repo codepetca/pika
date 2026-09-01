@@ -260,6 +260,6 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 
 ## 2026-08-31 — Add the Classrooms list to Pattern Lab
 
-- Extended the experimental teacher Page mockups with the main Classrooms list. Its contained bottom three-dot menu offers Create classroom, Edit classrooms, and Active/Archived scope; edit mode exposes reorder/archive actions, archived scope exposes restore actions, and Escape restores the active non-editing list. The production Classrooms route remains unchanged.
+- Extended the experimental teacher Page mockups with the main Classrooms list. Its borderless bottom three-dot menu offers New Classroom, Edit classrooms, and one contextual Show Archived/Show Active toggle; edit mode exposes reorder/archive actions, archived scope exposes restore actions, and Escape restores the active non-editing list. The production Classrooms route remains unchanged.
 - Added a direct Find a pattern destination plus semantic and durable browser coverage. Visual verification covers desktop/mobile, light/dark, menu-open, editing, and archived states. The focused gate passes 14 files / 149 tests plus architecture, UI policy, design policy, TypeScript, and lint.
 - Independent review found that the first Escape listener also reacted while the mounted Classrooms panel was hidden. The listener now exists only while Classrooms is active, and a semantic regression test proves Escape in another mockup preserves the Classrooms edit state.

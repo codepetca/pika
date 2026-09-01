@@ -220,9 +220,9 @@ function ClassroomsMockup({
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'create',
-      label: 'Create classroom',
+      label: 'New Classroom',
       icon: <Plus className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => onPrototypeAction('Create classroom'),
+      onSelect: () => onPrototypeAction('New Classroom'),
     },
     {
       id: 'edit',
@@ -236,22 +236,14 @@ function ClassroomsMockup({
       },
     },
     {
-      id: 'active',
-      label: 'Active',
-      icon: <CircleDot className="h-4 w-4" aria-hidden="true" />,
-      checked: view === 'active',
-      checkedRole: 'menuitemradio',
+      id: 'toggle-archive-view',
+      label: view === 'active' ? 'Show Archived' : 'Show Active',
+      icon: view === 'active'
+        ? <Archive className="h-4 w-4" aria-hidden="true" />
+        : <CircleDot className="h-4 w-4" aria-hidden="true" />,
       dividerBefore: true,
-      onSelect: () => setView('active'),
-    },
-    {
-      id: 'archived',
-      label: 'Archived',
-      icon: <Archive className="h-4 w-4" aria-hidden="true" />,
-      checked: view === 'archived',
-      checkedRole: 'menuitemradio',
       onSelect: () => {
-        setView('archived')
+        setView((current) => current === 'active' ? 'archived' : 'active')
         setIsEditing(false)
       },
     },
@@ -329,22 +321,21 @@ function ClassroomsMockup({
       </div>
 
       <div className="absolute inset-x-0 bottom-2 flex justify-end px-2 sm:px-4">
-        <div className="rounded-lg border border-border bg-surface p-1 shadow-elevated">
-          <TeacherWorkSurfaceIconMenuButton
-            ariaLabel="Classroom actions"
-            menuAriaLabel="Classroom actions"
-            tooltip="Classroom actions"
-            icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
-            items={menuItems}
-            menuPlacement="up"
-            menuAlign="end"
-            menuClassName="w-64"
-          />
-        </div>
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="Classroom actions"
+          menuAriaLabel="Classroom actions"
+          tooltip="Classroom actions"
+          icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+          items={menuItems}
+          variant="ghost"
+          menuPlacement="up"
+          menuAlign="end"
+          menuClassName="w-64"
+        />
       </div>
 
       <Description>
-        The bottom three-dot menu owns classroom creation, edit mode, and Active/Archived scope. Escape returns to the main Active list and clears edit mode.
+        The borderless bottom three-dot menu owns New Classroom, edit mode, and the Show Archived/Show Active toggle. Escape returns to the main Active list and clears edit mode.
       </Description>
     </div>
   )
