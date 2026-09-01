@@ -234,6 +234,7 @@ export const patternLabPageMockups: VerificationScript = {
       gradebookSummaryFooter.boundingBox(),
       gradebookSummaryFooter.evaluate((footer) => getComputedStyle(footer).position),
     ])
+    const classAverageRow = gradebookSummaryFooter.getByRole('row', { name: 'Class average' })
     checks.push({
       name: 'Gradebook class summary stays pinned to the visible table bottom',
       passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollTop > 0)
@@ -242,8 +243,12 @@ export const patternLabPageMockups: VerificationScript = {
           - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) >= 0
         && ((summaryFrameBounds?.y ?? 0) + (summaryFrameBounds?.height ?? 0))
           - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) <= 28
-        && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).isVisible()
+        && await classAverageRow.isVisible()
         && await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).count() === 0,
+    })
+    checks.push({
+      name: 'Gradebook class summary includes every displayed student',
+      passed: await classAverageRow.getByRole('cell').nth(3).textContent() === '85%',
     })
     const stickySummaryDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-sticky-summary.png')
     await section.screenshot({ path: stickySummaryDesktopLightArtifact })

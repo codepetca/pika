@@ -135,8 +135,13 @@ function formatGradebookSummaryNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
-function formatGradebookAssessmentSummary(index: number, kind: 'average' | 'median', scoreMode: ScoreMode) {
-  const scores = STUDENTS
+function formatGradebookAssessmentSummary(
+  students: readonly { scores: readonly string[] }[],
+  index: number,
+  kind: 'average' | 'median',
+  scoreMode: ScoreMode,
+) {
+  const scores = students
     .map((student) => student.scores[index])
     .filter((score) => score !== '—')
     .map((score) => {
@@ -150,9 +155,12 @@ function formatGradebookAssessmentSummary(index: number, kind: 'average' | 'medi
   return `${formatGradebookSummaryNumber((earned / possible) * 100)}%`
 }
 
-function formatGradebookFinalSummary(kind: 'average' | 'median') {
+function formatGradebookFinalSummary(
+  students: readonly { final: string }[],
+  kind: 'average' | 'median',
+) {
   const value = summarizeGradebookValues(
-    STUDENTS.map((student) => Number.parseFloat(student.final)).filter(Number.isFinite),
+    students.map((student) => Number.parseFloat(student.final)).filter(Number.isFinite),
     kind,
   )
   return value == null ? '—' : `${formatGradebookSummaryNumber(value)}%`
@@ -603,7 +611,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   {showStudentIds ? <DataTableCell>{null}</DataTableCell> : null}
                   {assessments.map((assessment, index) => (
                     <DataTableCell key={`${summaryKind}:${assessment}`} align="center" className="whitespace-nowrap text-xs tabular-nums">
-                      {formatGradebookAssessmentSummary(index, summaryKind, scoreMode)}
+                      {formatGradebookAssessmentSummary(rows, index, summaryKind, scoreMode)}
                     </DataTableCell>
                   ))}
                   {fewAssessments ? <DataTableCell aria-hidden="true">{null}</DataTableCell> : null}
@@ -614,7 +622,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                       keepKeyColumnsVisible && 'sticky right-0 z-sticky-table border-l border-border-strong bg-surface-2',
                     )}
                   >
-                    {formatGradebookFinalSummary(summaryKind)}
+                    {formatGradebookFinalSummary(rows, summaryKind)}
                   </DataTableCell>
                 </DataTableRow>
               </tfoot>

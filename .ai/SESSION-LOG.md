@@ -271,14 +271,6 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Verification: focused gate passes 128 files / 1,586 tests plus architecture, UI/design policy, TypeScript, and lint; the production build, Pika audit, and diff checks pass. Database replay and browser lanes remain selected for final CI.
 - Independent architecture/security review found rollout continuity, obsolete-policy defense, and API-debt baseline blockers. One remediation batch now preserves unregistered legacy delivery only while the bucket is still public, makes migration 146 refuse existing objects until managed-storage enforcement and settled identities are proven, re-drops all obsolete direct Storage policies, and removes the stale upload-route debt entry. The focused gate now passes 128 files / 1,592 tests; build and Pika audit pass. Migration 146 remains unapplied and separately authorized.
 - First ready-PR CI replay reached migration 146 but both database-backed lanes rejected its nonessential `COMMENT ON storage.buckets` because the migration role does not own Supabase's Storage table. Removed only that comment; the privacy update, rollout guard, and policy drops are unchanged.
-## 2026-08-31 — Define and visualize minimal student Grades
-
-## 2026-09-01 — Record AI PR lifecycle evidence
-
-- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
-- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
-- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
-- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
 
 ## 2026-09-01 — Refine the experimental Gradebook controls
 
@@ -289,7 +281,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Added a `Few assessments` example state with three 88px assessment columns. A flexible empty assessment-space column absorbs the remaining table width so Final stays anchored at the far-right edge without stretching populated assessments.
 - The Empty fixture now means a roster with no assessments: checkbox, First, Last, and narrow Final retain their fixed defaults while Assessments spans the remaining table width. The table retains a 96px minimum for that flexible region so narrow screens scroll inside the table frame.
 - First and Last cells now stay on one line and ellipsize at narrow resized widths, retain the full value as native hover text, and include a deliberately long fixture name so the behavior is inspectable at the 72px minimum.
-- Focused component and policy tests pass 37/37, lint passes, and the durable Pattern Lab verifier passes across desktop/mobile and light/dark with populated/empty, open More actions, selected Student Actions, internal mobile scrolling, no page overflow, and student exclusion. Representative captures were inspected. Changes remain uncommitted for user review.
+- Focused component and policy tests pass, lint passes, and the durable Pattern Lab verifier passes across desktop/mobile and light/dark with populated/empty, open More actions, selected Student Actions, internal mobile scrolling, no page overflow, and student exclusion. Representative captures were inspected. The work is included in draft PR #1146; merge is not authorized.
 
 ## 2026-09-01 — Mock a sticky Gradebook class summary
 
@@ -297,3 +289,4 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Expanded the populated local fixture to ten uniquely named students so vertical scrolling and the pinned summary can be inspected. The selected summary remains aligned with assessment and Final columns and follows the existing percent/raw display toggle; the empty state omits the summary.
 - Added one dynamic More actions command to swap First/Last name order. The reverse label always describes the next arrangement, each field retains its own width and sorting behavior, and `Keep key columns visible` defaults on while pinning whichever name field currently leads.
 - Added semantic coverage and a measured browser assertion for the actual sticky geometry. The Pattern Lab verifier passes across teacher desktop/mobile, light/dark, vertical/horizontal scrolling, frozen columns, empty/few-assessment states, and no page overflow. Representative light/dark desktop/mobile captures were inspected; student is intentionally n/a for this teacher-only table pattern.
+- Independent fixed-SHA review found the populated footer still summarized the original four-student fixture. Remediation batch one now derives Average/Median from every displayed row and proves the ten-student Ecosystems average is 85% in component and browser coverage. A second review claim that both name columns should freeze was rejected against the approved contract: selection plus only the leading First/Last field are key columns, with Final pinned right. Full local tests pass 644 files / 5,575 tests; Pika audit and the 100-check Pattern Lab browser suite pass. Targeted re-review and exact-head CI remain.

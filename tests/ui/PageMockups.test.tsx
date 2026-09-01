@@ -118,20 +118,22 @@ describe('PageMockups', () => {
 
     expect(scrollFrame).toHaveClass('h-80', 'overflow-auto')
     expect(summaryFooter).toHaveClass('sticky', 'bottom-0', 'bg-surface-2')
-    expect(within(summaryFooter).getByRole('row', { name: 'Class average' })).toHaveTextContent('86.7%')
+    const averageRow = within(summaryFooter).getByRole('row', { name: 'Class average' })
+    expect(within(averageRow).getAllByRole('cell')[3]).toHaveTextContent('85%')
     expect(within(summaryFooter).queryByRole('row', { name: 'Class median' })).not.toBeInTheDocument()
     expect(within(gradebook).getByText(/roster rows scroll underneath/)).toBeInTheDocument()
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
     await user.click(within(gradebook).getByRole('menuitem', { name: 'Show median' }))
-    expect(within(summaryFooter).getByRole('row', { name: 'Class median' })).toHaveTextContent('86%')
+    const medianRow = within(summaryFooter).getByRole('row', { name: 'Class median' })
+    expect(within(medianRow).getAllByRole('cell')[3]).toHaveTextContent('90%')
     expect(within(summaryFooter).queryByRole('row', { name: 'Class average' })).not.toBeInTheDocument()
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
     await user.click(within(gradebook).getByRole('menuitem', { name: 'Show average' }))
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
     await user.click(within(gradebook).getByRole('menuitem', { name: 'Show raw scores' }))
-    expect(within(summaryFooter).getByRole('row', { name: 'Class average' })).toHaveTextContent('17.3/20')
+    expect(within(summaryFooter).getByRole('row', { name: 'Class average' }).querySelectorAll('td')[3]).toHaveTextContent('17/20')
 
     await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
     expect(within(gradebook).queryByTestId('gradebook-summary-footer')).not.toBeInTheDocument()
