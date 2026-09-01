@@ -34,11 +34,35 @@ import type {
   Classroom,
   ClassroomResources,
   CourseBlueprintDetail,
+  PlannedCourseSiteConfig,
   TiptapContent,
 } from '@/types'
 
 export type PublishedPlannedCourseSiteData = {
-  blueprint: CourseBlueprintDetail
+  blueprint: {
+    title: string
+    subject: string
+    grade_level: string
+    course_code: string
+    term_template: string
+    overview_markdown: string
+    outline_markdown: string
+    resources_markdown: string
+    planned_site_config: PlannedCourseSiteConfig
+    assignments: Array<{
+      title: string
+      instructions_markdown: string
+    }>
+    assessments: Array<{
+      assessment_type: string
+      title: string
+      question_count: number
+    }>
+    lesson_templates: Array<{
+      title: string
+      content_markdown: string
+    }>
+  }
 }
 
 export type PublishedCourseSiteGradingCategory = {
@@ -303,27 +327,97 @@ function buildCourseSiteGradingSummary(
   }
 }
 
-export async function getPublishedPlannedCourseSite(
+const PUBLISHED_PLANNED_COURSE_BLUEPRINT_COLUMNS =
+  'id,title,subject,grade_level,course_code,term_template,overview_markdown,outline_markdown,resources_markdown,planned_site_config' as const
+
+export function getPublishedPlannedCourseSite(
   slug: string
 ): Promise<{ ok: true; site: PublishedPlannedCourseSiteData } | { ok: false; status: number; error: string }> {
   const supabase = getSupabase()
-  const { data: blueprint, error } = await supabase
+  return Promise.resolve(supabase
     .from('course_blueprints')
-    .select('*')
+    .select(PUBLISHED_PLANNED_COURSE_BLUEPRINT_COLUMNS)
     .eq('planned_site_slug', slug)
     .eq('planned_site_published', true)
     .single()
+    .then(({ data: blueprint, error }) => {
+      if (error || !blueprint) {
+        return { ok: false as const, status: 404, error: 'Planned course site not found' }
+      }
 
-  if (error || !blueprint) {
-    return { ok: false, status: 404, error: 'Planned course site not found' }
-  }
+      const blueprintId = String(blueprint.id)
+      return Promise.all([
+        supabase
+          .from('course_blueprint_assignments')
+          .select('title,instructions_markdown,position')
+          .eq('course_blueprint_id', blueprintId)
+          .order('position', { ascending: true })
+          .then(({ data, error: assignmentsError }) => ({
+            data: (data || []).map((assignment) => ({
+              title: String(assignment.title || ''),
+              instructions_markdown: String(assignment.instructions_markdown || ''),
+            })),
+            error: assignmentsError,
+          })),
+        supabase
+          .from('course_blueprint_assessments')
+          .select('assessment_type,title,content,position')
+          .eq('course_blueprint_id', blueprintId)
+          .order('position', { ascending: true })
+          .then(({ data, error: assessmentsError }) => ({
+            data: (data || []).map((assessment) => ({
+              assessment_type: String(assessment.assessment_type || ''),
+              title: String(assessment.title || ''),
+              question_count: Array.isArray(assessment.content?.questions)
+                ? assessment.content.questions.length
+                : 0,
+            })),
+            error: assessmentsError,
+          })),
+        supabase
+          .from('course_blueprint_lesson_templates')
+          .select('title,content_markdown,position')
+          .eq('course_blueprint_id', blueprintId)
+          .order('position', { ascending: true })
+          .then(({ data, error: lessonsError }) => ({
+            data: (data || []).map((lesson) => ({
+              title: String(lesson.title || ''),
+              content_markdown: String(lesson.content_markdown || ''),
+            })),
+            error: lessonsError,
+          })),
+      ]).then(([assignmentsResult, assessmentsResult, lessonsResult]) => {
+        const detailError = assignmentsResult.error
+          || assessmentsResult.error
+          || lessonsResult.error
+        if (detailError) {
+          console.error('Error loading published planned course site:', detailError)
+          return { ok: false as const, status: 500, error: 'Failed to load planned course site' }
+        }
 
-  const detail = await getCourseBlueprintDetail(blueprint.teacher_id as string, blueprint.id as string)
-  if (!detail.detail) {
-    return { ok: false, status: detail.status || 500, error: detail.error || 'Failed to load planned course site' }
-  }
-
-  return { ok: true, site: { blueprint: detail.detail } }
+        return {
+          ok: true as const,
+          site: {
+            blueprint: {
+              title: String(blueprint.title || ''),
+              subject: String(blueprint.subject || ''),
+              grade_level: String(blueprint.grade_level || ''),
+              course_code: String(blueprint.course_code || ''),
+              term_template: String(blueprint.term_template || ''),
+              overview_markdown: String(blueprint.overview_markdown || ''),
+              outline_markdown: String(blueprint.outline_markdown || ''),
+              resources_markdown: String(blueprint.resources_markdown || ''),
+              planned_site_config: normalizePlannedCourseSiteConfig(
+                blueprint.planned_site_config,
+              ),
+              assignments: assignmentsResult.data,
+              assessments: assessmentsResult.data,
+              lesson_templates: lessonsResult.data,
+            },
+          },
+        }
+      })
+    }))
 }
 
 async function buildActualCourseSite(

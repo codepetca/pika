@@ -3,6 +3,7 @@ const { execSync } = require('child_process')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  devIndicators: process.env.PIKA_E2E_FIXTURES === 'true' ? false : undefined,
   env: {
     NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
     NEXT_PUBLIC_GIT_COMMIT: process.env.VERCEL_GIT_COMMIT_SHA

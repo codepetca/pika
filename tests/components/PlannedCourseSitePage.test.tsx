@@ -50,18 +50,11 @@ describe('PlannedCourseSitePage', () => {
             instructions_markdown: 'Compare two algorithms.',
           }],
           assessments: [{
-            id: 'test-1',
             assessment_type: 'test',
             title: 'Programming Foundations Test',
-            content: {
-              questions: [{
-                question_text: 'Private question',
-                answer_key: 'Private answer',
-              }],
-            },
+            question_count: 1,
           }],
           lesson_templates: [{
-            id: 'lesson-1',
             title: 'Tracing and Debugging',
             content_markdown: 'Trace one program.',
           }],

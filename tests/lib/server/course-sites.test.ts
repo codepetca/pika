@@ -267,24 +267,97 @@ describe('course-sites server helpers', () => {
   })
 
   it('loads a published planned site and handles missing slugs', async () => {
-    mockGetCourseBlueprintDetail.mockResolvedValue({
-      detail: { id: 'b-1', title: 'Blueprint', assignments: [], assessments: [], lesson_templates: [] },
-    })
-
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({
-          data: { id: 'b-1', teacher_id: 'teacher-1', planned_site_slug: 'blueprint', planned_site_published: true },
+          data: {
+            id: 'b-1',
+            title: 'Blueprint',
+            subject: 'Computer Science',
+            grade_level: 'Grade 11',
+            course_code: 'ICS3U',
+            term_template: 'Semester 1',
+            overview_markdown: 'Public overview',
+            outline_markdown: 'Public outline',
+            resources_markdown: 'Public resources',
+            planned_site_config: {
+              overview: true,
+              outline: true,
+              resources: true,
+              assignments: true,
+              tests: true,
+              lesson_plans: true,
+            },
+          },
+          error: null,
+        }),
+      ],
+      course_blueprint_assignments: [
+        makeQueryBuilder({
+          data: [{
+            id: 'private-assignment-id',
+            title: 'Public assignment',
+            instructions_markdown: 'Public instructions',
+            position: 0,
+          }],
+          error: null,
+        }),
+      ],
+      course_blueprint_assessments: [
+        makeQueryBuilder({
+          data: [{
+            id: 'private-assessment-id',
+            assessment_type: 'test',
+            title: 'Public test',
+            content: {
+              questions: [{
+                id: 'private-question-id',
+                question_text: 'Private question',
+                answer_key: 'Private answer',
+              }],
+            },
+            documents: [{ url: 'https://private.example.test' }],
+            position: 0,
+          }],
+          error: null,
+        }),
+      ],
+      course_blueprint_lesson_templates: [
+        makeQueryBuilder({
+          data: [{
+            id: 'private-lesson-id',
+            title: 'Public lesson',
+            content_markdown: 'Public lesson content',
+            position: 0,
+          }],
           error: null,
         }),
       ],
     })
-    await expect(getPublishedPlannedCourseSite('blueprint')).resolves.toEqual(
-      expect.objectContaining({
-        ok: true,
-        site: { blueprint: expect.objectContaining({ id: 'b-1' }) },
-      })
-    )
+    const publishedResult = await getPublishedPlannedCourseSite('blueprint')
+    expect(publishedResult).toEqual(expect.objectContaining({
+      ok: true,
+      site: {
+        blueprint: expect.objectContaining({
+          title: 'Blueprint',
+          assignments: [{
+            title: 'Public assignment',
+            instructions_markdown: 'Public instructions',
+          }],
+          assessments: [{
+            assessment_type: 'test',
+            title: 'Public test',
+            question_count: 1,
+          }],
+          lesson_templates: [{
+            title: 'Public lesson',
+            content_markdown: 'Public lesson content',
+          }],
+        }),
+      },
+    }))
+    expect(JSON.stringify(publishedResult)).not.toMatch(/private/i)
+    expect(mockGetCourseBlueprintDetail).not.toHaveBeenCalled()
 
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [makeQueryBuilder({ data: null, error: { code: 'PGRST116' } })],

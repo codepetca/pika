@@ -120,14 +120,11 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
               {blueprint.assessments
                 .filter((assessment) => assessment.assessment_type === 'test')
                 .map((assessment, index) => {
-                  const questions = Array.isArray((assessment.content as any)?.questions)
-                    ? (assessment.content as any).questions.length
-                    : 0
                   return (
                     <article key={`test-${index}`} className={itemClassName}>
                       <h3 className="text-base font-semibold text-text-default">{assessment.title}</h3>
                       <p className="mt-1 text-sm text-text-muted">
-                        {questions} question{questions === 1 ? '' : 's'}
+                        {assessment.question_count} question{assessment.question_count === 1 ? '' : 's'}
                       </p>
                     </article>
                   )
