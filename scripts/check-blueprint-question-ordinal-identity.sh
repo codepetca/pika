@@ -1030,6 +1030,10 @@ begin
     'b1341000-0000-4000-8000-000000000001'
   );
 
+  update public.tests
+  set questions_locked_at = clock_timestamp()
+  where id = 'b1341000-0000-4000-8000-000000000011';
+
   select classroom.blueprint_source_revision
     into v_source_revision
   from public.classrooms classroom
@@ -1480,6 +1484,9 @@ select
 from public.test_questions question
 where question.test_id = 'b1342000-0000-4000-8000-000000000031'
   and question.artifact_id = 'b1342000-0000-4000-8000-000000000033';
+update public.tests
+set questions_locked_at = clock_timestamp()
+where id = 'b1342000-0000-4000-8000-000000000031';
 select pg_sleep(3);
 commit;
 SQL
@@ -1704,12 +1711,34 @@ begin
   ) then
     raise exception 'Archived reuse changed student work';
   end if;
+  update public.test_questions
+  set question_text = 'Corrected archived wording'
+  where test_id = 'b1342000-0000-4000-8000-000000000031'
+    and artifact_id = 'b1342000-0000-4000-8000-000000000033';
+
+  if not exists (
+    select 1
+    from public.test_questions question
+    join public.tests test on test.id = question.test_id
+    join public.test_responses response on response.question_id = question.id
+    where question.test_id = 'b1342000-0000-4000-8000-000000000031'
+      and question.artifact_id = 'b1342000-0000-4000-8000-000000000033'
+      and question.question_text = 'Corrected archived wording'
+      and question.answer_key = 'A'
+      and question.points = 1
+      and test.questions_locked_at is not null
+      and response.id = 'b1342000-0000-4000-8000-000000000056'
+      and response.response_text = 'Archived response must remain unchanged'
+  ) then
+    raise exception 'Archived wording correction changed frozen Test state';
+  end if;
+
   begin
     update public.test_questions
-    set question_text = 'Unsafe archived authored change'
+    set points = 2
     where test_id = 'b1342000-0000-4000-8000-000000000031'
       and artifact_id = 'b1342000-0000-4000-8000-000000000033';
-    raise exception 'Authored archived question update bypassed the student-work freeze';
+    raise exception 'Archived grading update bypassed the Test lock';
   exception when sqlstate '55000' then
     get stacked diagnostics v_error_message = message_text;
     if v_error_message not like 'test_questions_locked:%' then
@@ -2332,6 +2361,9 @@ begin
     v_teacher_id,
     'Active response must remain unchanged'
   );
+  update public.tests
+  set questions_locked_at = clock_timestamp()
+  where id = 'b1340000-0000-4000-8000-000000000011';
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
@@ -2368,11 +2400,31 @@ begin
   ) then
     raise exception 'Active capture changed student work';
   end if;
+  update public.test_questions
+  set question_text = 'Corrected active wording'
+  where id = 'b1340000-0000-4000-8000-000000000013';
+
+  if not exists (
+    select 1
+    from public.test_questions question
+    join public.tests test on test.id = question.test_id
+    join public.test_responses response on response.question_id = question.id
+    where question.id = 'b1340000-0000-4000-8000-000000000013'
+      and question.question_text = 'Corrected active wording'
+      and question.answer_key is null
+      and question.points = 1
+      and test.questions_locked_at is not null
+      and response.id = 'b1340000-0000-4000-8000-000000000402'
+      and response.response_text = 'Active response must remain unchanged'
+  ) then
+    raise exception 'Active wording correction changed frozen Test state';
+  end if;
+
   begin
     update public.test_questions
-    set question_text = 'Unsafe active authored change'
+    set points = 2
     where id = 'b1340000-0000-4000-8000-000000000013';
-    raise exception 'Authored active question update bypassed the student-work freeze';
+    raise exception 'Active grading update bypassed the Test lock';
   exception when sqlstate '55000' then
     get stacked diagnostics v_error_message = message_text;
     if v_error_message not like 'test_questions_locked:%' then

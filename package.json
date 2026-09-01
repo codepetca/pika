@@ -31,6 +31,7 @@
     "attendance:local:rehearse": "tsx scripts/rehearse-local-bara-attendance.ts",
     "attendance:entitlement:set": "tsx scripts/set-bara-attendance-teacher-entitlement.ts",
     "attendance:pilot:readiness": "tsx scripts/check-bara-attendance-pilot-readiness.ts",
+    "attendance:outbox:recover-epoch": "tsx scripts/supersede-bara-attendance-outbox-epoch.ts",
     "check:bara-attendance-db": "bash scripts/check-bara-attendance-database.sh",
     "check:architecture": "tsx scripts/check-architecture.ts",
     "check:design-policy": "tsx scripts/check-design-policy.ts",

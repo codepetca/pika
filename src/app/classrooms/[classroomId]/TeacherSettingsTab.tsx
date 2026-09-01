@@ -44,7 +44,7 @@ function generateJoinCode() {
     .join('')
 }
 
-type SettingsSection = 'general' | 'access' | 'features' | 'class-days' | 'reuse'
+type SettingsSection = 'general' | 'access' | 'features' | 'class-days' | 'reuse' | 'advanced'
 
 const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
   { value: 'general', label: 'General' },
@@ -52,6 +52,7 @@ const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }>
   { value: 'features', label: 'Features' },
   { value: 'class-days', label: 'Class Days' },
   { value: 'reuse', label: 'Reuse' },
+  { value: 'advanced', label: 'Advanced' },
 ]
 
 const SETTINGS_SECTIONS = new Set<SettingsSection>(SETTINGS_SECTION_OPTIONS.map((option) => option.value))
@@ -172,6 +173,7 @@ export function TeacherSettingsTab({
   const section = parseSettingsSection(sectionParam)
   const titleId = useId()
   const isReadOnly = !!classroom.archived_at
+  const sectionNavigationRef = useRef<HTMLDivElement>(null)
   const activeClassroomIdRef = useRef(classroom.id)
   const formClassroomIdRef = useRef(classroom.id)
   const formGenerationRef = useRef(0)
@@ -243,6 +245,11 @@ export function TeacherSettingsTab({
   const displayedBlueprintBusy = formStateReady && blueprintBusy
   const displayedBlueprintError = formStateReady ? blueprintError : ''
   const joinLink = `${origin}/join/${displayedJoinCode}`
+
+  useEffect(() => {
+    const activeSection = sectionNavigationRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+    activeSection?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [section])
 
   useEffect(() => {
     formClassroomIdRef.current = classroom.id
@@ -610,7 +617,7 @@ export function TeacherSettingsTab({
 
   return (
     <PageLayout>
-      <div className="mb-2 overflow-x-auto pb-1">
+      <div ref={sectionNavigationRef} className="mb-2 overflow-x-auto pb-1">
         <SegmentedControl
           ariaLabel="Settings section"
           value={section}
@@ -859,16 +866,6 @@ export function TeacherSettingsTab({
               {displayedThemeSaving && <span className="text-sm text-text-muted">Saving...</span>}
               {displayedThemeError && <div className="text-sm text-danger">{displayedThemeError}</div>}
             </div>
-
-              <div className="border-t border-border pt-3">
-                <SettingsSwitchRow
-                  checked={markdownMounted ? showMarkdown : true}
-                  onChange={setShowMarkdown}
-                  ariaLabel="Show markdown"
-                >
-                  <span className="font-medium">Show markdown</span>
-                </SettingsSwitchRow>
-              </div>
             </SettingsPanel>
           ) : null}
 
@@ -893,6 +890,19 @@ export function TeacherSettingsTab({
                   {displayedBlueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
                 </Button>
               </div>
+            </SettingsPanel>
+          ) : null}
+
+          {section === 'advanced' ? (
+            <SettingsPanel>
+              <SettingsHeading title="Markdown" />
+              <SettingsSwitchRow
+                checked={markdownMounted ? showMarkdown : true}
+                onChange={setShowMarkdown}
+                ariaLabel="Show markdown"
+              >
+                <span className="font-medium">Show markdown</span>
+              </SettingsSwitchRow>
             </SettingsPanel>
           ) : null}
 

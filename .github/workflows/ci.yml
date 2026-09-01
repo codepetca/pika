@@ -130,6 +130,9 @@ jobs:
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
 
+      - name: Verify Test editing and archive policy
+        run: bash scripts/check-test-editing-policy-database.sh
+
       - name: Verify atomic Test publication
         run: bash scripts/check-test-publication-atomicity.sh
 

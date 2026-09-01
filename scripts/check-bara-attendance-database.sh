@@ -82,6 +82,13 @@ begin
   ) is null then
     raise exception 'Migration 138 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '142'
+  ) or to_regprocedure(
+    'public.supersede_attendance_outbox_epoch_v1(uuid,uuid,bigint,uuid[],text,text)'
+  ) is null then
+    raise exception 'Migration 142 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -105,7 +112,8 @@ begin
     'attendance_integration_smoke_runs',
     'attendance_integration_smoke_nonces',
     'attendance_teacher_entitlements',
-    'attendance_teacher_entitlement_audit'
+    'attendance_teacher_entitlement_audit',
+    'attendance_outbox_epoch_recovery_audit'
   ] loop
     if has_table_privilege('anon', 'public.' || v_table, 'SELECT')
       or has_table_privilege('authenticated', 'public.' || v_table, 'SELECT')
@@ -204,6 +212,14 @@ begin
     ) or not has_function_privilege(
       'service_role',
       'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.supersede_attendance_outbox_epoch_v1(uuid,uuid,bigint,uuid[],text,text)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.supersede_attendance_outbox_epoch_v1(uuid,uuid,bigint,uuid[],text,text)',
       'execute'
     )
   then
@@ -1546,6 +1562,234 @@ begin
   end if;
 end;
 $pilot_readiness$;
+
+-- Prove stale-epoch recovery rotates an active entitlement and supersedes only
+-- the exact complete set of approved roster/schedule rows. Every assertion is
+-- inside this surrounding rollback and cannot persist fixture state.
+do $epoch_recovery$
+declare
+  v_result jsonb;
+  v_conflict text;
+begin
+  insert into public.users (id, email, role, workos_user_id) values (
+    'f1420000-0000-4000-8000-000000000001',
+    'attendance-epoch-recovery@example.test',
+    'teacher',
+    'user_attendance_epoch_recovery'
+  );
+  insert into public.classrooms (id, teacher_id, title, class_code) values
+    (
+      'f1420000-0000-4000-8000-000000000011',
+      'f1420000-0000-4000-8000-000000000001',
+      'Attendance epoch recovery one',
+      'F14211'
+    ),
+    (
+      'f1420000-0000-4000-8000-000000000012',
+      'f1420000-0000-4000-8000-000000000001',
+      'Attendance epoch recovery two',
+      'F14212'
+    );
+  perform public.set_attendance_teacher_entitlement_v1(
+    'f1420000-0000-4000-8000-000000000140',
+    'f1420000-0000-4000-8000-000000000001',
+    'active', '2026-08-01T00:00:00Z', null,
+    'database_guard', 'ci:attendance', 'epoch_recovery_fixture', 0
+  );
+
+  insert into public.attendance_integration_outbox (
+    id, classroom_id, idempotency_key, message_type, payload
+  ) values
+    (
+      'f1420000-0000-4000-8000-000000000101',
+      'f1420000-0000-4000-8000-000000000011',
+      'roster:epoch-recovery:101',
+      'roster.snapshot',
+      jsonb_build_object(
+        'schema_version', 1,
+        'message_type', 'roster.snapshot',
+        'idempotency_key', 'roster:epoch-recovery:101',
+        'correlation_ref', 'epoch_recovery_101',
+        'installation_ref', 'installation_guard',
+        'roster_ref', 'roster_f1420000000040008000000000000101'
+      )
+    ),
+    (
+      'f1420000-0000-4000-8000-000000000102',
+      'f1420000-0000-4000-8000-000000000012',
+      'schedule:epoch-recovery:102',
+      'schedule.snapshot',
+      jsonb_build_object(
+        'schema_version', 1,
+        'message_type', 'schedule.snapshot',
+        'idempotency_key', 'schedule:epoch-recovery:102',
+        'correlation_ref', 'epoch_recovery_102',
+        'installation_ref', 'installation_guard',
+        'roster_ref', 'roster_f1420000000040008000000000000102'
+      )
+    );
+
+  select public.supersede_attendance_outbox_epoch_v1(
+    'f1420000-0000-4000-8000-000000000141',
+    'f1420000-0000-4000-8000-000000000001',
+    1,
+    array[
+      'f1420000-0000-4000-8000-000000000102'::uuid,
+      'f1420000-0000-4000-8000-000000000101'::uuid
+    ],
+    'ci:attendance',
+    'tenant_link_recovery'
+  ) into v_result;
+  if (v_result->>'duplicate')::boolean
+    or (v_result->>'superseded_count')::integer <> 2
+    or (v_result->>'previous_entitlement_revision')::bigint <> 1
+    or (v_result->>'new_entitlement_revision')::bigint <> 2
+    or (select revision from public.attendance_teacher_entitlements
+        where teacher_id = 'f1420000-0000-4000-8000-000000000001') <> 2
+    or (select source from public.attendance_teacher_entitlements
+        where teacher_id = 'f1420000-0000-4000-8000-000000000001') <> 'database_guard'
+    or (select count(*) from public.attendance_integration_outbox
+        where id in (
+          'f1420000-0000-4000-8000-000000000101',
+          'f1420000-0000-4000-8000-000000000102'
+        ) and status = 'superseded') <> 2 then
+    raise exception 'Epoch recovery did not atomically rotate and supersede: %', v_result;
+  end if;
+
+  select public.supersede_attendance_outbox_epoch_v1(
+    'f1420000-0000-4000-8000-000000000141',
+    'f1420000-0000-4000-8000-000000000001',
+    1,
+    array[
+      'f1420000-0000-4000-8000-000000000101'::uuid,
+      'f1420000-0000-4000-8000-000000000102'::uuid
+    ],
+    'ci:attendance',
+    'tenant_link_recovery'
+  ) into v_result;
+  if not (v_result->>'duplicate')::boolean
+    or (select count(*) from public.attendance_outbox_epoch_recovery_audit
+        where operation_id = 'f1420000-0000-4000-8000-000000000141') <> 1 then
+    raise exception 'Epoch recovery retry was not idempotent: %', v_result;
+  end if;
+
+  begin
+    perform public.supersede_attendance_outbox_epoch_v1(
+      'f1420000-0000-4000-8000-000000000141',
+      'f1420000-0000-4000-8000-000000000001',
+      1,
+      array[
+        'f1420000-0000-4000-8000-000000000101'::uuid,
+        'f1420000-0000-4000-8000-000000000102'::uuid
+      ],
+      'ci:attendance',
+      'different_reason'
+    );
+    raise exception 'Conflicting recovery replay unexpectedly succeeded';
+  exception when unique_violation then
+    get stacked diagnostics v_conflict = message_text;
+    if v_conflict <> 'attendance_outbox_recovery_operation_conflict' then
+      raise;
+    end if;
+  end;
+
+  insert into public.attendance_integration_outbox (
+    id, classroom_id, idempotency_key, message_type, payload
+  ) values
+    (
+      'f1420000-0000-4000-8000-000000000103',
+      'f1420000-0000-4000-8000-000000000011',
+      'roster:epoch-recovery:103',
+      'roster.snapshot',
+      jsonb_build_object(
+        'schema_version', 1,
+        'message_type', 'roster.snapshot',
+        'idempotency_key', 'roster:epoch-recovery:103',
+        'correlation_ref', 'epoch_recovery_103',
+        'installation_ref', 'installation_guard',
+        'roster_ref', 'roster_f1420000000040008000000000000103'
+      )
+    ),
+    (
+      'f1420000-0000-4000-8000-000000000104',
+      'f1420000-0000-4000-8000-000000000012',
+      'schedule:epoch-recovery:104',
+      'schedule.snapshot',
+      jsonb_build_object(
+        'schema_version', 1,
+        'message_type', 'schedule.snapshot',
+        'idempotency_key', 'schedule:epoch-recovery:104',
+        'correlation_ref', 'epoch_recovery_104',
+        'installation_ref', 'installation_guard',
+        'roster_ref', 'roster_f1420000000040008000000000000104'
+      )
+    );
+
+  begin
+    perform public.supersede_attendance_outbox_epoch_v1(
+      'f1420000-0000-4000-8000-000000000142',
+      'f1420000-0000-4000-8000-000000000001',
+      2,
+      array['f1420000-0000-4000-8000-000000000103'::uuid],
+      'ci:attendance',
+      'tenant_link_recovery'
+    );
+    raise exception 'Partial recovery scope unexpectedly succeeded';
+  exception when serialization_failure then
+    get stacked diagnostics v_conflict = message_text;
+    if v_conflict <> 'attendance_outbox_recovery_scope_changed' then
+      raise;
+    end if;
+  end;
+
+  update public.attendance_integration_outbox
+  set status = 'processing',
+      lease_token = gen_random_uuid(),
+      lease_expires_at = clock_timestamp() + interval '10 minutes'
+  where id = 'f1420000-0000-4000-8000-000000000103';
+  begin
+    perform public.supersede_attendance_outbox_epoch_v1(
+      'f1420000-0000-4000-8000-000000000143',
+      'f1420000-0000-4000-8000-000000000001',
+      2,
+      array[
+        'f1420000-0000-4000-8000-000000000103'::uuid,
+        'f1420000-0000-4000-8000-000000000104'::uuid
+      ],
+      'ci:attendance',
+      'tenant_link_recovery'
+    );
+    raise exception 'Recovery superseded an active delivery lease';
+  exception when object_not_in_prerequisite_state then
+    get stacked diagnostics v_conflict = message_text;
+    if v_conflict <> 'attendance_outbox_recovery_delivery_active' then
+      raise;
+    end if;
+  end;
+
+  update public.attendance_integration_outbox
+  set lease_expires_at = clock_timestamp() - interval '1 second'
+  where id = 'f1420000-0000-4000-8000-000000000103';
+  select public.supersede_attendance_outbox_epoch_v1(
+    'f1420000-0000-4000-8000-000000000143',
+    'f1420000-0000-4000-8000-000000000001',
+    2,
+    array[
+      'f1420000-0000-4000-8000-000000000103'::uuid,
+      'f1420000-0000-4000-8000-000000000104'::uuid
+    ],
+    'ci:attendance',
+    'tenant_link_recovery'
+  ) into v_result;
+  if (v_result->>'new_entitlement_revision')::bigint <> 3
+    or (select count(*) from public.attendance_outbox_epoch_recovery_audit
+        where teacher_id = 'f1420000-0000-4000-8000-000000000001') <> 2
+    or (select count(*) from public.attendance_teacher_entitlement_audit
+        where teacher_id = 'f1420000-0000-4000-8000-000000000001') <> 3 then
+    raise exception 'Expired-lease recovery did not complete: %', v_result;
+  end if;
+end;
+$epoch_recovery$;
 
 rollback;
 SQL

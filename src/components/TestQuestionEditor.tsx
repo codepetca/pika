@@ -15,6 +15,7 @@ interface Props {
   question: TestAssessmentQuestion
   questionNumber: number
   isEditable: boolean
+  structureLocked?: boolean
   onChange: (question: TestAssessmentQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
   onDuplicate?: (questionId: string) => void
@@ -74,6 +75,7 @@ export function TestQuestionEditor({
   question,
   questionNumber,
   isEditable,
+  structureLocked = false,
   onChange,
   onDelete,
   onDuplicate,
@@ -81,9 +83,10 @@ export function TestQuestionEditor({
   isExpanded = true,
   onToggleExpanded,
 }: Props) {
+  const isStructureEditable = isEditable && !structureLocked
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: question.id,
-    disabled: !isEditable,
+    disabled: !isStructureEditable,
   })
 
   const sortableStyle = {
@@ -138,6 +141,12 @@ export function TestQuestionEditor({
     if (!isEditable) return
 
     const questionText = state.question_text.trim()
+    if (structureLocked) {
+      if (!questionText) { setError('Question text is required'); return }
+      setError('')
+      onChange({ ...question, question_text: questionText }, options)
+      return
+    }
     if (!questionText) {
       setError('Question text is required')
       return
@@ -225,7 +234,7 @@ export function TestQuestionEditor({
               type="radio"
               name={`correct-option-${question.id}`}
               checked={state.correct_option === index}
-              disabled={!isEditable}
+              disabled={!isStructureEditable}
               aria-label={`Question ${questionNumber} option ${optionLetter} correct answer`}
               onChange={() => {
                 updateState({ correct_option: index })
@@ -233,7 +242,7 @@ export function TestQuestionEditor({
               }}
               className="h-4 w-4"
             />
-            {isEditable ? (
+            {isStructureEditable ? (
               <Input
                 type="text"
                 value={option}
@@ -248,7 +257,7 @@ export function TestQuestionEditor({
                 {option}
               </div>
             )}
-            {isEditable && state.options.length > 2 ? (
+            {isStructureEditable && state.options.length > 2 ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -266,7 +275,7 @@ export function TestQuestionEditor({
           </div>
         )
       })}
-      {isEditable && state.options.length < MAX_TEST_OPTIONS ? (
+      {isStructureEditable && state.options.length < MAX_TEST_OPTIONS ? (
         <Button type="button" variant="secondary" size="sm" onClick={addOption} className="gap-1.5">
           <Plus className="h-4 w-4" />
           Option
@@ -292,7 +301,7 @@ export function TestQuestionEditor({
               : ''
           }
         >
-          {variant === 'card' && isEditable ? (
+          {variant === 'card' && isStructureEditable ? (
             <button
               type="button"
               onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
@@ -310,12 +319,12 @@ export function TestQuestionEditor({
 
           {variant !== 'card' || isAnswerSectionOpen ? (
             <div className="space-y-3">
-              {variant === 'card' && isEditable ? null : (
+              {variant === 'card' && isStructureEditable ? null : (
                 <div>
                   {variant !== 'card' ? null : (
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
                   )}
-                  {isEditable ? (
+                  {isStructureEditable ? (
                     <textarea
                       value={state.answer_key}
                       onChange={(event) => updateState({ answer_key: event.target.value })}
@@ -333,7 +342,7 @@ export function TestQuestionEditor({
                 </div>
               )}
 
-              {variant === 'card' && isEditable ? (
+              {variant === 'card' && isStructureEditable ? (
                 <>
                   <textarea
                     value={state.answer_key}
@@ -357,7 +366,7 @@ export function TestQuestionEditor({
               ) : (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sample Solution</p>
-                  {isEditable ? (
+                  {isStructureEditable ? (
                     <textarea
                       value={state.sample_solution}
                       onChange={(event) => updateState({ sample_solution: event.target.value })}
@@ -418,7 +427,7 @@ export function TestQuestionEditor({
       >
         <div className="flex flex-wrap items-center gap-2 px-3 py-3">
           <div className="flex min-h-8 items-center">
-            {isEditable ? (
+            {isStructureEditable ? (
               <button
                 type="button"
                 className="cursor-grab touch-none p-0 text-text-muted hover:text-text-default active:cursor-grabbing"
@@ -443,7 +452,7 @@ export function TestQuestionEditor({
             <span className="text-text-muted">
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </span>
-            {isEditable ? (
+            {isStructureEditable ? (
               <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{questionNumber}</span>
             ) : null}
             {state.question_type === 'multiple_choice' ? (
@@ -462,7 +471,7 @@ export function TestQuestionEditor({
           </button>
 
           <div className="flex basis-full flex-wrap items-center justify-end gap-3 pl-6 sm:ml-auto sm:basis-auto sm:pl-0">
-            {isEditable ? (
+            {isStructureEditable ? (
               <>
                 <label
                   htmlFor={`question-${question.id}-accordion-points`}
@@ -516,7 +525,7 @@ export function TestQuestionEditor({
               </>
             )}
 
-            {isEditable ? (
+            {isStructureEditable ? (
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -586,7 +595,7 @@ export function TestQuestionEditor({
     >
       <div className="grid gap-2 md:grid-cols-[16px_24px_minmax(0,1fr)_112px] md:gap-x-0">
         <div className="flex items-center justify-start md:self-center">
-          {isEditable ? (
+          {isStructureEditable ? (
             <button
               type="button"
               className="cursor-grab touch-none p-0 text-text-muted hover:text-text-default active:cursor-grabbing"
@@ -639,7 +648,7 @@ export function TestQuestionEditor({
           )}
         </div>
 
-        {isEditable ? (
+        {isStructureEditable ? (
           <div className="w-full min-w-0 space-y-2 rounded-md border border-border bg-surface-2 p-2.5 md:self-start">
             <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
               <label htmlFor={defaultPointsId} className="text-[11px] font-medium uppercase leading-none tracking-wide text-text-muted">

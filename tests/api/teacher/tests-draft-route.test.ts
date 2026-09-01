@@ -1,3 +1,4 @@
+import { getTestEditingPolicy } from '@/lib/server/test-editing-policy'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, PATCH } from '@/app/api/teacher/tests/[id]/draft/route'
@@ -8,6 +9,8 @@ import {
   getAssessmentDraftByType,
   saveTestDraftAtomic,
 } from '@/lib/server/assessment-drafts'
+
+vi.mock('@/lib/server/test-editing-policy', () => ({ getTestEditingPolicy: vi.fn(async () => ({ structureLocked: false })) }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -53,6 +56,7 @@ const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 describe('PATCH /api/teacher/tests/[id]/draft', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getTestEditingPolicy).mockResolvedValue({ structureLocked: false })
 
     vi.mocked(ensureAssessmentDraft).mockResolvedValue({
       ok: true,
