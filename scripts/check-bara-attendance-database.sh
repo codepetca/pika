@@ -89,6 +89,15 @@ begin
   ) is null then
     raise exception 'Migration 142 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '144'
+  ) or to_regprocedure(
+    'public.attendance_roster_source_document_v1(uuid)'
+  ) is null or to_regprocedure(
+    'public.attendance_schedule_source_document_v1(uuid,date,date)'
+  ) is null then
+    raise exception 'Migration 144 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -1790,6 +1799,196 @@ begin
   end if;
 end;
 $epoch_recovery$;
+
+-- Prove the repaired lifecycle end to end: stage revision 1, supersede its
+-- exact epoch, prepare revision 2, then stage fresh idempotent rows. This is
+-- the production failure mode that reusing a superseded key could not recover.
+do $epoch_restage$
+declare
+  v_prepared_v1 jsonb;
+  v_prepared_v2 jsonb;
+  v_roster_v1 jsonb;
+  v_roster_v2 jsonb;
+  v_schedule_v1 jsonb;
+  v_schedule_v2 jsonb;
+  v_cutoffs jsonb;
+  v_roster_stage_v1 jsonb;
+  v_roster_stage_v2 jsonb;
+  v_schedule_stage_v1 jsonb;
+  v_schedule_stage_v2 jsonb;
+  v_duplicate jsonb;
+  v_occurrence_ref text;
+begin
+  insert into public.users (id, email, role, workos_user_id) values (
+    'f1440000-0000-4000-8000-000000000001',
+    'attendance-epoch-restage@example.test',
+    'teacher',
+    'user_attendance_epoch_restage'
+  );
+  insert into public.classrooms (id, teacher_id, title, class_code) values (
+    'f1440000-0000-4000-8000-000000000011',
+    'f1440000-0000-4000-8000-000000000001',
+    'Attendance epoch restage',
+    'F14411'
+  );
+  perform public.set_attendance_teacher_entitlement_v1(
+    'f1440000-0000-4000-8000-000000000140',
+    'f1440000-0000-4000-8000-000000000001',
+    'active', '2026-08-31T00:00:00Z', null,
+    'database_guard', 'ci:attendance', 'epoch_restage_fixture', 0
+  );
+  perform public.upsert_attendance_timing_policy_v1(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    '14:00', '15:00', 0, 10, 5, 10, 0, true, null,
+    '2026-08-31T12:00:00Z'
+  );
+  insert into public.class_days (
+    classroom_id, course_code, date, prompt_text, is_class_day
+  ) values (
+    'f1440000-0000-4000-8000-000000000011',
+    'F14411', '2026-09-01', null, true
+  );
+
+  v_prepared_v1 := public.prepare_attendance_snapshot_v2(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    '2026-09-01', '2026-09-01', '2026-08-31T12:00:00Z'
+  );
+  v_occurrence_ref := v_prepared_v1->'class_days'->0->>'occurrence_ref';
+  if (v_prepared_v1->>'roster_revision')::bigint <> 1
+    or (v_prepared_v1->>'schedule_revision')::bigint <> 1
+    or v_occurrence_ref is null then
+    raise exception 'Initial epoch preparation was not revision 1: %', v_prepared_v1;
+  end if;
+
+  v_roster_v1 := jsonb_build_object(
+    'schema_version', 1,
+    'message_type', 'roster.snapshot',
+    'idempotency_key', 'roster:epoch-restage:revision:1',
+    'correlation_ref', 'epoch_restage_roster_1',
+    'installation_ref', 'installation_guard',
+    'tenant_ref', 'tenant_epoch_restage',
+    'roster_ref', v_prepared_v1->>'roster_ref',
+    'revision', 1,
+    'display_name', 'Attendance epoch restage',
+    'owner_principal_ref', v_prepared_v1->>'owner_principal_ref',
+    'owner_display_name', 'Pika teacher',
+    'participants', '[]'::jsonb
+  );
+  v_cutoffs := jsonb_build_array(jsonb_build_object(
+    'occurrence_ref', v_occurrence_ref,
+    'date', '2026-09-01',
+    'accepts_at', '2026-09-01T17:50:00Z',
+    'stops_accepting_at', '2026-09-01T18:50:00Z',
+    'session_starts_at', '2026-09-01T18:00:00Z',
+    'session_ends_at', '2026-09-01T19:00:00Z',
+    'present_through_at', '2026-09-01T18:05:00Z',
+    'absent_at', '2026-09-01T19:00:00Z',
+    'policy_revision', 1
+  ));
+  v_schedule_v1 := jsonb_build_object(
+    'schema_version', 1,
+    'message_type', 'schedule.snapshot',
+    'idempotency_key', 'schedule:epoch-restage:revision:1',
+    'correlation_ref', 'epoch_restage_schedule_1',
+    'installation_ref', 'installation_guard',
+    'tenant_ref', 'tenant_epoch_restage',
+    'roster_ref', v_prepared_v1->>'roster_ref',
+    'revision', 1,
+    'timezone', 'America/Toronto',
+    'window_start', '2026-09-01',
+    'window_end', '2026-09-01',
+    'occurrences', jsonb_build_array(jsonb_build_object(
+      'occurrence_ref', v_occurrence_ref,
+      'date', '2026-09-01',
+      'accepts_at', '2026-09-01T17:50:00Z',
+      'stops_accepting_at', '2026-09-01T18:50:00Z'
+    ))
+  );
+  v_roster_stage_v1 := public.stage_attendance_roster_snapshot_v2(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    v_prepared_v1->>'roster_source_token', v_roster_v1,
+    '2026-08-31T12:00:00Z'
+  );
+  v_schedule_stage_v1 := public.stage_attendance_timing_schedule_v1(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    v_prepared_v1->>'schedule_source_token', v_schedule_v1, v_cutoffs,
+    '2026-08-31T12:00:00Z'
+  );
+
+  perform public.supersede_attendance_outbox_epoch_v1(
+    'f1440000-0000-4000-8000-000000000141',
+    'f1440000-0000-4000-8000-000000000001',
+    1,
+    array[
+      (v_roster_stage_v1->>'outbox_id')::uuid,
+      (v_schedule_stage_v1->>'outbox_id')::uuid
+    ],
+    'ci:attendance', 'tenant_link_recovery'
+  );
+
+  v_prepared_v2 := public.prepare_attendance_snapshot_v2(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    '2026-09-01', '2026-09-01', '2026-08-31T12:01:00Z'
+  );
+  if (v_prepared_v2->>'roster_revision')::bigint <> 2
+    or (v_prepared_v2->>'schedule_revision')::bigint <> 2
+    or v_prepared_v2->>'roster_source_token' = v_prepared_v1->>'roster_source_token'
+    or v_prepared_v2->>'schedule_source_token' = v_prepared_v1->>'schedule_source_token' then
+    raise exception 'Epoch recovery did not advance both source revisions: before=%, after=%',
+      v_prepared_v1, v_prepared_v2;
+  end if;
+
+  v_roster_v2 := v_roster_v1 || jsonb_build_object(
+    'idempotency_key', 'roster:epoch-restage:revision:2',
+    'correlation_ref', 'epoch_restage_roster_2',
+    'revision', 2
+  );
+  v_schedule_v2 := v_schedule_v1 || jsonb_build_object(
+    'idempotency_key', 'schedule:epoch-restage:revision:2',
+    'correlation_ref', 'epoch_restage_schedule_2',
+    'revision', 2
+  );
+  v_roster_stage_v2 := public.stage_attendance_roster_snapshot_v2(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    v_prepared_v2->>'roster_source_token', v_roster_v2,
+    '2026-08-31T12:01:00Z'
+  );
+  v_schedule_stage_v2 := public.stage_attendance_timing_schedule_v1(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    v_prepared_v2->>'schedule_source_token', v_schedule_v2, v_cutoffs,
+    '2026-08-31T12:01:00Z'
+  );
+  if v_roster_stage_v2->>'outbox_id' = v_roster_stage_v1->>'outbox_id'
+    or v_schedule_stage_v2->>'outbox_id' = v_schedule_stage_v1->>'outbox_id'
+    or v_roster_stage_v2->>'status' <> 'pending'
+    or v_schedule_stage_v2->>'status' <> 'pending'
+    or (select count(*) from public.attendance_integration_outbox
+        where classroom_id = 'f1440000-0000-4000-8000-000000000011'
+          and entitlement_revision = 2 and status = 'pending') <> 2 then
+    raise exception 'Recovered epoch did not stage fresh pending rows: roster=%, schedule=%',
+      v_roster_stage_v2, v_schedule_stage_v2;
+  end if;
+
+  v_duplicate := public.stage_attendance_roster_snapshot_v2(
+    'f1440000-0000-4000-8000-000000000001',
+    'f1440000-0000-4000-8000-000000000011',
+    v_prepared_v2->>'roster_source_token', v_roster_v2,
+    '2026-08-31T12:02:00Z'
+  );
+  if v_duplicate->>'outbox_id' <> v_roster_stage_v2->>'outbox_id'
+    or (select count(*) from public.attendance_integration_outbox
+        where classroom_id = 'f1440000-0000-4000-8000-000000000011') <> 4 then
+    raise exception 'Recovered epoch retry was not idempotent: %', v_duplicate;
+  end if;
+end;
+$epoch_restage$;
 
 rollback;
 SQL
