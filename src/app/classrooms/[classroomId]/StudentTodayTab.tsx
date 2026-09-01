@@ -617,13 +617,31 @@ export function StudentTodayTab({
     </div>
   ) : null
 
+  const mobilePlanContent = mobilePlan ? (
+    <div className="min-h-0 w-full overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+      {mobilePlan}
+    </div>
+  ) : null
+
   if (blockingState) {
     if (layout === 'pane') {
-      return <div className="h-full min-h-0 overflow-y-auto">{blockingState}</div>
+      return (
+        <div className="h-full min-h-0 overflow-y-auto">
+          <PageStack>
+            {blockingState}
+            {mobilePlanContent}
+          </PageStack>
+        </div>
+      )
     }
     return (
       <PageLayout>
-        <PageContent>{blockingState}</PageContent>
+        <PageContent>
+          <PageStack>
+            {blockingState}
+            {mobilePlanContent}
+          </PageStack>
+        </PageContent>
       </PageLayout>
     )
   }
@@ -702,11 +720,7 @@ export function StudentTodayTab({
         )}
       </div>
 
-      {mobilePlan ? (
-        <div className="min-h-0 w-full overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
-          {mobilePlan}
-        </div>
-      ) : null}
+      {mobilePlanContent}
 
       <div className="bg-surface border border-border rounded-lg">
         <div className="px-4 py-3 border-b border-border">

@@ -290,9 +290,15 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-plan-during-entry-error">Today and last class</div>}
+      />
+    )
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Daily log unavailable')
+    expect(screen.getByTestId('mobile-plan-during-entry-error')).toBeInTheDocument()
     expect(screen.queryByLabelText('Write something...')).not.toBeInTheDocument()
     expect(screen.queryByText('No past logs yet')).not.toBeInTheDocument()
 
@@ -320,9 +326,15 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-plan-during-schedule-error">Today and last class</div>}
+      />
+    )
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Class schedule unavailable')
+    expect(screen.getByTestId('mobile-plan-during-schedule-error')).toBeInTheDocument()
     expect(screen.queryByText('No class today')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
