@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/verify-signup/route'
 import { NextRequest } from 'next/server'
 
-const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRateLimit: vi.fn() }))
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -26,7 +26,7 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('POST /api/auth/verify-signup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   describe('validation', () => {
@@ -68,6 +68,15 @@ describe('POST /api/auth/verify-signup', () => {
               })),
             })),
           }
+        } else if (table === 'verification_codes') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              is: vi.fn().mockReturnThis(),
+              gt: vi.fn().mockReturnThis(),
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          }
         }
       })
       ;(mockSupabaseClient.from as any) = mockFrom
@@ -95,6 +104,15 @@ describe('POST /api/auth/verify-signup', () => {
                   error: null,
                 }),
               })),
+            })),
+          }
+        } else if (table === 'verification_codes') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              is: vi.fn().mockReturnThis(),
+              gt: vi.fn().mockReturnThis(),
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
           }
         }
@@ -148,7 +166,65 @@ describe('POST /api/auth/verify-signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(401)
-      expect(data.error).toBe('Invalid or expired code')
+      expect(data.error).toBe('Invalid email or code')
+    })
+
+    it('returns a byte-identical failure for missing, existing, inactive, and wrong-code states', async () => {
+      const states = [
+        { user: null, codes: [] },
+        {
+          user: { id: 'user-1', email: 'test@example.com', password_hash: 'hash' },
+          codes: [],
+        },
+        {
+          user: { id: 'user-1', email: 'test@example.com', password_hash: null },
+          codes: [],
+        },
+        {
+          user: { id: 'user-1', email: 'test@example.com', password_hash: null },
+          codes: [{ id: 'code-1', code_hash: 'different_hash', attempts: 0 }],
+        },
+      ]
+      const bodies: string[] = []
+
+      for (const state of states) {
+        mockSupabaseClient.from = vi.fn((table: string) => {
+          if (table === 'users') {
+            return {
+              select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: state.user,
+                    error: state.user ? null : { code: 'PGRST116' },
+                  }),
+                })),
+              })),
+            }
+          }
+          const lookup: any = {
+            eq: vi.fn(() => lookup),
+            is: vi.fn(() => lookup),
+            gt: vi.fn(() => lookup),
+            order: vi.fn().mockResolvedValue({ data: state.codes, error: null }),
+          }
+          return {
+            select: vi.fn(() => lookup),
+            update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
+          }
+        }) as never
+
+        const response = await POST(new NextRequest(
+          'http://localhost:3000/api/auth/verify-signup',
+          {
+            method: 'POST',
+            body: JSON.stringify({ email: 'test@example.com', code: 'ABC12' }),
+          },
+        ))
+        expect(response.status).toBe(401)
+        bodies.push(await response.text())
+      }
+
+      expect(new Set(bodies)).toEqual(new Set(['{"error":"Invalid email or code"}']))
     })
 
     it('should verify code and issue a password handoff token', async () => {

@@ -11,11 +11,14 @@ describe('authentication session and rate-limit migration', () => {
   const migration = readFileSync(migrationPath, 'utf8')
 
   it('stores only hashed opaque sessions with bounded source and expiry contracts', () => {
+    expect(migration).toContain('add column auth_credential_version bigint not null default 1')
     expect(migration).toContain('create table public.auth_sessions')
     expect(migration).toContain("check (token_hash ~ '^[0-9a-f]{64}$')")
     expect(migration).toContain("check (auth_source in ('password', 'workos'))")
     expect(migration).toContain('check (expires_at > created_at)')
     expect(migration).toContain('references public.users(id) on delete cascade')
+    expect(migration).toContain('create function public.issue_auth_session')
+    expect(migration).toContain('v_current_credential_version <> p_expected_credential_version')
   })
 
   it('keeps session and throttle records inaccessible to browser roles', () => {
@@ -40,8 +43,9 @@ describe('authentication session and rate-limit migration', () => {
 
   it('consumes reset handoff, updates the password, and revokes every session atomically', () => {
     expect(migration).toContain('create function public.consume_password_reset_and_revoke_sessions')
-    expect(migration).toContain('set handoff_consumed_at = v_now')
+    expect(migration).toContain('set used_at = coalesce(used_at, v_now)')
     expect(migration).toContain('set password_hash = p_password_hash')
+    expect(migration).toContain('auth_credential_version = auth_credential_version + 1')
     expect(migration).toContain('delete from public.auth_sessions where user_id = p_user_id;')
   })
 })

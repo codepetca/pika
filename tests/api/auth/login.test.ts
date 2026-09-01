@@ -7,7 +7,7 @@ import { POST } from '@/app/api/auth/login/route'
 import { NextRequest } from 'next/server'
 
 const rateLimitMocks = vi.hoisted(() => ({
-  consumeAuthRateLimit: vi.fn(),
+  consumeAuthRequestRateLimits: vi.fn(),
   clearAuthRateLimit: vi.fn(),
 }))
 
@@ -51,7 +51,7 @@ const mockSupabaseClient = {
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
     rateLimitMocks.clearAuthRateLimit.mockResolvedValue(undefined)
   })
 
@@ -170,6 +170,7 @@ describe('POST /api/auth/login', () => {
                 email: 'test@example.com',
                 role: 'student',
                 password_hash: 'hashed_ValidPassword123',
+                auth_credential_version: 1,
               },
               error: null,
             }),
@@ -200,6 +201,7 @@ describe('POST /api/auth/login', () => {
                 email: 'test@example.com',
                 role: 'student',
                 password_hash: 'hashed_ValidPassword123',
+                auth_credential_version: 1,
               },
               error: null,
             }),
@@ -216,10 +218,10 @@ describe('POST /api/auth/login', () => {
       await POST(request)
 
       expect(verifyPassword).toHaveBeenCalledWith('ValidPassword123', 'hashed_ValidPassword123')
-      expect(rateLimitMocks.consumeAuthRateLimit).toHaveBeenCalledWith(expect.objectContaining({
-        scope: 'login',
-        value: 'test@example.com',
-        maxAttempts: 10,
+      expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'login',
+        identifier: 'test@example.com',
+        identifierMaxAttempts: 10,
         windowSeconds: 900,
       }))
       expect(rateLimitMocks.clearAuthRateLimit).toHaveBeenCalledOnce()
@@ -262,6 +264,7 @@ describe('POST /api/auth/login', () => {
                 email: 'test@example.com',
                 role: 'student',
                 password_hash: 'hashed_ValidPassword123',
+                auth_credential_version: 1,
               },
               error: null,
             }),
@@ -278,7 +281,9 @@ describe('POST /api/auth/login', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(createSession).toHaveBeenCalledWith('user-1', 'test@example.com', 'student')
+      expect(createSession).toHaveBeenCalledWith('user-1', 'test@example.com', 'student', {
+        expectedCredentialVersion: 1,
+      })
       expect(response.status).toBe(200)
       expect(data).toEqual({
         success: true,
@@ -302,6 +307,7 @@ describe('POST /api/auth/login', () => {
                 email: 'teacher@gapps.yrdsb.ca',
                 role: 'teacher',
                 password_hash: 'hashed_ValidPassword123',
+                auth_credential_version: 1,
               },
               error: null,
             }),
@@ -318,7 +324,12 @@ describe('POST /api/auth/login', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(createSession).toHaveBeenCalledWith('user-teacher-1', 'teacher@gapps.yrdsb.ca', 'teacher')
+      expect(createSession).toHaveBeenCalledWith(
+        'user-teacher-1',
+        'teacher@gapps.yrdsb.ca',
+        'teacher',
+        { expectedCredentialVersion: 1 },
+      )
       expect(response.status).toBe(200)
       expect(data).toEqual({
         success: true,

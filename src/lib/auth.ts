@@ -75,45 +75,44 @@ export async function createSession(
   options: {
     workosUserId?: string
     recordAuthenticationEvent?: boolean
+    expectedCredentialVersion?: number
   } = {},
 ) {
   const session = await getSession()
   const supabase = getServiceRoleClient()
-  const { error: cleanupError } = await supabase
-    .from('auth_sessions')
-    .delete()
-    .lte('expires_at', new Date().toISOString())
-  if (cleanupError) {
-    // Cleanup is best-effort so a transient maintenance failure does not turn
-    // into an authentication outage. The indexed sweep repeats at next login.
-    console.error('Failed to remove expired authentication sessions:', cleanupError)
-  }
-
   const previousToken = session.auth?.version === AUTH_SESSION_VERSION
     ? session.auth.token
     : null
-  if (previousToken) {
-    const { error: revokeError } = await supabase
-      .from('auth_sessions')
-      .delete()
-      .eq('token_hash', hashSessionToken(previousToken))
-    if (revokeError) {
-      console.error('Failed to rotate existing authentication session:', revokeError)
+  const authSource = options.workosUserId ? 'workos' : 'password'
+  let credentialVersion = options.expectedCredentialVersion
+  if (authSource === 'password' && credentialVersion === undefined) {
+    throw new Error('Password session issuance requires a credential version')
+  }
+  if (credentialVersion === undefined) {
+    const { data: currentUser, error: versionError } = await supabase
+      .from('users')
+      .select('auth_credential_version')
+      .eq('id', userId)
+      .maybeSingle()
+    if (versionError || !currentUser) {
+      console.error('Failed to resolve authentication credential version:', versionError)
       throw new Error('Failed to create authentication session')
     }
+    credentialVersion = currentUser.auth_credential_version
   }
 
   const token = randomBytes(AUTH_SESSION_TOKEN_BYTES).toString('base64url')
-  const authSource = options.workosUserId ? 'workos' : 'password'
-  const { error: insertError } = await supabase.from('auth_sessions').insert({
-    user_id: userId,
-    token_hash: hashSessionToken(token),
-    auth_source: authSource,
-    workos_user_id: options.workosUserId || null,
-    expires_at: new Date(Date.now() + AUTH_SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
+  const { data: issued, error: issueError } = await supabase.rpc('issue_auth_session', {
+    p_user_id: userId,
+    p_expected_credential_version: credentialVersion,
+    p_token_hash: hashSessionToken(token),
+    p_auth_source: authSource,
+    p_workos_user_id: options.workosUserId || null,
+    p_expires_at: new Date(Date.now() + AUTH_SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
+    p_previous_token_hash: previousToken ? hashSessionToken(previousToken) : null,
   })
-  if (insertError) {
-    console.error('Failed to persist authentication session:', insertError)
+  if (issueError || issued !== true) {
+    console.error('Failed to issue authentication session:', issueError)
     throw new Error('Failed to create authentication session')
   }
 
@@ -168,8 +167,9 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       user_id,
       auth_source,
       workos_user_id,
+      credential_version,
       expires_at,
-      users!inner(id, email, role, workos_user_id)
+      users!inner(id, email, role, workos_user_id, auth_credential_version)
     `)
     .eq('token_hash', hashSessionToken(session.auth.token))
     .gt('expires_at', new Date().toISOString())
@@ -184,6 +184,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   const currentUser = resolvedSession.users
   if (
     currentUser.id !== resolvedSession.user_id
+    || currentUser.auth_credential_version !== resolvedSession.credential_version
     || (currentUser.role !== 'student' && currentUser.role !== 'teacher')
     || (resolvedSession.auth_source !== 'password' && resolvedSession.auth_source !== 'workos')
   ) {

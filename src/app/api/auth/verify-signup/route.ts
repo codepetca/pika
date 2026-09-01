@@ -3,20 +3,25 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { verifySignupSchema } from '@/lib/validations/auth'
-import { consumeAuthRateLimit } from '@/lib/server/auth-rate-limit'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
+const INVALID_VERIFICATION_MESSAGE = 'Invalid email or code'
+const NONEXISTENT_USER_ID = '00000000-0000-0000-0000-000000000000'
 
 export const POST = withErrorHandler('VerifySignup', async (request: NextRequest) => {
   const { email: normalizedEmail, code: normalizedCode } = verifySignupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
-  await consumeAuthRateLimit({
-    scope: 'signup_verify',
-    value: normalizedEmail,
-    maxAttempts: MAX_VERIFICATION_ATTEMPTS,
+  await consumeAuthRequestRateLimits({
+    action: 'signup_verify',
+    request,
+    identifier: normalizedEmail,
+    identifierMaxAttempts: MAX_VERIFICATION_ATTEMPTS,
+    clientMaxAttempts: 60,
     windowSeconds: 10 * 60,
     supabase,
   })
@@ -28,20 +33,14 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     .eq('email', normalizedEmail)
     .single()
 
-  if (userError || !user) {
-    throw new ApiError(401, 'Invalid email or code')
-  }
+  const eligibleUser = !userError && user && !user.password_hash ? user : null
 
-  // Check if user already has a password
-  if (user.password_hash) {
-    throw new ApiError(401, 'Invalid email or code')
-  }
-
-  // Find unused, non-expired verification codes for this user
+  // Always perform the same code lookup and one bcrypt comparison. Only the
+  // latest code is valid after a resend, which also prevents code-count timing.
   const { data: codes, error: fetchError } = await supabase
     .from('verification_codes')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', eligibleUser?.id || NONEXISTENT_USER_ID)
     .eq('purpose', 'signup')
     .is('used_at', null)
     .gt('expires_at', new Date().toISOString())
@@ -52,36 +51,22 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     throw new ApiError(500, 'Internal server error')
   }
 
-  if (!codes || codes.length === 0) {
-    throw new ApiError(401, 'Invalid or expired code')
-  }
+  const candidateCode = codes?.[0]
+  const candidateUsable = candidateCode
+    && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS
+  const isValid = await verifyCode(
+    normalizedCode,
+    candidateUsable ? candidateCode.code_hash : DUMMY_AUTH_BCRYPT_HASH,
+  )
 
-  // Try to verify against each code (most recent first)
-  let validCode = null
-
-  for (const codeRecord of codes) {
-    // Check if too many attempts
-    if (codeRecord.attempts >= MAX_VERIFICATION_ATTEMPTS) {
-      continue
-    }
-
-    // Verify code hash
-    const isValid = await verifyCode(normalizedCode, codeRecord.code_hash)
-
-    if (isValid) {
-      validCode = codeRecord
-      break
-    } else {
-      // Increment attempts
+  if (!eligibleUser || !candidateUsable || !isValid) {
+    if (eligibleUser && candidateCode && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS) {
       await supabase
         .from('verification_codes')
-        .update({ attempts: codeRecord.attempts + 1 })
-        .eq('id', codeRecord.id)
+        .update({ attempts: candidateCode.attempts + 1 })
+        .eq('id', candidateCode.id)
     }
-  }
-
-  if (!validCode) {
-    throw new ApiError(401, 'Invalid code')
+    throw new ApiError(401, INVALID_VERIFICATION_MESSAGE)
   }
 
   const usedAt = new Date()
@@ -94,7 +79,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
       handoff_expires_at: new Date(usedAt.getTime() + HANDOFF_TOKEN_TTL_MS).toISOString(),
       handoff_consumed_at: null,
     })
-    .eq('id', validCode.id)
+    .eq('id', candidateCode.id)
     .is('used_at', null)
     .select('id')
     .maybeSingle()
@@ -105,13 +90,13 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
   }
 
   if (!markedCode) {
-    throw new ApiError(401, 'Invalid or expired code')
+    throw new ApiError(401, INVALID_VERIFICATION_MESSAGE)
   }
 
   const { error: verifyEmailError } = await supabase
     .from('users')
     .update({ email_verified_at: usedAt.toISOString() })
-    .eq('id', user.id)
+    .eq('id', eligibleUser.id)
 
   if (verifyEmailError) {
     console.error('Error marking email as verified:', verifyEmailError)
@@ -121,7 +106,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
   return NextResponse.json({
     success: true,
     message: 'Email verified successfully',
-    userId: user.id,
+    userId: eligibleUser.id,
     handoffToken,
   })
 })

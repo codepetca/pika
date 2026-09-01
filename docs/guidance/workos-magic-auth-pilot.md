@@ -71,8 +71,10 @@ The two cookies have different authority:
 - The encrypted WorkOS cookie is the credential and refresh authority.
 - `pika_session` contains only a versioned opaque token. Pika stores only its
   SHA-256 hash alongside the internal UUID, explicit authentication source,
-  exact WorkOS user ID when applicable, and expiry. Current email and role are
-  resolved from `public.users` on every authorization check.
+  exact WorkOS user ID when applicable, credential version, and expiry. Current
+  email, role, and credential version are resolved from `public.users` on every
+  authorization check. Session issuance locks the current user and atomically
+  rejects a stale credential version.
 - Every protected request fails closed unless the two identities match while
   the pilot is enabled.
 - If the pilot is disabled, only a current-version Pika session explicitly

@@ -22,6 +22,8 @@ vi.mock('@/lib/auth', () => ({
   createSession: vi.fn(async () => {}),
 }))
 
+import { createSession } from '@/lib/auth'
+
 const mockSupabaseClient = { from: vi.fn() }
 
 function createRequest(body: Record<string, unknown>) {
@@ -87,6 +89,7 @@ describe('POST /api/auth/create-password', () => {
               email: 'test@example.com',
               password_hash: 'existing_hash',
               email_verified_at: new Date().toISOString(),
+              auth_credential_version: 1,
             },
             error: null,
           }),
@@ -110,6 +113,7 @@ describe('POST /api/auth/create-password', () => {
               email: 'test@example.com',
               password_hash: null,
               email_verified_at: null,
+              auth_credential_version: 1,
             },
             error: null,
           }),
@@ -140,6 +144,7 @@ describe('POST /api/auth/create-password', () => {
                   role: 'student',
                   password_hash: null,
                   email_verified_at: new Date().toISOString(),
+                  auth_credential_version: 1,
                 },
                 error: null,
               }),
@@ -187,6 +192,7 @@ describe('POST /api/auth/create-password', () => {
                   role: 'student',
                   password_hash: null,
                   email_verified_at: new Date().toISOString(),
+                  auth_credential_version: 1,
                 },
                 error: null,
               }),
@@ -213,5 +219,11 @@ describe('POST /api/auth/create-password', () => {
     expect(consumeBuilder.eq).toHaveBeenCalledWith('purpose', 'signup')
     expect(consumeBuilder.eq).toHaveBeenCalledWith('handoff_token_hash', `hashed_${VALID_HANDOFF_TOKEN}`)
     expect(userUpdate).toHaveBeenCalledWith({ password_hash: 'hashed_Password123' })
+    expect(createSession).toHaveBeenCalledWith(
+      'user-1',
+      'test@example.com',
+      'student',
+      { expectedCredentialVersion: 1 },
+    )
   })
 })

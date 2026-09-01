@@ -6,9 +6,9 @@ const workOSMocks = vi.hoisted(() => ({ withAuth: vi.fn() }))
 const palMocks = vi.hoisted(() => ({ recordPalAuthenticatedSession: vi.fn() }))
 const databaseMocks = vi.hoisted(() => ({
   deleteEq: vi.fn(),
-  deleteLte: vi.fn(),
-  insert: vi.fn(),
+  rpc: vi.fn(),
   maybeSingle: vi.fn(),
+  userVersionMaybeSingle: vi.fn(),
   from: vi.fn(),
 }))
 
@@ -17,7 +17,7 @@ vi.mock('@/lib/server/pal-signals', () => ({
   recordPalAuthenticatedSession: palMocks.recordPalAuthenticatedSession,
 }))
 vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => ({ from: databaseMocks.from })),
+  getServiceRoleClient: vi.fn(() => ({ from: databaseMocks.from, rpc: databaseMocks.rpc })),
 }))
 
 const mockSession: Partial<IronSession<SessionData>> = {
@@ -61,12 +61,14 @@ function resolvedRow(args: {
     user_id: id,
     auth_source: args.authSource || 'password',
     workos_user_id: workosUserId,
+    credential_version: 1,
     expires_at: '2027-01-01T00:00:00.000Z',
     users: {
       id,
       email: args.email || 'student@example.com',
       role: args.role || 'student',
       workos_user_id: workosUserId,
+      auth_credential_version: 1,
     },
   }
 }
@@ -83,17 +85,23 @@ describe('auth utilities', () => {
     workOSMocks.withAuth.mockResolvedValue({ user: null })
     mockSession.auth = undefined
     databaseMocks.deleteEq.mockResolvedValue({ error: null })
-    databaseMocks.deleteLte.mockResolvedValue({ error: null })
-    databaseMocks.insert.mockResolvedValue({ error: null })
+    databaseMocks.rpc.mockResolvedValue({ data: true, error: null })
     databaseMocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+    databaseMocks.userVersionMaybeSingle.mockResolvedValue({
+      data: { auth_credential_version: 1 },
+      error: null,
+    })
     databaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({ maybeSingle: databaseMocks.userVersionMaybeSingle })),
+          })),
+        }
+      }
       expect(table).toBe('auth_sessions')
       return {
-        delete: vi.fn(() => ({
-          eq: databaseMocks.deleteEq,
-          lte: databaseMocks.deleteLte,
-        })),
-        insert: databaseMocks.insert,
+        delete: vi.fn(() => ({ eq: databaseMocks.deleteEq })),
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             gt: vi.fn(() => ({ maybeSingle: databaseMocks.maybeSingle })),
@@ -126,25 +134,28 @@ describe('auth utilities', () => {
   })
 
   it('persists only a hash server-side and only an opaque token in the sealed cookie', async () => {
-    await createSession('user-1', 'student@example.com', 'student')
+    await createSession('user-1', 'student@example.com', 'student', {
+      expectedCredentialVersion: 1,
+    })
 
-    expect(databaseMocks.deleteLte).toHaveBeenCalledWith(
-      'expires_at',
-      expect.any(String),
-    )
     expect(mockSession.auth).toEqual({
       token: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
       version: 3,
     })
     expect(mockSession.auth).not.toHaveProperty('email')
-    expect(databaseMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      user_id: 'user-1',
-      token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
-      auth_source: 'password',
-      workos_user_id: null,
-      expires_at: expect.any(String),
-    }))
-    expect(databaseMocks.insert.mock.calls[0][0].token_hash).not.toBe(mockSession.auth?.token)
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_user_id: 'user-1',
+        p_expected_credential_version: 1,
+        p_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        p_auth_source: 'password',
+        p_workos_user_id: null,
+        p_expires_at: expect.any(String),
+        p_previous_token_hash: null,
+      }),
+    )
+    expect(databaseMocks.rpc.mock.calls[0][1].p_token_hash).not.toBe(mockSession.auth?.token)
     expect(mockSession.save).toHaveBeenCalledOnce()
   })
 
@@ -154,22 +165,37 @@ describe('auth utilities', () => {
       recordAuthenticationEvent: false,
     })
 
-    expect(databaseMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      auth_source: 'workos',
-      workos_user_id: 'user_workos_1',
-    }))
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_auth_source: 'workos',
+        p_workos_user_id: 'user_workos_1',
+      }),
+    )
     expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
   })
 
   it('rotates the current server-side session before issuing a new one', async () => {
     mockSession.auth = { token: 'previous-token', version: 3 }
-    await createSession('teacher-1', 'teacher@yrdsb.ca', 'teacher')
+    await createSession('teacher-1', 'teacher@yrdsb.ca', 'teacher', {
+      expectedCredentialVersion: 1,
+    })
 
-    expect(databaseMocks.deleteEq).toHaveBeenCalledWith(
-      'token_hash',
-      expect.stringMatching(/^[0-9a-f]{64}$/),
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_previous_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
     )
-    expect(databaseMocks.insert).toHaveBeenCalledOnce()
+  })
+
+  it('fails closed when the credential version changed before atomic issuance', async () => {
+    databaseMocks.rpc.mockResolvedValue({ data: false, error: null })
+
+    await expect(createSession('user-1', 'student@example.com', 'student', {
+      expectedCredentialVersion: 1,
+    })).rejects.toThrow('Failed to create authentication session')
+    expect(mockSession.save).not.toHaveBeenCalled()
   })
 
   it('revokes the current server-side session during logout', async () => {
@@ -220,6 +246,11 @@ describe('auth utilities', () => {
     const row = resolvedRow()
     row.user_id = 'different-user'
     useSealedSession(row)
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    const staleCredential = resolvedRow()
+    staleCredential.users.auth_credential_version = 2
+    useSealedSession(staleCredential)
     await expect(getCurrentUser()).resolves.toBeNull()
   })
 

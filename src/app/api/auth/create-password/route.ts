@@ -13,7 +13,7 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
   // Find user by email
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email, role, email_verified_at, password_hash')
+    .select('id, email, role, email_verified_at, password_hash, auth_credential_version')
     .eq('email', normalizedEmail)
     .single()
 
@@ -67,7 +67,9 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
   }
 
   // Create session
-  await createSession(user.id, user.email, user.role)
+  await createSession(user.id, user.email, user.role, {
+    expectedCredentialVersion: user.auth_credential_version,
+  })
 
   const redirectUrl = '/classrooms'
 

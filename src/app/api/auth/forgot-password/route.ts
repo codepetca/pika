@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
-import { sendPasswordResetCode } from '@/lib/email'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { forgotPasswordSchema } from '@/lib/validations/auth'
-import { consumeAuthRateLimit } from '@/lib/server/auth-rate-limit'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import {
+  completeAuthResponseFloor,
+  schedulePasswordResetCode,
+} from '@/lib/server/auth-response'
 
 const MAX_CODES_PER_HOUR = 3
 const CODE_EXPIRY_MINUTES = 10
@@ -16,25 +19,35 @@ const SUCCESS_RESPONSE = {
 }
 
 export const POST = withErrorHandler('ForgotPassword', async (request: NextRequest) => {
+  const startedAtMs = Date.now()
   const { email: normalizedEmail } = forgotPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
   try {
-    await consumeAuthRateLimit({
-      scope: 'reset_code',
-      value: normalizedEmail,
-      maxAttempts: MAX_CODES_PER_HOUR,
+    await consumeAuthRequestRateLimits({
+      action: 'reset_code',
+      request,
+      identifier: normalizedEmail,
+      identifierMaxAttempts: MAX_CODES_PER_HOUR,
+      clientMaxAttempts: 20,
       windowSeconds: 60 * 60,
       supabase,
     })
   } catch (error) {
     // Preserve the same response for existing, missing, and throttled accounts.
     if (error instanceof ApiError && error.statusCode === 429) {
+      await completeAuthResponseFloor(startedAtMs)
       return NextResponse.json(SUCCESS_RESPONSE)
     }
     throw error
   }
+
+  // Perform the same bcrypt work before account-state decisions. Eligible
+  // delivery is scheduled after the response so provider latency is hidden.
+  const code = generateVerificationCode()
+  const codeHash = await hashCode(code)
+  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000)
 
   // Find user by email
   const { data: user } = await supabase
@@ -46,15 +59,9 @@ export const POST = withErrorHandler('ForgotPassword', async (request: NextReque
   // Always return success to prevent email enumeration
   // But only send email if user exists and has a password
   if (!user || !user.password_hash) {
+    await completeAuthResponseFloor(startedAtMs)
     return NextResponse.json(SUCCESS_RESPONSE)
   }
-
-  // Generate and hash code
-  const code = generateVerificationCode()
-  const codeHash = await hashCode(code)
-
-  // Calculate expiry
-  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000)
 
   // Store hashed code
   const { error: insertError } = await supabase
@@ -69,15 +76,12 @@ export const POST = withErrorHandler('ForgotPassword', async (request: NextReque
 
   if (insertError) {
     console.error('Error inserting verification code:', insertError)
+    await completeAuthResponseFloor(startedAtMs)
     return NextResponse.json(SUCCESS_RESPONSE)
   }
 
-  // Send code via email
-  try {
-    await sendPasswordResetCode(normalizedEmail, code)
-  } catch (emailError) {
-    console.error('Error sending email:', emailError)
-  }
+  schedulePasswordResetCode(normalizedEmail, code)
 
+  await completeAuthResponseFloor(startedAtMs)
   return NextResponse.json(SUCCESS_RESPONSE)
 })

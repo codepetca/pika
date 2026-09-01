@@ -1,18 +1,32 @@
 -- Replace long-lived stateless application authority with revocable, opaque
 -- server-side sessions and add concurrency-safe authentication throttles.
 
+alter table public.users
+  add column auth_credential_version bigint not null default 1;
+
+alter table public.users
+  add constraint users_auth_credential_version_check
+  check (auth_credential_version >= 1);
+
+create unique index verification_codes_handoff_token_hash_unique
+  on public.verification_codes (handoff_token_hash)
+  where handoff_token_hash is not null;
+
 create table public.auth_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
   token_hash text not null unique,
   auth_source text not null,
   workos_user_id text,
+  credential_version bigint not null,
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),
   constraint auth_sessions_token_hash_check
     check (token_hash ~ '^[0-9a-f]{64}$'),
   constraint auth_sessions_auth_source_check
     check (auth_source in ('password', 'workos')),
+  constraint auth_sessions_credential_version_check
+    check (credential_version >= 1),
   constraint auth_sessions_workos_binding_check
     check (
       (auth_source = 'password' and workos_user_id is null)
@@ -29,7 +43,7 @@ create index auth_sessions_expires_at_idx
 
 alter table public.auth_sessions enable row level security;
 revoke all on table public.auth_sessions from public, anon, authenticated;
-grant select, insert, delete on table public.auth_sessions to service_role;
+grant select, delete on table public.auth_sessions to service_role;
 
 create table public.auth_rate_limits (
   scope text not null,
@@ -42,7 +56,7 @@ create table public.auth_rate_limits (
   constraint auth_rate_limits_key_hash_check
     check (key_hash ~ '^[0-9a-f]{64}$'),
   constraint auth_rate_limits_attempt_count_check
-    check (cardinality(attempt_timestamps) between 0 and 100)
+    check (cardinality(attempt_timestamps) between 0 and 10000)
 );
 
 create index auth_rate_limits_updated_at_idx
@@ -50,6 +64,77 @@ create index auth_rate_limits_updated_at_idx
 
 alter table public.auth_rate_limits enable row level security;
 revoke all on table public.auth_rate_limits from public, anon, authenticated;
+
+create function public.issue_auth_session(
+  p_user_id uuid,
+  p_expected_credential_version bigint,
+  p_token_hash text,
+  p_auth_source text,
+  p_workos_user_id text,
+  p_expires_at timestamptz,
+  p_previous_token_hash text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_current_credential_version bigint;
+  v_current_workos_user_id text;
+begin
+  if p_expected_credential_version < 1
+    or p_token_hash !~ '^[0-9a-f]{64}$'
+    or (p_previous_token_hash is not null and p_previous_token_hash !~ '^[0-9a-f]{64}$')
+    or p_auth_source not in ('password', 'workos')
+    or (
+      (p_auth_source = 'password' and p_workos_user_id is not null)
+      or (p_auth_source = 'workos' and p_workos_user_id is null)
+    )
+    or p_expires_at <= v_now
+    or p_expires_at > v_now + interval '181 days' then
+    raise exception using
+      errcode = '22023',
+      message = 'invalid_auth_session_input';
+  end if;
+
+  select auth_credential_version, workos_user_id
+  into v_current_credential_version, v_current_workos_user_id
+  from public.users
+  where id = p_user_id
+  for update;
+
+  if not found
+    or v_current_credential_version <> p_expected_credential_version
+    or (p_auth_source = 'workos' and v_current_workos_user_id is distinct from p_workos_user_id) then
+    return false;
+  end if;
+
+  delete from public.auth_sessions where expires_at <= v_now;
+  if p_previous_token_hash is not null then
+    delete from public.auth_sessions where token_hash = p_previous_token_hash;
+  end if;
+
+  insert into public.auth_sessions (
+    user_id,
+    token_hash,
+    auth_source,
+    workos_user_id,
+    credential_version,
+    expires_at
+  ) values (
+    p_user_id,
+    p_token_hash,
+    p_auth_source,
+    p_workos_user_id,
+    p_expected_credential_version,
+    p_expires_at
+  );
+
+  return true;
+end;
+$$;
 
 create function public.consume_auth_rate_limit(
   p_scope text,
@@ -70,7 +155,7 @@ declare
 begin
   if p_scope !~ '^[a-z][a-z0-9_]{0,63}$'
     or p_key_hash !~ '^[0-9a-f]{64}$'
-    or p_max_attempts not between 1 and 100
+    or p_max_attempts not between 1 and 10000
     or p_window_seconds not between 1 and 86400 then
     raise exception using
       errcode = '22023',
@@ -172,7 +257,7 @@ create function public.consume_password_reset_and_revoke_sessions(
   p_handoff_token_hash text,
   p_password_hash text
 )
-returns boolean
+returns bigint
 language plpgsql
 security definer
 set search_path = ''
@@ -180,23 +265,12 @@ as $$
 declare
   v_now timestamptz := clock_timestamp();
   v_code_id uuid;
+  v_new_credential_version bigint;
 begin
-  update public.verification_codes
-  set handoff_consumed_at = v_now
-  where user_id = p_user_id
-    and purpose = 'reset_password'
-    and handoff_token_hash = p_handoff_token_hash
-    and handoff_consumed_at is null
-    and handoff_expires_at > v_now
-  returning id into v_code_id;
-
-  if v_code_id is null then
-    return false;
-  end if;
-
-  update public.users
-  set password_hash = p_password_hash
-  where id = p_user_id;
+  perform 1
+  from public.users
+  where id = p_user_id
+  for update;
 
   if not found then
     raise exception using
@@ -204,10 +278,50 @@ begin
       message = 'password_reset_user_missing';
   end if;
 
+  select id into v_code_id
+  from public.verification_codes
+  where user_id = p_user_id
+    and purpose = 'reset_password'
+    and handoff_token_hash = p_handoff_token_hash
+    and handoff_consumed_at is null
+    and handoff_expires_at > v_now
+  for update;
+
+  if v_code_id is null then
+    return null;
+  end if;
+
+  update public.verification_codes
+  set used_at = coalesce(used_at, v_now),
+      handoff_consumed_at = case
+        when handoff_token_hash is not null
+          then coalesce(handoff_consumed_at, v_now)
+        else handoff_consumed_at
+      end
+  where user_id = p_user_id
+    and purpose = 'reset_password'
+    and (
+      used_at is null
+      or (handoff_token_hash is not null and handoff_consumed_at is null)
+    );
+
+  update public.users
+  set password_hash = p_password_hash,
+      auth_credential_version = auth_credential_version + 1
+  where id = p_user_id
+  returning auth_credential_version into v_new_credential_version;
+
   delete from public.auth_sessions where user_id = p_user_id;
-  return true;
+  return v_new_credential_version;
 end;
 $$;
+
+revoke all on function public.issue_auth_session(
+  uuid, bigint, text, text, text, timestamptz, text
+) from public, anon, authenticated, service_role;
+grant execute on function public.issue_auth_session(
+  uuid, bigint, text, text, text, timestamptz, text
+) to service_role;
 
 revoke all on function public.consume_auth_rate_limit(text, text, integer, integer)
   from public, anon, authenticated, service_role;

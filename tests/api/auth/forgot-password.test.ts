@@ -6,7 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/forgot-password/route'
 import { NextRequest } from 'next/server'
 
-const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRateLimit: vi.fn() }))
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
+const responseMocks = vi.hoisted(() => ({
+  completeAuthResponseFloor: vi.fn(async () => {}),
+  schedulePasswordResetCode: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -17,19 +21,18 @@ vi.mock('@/lib/crypto', () => ({
   hashCode: vi.fn(async (code: string) => `hashed_${code}`),
 }))
 
-vi.mock('@/lib/email', () => ({
-  sendPasswordResetCode: vi.fn(async () => {}),
-}))
+vi.mock('@/lib/server/auth-response', () => responseMocks)
 vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 import { ApiError } from '@/lib/api-handler'
+import { hashCode } from '@/lib/crypto'
 
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('POST /api/auth/forgot-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   it('should return success even when user does not exist (prevent enumeration)', async () => {
@@ -52,6 +55,9 @@ describe('POST /api/auth/forgot-password', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+    expect(hashCode).toHaveBeenCalledWith('ABC12')
+    expect(responseMocks.completeAuthResponseFloor).toHaveBeenCalledOnce()
+    expect(responseMocks.schedulePasswordResetCode).not.toHaveBeenCalled()
   })
 
   it('should return success when user has no password (prevent enumeration)', async () => {
@@ -114,16 +120,20 @@ describe('POST /api/auth/forgot-password', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(rateLimitMocks.consumeAuthRateLimit).toHaveBeenCalledWith(expect.objectContaining({
-      scope: 'reset_code',
-      value: 'test@example.com',
-      maxAttempts: 3,
+    expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'reset_code',
+      identifier: 'test@example.com',
+      identifierMaxAttempts: 3,
       windowSeconds: 3600,
     }))
+    expect(responseMocks.schedulePasswordResetCode).toHaveBeenCalledWith(
+      'test@example.com',
+      'ABC12',
+    )
   })
 
   it('keeps the generic success response when the address is throttled', async () => {
-    rateLimitMocks.consumeAuthRateLimit.mockRejectedValue(
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(
       new ApiError(429, 'Too many attempts. Please try again later.'),
     )
 

@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import { isIP } from 'node:net'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -11,12 +12,18 @@ const resultSchema = z.discriminatedUnion('ok', [
   }),
 ])
 
-export type AuthRateLimitScope =
+export type AuthRateLimitAction =
   | 'login'
   | 'signup_code'
   | 'signup_verify'
   | 'reset_code'
   | 'reset_verify'
+  | 'reset_confirm'
+
+export type AuthRateLimitScope =
+  | `${AuthRateLimitAction}_identifier`
+  | `${AuthRateLimitAction}_client`
+  | 'auth_global'
 
 type RateLimitClient = Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'>
 
@@ -32,6 +39,49 @@ export function hashAuthRateLimitKey(scope: AuthRateLimitScope, value: string): 
   return createHmac('sha256', getRateLimitSecret())
     .update(`${scope}\0${value.trim().toLowerCase()}`, 'utf8')
     .digest('hex')
+}
+
+export function getAuthClientFingerprint(request: Request): string {
+  const forwarded = process.env.NODE_ENV === 'production'
+    ? request.headers.get('x-vercel-forwarded-for')
+    : request.headers.get('x-vercel-forwarded-for')
+      || request.headers.get('x-forwarded-for')
+      || request.headers.get('x-real-ip')
+  const candidate = forwarded?.split(',')[0]?.trim() || ''
+  return isIP(candidate) ? `ip:${candidate}` : 'unresolved-client'
+}
+
+export async function consumeAuthRequestRateLimits(args: {
+  action: AuthRateLimitAction
+  request: Request
+  identifier: string
+  identifierMaxAttempts: number
+  clientMaxAttempts: number
+  windowSeconds: number
+  supabase?: RateLimitClient
+}): Promise<void> {
+  const supabase = args.supabase || getServiceRoleClient()
+  await consumeAuthRateLimit({
+    scope: `${args.action}_identifier`,
+    value: args.identifier,
+    maxAttempts: args.identifierMaxAttempts,
+    windowSeconds: args.windowSeconds,
+    supabase,
+  })
+  await consumeAuthRateLimit({
+    scope: `${args.action}_client`,
+    value: getAuthClientFingerprint(args.request),
+    maxAttempts: args.clientMaxAttempts,
+    windowSeconds: args.windowSeconds,
+    supabase,
+  })
+  await consumeAuthRateLimit({
+    scope: 'auth_global',
+    value: 'all-authentication-requests',
+    maxAttempts: 5_000,
+    windowSeconds: 60 * 60,
+    supabase,
+  })
 }
 
 export async function consumeAuthRateLimit(args: {

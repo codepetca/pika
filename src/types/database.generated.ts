@@ -178,6 +178,7 @@ export type Database = {
       auth_sessions: {
         Row: {
           auth_source: string
+          credential_version: number
           created_at: string
           expires_at: string
           id: string
@@ -187,6 +188,7 @@ export type Database = {
         }
         Insert: {
           auth_source: string
+          credential_version: number
           created_at?: string
           expires_at: string
           id?: string
@@ -196,6 +198,7 @@ export type Database = {
         }
         Update: {
           auth_source?: string
+          credential_version?: number
           created_at?: string
           expires_at?: string
           id?: string
@@ -7141,6 +7144,7 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_credential_version: number
           created_at: string
           email: string
           email_verified_at: string | null
@@ -7150,6 +7154,7 @@ export type Database = {
           workos_user_id: string | null
         }
         Insert: {
+          auth_credential_version?: number
           created_at?: string
           email: string
           email_verified_at?: string | null
@@ -7159,6 +7164,7 @@ export type Database = {
           workos_user_id?: string | null
         }
         Update: {
+          auth_credential_version?: number
           created_at?: string
           email?: string
           email_verified_at?: string | null
@@ -8616,7 +8622,7 @@ export type Database = {
           p_password_hash: string
           p_user_id: string
         }
-        Returns: boolean
+        Returns: number
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
@@ -9382,6 +9388,18 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      issue_auth_session: {
+        Args: {
+          p_auth_source: string
+          p_expected_credential_version: number
+          p_expires_at: string
+          p_previous_token_hash: string | null
+          p_token_hash: string
+          p_user_id: string
+          p_workos_user_id: string | null
+        }
+        Returns: boolean
+      }
       list_attendance_reconciliation_targets_v1: {
         Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
         Returns: Json
