@@ -7,6 +7,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/144_attendance_source_epoch_revisions.sql'),
   'utf8',
 )
+const databaseHarness = readFileSync(
+  resolve(process.cwd(), 'scripts/check-bara-attendance-database.sh'),
+  'utf8',
+)
 
 describe('attendance source epoch revisions migration', () => {
   it('binds both internal source documents to the entitlement epoch', () => {
@@ -31,5 +35,13 @@ describe('attendance source epoch revisions migration', () => {
     expect(migration).not.toContain('attendance_integration_outbox')
     expect(migration).not.toContain("'message_type'")
     expect(migration).not.toContain("'idempotency_key'")
+  })
+
+  it('pins the mutating database harness to the expected local Pika target', () => {
+    expect(databaseHarness).toMatch(/^DB_CONTAINER="supabase_db_pika"$/m)
+    expect(databaseHarness).not.toContain('BARA_ATTENDANCE_DB_CONTAINER')
+    expect(databaseHarness).not.toContain("docker ps --filter 'name=supabase_db_'")
+    expect(databaseHarness).toContain('[[ "$PROJECT_LABEL" != "pika" ]]')
+    expect(databaseHarness).toContain("grep -q ':54322$'")
   })
 })

@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="${BARA_ATTENDANCE_DB_CONTAINER:-supabase_db_pika}"
-EXPECTED_PROJECT_LABEL="${BARA_ATTENDANCE_DB_PROJECT_LABEL:-pika}"
-EXPECTED_DB_PORT="${BARA_ATTENDANCE_DB_PORT:-54322}"
+DB_CONTAINER="supabase_db_pika"
 if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
-  DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
-fi
-if [[ -z "$DB_CONTAINER" ]]; then
   echo "Local Pika Supabase database container is not running." >&2
   exit 2
 fi
@@ -15,8 +10,7 @@ fi
 PROJECT_LABEL="$(docker inspect "$DB_CONTAINER" \
   --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$DB_CONTAINER" 5432/tcp 2>/dev/null || true)"
-if [[ "$PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL" ]] \
-  || ! grep -q ":${EXPECTED_DB_PORT}$" <<<"$DB_BINDING"; then
+if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; then
   echo "Refusing non-local or unexpected Supabase database target." >&2
   exit 2
 fi
