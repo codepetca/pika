@@ -76,6 +76,15 @@ describe('Pattern Lab catalog', () => {
     expect(pattern?.avoidWhen).toContain('Relative-date text is Daily-only')
   })
 
+  it('keeps the student Grades visibility concept experimental and narrowly scoped', () => {
+    const pattern = PATTERN_CATALOG.find((entry) => entry.id === 'student-grades-visibility')
+
+    expect(pattern?.maturity).toBe('experimental')
+    expect(pattern?.owner).toBe('src/app/__ui/StudentGradesPattern.tsx')
+    expect(pattern?.useWhen).toContain('returned-only')
+    expect(pattern?.avoidWhen).toContain('reporting')
+  })
+
   it('keeps teacher-only reference surfaces out of the student catalog', () => {
     expect(REFERENCE_ROUTES.teacher).toContainEqual({
       label: 'Snapshot gallery',

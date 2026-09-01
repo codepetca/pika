@@ -642,6 +642,8 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(toggle).toHaveAttribute('type', 'button')
+    expect(toggle).toHaveClass('h-11', 'w-14')
 
     fireEvent.click(toggle)
 

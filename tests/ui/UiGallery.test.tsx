@@ -25,6 +25,17 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('includes the student Grades visibility switch for %s reviewers', (role) => {
+    renderGallery(role)
+
+    const example = within(screen.getByTestId('student-grades-pattern'))
+    expect(example.getByRole('switch', { name: 'Show grades to students' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(example.getByTestId('student-grades-visible-preview')).toBeVisible()
+  })
+
   // Exercise StudentTestListItem through its real gallery composition, including disabled-card tab order.
   it.each(['teacher', 'student'] as const)('demonstrates student Test access and keyboard selection for %s reviewers', async (role) => {
     const user = userEvent.setup()
