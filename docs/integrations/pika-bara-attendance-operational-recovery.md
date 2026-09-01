@@ -136,7 +136,15 @@ enough that their date window is no longer the current recovery window. Never
 deliver those rows merely to unblock a newer snapshot, and never update their
 signed payloads, idempotency keys, entitlement revisions, or dates in place.
 
-Migration 142 adds an operator-only atomic recovery for this case. It requires
+Migration 142 adds an operator-only atomic recovery for this case. Migration
+145 is its required restaging companion: it binds both private source documents
+to the entitlement revision so the epoch rotation produces strictly newer
+roster and schedule revisions instead of reusing superseded idempotency keys.
+Apply and verify both migrations before authorizing recovery; running the
+migration-142 operation without migration 145 leaves normal fresh sync unable
+to create a Bara-acceptable replacement snapshot.
+
+The recovery requires
 the exact complete set of unresolved outbox UUIDs for one teacher, the current
 active entitlement revision, a unique operation UUID, and opaque actor/reason
 references. It accepts only roster/schedule snapshots from that exact epoch,
@@ -168,24 +176,32 @@ Before even requesting execution authorization:
    ```
 
 The dry-run is not authority. Fresh execution approval must name the production
-Supabase target, reviewed Pika commit and migration 142, operation ID, teacher,
-expected revision, every outbox ID, actor/reason references, backup/evidence
-references, and the exact authorization binding printed by the dry-run. Only
-then set `PIKA_ATTENDANCE_OUTBOX_RECOVERY_AUTHORIZATION` to that binding and
-repeat the same command with `--execute`. Remove the process-only value
-immediately. If the response is uncertain, repeat only the identical operation
-ID and arguments; do not create a replacement operation.
+Supabase target, reviewed Pika commit, migrations 142 and 145, operation ID,
+teacher, expected revision, every outbox ID, actor/reason references,
+backup/evidence references, and the exact authorization binding printed by the
+dry-run. Only then set `PIKA_ATTENDANCE_OUTBOX_RECOVERY_AUTHORIZATION` to that
+binding and repeat the same command with `--execute`. Remove the process-only
+value immediately. If the response is uncertain, repeat only the identical
+operation ID and arguments; do not create a replacement operation.
 
 After success, verify the exact old rows are superseded, entitlement/audit
 revisions advanced once, other classroom policy and attendance state are
-unchanged, and the queue is empty before creating fresh current/future snapshots
-through normal sync. This supersession and empty-old-queue proof must normally
-finish **before** the Bara tenant link is restored, because restoring the link can
-make ordinary delivery able to claim the old rows. The only permitted alternate
-order requires a separately approved, verified Pika delivery-worker pause that
-starts before the Bara restore and remains active through supersession and the
-empty-old-queue proof; do not pause unrelated classroom work implicitly. Resume
-only after that proof. Repairing the Bara tenant link and running this Pika
-operation remain separate approvals even though their safe order is mandatory.
-The subsequent fresh current/future sync, normal delivery, retry cadence, and
+unchanged, and the old queue is empty. Before restoring the Bara tenant link or
+allowing delivery, use a separately authorized fresh preparation for every
+affected classroom and verify both returned source revisions are greater than
+the superseded payload revisions. Derive the normal revision-based roster and
+schedule keys and prove neither key matches a superseded row. After normal sync
+stages the replacement rows, verify their IDs and keys are new, their entitlement
+revision is current, and neither row is `superseded`; only then treat restaging
+as complete.
+
+The supersession, empty-old-queue proof, and newer-revision/key proof must
+normally finish **before** the Bara tenant link is restored, because restoring
+the link can make ordinary delivery claim available work. The only permitted
+alternate order requires a separately approved, verified Pika delivery-worker
+pause that starts before the Bara restore and remains active through those
+proofs; do not pause unrelated classroom work implicitly. Resume only after the
+proofs pass. Repairing the Bara tenant link and running this Pika operation
+remain separate approvals even though their safe order is mandatory. The fresh
+preparation/staging, tenant-link repair, normal delivery, retry cadence, and
 production canary are separate approvals as well.

@@ -2494,6 +2494,7 @@ _None_
         })
 
       const testAssessment = makeTestWithStats({
+        id: 'test-invalid-markdown',
         assessment_type: 'test',
         title: 'Markdown Test',
       })
@@ -2531,7 +2532,11 @@ Prompt:
         expect(screen.getByText(/Title is required/)).toBeInTheDocument()
       })
 
-      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      const patchCalls = fetchMock.mock.calls.filter(
+        (call: any[]) =>
+          call[0] === '/api/teacher/tests/test-invalid-markdown/draft' &&
+          call[1]?.method === 'PATCH'
+      )
       expect(patchCalls).toHaveLength(0)
     })
 

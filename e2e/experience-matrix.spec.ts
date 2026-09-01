@@ -467,6 +467,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   // Keep the fixture's relative "Today" timestamp stable across calendar days.
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
+  let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -571,7 +572,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
         classDate: '2026-08-17',
         integration: attendanceConfigured ? 'ready' : 'not_configured',
         session: {
-          state: attendanceConfigured ? 'open' : 'not_scheduled',
+          state: attendanceConfigured ? attendanceSessionState : 'not_scheduled',
           opensAt: attendanceConfigured ? '2026-08-17T12:45:00.000Z' : null,
           closesAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
           sessionStartsAt: attendanceConfigured ? '2026-08-17T13:00:00.000Z' : null,
@@ -660,10 +661,43 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   })
   await verifyProjectContract(page, testInfo)
 
-  attendanceConfigured = false
+  attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
   await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })).toBeEnabled()
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions for 1 selected',
+  })).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-closed.png`),
+    animations: 'disabled',
+  })
+
+  attendanceSessionState = 'scheduled'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('group', {
+    name: 'Attendance status for Student 01 Alpha01',
+  })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('button', { name: 'Open QR check-in' })).toBeVisible()
+  } else {
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'Open QR check-in' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-scheduled.png`),
+    animations: 'disabled',
+  })
+
+  attendanceConfigured = false
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   if (viewport === 'desktop') {
     await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
   } else {
