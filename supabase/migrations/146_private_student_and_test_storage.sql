@@ -48,6 +48,3 @@ drop policy if exists "Allow authenticated uploads" on storage.objects;
 drop policy if exists "Allow owner deletes" on storage.objects;
 drop policy if exists "Allow authenticated uploads for test documents" on storage.objects;
 drop policy if exists "Allow owner deletes for test documents" on storage.objects;
-
-comment on table storage.buckets is
-  'Supabase Storage buckets. Pika student submissions and Test materials are private and delivered only after application authorization.';
