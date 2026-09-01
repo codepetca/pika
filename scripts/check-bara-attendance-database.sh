@@ -2,6 +2,8 @@
 set -euo pipefail
 
 DB_CONTAINER="${BARA_ATTENDANCE_DB_CONTAINER:-supabase_db_pika}"
+EXPECTED_PROJECT_LABEL="${BARA_ATTENDANCE_DB_PROJECT_LABEL:-pika}"
+EXPECTED_DB_PORT="${BARA_ATTENDANCE_DB_PORT:-54322}"
 if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
   DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
 fi
@@ -13,7 +15,8 @@ fi
 PROJECT_LABEL="$(docker inspect "$DB_CONTAINER" \
   --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$DB_CONTAINER" 5432/tcp 2>/dev/null || true)"
-if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; then
+if [[ "$PROJECT_LABEL" != "$EXPECTED_PROJECT_LABEL" ]] \
+  || ! grep -q ":${EXPECTED_DB_PORT}$" <<<"$DB_BINDING"; then
   echo "Refusing non-local or unexpected Supabase database target." >&2
   exit 2
 fi
@@ -1844,10 +1847,10 @@ begin
     '2026-08-31T12:00:00Z'::timestamptz
   );
   insert into public.class_days (
-    classroom_id, course_code, date, prompt_text, is_class_day
+    classroom_id, date, prompt_text, is_class_day
   ) values (
     'f1440000-0000-4000-8000-000000000011',
-    'F14411', '2026-09-01', null, true
+    '2026-09-01', null, true
   );
 
   v_prepared_v1 := public.prepare_attendance_snapshot_v2(
