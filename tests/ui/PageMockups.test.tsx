@@ -107,6 +107,58 @@ describe('PageMockups', () => {
     expect(within(gradebook).getByText(/empty assessment area expands and keeps Final at the far edge/)).toBeInTheDocument()
   })
 
+  it('demonstrates gradebook category and assessment editing dialogs', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    const moreActions = within(gradebook).getByRole('button', { name: 'More actions' })
+    await user.click(moreActions)
+    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
+    expect(screen.getByRole('heading', { name: 'Edit gradebook' })).toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[1]).toHaveValue('Term')
+    expect(screen.getByRole('button', { name: 'Default' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Move Term up' }))
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
+    await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
+    await user.keyboard('{Escape}')
+    expect(moreActions).toHaveFocus()
+
+    const assessmentTitle = within(gradebook).getByRole('button', { name: 'Ecosystems' })
+    await user.click(assessmentTitle)
+    expect(screen.getByRole('heading', { name: 'Ecosystems' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('Term')
+    expect(screen.getByText('65%')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(assessmentTitle).toHaveFocus()
+  })
+
+  it('moves fixture assessments to Uncategorized when their category is deleted', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
+    expect(screen.getByText('Deleting a category leaves its assessments Uncategorized.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete Term' }))
+    const percentages = screen.getAllByRole('spinbutton', { name: 'Course %' })
+    await user.clear(percentages[0])
+    await user.type(percentages[0], '75')
+    await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
+
+    await user.click(within(gradebook).getByRole('button', { name: 'Ecosystems' }))
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('Uncategorized')
+  })
+
   it('pins one class summary row and swaps average with median from More actions', async () => {
     const user = userEvent.setup()
     renderMockups()

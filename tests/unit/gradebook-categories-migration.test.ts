@@ -1,0 +1,56 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const migration = readFileSync(
+  join(process.cwd(), 'supabase/migrations/147_gradebook_categories.sql'),
+  'utf8',
+)
+
+describe('gradebook categories migration', () => {
+  it('seeds Attendance, Term, and Final with Term as the default', () => {
+    expect(migration).toContain("('Attendance'::text, 10::numeric, 0)")
+    expect(migration).toContain("('Term'::text, 65::numeric, 1)")
+    expect(migration).toContain("('Final'::text, 25::numeric, 2)")
+    expect(migration).toContain("defaults.name = 'Term'")
+  })
+
+  it('leaves assessments uncategorized when a category is deleted', () => {
+    expect(migration).toContain('references public.gradebook_categories (id) on delete set null')
+  })
+
+  it('defaults new assessments while validating category changes', () => {
+    expect(migration).toMatch(
+      /if tg_op = 'INSERT'\s+and new\.gradebook_category_id is null/,
+    )
+    expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.assignments')
+    expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.tests')
+    expect(migration).toContain('gradebook category must belong to the assessment classroom')
+    expect(migration).toContain('alter column gradebook_weight set default 0')
+    expect(migration).toContain("if tg_op = 'INSERT' and new.gradebook_weight = 0 then")
+    expect(migration).toMatch(
+      /new\.gradebook_category_id is null[\s\S]*?current_setting\('pika\.classroom_archive_restore', true\) = 'on'[\s\S]*?staged\.table_name = 'gradebook_categories'/,
+    )
+  })
+
+  it('validates one default and category percentages totaling 100 atomically', () => {
+    expect(migration).toContain('create or replace function public.replace_gradebook_categories')
+    expect(migration).toContain('if default_count <> 1 then')
+    expect(migration).toContain('if percentage_total <> 100 then')
+    expect(migration).toContain('gradebook category ids must be unique')
+    expect(migration).toContain("scale((category.value->>'percentage')::numeric) > 2")
+    expect(migration).toContain("name = '__pika_replacing__'")
+  })
+
+  it('extends archive and purge contracts with restore compatibility', () => {
+    expect(migration).toContain("'gradebook_categories',\n  array['id']")
+    expect(migration).toContain("array_append(restore_after, 'gradebook_categories')")
+    expect(migration).toContain('create trigger car_gradebook_categories')
+    expect(migration).toContain('create trigger classroom_purge_fence_gradebook_categories')
+    expect(migration).toContain('normalize_classroom_archive_restore_row_v143')
+    expect(migration).toContain("jsonb_build_object('gradebook_category_id', null)")
+    expect(migration).toMatch(
+      /create or replace function public\.create_default_gradebook_categories\(\)[\s\S]*?current_setting\('pika\.classroom_archive_restore', true\) = 'on'[\s\S]*?create trigger create_default_gradebook_categories/,
+    )
+  })
+})

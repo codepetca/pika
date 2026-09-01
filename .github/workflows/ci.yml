@@ -148,6 +148,9 @@ jobs:
       - name: Verify atomic assignment feedback returns
         run: bash scripts/check-atomic-assignment-feedback-returns.sh
 
+      - name: Verify Gradebook category contracts
+        run: bash scripts/check-gradebook-categories-database.sh
+
       - name: Verify atomic assignment draft and submission integrity
         run: bash scripts/check-atomic-assignment-submissions.sh
 

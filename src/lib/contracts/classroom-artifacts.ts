@@ -87,6 +87,7 @@ function requireExactResourceSet(
   resources: Array<{ table: string; path: string }>,
   expectedTables: string[],
   context: z.RefinementCtx,
+  optionalLegacyTables: string[] = [],
 ) {
   const actualTables = resources.map((resource) => resource.table)
   const actualSet = new Set(actualTables)
@@ -117,7 +118,7 @@ function requireExactResourceSet(
   }
 
   for (const table of expectedTables) {
-    if (!actualSet.has(table)) {
+    if (!actualSet.has(table) && !optionalLegacyTables.includes(table)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Missing resource descriptor: ${table}`,
@@ -149,6 +150,7 @@ const classroomArchiveManifestBaseSchema = z.object({
 function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
   version: Version,
   expectedTables: string[],
+  optionalLegacyTables: string[] = [],
 ) {
   return classroomArchiveManifestBaseSchema.extend({
     version: z.literal(version),
@@ -157,6 +159,7 @@ function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
       manifest.resources,
       expectedTables,
       context,
+      optionalLegacyTables,
     )
     if (manifest.actors.path !== 'actors.ndjson') {
       context.addIssue({
@@ -214,6 +217,7 @@ export const classroomArchiveManifestV1Schema = createClassroomArchiveManifestSc
 export const classroomArchiveManifestV2Schema = createClassroomArchiveManifestSchema(
   CLASSROOM_ARCHIVE_V2_VERSION,
   CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
+  ['gradebook_categories'],
 )
 
 export const classroomArchiveManifestHeaderSchema = z.object({

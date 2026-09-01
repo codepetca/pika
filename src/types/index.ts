@@ -1279,6 +1279,15 @@ export interface GradebookSettings {
 }
 
 export type GradebookAssessmentType = 'assignment' | 'test'
+export interface GradebookCategory {
+  id: string
+  name: string
+  percentage: number
+  default_assessment_weight: number
+  position: number
+  is_default: boolean
+}
+
 export type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -1295,6 +1304,10 @@ export interface GradebookAssessmentColumn {
   title: string
   possible: number
   weight: number
+  category_id?: string | null
+  category_name?: string
+  category_percentage?: number | null
+  exact_course_weight?: number | null
   include_in_final: boolean
   due_at?: string
   is_draft?: boolean

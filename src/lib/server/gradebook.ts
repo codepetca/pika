@@ -1,9 +1,16 @@
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
-import { calculateFinalPercent } from '@/lib/gradebook'
+import {
+  calculateAssessmentCourseWeight,
+  calculateCategorizedFinalPercent,
+  calculateFinalPercent,
+} from '@/lib/gradebook'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { ApiError } from '@/lib/api-error'
-import type { GradebookPatchCommand } from '@/lib/validations/gradebook'
+import type {
+  GradebookCategoriesPutCommand,
+  GradebookPatchCommand,
+} from '@/lib/validations/gradebook'
 import {
   loadChunkedRows,
   loadPagedRows as loadServerPagedRows,
@@ -19,6 +26,15 @@ const ASSIGNMENT_POINTS_DEFAULT = 30
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const GRADEBOOK_BULK_FILTER_CHUNK_SIZE = 50
 const GRADEBOOK_BULK_PAGE_SIZE = 1000
+
+type GradebookCategory = {
+  id: string
+  name: string
+  percentage: number
+  default_assessment_weight: number
+  position: number
+  is_default: boolean
+}
 
 type GradebookAssessmentType = 'assignment' | 'test'
 type GradebookAssessmentStatus =
@@ -270,6 +286,30 @@ export async function loadTeacherGradebook(opts: {
 
   const supabase = getServiceRoleClient()
 
+  const categoryResult = await supabase
+    .from('gradebook_categories')
+    .select('id, name, percentage, default_assessment_weight, position, is_default')
+    .eq('classroom_id', classroomId)
+    .order('position', { ascending: true })
+
+  let categories: GradebookCategory[] = []
+  let categorySchemaAvailable = true
+  if (categoryResult.error && isMissingTableError(categoryResult.error)) {
+    categorySchemaAvailable = false
+  } else if (categoryResult.error) {
+    console.error('Error loading gradebook categories:', categoryResult.error)
+    throw new ApiError(500, 'Failed to load gradebook categories')
+  } else {
+    categories = (categoryResult.data || []).map((category) => ({
+      id: category.id,
+      name: category.name,
+      percentage: Number(category.percentage),
+      default_assessment_weight: normalizeAssessmentWeight(category.default_assessment_weight),
+      position: Number(category.position),
+      is_default: Boolean(category.is_default),
+    }))
+  }
+
   const {
     rows: enrollments,
     error: enrollmentError,
@@ -323,6 +363,7 @@ export async function loadTeacherGradebook(opts: {
     points_possible: number
     include_in_final: boolean
     gradebook_weight: number
+    gradebook_category_id: string | null
   }> = []
 
   const {
@@ -331,7 +372,7 @@ export async function loadTeacherGradebook(opts: {
   } = await loadPagedRows<any>(() =>
     supabase
       .from('assignments')
-      .select('id, title, due_at, position, points_possible, include_in_final, is_draft, gradebook_weight')
+      .select('id, title, due_at, position, points_possible, include_in_final, is_draft, gradebook_weight, gradebook_category_id')
       .eq('classroom_id', classroomId)
       .order('position', { ascending: true })
   )
@@ -346,9 +387,12 @@ export async function loadTeacherGradebook(opts: {
       points_possible: Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT),
       include_in_final: assignment.include_in_final !== false,
       gradebook_weight: normalizeAssessmentWeight(assignment.gradebook_weight),
+      gradebook_category_id: assignment.gradebook_category_id ?? null,
     }))
   } else {
-    const assignmentSelection = mentionsMissingField(assignmentsWithMetaError, 'gradebook_weight')
+    const assignmentSelection = mentionsMissingField(assignmentsWithMetaError, 'gradebook_category_id')
+      ? 'id, title, due_at, position, points_possible, include_in_final, is_draft, gradebook_weight'
+      : mentionsMissingField(assignmentsWithMetaError, 'gradebook_weight')
       ? 'id, title, due_at, position, points_possible, include_in_final, is_draft'
       : 'id, title, due_at, position, is_draft'
 
@@ -378,6 +422,7 @@ export async function loadTeacherGradebook(opts: {
       points_possible: Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT),
       include_in_final: assignment.include_in_final !== false,
       gradebook_weight: normalizeAssessmentWeight(assignment.gradebook_weight),
+      gradebook_category_id: assignment.gradebook_category_id ?? null,
     }))
   }
   assignments.sort(comparePositionThenTitle)
@@ -431,7 +476,12 @@ export async function loadTeacherGradebook(opts: {
   }
 
   const assignmentMap = new Map(assignments.map((a) => [a.id, a]))
-  const assignmentRowsByStudent = new Map<string, Array<{ earned: number; possible: number; weight: number }>>()
+  const assignmentRowsByStudent = new Map<string, Array<{
+    earned: number
+    possible: number
+    weight: number
+    categoryId: string | null
+  }>>()
   const assignmentDocMap = new Map<string, GradebookAssignmentDoc>()
   const docsByAssignment = new Map<string, GradebookAssignmentDoc[]>()
 
@@ -467,7 +517,12 @@ export async function loadTeacherGradebook(opts: {
     const earned = (raw / 30) * possible
 
     const rows = assignmentRowsByStudent.get(doc.student_id) || []
-    rows.push({ earned, possible, weight: assignment.gradebook_weight })
+    rows.push({
+      earned,
+      possible,
+      weight: assignment.gradebook_weight,
+      categoryId: assignment.gradebook_category_id,
+    })
     assignmentRowsByStudent.set(doc.student_id, rows)
   }
 
@@ -478,6 +533,7 @@ export async function loadTeacherGradebook(opts: {
     status: 'draft' | 'active' | 'closed' | null
     include_in_final: boolean
     gradebook_weight: number
+    gradebook_category_id: string | null
   }> = []
 
   const {
@@ -486,7 +542,7 @@ export async function loadTeacherGradebook(opts: {
   } = await loadPagedRows<any>(() =>
     supabase
       .from('tests')
-      .select('id, title, status, position, include_in_final, gradebook_weight')
+      .select('id, title, status, position, include_in_final, gradebook_weight, gradebook_category_id')
       .eq('classroom_id', classroomId)
   )
 
@@ -498,12 +554,16 @@ export async function loadTeacherGradebook(opts: {
       status: test.status ?? null,
       include_in_final: test.include_in_final !== false,
       gradebook_weight: normalizeAssessmentWeight(test.gradebook_weight),
+      gradebook_category_id: test.gradebook_category_id ?? null,
     }))
   } else if (
+    mentionsMissingField(testsWithMetaError, 'gradebook_category_id') ||
     mentionsMissingField(testsWithMetaError, 'include_in_final') ||
     mentionsMissingField(testsWithMetaError, 'gradebook_weight')
   ) {
-    const testSelection = mentionsMissingField(testsWithMetaError, 'gradebook_weight')
+    const testSelection = mentionsMissingField(testsWithMetaError, 'gradebook_category_id')
+      ? 'id, title, status, position, include_in_final, gradebook_weight'
+      : mentionsMissingField(testsWithMetaError, 'gradebook_weight')
       ? 'id, title, status, position, include_in_final'
       : 'id, title, status, position'
 
@@ -525,6 +585,7 @@ export async function loadTeacherGradebook(opts: {
         status: test.status ?? null,
         include_in_final: test.include_in_final !== false,
         gradebook_weight: normalizeAssessmentWeight(test.gradebook_weight),
+        gradebook_category_id: test.gradebook_category_id ?? null,
       }))
     } else if (!isMissingTableError(testsLegacyError)) {
       console.error('Error loading tests for gradebook:', testsWithMetaError, testsLegacyError)
@@ -616,7 +677,12 @@ export async function loadTeacherGradebook(opts: {
     testResponsesByStudentTest.set(key, byQuestion)
   }
 
-  const testRowsByStudent = new Map<string, Array<{ earned: number; possible: number; weight: number }>>()
+  const testRowsByStudent = new Map<string, Array<{
+    earned: number
+    possible: number
+    weight: number
+    categoryId: string | null
+  }>>()
   const testScoresByTest = new Map<string, Array<{ earned: number; possible: number }>>()
   const testCellMap = new Map<string, GradebookAssessmentCell>()
   const testDetailsByStudent = new Map<string, Array<{
@@ -686,7 +752,12 @@ export async function loadTeacherGradebook(opts: {
       if (earned == null) continue
 
       const rows = testRowsByStudent.get(studentId) || []
-      rows.push({ earned, possible, weight: test.gradebook_weight })
+      rows.push({
+        earned,
+        possible,
+        weight: test.gradebook_weight,
+        categoryId: test.gradebook_category_id,
+      })
       testRowsByStudent.set(studentId, rows)
 
       const testScores = testScoresByTest.get(test.id) || []
@@ -734,6 +805,44 @@ export async function loadTeacherGradebook(opts: {
     }
   }
 
+  const categoryMap = new Map(categories.map((category) => [category.id, category]))
+  const assessmentWeightsByCategory = new Map<string, number[]>()
+  for (const assessment of [
+    ...assignments
+      .filter((assignment) => assignment.include_in_final && !assignment.is_draft)
+      .map((assignment) => ({
+        categoryId: assignment.gradebook_category_id,
+        weight: assignment.gradebook_weight,
+      })),
+    ...tests
+      .filter((test) => test.include_in_final && test.status !== 'draft')
+      .map((test) => ({
+        categoryId: test.gradebook_category_id,
+        weight: test.gradebook_weight,
+      })),
+  ]) {
+    if (!assessment.categoryId) continue
+    const weights = assessmentWeightsByCategory.get(assessment.categoryId) || []
+    weights.push(assessment.weight)
+    assessmentWeightsByCategory.set(assessment.categoryId, weights)
+  }
+
+  function assessmentCategoryFields(categoryId: string | null, weight: number, isIncluded: boolean) {
+    const category = categoryId ? categoryMap.get(categoryId) : null
+    return {
+      category_id: category?.id ?? null,
+      category_name: category?.name ?? 'Uncategorized',
+      category_percentage: category?.percentage ?? null,
+      exact_course_weight: category && isIncluded
+        ? calculateAssessmentCourseWeight({
+            categoryPercentage: category.percentage,
+            assessmentWeight: weight,
+            categoryAssessmentWeights: assessmentWeightsByCategory.get(category.id) || [],
+          })
+        : null,
+    }
+  }
+
   const assessmentColumns = [
     ...assignments.map((assignment, index) => ({
       assessment_id: assignment.id,
@@ -745,6 +854,11 @@ export async function loadTeacherGradebook(opts: {
       due_at: assignment.due_at,
       is_draft: assignment.is_draft,
       include_in_final: assignment.include_in_final,
+      ...assessmentCategoryFields(
+        assignment.gradebook_category_id,
+        assignment.gradebook_weight,
+        assignment.include_in_final && !assignment.is_draft,
+      ),
     })),
     ...tests.map((test, index) => {
       const questionsForTest = testQuestionsByTest.get(test.id) || []
@@ -758,6 +872,11 @@ export async function loadTeacherGradebook(opts: {
         weight: test.gradebook_weight,
         status: test.status,
         include_in_final: test.include_in_final,
+        ...assessmentCategoryFields(
+          test.gradebook_category_id,
+          test.gradebook_weight,
+          test.include_in_final && test.status !== 'draft',
+        ),
       }
     }),
   ]
@@ -767,13 +886,22 @@ export async function loadTeacherGradebook(opts: {
     const profile = profileMap.get(studentId)
     const assignmentRows = assignmentRowsByStudent.get(studentId) || []
     const testRows = testRowsByStudent.get(studentId) || []
-    const calc = calculateFinalPercent({
+    const legacyCalc = calculateFinalPercent({
       useWeights: false,
       assignmentsWeight: DEFAULT_SETTINGS.assignments_weight,
       testsWeight: DEFAULT_SETTINGS.tests_weight,
       assignments: assignmentRows,
       tests: testRows,
     })
+    const categorizedCalc = categories.length > 0
+      ? calculateCategorizedFinalPercent({
+          categories: categories.map((category) => ({
+            id: category.id,
+            percentage: category.percentage,
+          })),
+          items: [...assignmentRows, ...testRows],
+        })
+      : null
     const assignmentTotals = assignmentRows.reduce(
       (totals, row) => ({
         earned: totals.earned + row.earned,
@@ -797,11 +925,11 @@ export async function loadTeacherGradebook(opts: {
       student_last_name: profile?.last_name ?? null,
       assignments_earned: assignmentTotals.possible > 0 ? round2(assignmentTotals.earned) : null,
       assignments_possible: assignmentTotals.possible > 0 ? round2(assignmentTotals.possible) : null,
-      assignments_percent: calc.assignmentsPercent,
+      assignments_percent: legacyCalc.assignmentsPercent,
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
-      tests_percent: calc.testsPercent,
-      final_percent: calc.finalPercent,
+      tests_percent: legacyCalc.testsPercent,
+      final_percent: categorizedCalc?.finalPercent ?? legacyCalc.finalPercent,
       assessment_scores: [
         ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
         ...tests.map((test) => {
@@ -884,6 +1012,8 @@ export async function loadTeacherGradebook(opts: {
 
   return {
     settings: DEFAULT_SETTINGS,
+    categories,
+    category_schema_available: categorySchemaAvailable,
     assessment_columns: assessmentColumns,
     students,
     selected_student: selectedStudent
@@ -954,15 +1084,43 @@ export async function updateTeacherGradebook(opts: {
   }
 
   const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from(assessmentTableName(command.assessmentType))
-    .update({ gradebook_weight: command.gradebookWeight })
+  if (command.kind === 'assessment_details' && command.gradebookCategoryId) {
+    const { data: category, error: categoryError } = await supabase
+      .from('gradebook_categories')
+      .select('id')
+      .eq('id', command.gradebookCategoryId)
+      .eq('classroom_id', command.classroomId)
+      .maybeSingle()
+
+    if (categoryError && isMissingTableError(categoryError)) {
+      throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
+    }
+    if (categoryError) {
+      console.error('Error checking gradebook category:', categoryError)
+      throw new ApiError(500, 'Failed to validate gradebook category')
+    }
+    if (!category) throw new ApiError(400, 'Gradebook category does not belong to this classroom')
+  }
+
+  const assessmentUpdate = command.kind === 'assessment_details'
+    ? {
+        gradebook_weight: command.gradebookWeight,
+        gradebook_category_id: command.gradebookCategoryId,
+      }
+    : { gradebook_weight: command.gradebookWeight }
+  const updateQuery = command.assessmentType === 'assignment'
+    ? supabase.from('assignments').update(assessmentUpdate)
+    : supabase.from('tests').update(assessmentUpdate)
+  const { data, error } = await updateQuery
     .eq('id', command.assessmentId)
     .eq('classroom_id', command.classroomId)
-    .select('id, gradebook_weight')
+    .select('id, gradebook_weight, gradebook_category_id')
     .maybeSingle()
 
-  if (error && mentionsMissingField(error, 'gradebook_weight')) {
+  if (error && (
+    mentionsMissingField(error, 'gradebook_weight')
+    || mentionsMissingField(error, 'gradebook_category_id')
+  )) {
     throw new ApiError(409, 'Assessment weights are not available until the database migration is applied')
   }
 
@@ -974,12 +1132,55 @@ export async function updateTeacherGradebook(opts: {
   if (!data) {
     throw new ApiError(404, 'Assessment not found')
   }
-
   return {
     assessment: {
       assessment_id: data.id,
       assessment_type: command.assessmentType,
       weight: normalizeAssessmentWeight(data.gradebook_weight),
+      ...(command.kind === 'assessment_details'
+        ? { category_id: data.gradebook_category_id ?? null }
+        : {}),
     },
+  }
+}
+
+export async function replaceTeacherGradebookCategories(opts: {
+  teacherId: string
+  command: GradebookCategoriesPutCommand
+}) {
+  const { teacherId, command } = opts
+  await assertTeacherOwnsClassroom(teacherId, command.classroomId, { checkArchived: true })
+
+  const supabase = getServiceRoleClient()
+  const payload = command.categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    percentage: category.percentage,
+    default_assessment_weight: category.defaultAssessmentWeight,
+    position: category.position,
+    is_default: category.isDefault,
+  }))
+  const { data, error } = await supabase.rpc('replace_gradebook_categories', {
+    p_classroom_id: command.classroomId,
+    p_categories: payload,
+  })
+
+  if (error && (isMissingTableError(error) || error.code === 'PGRST202')) {
+    throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
+  }
+  if (error) {
+    console.error('Error saving gradebook categories:', error)
+    throw new ApiError(500, 'Failed to save gradebook categories')
+  }
+
+  return {
+    categories: (data || []).map((category) => ({
+      id: category.id,
+      name: category.name,
+      percentage: Number(category.percentage),
+      default_assessment_weight: normalizeAssessmentWeight(category.default_assessment_weight),
+      position: Number(category.position),
+      is_default: Boolean(category.is_default),
+    })),
   }
 }

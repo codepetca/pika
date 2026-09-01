@@ -30,6 +30,13 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
 - Student names continue to be collected during classroom joining and read from `student_profiles`. Pika will not add standalone profile editing until one source of truth and synchronization behavior are defined for the global profile and classroom roster records.
 - Standalone profile editing remains a deliberate no-build decision for the current product phase, not a missing screen to infer from the teacher experience.
 
+## Gradebook Categories
+
+- Classroom grades use teacher-defined categories whose course percentages total 100. The initial configuration is Attendance 10%, Term 65%, and Final 25%, with Term as the default category.
+- Assessment weights are relative within a category. New assessments inherit the default category and its default assessment weight; teachers can override both per assessment.
+- Deleting a category leaves its assignments and tests as Uncategorized. Uncategorized, draft, and excluded assessments do not contribute to the aggregate course grade.
+- Running grades omit categories without qualifying scores for that student and renormalize the remaining configured percentages. The full calculation contract lives in [`docs/guidance/gradebook-categories.md`](../guidance/gradebook-categories.md).
+
 ## Assignments and Online Editor
 - Assignments belong to a classroom; student work is stored per (assignment, student) doc.
 - Student docs are created lazily (on first open/save) to avoid pre-creating rows for every student.

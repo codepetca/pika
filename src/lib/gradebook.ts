@@ -18,6 +18,20 @@ export interface GradebookCalculationResult {
   finalPercent: number | null
 }
 
+export interface GradebookCategoryDefinition {
+  id: string
+  percentage: number
+}
+
+export interface CategorizedGradebookItem extends GradebookCategoryInput {
+  categoryId: string | null
+}
+
+export interface CategorizedGradebookCalculationResult {
+  categoryPercents: Record<string, number | null>
+  finalPercent: number | null
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
@@ -45,6 +59,55 @@ function toPercent(rows: GradebookCategoryInput[]): number | null {
   const possible = valid.reduce((sum, row) => sum + row.possible, 0)
   if (possible <= 0) return null
   return round2((earned / possible) * 100)
+}
+
+export function calculateCategorizedFinalPercent(input: {
+  categories: GradebookCategoryDefinition[]
+  items: CategorizedGradebookItem[]
+}): CategorizedGradebookCalculationResult {
+  const categoryPercents: Record<string, number | null> = {}
+  const components: Array<{ percent: number; percentage: number }> = []
+
+  for (const category of input.categories) {
+    const percent = toPercent(
+      input.items.filter((item) => item.categoryId === category.id),
+    )
+    categoryPercents[category.id] = percent
+
+    if (percent != null && Number.isFinite(category.percentage) && category.percentage > 0) {
+      components.push({ percent, percentage: category.percentage })
+    }
+  }
+
+  if (components.length === 0) {
+    return { categoryPercents, finalPercent: null }
+  }
+
+  const percentageTotal = components.reduce((sum, component) => sum + component.percentage, 0)
+  const finalPercent = components.reduce(
+    (sum, component) => sum + component.percent * component.percentage,
+    0,
+  ) / percentageTotal
+
+  return {
+    categoryPercents,
+    finalPercent: round2(finalPercent),
+  }
+}
+
+export function calculateAssessmentCourseWeight(input: {
+  categoryPercentage: number
+  assessmentWeight: number
+  categoryAssessmentWeights: number[]
+}): number | null {
+  const total = input.categoryAssessmentWeights.reduce(
+    (sum, weight) => sum + (Number.isFinite(weight) && weight > 0 ? weight : 0),
+    0,
+  )
+  if (total <= 0 || !Number.isFinite(input.assessmentWeight) || input.assessmentWeight <= 0) {
+    return null
+  }
+  return round2(input.categoryPercentage * input.assessmentWeight / total)
 }
 
 export function calculateFinalPercent(input: GradebookCalculationInput): GradebookCalculationResult {
