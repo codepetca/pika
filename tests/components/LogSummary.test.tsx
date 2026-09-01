@@ -25,6 +25,7 @@ describe('LogSummary', () => {
   })
 
   it('ignores an older classroom summary response after switching classrooms', async () => {
+    const onAvailabilityChange = vi.fn()
     const firstRequest = deferred<any>()
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
@@ -42,10 +43,20 @@ describe('LogSummary', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { rerender } = render(
-      <LogSummary classroomId="classroom-1" date="2026-05-05" />
+      <LogSummary
+        classroomId="classroom-1"
+        date="2026-05-05"
+        onAvailabilityChange={onAvailabilityChange}
+      />
     )
 
-    rerender(<LogSummary classroomId="classroom-2" date="2026-05-07" />)
+    rerender(
+      <LogSummary
+        classroomId="classroom-2"
+        date="2026-05-07"
+        onAvailabilityChange={onAvailabilityChange}
+      />
+    )
 
     expect(await screen.findByText('Summary will be available after the nightly run.')).toBeInTheDocument()
 
@@ -62,9 +73,11 @@ describe('LogSummary', () => {
       expect(screen.queryByText('Old summary should stay hidden.')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Summary will be available after the nightly run.')).toBeInTheDocument()
+    expect(onAvailabilityChange).toHaveBeenLastCalledWith(false)
   })
 
   it('aligns summary copy with its title and omits internal horizontal rules', async () => {
+    const onAvailabilityChange = vi.fn()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-05-05T15:00:00.000Z'))
     vi.stubGlobal('fetch', vi.fn(() => mockJson({
@@ -79,7 +92,13 @@ describe('LogSummary', () => {
       summary_status: 'ready',
     })))
 
-    render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
+    render(
+      <LogSummary
+        classroomId="classroom-1"
+        date="2026-05-05"
+        onAvailabilityChange={onAvailabilityChange}
+      />
+    )
     await act(async () => {
       await Promise.resolve()
       await Promise.resolve()
@@ -95,6 +114,7 @@ describe('LogSummary', () => {
     expect(screen.queryByText('Needs Attention')).not.toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Class log follow-ups' })).toBeInTheDocument()
     expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
+    expect(onAvailabilityChange).toHaveBeenLastCalledWith(true)
   })
 
   it('explains when a legacy broad summary has been retired', async () => {
