@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — UI consistency approach (read-only review)
-
-Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures, committed Pattern Lab visual evidence, and current product-experience progress. Recommended a page/role/state adoption matrix, family-scoped reference compositions, a Roster pilot, and incremental visual/interaction verification. No product code changed; no fresh live page audit performed. Next: baseline active routes and approve missing family patterns before implementation.
-
-## 2026-08-31 — Reference-page audit and local preview
-
-Started local Pika preview at localhost:3000 with the governed launcher and seeded local accounts. Captured Student Tests list/submitted detail, teacher Daily unselected/selected, and live Pattern Lab teacher examples. Initial findings: test Closed labels hide submitted progress; Daily first names truncate in current width configuration; Lab lacks complete source-page state examples. Preliminary audit and eight screenshots saved under the task visualization directory, pika-reference-audit/audit.md. No product code changed. Next: agree one small source-page preview before broader adoption.
-
 ## 2026-08-31 — Relative-date clipping local preview
 
 Fixed clipped descenders in both DateNavigator subtitle render paths by restoring 16px line height. Local Daily/Lab preview updated, 44px control retained. Six component tests and four Pattern Lab browser matrix checks passed; all default captures reviewed; UI/design policy pass. Evidence: task visualization relative-date-fix/brief.md. Local preview on codex/fix-relative-date-descenders; awaiting visual acceptance before publishing.
@@ -216,6 +208,7 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Added an accessible desktop split-pane resizer. Documents begin at 30% in the list, open at or remember 30–50%, and questions remain at least 50%. Pointer drag, Arrow keys, Home/End, double-click reset, visible focus, and semantic separator values are covered; compact screens retain the stacked layout without a divider.
 - Focused verification passes 60 component tests and the repository gate passes 15 files / 184 tests plus architecture, UI/design policy, TypeScript and lint. Pika audit passes. Inspected actual teacher Preview and student attempt at desktop/mobile and light/dark; a compact document-body collapse found during verification was corrected. A live unsaved answer remained mounted while opening docs. Temporary local visual-only records were deleted; no existing data changed.
 - Draft PR #1145 review found one non-blocking P2: inactive eager iframes could remain in the screen-reader tree. They now retain eager mounting while receiving inactive `tabIndex` and `aria-hidden` isolation; two-frame coverage and the full 184-test focused gate pass after the fix. Final cumulative review and exact-head CI remain.
+
 ## 2026-08-31 — Preview simpler Assignment attachments
 
 - In worktree `codex/assignment-attachments-redesign`, Assignment creation now uses a compact 52px single-line Submission Requirement row at every width: 44px drag target, type icon, editable label and 44px trash target. Its tooltip-backed 44px `+` button opens the Link, Repo and Image menu. Removed visible Required, helper-text, image-limit and Link-check rows while keeping image limits as accessible label help and preserving existing hidden values during edits. Teacher work review continues to call submitted artifacts Attachments and shows missing legacy optional rows.
@@ -231,3 +224,10 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
 - Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
 - Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
+
+## 2026-09-01 — Record AI PR lifecycle evidence
+
+- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
+- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
+- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
+- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.

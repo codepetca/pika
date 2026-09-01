@@ -186,6 +186,18 @@ Any changes should prioritize:
 AI-authored work uses a draft-first, stable-SHA lifecycle. Agents execute this
 automatically; it is not a checklist the maintainer must remember.
 
+For every AI-authored development PR, agents also record lifecycle evidence with
+`pnpm record:ai-pr-lifecycle`. The recorder writes append-only local metadata at
+`~/.codex/metrics/pika-pr-lifecycle.jsonl` (never into the product, database,
+or Git history). Record a tracking-start event once the PR number is known, then
+record draft creation, independent review,
+each remediation batch, ready-for-CI, CI result, and merge. Provide active time
+and token components only when directly attributable; leave them unknown rather
+than estimating from PR wall time. Record CI queue/run duration separately and
+record correction/sync pushes without asserting they were avoidable. The tool
+records only PR number, timestamps, numeric metrics, stages, and quality outcome
+— never prompts, source content, secrets, identities, or environment values.
+
 1. Run risk-matched local checks before publishing:
    ```bash
    pnpm check:focused -- --base origin/main
@@ -205,12 +217,19 @@ automatically; it is not a checklist the maintainer must remember.
    base are unchanged, and record the checked commit/tree and command. Do not
    rerun solely for a newer timestamp. New commits still require their own
    required CI gate; local evidence never substitutes for it.
+   Start local tracking with `pnpm record:ai-pr-lifecycle event --pr <PR>
+   --event started` as soon as the PR number is known. This timestamp is only
+   the start of tracking, not a proxy for active development time. After implementation,
+   record `implementation` with attributable active/tokens when available.
 2. Commit and push the implementation, then create the PR as a draft with
-   `gh pr create --draft`. If an existing PR is ready while implementation or
-   review remains, return it to draft with `gh pr ready --undo` before pushing.
+    `gh pr create --draft`. If an existing PR is ready while implementation or
+    review remains, return it to draft with `gh pr ready --undo` before pushing.
+   Record `draft-created` once the draft exists.
 3. Run the smallest risk-appropriate independent review wave against the complete
    diff. Wait for the wave, validate its findings, and batch accepted fixes into
    one remediation pass. Do not push one commit per finding.
+   Record `independent-review`, then one `remediation` event per batched pass
+   (with attributable active/tokens and correction/sync-push count if available).
 4. Run affected local checks, push the batch while the PR remains draft, and use
    targeted re-review rather than repeating the broad review. Complete the final
    cumulative review before requesting CI.
@@ -232,6 +251,10 @@ automatically; it is not a checklist the maintainer must remember.
    Use one watcher per candidate with bounded waits/backoff, and summarize only
    changed status. Do not start multiple watchers or repeatedly dump full job
    logs while the same run is pending.
+   Record `ready-for-ci`; once the exact-head run resolves, record `ci-passed` or
+   `ci-failed` with observed queue/run seconds and quality. After a successful
+   merge, record `merged` and use `pnpm record:ai-pr-lifecycle summary --pr
+   <PR>` in the concise handoff.
 6. Merge only when `PR Gate` passes on that same reviewed SHA and the normal review
    authority gate is satisfied. If CI exposes a defect, return the PR to draft
    before changing it, batch the correction, target the re-review, and mark it
