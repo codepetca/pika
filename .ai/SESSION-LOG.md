@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Bara roster failure isolated; two-fix plan prepared
-
-User requested both fixes. Implementation startup passed and linked the worktree to the canonical local env. Bara's read-only production logs identify the matching 17:58:35Z failure as an ambiguous Pika tenant organization mapping, before roster or schedule acceptance. Bounded production reads found no installation-tenant or integrated-roster mappings but an existing Pika-named organization. Do not adopt an organization by slug alone. Proposed collision-safe new organization creation with isolation/idempotency regressions, plus classroom-policy-based Daily hours with separate selected-date status. Required startup plan approval requested asynchronously; no implementation yet. UI brief and validation matrix are in the task visualization directory's attendance-fix-plan.md. No production mutation, recovery, deployment, manual attendance action, or Bara worktree change. Log streams stopped after diagnostic reads.
-
 ## 2026-08-31 — Production conflict traced to August 28 cleanup
 
 User requested deeper read-only investigation and discussion before a fix. Archived task Design Attendance Timing Rules (01a04930-92c8-70b3-aa4e-327ea49e8952), cleanup turn 01a04a20-0ad2-7d32-a9a2-97b77e16dcbb, records authorized production legacy-state removal on August 28. Its successful empty-import loop explicitly cleared pika_installation_tenants along with integrated roster/schedule state. It left organizations/auth identities intact. Current bounded production reads confirm the Pika organization retains one staff and three student memberships, while the installation-tenant and integrated scheduling tables are empty. Provisioning sees no mapping, tries the occupied deterministic slug, and throws the exact production error before roster/schedule delivery. Normal provisioning creates organization and mapping together; inspected retention does not remove that link. The documented signed smoke explicitly cannot test provisioning or scheduling, so it did not establish end-to-end recovery.
@@ -262,3 +258,10 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 
 - Renamed the student classroom navigation label from `Today` to `Daily` while preserving the internal `today` route identifier, notification behavior, and shared `ClipboardCheck` icon.
 - Pattern Lab continues to consume the production catalog directly. Teacher/student desktop/mobile light/dark verification passed, including open mobile navigation and active-page semantics; Darwin baselines were regenerated and the stable Linux baselines were updated only at the student label pixels, then reviewed.
+
+## 2026-09-01 — Refine student Today mobile order
+
+- Moved the mobile Today/Last class lesson-plan panel directly after the student daily-plan editor and before Past logs while preserving the desktop split inspector.
+- Reduced the mobile editor minimum from 200px to 100px; desktop remains 200px. Browser measurement confirmed the empty editor is 100px and expands to 168px for longer content without internal overflow.
+- Focused checks pass 13 files / 150 tests plus architecture, UI/design policy, TypeScript, lint, and Pika audit. Student mobile light/dark and expanded-entry states plus the unchanged student desktop split were visually reviewed. Composite checklist reviewed: keyboard and semantic behavior are unchanged; focused role/order coverage passes; no manual follow-up remains.
+- Model recommendation: GPT-5.6 Terra — localized responsive UI composition with bounded component and browser verification.

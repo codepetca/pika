@@ -71,9 +71,10 @@ vi.mock('@/components/editor', async () => {
   }
 
   return {
-    RichTextEditor: ({ content, onBlur, onChange, placeholder, toolbarPreset }: any) =>
+    RichTextEditor: ({ className, content, onBlur, onChange, placeholder, toolbarPreset }: any) =>
       React.createElement('textarea', {
         'aria-label': placeholder,
+        className,
         'data-toolbar-preset': toolbarPreset,
         onBlur,
         onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -201,11 +202,26 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-today-plan">Today and last class</div>}
+      />
+    )
 
     await screen.findByText('Past logs')
 
-    expect(screen.getByText("What's your plan for today?")).toHaveClass('font-medium')
+    const dailyPlanPrompt = screen.getByText("What's your plan for today?")
+    const mobilePlan = screen.getByTestId('mobile-today-plan')
+    const pastLogsHeading = screen.getByText('Past logs')
+    const editor = await screen.findByRole('textbox', { name: 'Write something...' })
+
+    expect(dailyPlanPrompt).toHaveClass('font-medium')
+    expect(dailyPlanPrompt.compareDocumentPosition(mobilePlan)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(mobilePlan.compareDocumentPosition(pastLogsHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(mobilePlan.parentElement).toHaveClass('lg:hidden')
+    expect(editor.className).toContain('[&_.tiptap.ProseMirror]:!min-h-[100px]')
+    expect(editor.className).toContain('lg:[&_.tiptap.ProseMirror]:!min-h-[200px]')
     expect(screen.queryByText('What do you want to get better at?')).not.toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /hide history/i })).not.toBeInTheDocument()

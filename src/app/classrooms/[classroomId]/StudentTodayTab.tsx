@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
 import { Button, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
@@ -64,12 +64,14 @@ const DAILY_PLAN_PROMPT = "What's your plan for today?"
 interface StudentTodayTabProps {
   classroom: Classroom
   layout?: 'page' | 'pane'
+  mobilePlan?: ReactNode
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
 }
 
 export function StudentTodayTab({
   classroom,
   layout = 'page',
+  mobilePlan,
   onLessonPlanLoad,
 }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
@@ -678,7 +680,7 @@ export function StudentTodayTab({
               placeholder="Write something..."
               editable={true}
               toolbarPreset="brief"
-              className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
+              className="[&_.tiptap.ProseMirror]:!min-h-[100px] [&_.tiptap.ProseMirror]:!p-0 lg:[&_.tiptap.ProseMirror]:!min-h-[200px]"
             />
 
             {saveError && (
@@ -699,6 +701,12 @@ export function StudentTodayTab({
           </div>
         )}
       </div>
+
+      {mobilePlan ? (
+        <div className="min-h-0 w-full overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+          {mobilePlan}
+        </div>
+      ) : null}
 
       <div className="bg-surface border border-border rounded-lg">
         <div className="px-4 py-3 border-b border-border">
