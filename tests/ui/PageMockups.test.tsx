@@ -55,6 +55,14 @@ describe('PageMockups', () => {
     await user.tab()
     expect(within(settings).getByRole('status')).toHaveTextContent('Saved')
 
+    const blue = within(settings).getByRole('button', { name: 'Blue Selected' })
+    const green = within(settings).getByRole('button', { name: 'Green' })
+    expect(blue).toHaveAttribute('aria-pressed', 'true')
+    await user.click(green)
+    expect(green).toHaveAttribute('aria-pressed', 'true')
+    expect(blue).toHaveAttribute('aria-pressed', 'false')
+    expect(within(settings).getByRole('button', { name: 'Green Selected' })).toBeVisible()
+
     await user.click(within(settings).getByRole('button', { name: 'Access' }))
     await user.click(within(settings).getByRole('button', { name: 'Generate new join code and link' }))
     const dialog = screen.getByRole('dialog', { name: 'Generate new join code and link?' })

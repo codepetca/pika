@@ -133,6 +133,15 @@ export const patternLabPageMockups: VerificationScript = {
 
     await section.getByRole('tab', { name: 'Settings' }).click()
     const settings = section.getByTestId('settings-mockup')
+    await settings.getByRole('button', { name: 'Green' }).click()
+    checks.push({
+      name: 'Settings classroom-color selection updates semantic and visible state',
+      passed: await settings.getByRole('button', { name: 'Green Selected' }).getAttribute('aria-pressed') === 'true'
+        && await settings.getByRole('button', { name: 'Blue' }).getAttribute('aria-pressed') === 'false',
+    })
+    const settingsColorArtifact = path.join(artifactDir, 'desktop-light-settings-color.png')
+    await settings.screenshot({ path: settingsColorArtifact })
+    artifacts.push(settingsColorArtifact)
     await settings.getByRole('button', { name: 'Access' }).click()
     await settings.getByRole('button', { name: 'Generate new join code and link' }).click()
     const regenerateDialog = page.getByRole('dialog', { name: 'Generate new join code and link?' })

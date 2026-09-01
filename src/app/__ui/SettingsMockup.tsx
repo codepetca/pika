@@ -105,6 +105,7 @@ function SettingsPanel({ children }: { children: ReactNode }) {
 export function SettingsMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [section, setSection] = useState<SettingsSection>('general')
   const [title, setTitle] = useState('Grade 10 Science')
+  const [themeColor, setThemeColor] = useState('Blue')
   const [saveState, setSaveState] = useState<'saved' | 'unsaved'>('saved')
   const [allowJoins, setAllowJoins] = useState(true)
   const [rosterOnly, setRosterOnly] = useState(true)
@@ -156,20 +157,23 @@ export function SettingsMockup({ onPrototypeAction }: { onPrototypeAction: (acti
           <SettingsPanel>
             <SettingsHeading title="Display" />
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Classroom color">
-              {['Blue', 'Green', 'Purple', 'Orange'].map((color, index) => (
+              {['Blue', 'Green', 'Purple', 'Orange'].map((color) => (
                 <Button
                   key={color}
                   type="button"
-                  aria-pressed={index === 0}
-                  onClick={() => recordSaved(`${color} classroom color selected`)}
-                  variant={index === 0 ? 'subtle' : 'surface'}
+                  aria-pressed={themeColor === color}
+                  onClick={() => {
+                    setThemeColor(color)
+                    recordSaved(`${color} classroom color selected`)
+                  }}
+                  variant={themeColor === color ? 'subtle' : 'surface'}
                   size="sm"
                   className={cn(
                     'w-full justify-between text-left',
-                    index === 0 && 'font-semibold text-primary',
+                    themeColor === color && 'font-semibold text-primary',
                   )}
                 >
-                  {color}{index === 0 ? <span className="text-xs">Selected</span> : null}
+                  {color}{themeColor === color ? <span className="text-xs">Selected</span> : null}
                 </Button>
               ))}
             </div>
