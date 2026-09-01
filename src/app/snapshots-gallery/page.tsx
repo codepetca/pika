@@ -23,7 +23,7 @@ export default async function SnapshotsPage() {
     await requireSnapshotGalleryAccess()
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      redirect(getServerLoginRedirectPath())
+      redirect(await getServerLoginRedirectPath())
     }
 
     if (error instanceof AuthorizationError) {

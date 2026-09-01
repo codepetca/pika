@@ -37,7 +37,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   // 1. Auth check - runs on server
   const user = await getCurrentUser()
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
 
   const supabase = getServiceRoleClient()
