@@ -107,9 +107,17 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     ? await loadAssignmentSubmissionArtifactsForDoc(supabase, existingDoc.id)
     : []
   const submissionCompletion = getSubmissionRequirementCompletion(submissionRequirements, submissionArtifacts)
+  const acknowledgedMissingAttachmentIds = new Set(
+    submitRequest.acknowledged_missing_attachment_ids
+  )
+  const acknowledgesAllCurrentMissingAttachments =
+    submitRequest.allow_missing_attachments
+    && submissionCompletion.missingRequiredRequirementIds.every(
+      (requirementId) => acknowledgedMissingAttachmentIds.has(requirementId)
+    )
   const attachmentGate = getAssignmentAttachmentSubmissionGate(
     submissionCompletion,
-    submitRequest.allow_missing_attachments
+    acknowledgesAllCurrentMissingAttachments
   )
 
   if (!attachmentGate.ok && attachmentGate.reason === 'invalid_attachments') {
@@ -174,11 +182,35 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     studentId: user.id,
     content: submissionContent as TiptapContent,
     expectedUpdatedAt: submitRequest.expected_updated_at,
-    allowMissingAttachments: hasAcknowledgedMissingAttachments,
+    acknowledgedMissingRequirementIds: hasAcknowledgedMissingAttachments
+      ? submitRequest.acknowledged_missing_attachment_ids
+      : [],
     ...(palEnabled ? { palEvent } : {}),
   })
 
   if (!submitResult.ok) {
+    if (submitResult.errorCode === 'assignment_submission_requirements_missing') {
+      const latestRequirements = await loadAssignmentSubmissionRequirements(supabase, assignmentId)
+      const latestArtifacts = await loadAssignmentSubmissionArtifactsForDoc(supabase, existingDoc.id)
+      const latestCompletion = getSubmissionRequirementCompletion(latestRequirements, latestArtifacts)
+      if (latestCompletion.missingRequiredRequirementIds.length === 0) {
+        return NextResponse.json(
+          {
+            error: 'Attachment requirements changed before submission. Review them and try again.',
+            error_code: 'assignment_submission_requirements_changed',
+          },
+          { status: 409 }
+        )
+      }
+      return NextResponse.json(
+        {
+          error: 'Confirm that you want to submit without the missing attachments.',
+          error_code: 'assignment_attachments_confirmation_required',
+          missing_attachment_ids: latestCompletion.missingRequiredRequirementIds,
+        },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: submitResult.error, error_code: submitResult.errorCode },
       { status: submitResult.status }

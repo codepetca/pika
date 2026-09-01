@@ -4,7 +4,7 @@
 
 create or replace function private.validate_assignment_submission_requirements(
   p_doc public.assignment_docs,
-  p_allow_missing_attachments boolean
+  p_acknowledged_missing_requirement_ids uuid[]
 )
 returns void
 language plpgsql
@@ -35,7 +35,7 @@ begin
       message = 'assignment_submission_requirements_incomplete';
   end if;
 
-  if not coalesce(p_allow_missing_attachments, false) and exists (
+  if p_acknowledged_missing_requirement_ids is not null and exists (
     select 1
     from public.assignment_submission_requirements r
     left join public.assignment_submission_artifacts a
@@ -44,7 +44,7 @@ begin
       and a.student_id = p_doc.student_id
       and a.type = r.type
     where r.assignment_id = p_doc.assignment_id
-      and r.required
+      and not (r.id = any(p_acknowledged_missing_requirement_ids))
       and (
         a.id is null
         or case
@@ -71,7 +71,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform private.validate_assignment_submission_requirements(new, true);
+  perform private.validate_assignment_submission_requirements(new, null::uuid[]);
   return new;
 end;
 $$;
@@ -83,7 +83,7 @@ create or replace function private.submit_assignment_doc_atomic_v2(
   p_expected_updated_at timestamptz,
   p_word_count integer,
   p_char_count integer,
-  p_allow_missing_attachments boolean,
+  p_acknowledged_missing_requirement_ids uuid[],
   p_emit_pal_event boolean,
   p_pal_event jsonb
 )
@@ -159,7 +159,7 @@ begin
 
   perform private.validate_assignment_submission_requirements(
     v_doc,
-    coalesce(p_allow_missing_attachments, false)
+    coalesce(p_acknowledged_missing_requirement_ids, '{}'::uuid[])
   );
 
   update public.assignment_docs
@@ -200,7 +200,7 @@ create or replace function public.submit_assignment_doc_atomic(
   p_expected_updated_at timestamptz,
   p_word_count integer,
   p_char_count integer,
-  p_allow_missing_attachments boolean
+  p_acknowledged_missing_requirement_ids uuid[]
 )
 returns jsonb
 language sql
@@ -209,7 +209,7 @@ set search_path = public, private
 as $$
   select private.submit_assignment_doc_atomic_v2(
     p_assignment_id, p_student_id, p_content, p_expected_updated_at,
-    p_word_count, p_char_count, coalesce(p_allow_missing_attachments, false),
+    p_word_count, p_char_count, coalesce(p_acknowledged_missing_requirement_ids, '{}'::uuid[]),
     false, null
   );
 $$;
@@ -230,7 +230,7 @@ set search_path = public, private
 as $$
   select public.submit_assignment_doc_atomic(
     p_assignment_id, p_student_id, p_content, p_expected_updated_at,
-    p_word_count, p_char_count, false
+    p_word_count, p_char_count, '{}'::uuid[]
   );
 $$;
 
@@ -242,7 +242,7 @@ create or replace function public.submit_assignment_doc_with_pal_event_atomic(
   p_word_count integer,
   p_char_count integer,
   p_pal_event jsonb,
-  p_allow_missing_attachments boolean
+  p_acknowledged_missing_requirement_ids uuid[]
 )
 returns jsonb
 language sql
@@ -251,7 +251,7 @@ set search_path = public, private
 as $$
   select private.submit_assignment_doc_atomic_v2(
     p_assignment_id, p_student_id, p_content, p_expected_updated_at,
-    p_word_count, p_char_count, coalesce(p_allow_missing_attachments, false),
+    p_word_count, p_char_count, coalesce(p_acknowledged_missing_requirement_ids, '{}'::uuid[]),
     true, p_pal_event
   );
 $$;
@@ -273,39 +273,39 @@ set search_path = public, private
 as $$
   select public.submit_assignment_doc_with_pal_event_atomic(
     p_assignment_id, p_student_id, p_content, p_expected_updated_at,
-    p_word_count, p_char_count, p_pal_event, false
+    p_word_count, p_char_count, p_pal_event, '{}'::uuid[]
   );
 $$;
 
 drop function if exists private.validate_assignment_submission_requirements(public.assignment_docs);
 
-revoke all on function private.validate_assignment_submission_requirements(public.assignment_docs, boolean)
+revoke all on function private.validate_assignment_submission_requirements(public.assignment_docs, uuid[])
   from public, anon, authenticated, service_role;
-revoke all on function private.submit_assignment_doc_atomic_v2(uuid, uuid, jsonb, timestamptz, integer, integer, boolean, boolean, jsonb)
+revoke all on function private.submit_assignment_doc_atomic_v2(uuid, uuid, jsonb, timestamptz, integer, integer, uuid[], boolean, jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, boolean)
+revoke all on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, uuid[])
   from public, anon, authenticated;
 revoke all on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer)
   from public, anon, authenticated;
-revoke all on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, boolean)
+revoke all on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, uuid[])
   from public, anon, authenticated;
 revoke all on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb)
   from public, anon, authenticated;
 
-grant execute on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, boolean)
+grant execute on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, uuid[])
   to service_role;
 grant execute on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer)
   to service_role;
-grant execute on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, boolean)
+grant execute on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, uuid[])
   to service_role;
 grant execute on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb)
   to service_role;
 
-comment on function private.validate_assignment_submission_requirements(public.assignment_docs, boolean) is
-  'Validates present assignment artifacts and rejects missing required artifacts unless the locked submission RPC received explicit acknowledgement.';
-comment on function private.submit_assignment_doc_atomic_v2(uuid, uuid, jsonb, timestamptz, integer, integer, boolean, boolean, jsonb) is
-  'Shared locked assignment submission implementation with transaction-bound missing-attachment acknowledgement and optional Pal outbox enqueue.';
-comment on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, boolean) is
-  'Atomically submits an assignment document and evaluates missing-attachment acknowledgement under the assignment lock.';
-comment on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, boolean) is
-  'Atomically submits an assignment document, evaluates missing-attachment acknowledgement under lock, and enqueues the Pal completion event.';
+comment on function private.validate_assignment_submission_requirements(public.assignment_docs, uuid[]) is
+  'Validates present assignment artifacts and rejects every missing configured artifact not named in the transaction-bound acknowledgement set.';
+comment on function private.submit_assignment_doc_atomic_v2(uuid, uuid, jsonb, timestamptz, integer, integer, uuid[], boolean, jsonb) is
+  'Shared locked assignment submission implementation with scoped missing-requirement acknowledgements and optional Pal outbox enqueue.';
+comment on function public.submit_assignment_doc_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, uuid[]) is
+  'Atomically submits an assignment document and evaluates exact missing-requirement acknowledgements under the assignment lock.';
+comment on function public.submit_assignment_doc_with_pal_event_atomic(uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, uuid[]) is
+  'Atomically submits an assignment document, evaluates exact missing-requirement acknowledgements under lock, and enqueues the Pal completion event.';

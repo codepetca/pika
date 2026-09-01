@@ -490,6 +490,13 @@ run_artifact_delete_submit_race() {
 update public.assignment_submission_requirements
 set required = true
 where id = '10000000-0000-4000-8000-000000000008';
+insert into public.assignment_submission_requirements (
+  id, assignment_id, type, label, required, position
+) values (
+  '10000000-0000-4000-8000-000000000031',
+  '10000000-0000-4000-8000-000000000004',
+  'image', 'Already confirmed missing image', true, 2
+);
 SQL
 
   docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c "
@@ -517,9 +524,9 @@ begin
       '10000000-0000-4000-8000-000000000004',
       '10000000-0000-4000-8000-000000000002',
       (select content from public.assignment_docs where id = '10000000-0000-4000-8000-000000000005'),
-      v_revision, 0, 0, false
+      v_revision, 0, 0, array['10000000-0000-4000-8000-000000000031'::uuid]
     );
-    raise exception 'Strict submission accepted an artifact deleted by a concurrent transaction';
+    raise exception 'Scoped acknowledgement accepted an artifact deleted by a concurrent transaction';
   exception
     when check_violation then
       if sqlerrm not like '%assignment_submission_requirements_missing%' then
@@ -576,9 +583,9 @@ begin
       '10000000-0000-4000-8000-000000000004',
       '10000000-0000-4000-8000-000000000002',
       (select content from public.assignment_docs where id = '10000000-0000-4000-8000-000000000005'),
-      v_revision, 0, 0, false
+      v_revision, 0, 0, array['10000000-0000-4000-8000-000000000031'::uuid]
     );
-    raise exception 'Strict submission missed a requirement added by a concurrent transaction';
+    raise exception 'Scoped acknowledgement covered a requirement added by a concurrent transaction';
   exception
     when check_violation then
       if sqlerrm not like '%assignment_submission_requirements_missing%' then

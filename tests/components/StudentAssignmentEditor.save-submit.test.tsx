@@ -671,6 +671,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
           content: latestDraft,
           expected_updated_at: '2026-07-01T12:00:00.000Z',
           allow_missing_attachments: false,
+          acknowledged_missing_attachment_ids: [],
         }),
       }),
     )
@@ -3717,6 +3718,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Submit anyway' }))
     await waitFor(() => expect(submitBodies).toHaveLength(1))
     expect(submitBodies[0].allow_missing_attachments).toBe(true)
+    expect(submitBodies[0].acknowledged_missing_attachment_ids).toEqual(['req-repo', 'req-image'])
     await waitFor(() => expect(ref.current?.isSubmitted).toBe(true))
   })
 

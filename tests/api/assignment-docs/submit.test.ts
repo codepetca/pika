@@ -185,7 +185,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     const emptyContent = { type: 'doc', content: [] }
     const savedRevision = '2026-04-20T14:00:00.000Z'
     const requirement = {
-      id: 'req-repo',
+      id: '10000000-0000-4000-8000-000000000001',
       assignment_id: 'assign-1',
       type: 'repo_link',
       label: 'Repo link',
@@ -282,7 +282,10 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    const makeRequest = (allowMissingAttachments: boolean) => new NextRequest(
+    const makeRequest = (
+      allowMissingAttachments: boolean,
+      acknowledgedIds = allowMissingAttachments ? [requirement.id] : []
+    ) => new NextRequest(
       'http://localhost:3000/api/assignment-docs/assign-1/submit',
       {
         method: 'POST',
@@ -291,6 +294,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
           content: emptyContent,
           expected_updated_at: savedRevision,
           allow_missing_attachments: allowMissingAttachments,
+          acknowledged_missing_attachment_ids: acknowledgedIds,
         }),
       }
     )
@@ -299,9 +303,20 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     await expect(unacknowledgedResponse.json()).resolves.toEqual({
       error: 'Confirm that you want to submit without the missing attachments.',
       error_code: 'assignment_attachments_confirmation_required',
-      missing_attachment_ids: ['req-repo'],
+      missing_attachment_ids: [requirement.id],
     })
     expect(unacknowledgedResponse.status).toBe(400)
+    expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
+
+    const staleAcknowledgementResponse = await POST(makeRequest(true, [
+      '10000000-0000-4000-8000-000000000099',
+    ]), { params: { id: 'assign-1' } })
+    expect(staleAcknowledgementResponse.status).toBe(400)
+    await expect(staleAcknowledgementResponse.json()).resolves.toEqual({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: [requirement.id],
+    })
     expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
 
     const acknowledgedResponse = await POST(makeRequest(true), { params: { id: 'assign-1' } })
@@ -311,7 +326,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       studentId: 'student-1',
       content: emptyContent,
       expectedUpdatedAt: savedRevision,
-      allowMissingAttachments: true,
+      acknowledgedMissingRequirementIds: [requirement.id],
     }))
 
     vi.mocked(submitAssignmentDocAtomic).mockResolvedValueOnce({
@@ -325,6 +340,20 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     await expect(migrationRequiredResponse.json()).resolves.toEqual({
       error: 'Submitting without the missing attachment is temporarily unavailable. Try again shortly.',
       error_code: 'assignment_submission_migration_required',
+    })
+
+    vi.mocked(submitAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    })
+    const racedResponse = await POST(makeRequest(true), { params: { id: 'assign-1' } })
+    expect(racedResponse.status).toBe(400)
+    await expect(racedResponse.json()).resolves.toEqual({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: [requirement.id],
     })
   })
 

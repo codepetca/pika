@@ -238,7 +238,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
-  const [missingAttachmentConfirmation, setMissingAttachmentConfirmation] = useState<string | null>(null)
+  const [missingAttachmentConfirmation, setMissingAttachmentConfirmation] = useState<{
+    description: string
+    requirementIds: string[]
+  } | null>(null)
 
   // Save state
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
@@ -1101,7 +1104,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
   }
 
-  const submitAssignment = useCallback(async (allowMissingAttachments: boolean) => {
+  const submitAssignment = useCallback(async (acknowledgedMissingAttachmentIds: string[]) => {
     setSubmitting(true)
     setError('')
     const submissionContent = pendingContentRef.current ?? content
@@ -1145,11 +1148,19 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         setError('Fix the attachment marked “Fix needed” before submitting.')
         return
       }
-      if (!allowMissingAttachments && latestCompletion.missingRequiredRequirementIds.length > 0) {
-        setMissingAttachmentConfirmation(formatMissingAttachmentConfirmation(
-          submissionRequirements,
-          latestCompletion.missingRequiredRequirementIds
-        ))
+      if (
+        latestCompletion.missingRequiredRequirementIds.length > 0
+        && !latestCompletion.missingRequiredRequirementIds.every(
+          (requirementId) => acknowledgedMissingAttachmentIds.includes(requirementId)
+        )
+      ) {
+        setMissingAttachmentConfirmation({
+          description: formatMissingAttachmentConfirmation(
+            submissionRequirements,
+            latestCompletion.missingRequiredRequirementIds
+          ),
+          requirementIds: latestCompletion.missingRequiredRequirementIds,
+        })
         return
       }
 
@@ -1159,11 +1170,24 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         body: JSON.stringify({
           content: submissionContent,
           expected_updated_at: expectedUpdatedAt,
-          allow_missing_attachments: allowMissingAttachments,
+          allow_missing_attachments: acknowledgedMissingAttachmentIds.length > 0,
+          acknowledged_missing_attachment_ids: acknowledgedMissingAttachmentIds,
         }),
       }, SAVE_REQUEST_TIMEOUT_MS, 'Submission timed out. Check your connection and try again.')
 
       if (!response.ok) {
+        if (
+          response.status === 400
+          && data.error_code === 'assignment_attachments_confirmation_required'
+          && Array.isArray(data.missing_attachment_ids)
+          && data.missing_attachment_ids.length > 0
+        ) {
+          setMissingAttachmentConfirmation({
+            description: data.error,
+            requirementIds: data.missing_attachment_ids,
+          })
+          return
+        }
         if (response.status === 409) {
           const refreshed = await refreshAfterRevisionConflict(submissionContent, { definitiveConflict: true })
           if (!refreshed) {
@@ -1215,7 +1239,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   ])
 
   const handleSubmit = useCallback(async () => {
-    await submitAssignment(false)
+    await submitAssignment([])
   }, [submitAssignment])
 
   const handleUnsubmit = useCallback(async () => {
@@ -1708,15 +1732,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       <ConfirmDialog
         isOpen={Boolean(missingAttachmentConfirmation)}
         title="Submit without attachments?"
-        description={missingAttachmentConfirmation ?? undefined}
+        description={missingAttachmentConfirmation?.description}
         confirmLabel="Submit anyway"
         cancelLabel="Go back"
         isCancelDisabled={submitting}
         isConfirmDisabled={submitting}
         onCancel={() => setMissingAttachmentConfirmation(null)}
         onConfirm={async () => {
+          const requirementIds = missingAttachmentConfirmation?.requirementIds ?? []
           setMissingAttachmentConfirmation(null)
-          await submitAssignment(true)
+          await submitAssignment(requirementIds)
         }}
       />
 

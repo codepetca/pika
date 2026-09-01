@@ -63,9 +63,9 @@ begin
   foreach v_function in array array[
     'public.save_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,text,integer,integer,jsonb,jsonb,integer,integer,uuid,bigint,uuid)',
     'public.submit_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer)',
-    'public.submit_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,boolean)',
+    'public.submit_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,uuid[])',
     'public.submit_assignment_doc_with_pal_event_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,jsonb)',
-    'public.submit_assignment_doc_with_pal_event_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,jsonb,boolean)',
+    'public.submit_assignment_doc_with_pal_event_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,jsonb,uuid[])',
     'public.unsubmit_assignment_doc_atomic(uuid,uuid)',
     'public.delete_assignment_submission_artifact_atomic(uuid,uuid,uuid)',
     'public.claim_assignment_artifact_storage_cleanup(uuid,integer,integer)',
@@ -520,7 +520,7 @@ begin
   v_result := public.submit_assignment_doc_atomic(
     v_ids.assignment_id, v_ids.student_id,
     (select content from public.assignment_docs where id = v_ids.doc_id),
-    v_revision, 1, 6, true
+    v_revision, 1, 6, array[v_ids.requirement_id]
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Acknowledged missing attachment could not be submitted: %', v_result;
@@ -548,7 +548,7 @@ begin
   v_result := public.submit_assignment_doc_with_pal_event_atomic(
     v_ids.assignment_id, v_ids.student_id,
     (select content from public.assignment_docs where id = v_ids.doc_id),
-    v_revision, 1, 6, null, true
+    v_revision, 1, 6, null, array[v_ids.requirement_id]
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Acknowledged Pal missing attachment could not be submitted: %', v_result;
@@ -577,7 +577,7 @@ begin
     perform public.submit_assignment_doc_atomic(
       v_ids.assignment_id, v_ids.student_id,
       (select content from public.assignment_docs where id = v_ids.doc_id),
-      v_revision, 1, 6, true
+      v_revision, 1, 6, array[v_ids.requirement_id]
     );
     raise exception 'Submission with an invalid attachment unexpectedly succeeded';
   exception

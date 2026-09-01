@@ -164,7 +164,7 @@ describe('atomic assignment document operations', () => {
       p_expected_updated_at: '2026-07-16T12:01:00.000Z',
       p_word_count: 1,
       p_char_count: 5,
-      p_allow_missing_attachments: false,
+      p_acknowledged_missing_requirement_ids: [],
     }))
   })
 
@@ -199,7 +199,7 @@ describe('atomic assignment document operations', () => {
       'submit_assignment_doc_with_pal_event_atomic',
       expect.objectContaining({
         p_pal_event: palEvent,
-        p_allow_missing_attachments: false,
+        p_acknowledged_missing_requirement_ids: [],
       }),
     )
   })
@@ -296,7 +296,7 @@ describe('atomic assignment document operations', () => {
       studentId: 'student-1',
       content: afterContent,
       expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
-      allowMissingAttachments: true,
+      acknowledgedMissingRequirementIds: ['10000000-0000-4000-8000-000000000001'],
     })
 
     expect(result).toEqual({
@@ -331,8 +331,31 @@ describe('atomic assignment document operations', () => {
 
     expect(result.ok).toBe(true)
     expect(rpc).toHaveBeenCalledTimes(2)
-    expect(rpc.mock.calls[0][1]).toHaveProperty('p_allow_missing_attachments', false)
-    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_allow_missing_attachments')
+    expect(rpc.mock.calls[0][1]).toHaveProperty('p_acknowledged_missing_requirement_ids', [])
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_acknowledged_missing_requirement_ids')
+  })
+
+  it('reports a locked missing-requirement race distinctly from invalid artifacts', async () => {
+    const result = await submitAssignmentDocAtomic({
+      supabase: {
+        rpc: vi.fn().mockResolvedValue({
+          data: null,
+          error: { code: '23514', message: 'assignment_submission_requirements_missing' },
+        }),
+      },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      content: afterContent,
+      expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
+      acknowledgedMissingRequirementIds: ['10000000-0000-4000-8000-000000000001'],
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    })
   })
 
   it('returns a structured conflict when atomic unsubmit loses to teacher return', async () => {

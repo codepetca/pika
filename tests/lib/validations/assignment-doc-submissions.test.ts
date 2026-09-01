@@ -18,6 +18,7 @@ describe('assignmentDocSubmitRequestSchema', () => {
     expect(assignmentDocSubmitRequestSchema.parse(input)).toEqual({
       ...input,
       allow_missing_attachments: false,
+      acknowledged_missing_attachment_ids: [],
     })
   })
 
@@ -26,7 +27,18 @@ describe('assignmentDocSubmitRequestSchema', () => {
       content: { type: 'doc', content: [] },
       expected_updated_at: '2026-07-16T12:00:00.000Z',
       allow_missing_attachments: true,
-    }).allow_missing_attachments).toBe(true)
+      acknowledged_missing_attachment_ids: ['10000000-0000-4000-8000-000000000001'],
+    })).toEqual(expect.objectContaining({
+      allow_missing_attachments: true,
+      acknowledged_missing_attachment_ids: ['10000000-0000-4000-8000-000000000001'],
+    }))
+
+    expect(assignmentDocSubmitRequestSchema.safeParse({
+      content: { type: 'doc', content: [] },
+      expected_updated_at: '2026-07-16T12:00:00.000Z',
+      allow_missing_attachments: false,
+      acknowledged_missing_attachment_ids: ['10000000-0000-4000-8000-000000000001'],
+    }).success).toBe(false)
   })
 
   it('rejects malformed content and revisions', () => {

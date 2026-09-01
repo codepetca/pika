@@ -111,6 +111,14 @@ function isMissingAtomicMigration(error: any) {
 }
 
 function mapRpcError(error: any, operation: 'save' | 'submit' | 'unsubmit'): AssignmentDocMutationResult {
+  if (error?.code === '23514' && error?.message?.includes('assignment_submission_requirements_missing')) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    }
+  }
   if (error?.code === '23514' && error?.message?.includes('assignment_submission_requirements_incomplete')) {
     return {
       ok: false,
@@ -229,11 +237,11 @@ export async function submitAssignmentDocAtomic(input: {
   studentId: string
   content: TiptapContent
   expectedUpdatedAt: string
-  allowMissingAttachments?: boolean
+  acknowledgedMissingRequirementIds?: string[]
   palEvent?: v1.LearningItemCompletedEvent | null
 }): Promise<AssignmentDocMutationResult> {
   const usePalOutbox = input.palEvent !== undefined
-  const allowMissingAttachments = input.allowMissingAttachments ?? false
+  const acknowledgedMissingRequirementIds = input.acknowledgedMissingRequirementIds ?? []
   const rpcName = usePalOutbox
     ? 'submit_assignment_doc_with_pal_event_atomic'
     : 'submit_assignment_doc_atomic'
@@ -250,14 +258,14 @@ export async function submitAssignmentDocAtomic(input: {
     rpcName,
     {
       ...baseArguments,
-      p_allow_missing_attachments: allowMissingAttachments,
+      p_acknowledged_missing_requirement_ids: acknowledgedMissingRequirementIds,
     },
   )
 
   // During a migration-first rollout, old database instances do not know the new
   // parameter. Strict submissions can safely use the legacy call shape; an
   // acknowledged-missing submission must wait for the transaction-bound RPC.
-  if (isMissingAtomicMigration(error) && !allowMissingAttachments) {
+  if (isMissingAtomicMigration(error) && acknowledgedMissingRequirementIds.length === 0) {
     const legacyResult = await input.supabase.rpc(
       rpcName,
       baseArguments,
