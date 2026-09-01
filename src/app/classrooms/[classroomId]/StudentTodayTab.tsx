@@ -686,9 +686,9 @@ export function StudentTodayTab({
         ) : (
           <div className="space-y-4">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-sm font-medium text-text-default">
+              <h2 id="student-daily-log-heading" className="text-sm font-medium text-text-default">
                 {DAILY_LOG_TITLE}
-              </p>
+              </h2>
               <SaveStatus status={saveStatus} className="text-sm" />
             </div>
             <RichTextEditor
@@ -696,6 +696,7 @@ export function StudentTodayTab({
               onChange={handleContentChange}
               onBlur={flushAutosave}
               placeholder="What is your plan today?"
+              aria-labelledby="student-daily-log-heading"
               editable={true}
               toolbarPreset="brief"
               className="[&_.tiptap.ProseMirror]:!min-h-[100px] [&_.tiptap.ProseMirror]:!p-0 lg:[&_.tiptap.ProseMirror]:!min-h-[200px]"
