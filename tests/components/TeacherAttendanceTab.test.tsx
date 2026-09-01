@@ -1289,7 +1289,11 @@ describe('TeacherAttendanceTab', () => {
     await screen.findByRole('columnheader', { name: /^Log/ })
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
+    const scrollPane = screen.getByTestId('daily-student-scroll-pane')
+    const workspaceFrame = scrollPane.parentElement?.parentElement?.parentElement
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
+    expect(scrollPane).toHaveClass('rounded-lg')
+    expect(workspaceFrame).toHaveClass('rounded-none', 'border-0', 'bg-page')
     expect(screen.getByRole('columnheader', { name: /^Log/ }).closest('thead')).toHaveClass('bg-surface-3')
     const previousButton = screen.getByRole('button', { name: 'Previous day' })
     const nextButton = screen.getByRole('button', { name: 'Next day' })

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Sync Pattern Lab after PR #1128
-
-- Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
-- This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
-- Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.
-
 ## 2026-08-31 — UI consistency approach (read-only review)
 
 Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures, committed Pattern Lab visual evidence, and current product-experience progress. Recommended a page/role/state adoption matrix, family-scoped reference compositions, a Roster pilot, and incremental visual/interaction verification. No product code changed; no fresh live page audit performed. Next: baseline active routes and approve missing family patterns before implementation.
@@ -231,3 +225,9 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Draft-PR review hardened that boundary: the API requires an exact, duplicate-free match and passes only its canonical missing-requirement IDs to both standard and Pal submission RPCs; the shared locked validator independently re-derives the missing set and requires exact cardinality and membership. Extra IDs, duplicates, a concurrently added requirement, or a deleted artifact are not covered by an earlier confirmation. Legacy call shapes remain strict, ordinary submissions safely fall back during migration-first rollout, and acknowledged missing submissions return a retryable migration-required response until migration 144 is present. Failed or in-flight image uploads block confirmation and submission until retry or an explicit continue-without action.
 - Rollback-scoped atomic checks and disposable-database concurrency checks pass, including strict/scoped acknowledgement, invalid, Pal, acknowledged requirement-add and acknowledged artifact-delete cases. Remediation tests pass 89/89; the focused gate passes 186 files / 1,856 tests plus architecture, UI/design policy, TypeScript and lint. The eight desktop/mobile × light/dark Pattern Lab contracts pass and representative captures were inspected. Migration 144 remains unapplied to shared databases.
 - Pattern Lab has API-free teacher/student examples. Desktop/mobile × light/dark teacher rows, populated/empty label states, the shared fixed-height relative-date subtitle, the open requirement menu, student checklist and confirmation all passed and were inspected; geometry caps the three-row card at 220px and checks same-row centering. Evidence is under session artifacts `assignment-attachments`. Final focused checks pass 185 files / 1,837 tests plus architecture, UI/design policy, TypeScript and lint. Preview remains on localhost:3007; no commit, PR, merge or deployment yet.
+
+## 2026-08-31 — Remove Daily corner clipping artifact
+
+- Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
+- Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
+- Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
