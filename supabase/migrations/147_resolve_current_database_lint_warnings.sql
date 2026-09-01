@@ -81,9 +81,10 @@ select private.replace_function_definition_fragment_v147(
 
 -- The service-role-only RPC receives the authenticated teacher ID from the
 -- route. Enforce that actor and the active Classroom at the atomic boundary
--- before mutating attempts. Lock Classroom then Test to match established Test
--- mutation order and retain the authorization decision through the write; the
--- empty-selection no-op remains unchanged.
+-- before mutating attempts. Join the grading RPCs' per-Test advisory lock first,
+-- then lock Classroom and Test to retain the authorization decision through the
+-- write without creating a cross-RPC deadlock; the empty-selection no-op remains
+-- unchanged.
 select private.replace_function_definition_fragment_v147(
   'public.unsubmit_test_attempts_atomic(uuid,uuid[],uuid)'::regprocedure,
   E'  v_attempts jsonb := ''[]''::jsonb;\n'
@@ -97,7 +98,8 @@ select private.replace_function_definition_fragment_v147(
 select private.replace_function_definition_fragment_v147(
   'public.unsubmit_test_attempts_atomic(uuid,uuid[],uuid)'::regprocedure,
   E'  with target_attempts as materialized (',
-  E'  select test.classroom_id into v_classroom_id\n'
+  E'  perform pg_advisory_xact_lock(hashtextextended(p_test_id::text, 0));\n\n'
+    || E'  select test.classroom_id into v_classroom_id\n'
     || E'  from public.tests test\n'
     || E'  where test.id = p_test_id;\n'
     || E'  if not found then\n'

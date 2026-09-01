@@ -9,9 +9,10 @@ fi
 
 TMP_ARCHIVE="$(mktemp)"
 TMP_OWNER="$(mktemp)"
+TMP_ADVISORY="$(mktemp)"
 
 cleanup() {
-  rm -f "$TMP_ARCHIVE" "$TMP_OWNER"
+  rm -f "$TMP_ARCHIVE" "$TMP_OWNER" "$TMP_ADVISORY"
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 delete from public.classrooms where id = 'd1470000-0000-4000-8000-000000000010';
 delete from public.users where id::text like 'd1470000-0000-4000-8000-00000000000%';
@@ -120,6 +121,28 @@ wait_for_holder_sleep() {
   return 1
 }
 
+wait_for_advisory_waiter_without_classroom_lock() {
+  local application_name="$1"
+  for _ in {1..100}; do
+    local lock_state
+    lock_state="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -qAtc "
+      select
+        count(*) filter (where locks.locktype = 'advisory' and not locks.granted)::text
+        || ':' ||
+        count(*) filter (where locks.relation = 'public.classrooms'::regclass and locks.granted)::text
+      from pg_stat_activity activity
+      left join pg_locks locks on locks.pid = activity.pid
+      where activity.application_name = '$application_name'
+    ")"
+    if [[ "$lock_state" == "1:0" ]]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "Timed out waiting for $application_name at the advisory lock boundary" >&2
+  return 1
+}
+
 assert_fixture_unchanged() {
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 do $unchanged$
@@ -215,6 +238,57 @@ assert_fixture_unchanged
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 update public.classrooms set teacher_id = 'd1470000-0000-4000-8000-000000000001'
 where id = 'd1470000-0000-4000-8000-000000000010';
+SQL
+
+docker exec -e PGAPPNAME=lint-warning-grading-holder -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select pg_advisory_xact_lock(hashtextextended('d1470000-0000-4000-8000-000000000011', 0));
+select 1 from public.tests
+where id = 'd1470000-0000-4000-8000-000000000011'
+for update;
+select pg_sleep(2);
+update public.classrooms set title = title
+where id = 'd1470000-0000-4000-8000-000000000010';
+commit;
+SQL
+ADVISORY_HOLDER_PID=$!
+
+wait_for_holder_sleep lint-warning-grading-holder
+docker exec -e PGAPPNAME=lint-warning-advisory-unsubmit -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "select public.unsubmit_test_attempts_atomic(
+    'd1470000-0000-4000-8000-000000000011',
+    array['d1470000-0000-4000-8000-000000000003'::uuid],
+    'd1470000-0000-4000-8000-000000000001'
+  )" >"$TMP_ADVISORY" 2>&1 &
+ADVISORY_UNSUBMIT_PID=$!
+wait_for_advisory_waiter_without_classroom_lock lint-warning-advisory-unsubmit
+wait "$ADVISORY_HOLDER_PID"
+set +e
+wait "$ADVISORY_UNSUBMIT_PID"
+ADVISORY_STATUS=$?
+set -e
+if [[ "$ADVISORY_STATUS" -ne 0 ]]; then
+  cat "$TMP_ADVISORY" >&2
+  echo "Test unsubmit did not serialize cleanly with the grading lock family" >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+update public.test_attempts
+set is_submitted = true, submitted_at = clock_timestamp(), responses = '{"answer":"kept"}'::jsonb
+where test_id = 'd1470000-0000-4000-8000-000000000011'
+  and student_id = 'd1470000-0000-4000-8000-000000000003';
+insert into public.test_responses (
+  test_id, question_id, student_id, selected_option, submitted_at
+) values (
+  'd1470000-0000-4000-8000-000000000011',
+  'd1470000-0000-4000-8000-000000000012',
+  'd1470000-0000-4000-8000-000000000003',
+  0,
+  clock_timestamp()
+);
 do $owner_success$
 declare v_result jsonb;
 begin

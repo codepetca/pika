@@ -32,6 +32,9 @@ describe('database lint warning resolution migration', () => {
   })
 
   it('uses the retained actor and clock parameters as database contracts', () => {
+    const advisoryLock = migration.indexOf(
+      'pg_advisory_xact_lock(hashtextextended(p_test_id::text, 0))',
+    )
     const classroomLock = migration.indexOf(
       "E'  from public.classrooms classroom\\n'",
     )
@@ -40,7 +43,8 @@ describe('database lint warning resolution migration', () => {
       classroomLock + 1,
     )
 
-    expect(classroomLock).toBeGreaterThan(-1)
+    expect(advisoryLock).toBeGreaterThan(-1)
+    expect(classroomLock).toBeGreaterThan(advisoryLock)
     expect(testLock).toBeGreaterThan(classroomLock)
     expect(migration).toContain('v_classroom_teacher_id is distinct from p_updated_by')
     expect(migration).toContain('v_archived_at is not null')
