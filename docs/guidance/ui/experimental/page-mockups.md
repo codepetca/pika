@@ -44,7 +44,7 @@ before any live-page adoption. Risk profile: none (fixture-only UI).
 | Classwork/Tests workspaces | TeacherClassroomView and TeacherTestsTab share the formal summary-to-workspace ladder and activate inspectors only after selection | Compare both families with one deterministic list → selected item → student inspector fixture while preserving family-owned labels and statuses |
 
 Gradebook score values are explicit example values, never a new calculation rule.
-Calendar uses a fixed September 2026 teaching range. Demo controls change local
+Calendar uses a fixed Semester 1 range from September 2026 through January 2027. Demo controls change local
 state only. Any unavailable live workflow opens an explicitly labeled explanation,
 never a fake success message. Announcement filters are proposed, not existing
 production behavior.
