@@ -184,8 +184,8 @@ because current source paths are user-oriented and can contain data from multipl
 | Source bucket | Current visibility | Discovery rule |
 |---|---|---|
 | `assignment-artifacts` | Private | `assignment_submission_artifacts.storage_path` |
-| `submission-images` | Public | Storage URLs embedded in classroom-owned content fields |
-| `test-documents` | Public | Upload URLs and `snapshot_path` values in `tests.documents` |
+| `submission-images` | Private | Managed identities embedded in classroom-owned content; authenticated Pika delivery rewrites legacy public URLs |
+| `test-documents` | Private | Managed upload identities and `snapshot_path` values in `tests.documents`; authenticated Test-aware delivery |
 
 Archive copies live under `objects/<source-bucket>/...` and record original bucket/path, archived
 path, content type, byte count, and checksum. Source objects must not be deleted until the archive

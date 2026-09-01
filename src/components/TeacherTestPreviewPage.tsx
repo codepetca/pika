@@ -95,7 +95,9 @@ export function TeacherTestPreviewPage({
           ? doc.snapshot_path
             ? `/api/teacher/tests/${testId}/documents/${doc.id}/snapshot`
             : undefined
-          : doc.url,
+          : doc.source === 'upload' && doc.storage_path
+            ? `/api/teacher/tests/${testId}/documents/${doc.id}/file`
+            : undefined,
       content: doc.content,
     }))
     if (teacherManagedDocs.length > 0) return teacherManagedDocs

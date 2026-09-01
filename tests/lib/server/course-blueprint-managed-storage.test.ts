@@ -91,7 +91,10 @@ describe('course Blueprint managed storage copies', () => {
       }],
     })
     expect(result.assessments[0].documents[0].managed_object_id).not.toBe(SOURCE_ID)
-    expect(result.assessments[0].documents[0].url).toContain(`/managed-copies/${OPERATION_ID}/`)
+    expect(result.assessments[0].documents[0]).toMatchObject({
+      storage_bucket: 'test-documents',
+      storage_path: expect.stringContaining(`managed-copies/${OPERATION_ID}/`),
+    })
     expect(result.cleanupObjectIds).toEqual([
       result.assessments[0].documents[0].managed_object_id,
     ])
@@ -201,8 +204,8 @@ describe('course Blueprint managed storage copies', () => {
 
     expect(second.assessments[0].documents[0].managed_object_id)
       .toBe(first.assessments[0].documents[0].managed_object_id)
-    expect(second.assessments[0].documents[0].url)
-      .toBe(first.assessments[0].documents[0].url)
+    expect(second.assessments[0].documents[0].storage_path)
+      .toBe(first.assessments[0].documents[0].storage_path)
     expect(upload).toHaveBeenCalledTimes(1)
   })
 
@@ -255,7 +258,8 @@ describe('course Blueprint managed storage copies', () => {
     expect(result.cleanupObjectIds).toEqual([])
     expect(result.assessments[0].documents[0]).toMatchObject({
       managed_object_id: expect.not.stringMatching(SOURCE_ID),
-      url: expect.stringContaining(`/managed-copies/${OPERATION_ID}/`),
+      storage_bucket: 'test-documents',
+      storage_path: expect.stringContaining(`managed-copies/${OPERATION_ID}/`),
     })
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
       'managed_storage_blueprint_protocol_ready',
@@ -1024,12 +1028,13 @@ describe('course Blueprint managed storage copies', () => {
     })
     expect(result.assessments[0].documents[0].managed_object_id).toBeTruthy()
     expect(result.assessments[0].documents[0].managed_object_id).not.toBe(SOURCE_ID)
-    expect(result.assessments[0].documents[0].url).not.toContain('/legacy/source.pdf')
+    expect(result.assessments[0].documents[0].storage_path).not.toContain('/legacy/source.pdf')
     expect(result.assessments[0].documents[1]).toMatchObject({
       id: 'legacy-document-b',
       title: 'Legacy B',
       managed_object_id: result.assessments[0].documents[0].managed_object_id,
-      url: result.assessments[0].documents[0].url,
+      storage_bucket: 'test-documents',
+      storage_path: result.assessments[0].documents[0].storage_path,
     })
     expect(upload).toHaveBeenCalledTimes(1)
     expect(rpc).toHaveBeenCalledWith(
@@ -1133,9 +1138,10 @@ describe('course Blueprint managed storage copies', () => {
 
     expect(result.assessments[0].documents[0]).toMatchObject({
       managed_object_id: expect.any(String),
-      url: expect.stringContaining(`/managed-copies/${OPERATION_ID}/`),
+      storage_bucket: 'test-documents',
+      storage_path: expect.stringContaining(`managed-copies/${OPERATION_ID}/`),
     })
-    expect(result.assessments[0].documents[0].url).not.toContain('/legacy/unregistered.pdf')
+    expect(result.assessments[0].documents[0].storage_path).not.toContain('/legacy/unregistered.pdf')
     expect(upload).toHaveBeenCalledTimes(1)
     expect(rpc).toHaveBeenCalledWith(
       'resolve_managed_storage_blueprint_copy_source',

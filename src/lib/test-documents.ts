@@ -1,4 +1,5 @@
 import type { TestDocument, TestDocumentSource } from '@/types'
+import { parsePublicStoragePath } from '@/lib/managed-storage-urls'
 
 export const TEST_DOCUMENT_ALLOWED_TYPES = [
   'application/pdf',
@@ -53,6 +54,12 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
     const title = typeof raw.title === 'string' ? raw.title.trim() : ''
     const source = normalizeTestDocumentSource(raw.source)
     const url = typeof raw.url === 'string' ? raw.url.trim() : ''
+    const storageBucket = raw.storage_bucket === 'test-documents'
+      ? 'test-documents' as const
+      : undefined
+    const explicitStoragePath = typeof raw.storage_path === 'string'
+      ? raw.storage_path.trim()
+      : ''
     const managedObjectId = typeof raw.managed_object_id === 'string'
       ? raw.managed_object_id.trim()
       : ''
@@ -76,6 +83,22 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
         title: title.slice(0, 120),
         source,
         content: content.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH),
+      })
+      continue
+    }
+
+    if (source === 'upload') {
+      const storagePath = explicitStoragePath
+        || parsePublicStoragePath(url, 'test-documents')
+        || ''
+      if (!storagePath || storagePath.startsWith('/') || storagePath.includes('\0')) continue
+      docs.push({
+        id,
+        title: title.slice(0, 120),
+        source,
+        storage_bucket: storageBucket || 'test-documents',
+        storage_path: storagePath,
+        ...(managedObjectId ? { managed_object_id: managedObjectId } : {}),
       })
       continue
     }
@@ -117,6 +140,8 @@ export function clearTestDocumentSnapshot(doc: TestDocument): TestDocument {
     title: doc.title,
     source: doc.source,
     ...(doc.url ? { url: doc.url } : {}),
+    ...(doc.storage_bucket ? { storage_bucket: doc.storage_bucket } : {}),
+    ...(doc.storage_path ? { storage_path: doc.storage_path } : {}),
     ...(doc.managed_object_id ? { managed_object_id: doc.managed_object_id } : {}),
     ...(doc.content ? { content: doc.content } : {}),
   }
@@ -238,11 +263,19 @@ export function validateTestDocumentsPayload(value: unknown):
   if (docs.length !== value.length) {
     return {
       valid: false,
-      error: 'Each document must include valid id/title and either a valid http/https url or text content',
+      error: 'Each document must include valid id/title and a valid link, private upload identity, or text content',
     }
   }
 
   return { valid: true, documents: docs }
+}
+
+export function getTestDocumentStoragePath(doc: TestDocument): string | null {
+  if (doc.source !== 'upload') return null
+  if (doc.storage_bucket === 'test-documents' && doc.storage_path) {
+    return doc.storage_path
+  }
+  return parsePublicStoragePath(doc.url, 'test-documents')
 }
 
 export function isAllowedTestDocumentType(mimeType: string): boolean {

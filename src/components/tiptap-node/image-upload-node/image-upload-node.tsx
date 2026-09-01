@@ -474,6 +474,8 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
               ...extension.options,
               src: result.url,
               managed_object_id: result.managedObjectId ?? null,
+              storage_bucket: result.storageBucket ?? null,
+              storage_path: result.storagePath ?? null,
               alt: filename,
               title: filename,
             },

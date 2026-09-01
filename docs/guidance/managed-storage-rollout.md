@@ -121,6 +121,23 @@ the exact migration and exact target under the schema rollout checklist.
    A manual cleanup batch additionally requires
    `MANAGED_STORAGE_CLEANUP_ENABLED=true` and
    `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
+8. Deploy the private-delivery application before migration 146. Confirm new
+   submission-image uploads persist `managed_object_id`, `storage_bucket`, and
+   `storage_path`; confirm Test uploads persist the equivalent private identity;
+   confirm direct signed uploads are finalized only after stored size/MIME
+   verification; and confirm authorized Pika delivery issues only 60-second
+   signed redirects for both current and legacy references. Signed upload tokens
+   authorize one immutable reserved path and cannot finalize ownership by
+   themselves. Then, under a separate exact migration authorization, migration
+   146 makes `submission-images` and `test-documents` private and removes their
+   anonymous read policies. Do not reverse the migration by making either bucket
+   public again. Correct delivery defects forward while Pika remains closed.
+9. After the private-bucket migration, anonymously list each bucket and request
+   a known exact object without downloading its body; both must fail. Then run
+   authenticated teacher/student canaries for an owned assignment image, an
+   accessible Test upload, a legacy upload, a draft Test denial, and unrelated
+   student/teacher denial. Record statuses and counts only—never object paths or
+   student content.
 
 The read-only operational baseline and alert/rollout contract are documented in
 `docs/guidance/managed-deletion-monitoring.md`. It does not alter the generic

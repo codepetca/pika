@@ -435,7 +435,12 @@ Existing indexes (migration 038):
 
 - Vercel for frontend + API; Supabase for DB.
 - Use the Supabase service-role/secret key server-side only. Do not expose it to browsers.
-- Supabase public-read storage URLs are product behavior for legacy public buckets, but uploads/deletes should go through server API routes.
+- Student submission images and Test documents are private Supabase objects. Browsers request
+  same-origin Pika delivery URLs; after student/Test or teacher/Classroom authorization, Pika
+  redirects to a 60-second signed Supabase URL. Large upload bytes also bypass application
+  functions: Pika reserves the exact immutable object, the browser uploads with Supabase's
+  signed token, and Pika verifies stored size/MIME before finalizing the managed identity.
+  The service-role credential and ownership decisions remain server-only.
 - Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret.
 
 ---

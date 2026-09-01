@@ -21,7 +21,7 @@ import { TextAlign } from '@tiptap/extension-text-align'
 import { Typography } from '@tiptap/extension-typography'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
-import { Image } from '@tiptap/extension-image'
+import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
 
 // --- Tiptap Node Styles ---
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
@@ -96,7 +96,7 @@ export function RichTextViewer({
       Typography,
       Superscript,
       Subscript,
-      Image.configure({
+      ManagedImage.configure({
         HTMLAttributes: {
           class: 'max-w-full h-auto rounded',
         },

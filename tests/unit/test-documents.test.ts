@@ -87,6 +87,23 @@ describe('test-documents', () => {
     expect(invalidText.valid).toBe(false)
   })
 
+  it('converts legacy public uploads to private storage identities', () => {
+    expect(normalizeTestDocuments([{
+      id: 'doc-upload',
+      title: 'Private reference',
+      source: 'upload',
+      url: 'https://project.supabase.co/storage/v1/object/public/test-documents/classrooms/class/test.pdf',
+      managed_object_id: '10000000-0000-4000-8000-000000000001',
+    }])).toEqual([{
+      id: 'doc-upload',
+      title: 'Private reference',
+      source: 'upload',
+      storage_bucket: 'test-documents',
+      storage_path: 'classrooms/class/test.pdf',
+      managed_object_id: '10000000-0000-4000-8000-000000000001',
+    }])
+  })
+
   it('preserves only server-known snapshots for the same link identity', () => {
     const current = [{
       id: 'doc-1',
