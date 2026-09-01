@@ -46,3 +46,13 @@ describe('TestQuestionEditor', () => {
     expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toHaveValue('Second')
   })
 })
+
+it.each(['card', 'accordion', 'detail'] as const)('keeps the %s prompt editable but locks choices and grading after Start', async (variant) => {
+  render(<TestQuestionEditor question={createMockTestQuestion({ question_type: 'multiple_choice', options: ['One', 'Two', 'Three', 'Four'] })} questionNumber={1} isEditable structureLocked variant={variant} onChange={vi.fn()} onDelete={vi.fn()} />)
+  expect(await screen.findByRole('textbox', { name: 'Question 1 prompt' })).toHaveAttribute('contenteditable', 'true')
+  expect(screen.queryByRole('textbox', { name: 'Question 1 option A' })).not.toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: 'Question 1 option A correct answer' })).toBeDisabled()
+  expect(screen.queryByRole('spinbutton', { name: 'Question 1 points' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Drag to reorder' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Delete|Duplicate/ })).not.toBeInTheDocument()
+})

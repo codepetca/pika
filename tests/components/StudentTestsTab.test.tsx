@@ -481,6 +481,7 @@ describe('StudentTestsTab exam mode', () => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
 
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -494,6 +495,23 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
     expect(screen.queryByText('Exit Test')).not.toBeInTheDocument()
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
+  })
+
+  it('keeps details visible and retries when durable Start fails', async () => {
+    queueTestList()
+    queueTestDetail()
+    render(<StudentTestsTab classroom={classroom} />)
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Test editing requires migration 143 to be applied' }, false))
+    fireEvent.click(await screen.findByText('Start test'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('migration 143'))
+    expect(screen.getByRole('heading', { name: 'Midterm Test' })).toBeInTheDocument()
+    expect(screen.queryByText("Pika couldn't load this test.")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try Start Again' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
+    fireEvent.click(await screen.findByText('Start test'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument())
   })
 
   it('shows total test points before starting and during the attempt', async () => {
@@ -517,6 +535,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -553,6 +572,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -596,6 +616,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -627,6 +648,7 @@ describe('StudentTestsTab exam mode', () => {
 
     fireEvent.click(await screen.findByText('Midterm Test'))
     fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(await screen.findByText('Start test'))
 
     await waitFor(() => {
@@ -681,16 +703,13 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent.click(await screen.findByText('Midterm Test'))
     fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
     await screen.findByText('Start this test?')
-    vi.useFakeTimers()
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
-
-    await act(async () => {
-      await Promise.resolve()
-      vi.advanceTimersByTime(800)
+    await waitFor(() => {
+      expect(requestFullscreen).toHaveBeenCalled()
+      expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
     })
-
-    expect(requestFullscreen).toHaveBeenCalled()
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    vi.useFakeTimers()
     expect(fetchMock.mock.calls.some(
       ([url]: [string]) => url.includes('/focus-events')
     )).toBe(false)
@@ -839,6 +858,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -956,6 +976,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1076,6 +1097,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1200,6 +1222,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1328,6 +1351,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1459,6 +1483,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1570,6 +1595,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     const detailPane = await screen.findByTestId('student-test-detail-pane')
@@ -1704,6 +1730,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1831,6 +1858,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -1958,6 +1986,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2063,6 +2092,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2421,6 +2451,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2541,6 +2572,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2665,6 +2697,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2800,6 +2833,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -2944,6 +2978,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3066,6 +3101,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3208,6 +3244,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3332,6 +3369,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3451,6 +3489,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3590,6 +3629,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3756,6 +3796,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -3904,6 +3945,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
@@ -4130,7 +4172,8 @@ describe('StudentTestsTab exam mode', () => {
       })
 
       vi.useFakeTimers()
-      fireEvent.click(screen.getByText('Start test'))
+      fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
+    fireEvent.click(screen.getByText('Start test'))
 
       await act(async () => {
         await Promise.resolve()
@@ -4322,6 +4365,7 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {

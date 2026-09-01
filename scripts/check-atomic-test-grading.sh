@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+DB_CONTAINER="${ATOMIC_TEST_GRADING_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
@@ -113,6 +113,18 @@ insert into public.test_responses (
   ('a9000000-0000-4000-8000-000000000215', 'a9000000-0000-4000-8000-000000000023', 'a9000000-0000-4000-8000-000000000115', 'a9000000-0000-4000-8000-000000000002', 'Concurrent clear answer', now(), 99),
   ('a9000000-0000-4000-8000-000000000216', 'a9000000-0000-4000-8000-000000000024', 'a9000000-0000-4000-8000-000000000116', 'a9000000-0000-4000-8000-000000000002', 'Question lock answer', now(), 99),
   ('a9000000-0000-4000-8000-000000000218', 'a9000000-0000-4000-8000-000000000027', 'a9000000-0000-4000-8000-000000000120', 'a9000000-0000-4000-8000-000000000002', 'Concurrent deletion answer', now(), 99);
+
+-- These fixtures model work created through the Start/save/submit RPCs. Direct
+-- SQL seeding bypasses those entry points, so persist the same irreversible
+-- boundary before exercising grading and authoring behavior.
+update public.tests test
+set questions_locked_at = clock_timestamp()
+where exists (
+  select 1 from public.test_attempts attempt where attempt.test_id = test.id
+)
+or exists (
+  select 1 from public.test_responses response where response.test_id = test.id
+);
 
 insert into public.test_ai_grading_runs (
   id, test_id, status, triggered_by, model, selection_hash, requested_count,
@@ -1141,12 +1153,10 @@ QUESTION_LOCK_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgr
    from public.test_responses response
    join public.test_questions question on question.id = response.question_id
    where response.id = 'a9000000-0000-4000-8000-000000000216';")"
-if [[ "$QUESTION_EDITOR_STATUS" -eq 0 ]] \
-  || ! grep -q '55000' "$TMP_TWO" \
-  || ! grep -q 'test_questions_locked' "$TMP_TWO" \
-  || [[ "$QUESTION_LOCK_STATE" != "2:5.00:Question lock order response" ]]
+if [[ "$QUESTION_EDITOR_STATUS" -ne 0 ]] \
+  || [[ "$QUESTION_LOCK_STATE" != "2:5.00:Question edited without a lock cycle" ]]
 then
-  echo "Question freeze/grading ordering was not preserved: $(cat "$TMP_TWO") / $QUESTION_LOCK_STATE" >&2
+  echo "Question wording/grading ordering was not preserved: $(cat "$TMP_TWO") / $QUESTION_LOCK_STATE" >&2
   exit 1
 fi
 

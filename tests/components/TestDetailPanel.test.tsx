@@ -108,7 +108,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        draft: {
+        editingPolicy: { structureLocked: false },        draft: {
           version: draftOverrides?.version ?? 1,
           content: draftContent,
         },
@@ -168,7 +168,7 @@ describe('TestDetailPanel', () => {
 
     await act(async () => {
       currentDraft.resolve(jsonResponse({
-        draft: {
+        editingPolicy: { structureLocked: false },        draft: {
           version: 1,
           content: {
             title: 'Current Test',
@@ -186,7 +186,7 @@ describe('TestDetailPanel', () => {
 
     await act(async () => {
       staleDraft.resolve(jsonResponse({
-        draft: {
+        editingPolicy: { structureLocked: false },        draft: {
           version: 1,
           content: {
             title: 'Stale Test',
@@ -210,7 +210,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockImplementation((url: string) => {
       if (url.endsWith('/api/teacher/tests/test-stale/draft')) {
         return Promise.resolve(jsonResponse({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Stale Test',
@@ -222,7 +222,7 @@ describe('TestDetailPanel', () => {
       }
       if (url.endsWith('/api/teacher/tests/test-current/draft')) {
         return Promise.resolve(jsonResponse({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Current Test',
@@ -321,7 +321,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Docs Test',
@@ -369,7 +369,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Docs Tab Order Test',
@@ -424,7 +424,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Accessible Test',
@@ -481,7 +481,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Two Pane Test',
@@ -636,7 +636,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Editor Modal Test',
@@ -690,7 +690,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Untitled 2026-05-14 10:45:00',
@@ -747,7 +747,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Markdown Modal Test',
@@ -801,7 +801,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Resizable Test',
@@ -941,7 +941,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Empty Markdown Import Test',
@@ -954,7 +954,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 2,
             content: {},
           },
@@ -1063,7 +1063,7 @@ Current Test reference material.
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Two Pane Test',
@@ -1127,7 +1127,7 @@ Current Test reference material.
           return {
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Race Test',
@@ -1155,7 +1155,7 @@ Current Test reference material.
           return {
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: Number(body.version ?? 1) + 1,
                 content: body.content,
               },
@@ -1232,7 +1232,7 @@ Current Test reference material.
       fetchMock.mockImplementation((url: string) => {
         if (url.endsWith('/draft')) {
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: url.includes('test-next') ? 'Next Test' : 'First Test',
@@ -1287,7 +1287,7 @@ Current Test reference material.
           return Promise.resolve({
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Stale Save Test',
@@ -1370,7 +1370,7 @@ Current Test reference material.
         resolveFirstPatch?.({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 2,
               content: {
                 title: 'Stale Save Test',
@@ -1408,7 +1408,7 @@ Current Test reference material.
         }
         if (url === '/api/teacher/tests/test-save-stale/draft' && !options) {
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Stale Save Test',
@@ -1423,7 +1423,7 @@ Current Test reference material.
         }
         if (url === '/api/teacher/tests/test-save-current/draft' && !options) {
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Current Save Test',
@@ -1496,7 +1496,7 @@ Current Test reference material.
 
       await act(async () => {
         staleSave.resolve(jsonResponse({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 2,
             content: {
               title: 'Stale Save Test',
@@ -1529,7 +1529,7 @@ Current Test reference material.
         if (url === '/api/teacher/tests/test-pending-save/draft' && options?.method === 'PATCH') {
           const body = JSON.parse(String(options.body ?? '{}'))
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: Number(body.version ?? 1) + 1,
               content: body.content,
             },
@@ -1537,7 +1537,7 @@ Current Test reference material.
         }
         if (url === '/api/teacher/tests/test-pending-save/draft' && !options) {
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Pending Save Test',
@@ -1552,7 +1552,7 @@ Current Test reference material.
         }
         if (url === '/api/teacher/tests/test-pending-current/draft' && !options) {
           return Promise.resolve(jsonResponse({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Pending Current Test',
@@ -1632,7 +1632,7 @@ Current Test reference material.
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Duplicate Test',
@@ -1697,7 +1697,7 @@ Current Test reference material.
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Split Button Test',
@@ -1758,7 +1758,7 @@ Current Test reference material.
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Mirror Test',
@@ -1819,7 +1819,7 @@ Current Test reference material.
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 1,
             content: {
               title: 'Pending Markdown Test',
@@ -1891,7 +1891,7 @@ Current Test reference material.
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Apply Timing Test',
@@ -1968,7 +1968,7 @@ _None_
       resolvePatch?.({
         ok: true,
         json: async () => ({
-          draft: {
+          editingPolicy: { structureLocked: false },          draft: {
             version: 2,
             content: {
               title: 'Apply Timing Test Updated',
@@ -2003,7 +2003,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Preview Action Test',
@@ -2024,7 +2024,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 2,
               content: {
                 title: 'Preview Action Test',
@@ -2107,7 +2107,7 @@ _None_
           return Promise.resolve({
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 2,
                 content: {
                   title: 'Inline Preview Test',
@@ -2123,7 +2123,7 @@ _None_
           return Promise.resolve({
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Inline Preview Test',
@@ -2222,7 +2222,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Markdown Test',
@@ -2286,7 +2286,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Markdown Creation Test',
@@ -2333,7 +2333,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Markdown Test',
@@ -2354,7 +2354,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 2,
               content: {
                 title: 'Markdown Test Updated',
@@ -2474,7 +2474,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Markdown Test',
@@ -2541,7 +2541,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Markdown Test',
@@ -2707,6 +2707,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
+            editingPolicy: { structureLocked: false },
             questions: [
               createMockTestQuestion({
                 id: 'test-q-save',
@@ -2796,7 +2797,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Draft Test',
@@ -2854,7 +2855,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Doc Save Test',
@@ -2974,7 +2975,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Doc Refresh Test',
@@ -3078,7 +3079,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              draft: {
+              editingPolicy: { structureLocked: false },              draft: {
                 version: 1,
                 content: {
                   title: 'Doc Auto Sync Test',
@@ -3167,7 +3168,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Doc Text Save Test',
@@ -3201,7 +3202,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 2,
               content: {
                 title: 'Doc Text Save Test',
@@ -3283,7 +3284,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            draft: {
+            editingPolicy: { structureLocked: false },            draft: {
               version: 1,
               content: {
                 title: 'Doc Upload Modal Test',

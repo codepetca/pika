@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+DB_CONTAINER="${ATOMIC_TEST_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
@@ -65,7 +65,8 @@ insert into public.tests (id, classroom_id, title, status, points_possible, crea
   ('e0000000-0000-4000-8000-000000000014', 'e0000000-0000-4000-8000-000000000010', 'Draft submission rejection', 'draft', 5, 'e0000000-0000-4000-8000-000000000001'),
   ('e0000000-0000-4000-8000-000000000015', 'e0000000-0000-4000-8000-000000000010', 'Cascade deletion', 'draft', 5, 'e0000000-0000-4000-8000-000000000001'),
   ('e0000000-0000-4000-8000-000000000016', 'e0000000-0000-4000-8000-000000000010', 'Availability race', 'active', 5, 'e0000000-0000-4000-8000-000000000001'),
-  ('e0000000-0000-4000-8000-000000000017', 'e0000000-0000-4000-8000-000000000010', 'Deletion race', 'active', 5, 'e0000000-0000-4000-8000-000000000001');
+  ('e0000000-0000-4000-8000-000000000017', 'e0000000-0000-4000-8000-000000000010', 'Deletion race', 'active', 5, 'e0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000018', 'e0000000-0000-4000-8000-000000000010', 'Question save race', 'active', 5, 'e0000000-0000-4000-8000-000000000001');
 
 insert into public.test_questions (
   id, test_id, question_type, question_text, options, correct_option,
@@ -93,7 +94,9 @@ from (values
   ('e0000000-0000-4000-8000-000000000109'::uuid, 'e0000000-0000-4000-8000-000000000016'::uuid, 'multiple_choice', 'Pick the second option', '["wrong","right"]'::jsonb, 1, 3::numeric, 5000, 0),
   ('e0000000-0000-4000-8000-00000000010a'::uuid, 'e0000000-0000-4000-8000-000000000016'::uuid, 'open_response', 'Explain the answer', '[]'::jsonb, null, 2::numeric, 40, 1),
   ('e0000000-0000-4000-8000-00000000010b'::uuid, 'e0000000-0000-4000-8000-000000000017'::uuid, 'multiple_choice', 'Pick the second option', '["wrong","right"]'::jsonb, 1, 3::numeric, 5000, 0),
-  ('e0000000-0000-4000-8000-00000000010c'::uuid, 'e0000000-0000-4000-8000-000000000017'::uuid, 'open_response', 'Explain the answer', '[]'::jsonb, null, 2::numeric, 40, 1)
+  ('e0000000-0000-4000-8000-00000000010c'::uuid, 'e0000000-0000-4000-8000-000000000017'::uuid, 'open_response', 'Explain the answer', '[]'::jsonb, null, 2::numeric, 40, 1),
+  ('e0000000-0000-4000-8000-00000000010d'::uuid, 'e0000000-0000-4000-8000-000000000018'::uuid, 'multiple_choice', 'Pick the second option', '["wrong","right"]'::jsonb, 1, 3::numeric, 5000, 0),
+  ('e0000000-0000-4000-8000-00000000010e'::uuid, 'e0000000-0000-4000-8000-000000000018'::uuid, 'open_response', 'Explain the answer', '[]'::jsonb, null, 2::numeric, 40, 1)
 ) as questions(question_id, test_id, question_type, question_text, options, correct_option, points, response_max_chars, position);
 
 insert into public.test_attempts (
@@ -685,7 +688,7 @@ where id = 'e0000000-0000-4000-8000-000000000010'
 for update;
 select pg_sleep(3);
 update public.test_questions
-set response_max_chars = :next_limit
+set question_text = 'Ordered prompt ' || :next_limit::text
 where id = 'e0000000-0000-4000-8000-00000000010c';
 commit;
 SQL
@@ -768,13 +771,13 @@ run_parent_order_race submit 42
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -c \
   "update public.test_questions
    set response_max_chars = 40
-   where id = 'e0000000-0000-4000-8000-00000000010c';" >/dev/null
+   where id = 'e0000000-0000-4000-8000-00000000010e';" >/dev/null
 
 docker exec -e PGAPPNAME=atomic-test-autosave-holder -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select 1 from public.tests
-where id = 'e0000000-0000-4000-8000-000000000017'
+where id = 'e0000000-0000-4000-8000-000000000018'
 for update;
 select pg_sleep(3);
 commit;
@@ -786,17 +789,17 @@ docker exec -e PGAPPNAME=atomic-test-draft-question -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "update public.test_questions
    set response_max_chars = 5
-   where id = 'e0000000-0000-4000-8000-00000000010c';" >"$TMP_ONE" 2>&1 &
+   where id = 'e0000000-0000-4000-8000-00000000010e';" >"$TMP_ONE" 2>&1 &
 DRAFT_QUESTION_PID=$!
 wait_for_lock_waiters atomic-test-draft-question 1
 
 docker exec -e PGAPPNAME=atomic-test-draft-save -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atc \
   "select public.save_test_attempt_atomic(
-    'e0000000-0000-4000-8000-000000000017',
+    'e0000000-0000-4000-8000-000000000018',
     'e0000000-0000-4000-8000-00000000000d',
     jsonb_build_object(
-      'e0000000-0000-4000-8000-00000000010c',
+      'e0000000-0000-4000-8000-00000000010e',
       jsonb_build_object('question_type', 'open_response', 'response_text', 'stale answer')
     )
   );" >"$TMP_TWO" 2>&1 &
@@ -822,11 +825,11 @@ fi
 DRAFT_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "select
      (select count(*) from public.test_attempts
-      where test_id = 'e0000000-0000-4000-8000-000000000017'
+      where test_id = 'e0000000-0000-4000-8000-000000000018'
         and student_id = 'e0000000-0000-4000-8000-00000000000d')
      || ':' ||
      (select count(*) from public.test_responses
-      where test_id = 'e0000000-0000-4000-8000-000000000017'
+      where test_id = 'e0000000-0000-4000-8000-000000000018'
         and student_id = 'e0000000-0000-4000-8000-00000000000d');")"
 if [[ "$DRAFT_STATE" != "0:0" ]]; then
   echo "Rejected stale autosave created partial student work: $DRAFT_STATE" >&2
@@ -836,7 +839,7 @@ fi
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -c \
   "update public.test_questions
    set response_max_chars = 40
-   where id = 'e0000000-0000-4000-8000-00000000010c';" >/dev/null
+   where id = 'e0000000-0000-4000-8000-00000000010e';" >/dev/null
 
 docker exec -e PGAPPNAME=atomic-test-delete-holder -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &

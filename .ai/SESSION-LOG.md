@@ -11,102 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Enforce stable-SHA PR Gate launch
-
-**Risk profile:** runtime-platform — GitHub Actions admission policy and its
-workflow contract only; no product behavior, schema, dependency, secret, or
-branch-ruleset change.
-
-- Ran the approved post-#1125 audit after 25 completed natural CI attempts
-  following 2026-08-30T15:49:02Z. Exact `pnpm measure:ci -- --limit 25` output:
-
-```text
-{
-  "sampleSize": 25,
-  "successfulSampleSize": 5,
-  "counts": {
-    "cancelled": 9,
-    "skipped": 11,
-    "success": 5
-  },
-  "cancellationRate": 0.36,
-  "cancelledElapsedSeconds": 892,
-  "successfulQueueSeconds": {
-    "min": 0,
-    "p50": 0,
-    "p95": 0,
-    "max": 0,
-    "average": 0
-  },
-  "successfulRunSeconds": {
-    "min": 467,
-    "p50": 479,
-    "p95": 518,
-    "max": 518,
-    "average": 483
-  },
-  "successfulWallSeconds": {
-    "min": 467,
-    "p50": 479,
-    "p95": 518,
-    "max": 518,
-    "average": 483
-  },
-  "successfulRunsWithoutPrGateEvidence": 0,
-  "prGateByMode": {
-    "full": {
-      "sampleSize": 5,
-      "timeToGateStartSeconds": {
-        "min": 464,
-        "p50": 474,
-        "p95": 513,
-        "max": 513,
-        "average": 479
-      },
-      "gateRunSeconds": {
-        "min": 2,
-        "p50": 2,
-        "p95": 4,
-        "max": 4,
-        "average": 3
-      },
-      "timeToGatePassSeconds": {
-        "min": 466,
-        "p50": 478,
-        "p95": 517,
-        "max": 517,
-        "average": 482
-      }
-    }
-  }
-}
-```
-
-- The full-mode p50 remains within target (478 seconds), but the checkpoint
-  fails cancellation rate: 9/25 (36%). Eleven draft runs skipped every job;
-  the five successes all produced `PR Gate` evidence. There was no fresh
-  docs-only or production-promotion run, so those targets remain unevidenced.
-- Each cancellation was inspected. Eight launched or queued on the same ready
-  PR #1089 while successive commits and reverts were pushed; seven cancelled
-  already-running Test & Build, browser, and database lanes, consuming 892
-  seconds total. The remaining cancellation was draft-skipped. The two manual
-  dispatches were separate exact-head full runs and did not overlap eligible
-  pull-request runs.
-- Preserve all safety lanes and branch rulesets. The bounded remedy admits
-  heavy lanes only for `ready_for_review` or deliberate `workflow_dispatch`.
-  A ready-PR push now runs only the lightweight required `PR Gate`, which fails
-  with instructions to return to draft before pushing and mark the stable
-  reviewed SHA ready again. This prevents skipped checks from satisfying branch
-  protection and makes the documented lifecycle mechanically enforceable.
-
-**Verification:** CI workflow contract (4/4), workflow suite (77/77), focused
-full-mode checks (workflow, architecture, UI/design policy, TypeScript, lint),
-Pika audit, and diff validation pass. Independent review and exact-head CI are
-pending.
-
-**Model recommendation:** GPT-5.6 Terra high for CI admission and protected
-branch-safety review; no product-domain review is needed.
-
 ## 2026-08-30 — Prepare final Pattern Lab integration review
 
 **Risk profile:** none for the remaining development-only UI reconciliation.
@@ -324,3 +228,15 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Reused the current Settings `SegmentedControl`, panel, and switch row. The settings scroller now brings the selected section fully into view so the final Advanced option is not clipped on direct mobile URLs. No shared component contract, Pattern Lab example, API, schema, permission, or dependency changed; risk profile none.
 - Verification: 32 Settings tests and four shared selector keyboard tests pass. Focused checks pass 12 files / 154 tests plus architecture, UI/design policy, TypeScript, and lint. Playwright screenshots were inspected for teacher desktop/mobile in light/dark, selected Advanced, focus, and toggle on/off. Student capture confirmed the teacher-only section is inaccessible and the normal student surface is unchanged.
 - User authorized the draft PR, independent review, CI, and merge to `main`; production promotion, deployment, and database operations remain excluded. Low-risk review plan: one GPT-5.6 Terra/medium fixed-commit review. Ledger starts at zero launches, zero remediation waves, and zero fix batches; record final evidence on the PR without post-review commits.
+## 2026-08-31 Test corrections after first Start
+- Added a reviewable migration and application policy: after first student Start only question prompt wording/instructions remain editable; structure, choices, grading, identities and response settings remain frozen.
+- Start now persists through the atomic attempt transaction and returns its post-lock student snapshot; title/documents/result visibility stay on existing paths. Added focused UI/API/policy/migration coverage and a dev preview on port 3006.
+- Static/focused checks and visual matrix pass. Migration 143 is not applied; local database replay, generated types and concurrency verification await exact one-time migration approval. PR/review pending.
+- Draft PR #1140 received independent architecture and security review. The first remediation batch keeps the Test detail visible with a specific retryable Start error, corrects the pre-Start preview, and makes pre/post-142 Classroom archives restore locked Tests safely while preserving the boundary. The archive database harness now covers current locked, legacy started and legacy untouched Tests plus rejection outside maintenance mode.
+- Post-remediation focused checks pass: 65 files / 914 tests plus architecture, UI/design policy, TypeScript and lint. Corrected desktop/mobile and light/dark screenshots were inspected. Migration 143 remains unapplied pending exact local approval, so live database replay/concurrency and generated types remain outstanding.
+- User approved the Test editing migration for local Supabase and checks; it was numbered 142 before the branch was resequenced. The first transactional apply exposed an invalid historical timestamp column and rolled back; corrected the backfill/restore timestamp sources, then applied the Test editing migration successfully under its pre-resequence version 142. Generated database types match the local schema.
+- Added a current archive-v2 Test-policy round trip covering a preserved current lock, reconstructed legacy-started lock, untouched legacy Test, exact restored rows and ordinary structural-write rejection. Updated the atomic Test harness for permanent locks and multiple local Supabase projects. Both live database harnesses pass.
+- Ready-PR CI exposed an outdated atomic-grading fixture assumption, so the PR returned to draft before correction. Grading fixtures now persist the same Start boundary as production RPCs; wording/grading ordering expects the allowed prompt correction while grading fields remain frozen. The atomic grading harness passes locally, and the Test-policy archive harness is now an explicit database CI step.
+- Rebasing PR #1140 onto `ad13b3d7` exposed the newly merged Attendance migration 142. Resequenced the Test editing migration to 143 and updated its runtime, test and rollout references. Reconciled the already-applied local Test schema to version 143 without resetting local data; a dry run then proposed only Attendance 142, which applied successfully. The local ledger is aligned through 143, generated types match, and the Attendance, Test editing, atomic submit and atomic grading database harnesses pass. No hosted migration or deployment occurred.
+- Ready-PR CI passed Test & Build but exposed a remaining pre-policy fixture in the Blueprint question-identity database harness, so the PR returned to draft. Directly inserted attempt/response fixtures now set the durable Test lock, wording-only corrections are asserted to succeed without changing answers, points or responses, and grading mutations remain rejected. The exact Blueprint database harness, 25 targeted static tests, and the focused gate (67 files / 934 tests plus policies, TypeScript and lint) pass locally.
+- Follow-up: Close should confirm discarding unapplied Markdown.

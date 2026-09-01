@@ -6900,6 +6900,7 @@ export type Database = {
           include_in_final: boolean
           points_possible: number
           position: number
+          questions_locked_at: string | null
           show_results: boolean
           source_artifact_id: string | null
           source_blueprint_version_id: string | null
@@ -6919,6 +6920,7 @@ export type Database = {
           include_in_final?: boolean
           points_possible?: number
           position?: number
+          questions_locked_at?: string | null
           show_results?: boolean
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
@@ -6938,6 +6940,7 @@ export type Database = {
           include_in_final?: boolean
           points_possible?: number
           position?: number
+          questions_locked_at?: string | null
           show_results?: boolean
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null

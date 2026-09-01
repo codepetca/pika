@@ -32,6 +32,7 @@ import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
+import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
@@ -218,6 +219,7 @@ export function TestDetailPanel({
     content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] }
   } | null>(null)
 
+  const [structureLocked, setStructureLocked] = useState(true)
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -473,6 +475,7 @@ export function TestDetailPanel({
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
     loadedDraftTestIdRef.current = null
+    setStructureLocked(true)
     setEditTitle(testDefaults.title)
     setDraftShowResults(testDefaults.show_results)
     setResults(null)
@@ -525,6 +528,7 @@ export function TestDetailPanel({
   }, [documents, draftShowResults, editTitle, questions])
   const hasResponses = testAssessment.stats.responded > 0
   const isEditable = canEditTestQuestions(testAssessment, hasResponses)
+  const isStructureEditable = isEditable && !structureLocked
   const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
   const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
   const hasPendingMarkdownImport = isMarkdownSurfaceEnabled && markdownDirty
@@ -737,6 +741,8 @@ export function TestDetailPanel({
           return response.ok
         }
 
+        if (data.editingPolicy) setStructureLocked(data.editingPolicy.structureLocked !== false)
+
         if (response.status === 409) {
           if (!shouldApplySaveLocally()) {
             return false
@@ -944,6 +950,7 @@ export function TestDetailPanel({
             },
           }
 
+      setStructureLocked(draftData.editingPolicy?.structureLocked !== false)
       applyServerDraft(normalizedDraft)
 
       // Bypass fetchJSONWithCache so test documents always follow the selected test.
@@ -1049,7 +1056,7 @@ export function TestDetailPanel({
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
-      if (!over || active.id === over.id || !isEditable) return
+      if (!over || active.id === over.id || !isStructureEditable) return
 
       const oldIndex = questions.findIndex((q) => q.id === active.id)
       const newIndex = questions.findIndex((q) => q.id === over.id)
@@ -1069,7 +1076,7 @@ export function TestDetailPanel({
         questions: reordered,
       })
     },
-    [draftShowResults, editTitle, emitDraftSummaryChange, isEditable, normalizeQuestionPositions, questions, scheduleAutosave]
+    [draftShowResults, editTitle, emitDraftSummaryChange, isStructureEditable, normalizeQuestionPositions, questions, scheduleAutosave]
   )
 
   useEffect(() => {
@@ -1159,7 +1166,7 @@ export function TestDetailPanel({
   }
 
   function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
-    if (!isEditable) return
+    if (!isStructureEditable) return
 
     const nextQuestion: TestAssessmentQuestion = questionType === 'open_response'
       ? {
@@ -1243,6 +1250,7 @@ export function TestDetailPanel({
   }
 
   function handleQuestionDelete(questionId: string) {
+    if (!isStructureEditable) return
     const nextQuestions = normalizeQuestionPositions(
       questions.filter((question) => question.id !== questionId)
     )
@@ -1261,6 +1269,7 @@ export function TestDetailPanel({
   }
 
   function handleDuplicateQuestion(questionId: string) {
+    if (!isStructureEditable) return
     const sourceIndex = questions.findIndex((question) => question.id === questionId)
     if (sourceIndex === -1) return
 
@@ -1501,6 +1510,12 @@ export function TestDetailPanel({
       })
     )
 
+    if (!allowsTestQuestionChanges(questions, nextQuestions, { structureLocked })) {
+      setMarkdownError(TEST_WORDING_ONLY_MESSAGE)
+      setMarkdownSaving(false)
+      return
+    }
+
     const nextDraft = {
       title: parsed.draftContent.title,
       show_results: parsed.draftContent.show_results,
@@ -1709,7 +1724,7 @@ export function TestDetailPanel({
         ]}
         variant="primary"
         size="sm"
-        disabled={hasPendingMarkdownImport}
+        disabled={hasPendingMarkdownImport || !isStructureEditable}
         className="flex w-full shadow-sm"
         toggleAriaLabel="Choose question type"
         primaryButtonProps={{
@@ -1898,6 +1913,7 @@ export function TestDetailPanel({
                         question={question}
                         questionNumber={index + 1}
                         isEditable={isEditable}
+                        structureLocked={structureLocked}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}
@@ -1912,7 +1928,7 @@ export function TestDetailPanel({
             </div>
           </div>
 
-          {isEditable ? (
+          {isStructureEditable ? (
             <div className="border-t border-border p-3">
               {renderTestAddQuestionSplitButton()}
             </div>
@@ -1985,6 +2001,11 @@ export function TestDetailPanel({
         {saveStatusAnnouncement}
       </span>
       {titlePortal}
+      {structureLocked && !loading && (
+        <p role="status" className="shrink-0 border-b border-border bg-warning-bg px-3 py-2 text-sm text-warning">
+          {TEST_WORDING_ONLY_MESSAGE}
+        </p>
+      )}
       {/* Tabs */}
       {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (
         <div className="shrink-0 border-b border-border bg-surface px-3 pt-2">
@@ -2113,6 +2134,7 @@ export function TestDetailPanel({
                         question={question}
                         questionNumber={index + 1}
                         isEditable={isEditable}
+                        structureLocked={structureLocked}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}
@@ -2121,7 +2143,7 @@ export function TestDetailPanel({
                   </SortableContext>
                 </DndContext>
 
-                {isEditable && renderTestAddQuestionSplitButton()}
+                {isStructureEditable && renderTestAddQuestionSplitButton()}
               </div>
               {hasPendingMarkdownImport ? (
                 <div
