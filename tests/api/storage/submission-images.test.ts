@@ -26,13 +26,14 @@ function createSupabase(options: {
   studentId?: string
   classroomTeacherId?: string
   status?: string
+  managedObject?: unknown
+  bucketPublic?: boolean
 } = {}) {
   const createSignedUrl = vi.fn(async () => ({
     data: { signedUrl: 'https://project.supabase.co/storage/v1/object/sign/submission-images/work.png?token=short-lived' },
     error: null,
   }))
-  const rows: Record<string, unknown> = {
-    managed_storage_objects: {
+  const managedObject = {
       id: OBJECT_ID,
       storage_path: 'classrooms/class/students/student/work.png',
       status: options.status || 'ready',
@@ -43,7 +44,11 @@ function createSupabase(options: {
       resource_type: 'assignment_doc',
       resource_id: DOC_ID,
       content_type: 'image/png',
-    },
+  }
+  const rows: Record<string, unknown> = {
+    managed_storage_objects: options.managedObject === undefined
+      ? managedObject
+      : options.managedObject,
     assignment_docs: {
       id: DOC_ID,
       student_id: options.studentId || 'student-1',
@@ -55,7 +60,23 @@ function createSupabase(options: {
   return {
     client: {
       from: vi.fn((table: string) => queryResult(rows[table])),
-      storage: { from: vi.fn(() => ({ createSignedUrl })) },
+      storage: {
+        getBucket: vi.fn(async () => ({
+          data: { id: 'submission-images', public: options.bucketPublic ?? false },
+          error: null,
+        })),
+        from: vi.fn(() => ({
+          createSignedUrl,
+          info: vi.fn(async () => ({
+            data: { size: 12, contentType: 'image/png' }, error: null,
+          })),
+          getPublicUrl: vi.fn(() => ({
+            data: {
+              publicUrl: 'https://project.supabase.co/storage/v1/object/public/submission-images/legacy.png',
+            },
+          })),
+        })),
+      },
     },
     createSignedUrl,
   }
@@ -125,5 +146,35 @@ describe('GET /api/storage/submission-images', () => {
       'http://localhost:3000/api/storage/submission-images',
     ))
     expect(response.status).toBe(400)
+  })
+
+  it('preserves an unregistered legacy image only while the bucket is public', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: 'student-1', email: 'student@example.com', role: 'student',
+    } as any)
+    const { client } = createSupabase({ managedObject: null, bucketPublic: true })
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/storage/submission-images?path=student-1%2Flegacy.png',
+    ))
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toContain('/object/public/submission-images/')
+  })
+
+  it('fails closed for an unregistered image after the bucket is private', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: 'student-1', email: 'student@example.com', role: 'student',
+    } as any)
+    const { client, createSignedUrl } = createSupabase({ managedObject: null })
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/storage/submission-images?path=student-1%2Flegacy.png',
+    ))
+
+    expect(response.status).toBe(404)
+    expect(createSignedUrl).not.toHaveBeenCalled()
   })
 })

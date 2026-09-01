@@ -21,6 +21,7 @@ import {
   isAllowedTestDocumentType,
 } from '@/lib/test-documents'
 import {
+  buildPublicStorageCompatibilityRedirect,
   buildPrivateStorageRedirect,
   getPrivateStorageContentType,
 } from '@/lib/server/direct-storage-delivery'
@@ -229,7 +230,27 @@ export async function buildUploadedTestDocumentResponse(options: {
     : objectQuery.eq('storage_path', storagePath)
   const { data: object, error: objectError } = await objectQuery.maybeSingle()
 
-  if (objectError || !object || object.storage_path !== storagePath
+  if (objectError) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  if (!object && !options.doc.managed_object_id) {
+    const contentType = await getPrivateStorageContentType({
+      supabase,
+      bucket: TEST_DOCUMENTS_BUCKET,
+      path: storagePath,
+    })
+    if (contentType && isAllowedTestDocumentType(contentType)) {
+      const compatibilityResponse = await buildPublicStorageCompatibilityRedirect({
+        supabase,
+        bucket: TEST_DOCUMENTS_BUCKET,
+        path: storagePath,
+      })
+      if (compatibilityResponse) return compatibilityResponse
+    }
+  }
+
+  if (!object || object.storage_path !== storagePath
     || object.status !== 'ready' || object.purpose !== 'teacher_test_material'
     || object.classroom_id !== options.classroomId || object.provisional_owner_id !== null) {
     return NextResponse.json({ error: 'Document not found' }, { status: 404 })

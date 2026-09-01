@@ -19,4 +19,23 @@ describe('private student and Test Storage migration', () => {
       'drop policy if exists "Allow public read access for test documents"',
     )
   })
+
+  it('refuses to privatize unreconciled existing objects', () => {
+    expect(migration).toContain('private_student_storage_requires_managed_storage_enforcement')
+    expect(migration).toContain('private_student_storage_contains_unsettled_legacy_objects')
+    expect(migration).toContain("settings.mode = 'enforced'")
+    expect(migration).toContain("managed.status not in ('verified', 'ready')")
+    expect(migration).toContain("managed.status <> 'ready'")
+  })
+
+  it('removes every obsolete direct authenticated write policy', () => {
+    expect(migration).toContain('drop policy if exists "Allow authenticated uploads"')
+    expect(migration).toContain('drop policy if exists "Allow owner deletes"')
+    expect(migration).toContain(
+      'drop policy if exists "Allow authenticated uploads for test documents"',
+    )
+    expect(migration).toContain(
+      'drop policy if exists "Allow owner deletes for test documents"',
+    )
+  })
 })

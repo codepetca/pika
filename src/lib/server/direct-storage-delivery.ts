@@ -4,6 +4,10 @@ import type { ManagedStorageBucket } from '@/lib/server/managed-storage'
 
 type StorageClient = {
   storage: {
+    getBucket(bucket: string): Promise<{
+      data: { id?: string; public?: boolean } | null
+      error: { message?: string } | null
+    }>
     from(bucket: string): {
       createSignedUploadUrl(path: string, options: { upsert: boolean }): Promise<{
         data: { signedUrl: string; token: string } | null
@@ -17,8 +21,19 @@ type StorageClient = {
         data: { size?: number; contentType?: string; metadata?: Record<string, unknown> } | null
         error: { message?: string } | null
       }>
+      getPublicUrl(path: string): {
+        data: { publicUrl: string }
+      }
     }
   }
+}
+
+function buildStorageRedirect(url: string): NextResponse {
+  const response = NextResponse.redirect(url, 302)
+  response.headers.set('Cache-Control', 'private, no-store')
+  response.headers.set('Referrer-Policy', 'no-referrer')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  return response
 }
 
 export async function createManagedUploadAuthorization(input: {
@@ -88,9 +103,24 @@ export async function buildPrivateStorageRedirect(input: {
     return NextResponse.json({ error: 'File not found' }, { status: 404 })
   }
 
-  const response = NextResponse.redirect(data.signedUrl, 302)
-  response.headers.set('Cache-Control', 'private, no-store')
-  response.headers.set('Referrer-Policy', 'no-referrer')
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  return response
+  return buildStorageRedirect(data.signedUrl)
+}
+
+/**
+ * Preserve pre-reconciliation URLs only during the public-bucket rollout
+ * window. Migration 146 refuses to privatize a bucket until every existing
+ * object has a settled managed-storage identity, so this path cannot become a
+ * private-object authorization bypass.
+ */
+export async function buildPublicStorageCompatibilityRedirect(input: {
+  supabase: StorageClient
+  bucket: 'submission-images' | 'test-documents'
+  path: string
+}): Promise<NextResponse | null> {
+  const { data: bucket, error } = await input.supabase.storage.getBucket(input.bucket)
+  if (error || bucket?.id !== input.bucket || bucket.public !== true) return null
+
+  const { data } = input.supabase.storage.from(input.bucket).getPublicUrl(input.path)
+  if (!data.publicUrl) return null
+  return buildStorageRedirect(data.publicUrl)
 }

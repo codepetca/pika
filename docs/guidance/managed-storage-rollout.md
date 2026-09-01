@@ -129,8 +129,13 @@ the exact migration and exact target under the schema rollout checklist.
    signed redirects for both current and legacy references. Signed upload tokens
    authorize one immutable reserved path and cannot finalize ownership by
    themselves. Then, under a separate exact migration authorization, migration
-   146 makes `submission-images` and `test-documents` private and removes their
-   anonymous read policies. Do not reverse the migration by making either bucket
+   146 makes `submission-images` and `test-documents` private and removes every
+   obsolete anonymous-read or authenticated-write policy. The migration refuses
+   to run over an existing target-bucket object unless managed-storage
+   enforcement is active and every object has a settled registry identity. The
+   application may preserve an unregistered legacy public URL only while the
+   bucket itself is still public; that compatibility redirect is unavailable
+   after privatization. Do not reverse the migration by making either bucket
    public again. Correct delivery defects forward while Pika remains closed.
 9. After the private-bucket migration, anonymously list each bucket and request
    a known exact object without downloading its body; both must fail. Then run

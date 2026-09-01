@@ -18,6 +18,7 @@ function queryResult(data: unknown, error: unknown = null) {
 function createSupabase(
   reference: unknown = { managed_object_id: OBJECT_ID },
   contentType: string | null = 'application/pdf',
+  options: { managedObject?: unknown; bucketPublic?: boolean } = {},
 ) {
   const createSignedUrl = vi.fn(async () => ({
     data: { signedUrl: 'https://project.supabase.co/storage/v1/object/sign/test-documents/private.pdf?token=short-lived' },
@@ -27,20 +28,37 @@ function createSupabase(
     data: { size: 12, contentType: 'application/pdf' },
     error: null,
   }))
+  const defaultManagedObject = {
+    id: OBJECT_ID,
+    storage_path: 'classrooms/class/tests/test/private.pdf',
+    status: 'ready',
+    purpose: 'teacher_test_material',
+    classroom_id: 'class-1',
+    provisional_owner_id: null,
+    content_type: contentType,
+  }
   return {
     client: {
       from: vi.fn((table: string) => table === 'managed_storage_objects'
-        ? queryResult({
-            id: OBJECT_ID,
-            storage_path: 'classrooms/class/tests/test/private.pdf',
-            status: 'ready',
-            purpose: 'teacher_test_material',
-            classroom_id: 'class-1',
-            provisional_owner_id: null,
-            content_type: contentType,
-          })
+        ? queryResult(options.managedObject === undefined
+            ? defaultManagedObject
+            : options.managedObject)
         : queryResult(reference)),
-      storage: { from: vi.fn(() => ({ createSignedUrl, info })) },
+      storage: {
+        getBucket: vi.fn(async () => ({
+          data: { id: 'test-documents', public: options.bucketPublic ?? false },
+          error: null,
+        })),
+        from: vi.fn(() => ({
+          createSignedUrl,
+          info,
+          getPublicUrl: vi.fn(() => ({
+            data: {
+              publicUrl: 'https://project.supabase.co/storage/v1/object/public/test-documents/private.pdf',
+            },
+          })),
+        })),
+      },
     },
     createSignedUrl,
     info,
@@ -107,6 +125,42 @@ describe('private uploaded Test document delivery', () => {
     const response = await buildUploadedTestDocumentResponse({
       testId: 'test-1', classroomId: 'class-2', doc,
     })
+    expect(response.status).toBe(404)
+    expect(createSignedUrl).not.toHaveBeenCalled()
+  })
+
+  it('preserves an exact legacy Test upload only while its bucket is public', async () => {
+    const legacyDoc = { ...doc }
+    delete (legacyDoc as { managed_object_id?: string }).managed_object_id
+    const { client } = createSupabase(
+      null,
+      'application/pdf',
+      { managedObject: null, bucketPublic: true },
+    )
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+
+    const response = await buildUploadedTestDocumentResponse({
+      testId: 'test-1', classroomId: 'class-1', doc: legacyDoc,
+    })
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toContain('/object/public/test-documents/')
+  })
+
+  it('fails closed for an unregistered Test upload after privatization', async () => {
+    const legacyDoc = { ...doc }
+    delete (legacyDoc as { managed_object_id?: string }).managed_object_id
+    const { client, createSignedUrl } = createSupabase(
+      null,
+      'application/pdf',
+      { managedObject: null },
+    )
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+
+    const response = await buildUploadedTestDocumentResponse({
+      testId: 'test-1', classroomId: 'class-1', doc: legacyDoc,
+    })
+
     expect(response.status).toBe(404)
     expect(createSignedUrl).not.toHaveBeenCalled()
   })
