@@ -58,7 +58,7 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
-const DAILY_PLAN_PROMPT = "What's your plan for today?"
+const DAILY_LOG_TITLE = 'Daily Log'
 
 
 interface StudentTodayTabProps {
@@ -687,7 +687,7 @@ export function StudentTodayTab({
           <div className="space-y-4">
             <div className="flex items-start justify-between mb-2">
               <p className="text-sm font-medium text-text-default">
-                {DAILY_PLAN_PROMPT}
+                {DAILY_LOG_TITLE}
               </p>
               <SaveStatus status={saveStatus} className="text-sm" />
             </div>
@@ -695,7 +695,7 @@ export function StudentTodayTab({
               content={content}
               onChange={handleContentChange}
               onBlur={flushAutosave}
-              placeholder="Write something..."
+              placeholder="What is your plan today?"
               editable={true}
               toolbarPreset="brief"
               className="[&_.tiptap.ProseMirror]:!min-h-[100px] [&_.tiptap.ProseMirror]:!p-0 lg:[&_.tiptap.ProseMirror]:!min-h-[200px]"
