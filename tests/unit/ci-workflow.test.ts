@@ -69,6 +69,21 @@ describe('CI workflow', () => {
     expect(workflow).not.toContain('run: pnpm e2e:archive-recovery')
   })
 
+  it('caches immutable setup inputs without caching database safety state', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+
+    expect(workflow).toContain('id: database-pnpm-cache')
+    expect(workflow).toContain('id: browser-pnpm-cache')
+    expect(workflow).toContain('id: playwright-cache')
+    expect(workflow).toContain('path: ~/.cache/ms-playwright')
+    expect(workflow).toContain('pnpm exec playwright install-deps chromium')
+    expect(workflow).toContain('pnpm exec playwright install --with-deps chromium')
+    expect(workflow).toContain('Database lane setup evidence')
+    expect(workflow).toContain('Browser lane setup evidence')
+    expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(2)
+  })
+
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
