@@ -158,7 +158,7 @@ describe('ClassroomPage feature visibility redirects', () => {
       palUrl: null,
       visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
     },
-  ])('redirects a student unavailable $tab direct link to Today', async ({ tab, palUrl, visibility }) => {
+  ])('redirects a student unavailable $tab direct link to Daily', async ({ tab, palUrl, visibility }) => {
     mocks.getCurrentUser.mockResolvedValue({
       id: 'student-1',
       email: 'student@example.test',
@@ -174,7 +174,7 @@ describe('ClassroomPage feature visibility redirects', () => {
     expect(mocks.redirect).toHaveBeenCalledWith('/classrooms/classroom-1?tab=today')
   })
 
-  it('keeps the student Today core tab available', async () => {
+  it('keeps the student Daily core tab available', async () => {
     mocks.getCurrentUser.mockResolvedValue({
       id: 'student-1',
       email: 'student@example.test',

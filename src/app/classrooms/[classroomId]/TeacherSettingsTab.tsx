@@ -754,7 +754,7 @@ export function TeacherSettingsTab({
               />
 
               <div className="rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-                Daily/Today, Roster, and Settings are always available. Hiding a feature does not delete its content.
+                Daily, Roster, and Settings are always available. Hiding a feature does not delete its content.
               </div>
 
               <div className="divide-y divide-border">

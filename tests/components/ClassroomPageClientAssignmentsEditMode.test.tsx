@@ -261,8 +261,8 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
   const React = await import('react')
 
   return {
-    StudentTodayTab: ({ classroom, onLessonPlanLoad, ...props }: any) => {
-      mockStudentTodayTabProps({ classroom, onLessonPlanLoad, ...props })
+    StudentTodayTab: ({ classroom, mobilePlan, onLessonPlanLoad, ...props }: any) => {
+      mockStudentTodayTabProps({ classroom, mobilePlan, onLessonPlanLoad, ...props })
       React.useEffect(() => {
         if (classroom?.id !== 'classroom-1') return
         onLessonPlanLoad?.({
@@ -284,7 +284,16 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
         }, classroom.id)
       }, [classroom?.id, onLessonPlanLoad])
 
-      return <div data-testid="student-today-primary" />
+      return (
+        <div data-testid="student-today-primary">
+          <div data-testid="student-daily-plan" />
+          {mobilePlan ? (
+            <div data-testid="student-today-mobile-plan" className="lg:hidden">
+              {mobilePlan}
+            </div>
+          ) : null}
+        </div>
+      )
     },
   }
 })
@@ -549,11 +558,13 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     const mobileTodaySection = todaySections[0]
     const desktopTodaySection = todaySections[1]
     const primary = screen.getByTestId('student-today-primary')
+    const dailyPlan = screen.getByTestId('student-daily-plan')
 
     expect(mobileTodaySection).toContainElement(screen.getAllByTestId('student-attendance-status')[0])
-    expect(mobileTodaySection?.parentElement?.parentElement).toHaveClass('lg:hidden')
+    expect(screen.getByTestId('student-today-mobile-plan')).toHaveClass('lg:hidden')
     expect(desktopTodaySection?.parentElement?.parentElement).toHaveClass('hidden', 'lg:block')
-    expect(mobileTodaySection?.compareDocumentPosition(primary)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(primary).toContainElement(mobileTodaySection)
+    expect(dailyPlan.compareDocumentPosition(mobileTodaySection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {
