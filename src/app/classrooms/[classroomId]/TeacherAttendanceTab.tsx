@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -582,6 +583,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
   const summaryScopeKey = `${classroom.id}:${selectedDate}`
   const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
+
+  useLayoutEffect(() => {
+    setSummaryReadyScopeKey(null)
+  }, [summaryScopeKey])
 
   const handleSummaryAvailabilityChange = useCallback((available: boolean) => {
     setSummaryReadyScopeKey((currentScopeKey) => {
