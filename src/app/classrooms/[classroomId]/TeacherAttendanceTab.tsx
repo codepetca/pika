@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -175,6 +176,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
+  const [summaryReadyScopeKey, setSummaryReadyScopeKey] = useState<string | null>(null)
   const { columnWidths, setColumnWidth } = useTableColumnWidths({
     storageKey: 'teacher-daily:v1',
     columns: COLUMN_LIMITS,
@@ -579,6 +581,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
+  const summaryScopeKey = `${classroom.id}:${selectedDate}`
+  const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
+
+  useLayoutEffect(() => {
+    setSummaryReadyScopeKey(null)
+  }, [summaryScopeKey])
+
+  const handleSummaryAvailabilityChange = useCallback((available: boolean) => {
+    setSummaryReadyScopeKey((currentScopeKey) => {
+      if (available) return summaryScopeKey
+      return currentScopeKey === summaryScopeKey ? null : currentScopeKey
+    })
+  }, [summaryScopeKey])
 
   const handleSummaryPanelDoubleClick = useCallback(() => {
     setSummaryPanelCollapsed((collapsed) => {
@@ -1338,11 +1353,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             role="region"
             aria-label="Class Log Summary"
             data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
-            className={
+            hidden={!summaryPanelVisible}
+            className={cn(
               summaryPanelCollapsed
                 ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface'
-                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
-            }
+                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
+              !summaryPanelVisible && '!hidden',
+            )}
             style={{ height: `${summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
             onDoubleClick={handleSummaryPanelDoubleClick}
           >
@@ -1366,21 +1383,21 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               {summaryPanelCollapsed ? <span>Log Summary</span> : null}
             </div>
             {!summaryPanelCollapsed && (
-              <>
-                <div className="flex items-center px-3 pt-3">
-                  <h3 className="truncate text-sm font-semibold text-text-default">
-                    Class Log Summary
-                  </h3>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <LogSummary
-                    classroomId={classroom.id}
-                    date={selectedDate}
-                    onStudentClick={selectStudentByName}
-                  />
-                </div>
-              </>
+              <div className="flex items-center px-3 pt-3">
+                <h3 className="truncate text-sm font-semibold text-text-default">
+                  Class Log Summary
+                </h3>
+              </div>
             )}
+            <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
+              <LogSummary
+                key={summaryScopeKey}
+                classroomId={classroom.id}
+                date={selectedDate}
+                onStudentClick={selectStudentByName}
+                onAvailabilityChange={handleSummaryAvailabilityChange}
+              />
+            </div>
           </section>
         )}
       </div>

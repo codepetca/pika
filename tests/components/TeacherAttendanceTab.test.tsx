@@ -18,6 +18,11 @@ const appMessageMock = vi.hoisted(() => ({
   clearMessage: vi.fn(),
 }))
 
+const logSummaryMock = vi.hoisted(() => ({
+  available: true,
+  deferAvailabilityForDate: null as string | null,
+}))
+
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => todayMock.today,
 }))
@@ -78,9 +83,17 @@ vi.mock('@/components/StudentLogHistory', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
-  LogSummary: () => (
-    <div data-testid="class-log-summary">Cached class summary</div>
-  ),
+  LogSummary: ({ date, onAvailabilityChange }: {
+    date: string
+    onAvailabilityChange?: (available: boolean) => void
+  }) => {
+    React.useEffect(() => {
+      if (date === logSummaryMock.deferAvailabilityForDate) return
+      onAvailabilityChange?.(logSummaryMock.available)
+    }, [date, onAvailabilityChange])
+
+    return <div data-testid="class-log-summary">Cached class summary</div>
+  },
 }))
 
 vi.mock('@/ui', async (importOriginal) => {
@@ -384,6 +397,8 @@ describe('TeacherAttendanceTab', () => {
     classDaysMock.refresh.mockReset()
     appMessageMock.showMessage.mockReset()
     appMessageMock.clearMessage.mockReset()
+    logSummaryMock.available = true
+    logSummaryMock.deferAvailabilityForDate = null
     vi.unstubAllGlobals()
   })
 
@@ -1500,6 +1515,45 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Next day' })).toBeInTheDocument()
   })
 
+  it('hides the class log summary card when no generated summary is available', async () => {
+    logSummaryMock.available = false
+    mockLogsFetch()
+
+    const { container } = render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(container.querySelector('section[aria-label="Class Log Summary"]'))
+      .toHaveAttribute('hidden')
+    expect(container.querySelector('section[aria-label="Class Log Summary"]'))
+      .toHaveClass('!hidden')
+    expect(screen.getByTestId('class-log-summary')).not.toBeVisible()
+  })
+
+  it('keeps a previously ready summary hidden until its date is confirmed again', async () => {
+    mockLogsFetch()
+
+    const { container } = render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByRole('region', { name: 'Class Log Summary' })).toBeVisible()
+
+    logSummaryMock.available = false
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    })
+
+    logSummaryMock.deferAvailabilityForDate = '2026-05-06'
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
+    })
+    expect(container.querySelector('section[aria-label="Class Log Summary"]'))
+      .toHaveAttribute('hidden')
+    expect(screen.queryByRole('region', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+  })
+
   it('keeps day navigation deterministic after the Toronto date rolls over', async () => {
     classDaysMock.classDays = [
       ...classDaysMock.defaultClassDays,
@@ -1547,7 +1601,7 @@ describe('TeacherAttendanceTab', () => {
 
     fireEvent.doubleClick(panel)
 
-    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
+    expect(screen.getByTestId('class-log-summary')).not.toBeVisible()
     expect(panel).toHaveStyle({ height: '40px' })
     expect(panel).toHaveAttribute('data-state', 'collapsed')
     expect(screen.getByText('Log Summary')).toBeInTheDocument()
