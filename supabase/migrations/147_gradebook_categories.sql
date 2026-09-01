@@ -140,7 +140,18 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if tg_op = 'INSERT' and new.gradebook_category_id is null then
+  if tg_op = 'INSERT'
+    and new.gradebook_category_id is null
+    and not (
+      current_setting('pika.classroom_archive_restore', true) = 'on'
+      and exists (
+        select 1
+        from public.classroom_archive_restore_staging as staged
+        where staged.table_name = 'gradebook_categories'
+          and staged.row_data->>'classroom_id' = new.classroom_id::text
+      )
+    )
+  then
     select categories.id
     into new.gradebook_category_id
     from public.gradebook_categories as categories

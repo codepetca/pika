@@ -224,6 +224,15 @@ async function createFixture(args: {
     due_at: '2026-07-20T16:00:00.000Z',
     created_by: args.ids.teacher,
   })
+  const uncategorizedResponse = await args.supabase
+    .from('assignments')
+    .update({ gradebook_category_id: null })
+    .eq('id', args.ids.assignments)
+  if (uncategorizedResponse.error) {
+    throw new Error(
+      `Fixture uncategorized update failed for assignments: ${uncategorizedResponse.error.code}`,
+    )
+  }
   await insertFixtureRow(args.supabase, 'assignment_docs', {
     id: args.ids.assignment_docs,
     assignment_id: args.ids.assignments,

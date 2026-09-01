@@ -113,6 +113,27 @@ begin
     raise exception 'Explicit assessment weights were overwritten';
   end if;
 
+  perform set_config('pika.classroom_archive_restore', 'on', true);
+  insert into public.assignments (
+    id, classroom_id, title, due_at, created_by, gradebook_category_id, gradebook_weight
+  ) values (
+    'c1470000-0000-4000-8000-000000000007',
+    v_classroom_id,
+    'Legacy restore assignment',
+    clock_timestamp(),
+    v_teacher_id,
+    null,
+    37
+  );
+  perform set_config('pika.classroom_archive_restore', 'off', true);
+  if exists (
+    select 1 from public.assignments
+    where id = 'c1470000-0000-4000-8000-000000000007'
+      and (gradebook_category_id <> v_term_id or gradebook_weight <> 37)
+  ) then
+    raise exception 'Legacy restore did not default category while preserving weight';
+  end if;
+
   perform public.replace_gradebook_categories(v_classroom_id, jsonb_build_array(
     jsonb_build_object('id', v_attendance_id, 'name', 'Attendance', 'percentage', 10, 'default_assessment_weight', 10, 'position', 0, 'is_default', false),
     jsonb_build_object('id', v_term_id, 'name', 'Final', 'percentage', 65, 'default_assessment_weight', 17, 'position', 1, 'is_default', true),

@@ -20,12 +20,17 @@ describe('gradebook categories migration', () => {
   })
 
   it('defaults new assessments while validating category changes', () => {
-    expect(migration).toContain("if tg_op = 'INSERT' and new.gradebook_category_id is null then")
+    expect(migration).toMatch(
+      /if tg_op = 'INSERT'\s+and new\.gradebook_category_id is null/,
+    )
     expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.assignments')
     expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.tests')
     expect(migration).toContain('gradebook category must belong to the assessment classroom')
     expect(migration).toContain('alter column gradebook_weight set default 0')
     expect(migration).toContain("if tg_op = 'INSERT' and new.gradebook_weight = 0 then")
+    expect(migration).toMatch(
+      /new\.gradebook_category_id is null[\s\S]*?current_setting\('pika\.classroom_archive_restore', true\) = 'on'[\s\S]*?staged\.table_name = 'gradebook_categories'/,
+    )
   })
 
   it('validates one default and category percentages totaling 100 atomically', () => {
