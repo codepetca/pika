@@ -113,7 +113,7 @@ jobs:
         run: |
           {
             echo '### Database lane setup evidence'
-            echo "- pnpm store cache hit: ${{ steps.database-pnpm-cache.outputs.cache-hit }}"
+            echo "- pnpm store exact-key hit: ${{ steps.database-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
             echo '- Dependencies are always installed from the lockfile.'
             echo '- Supabase remains a fresh ephemeral start and migration replay.'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -421,12 +421,7 @@ jobs:
       - name: Install Chromium and system dependencies
         id: browser-install-chromium
         shell: bash
-        run: |
-          if [[ "${{ steps.playwright-cache.outputs.cache-hit }}" == "true" ]]; then
-            pnpm exec playwright install-deps chromium
-          else
-            pnpm exec playwright install --with-deps chromium
-          fi
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Summarize browser setup evidence
         if: always()
@@ -434,9 +429,9 @@ jobs:
         run: |
           {
             echo '### Browser lane setup evidence'
-            echo "- pnpm store cache hit: ${{ steps.browser-pnpm-cache.outputs.cache-hit }}"
-            echo "- Playwright browser cache hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
-            echo '- Chromium system dependencies are verified on every run.'
+            echo "- pnpm store exact-key hit: ${{ steps.browser-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo "- Playwright browser exact-key hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
+            echo '- Chromium and its system dependencies are verified on every run.'
             echo '- Supabase remains a fresh ephemeral start and migration replay.'
           } >> "$GITHUB_STEP_SUMMARY"
 
