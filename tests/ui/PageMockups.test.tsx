@@ -54,6 +54,8 @@ describe('PageMockups', () => {
     expect(within(mockups).queryByRole('menuitemradio', { name: 'All' })).not.toBeInTheDocument()
     await user.click(within(mockups).getByRole('menuitemradio', { name: 'Year' }))
     expect(within(mockups).getByText('2026–27 school year')).toBeVisible()
+    expect(within(mockups).getByText('June', { exact: true })).toBeVisible()
+    expect(within(mockups).getByText('Year-end ecosystem reflection.')).toBeInTheDocument()
   })
 
   it('exercises SettingsMockup section semantics, inline save feedback, and guarded access changes', async () => {

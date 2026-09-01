@@ -79,8 +79,8 @@ const STUDENTS = [
 const DOC: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Review models of ecological succession and bring one question.' }] }] }
 const CLASSROOM: Classroom = {
   id: 'pattern-classroom', teacher_id: 'pattern-teacher', title: 'Grade 10 Science', class_code: 'SCI2D',
-  theme_color: 'blue', term_label: 'Semester 1', allow_enrollment: true, join_policy: 'roster',
-  start_date: '2026-09-01', end_date: '2027-01-29', lesson_plan_visibility: 'all',
+  theme_color: 'blue', term_label: '2026–27 school year', allow_enrollment: true, join_policy: 'roster',
+  start_date: '2026-09-01', end_date: '2027-06-30', lesson_plan_visibility: 'all',
   feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY, blueprint_source_revision: 0,
   source_blueprint_id: null, source_blueprint_origin: null, actual_site_slug: null,
   actual_site_published: false, actual_site_config: DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
@@ -90,6 +90,7 @@ const CLASSROOM: Classroom = {
 const LESSON_PLANS: LessonPlan[] = [
   { id: 'lp-1', classroom_id: CLASSROOM.id, date: '2026-09-14', content: DOC, content_markdown: 'Review models of ecological succession.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
   { id: 'lp-2', classroom_id: CLASSROOM.id, date: '2026-09-16', content: DOC, content_markdown: 'Field observation: compare two habitats.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
+  { id: 'lp-3', classroom_id: CLASSROOM.id, date: '2027-06-18', content: DOC, content_markdown: 'Year-end ecosystem reflection.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
 ]
 const CLASS_DAYS: ClassDay[] = Array.from({ length: 18 }, (_, index) => ({
   id: `day-${index}`,

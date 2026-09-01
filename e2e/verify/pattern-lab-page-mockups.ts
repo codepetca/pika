@@ -133,6 +133,12 @@ export const patternLabPageMockups: VerificationScript = {
         && await section.getByRole('menuitemradio', { name: 'All' }).count() === 0,
     })
     await yearView.click()
+    checks.push({
+      name: 'Calendar Year renders the full school-year fixture through June',
+      passed: await section.getByText('2026–27 school year').isVisible()
+        && await section.getByText('June', { exact: true }).isVisible()
+        && await section.getByText('Year-end ecosystem reflection.').isVisible(),
+    })
     await section.getByRole('button', { name: 'More actions' }).click()
     const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')
     await section.screenshot({ path: calendarMenuArtifact })
