@@ -309,6 +309,9 @@ test.describe('teacher Pattern Lab', () => {
   test('renders the component, icon, status, and page-state contracts', async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, 'teacher')
     await expect(page.getByText('teacher reference')).toBeVisible()
+    await page.getByRole('navigation', { name: 'Pattern Lab sections' }).evaluate((navigation) => {
+      navigation.style.position = 'static'
+    })
     await expect(page.getByTestId('pattern-lab-contracts')).toHaveScreenshot('teacher-pattern-contracts.png')
     await testInfo.attach('teacher-history-preview', {
       body: await page.getByTestId('history-preview-gallery').screenshot({ path: testInfo.outputPath('teacher-history-preview.png'), animations: 'disabled' }),
