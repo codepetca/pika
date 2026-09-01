@@ -10129,8 +10129,8 @@ export type Database = {
         Args: {
           p_classroom_id: string
           p_expected_revision: number
-          p_session_ends_local: string | null
-          p_session_starts_local: string | null
+          p_session_ends_local: string
+          p_session_starts_local: string
           p_source_mode: string
           p_teacher_id: string
         }
