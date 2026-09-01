@@ -122,6 +122,22 @@ export const patternLabPageMockups: VerificationScript = {
     })
     await navigator.evaluate((element) => { element.style.position = 'static' })
     await jumpSelect.selectOption('page-mockups')
+    await section.getByRole('tab', { name: 'Calendar' }).click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    const yearView = section.getByRole('menuitemradio', { name: 'Year' })
+    checks.push({
+      name: 'Calendar More actions offers Week, Month, and Year without All',
+      passed: await yearView.isVisible()
+        && await section.getByRole('menuitemradio', { name: 'Week' }).isVisible()
+        && await section.getByRole('menuitemradio', { name: 'Month' }).isVisible()
+        && await section.getByRole('menuitemradio', { name: 'All' }).count() === 0,
+    })
+    await yearView.click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')
+    await section.screenshot({ path: calendarMenuArtifact })
+    artifacts.push(calendarMenuArtifact)
+    await page.keyboard.press('Escape')
     await section.getByRole('tab', { name: 'Gradebook' }).click()
     await section.getByRole('combobox', { name: 'Example state' }).selectOption('error')
     await section.getByRole('button', { name: 'Try loading gradebook again' }).click()

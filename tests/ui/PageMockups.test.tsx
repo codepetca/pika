@@ -41,6 +41,21 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
   })
 
+  it('offers Week, Month, and Year as the Calendar view choices', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Calendar' }))
+    await user.click(within(mockups).getByRole('button', { name: 'More actions' }))
+
+    expect(within(mockups).getByRole('menuitemradio', { name: 'Week' })).toBeInTheDocument()
+    expect(within(mockups).getByRole('menuitemradio', { name: 'Month' })).toBeInTheDocument()
+    expect(within(mockups).getByRole('menuitemradio', { name: 'Year' })).toBeInTheDocument()
+    expect(within(mockups).queryByRole('menuitemradio', { name: 'All' })).not.toBeInTheDocument()
+    await user.click(within(mockups).getByRole('menuitemradio', { name: 'Year' }))
+    expect(within(mockups).getByText('2026–27 school year')).toBeVisible()
+  })
+
   it('exercises SettingsMockup section semantics, inline save feedback, and guarded access changes', async () => {
     const user = userEvent.setup()
     renderMockups()

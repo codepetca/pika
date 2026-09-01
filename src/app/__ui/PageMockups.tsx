@@ -240,8 +240,8 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
   const [view, setView] = useState<CalendarViewMode>('week')
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
-  const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : 'All dates'
-  const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
+  const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : '2026–27 school year'
+  const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode === 'all' ? 'Year' : mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
   viewItems.push({ id: 'markdown', label: 'Edit calendar in Markdown', dividerBefore: true, onSelect: () => onPrototypeAction('Edit calendar in Markdown') })
   return <div className="space-y-3">
     <TeacherWorkSurfaceContextBar
@@ -253,7 +253,7 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <LessonCalendar classroom={CLASSROOM} lessonPlans={LESSON_PLANS} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>The date owns the center. Week, Month, All, and Markdown editing move to More actions so the bar does not wrap into competing controls.</Description>
+    <Description>The date owns the center. Week, Month, Year, and Markdown editing move to More actions so the bar does not wrap into competing controls.</Description>
   </div>
 }
 

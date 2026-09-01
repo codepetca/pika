@@ -37,7 +37,7 @@ before any live-page adoption. Risk profile: none (fixture-only UI).
 | Page | Current evidence | Proposal |
 |---|---|---|
 | Gradebook | TeacherGradebookTab replaces score-display button with email on selection; settings menu shares center | Keep %/Raw stable, persistent disabled-until-selected student menu, ellipsis right; table scores and missing-work indicators; row preview |
-| Calendar | CalendarActionBar nests a context bar in PageActionBar; date, Week/Month/All and edit controls share one wrapping cluster | Date remains centered; Week/Month/All and Markdown in right menu; preserve real calendar rendering and selected date content |
+| Calendar | CalendarActionBar nests a context bar in PageActionBar; date, Week/Month/All and edit controls share one wrapping cluster | Date remains centered; use Week/Month/Year and Markdown in the right menu; preserve real calendar rendering and selected date content |
 | Announcements | TeacherAnnouncementsSection already has centered + and right ellipsis, but duplicates creation in menu | Preserve +; demonstrate All/Posted/Scheduled filter in menu, reading cards and contextual Eye preview; no operational status-count table |
 | Roster | TeacherRosterTab has + Students and settings in center, selected email/removal commands mixed into global menu | Icon-only +, persistent selection menu, CSV import in right ellipsis; separate sortable names, quiet joined/not-joined text and contextual details |
 | Settings | TeacherSettingsTab uses section navigation, local field saves, feature switches, and guarded access changes | Keep one section visible at a time; show save feedback without a global submit bar; retain confirmation for join-code replacement |
