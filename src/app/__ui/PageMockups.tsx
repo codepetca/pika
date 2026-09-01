@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Archive,
   ArchiveRestore,
+  ChevronDown,
   CircleDot,
   Eye,
   GripVertical,
@@ -15,14 +16,11 @@ import {
   MoreVertical,
   Plus,
   RotateCw,
-  Settings,
   Upload,
-  Users,
 } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { DateNavigator } from '@/components/DateNavigator'
 import { LessonCalendar, type CalendarViewMode } from '@/components/LessonCalendar'
-import { AssessmentStatusIndicator, getGradebookAssessmentStatusDisplay } from '@/components/AssessmentStatusIndicator'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
@@ -61,7 +59,7 @@ import {
 } from '@/ui'
 
 type PageId = 'classrooms' | 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
-type FixtureState = 'populated' | 'loading' | 'empty' | 'error'
+type FixtureState = 'populated' | 'few-assessments' | 'loading' | 'empty' | 'error'
 type ScoreMode = 'percent' | 'raw'
 type AnnouncementFilter = 'all' | 'posted' | 'scheduled'
 
@@ -75,12 +73,90 @@ const PAGE_ITEMS = [
   { value: 'workspaces', label: 'Workspaces' },
 ] as const
 
-const STUDENTS = [
-  { id: 'maya', first: 'Maya', last: 'Chen', email: 'maya.chen@example.com', joined: true, scores: ['18/20', '42/50', '—'], final: '86%' },
-  { id: 'noah', first: 'Noah', last: 'Williams', email: 'noah.williams@example.com', joined: true, scores: ['14/20', '38/50', '17/20'], final: '77%' },
-  { id: 'sana', first: 'Sana', last: 'Patel', email: 'sana.patel@example.com', joined: false, scores: ['—', '—', '—'], final: '—' },
-  { id: 'theo', first: 'Theo', last: 'Martin', email: 'theo.martin@example.com', joined: true, scores: ['20/20', '46/50', '19/20'], final: '94%' },
+const GRADEBOOK_ASSESSMENTS = [
+  'Ecosystems',
+  'Cells',
+  'Genetics',
+  'Reactions',
+  'Motion',
+  'Climate',
+  'Circuits',
+  'Space',
+  'Energy',
+  'Waves',
+  'Matter',
+  'Sustainability',
 ] as const
+
+const GRADEBOOK_SELECTION_COLUMN_WIDTH = 40
+const GRADEBOOK_STUDENT_ID_COLUMN_WIDTH = 80
+const GRADEBOOK_ASSESSMENT_COLUMN_WIDTH = 88
+const GRADEBOOK_FINAL_COLUMN_WIDTH = 80
+
+const STUDENTS = [
+  { id: 'maya', studentId: '1004832', first: 'Maya', last: 'Chen', email: 'maya.chen@example.com', joined: true, scores: ['18/20', '42/50', '21/25', '34/40', '26/30', '17/20', '29/35', '22/25', '19/20', '27/30', '16/20', '23/25'], final: '86%' },
+  { id: 'noah', studentId: '1004917', first: 'Noah', last: 'Williams-Montgomery', email: 'noah.williams@example.com', joined: true, scores: ['14/20', '38/50', '17/25', '31/40', '21/30', '15/20', '27/35', '18/25', '15/20', '22/30', '14/20', '19/25'], final: '77%' },
+  { id: 'sana', studentId: '1004765', first: 'Sana', last: 'Patel', email: 'sana.patel@example.com', joined: false, scores: ['—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—'], final: '—' },
+  { id: 'theo', studentId: '1004891', first: 'Theo', last: 'Martin', email: 'theo.martin@example.com', joined: true, scores: ['20/20', '46/50', '24/25', '38/40', '29/30', '19/20', '33/35', '24/25', '20/20', '29/30', '19/20', '25/25'], final: '94%' },
+] as const
+
+const ADDITIONAL_GRADEBOOK_STUDENTS = [
+  ['avery', '1004952', 'Avery', 'Singh', 'avery.singh@example.com'],
+  ['lucas', '1004688', 'Lucas', 'Tremblay', 'lucas.tremblay@example.com'],
+  ['olivia', '1004974', 'Olivia', 'Garcia', 'olivia.garcia@example.com'],
+  ['ethan', '1004721', 'Ethan', 'Brown', 'ethan.brown@example.com'],
+  ['zoe', '1004860', 'Zoe', 'Wilson', 'zoe.wilson@example.com'],
+  ['liam', '1004993', 'Liam', 'Jones', 'liam.jones@example.com'],
+] as const
+
+const POPULATED_GRADEBOOK_STUDENTS = [
+  ...STUDENTS,
+  ...ADDITIONAL_GRADEBOOK_STUDENTS.map(([id, studentId, first, last, email], index) => ({
+    id,
+    studentId,
+    first,
+    last,
+    email,
+    joined: true,
+    scores: STUDENTS[index % STUDENTS.length].scores,
+    final: STUDENTS[index % STUDENTS.length].final,
+  })),
+]
+
+function summarizeGradebookValues(values: number[], kind: 'average' | 'median') {
+  if (!values.length) return null
+  if (kind === 'average') return values.reduce((sum, value) => sum + value, 0) / values.length
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+}
+
+function formatGradebookSummaryNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function formatGradebookAssessmentSummary(index: number, kind: 'average' | 'median', scoreMode: ScoreMode) {
+  const scores = STUDENTS
+    .map((student) => student.scores[index])
+    .filter((score) => score !== '—')
+    .map((score) => {
+      const [earned, possible] = score.split('/').map(Number)
+      return { earned, possible }
+    })
+  const earned = summarizeGradebookValues(scores.map((score) => score.earned), kind)
+  const possible = scores[0]?.possible
+  if (earned == null || possible == null) return '—'
+  if (scoreMode === 'raw') return `${formatGradebookSummaryNumber(earned)}/${possible}`
+  return `${formatGradebookSummaryNumber((earned / possible) * 100)}%`
+}
+
+function formatGradebookFinalSummary(kind: 'average' | 'median') {
+  const value = summarizeGradebookValues(
+    STUDENTS.map((student) => Number.parseFloat(student.final)).filter(Number.isFinite),
+    kind,
+  )
+  return value == null ? '—' : `${formatGradebookSummaryNumber(value)}%`
+}
 
 const CLASSROOM_LIST = [
   { id: 'science', title: 'Grade 10 Science', term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', accentClassName: 'bg-info' },
@@ -157,9 +233,9 @@ export function PageMockups() {
             <h3 className="text-sm font-semibold">Experimental classroom page set</h3>
             <p className="mt-1 text-sm text-text-muted">Local fixtures only. Use the tabs and state selector to compare behavior before touching live pages.</p>
           </div>
-          <FormField label="Example state" className="w-40">
+          <FormField label="Example state" className="w-44">
             <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
-              { value: 'populated', label: 'Populated' }, { value: 'loading', label: 'Loading' },
+              { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' }, { value: 'loading', label: 'Loading' },
               { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
             ]} />
           </FormField>
@@ -175,9 +251,9 @@ export function PageMockups() {
       />
       {PAGE_ITEMS.map((item) => (
         <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
-          <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
+          <StateBoundary state={item.value === 'gradebook' && state === 'empty' ? 'populated' : state} page={item.label} onRetry={() => setState('populated')}>
             {item.value === 'classrooms' ? <ClassroomsMockup isActive={page === 'classrooms'} onPrototypeAction={explain} /> : null}
-            {item.value === 'gradebook' ? <GradebookMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'gradebook' ? <GradebookMockup fixtureState={state} onPrototypeAction={explain} /> : null}
             {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
             {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
             {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
@@ -363,63 +439,194 @@ function ClassroomsMockup({
   )
 }
 
-function GradebookMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: FixtureState; onPrototypeAction: (action: string) => void }) {
   const [scoreMode, setScoreMode] = useState<ScoreMode>('percent')
+  const [summaryKind, setSummaryKind] = useState<'average' | 'median'>('average')
+  const [nameOrder, setNameOrder] = useState<'first-last' | 'last-first'>('first-last')
+  const [showStudentIds, setShowStudentIds] = useState(false)
+  const [keepKeyColumnsVisible, setKeepKeyColumnsVisible] = useState(true)
+  const [firstColumnWidth, setFirstColumnWidth] = useState(96)
+  const [lastColumnWidth, setLastColumnWidth] = useState(96)
   const [selected, setSelected] = useState<string[]>([])
+  const empty = fixtureState === 'empty'
+  const fewAssessments = fixtureState === 'few-assessments'
+  const assessments = empty ? [] : fewAssessments ? GRADEBOOK_ASSESSMENTS.slice(0, 3) : GRADEBOOK_ASSESSMENTS
   const [sort, setSort] = useState<{ key: 'first' | 'last'; direction: SortDirection }>({ key: 'last', direction: 'asc' })
-  const [detail, setDetail] = useState<typeof STUDENTS[number] | null>(null)
-  const rows = useMemo(() => [...STUDENTS].sort((a, b) => {
+  const gradebookStudents = empty || fewAssessments ? STUDENTS : POPULATED_GRADEBOOK_STUDENTS
+  const rows = useMemo(() => [...gradebookStudents].sort((a, b) => {
     const order = a[sort.key].localeCompare(b[sort.key])
     return sort.direction === 'asc' ? order : -order
-  }), [sort])
+  }), [gradebookStudents, sort])
   const toggleSort = (key: 'first' | 'last') => setSort((current) => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }))
   const toggle = (id: string) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
-  const selectedLabel = selected.length ? <span className="inline-flex items-center gap-1"><Mail className="h-4 w-4" aria-hidden="true" />{selected.length}</span> : <span className="inline-flex items-center gap-1"><Users className="h-4 w-4" aria-hidden="true" />0</span>
+  const formatScore = (score: string) => {
+    if (scoreMode === 'raw' || score === '—') return score
+    const [earned, possible] = score.split('/').map(Number)
+    return `${Math.round((earned / possible) * 100)}%`
+  }
+  const fixedTableWidth = GRADEBOOK_SELECTION_COLUMN_WIDTH
+    + firstColumnWidth
+    + lastColumnWidth
+    + (showStudentIds ? GRADEBOOK_STUDENT_ID_COLUMN_WIDTH : 0)
+    + GRADEBOOK_FINAL_COLUMN_WIDTH
+  const flexibleTableMinWidth = fixedTableWidth + assessments.length * GRADEBOOK_ASSESSMENT_COLUMN_WIDTH + 96
+  const populatedTableWidth = fixedTableWidth + assessments.length * GRADEBOOK_ASSESSMENT_COLUMN_WIDTH
+  const nameColumns = nameOrder === 'first-last'
+    ? [
+        { key: 'first' as const, label: 'First', width: firstColumnWidth, onWidthChange: setFirstColumnWidth },
+        { key: 'last' as const, label: 'Last', width: lastColumnWidth, onWidthChange: setLastColumnWidth },
+      ]
+    : [
+        { key: 'last' as const, label: 'Last', width: lastColumnWidth, onWidthChange: setLastColumnWidth },
+        { key: 'first' as const, label: 'First', width: firstColumnWidth, onWidthChange: setFirstColumnWidth },
+      ]
 
   return (
     <div className="space-y-3">
       <TeacherWorkSurfaceContextBar
         ariaLabel="Gradebook mockup controls"
-        context={<span className="hidden truncate sm:inline">Semester 1 · 4 students</span>}
         primary={<TeacherWorkSurfaceActionCluster>
-          <SegmentedControl<ScoreMode> ariaLabel="Score display" value={scoreMode} onChange={setScoreMode} options={[{ value: 'percent', label: '%' }, { value: 'raw', label: 'Raw' }]} />
           <TeacherWorkSurfaceMenuButton
-            label={selectedLabel}
-            items={[{ id: 'email', label: `Email ${selected.length} selected`, onSelect: () => onPrototypeAction('Email students') }]}
+            label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{selected.length ? `${selected.length} selected` : 'Student Actions'}</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </span>}
+            items={[{
+              id: 'email',
+              label: 'Email selected students',
+              icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+              onSelect: () => onPrototypeAction('Email students'),
+            }]}
             disabled={!selected.length}
             variant={selected.length ? 'primary' : 'secondary'}
-            buttonProps={{ 'aria-label': selected.length ? `Selected students (${selected.length})` : 'Selected students (0)' }}
+            menuAriaLabel="Student actions"
+            menuAlign="start"
           />
         </TeacherWorkSurfaceActionCluster>}
         actions={<MoreMenu label="Gradebook" items={[
-          { id: 'columns', label: 'Column controls', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction('Column controls') },
+          { id: 'score-mode', label: scoreMode === 'percent' ? 'Show raw scores' : 'Show %', onSelect: () => setScoreMode((current) => current === 'percent' ? 'raw' : 'percent') },
+          { id: 'summary-kind', label: summaryKind === 'average' ? 'Show median' : 'Show average', onSelect: () => setSummaryKind((current) => current === 'average' ? 'median' : 'average') },
+          { id: 'name-order', label: nameOrder === 'first-last' ? 'Show last name first' : 'Show first name first', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
+          { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
+          { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
           { id: 'export', label: 'Export gradebook', onSelect: () => onPrototypeAction('Export gradebook') },
         ]} />}
       />
-      <TeacherWorkSurfaceTableFrame className="max-h-80 border border-border">
-        <DataTable density="tight">
-          <DataTableHead sticky><DataTableRow>
-            <TableSelectionHeaderCell checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
-            <SortableHeaderCell label="First" isActive={sort.key === 'first'} direction={sort.direction} onClick={() => toggleSort('first')} />
-            <SortableHeaderCell label="Last" isActive={sort.key === 'last'} direction={sort.direction} onClick={() => toggleSort('last')} />
-            <DataTableHeaderCell className="hidden sm:table-cell">Ecosystems</DataTableHeaderCell>
-            <DataTableHeaderCell className="hidden md:table-cell">Cells</DataTableHeaderCell>
-            <DataTableHeaderCell>Final</DataTableHeaderCell>
-            <DataTableHeaderCell className="w-12"><span className="sr-only">Preview</span></DataTableHeaderCell>
-          </DataTableRow></DataTableHead>
-          <DataTableBody>{rows.map((student) => <DataTableRow key={student.id} className={selected.includes(student.id) ? 'bg-info-bg' : 'hover:bg-surface-hover'}>
-            <TableSelectionCell checked={selected.includes(student.id)} onChange={() => toggle(student.id)} ariaLabel={`Select ${student.first} ${student.last}`} />
-            <DataTableCell>{student.first}</DataTableCell><DataTableCell>{student.last}</DataTableCell>
-            <DataTableCell className="hidden sm:table-cell">{scoreMode === 'percent' && student.scores[0] !== '—' ? `${Math.round(Number(student.scores[0].split('/')[0]) / 20 * 100)}%` : student.scores[0]}</DataTableCell>
-            <DataTableCell className="hidden md:table-cell">{student.scores[1]}</DataTableCell><DataTableCell className="font-semibold">{student.final}</DataTableCell>
-            <DataTableCell><IconButton icon={Eye} label={`Preview ${student.first}'s grades`} variant="ghost" onClick={() => setDetail(student)} /></DataTableCell>
-          </DataTableRow>)}</DataTableBody>
-        </DataTable>
+      <TeacherWorkSurfaceTableFrame
+        data-testid="gradebook-scroll-frame"
+        className={cn(empty || fewAssessments ? 'max-h-80 border border-border' : 'h-80 border border-border')}
+      >
+        <div
+          className={cn((empty || fewAssessments) && 'w-full')}
+          style={empty || fewAssessments
+            ? { minWidth: `${flexibleTableMinWidth}px` }
+            : { width: `${populatedTableWidth}px` }}
+        >
+          <DataTable density="tight" className="table-fixed">
+            <colgroup>
+              <col style={{ width: GRADEBOOK_SELECTION_COLUMN_WIDTH }} />
+              {nameColumns.map((column) => <col key={column.key} style={{ width: `${column.width}px` }} />)}
+              {showStudentIds ? <col style={{ width: GRADEBOOK_STUDENT_ID_COLUMN_WIDTH }} /> : null}
+              {empty ? <col /> : assessments.map((assessment) => <col key={assessment} style={{ width: GRADEBOOK_ASSESSMENT_COLUMN_WIDTH }} />)}
+              {fewAssessments ? <col /> : null}
+              <col style={{ width: GRADEBOOK_FINAL_COLUMN_WIDTH }} />
+            </colgroup>
+            <DataTableHead sticky><DataTableRow>
+              <TableSelectionHeaderCell className={keepKeyColumnsVisible ? 'sticky left-0 top-0 z-sticky-table bg-surface-2' : ''} checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
+              {nameColumns.map((column, index) => (
+                <SortableHeaderCell
+                  key={column.key}
+                  className={keepKeyColumnsVisible && index === 0 ? 'sticky left-10 top-0 z-sticky-table border-r border-border-strong bg-surface-2' : ''}
+                  label={column.label}
+                  isActive={sort.key === column.key}
+                  direction={sort.direction}
+                  onClick={() => toggleSort(column.key)}
+                  resize={{ value: column.width, min: 72, max: 220, onChange: column.onWidthChange }}
+                />
+              ))}
+              {showStudentIds ? <DataTableHeaderCell>ID</DataTableHeaderCell> : null}
+              {empty ? <DataTableHeaderCell align="center">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" title={assessment} className="overflow-hidden whitespace-nowrap"><span className="block truncate">{assessment}</span></DataTableHeaderCell>)}
+              {fewAssessments ? <DataTableHeaderCell><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
+              <DataTableHeaderCell align="right" className={cn('whitespace-nowrap', keepKeyColumnsVisible && 'sticky right-0 top-0 z-sticky-table border-l border-border-strong bg-surface-2')}>Final</DataTableHeaderCell>
+            </DataTableRow></DataTableHead>
+            <DataTableBody>{rows.map((student) => {
+              const isSelected = selected.includes(student.id)
+              const stickyCellSurface = keepKeyColumnsVisible
+                ? isSelected ? 'bg-info-bg' : 'bg-surface group-hover:bg-surface-hover'
+                : ''
+              return <DataTableRow key={student.id} className={cn('group', isSelected ? 'bg-info-bg' : 'hover:bg-surface-hover')}>
+                <TableSelectionCell className={cn(keepKeyColumnsVisible && 'sticky left-0', stickyCellSurface)} checked={isSelected} onChange={() => toggle(student.id)} ariaLabel={`Select ${student.first} ${student.last}`} />
+                {nameColumns.map((column, index) => (
+                  <DataTableCell
+                    key={column.key}
+                    className={cn(
+                      'truncate whitespace-nowrap',
+                      keepKeyColumnsVisible && index === 0 && 'sticky left-10 border-r border-border-strong',
+                      keepKeyColumnsVisible && index === 0 && stickyCellSurface,
+                    )}
+                    title={student[column.key]}
+                  >
+                    {student[column.key]}
+                  </DataTableCell>
+                ))}
+                {showStudentIds ? <DataTableCell>{student.studentId}</DataTableCell> : null}
+                {empty ? <DataTableCell aria-label="No assessments">{null}</DataTableCell> : assessments.map((assessment, index) => <DataTableCell key={assessment} align="center" className="whitespace-nowrap">{formatScore(student.scores[index])}</DataTableCell>)}
+                {fewAssessments ? <DataTableCell aria-hidden="true">{null}</DataTableCell> : null}
+                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold', keepKeyColumnsVisible && 'sticky right-0 border-l border-border-strong', stickyCellSurface)}>{empty ? '—' : student.final}</DataTableCell>
+              </DataTableRow>
+            })}</DataTableBody>
+            {!empty ? (
+              <tfoot
+                data-testid="gradebook-summary-footer"
+                className="sticky bottom-0 z-sticky-table bg-surface-2"
+              >
+                <DataTableRow
+                  aria-label={summaryKind === 'average' ? 'Class average' : 'Class median'}
+                  className="border-y border-border-strong bg-surface-2"
+                >
+                  <DataTableCell
+                    className={cn(
+                      '!px-1 text-center text-xs font-semibold uppercase tracking-wide text-text-muted',
+                      keepKeyColumnsVisible && 'sticky left-0 z-sticky-table border-r border-border-strong bg-surface-2',
+                    )}
+                  >
+                    {summaryKind === 'average' ? 'Avg' : 'Med'}
+                  </DataTableCell>
+                  {nameColumns.map((column, index) => (
+                    <DataTableCell
+                      key={column.key}
+                      className={cn(keepKeyColumnsVisible && index === 0 && 'sticky left-10 z-sticky-table border-r border-border-strong bg-surface-2')}
+                    >
+                      {null}
+                    </DataTableCell>
+                  ))}
+                  {showStudentIds ? <DataTableCell>{null}</DataTableCell> : null}
+                  {assessments.map((assessment, index) => (
+                    <DataTableCell key={`${summaryKind}:${assessment}`} align="center" className="whitespace-nowrap text-xs tabular-nums">
+                      {formatGradebookAssessmentSummary(index, summaryKind, scoreMode)}
+                    </DataTableCell>
+                  ))}
+                  {fewAssessments ? <DataTableCell aria-hidden="true">{null}</DataTableCell> : null}
+                  <DataTableCell
+                    align="right"
+                    className={cn(
+                      'whitespace-nowrap font-semibold tabular-nums',
+                      keepKeyColumnsVisible && 'sticky right-0 z-sticky-table border-l border-border-strong bg-surface-2',
+                    )}
+                  >
+                    {formatGradebookFinalSummary(summaryKind)}
+                  </DataTableCell>
+                </DataTableRow>
+              </tfoot>
+            ) : null}
+          </DataTable>
+        </div>
       </TeacherWorkSurfaceTableFrame>
-      <ContentDialog isOpen={Boolean(detail)} onClose={() => setDetail(null)} title={detail ? `${detail.first} ${detail.last}` : 'Student grades'} subtitle="Gradebook preview" showFooterClose={false}>
-        {detail ? <div className="space-y-4"><p className="text-sm text-text-muted">Final example: <strong className="text-text-default">{detail.final}</strong></p><AssessmentStatusIndicator display={getGradebookAssessmentStatusDisplay(detail.scores[2] === '—' ? 'not_submitted' : 'submitted')!} /></div> : null}
-      </ContentDialog>
-      <Description>Score display remains stable during selection. Email appears in a persistent selected-student menu; settings and export stay at the right.</Description>
+      <Description>{empty
+        ? 'With no assessments, the roster remains visible and the Assessments column spans the remaining table width.'
+        : fewAssessments
+          ? 'With only a few assessments, each assessment keeps its compact minimum width while the empty assessment area expands and keeps Final at the far edge.'
+          : 'Compact assessment columns show the dense horizontal gradebook. The selected class summary stays pinned to the bottom edge while roster rows scroll underneath; More actions swaps Average and Median or puts Last name first.'}</Description>
     </div>
   )
 }

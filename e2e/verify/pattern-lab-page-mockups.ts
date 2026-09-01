@@ -210,9 +210,271 @@ export const patternLabPageMockups: VerificationScript = {
     await section.getByRole('combobox', { name: 'Example state' }).selectOption('error')
     await section.getByRole('button', { name: 'Try loading gradebook again' }).click()
     checks.push({ name: 'Retry restores populated Gradebook fixture', passed: await section.getByRole('table').isVisible() })
+    checks.push({
+      name: 'Gradebook keeps context quiet and removes row previews',
+      passed: await section.getByText('Semester 1 · 4 students').count() === 0
+        && await section.getByRole('columnheader', { name: 'Preview' }).count() === 0,
+    })
+    checks.push({
+      name: 'Student Actions is the persistent disabled selection owner',
+      passed: await section.getByRole('button', { name: 'Student Actions' }).isDisabled(),
+    })
+    const populatedAssessmentBounds = await section.getByRole('columnheader', { name: 'Ecosystems' }).boundingBox()
+    checks.push({
+      name: 'Populated Gradebook uses compact assessment columns',
+      passed: (populatedAssessmentBounds?.width ?? 0) >= 84
+        && (populatedAssessmentBounds?.width ?? 0) <= 92
+        && await section.getByRole('columnheader', { name: 'Space' }).isVisible(),
+    })
+    const gradebookScrollFrame = section.getByTestId('gradebook-scroll-frame')
+    const gradebookSummaryFooter = section.getByTestId('gradebook-summary-footer')
+    await gradebookScrollFrame.evaluate((frame) => { frame.scrollTop = 120 })
+    const [summaryFrameBounds, summaryFooterBounds, summaryFooterPosition] = await Promise.all([
+      gradebookScrollFrame.boundingBox(),
+      gradebookSummaryFooter.boundingBox(),
+      gradebookSummaryFooter.evaluate((footer) => getComputedStyle(footer).position),
+    ])
+    checks.push({
+      name: 'Gradebook class summary stays pinned to the visible table bottom',
+      passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollTop > 0)
+        && summaryFooterPosition === 'sticky'
+        && ((summaryFrameBounds?.y ?? 0) + (summaryFrameBounds?.height ?? 0))
+          - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) >= 0
+        && ((summaryFrameBounds?.y ?? 0) + (summaryFrameBounds?.height ?? 0))
+          - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) <= 28
+        && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).isVisible()
+        && await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).count() === 0,
+    })
+    const stickySummaryDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-sticky-summary.png')
+    await section.screenshot({ path: stickySummaryDesktopLightArtifact })
+    artifacts.push(stickySummaryDesktopLightArtifact)
+    await section.getByRole('button', { name: 'More actions' }).click()
+    const scoreModeToggle = section.getByRole('menuitem', { name: 'Show raw scores' })
+    const summaryKindToggle = section.getByRole('menuitem', { name: 'Show median' })
+    const nameOrderToggle = section.getByRole('menuitem', { name: 'Show last name first' })
+    const studentIds = section.getByRole('menuitemcheckbox', { name: 'Show student IDs' })
+    const keepKeyColumnsVisible = section.getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
+    checks.push({
+      name: 'Gradebook More actions owns one score display toggle',
+      passed: await scoreModeToggle.isVisible()
+        && await summaryKindToggle.isVisible()
+        && await nameOrderToggle.isVisible()
+        && await section.getByRole('menuitemradio').count() === 0
+        && await studentIds.getAttribute('aria-checked') === 'false'
+        && await keepKeyColumnsVisible.getAttribute('aria-checked') === 'true',
+    })
+    const gradebookMenuArtifact = path.join(artifactDir, 'desktop-light-gradebook-more-actions.png')
+    await section.screenshot({ path: gradebookMenuArtifact })
+    artifacts.push(gradebookMenuArtifact)
+    await summaryKindToggle.click()
+    checks.push({
+      name: 'Gradebook shows only the selected Average or Median summary',
+      passed: await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).isVisible()
+        && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).count() === 0,
+    })
+    await section.getByRole('button', { name: 'More actions' }).click()
+    const showAverage = section.getByRole('menuitem', { name: 'Show average' })
+    checks.push({ name: 'Gradebook summary command reverses to Show average', passed: await showAverage.isVisible() })
+    await showAverage.click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    await nameOrderToggle.click()
+    checks.push({
+      name: 'Gradebook can put Last name before First name',
+      passed: await section.getByRole('columnheader', { name: 'Last' }).evaluate((cell) => (cell as HTMLTableCellElement).cellIndex === 1)
+        && await section.getByRole('columnheader', { name: 'First' }).evaluate((cell) => (cell as HTMLTableCellElement).cellIndex === 2),
+    })
+    await section.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Gradebook name-order command reverses to Show first name first',
+      passed: await section.getByRole('menuitem', { name: 'Show first name first' }).isVisible(),
+    })
+    await page.keyboard.press('Escape')
+    const gradebookTable = section.getByRole('table')
+    await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 96 })
+    const [frozenFrameBounds, frozenSelectionBounds, frozenLastBounds, frozenFinalBounds] = await Promise.all([
+      gradebookScrollFrame.boundingBox(),
+      section.getByRole('checkbox', { name: 'Select all gradebook students' }).locator('..').boundingBox(),
+      section.getByRole('columnheader', { name: 'Last' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Final' }).boundingBox(),
+    ])
+    checks.push({
+      name: 'Frozen Gradebook columns anchor the leading name field during horizontal scroll',
+      passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollLeft > 0)
+        && Math.abs((frozenSelectionBounds?.x ?? 0) - (frozenFrameBounds?.x ?? 0)) <= 2
+        && Math.abs((frozenLastBounds?.x ?? 0) - ((frozenFrameBounds?.x ?? 0) + (frozenSelectionBounds?.width ?? 0))) <= 2
+        && Math.abs(
+          ((frozenFinalBounds?.x ?? 0) + (frozenFinalBounds?.width ?? 0))
+          - ((frozenFrameBounds?.x ?? 0) + (frozenFrameBounds?.width ?? 0)),
+        ) <= 2,
+    })
+    const frozenColumnsDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-frozen-columns.png')
+    await section.screenshot({ path: frozenColumnsDesktopLightArtifact })
+    artifacts.push(frozenColumnsDesktopLightArtifact)
+    await page.setViewportSize(VIEWPORTS.mobile)
+    await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 448 })
+    checks.push({
+      name: 'Frozen Gradebook columns remain contained on mobile',
+      passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollLeft > 0)
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    const frozenColumnsMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-frozen-columns.png')
+    await section.screenshot({ path: frozenColumnsMobileLightArtifact })
+    artifacts.push(frozenColumnsMobileLightArtifact)
+    await page.getByRole('button', { name: 'Use dark theme' }).click()
+    const frozenColumnsMobileDarkArtifact = path.join(artifactDir, 'mobile-dark-gradebook-frozen-columns.png')
+    await section.screenshot({ path: frozenColumnsMobileDarkArtifact })
+    artifacts.push(frozenColumnsMobileDarkArtifact)
+    await page.setViewportSize(VIEWPORTS.desktop)
+    await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 96 })
+    const frozenColumnsDesktopDarkArtifact = path.join(artifactDir, 'desktop-dark-gradebook-frozen-columns.png')
+    await section.screenshot({ path: frozenColumnsDesktopDarkArtifact })
+    artifacts.push(frozenColumnsDesktopDarkArtifact)
+    await page.getByRole('button', { name: 'Use light theme' }).click()
+    await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 0 })
+    await section.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Gradebook exposes frozen-column checked state',
+      passed: await keepKeyColumnsVisible.getAttribute('aria-checked') === 'true',
+    })
+    await keepKeyColumnsVisible.click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    await studentIds.click()
+    checks.push({
+      name: 'Gradebook More actions toggles the Student ID column',
+      passed: await section.getByRole('columnheader', { name: 'ID' }).isVisible()
+        && await section.getByRole('cell', { name: '1004832' }).isVisible(),
+    })
+    await section.getByRole('button', { name: 'More actions' }).click()
+    await scoreModeToggle.click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Raw score mode updates visible assignment columns',
+      passed: await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '18/20' }).isVisible()
+        && await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '42/50' }).isVisible()
+        && await section.getByRole('menuitem', { name: 'Show %' }).isVisible(),
+    })
+    await page.keyboard.press('Escape')
+    await section.getByRole('button', { name: 'More actions' }).click()
+    await studentIds.click()
+    await section.getByRole('combobox', { name: 'Example state' }).selectOption('empty')
+    const emptyGradebookTable = section.getByRole('table')
+    const [checkboxBounds, firstBounds, lastBounds, assessmentBounds, finalBounds] = await Promise.all([
+      section.getByRole('checkbox', { name: 'Select all gradebook students' }).locator('..').boundingBox(),
+      section.getByRole('columnheader', { name: 'First' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Last' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Assessments' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Final' }).boundingBox(),
+    ])
+    const emptyColumnWidths = {
+      checkbox: checkboxBounds?.width ?? 0,
+      first: firstBounds?.width ?? 0,
+      last: lastBounds?.width ?? 0,
+      assessments: assessmentBounds?.width ?? 0,
+      final: finalBounds?.width ?? 0,
+    }
+    checks.push({
+      name: 'Empty Gradebook lets Assessments span the remaining table width',
+      passed: await section.getByRole('row', { name: /Maya Chen/ }).isVisible()
+        && await section.getByRole('columnheader', { name: 'Assessments' }).isVisible()
+        && await section.getByRole('columnheader', { name: 'Ecosystems' }).count() === 0
+        && emptyColumnWidths.checkbox <= 48
+        && Math.abs(emptyColumnWidths.first - emptyColumnWidths.last) < 1
+        && emptyColumnWidths.first >= 90
+        && emptyColumnWidths.first <= 104
+        && emptyColumnWidths.final <= 88
+        && emptyColumnWidths.assessments > emptyColumnWidths.first * 4,
+    })
+    await section.getByRole('separator', { name: 'Resize Last column' }).press('Home')
+    const longNameOverflow = await section.getByRole('cell', { name: 'Williams-Montgomery', exact: true }).evaluate((cell) => ({
+      clientWidth: cell.clientWidth,
+      scrollWidth: cell.scrollWidth,
+      overflow: getComputedStyle(cell).overflow,
+      textOverflow: getComputedStyle(cell).textOverflow,
+      whiteSpace: getComputedStyle(cell).whiteSpace,
+    }))
+    checks.push({
+      name: 'Narrow Gradebook names stay on one line and ellipsize',
+      passed: longNameOverflow.scrollWidth > longNameOverflow.clientWidth
+        && longNameOverflow.overflow === 'hidden'
+        && longNameOverflow.textOverflow === 'ellipsis'
+        && longNameOverflow.whiteSpace === 'nowrap',
+    })
+    const emptyGradebookDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-empty.png')
+    await section.screenshot({ path: emptyGradebookDesktopLightArtifact })
+    artifacts.push(emptyGradebookDesktopLightArtifact)
+    await page.setViewportSize(VIEWPORTS.mobile)
+    checks.push({
+      name: 'Empty Gradebook keeps natural columns inside its mobile scroll frame',
+      passed: await emptyGradebookTable.isVisible()
+        && await emptyGradebookTable.evaluate((table) => table.scrollWidth >= 380)
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    const emptyGradebookMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-empty.png')
+    await section.screenshot({ path: emptyGradebookMobileLightArtifact })
+    artifacts.push(emptyGradebookMobileLightArtifact)
+    await page.getByRole('button', { name: 'Use dark theme' }).click()
+    const emptyGradebookMobileDarkArtifact = path.join(artifactDir, 'mobile-dark-gradebook-empty.png')
+    await section.screenshot({ path: emptyGradebookMobileDarkArtifact })
+    artifacts.push(emptyGradebookMobileDarkArtifact)
+    await page.setViewportSize(VIEWPORTS.desktop)
+    const emptyGradebookDesktopDarkArtifact = path.join(artifactDir, 'desktop-dark-gradebook-empty.png')
+    await section.screenshot({ path: emptyGradebookDesktopDarkArtifact })
+    artifacts.push(emptyGradebookDesktopDarkArtifact)
+    await page.getByRole('button', { name: 'Use light theme' }).click()
+    const lastColumnResizeHandle = section.getByRole('separator', { name: 'Resize Last column' })
+    await lastColumnResizeHandle.press('ArrowRight')
+    await lastColumnResizeHandle.press('ArrowRight')
+    await lastColumnResizeHandle.press('ArrowRight')
+    await section.getByRole('combobox', { name: 'Example state' }).selectOption('few-assessments')
+    const fewAssessmentsTable = section.getByRole('table')
+    const fewAssessmentBounds = await Promise.all([
+      section.getByRole('columnheader', { name: 'Ecosystems' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Cells' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Genetics' }).boundingBox(),
+    ])
+    const [fewAssessmentsTableBounds, fewAssessmentSpacerBounds, fewFinalBounds] = await Promise.all([
+      fewAssessmentsTable.boundingBox(),
+      section.getByRole('columnheader', { name: 'Unused assessment space' }).boundingBox(),
+      section.getByRole('columnheader', { name: 'Final' }).boundingBox(),
+    ])
+    checks.push({
+      name: 'Few-assessments Gradebook keeps compact assessments and anchors Final right',
+      passed: fewAssessmentBounds.every((bounds) => (bounds?.width ?? 0) >= 84 && (bounds?.width ?? 0) <= 92)
+        && (fewAssessmentSpacerBounds?.width ?? 0) > 96
+        && Math.abs(
+          ((fewFinalBounds?.x ?? 0) + (fewFinalBounds?.width ?? 0))
+          - ((fewAssessmentsTableBounds?.x ?? 0) + (fewAssessmentsTableBounds?.width ?? 0)),
+        ) <= 2
+        && await section.getByRole('columnheader', { name: 'Reactions' }).count() === 0,
+    })
+    const fewAssessmentsDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-few-assessments.png')
+    await section.screenshot({ path: fewAssessmentsDesktopLightArtifact })
+    artifacts.push(fewAssessmentsDesktopLightArtifact)
+    await page.setViewportSize(VIEWPORTS.mobile)
+    checks.push({
+      name: 'Few-assessments Gradebook scrolls internally on mobile',
+      passed: await fewAssessmentsTable.evaluate((table) => table.scrollWidth >= 668)
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    const fewAssessmentsMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-few-assessments.png')
+    await section.screenshot({ path: fewAssessmentsMobileLightArtifact })
+    artifacts.push(fewAssessmentsMobileLightArtifact)
+    await page.getByRole('button', { name: 'Use dark theme' }).click()
+    const fewAssessmentsMobileDarkArtifact = path.join(artifactDir, 'mobile-dark-gradebook-few-assessments.png')
+    await section.screenshot({ path: fewAssessmentsMobileDarkArtifact })
+    artifacts.push(fewAssessmentsMobileDarkArtifact)
+    await page.setViewportSize(VIEWPORTS.desktop)
+    const fewAssessmentsDesktopDarkArtifact = path.join(artifactDir, 'desktop-dark-gradebook-few-assessments.png')
+    await section.screenshot({ path: fewAssessmentsDesktopDarkArtifact })
+    artifacts.push(fewAssessmentsDesktopDarkArtifact)
+    await page.getByRole('button', { name: 'Use light theme' }).click()
+    await section.getByRole('combobox', { name: 'Example state' }).selectOption('populated')
     await section.getByRole('checkbox', { name: 'Select Maya Chen' }).click()
-    await section.getByRole('button', { name: 'Selected students (1)' }).click()
-    await section.getByRole('menuitem', { name: 'Email 1 selected' }).click()
+    await section.getByRole('button', { name: '1 selected' }).click()
+    const selectedActionsArtifact = path.join(artifactDir, 'desktop-light-gradebook-student-actions.png')
+    await section.screenshot({ path: selectedActionsArtifact })
+    artifacts.push(selectedActionsArtifact)
+    await section.getByRole('menuitem', { name: 'Email selected students' }).click()
     checks.push({ name: 'Prototype command gives explicit feedback', passed: await section.getByRole('status').getByText(/Example only/).isVisible() })
 
     await section.getByRole('tab', { name: 'Settings' }).click()
