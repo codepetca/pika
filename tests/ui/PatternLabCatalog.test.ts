@@ -20,6 +20,7 @@ describe('Pattern Lab catalog', () => {
 
   it('documents every production classroom feature icon', () => {
     expectUnique(CLASSROOM_NAV_ITEMS.map((item) => item.id))
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.label).toBe('Daily')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.lucideName).toBe('ClipboardCheck')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'tests')?.lucideName).toBe('SquarePen')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'resources')?.lucideName).toBe('Compass')

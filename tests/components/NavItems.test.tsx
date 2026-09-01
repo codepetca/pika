@@ -67,11 +67,11 @@ describe('NavItems notification dots', () => {
     mockMobileLeftOpen = false
   })
 
-  it('shows dot and aria-label suffix for student today tab with new activity', () => {
+  it('shows dot and aria-label suffix for the student Daily tab with new activity', () => {
     mockNotifications = baseNotifications({ hasTodayEntry: false })
     const { container } = renderNav('student', 'today')
 
-    const todayLink = screen.getByRole('link', { name: 'Today (new activity)' })
+    const todayLink = screen.getByRole('link', { name: 'Daily (new activity)' })
     expect(todayLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
     expect(container.querySelector('.animate-notification-pulse')).toBeNull()
   })
@@ -79,9 +79,9 @@ describe('NavItems notification dots', () => {
   it('shows no dot and original aria-label when there is no new student activity', () => {
     renderNav('student', 'today')
 
-    const todayLink = screen.getByRole('link', { name: 'Today' })
+    const todayLink = screen.getByRole('link', { name: 'Daily' })
     expect(todayLink.querySelector('[data-new-activity-dot="true"]')).toBeNull()
-    expect(screen.queryByRole('link', { name: 'Today (new activity)' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Daily (new activity)' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
   })
 
@@ -108,7 +108,7 @@ describe('NavItems notification dots', () => {
       />,
     )
 
-    expect(screen.getByRole('link', { name: 'Today' }).querySelector('svg')).toHaveClass('lucide-clipboard-check')
+    expect(screen.getByRole('link', { name: 'Daily' }).querySelector('svg')).toHaveClass('lucide-clipboard-check')
     expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
     expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
   })
@@ -140,7 +140,7 @@ describe('NavItems notification dots', () => {
     expect(achievementsLink).toHaveAttribute('aria-current', 'page')
     expect(achievementsLink.parentElement).toHaveClass('mt-auto')
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Today',
+      'Daily',
       'Classwork',
       'Tests',
       'Calendar',
@@ -266,7 +266,7 @@ describe('NavItems notification dots', () => {
         featureVisibility={featureVisibility}
       />,
     )
-    expect(screen.getByRole('link', { name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Daily' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Classwork' })).toBeNull()
   })
 
