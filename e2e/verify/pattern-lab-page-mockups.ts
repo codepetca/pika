@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import type { VerificationCheck, VerificationResult, VerificationScript } from './types'
 
-const PAGES = ['Gradebook', 'Calendar', 'Announcements', 'Roster'] as const
+const PAGES = ['Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -65,8 +65,9 @@ export const patternLabPageMockups: VerificationScript = {
 
     await page.setViewportSize(VIEWPORTS.desktop)
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'light' })
-    const lightButton = page.getByRole('button', { name: 'Use light theme' })
-    if (await lightButton.isVisible().catch(() => false)) await lightButton.click()
+    await page.evaluate(() => localStorage.setItem('theme', 'light'))
+    await page.reload()
+    await page.locator('html:not(.dark)').waitFor()
     await jumpSelect.selectOption('page-actions')
     await page.waitForTimeout(100)
     const desktopNavigatorArtifact = path.join(artifactDir, 'navigator-desktop-light.png')
@@ -99,8 +100,27 @@ export const patternLabPageMockups: VerificationScript = {
       name: 'Mobile navigator stays visible without page overflow',
       passed: await navigator.isVisible() && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
     })
-
     await page.setViewportSize(VIEWPORTS.desktop)
+    await page.evaluate(() => localStorage.setItem('theme', 'light'))
+    await page.reload()
+    await page.locator('html:not(.dark)').waitFor()
+    await jumpSelect.selectOption('mockup-settings-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator opens the Settings mockup directly',
+      passed: await section.getByRole('tab', { name: 'Settings' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Settings' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-settings-panel'),
+    })
+    await jumpSelect.selectOption('mockup-workspaces-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator opens the Classwork and Tests workspace mockup directly',
+      passed: await section.getByRole('tab', { name: 'Workspaces' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Workspaces' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-workspaces-panel'),
+    })
+    await navigator.evaluate((element) => { element.style.position = 'static' })
     await jumpSelect.selectOption('page-mockups')
     await section.getByRole('tab', { name: 'Gradebook' }).click()
     await section.getByRole('combobox', { name: 'Example state' }).selectOption('error')
@@ -110,6 +130,41 @@ export const patternLabPageMockups: VerificationScript = {
     await section.getByRole('button', { name: 'Selected students (1)' }).click()
     await section.getByRole('menuitem', { name: 'Email 1 selected' }).click()
     checks.push({ name: 'Prototype command gives explicit feedback', passed: await section.getByRole('status').getByText(/Example only/).isVisible() })
+
+    await section.getByRole('tab', { name: 'Settings' }).click()
+    const settings = section.getByTestId('settings-mockup')
+    await settings.getByRole('button', { name: 'Access' }).click()
+    await settings.getByRole('button', { name: 'Generate new join code and link' }).click()
+    const regenerateDialog = page.getByRole('dialog', { name: 'Generate new join code and link?' })
+    checks.push({ name: 'Settings protects join-code regeneration with confirmation', passed: await regenerateDialog.isVisible() })
+    const settingsDialogArtifact = path.join(artifactDir, 'desktop-light-settings-confirmation.png')
+    await page.screenshot({ path: settingsDialogArtifact })
+    artifacts.push(settingsDialogArtifact)
+    await regenerateDialog.getByRole('button', { name: 'Cancel' }).click()
+
+    await section.getByRole('tab', { name: 'Workspaces' }).click()
+    const workspace = section.getByTestId('work-surface-mockup')
+    await workspace.getByRole('button', { name: /^Field observations/ }).click()
+    await workspace.getByRole('tab', { name: 'Students' }).click()
+    await workspace.getByRole('button', { name: 'Maya Chen' }).click()
+    checks.push({ name: 'Selected student activates the work inspector', passed: await workspace.getByText('Student work', { exact: true }).isVisible() })
+    checks.push({ name: 'Workspace exposes a keyboard-resizable divider', passed: await workspace.getByRole('separator', { name: 'Resize student list and work preview' }).isVisible() })
+    const workspaceInspectorArtifact = path.join(artifactDir, 'desktop-light-workspace-inspector.png')
+    await workspace.screenshot({ path: workspaceInspectorArtifact })
+    artifacts.push(workspaceInspectorArtifact)
+    await workspace.getByRole('button', { name: 'Back to item list' }).click()
+    await workspace.getByRole('button', { name: 'More actions' }).click()
+    checks.push({ name: 'Work summary More actions includes Markdown editing', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() })
+    await page.keyboard.press('Escape')
+
+    await page.setViewportSize(VIEWPORTS.mobile)
+    await workspace.getByRole('button', { name: /^Field observations/ }).click()
+    await workspace.getByRole('tab', { name: 'Students' }).click()
+    await workspace.getByRole('button', { name: 'Maya Chen' }).click()
+    checks.push({ name: 'Mobile workspace inspector has no page overflow', passed: await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth) })
+    const mobileWorkspaceArtifact = path.join(artifactDir, 'mobile-light-workspace-inspector.png')
+    await workspace.screenshot({ path: mobileWorkspaceArtifact })
+    artifacts.push(mobileWorkspaceArtifact)
 
     await page.goto(`${baseUrl}/pattern-lab?role=student`)
     checks.push({ name: 'Student gallery excludes teacher page mockups', passed: await page.locator('#page-mockups').count() === 0 })

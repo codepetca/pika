@@ -29,6 +29,8 @@ import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { Classroom, ClassDay, LessonPlan, TiptapContent } from '@/types'
+import { SettingsMockup } from './SettingsMockup'
+import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import {
   Button,
   Card,
@@ -53,7 +55,7 @@ import {
   type SortDirection,
 } from '@/ui'
 
-type PageId = 'gradebook' | 'calendar' | 'announcements' | 'roster'
+type PageId = 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
 type FixtureState = 'populated' | 'loading' | 'empty' | 'error'
 type ScoreMode = 'percent' | 'raw'
 type AnnouncementFilter = 'all' | 'posted' | 'scheduled'
@@ -63,6 +65,8 @@ const PAGE_ITEMS = [
   { value: 'calendar', label: 'Calendar' },
   { value: 'announcements', label: 'Announcements' },
   { value: 'roster', label: 'Roster' },
+  { value: 'settings', label: 'Settings' },
+  { value: 'workspaces', label: 'Workspaces' },
 ] as const
 
 const STUDENTS = [
@@ -152,12 +156,14 @@ export function PageMockups() {
         getPanelId={(value) => `mockup-${value}-panel`}
       />
       {PAGE_ITEMS.map((item) => (
-        <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="rounded-card border border-border bg-page p-2 sm:p-4">
+        <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
           <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
             {item.value === 'gradebook' ? <GradebookMockup onPrototypeAction={explain} /> : null}
             {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
             {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
             {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'settings' ? <SettingsMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'workspaces' ? <WorkSurfaceMockup onPrototypeAction={explain} /> : null}
           </StateBoundary>
         </section>
       ))}

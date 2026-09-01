@@ -103,7 +103,15 @@ export function UiGallery({ role }: Props) {
     if (!target) return
     window.history.replaceState(null, '', `#${targetId}`)
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    const owningTab = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"][aria-controls]'))
+      .find((tab) => tab.getAttribute('aria-controls') === targetId)
+    const scroll = () => target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    if (owningTab && owningTab.getAttribute('aria-selected') !== 'true') {
+      owningTab.click()
+      window.requestAnimationFrame(scroll)
+      return
+    }
+    scroll()
   }
 
   return (
@@ -480,8 +488,8 @@ export function UiGallery({ role }: Props) {
           <PatternSection
             id="page-mockups"
             eyebrow="Experimental · page compositions"
-            title="Remaining classroom pages"
-            description="Interactive action bars and representative page content for Gradebook, Calendar, Announcements, and Roster. These local-only fixtures support comparison before live-page implementation."
+            title="Classroom page patterns"
+            description="Interactive controls and representative content for Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces. These local-only fixtures support comparison before live-page implementation."
           >
             <PageMockups />
           </PatternSection>
@@ -567,7 +575,13 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
-      { value: 'page-mockups', label: 'Page mockups — Gradebook, calendar, announcements, and roster' },
+      { value: 'page-mockups', label: 'Page mockups — Gradebook, calendar, announcements, roster, settings, and workspaces' },
+      { value: 'mockup-gradebook-panel', label: 'Page mockups — Gradebook' },
+      { value: 'mockup-calendar-panel', label: 'Page mockups — Calendar' },
+      { value: 'mockup-announcements-panel', label: 'Page mockups — Announcements' },
+      { value: 'mockup-roster-panel', label: 'Page mockups — Roster' },
+      { value: 'mockup-settings-panel', label: 'Page mockups — Settings' },
+      { value: 'mockup-workspaces-panel', label: 'Page mockups — Classwork and Tests workspaces' },
       { value: 'material-creation', label: 'Creation dialogs — Material' },
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
     ] : []),

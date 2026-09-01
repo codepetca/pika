@@ -105,6 +105,20 @@ describe('UiGallery accessibility contracts', () => {
     )
     expect(window.location.hash).toBe('#status-colors')
     expect(scrollIntoView).toHaveBeenCalledTimes(2)
+
+    const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0)
+      return 1
+    })
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      'mockup-settings-panel',
+    )
+    expect(window.location.hash).toBe('#mockup-settings-panel')
+    expect(within(screen.getByTestId('page-mockups')).getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
+    expect(scrollIntoView).toHaveBeenCalledTimes(3)
+    requestAnimationFrame.mockRestore()
   })
 
   it('keeps page mockups teacher-only and exposes named interactive owners', async () => {
@@ -116,7 +130,7 @@ describe('UiGallery accessibility contracts', () => {
     expect(mockups.getByRole('group', { name: 'Score display' })).toBeInTheDocument()
     expect(mockups.getByRole('button', { name: 'More actions' })).toHaveAttribute('aria-haspopup', 'menu')
     expect(mockups.getByRole('table')).toBeInTheDocument()
-    for (const name of ['Gradebook', 'Calendar', 'Announcements', 'Roster']) {
+    for (const name of ['Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = mockups.getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
