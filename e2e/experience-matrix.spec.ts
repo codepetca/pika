@@ -467,7 +467,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   // Keep the fixture's relative "Today" timestamp stable across calendar days.
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
-  let attendanceSessionState: 'open' | 'scheduled' = 'open'
+  let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -661,8 +661,20 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   })
   await verifyProjectContract(page, testInfo)
 
-  attendanceSessionState = 'scheduled'
+  attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })).toBeEnabled()
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions for 1 selected',
+  })).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-closed.png`),
+    animations: 'disabled',
+  })
+
+  attendanceSessionState = 'scheduled'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('group', {
     name: 'Attendance status for Student 01 Alpha01',

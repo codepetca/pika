@@ -596,6 +596,35 @@ describe('TeacherAttendanceTab', () => {
     }
   })
 
+  it('keeps selection controls available for closed-session corrections', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      session: {
+        ...combinedAttendanceView().session,
+        state: 'closed',
+      },
+    }))
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const studentCheckbox = await screen.findByRole('checkbox', {
+      name: 'Select Student1 Test',
+    })
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeEnabled()
+    expect(screen.getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })).toBeDisabled()
+
+    await user.click(studentCheckbox)
+    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+  })
+
   it('hides and restores the relative date from Daily More actions', async () => {
     mockLogsFetch()
     const user = userEvent.setup()
