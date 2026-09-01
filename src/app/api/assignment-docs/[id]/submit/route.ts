@@ -107,17 +107,19 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     ? await loadAssignmentSubmissionArtifactsForDoc(supabase, existingDoc.id)
     : []
   const submissionCompletion = getSubmissionRequirementCompletion(submissionRequirements, submissionArtifacts)
-  const acknowledgedMissingAttachmentIds = new Set(
-    submitRequest.acknowledged_missing_attachment_ids
-  )
-  const acknowledgesAllCurrentMissingAttachments =
+  const requestedAcknowledgementIds = submitRequest.acknowledged_missing_attachment_ids
+  const acknowledgedMissingAttachmentIds = new Set(requestedAcknowledgementIds)
+  const currentMissingAttachmentIds = submissionCompletion.missingRequiredRequirementIds
+  const acknowledgesExactCurrentMissingAttachments =
     submitRequest.allow_missing_attachments
-    && submissionCompletion.missingRequiredRequirementIds.every(
+    && requestedAcknowledgementIds.length === acknowledgedMissingAttachmentIds.size
+    && acknowledgedMissingAttachmentIds.size === currentMissingAttachmentIds.length
+    && currentMissingAttachmentIds.every(
       (requirementId) => acknowledgedMissingAttachmentIds.has(requirementId)
     )
   const attachmentGate = getAssignmentAttachmentSubmissionGate(
     submissionCompletion,
-    acknowledgesAllCurrentMissingAttachments
+    acknowledgesExactCurrentMissingAttachments
   )
 
   if (!attachmentGate.ok && attachmentGate.reason === 'invalid_attachments') {
@@ -183,7 +185,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     content: submissionContent as TiptapContent,
     expectedUpdatedAt: submitRequest.expected_updated_at,
     acknowledgedMissingRequirementIds: hasAcknowledgedMissingAttachments
-      ? submitRequest.acknowledged_missing_attachment_ids
+      ? currentMissingAttachmentIds
       : [],
     ...(palEnabled ? { palEvent } : {}),
   })

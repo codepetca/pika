@@ -319,6 +319,25 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     })
     expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
 
+    const supersetAcknowledgementResponse = await POST(makeRequest(true, [
+      requirement.id,
+      '10000000-0000-4000-8000-000000000098',
+    ]), { params: { id: 'assign-1' } })
+    expect(supersetAcknowledgementResponse.status).toBe(400)
+    await expect(supersetAcknowledgementResponse.json()).resolves.toEqual({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: [requirement.id],
+    })
+    expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
+
+    const duplicateAcknowledgementResponse = await POST(makeRequest(true, [
+      requirement.id,
+      requirement.id,
+    ]), { params: { id: 'assign-1' } })
+    expect(duplicateAcknowledgementResponse.status).toBe(400)
+    expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
+
     const acknowledgedResponse = await POST(makeRequest(true), { params: { id: 'assign-1' } })
     expect(acknowledgedResponse.status).toBe(200)
     expect(submitAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
