@@ -239,3 +239,4 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Added lockfile-keyed pnpm-store caches to the database and browser CI lanes plus a lockfile-keyed Playwright browser cache to the browser lane. Cache hit labels and setup evidence appear in each job summary for before/after comparison.
 - Preserved fresh safety state: every run installs from the lockfile, verifies Chromium system dependencies, and starts a new ephemeral Supabase stack with complete migration replay. No classifier, required gate, browser spec, artifact, production, or dependency behavior changed.
 - Verification pending final draft lifecycle. Model recommendation: GPT-5.6 Terra — bounded CI workflow and evidence-contract change.
+- Independent review correction: distinguish exact cache-key hits from useful pnpm prefix restores, and run the normal Chromium installer on every run so cached downloads do not weaken browser setup integrity.
