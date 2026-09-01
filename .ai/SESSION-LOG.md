@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Test enrollment confirmed
-
-User reported joining the dedicated production test classroom. Teacher roster confirms one student named Test Attendance. Separate in-app browser is signed out; opened its login and asked user to sign in, without reading credentials. Teacher page changed during inspection because the user was editing attendance timing; left the form untouched and warned that changing hours does not add Aug 31 to the Sep-only calendar. No attendance commands, records, or settings changed by this task. Live delivery, automatic opening, and student check-in remain unverified; no follow-up automation exists.
-
 ## 2026-08-31 — New classroom saved hours but production delivery fails
 
 User created Manual Attendance verification (e2e60420-a6af-4a31-adb7-dca6867da631), joined as Test Attendance, and reported a clock icon and missing student prompt. Read-only teacher inspection confirmed persisted 14:00–15:00 Toronto policy, automatic enabled, QR offsets 10 minutes. Daily initially selected Aug 28; clock-only display reflects missing occurrence for that historical date, not rejected policy. Navigated to Aug 31: QR window 13:50–14:50 exists, but Last confirmed and Open QR check-in indicate no confirmed open session. Student notice requires an actual open projection. Signed-in Vercel Logs show production POST /api/teacher/attendance/sync failing at 13:58:34 with BaraAttendanceClientError remote_rejected, retryable true, remote status 500; an earlier 13:55:45 attempt reports delivery_pending. Logs establish a live delivery failure, but do not yet explain Bara's internal error or expose classroom-specific POST bodies. No manual open, retry, policy save, settings, attendance records, deployments, or code changes performed. Left teacher Daily on today and retained the filtered log tab. Next diagnosis is Bara-side request/error tracing; prior mock tests do not establish live future-course reliability.
@@ -247,3 +243,9 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Preserved fresh safety state: every run installs from the lockfile, verifies Chromium system dependencies, and starts a new ephemeral Supabase stack with complete migration replay. No classifier, required gate, browser spec, artifact, production, or dependency behavior changed.
 - Verification pending final draft lifecycle. Model recommendation: GPT-5.6 Terra — bounded CI workflow and evidence-contract change.
 - Independent review correction: distinguish exact cache-key hits from useful pnpm prefix restores, and run the normal Chromium installer on every run so cached downloads do not weaken browser setup integrity.
+
+## 2026-09-01 — Align classroom feature icons
+
+- Replaced the classroom Tests icon with Lucide `SquarePen`, changed Course Guide to `Compass`, and aligned student Today with teacher Daily on `ClipboardCheck`, eliminating the legacy `PenSquare` alias.
+- Centralized teacher/student classroom navigation metadata so Pattern Lab renders the exact production feature icons, Lucide names, and role availability without a second mapping.
+- Focused checks pass 21 files / 220 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab desktop/mobile light/dark contracts were updated and visually reviewed; the local gallery remains open on port 3001 for user review.

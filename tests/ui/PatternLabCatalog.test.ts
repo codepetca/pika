@@ -5,6 +5,7 @@ import {
   REFERENCE_ROUTES,
   STATUS_CATALOG,
 } from '@/app/__ui/catalog'
+import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 
 function expectUnique(values: readonly string[]) {
   expect(new Set(values).size).toBe(values.length)
@@ -15,6 +16,14 @@ describe('Pattern Lab catalog', () => {
     expectUnique(PATTERN_CATALOG.map((pattern) => pattern.id))
     expectUnique(ICON_CATALOG.map((icon) => icon.id))
     expectUnique(STATUS_CATALOG.map((status) => status.id))
+  })
+
+  it('documents every production classroom feature icon', () => {
+    expectUnique(CLASSROOM_NAV_ITEMS.map((item) => item.id))
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.lucideName).toBe('ClipboardCheck')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'tests')?.lucideName).toBe('SquarePen')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'resources')?.lucideName).toBe('Compass')
+    expect(CLASSROOM_NAV_ITEMS.every((item) => item.roles.length > 0)).toBe(true)
   })
 
   it('maps every status to an approved icon and explicit usage guidance', () => {

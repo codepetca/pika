@@ -70,6 +70,10 @@ describe('UiGallery accessibility contracts', () => {
     }
     expect(screen.getByRole('group', { name: 'Content density' })).toBeInTheDocument()
     expect(screen.getByText('student reference')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Classroom navigation' })).toBeInTheDocument()
+    expect(screen.getAllByText('ClipboardCheck', { exact: true })).toHaveLength(2)
+    expect(screen.getByText('SquarePen', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Compass', { exact: true })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Student history' })).toHaveAttribute(
       'href',
       '/student/history',

@@ -1,21 +1,9 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
-import {
-  BookOpen,
-  Calendar,
-  ClipboardCheck,
-  ClipboardList,
-  FileCheck,
-  Megaphone,
-  Settings,
-  PenSquare,
-  SquarePercent,
-  Trophy,
-  Users,
-  type LucideIcon,
-} from 'lucide-react'
+import { type LucideIcon } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
+import { CLASSROOM_NAV_ITEMS } from './classroom-nav-items'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Tooltip } from '@/ui'
 import { writeCookie } from '@/lib/cookies'
@@ -33,38 +21,6 @@ import {
 
 export type ClassroomNavItemId = ClassroomTabId
 
-type NavItem = {
-  id: ClassroomNavItemId
-  label: string
-  icon: LucideIcon
-}
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const teacherItems: NavItem[] = [
-  { id: 'daily', label: 'Daily', icon: ClipboardCheck },
-  { id: 'assignments', label: 'Classwork', icon: ClipboardList },
-  { id: 'tests', label: 'Tests', icon: FileCheck },
-  { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Course Guide', icon: BookOpen },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone },
-  { id: 'roster', label: 'Roster', icon: Users },
-  { id: 'settings', label: 'Settings', icon: Settings },
-]
-
-const studentItems: NavItem[] = [
-  { id: 'today', label: 'Today', icon: PenSquare },
-  { id: 'assignments', label: 'Classwork', icon: ClipboardList },
-  { id: 'tests', label: 'Tests', icon: FileCheck },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Course Guide', icon: BookOpen },
-  { id: 'announcements', label: 'Announcements', icon: Megaphone },
-  { id: 'achievements', label: 'Achievements', icon: Trophy },
-]
-
 // ============================================================================
 // Utilities
 // ============================================================================
@@ -77,7 +33,8 @@ function getItems(
   const availableTabs = new Set(
     getAvailableClassroomTabs(role, featureVisibility, palEnabled),
   )
-  return (role === 'teacher' ? teacherItems : studentItems)
+  return CLASSROOM_NAV_ITEMS
+    .filter((item) => item.roles.includes(role))
     .filter((item) => availableTabs.has(item.id))
 }
 

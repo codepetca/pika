@@ -62,6 +62,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { PageMockups } from './PageMockups'
+import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 
 type Role = 'teacher' | 'student'
 
@@ -425,6 +426,36 @@ export function UiGallery({ role }: Props) {
                 </Card>
               )
             })}
+          </div>
+          <div className="mt-6">
+            <PatternHeading
+              title="Classroom navigation"
+              owner="src/components/layout/classroom-nav-items.ts"
+            />
+            <p className="mt-1 text-sm text-text-muted">
+              Exact feature symbols shared by the production classroom sidebar and this catalog.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {CLASSROOM_NAV_ITEMS.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Card key={item.id} tone="panel" padding="sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control border border-border bg-surface-2">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold">{item.label}</h3>
+                        <p className="mt-1 text-sm text-text-default">{item.lucideName}</p>
+                        <p className="mt-1 text-xs capitalize text-text-muted">
+                          {item.roles.join(' · ')}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
           </div>
           <Card tone="accent" padding="sm" className="mt-4">
             <p className="text-sm font-medium">Icon governance</p>

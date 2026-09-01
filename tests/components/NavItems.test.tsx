@@ -92,6 +92,27 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
   })
 
+  it('uses the canonical feature icons in both classroom sidebars', () => {
+    const { rerender } = renderNav('teacher', 'tests')
+
+    expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
+    expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
+
+    rerender(
+      <NavItems
+        classroomId="classroom-1"
+        role="student"
+        activeTab="tests"
+        onTabChange={vi.fn()}
+        updateSearchParams={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Today' }).querySelector('svg')).toHaveClass('lucide-clipboard-check')
+    expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
+    expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
+  })
+
   it('shows the learner achievements destination only when the Pal pilot is enabled', () => {
     const { rerender } = render(
       <NavItems
