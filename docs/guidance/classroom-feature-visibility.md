@@ -6,7 +6,7 @@ Teachers can tailor each classroom's navigation from **Settings → Features**. 
 
 | Feature preference | Teacher sidebar | Student sidebar | Hideable |
 | --- | --- | --- | --- |
-| Daily / Today | Daily | Today | No |
+| Daily | Daily | Daily | No |
 | Attendance | Controls and columns inside Daily | — | Yes |
 | Classwork | Assignments | Assignments | Yes |
 | Tests | Tests | Tests | Yes |
