@@ -24,6 +24,17 @@ Reproduce the rolling measurement with:
 pnpm measure:ci -- --limit 50
 ```
 
+## Setup-cache evidence
+
+The database and browser lanes cache only immutable dependency inputs: the pnpm
+store and, for the browser lane, Playwright's downloaded browser files. Every
+run still installs from the lockfile, verifies Chromium system dependencies, and
+starts a new ephemeral Supabase stack with a complete migration replay. Each
+job summary exposes exact-key cache results. A pnpm result of `false` can mean a
+useful prefix restore or a miss, while the Playwright cache uses an exact key;
+compare those labels and the native GitHub Actions step durations against the
+rolling PR Gate timing.
+
 The report loads each successful `PR Gate`, reads its emitted classifier mode,
 and reports time-to-gate-start, gate duration, and time-to-gate-pass separately
 for docs-only, full, promotion, and application modes. Runs whose retained logs

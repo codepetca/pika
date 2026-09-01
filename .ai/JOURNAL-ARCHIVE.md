@@ -30012,6 +30012,11 @@ Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures,
 
 Started local Pika preview at localhost:3000 with the governed launcher and seeded local accounts. Captured Student Tests list/submitted detail, teacher Daily unselected/selected, and live Pattern Lab teacher examples. Initial findings: test Closed labels hide submitted progress; Daily first names truncate in current width configuration; Lab lacks complete source-page state examples. Preliminary audit and eight screenshots saved under the task visualization directory, pika-reference-audit/audit.md. No product code changed. Next: agree one small source-page preview before broader adoption.
 
+<!-- pika-session-log-archive-batch:12ff92047bbe13bd30ca3627077681529b246696c7db3e603333f88459338ec7 -->
 ## 2026-08-31 — Relative-date clipping local preview
 
 Fixed clipped descenders in both DateNavigator subtitle render paths by restoring 16px line height. Local Daily/Lab preview updated, 44px control retained. Six component tests and four Pattern Lab browser matrix checks passed; all default captures reviewed; UI/design policy pass. Evidence: task visualization relative-date-fix/brief.md. Local preview on codex/fix-relative-date-descenders; awaiting visual acceptance before publishing.
+
+## 2026-08-31 — History timestamp local preview
+
+Extended shared HistoryGraph so hover/selected context shows only Toronto date/time below the chart, with a reserved line to prevent hover layout shifts. Removed overlay and character-count summary; kept detailed accessible slider labels and existing selection behavior. Updated Pattern Lab explanation and existing semantic tests. All 27 HistoryGraph tests, UI/design policy, and diff checks pass. Playwright verified both authenticated roles at desktop/mobile sizes in light/dark, with hover, pin, keyboard, clear and daily overview checks; screenshots visually reviewed. Evidence: task visualization history-tooltip-fix/brief.md. Local preview only, preserving relative-date fix; not published.
