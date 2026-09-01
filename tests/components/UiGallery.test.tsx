@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
+import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
+import { MaterialCreationPattern } from '@/app/__ui/MaterialCreationPattern'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -35,7 +37,8 @@ vi.mock('@/components/HistoryGraph', () => ({
   },
 }))
 
-vi.mock('@/components/editor', () => ({
+vi.mock('@/components/editor', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/editor')>()),
   RichTextEditor: ({ content, historyPreviewMode, historyPreviewChange }: any) => (
     <div
       data-testid="student-preview-mode"
@@ -66,6 +69,23 @@ describe('UiGallery history preview fixture', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it.each([
+    { kind: 'Assignment', Component: AssignmentCreationPattern, title: 'Field observations', closeLabel: 'Close assignment example' },
+    { kind: 'Material', Component: MaterialCreationPattern, title: 'Field guide', closeLabel: 'Close material modal' },
+  ])('demonstrates the tall $kind dialog and returns focus when dismissed', async ({ kind, Component, title, closeLabel }) => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><Component /></TooltipProvider></ThemeProvider>)
+    const opener = screen.getByRole('button', { name: `Open ${kind.toLowerCase()} example` })
+    await user.click(opener)
+    const dialog = screen.getByRole('dialog', { name: `New ${kind}` })
+    expect(dialog).toHaveClass('h-[90dvh]')
+    expect(within(dialog).getByRole('textbox', { name: /^Title(?: \*)?$/ })).toHaveValue(title)
+    expect(within(dialog).getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: closeLabel }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(opener).toHaveFocus())
   })
 
   it('demonstrates teacher hover, pin, and exit states', async () => {
@@ -109,6 +129,8 @@ describe('UiGallery history preview fixture', () => {
 
   it('uses the same preview lifecycle for the student surface', () => {
     renderGallery('student')
+    expect(screen.queryByRole('button', { name: 'Open assignment example' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open material example' })).not.toBeInTheDocument()
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')

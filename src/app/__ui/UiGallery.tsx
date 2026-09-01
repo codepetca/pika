@@ -8,6 +8,9 @@ import {
   Card,
   FormField,
   Input,
+  IconButton,
+  PageActionBar,
+  PageHeading,
   PageState,
   SaveStatus,
   SegmentedControl,
@@ -42,6 +45,9 @@ import {
   LockKeyhole,
   Menu,
   Pencil,
+  Plus,
+  RotateCw,
+  MoreVertical,
   Trash2,
   type LucideIcon,
 } from 'lucide-react'
@@ -49,6 +55,11 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { StudentTestListItem } from '@/components/StudentTestListItem'
+import type { StudentTestSummary } from '@/lib/student-test-presentation'
+import { StatusPatterns } from './StatusPatterns'
+import { MaterialCreationPattern } from './MaterialCreationPattern'
+import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 
 type Role = 'teacher' | 'student'
 
@@ -171,6 +182,23 @@ export function UiGallery({ role }: Props) {
             description="These examples render the canonical @/ui owners. Feature code should compose them instead of reproducing their geometry, focus, or disabled states."
           >
           <div className="space-y-5">
+            <div data-testid="page-action-icons-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Page actions" owner="src/ui/Page.tsx; src/ui/IconButton.tsx" />
+                <div className="mt-4">
+                  <PageActionBar
+                    primary={<PageHeading title="Assignments" size="section" />}
+                    actions={[
+                      { id: 'create', label: 'Create assignment', icon: Plus, primary: true, onSelect: () => setDialogOpen(true) },
+                      { id: 'export', label: 'Export assignments', onSelect: () => setDialogOpen(true) },
+                      { id: 'unavailable', label: 'Archive selected', disabled: true, onSelect: () => undefined },
+                    ]}
+                  />
+                </div>
+                <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.</p>
+              </Card>
+            </div>
+            <StatusPatterns />
             <Card tone="panel" padding="md">
               <PatternHeading title="Buttons" owner="src/ui/Button.tsx" />
               <div className="mt-4 flex flex-wrap gap-3">
@@ -335,6 +363,9 @@ export function UiGallery({ role }: Props) {
             title="Status symbols and labels"
             description="These are cross-product examples, not a universal domain component. Attendance, submissions, tests, and other workflows keep their precise labels and behaviour."
           >
+          <p className="mb-4 text-sm">
+            <Link href="#status-colors" className="text-primary underline">View Attendance, Classwork, and Test colors and count chips</Link>
+          </p>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {STATUS_CATALOG.map((status) => (
               <StatusExample key={status.id} status={status} />
@@ -357,8 +388,8 @@ export function UiGallery({ role }: Props) {
           >
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card tone="panel" padding="none"><PageState compact kind="loading" title="Loading classroom" description="The initial read is still pending." /></Card>
-            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<Button size="sm">Try again</Button>} /></Card>
-            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<Button size="sm">Create assignment</Button>} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="error" title="Could not load classroom" description="A required read failed." action={<IconButton icon={RotateCw} label="Try again" onClick={() => setDialogOpen(true)} />} /></Card>
+            <Card tone="panel" padding="none"><PageState compact kind="empty" title="No assignments yet" description="The read succeeded and returned no records." action={<IconButton icon={Plus} label="Create assignment" onClick={() => setDialogOpen(true)} />} /></Card>
             <Card tone="panel" padding="none"><PageState compact kind="forbidden" title="Page unavailable" description="The current identity cannot use this surface." /></Card>
           </div>
           </PatternSection>
@@ -382,6 +413,17 @@ export function UiGallery({ role }: Props) {
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6">
+            {role === 'teacher' && <MaterialCreationPattern />}
+            {role === 'teacher' && <AssignmentCreationPattern />}
+          <PatternSection
+            id="student-tests"
+            eyebrow="Experimental · student workflow"
+            title="Student Tests: progress and access"
+            description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
+          >
+            <StudentTestExamples />
+          </PatternSection>
+
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
           </div>
@@ -413,6 +455,9 @@ const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
   'external-link': ExternalLink,
   'chevron-down': ChevronDown,
   menu: Menu,
+  plus: Plus,
+  refresh: RotateCw,
+  'more-actions': MoreVertical,
 }
 
 const STATUS_TONE_CLASSES: Record<StatusTone, string> = {
@@ -468,6 +513,31 @@ function MaturityBadge({ maturity }: { maturity: PatternMaturity }) {
     <span className={cn('rounded-badge px-2 py-0.5 text-xs font-semibold capitalize', MATURITY_CLASSES[maturity])}>
       {maturity}
     </span>
+  )
+}
+
+const STUDENT_TEST_EXAMPLES: StudentTestSummary[] = [
+  { title: 'Functions and Graphs', status: 'active', student_status: 'not_started', effective_access: 'open' },
+  { title: 'Polynomial Expressions and Rational Functions — Unit Review', status: 'closed', student_status: 'not_started', effective_access: 'closed' },
+  { title: 'Linear Equations', status: 'active', student_status: 'responded', effective_access: 'open' },
+  { title: 'Quadratic Relations', status: 'closed', student_status: 'responded', effective_access: 'closed' },
+  { title: 'Rates of Change', status: 'closed', student_status: 'can_view_results', effective_access: 'closed' },
+]
+
+function StudentTestExamples() {
+  const [selected, setSelected] = useState<string | null>(null)
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-text-muted">src/components/StudentTestListItem.tsx · Preview only; no test opens or starts.</p>
+      <div className="space-y-3">
+        {STUDENT_TEST_EXAMPLES.map((test) => (
+          <StudentTestListItem key={test.title} test={test} selected={selected === test.title} onClick={() => setSelected(test.title)} />
+        ))}
+      </div>
+      <p role="status" className="text-sm text-text-muted">
+        {selected ? `Selected example: ${selected}` : 'Select an available example to inspect its focus and selection treatment.'}
+      </p>
+    </div>
   )
 }
 

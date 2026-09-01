@@ -84,7 +84,7 @@ export function DateNavigator({
         >
           <span className="max-w-full truncate leading-tight">{label}</span>
           {subtitle ? (
-            <span id={subtitleId} className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
+            <span id={subtitleId} className="max-w-full truncate text-xs font-normal leading-4 text-text-muted">
               {subtitle}
             </span>
           ) : null}
@@ -100,7 +100,7 @@ export function DateNavigator({
         >
           <span className="max-w-full truncate leading-tight">{label}</span>
           {subtitle ? (
-            <span className="max-w-full truncate text-xs font-normal leading-none text-text-muted">
+            <span className="max-w-full truncate text-xs font-normal leading-4 text-text-muted">
               {subtitle}
             </span>
           ) : null}

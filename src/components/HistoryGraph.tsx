@@ -41,7 +41,6 @@ const OVERVIEW_DAY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
 const OVERVIEW_ENTRY_THRESHOLD = 60
 const ZOOM_ANIMATION_MS = 420
 const WHEEL_ZOOM_THROTTLE_MS = ZOOM_ANIMATION_MS
-const characterCountFormatter = new Intl.NumberFormat('en-CA')
 
 interface ZoomTweenFrame {
   window: ActivityWindow
@@ -67,31 +66,6 @@ function entryLabel(entry: EntryWithDiff, isBaseline: boolean): string {
       ? 'no character-count change since previous'
       : `${entry.charDiff > 0 ? '+' : ''}${entry.charDiff} characters since previous`
   return `${formatDate(Date.parse(entry.entry.created_at))}, ${formatTime(Date.parse(entry.entry.created_at))}, ${change}`
-}
-
-function saveContextLabel(entry: EntryWithDiff, isBaseline: boolean): string {
-  const timestamp = Date.parse(entry.entry.created_at)
-  const change = isBaseline
-    ? 'First save'
-    : entry.charDiff === 0
-      ? 'No character change'
-      : `${entry.charDiff > 0 ? '+' : '−'}${characterCountFormatter.format(Math.abs(entry.charDiff))} characters`
-  return `${formatDate(timestamp)} · ${formatTime(timestamp)} · ${change}`
-}
-
-function dailyContextLabel(
-  group: ReturnType<typeof groupActivityByDay>[number]
-): string {
-  const additions = characterCountFormatter.format(group.additions)
-  const deletions = characterCountFormatter.format(group.deletions)
-  const change = group.additions > 0 && group.deletions > 0
-    ? `+${additions} / −${deletions} characters`
-    : group.additions > 0
-      ? `+${additions} characters`
-      : group.deletions > 0
-        ? `−${deletions} characters`
-        : 'No character change'
-  return `${formatDate(group.midpointMs)} · ${change}`
 }
 
 function pointY(change: number, maxAbsChange: number): number {
@@ -185,16 +159,9 @@ export function HistoryGraph({
   const renderWindow = zoomTweenFrame?.window ?? visibleWindow
   const isZoomTweening = zoomTweenFrame !== null
   const dailyGroups = useMemo(() => groupActivityByDay(diffs), [diffs])
-  const selectedDailyGroup = isOverview
-    ? dailyGroups.find((group) => group.entries.some(
-        (entry) => entry.entry.id === selectedEntry?.entry.id
-      ))
-    : undefined
   const showContextLabel = hoveredIndex >= 0 || activeIndex >= 0
   const contextLabel = selectedEntry
-    ? selectedDailyGroup
-      ? dailyContextLabel(selectedDailyGroup)
-      : saveContextLabel(selectedEntry, selectedIndex === 0)
+    ? `${formatDate(selectedEntryMs)}\n${formatTime(selectedEntryMs)}`
     : ''
   const visibleDailyGroups = useMemo(
     () => renderWindow
@@ -766,15 +733,13 @@ export function HistoryGraph({
             )}
           </g>
         </svg>
-        {showContextLabel && (
-          <div
-            aria-hidden="true"
-            data-history-context={hoveredIndex >= 0 ? 'hover' : 'selected'}
-            className="pointer-events-none absolute left-1/2 top-1 z-floating max-w-full -translate-x-1/2 whitespace-normal rounded-control border border-border-strong bg-surface px-2 py-1 text-center text-xs font-medium leading-tight text-text-default shadow-elevated"
-          >
-            {contextLabel}
-          </div>
-        )}
+      </div>
+      <div
+        aria-hidden="true"
+        data-history-context={showContextLabel ? (hoveredIndex >= 0 ? 'hover' : 'selected') : undefined}
+        className="pointer-events-none mt-1 min-h-8 whitespace-pre-line text-center text-xs leading-4 text-text-muted"
+      >
+        {showContextLabel ? contextLabel : null}
       </div>
 
       <span id={zoomStatusId} className="sr-only" aria-live="polite">{zoomStatus}</span>

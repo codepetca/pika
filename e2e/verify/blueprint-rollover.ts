@@ -1348,7 +1348,7 @@ export const blueprintRollover: VerificationScript = {
       await page.screenshot({ path: blueprintScreenshot, fullPage: true })
       artifacts.push(blueprintScreenshot)
 
-      await page.getByRole('button', { name: 'Use for Classroom' }).click()
+      await page.getByRole('button', { name: 'Create classroom from blueprint' }).click()
       classroomTitle = `${token} Classroom`
       await page.getByLabel('Classroom Name').fill(classroomTitle)
       await page.getByRole('button', { name: 'Next' }).click()

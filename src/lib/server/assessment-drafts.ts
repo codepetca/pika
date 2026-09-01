@@ -537,7 +537,7 @@ function mapTestDraftRpcError(
     return {
       ok: false,
       status: 409,
-      error: 'Test questions cannot be changed after student work exists',
+      error: 'Only question wording can change after a student starts. Reload the saved draft to resolve structural changes.',
     }
   }
   if (details.includes('test_archived')) {

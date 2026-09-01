@@ -368,8 +368,8 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     expect(geometry.height).toBeCloseTo(44, 1)
     expect(Math.abs(geometry.width - geometry.height)).toBeLessThan(1)
     expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2)
-    expect(geometry.indicatorWidth).toBe(28)
-    expect(geometry.indicatorHeight).toBe(28)
+    expect(geometry.indicatorWidth).toBe(20)
+    expect(geometry.indicatorHeight).toBe(20)
     expect(geometry.indicatorWidth).toBeLessThan(geometry.width)
     expect(geometry.indicatorOpacity).toBe(selected ? 1 : 0.12)
     expect(geometry.indicatorShadow === 'none').toBe(!selected)
@@ -548,6 +548,20 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       }),
     })
   })
+  await page.route('**/api/teacher/attendance/policy?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ policy: attendanceConfigured ? {
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        timezone: 'America/Toronto',
+        sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
+        entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+        entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
+        enabled: true, revision: 1, updatedAt: '2026-08-17T12:00:00.000Z',
+      } : null }),
+    })
+  })
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -594,6 +608,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
   if (viewport === 'desktop') {
     await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
   } else {
     await expect(primaryControl.getByRole('button', { name: 'Attendance actions' })).toBeVisible()
   }
@@ -653,7 +668,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
   } else {
     await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Set attendance hours' })).toBeVisible()
   }
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-unconfigured.png`),
@@ -685,6 +700,92 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     animations: 'disabled',
   })
   await verifyProjectContract(page, testInfo)
+})
+
+test('shows saved classroom hours across dates and delivery failures', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-31T18:30:00Z'))
+  let policyReadFails = false
+  let finishSave!: () => void
+  const saveGate = new Promise<void>((resolve) => { finishSave = resolve })
+  let policy = {
+    classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, timezone: 'America/Toronto',
+    sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
+    entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+    entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
+    enabled: true, revision: 1, updatedAt: '2026-08-31T18:00:00Z',
+  }
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown
+    let status = 200
+    if (url.pathname.endsWith('/class-days')) {
+      body = { class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: '2026-08-28', prompt_text: null, is_class_day: true }] }
+    } else if (url.pathname === '/api/teacher/attendance/policy') {
+      if (route.request().method() === 'PUT') {
+        await saveGate
+        policy = { ...policy, revision: policy.revision + 1 }
+      } else if (policyReadFails) status = 503
+      body = status === 200 ? { policy } : { error: 'Attendance settings are temporarily unavailable' }
+    } else if (url.pathname === '/api/teacher/attendance/sync') {
+      status = 503
+      body = { error: 'Attendance schedule is temporarily unavailable' }
+    } else if (url.pathname === '/api/teacher/attendance/session') {
+      body = {
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: url.searchParams.get('date'), integration: 'ready',
+        session: { state: 'not_scheduled', opensAt: null, closesAt: null, sessionStartsAt: null, sessionEndsAt: null,
+          presentThroughAt: null, absentAt: null, revision: null, pendingCommand: false, commandFailed: false },
+        sync: { state: 'current', confirmedAt: null }, students: [],
+      }
+    } else if (url.pathname === '/api/teacher/logs') body = { logs: [] }
+    else if (url.pathname === '/api/teacher/log-summary') body = { summary_status: 'no_logs', summary: null }
+    else { status = 404; body = { error: 'Fixture route unavailable' } }
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  const capture = async (state: string) => {
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`saved-hours-${viewport}-${state}.png`), animations: 'disabled' })
+  }
+  const openHours = async (name: string) => {
+    if (viewport === 'desktop') await page.getByRole('button', { name }).click()
+    else {
+      await page.getByRole('button', { name: 'Attendance actions' }).click()
+      await page.getByRole('menuitem', { name: /Attendance hours/ }).click()
+    }
+  }
+  await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Fri Aug 28')
+  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await capture('past-date')
+  for (let day = 0; day < 4; day += 1) await page.getByRole('button', { name: 'Next day' }).click()
+  await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Tue Sep 1')
+  await openHours('Attendance hours, 2:00 PM to 3:00 PM')
+  await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
+  await expect(page.getByLabel('Session ends*')).toHaveValue('15:00')
+  await capture('future-date-dialog')
+  await page.getByRole('button', { name: 'Save timing' }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click({ position: { x: 2, y: 2 } })
+  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  finishSave()
+  await expect(page.getByRole('alert').filter({ hasText: 'last save did not confirm schedule delivery' })).toBeVisible()
+  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await capture('saved-delivery-unconfirmed')
+  policyReadFails = true
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('alert').filter({ hasText: 'Attendance hours could not be loaded' })).toBeVisible()
+  await capture('read-failure')
+  await openHours('Attendance hours unavailable')
+  await expect(page.getByRole('heading', { name: 'Attendance hours unavailable' })).toBeVisible()
+  await capture('dialog-read-failure')
+  policyReadFails = false
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
+  await page.keyboard.press('Escape')
+  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()
+  await expect(page.getByRole('alert').filter({ hasText: 'Attendance hours could not be loaded' })).toHaveCount(0)
 })
 
 test('shows student attendance states without exposing derived status labels', async ({ page }, testInfo) => {
@@ -1124,6 +1225,27 @@ test('shows published closed Tests to students without opening them', async ({ p
             effective_access: 'closed',
           },
           {
+            id: '30000000-0000-4000-8000-000000000026',
+            title: 'Submitted Closed Test',
+            status: 'closed',
+            student_status: 'responded',
+            effective_access: 'closed',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000027',
+            title: 'Submitted Open Test',
+            status: 'active',
+            student_status: 'responded',
+            effective_access: 'open',
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000028',
+            title: 'Returned Test',
+            status: 'closed',
+            student_status: 'can_view_results',
+            effective_access: 'closed',
+          },
+          {
             id: '30000000-0000-4000-8000-000000000024',
             classroom_id: '30000000-0000-4000-8000-000000000021',
             title: 'Practice Test',
@@ -1141,6 +1263,23 @@ test('shows published closed Tests to students without opening them', async ({ p
     })
   })
 
+  let detailRequests = 0
+  await page.route('**/api/student/tests/30000000-0000-4000-8000-000000000026', async (route) => {
+    detailRequests += 1
+    await route.fulfill({
+      status: detailRequests === 1 ? 503 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(detailRequests === 1 ? { error: 'Fixture read failure' } : {
+        test: {
+          id: '30000000-0000-4000-8000-000000000026',
+          title: 'Submitted Closed Test', status: 'closed',
+          student_status: 'responded', effective_access: 'closed',
+        },
+        questions: [], student_status: 'responded',
+      }),
+    })
+  })
+
   await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
 
   const closedTest = page.getByRole('button', { name: /Functions and Graphs Test/ })
@@ -1153,11 +1292,37 @@ test('shows published closed Tests to students without opening them', async ({ p
   await expect(individuallyClosedTest).toContainText('This test is closed')
   await expect(page.getByRole('button', { name: /Practice Test/ })).toBeEnabled()
   await expect(page.getByText(/Unpublished|Published/, { exact: false })).toHaveCount(0)
+  const submittedClosed = page.getByRole('button', { name: /Submitted Closed Test/ })
+  await expect(submittedClosed).toBeEnabled()
+  await expect(submittedClosed).toContainText('Submitted')
+  await expect(submittedClosed).toContainText('Access closed')
+  await expect(page.getByRole('button', { name: /Submitted Open Test/ })).toContainText('Awaiting results')
+  await expect(page.getByRole('button', { name: /Returned Test/ })).toContainText('Returned')
+  await expect(page.getByRole('button', { name: /Practice Test/ })).toContainText('Available')
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
     path: testInfo.outputPath(`student-test-list-${viewport}-published-closed.png`),
     animations: 'disabled',
   })
+
+  await submittedClosed.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Tests' }).getByRole('alert')).toContainText('Test unavailable')
+  await expect(page.getByRole('button', { name: 'Start the Test' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Back to tests' })).toBeFocused()
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-detail-error.png`), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByText('Response Submitted', { exact: true })).toBeVisible()
+  await expect(page.getByText('Results will be available after your teacher returns this test.')).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  const back = page.getByRole('button', { name: 'Back to tests' })
+  const backBounds = await back.boundingBox()
+  expect(backBounds?.height).toBeGreaterThanOrEqual(44)
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-submitted.png`), animations: 'disabled' })
+  await back.press('Enter')
+  await expect(submittedClosed).toBeFocused()
+  await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-return-focus.png`), animations: 'disabled' })
+
 })
 
 test.describe('teacher experience matrix', () => {
@@ -1191,7 +1356,7 @@ test.describe('teacher experience matrix', () => {
     const organizeButton = page.getByRole('button', { name: 'Organize classrooms' })
     await organizeButton.click()
     await expect(organizeButton).toHaveAttribute('aria-pressed', 'true')
-    await page.getByRole('button', { name: 'New', exact: true }).click()
+    await page.getByRole('button', { name: 'Create classroom', exact: true }).click()
     await page.getByRole('textbox', { name: 'Classroom Name' }).fill('Computer Science 11 - Period 2')
     await page.getByRole('button', { name: 'Choose classroom creation path' }).click()
     await page.getByRole('menuitem', { name: 'From Course Blueprint' }).click()

@@ -140,7 +140,8 @@ export function getStudentTestStatus(
 
 /**
  * Check if assessment questions can be edited.
- * Policy: teachers can edit question sets at any stage.
+ * Prompt wording remains editable at any stage. Structural permissions are
+ * separately enforced by the first-start policy in test-editing-policy.ts.
  */
 export function canEditAssessmentQuestions(
   _assessment: Pick<TestAssessment, 'status'>,

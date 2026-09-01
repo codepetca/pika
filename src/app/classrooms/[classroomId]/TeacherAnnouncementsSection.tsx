@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react'
-import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
-import { Button, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
+import { Trash2, Plus, Clock, Calendar, MoreVertical } from 'lucide-react'
+import { Button, IconButton, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
@@ -490,30 +490,27 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
           testId="announcements-actionbar-center"
           primary={
             <TeacherWorkSurfaceActionCluster>
-              <Button
-                type="button"
+              <IconButton
+                icon={Plus}
+                label="Create announcement"
                 variant="primary"
-                size="sm"
                 onClick={() => setIsCreating(true)}
                 disabled={isCreating || saving}
-                aria-label="New announcement"
-              >
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>New</span>
-                </span>
-              </Button>
-              <TeacherWorkSurfaceIconMenuButton
-                ariaLabel="Announcement actions"
-                tooltip="Announcement actions"
-                icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-                items={announcementActionItems}
-                disabled={isCreating || saving}
-                menuPlacement="down"
-                menuAlign="center"
-                menuClassName="w-64"
               />
             </TeacherWorkSurfaceActionCluster>
+          }
+          actions={
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="More actions"
+              menuAriaLabel="Announcement actions"
+              tooltip="More actions"
+              icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />}
+              items={announcementActionItems}
+              disabled={isCreating || saving}
+              menuPlacement="down"
+              menuAlign="end"
+              menuClassName="w-64"
+            />
           }
         />
       )}

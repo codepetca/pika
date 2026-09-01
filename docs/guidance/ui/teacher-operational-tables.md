@@ -90,6 +90,10 @@ visible pressed state, and a tooltip. Activating it prioritizes matching rows;
 feature-owned tie breakers should keep ordering predictable. Column sorting
 clears the active status priority, and activating another chip replaces it.
 
+Count chips use colored fills and numbers only, without added status icons.
+Keep contextual tooltips and accessible names so the status and count remain
+identifiable on hover and keyboard focus. Use the domain's approved colors.
+
 Do not add a chip for every internal state. Omit neutral or incomplete states
 when they are not a teacher triage target, as Attendance does for Unmarked.
 Do not repeat the same counts in the context row.

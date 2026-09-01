@@ -76,6 +76,7 @@ import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { AttendanceWindowDialog } from './AttendanceWindowDialog'
+import { useTeacherAttendancePolicy } from '@/hooks/useTeacherAttendancePolicy'
 import {
   AttendanceStatusControl,
   AttendanceStatusSortChip,
@@ -205,6 +206,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     isActive,
     visibleStudentIds,
   })
+  const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
+  const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
+  const hoursActionLabel = hours.label
+    ? `Attendance hours, ${hours.label.replace(' - ', ' to ')}`
+    : hours.state === 'error'
+      ? 'Attendance hours unavailable'
+      : hours.state === 'loading'
+        ? 'Loading attendance hours'
+        : 'Set attendance hours'
   currentClassroomIdRef.current = classroom.id
   currentSelectedDateRef.current = selectedDate
   onSelectEntryRef.current = onSelectEntry
@@ -716,7 +726,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     }] : []),
     ...(!classroom.archived_at ? [{
       id: 'attendance-hours',
-      label: 'Attendance hours',
+      label: hours.label ? `Attendance hours: ${hours.label}` : hoursActionLabel,
       icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
       disabled: Boolean(attendance.activeCommand),
       onSelect: () => attendance.setAttendanceHoursOpen(true),
@@ -730,26 +740,20 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       context={attendanceEnabled ? (
         <div className="hidden min-w-0 items-center justify-start whitespace-nowrap sm:flex">
           {!classroom.archived_at ? (
-            <Tooltip content={attendance.windowLabel ? 'Edit attendance hours' : 'Set attendance hours'}>
+            <Tooltip content={hours.label ? 'Edit attendance hours' : hoursActionLabel}>
               <Button
                 type="button"
                 size="xs"
                 variant="surface"
                 className={cn(
                   'h-9 w-fit max-w-full justify-start whitespace-nowrap px-2.5 text-left tabular-nums text-text-muted hover:text-text-default',
-                  !attendance.windowLabel && 'w-9 justify-center px-0',
-                  attendance.windowLabel && attendance.sessionState === 'open'
-                    && !attendance.hasUnconfirmedView && !attendance.localSessionPending
-                    && attendance.view?.sync.state !== 'pending'
-                    && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
+                  !hours.label && 'w-9 justify-center px-0',
                 )}
-                aria-label={attendance.windowLabel
-                  ? `Attendance hours, ${attendance.sessionContextLabel}, ${attendance.windowLabel.replace(' - ', ' to ')}`
-                  : 'Set attendance hours'}
+                aria-label={hoursActionLabel}
                 disabled={Boolean(attendance.activeCommand)}
                 onClick={() => attendance.setAttendanceHoursOpen(true)}
               >
-                {attendance.windowLabel ? attendance.windowLabel : <Clock3 className="h-4 w-4" aria-hidden="true" />}
+                {hours.label ?? <Clock3 className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </Tooltip>
           ) : attendanceEnabled && attendance.windowLabel ? (
@@ -1374,15 +1378,26 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   )
 
   const attendanceWarning = attendanceEnabled && (
-    attendance.error
+    hours.error
+    || scheduleDeliveryFailure === classroom.id
+    || attendance.hasUnconfirmedView
+    || attendance.error
     || attendance.view?.integration === 'disabled'
     || attendance.view?.integration === 'not_configured'
     || attendance.view?.session.commandFailed
     || attendance.failedStudentCount > 0
   ) ? (
     <div role="alert" className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-      {attendance.error
-        ? `${attendance.error}. Daily logs remain available.`
+      {hours.error
+        ? hours.policy
+          ? 'The latest attendance hours could not be loaded. Showing the last saved hours; reopen attendance hours to retry.'
+          : 'Attendance hours could not be loaded. Open attendance hours to retry. Daily logs remain available.'
+        : scheduleDeliveryFailure === classroom.id
+          ? 'Hours were saved, but the last save did not confirm schedule delivery. Reopen attendance hours and save to retry.'
+          : attendance.hasUnconfirmedView
+            ? 'Attendance sync is delayed. The selected day’s check-in status is not confirmed.'
+            : attendance.error
+              ? `${attendance.error}. Daily logs remain available.`
         : attendance.view?.integration === 'not_configured'
           ? 'Attendance hours are not configured. Daily logs remain available.'
           : attendance.view?.integration === 'disabled'
@@ -1465,10 +1480,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       </ContentDialog>
       {attendanceEnabled ? (
         <AttendanceWindowDialog
+          key={classroom.id}
           classroomId={classroom.id}
           isOpen={attendance.attendanceHoursOpen}
-          onClose={() => attendance.setAttendanceHoursOpen(false)}
-          onSaved={() => void attendance.loadView(true)}
+          onClose={() => {
+            attendance.setAttendanceHoursOpen(false)
+            void hours.refresh()
+          }}
+          onSaved={(policy, scheduleSynced) => {
+            hours.acceptSaved(policy)
+            setScheduleDeliveryFailure(scheduleSynced ? null : classroom.id)
+            void attendance.loadView(true)
+          }}
         />
       ) : null}
     </>

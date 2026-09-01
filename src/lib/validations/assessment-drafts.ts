@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import type { Operation } from 'fast-json-patch'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { UUID_V4_PATTERN } from '@/lib/course-blueprint-artifact-identity'
 import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
@@ -145,3 +147,10 @@ export function validateTestDraftContent(
     },
   }
 }
+
+export const testDraftRequestSchema = z.object({
+  version: z.coerce.number().int().min(1),
+  content: z.unknown().optional(),
+  patch: z.array(z.custom<Operation>()).optional(),
+  documents: z.unknown().optional(),
+}).refine(value => value.content !== undefined || value.patch !== undefined, 'content or patch is required')

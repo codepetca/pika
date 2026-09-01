@@ -4,6 +4,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { TeacherAttendanceView } from '@/lib/teacher-attendance'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+import type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom, Entry } from '@/types'
 
@@ -246,10 +248,23 @@ function mockCombinedFetch() {
     if (url.startsWith('/api/teacher/attendance/session?')) {
       return mockJson(combinedAttendanceView())
     }
+    if (url.startsWith('/api/teacher/attendance/policy?')) {
+      return mockJson({ policy: classroomPolicy() })
+    }
     throw new Error(`Unhandled fetch: ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
+}
+
+function classroomPolicy(): TeacherAttendancePolicy {
+  return {
+    classroomId: classroom.id, timezone: 'America/Toronto',
+    sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
+    entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+    entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
+    enabled: true, revision: 1, updatedAt: '2026-05-05T12:00:00Z',
+  }
 }
 
 function mockCombinedCommandFetch() {
@@ -344,6 +359,7 @@ function mockManyLogsFetch(count = 30) {
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
+    invalidateCachedJSONMatching('teacher-attendance-policy:')
     vi.useRealTimers()
     window.localStorage.clear()
     todayMock.today = '2026-05-06'
@@ -355,6 +371,47 @@ describe('TeacherAttendanceTab', () => {
     appMessageMock.showMessage.mockReset()
     appMessageMock.clearMessage.mockReset()
     vi.unstubAllGlobals()
+  })
+
+  it('keeps saved hours on past, current, and future dates, separate from the QR window', async () => {
+    const fetchMock = mockCombinedFetch()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
+    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    expect(hours).not.toHaveTextContent('8:45')
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
+    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
+    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toHaveLength(1)
+  })
+
+  it('shows a policy read failure as unavailable, not as unset hours', async () => {
+    const fetchMock = mockCombinedFetch()
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((input) => String(input).startsWith('/api/teacher/attendance/policy?')
+      ? mockJson({ error: 'Unavailable' }, false) : original(input))
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    expect(await screen.findByRole('button', { name: 'Attendance hours unavailable' })).toBeEnabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Attendance hours could not be loaded')
+    expect(screen.queryByRole('button', { name: 'Set attendance hours' })).not.toBeInTheDocument()
+  })
+
+  it('preserves the archived read-only occurrence display without calling the active-policy API', async () => {
+    const fetchMock = mockCombinedFetch()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={{ ...classroom, archived_at: '2026-05-06T12:00:00Z' }} attendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    expect(await screen.findByText('8:45 AM - 10:00 AM')).toBeVisible()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toBe(false)
+    expect(screen.queryByText(/Attendance hours could not be loaded/)).not.toBeInTheDocument()
   })
 
   it('shows a full-width table with a truncated day-log column when no student is selected', async () => {

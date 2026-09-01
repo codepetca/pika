@@ -325,12 +325,15 @@ describe('Blueprint test-question identity migration', () => {
     expect(databaseContract).toContain(
       'Archived reuse changed student work',
     )
+    expect(databaseContract).toContain("set question_text = 'Corrected active wording'")
     expect(databaseContract).toContain(
-      'Authored active question update bypassed the student-work freeze',
+      'Active grading update bypassed the Test lock',
     )
+    expect(databaseContract).toContain("set question_text = 'Corrected archived wording'")
     expect(databaseContract).toContain(
-      'Authored archived question update bypassed the student-work freeze',
+      'Archived grading update bypassed the Test lock',
     )
+    expect(databaseContract).toContain('set questions_locked_at = clock_timestamp()')
     expect(databaseContract).toContain(
       'Concurrent Test saves did not serialize at the Classroom row',
     )

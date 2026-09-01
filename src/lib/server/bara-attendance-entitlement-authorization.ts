@@ -13,6 +13,16 @@ export interface AttendanceEntitlementAuthorizationInput {
   expectedRevision: number
 }
 
+export interface AttendanceOutboxRecoveryAuthorizationInput {
+  targetOrigin: string
+  operationId: string
+  teacherId: string
+  expectedEntitlementRevision: number
+  outboxIds: string[]
+  actorRef: string
+  reasonCode: string
+}
+
 export function exactAttendanceEntitlementTarget(raw: string | undefined) {
   if (!raw) throw new Error('Attendance entitlement target is not configured')
   const url = new URL(raw)
@@ -44,6 +54,23 @@ export function attendanceEntitlementAuthorizationBinding(
       actor_ref: input.actorRef,
       reason_code: input.reasonCode,
       expected_revision: input.expectedRevision,
+    }))
+    .digest('hex')
+  return `${input.operationId}:${fingerprint}`
+}
+
+export function attendanceOutboxRecoveryAuthorizationBinding(
+  input: AttendanceOutboxRecoveryAuthorizationInput,
+) {
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify({
+      target_origin: input.targetOrigin,
+      operation_id: input.operationId,
+      teacher_id: input.teacherId,
+      expected_entitlement_revision: input.expectedEntitlementRevision,
+      outbox_ids: [...input.outboxIds].sort(),
+      actor_ref: input.actorRef,
+      reason_code: input.reasonCode,
     }))
     .digest('hex')
   return `${input.operationId}:${fingerprint}`

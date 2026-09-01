@@ -1493,6 +1493,48 @@ export type Database = {
           },
         ]
       }
+      attendance_outbox_epoch_recovery_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          id: string
+          new_entitlement_revision: number
+          operation_id: string
+          outbox_ids: string[]
+          previous_entitlement_revision: number
+          reason_code: string
+          request_fingerprint: string
+          superseded_count: number
+          teacher_id: string
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          id?: string
+          new_entitlement_revision: number
+          operation_id: string
+          outbox_ids: string[]
+          previous_entitlement_revision: number
+          reason_code: string
+          request_fingerprint: string
+          superseded_count: number
+          teacher_id: string
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          id?: string
+          new_entitlement_revision?: number
+          operation_id?: string
+          outbox_ids?: string[]
+          previous_entitlement_revision?: number
+          reason_code?: string
+          request_fingerprint?: string
+          superseded_count?: number
+          teacher_id?: string
+        }
+        Relationships: []
+      }
       attendance_override_requests: {
         Row: {
           classroom_id: string
@@ -6858,6 +6900,7 @@ export type Database = {
           include_in_final: boolean
           points_possible: number
           position: number
+          questions_locked_at: string | null
           show_results: boolean
           source_artifact_id: string | null
           source_blueprint_version_id: string | null
@@ -6877,6 +6920,7 @@ export type Database = {
           include_in_final?: boolean
           points_possible?: number
           position?: number
+          questions_locked_at?: string | null
           show_results?: boolean
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
@@ -6896,6 +6940,7 @@ export type Database = {
           include_in_final?: boolean
           points_possible?: number
           position?: number
+          questions_locked_at?: string | null
           show_results?: boolean
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
@@ -10017,6 +10062,17 @@ export type Database = {
           p_student_id: string
           p_submitted_at?: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      supersede_attendance_outbox_epoch_v1: {
+        Args: {
+          p_actor_ref: string
+          p_expected_entitlement_revision: number
+          p_operation_id: string
+          p_outbox_ids: string[]
+          p_reason_code: string
+          p_teacher_id: string
         }
         Returns: Json
       }

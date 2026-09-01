@@ -1,5 +1,7 @@
 'use client'
 
+import { Plus } from 'lucide-react'
+
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import {
   DndContext,
@@ -38,7 +40,8 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -60,13 +63,12 @@ import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconButton,
-  TeacherWorkSurfaceMenuButton,
+  TeacherWorkSurfaceIconMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { ContentField, RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -415,77 +417,21 @@ function TeacherMaterialDialog({
   }
 
   return (
-    <ContentDialog
+    <MaterialCreationDialog
       isOpen={isOpen}
-      onClose={saving ? () => {} : onClose}
-      title={material ? 'Material' : 'New Material'}
-      subtitle="Ungraded classwork"
-      maxWidth="max-w-4xl"
-      showFooterClose={false}
-    >
-      <div className="space-y-4">
-        <FormField label="Title">
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={saving || isReadOnly}
-            placeholder="Reading, link, handout..."
-          />
-        </FormField>
-
-        <ContentField label="Content">
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            editable={!saving && !isReadOnly}
-            placeholder="Add links, notes, readings, or instructions..."
-            toolbarPreset="compact"
-            aria-label="Material content"
-          />
-        </ContentField>
-
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            {material && !isReadOnly ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => onRequestDelete(material)}
-                disabled={saving}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => saveMaterial(true)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMaterial(false)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </ContentDialog>
+      isExisting={!!material}
+      isDraft={isDraft}
+      readOnly={isReadOnly}
+      saving={saving}
+      error={error}
+      title={title}
+      content={content}
+      onTitleChange={setTitle}
+      onContentChange={setContent}
+      onSave={(asDraft) => { void saveMaterial(asDraft) }}
+      onClose={onClose}
+      onDelete={material && !isReadOnly ? () => onRequestDelete(material) : undefined}
+    />
   )
 }
 
@@ -2588,8 +2534,11 @@ export function TeacherClassroomView({
         testId="assignment-summary-actionbar-center"
         primary={
           <TeacherWorkSurfaceActionCluster>
-            <TeacherWorkSurfaceMenuButton
-              label={<span>New Classwork</span>}
+            <TeacherWorkSurfaceIconMenuButton
+              icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+              ariaLabel="Create classwork"
+              tooltip="Create assignment, material, or survey"
+              variant="primary"
               items={classworkCreateActions}
               disabled={isReadOnly}
               menuAriaLabel="New classwork"

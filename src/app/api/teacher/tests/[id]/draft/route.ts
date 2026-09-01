@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { getTestEditingPolicy } from '@/lib/server/test-editing-policy'
+import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
+import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
@@ -10,7 +12,7 @@ import {
   getAssessmentDraftByType,
   saveTestDraftAtomic,
 } from '@/lib/server/assessment-drafts'
-import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { testDraftRequestSchema, validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import {
   getTestDraftIdentityResolutionOptions,
   projectPortableTestQuestionIds,
@@ -59,26 +61,14 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
   }
 
-  return NextResponse.json({ draft: ensured.draft })
+  return NextResponse.json({ draft: ensured.draft, editingPolicy: await getTestEditingPolicy(testId) })
 })
 
 export const PATCH = withErrorHandler('PatchTestDraft', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
-  const body = await request.json()
-
-  const version = Number(body?.version)
-  if (!Number.isInteger(version) || version < 1) {
-    return NextResponse.json({ error: 'version is required' }, { status: 400 })
-  }
-
-  if (body?.patch !== undefined && !Array.isArray(body.patch)) {
-    return NextResponse.json({ error: 'Invalid patch format' }, { status: 400 })
-  }
-
-  if (body?.content === undefined && !Array.isArray(body?.patch)) {
-    return NextResponse.json({ error: 'content or patch is required' }, { status: 400 })
-  }
+  const body = testDraftRequestSchema.parse(await request.json())
+  const version = body.version
 
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
@@ -128,6 +118,11 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     )
   }
 
+  const editingPolicy = await getTestEditingPolicy(testId)
+  if (!allowsTestQuestionChanges(currentDraft.content.questions, nextContentResult.content.questions, editingPolicy)) {
+    return NextResponse.json({ error: TEST_WORDING_ONLY_MESSAGE, draft: currentDraft, editingPolicy }, { status: 409 })
+  }
+
   const saveResult = await saveTestDraftAtomic(supabase, {
     teacherId: user.id,
     testId,
@@ -140,12 +135,12 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     if (saveResult.status === 409) {
       const latest = await getAssessmentDraftByType<TestDraftContent>(supabase, 'test', testId)
       return NextResponse.json(
-        { error: saveResult.error, ...(latest.draft ? { draft: latest.draft } : {}) },
+        { error: saveResult.error, ...(latest.draft ? { draft: latest.draft } : {}), editingPolicy: await getTestEditingPolicy(testId) },
         { status: saveResult.status },
       )
     }
     return NextResponse.json({ error: saveResult.error }, { status: saveResult.status })
   }
 
-  return NextResponse.json({ draft: saveResult.draft })
+  return NextResponse.json({ draft: saveResult.draft, editingPolicy: await getTestEditingPolicy(testId) })
 })

@@ -195,7 +195,7 @@ describe('announcement markdown rendering', () => {
     const { container } = render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
-    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
 
     const titleInput = screen.getByPlaceholderText('Title (optional)')
     const titleLabel = container.querySelector(`label[for="${titleInput.id}"]`)
@@ -220,14 +220,14 @@ describe('announcement markdown rendering', () => {
 
     const contextBar = screen.getByRole('region', { name: 'Announcement controls' })
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeInTheDocument()
-    const actionsTrigger = screen.getByRole('button', { name: 'Announcement actions' })
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeInTheDocument()
+    const actionsTrigger = screen.getByRole('button', { name: 'More actions' })
     expect(actionsTrigger.closest('.fixed')).toBeNull()
     expect(actionsTrigger).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(actionsTrigger)
 
     const menu = screen.getByRole('menu', { name: 'Announcement actions' })
-    const expandedTrigger = screen.getByRole('button', { name: 'Announcement actions' })
+    const expandedTrigger = screen.getByRole('button', { name: 'More actions' })
     expect(menu).toBeInTheDocument()
     expect(expandedTrigger).toHaveAttribute('aria-expanded', 'true')
     expect(expandedTrigger).toHaveAttribute('aria-controls', menu.id)
@@ -574,7 +574,7 @@ describe('announcement markdown rendering', () => {
 
     const view = render(teacherAnnouncementsElement(classroom))
     await screen.findByText('Unit update')
-    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), {
       target: { value: 'Pending Classroom A update' },
     })
@@ -583,7 +583,7 @@ describe('announcement markdown rendering', () => {
     expect(await screen.findByText('Pending Classroom A update', { selector: 'p' })).toBeInTheDocument()
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
 
     await act(async () => {
@@ -597,7 +597,7 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Pending Classroom A update')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
   })
@@ -629,7 +629,7 @@ describe('announcement markdown rendering', () => {
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
 
     await act(async () => {
@@ -643,7 +643,7 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Edited Classroom A update')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
   })
@@ -671,7 +671,7 @@ describe('announcement markdown rendering', () => {
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
 
     await act(async () => {
@@ -685,7 +685,7 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
   })
 
@@ -704,7 +704,7 @@ describe('announcement markdown rendering', () => {
 
     render(<TeacherTransitionHarness />)
     await screen.findByText('Unit update')
-    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), {
       target: { value: 'Created while switch is suspended' },
     })
@@ -727,7 +727,7 @@ describe('announcement markdown rendering', () => {
     })
 
     expect(screen.getByText('Created while switch is suspended', { selector: 'p' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
   })
 
   it('finishes a teacher edit when a suspended classroom switch is abandoned', async () => {
@@ -767,7 +767,7 @@ describe('announcement markdown rendering', () => {
     })
 
     expect(screen.getByText('Edited while switch is suspended', { selector: 'p' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
   })
 
   it('rolls back a teacher delete when a suspended classroom switch is abandoned', async () => {

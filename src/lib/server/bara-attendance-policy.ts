@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
+export type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 
 const timeFromDatabaseSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/)
 const policyRowSchema = z.object({
@@ -30,21 +32,6 @@ const savedPolicySchema = z.object({
   revision: z.number().int().safe().positive(),
   updated_at: z.string().datetime({ offset: true }),
 }).strict()
-
-export interface TeacherAttendancePolicy {
-  classroomId: string
-  timezone: 'America/Toronto'
-  sessionStartsLocal: string
-  sessionEndsLocal: string
-  sessionEndDayOffset: 0 | 1
-  entryOpensMinutesBefore: number
-  presentGraceMinutes: number
-  entryClosesMinutesBeforeEnd: number
-  absentMinutesBeforeEnd: number
-  enabled: boolean
-  revision: number
-  updatedAt: string
-}
 
 export class TeacherAttendancePolicyError extends Error {
   constructor(readonly code: 'migration_required' | 'conflict' | 'read_failed' | 'invalid_result') {

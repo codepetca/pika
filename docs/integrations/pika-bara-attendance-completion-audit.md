@@ -8,6 +8,13 @@ entitlements and remaining hosted workflow or pilot gates require separate
 evidence and authorization. The atomic aggregate readiness RPC in proposed
 migration 133 has not been applied.
 
+The current release candidate also proposes migration 142, which adds a
+service-role-only, fully audited recovery for obsolete-epoch attendance outbox
+rows. It has not been applied anywhere by this work. Production currently has
+10 unresolved roster/schedule rows from the intended Codepet production
+workspace; replaying those old rows would be unsafe, so release and the exact
+bounded recovery remain separate approval gates.
+
 This ledger prevents local test evidence from being mistaken for a rollout.
 Paths are relative to the owning repository: this Pika worktree or the sibling
 Bara worktree.
@@ -23,6 +30,7 @@ Bara worktree.
 | Controlled Pika-only provisioning/linking | Complete. Tenant-bound staff/student provisioning is narrow, cannot create integration admins, and rejects tenant moves, role conflict, participant relinking, and identity relinking. Bara integration tests cover these fences. | Real unmatched and newly provisioned teacher/student flows remain unproved. |
 | Versioned idempotent student check-in | Complete. The closed v1 `student_check_in` response is synchronous and includes authoritative revisions. Each logical scan has a fresh attempt ID; only transport retries reuse its key. Pika never queues student scans. Invalid, closed, duplicate, unmatched, independent-attempt, lost-response, and contract cases have local tests. | Real timeout/lost-response behavior remains unproved. |
 | Immediate events plus recovery | Complete. Bara attempts delivery after commit and keeps leased cron/outbox recovery. Pika commits inbox receipt and monotonic projection atomically and reconciles from authoritative snapshots. Local Supabase reset/replay proves migration execution, RLS/privileges, dependency ordering, and deletion guards. | Hosted event reordering and outage recovery remain unproved; an adequately frequent hosted outbox trigger is not configured. |
+| Obsolete entitlement-epoch recovery | Proposed in migration 142. The operator RPC requires the exact teacher, entitlement revision, complete unresolved row set, operation ID, actor, and reason; rejects live leases and changed scope; rotates the entitlement epoch and supersedes the approved rows atomically; and writes immutable audit evidence. The package command is dry-run by default and execution requires an exact target-and-payload authorization binding. | Not deployed or executed. The current 10-row production backlog remains unchanged. A fresh restricted backup, exact dry-run output, migration authorization, release authorization, and recovery authorization are still required. |
 | Exact-time schedule jobs plus recovery | Complete. Bara owns exact open/close jobs and a recovery sweep; Pika sends concrete UTC intent generated from its class days and teacher policy. Schedule revision/removal tests preserve opened/closed history. | Hosted scheduler timing and schedule-change round trips remain unproved. |
 | Timeout and retention policy | Complete and documented in the v1 contract. Bara retains request nonces for 24 hours and idempotency results for 30 days with bounded cleanup. Pika distinguishes definitive results from uncertain transport outcomes. | Operational cron cadence/alerting remains a pilot gate. |
 | Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, durable pending state, projection, and recovery workers are Pika-owned. WorkOS is verified locally; outbound commands carry only the mapped Pika principal. Retryable delivery uncertainty returns pending and survives reload from the durable outbox. | The entitled teacher saw Attendance in the sole active production classroom on 2026-08-25. That classroom's enabled policy and opaque roster/schedule mapping were fully synced. The unconfigured and cross-class save checks remain blocked because this teacher has no second active classroom. Real teacher correction and lifecycle flows remain unproved. |
