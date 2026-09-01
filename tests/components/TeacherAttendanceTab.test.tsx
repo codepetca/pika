@@ -31,12 +31,26 @@ const classDaysMock = vi.hoisted(() => ({
       prompt_text: null,
       is_class_day: true,
     },
+    {
+      id: 'day-2',
+      classroom_id: 'classroom-1',
+      date: '2026-05-06',
+      prompt_text: null,
+      is_class_day: true,
+    },
   ],
   classDays: [
     {
       id: 'day-1',
       classroom_id: 'classroom-1',
       date: '2026-05-05',
+      prompt_text: null,
+      is_class_day: true,
+    },
+    {
+      id: 'day-2',
+      classroom_id: 'classroom-1',
+      date: '2026-05-06',
       prompt_text: null,
       is_class_day: true,
     },
@@ -173,7 +187,7 @@ function combinedAttendanceView(
 ): TeacherAttendanceView {
   return {
     classroomId: classroom.id,
-    classDate: '2026-05-05',
+    classDate: '2026-05-06',
     integration: 'ready',
     session: {
       state: 'open',
@@ -383,12 +397,12 @@ describe('TeacherAttendanceTab', () => {
     expect(hours).not.toHaveTextContent('8:45')
     expect(hours).toHaveClass('bg-success-bg', 'text-success')
     expect(hours).not.toHaveClass('bg-page')
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
-    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
-    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
+    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Fri May 8')
     expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toHaveLength(1)
   })
@@ -663,13 +677,13 @@ describe('TeacherAttendanceTab', () => {
     const view = render(<TeacherAttendanceTab classroom={classroom} attendanceEnabled={false} />)
 
     const dateButton = await screen.findByRole('button', { name: 'Select Daily date' })
-    expect(dateButton).toHaveTextContent('Tue May 5Yesterday')
+    expect(dateButton).toHaveTextContent('Wed May 6Today')
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Hide relative date' }))
 
-    expect(dateButton).toHaveTextContent('Tue May 5')
-    expect(within(dateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+    expect(dateButton).toHaveTextContent('Wed May 6')
+    expect(within(dateButton).queryByText('Today')).not.toBeInTheDocument()
     expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
 
@@ -678,13 +692,13 @@ describe('TeacherAttendanceTab', () => {
 
     const restoredDateButton = await screen.findByRole('button', { name: 'Select Daily date' })
     await waitFor(() => {
-      expect(within(restoredDateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+      expect(within(restoredDateButton).queryByText('Today')).not.toBeInTheDocument()
     })
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Show relative date' }))
 
-    expect(restoredDateButton).toHaveTextContent('Tue May 5Yesterday')
+    expect(restoredDateButton).toHaveTextContent('Wed May 6Today')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('true')
   })
 
@@ -856,7 +870,7 @@ describe('TeacherAttendanceTab', () => {
     expect(marksCall?.[1]).toMatchObject({ method: 'POST' })
     expect(JSON.parse(String(marksCall?.[1]?.body))).toMatchObject({
       classroom_id: classroom.id,
-      date: '2026-05-05',
+      date: '2026-05-06',
       marks: [{
         student_id: 'student-1',
         status: 'late',
@@ -873,7 +887,7 @@ describe('TeacherAttendanceTab', () => {
     ))
     expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
       classroom_id: classroom.id,
-      date: '2026-05-05',
+      date: '2026-05-06',
       command: 'close',
     })
   })
@@ -1308,7 +1322,7 @@ describe('TeacherAttendanceTab', () => {
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     expect(await screen.findByText(longLogText)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
 
     await waitFor(() => {
       expect(screen.queryByText(longLogText)).not.toBeInTheDocument()
@@ -1368,6 +1382,48 @@ describe('TeacherAttendanceTab', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('defaults a fresh Daily view to Toronto today and preserves deliberate previous-date navigation', async () => {
+    mockLogsFetch()
+    const onDateChange = vi.fn()
+    const view = render(
+      <TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />,
+    )
+
+    const dateButton = await screen.findByRole('button', { name: 'Select Daily date' })
+    await waitFor(() => {
+      expect(dateButton).toHaveTextContent('Wed May 6Today')
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+
+    await waitFor(() => {
+      expect(dateButton).toHaveTextContent('Tue May 5Yesterday')
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    })
+
+    view.rerender(
+      <TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />,
+    )
+    todayMock.today = '2026-05-07'
+    fireEvent.focus(window)
+
+    await waitFor(() => {
+      expect(dateButton).toHaveTextContent('Tue May 52 days ago')
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    })
+
+    view.unmount()
+    render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent(
+        'Thu May 7Today',
+      )
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-07')
+    })
+  })
+
   it('moves between days from the attendance-style date selector', async () => {
     const fetchMock = mockLogsFetch()
     const onDateChange = vi.fn()
@@ -1385,13 +1441,6 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: /^Log/ }).closest('thead')).toHaveClass('bg-surface-3')
     const previousButton = screen.getByRole('button', { name: 'Previous day' })
     const nextButton = screen.getByRole('button', { name: 'Next day' })
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5Yesterday')
-
-    fireEvent.click(nextButton)
-
-    await waitFor(() => {
-      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
-    })
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6Today')
 
     fireEvent.click(previousButton)
@@ -1400,8 +1449,15 @@ describe('TeacherAttendanceTab', () => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
     })
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5Yesterday')
+
+    fireEvent.click(nextButton)
+
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6Today')
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
     })
   })
 
@@ -1422,7 +1478,6 @@ describe('TeacherAttendanceTab', () => {
 
     await screen.findByRole('columnheader', { name: /^Log/ })
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
     await waitFor(() => {
@@ -1440,7 +1495,7 @@ describe('TeacherAttendanceTab', () => {
 
     await screen.findByRole('columnheader', { name: /^Log/ })
 
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
     expect(screen.getByRole('button', { name: 'Previous day' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next day' })).toBeInTheDocument()
   })
@@ -1462,22 +1517,22 @@ describe('TeacherAttendanceTab', () => {
     render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
 
     await screen.findByRole('columnheader', { name: /^Log/ })
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
-
-    todayMock.today = '2026-05-07'
-    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
-
-    await waitFor(() => {
-      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
-    })
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
 
+    todayMock.today = '2026-05-07'
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
 
     await waitFor(() => {
       expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
     })
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Tue May 5')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
   })
 
   it('collapses and restores the class log summary from a double click', async () => {
@@ -1673,7 +1728,7 @@ describe('TeacherAttendanceTab', () => {
       {
         id: 'day-1',
         classroom_id: 'classroom-1',
-        date: '2026-05-05',
+        date: '2026-05-06',
         prompt_text: null,
         is_class_day: true,
       },
@@ -1681,10 +1736,10 @@ describe('TeacherAttendanceTab', () => {
 
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
-      if (url === '/api/teacher/logs?classroom_id=classroom-1&date=2026-05-05') {
+      if (url === '/api/teacher/logs?classroom_id=classroom-1&date=2026-05-06') {
         return firstRequest.promise
       }
-      if (url === '/api/teacher/logs?classroom_id=classroom-2&date=2026-05-05') {
+      if (url === '/api/teacher/logs?classroom_id=classroom-2&date=2026-05-06') {
         return mockJson({
           logs: [
             {
@@ -1692,7 +1747,7 @@ describe('TeacherAttendanceTab', () => {
               student_email: 'student2@example.com',
               student_first_name: 'Second',
               student_last_name: 'Student',
-              entry: entry({ id: 'entry-2', student_id: 'student-2', classroom_id: 'classroom-2', date: '2026-05-05' }),
+              entry: entry({ id: 'entry-2', student_id: 'student-2', classroom_id: 'classroom-2', date: '2026-05-06' }),
               history_preview: [],
             },
           ],
@@ -1708,7 +1763,7 @@ describe('TeacherAttendanceTab', () => {
       {
         id: 'day-2',
         classroom_id: 'classroom-2',
-        date: '2026-05-05',
+        date: '2026-05-06',
         prompt_text: null,
         is_class_day: true,
       },

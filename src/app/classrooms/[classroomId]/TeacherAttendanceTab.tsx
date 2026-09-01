@@ -39,7 +39,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
-import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
+import { isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import {
@@ -186,10 +186,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     setToday(currentToday)
     return currentToday
   }, [])
-  const lastClassDate = useMemo(
-    () => getMostRecentClassDayBefore(classDays, today),
-    [classDays, today]
-  )
   const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -261,13 +257,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     onSelectEntryRef.current?.(null, '', null)
   }, [classroom.id])
 
-  // Set initial date once class days are loaded from context
+  // A fresh Daily view starts on Toronto today. Once initialized, explicit
+  // teacher navigation remains selected for the lifetime of the mounted tab.
   useEffect(() => {
     if (classDaysLoading || (classDaysError && !hasClassDaysSnapshot)) return
     if (selectedDate) return // Already initialized
-    setSelectedDate(lastClassDate || addDaysToDateString(today, -1))
+    setSelectedDate(today)
     // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
-  }, [classDaysError, classDaysLoading, hasClassDaysSnapshot, lastClassDate, selectedDate, today])
+  }, [classDaysError, classDaysLoading, hasClassDaysSnapshot, selectedDate, today])
 
   useEffect(() => {
     function handleVisibilityChange() {
