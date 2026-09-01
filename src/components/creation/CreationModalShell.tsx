@@ -30,6 +30,7 @@ interface CreationModalTopRowProps {
   titlePlaceholder: string
   titleError?: string
   titleRequired?: boolean
+  hideTitleLabel?: boolean
   titleDisabled?: boolean
   titleInputRef?: Ref<HTMLInputElement>
   titleInitialFocus?: boolean
@@ -134,6 +135,7 @@ export function CreationModalTopRow({
   titlePlaceholder,
   titleError,
   titleRequired = true,
+  hideTitleLabel = false,
   titleDisabled = false,
   titleInputRef,
   titleInitialFocus = false,
@@ -172,16 +174,28 @@ export function CreationModalTopRow({
     <div className={cn('grid items-end gap-1.5 sm:gap-2', gridClassName, className)}>
       {titleStatus ? (
         <div className={cn('min-w-0 max-w-[22rem] sm:max-w-[24rem]', titleFieldClassName)}>
-          <div className="mb-1 flex min-h-5 items-center justify-between gap-2">
-            <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
+          {hideTitleLabel ? (
+            <label htmlFor={titleFieldId} className="sr-only">
               {titleLabel}
-              {titleRequired && <span className="ml-1 text-danger">*</span>}
+              {titleRequired && <span aria-hidden="true">*</span>}
             </label>
-            <div className="min-w-0 shrink-0">
+          ) : (
+            <div className="mb-1 flex min-h-5 items-center justify-between gap-2">
+              <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
+                {titleLabel}
+                {titleRequired && <span className="ml-1 text-danger">*</span>}
+              </label>
+              <div className="min-w-0 shrink-0">
+                {titleStatus}
+              </div>
+            </div>
+          )}
+          {titleInput}
+          {hideTitleLabel && (
+            <div className="mt-1 flex justify-end">
               {titleStatus}
             </div>
-          </div>
-          {titleInput}
+          )}
           {titleError && (
             <p id={titleErrorId} className="mt-1 text-sm text-danger" role="alert">
               {titleError}
@@ -193,6 +207,8 @@ export function CreationModalTopRow({
           label={titleLabel}
           required={titleRequired}
           error={titleError}
+          hideLabel={hideTitleLabel}
+          collapseHiddenLabel={hideTitleLabel}
           className={cn('min-w-0 max-w-[22rem] sm:max-w-[24rem]', titleFieldClassName)}
         >
           {titleInput}

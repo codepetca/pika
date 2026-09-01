@@ -208,7 +208,7 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
 
   const { requirement, supabase, doc } = result
   if (requirement.type === 'image') {
-    return NextResponse.json({ error: 'Use image upload for screenshot requirements.' }, { status: 400 })
+    return NextResponse.json({ error: 'Use image upload for image attachments.' }, { status: 400 })
   }
 
   const url = body.url
@@ -282,7 +282,7 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
 
   const { requirement, supabase, doc } = result
   if (requirement.type !== 'image') {
-    return NextResponse.json({ error: 'Image upload is only available for screenshot requirements.' }, { status: 400 })
+    return NextResponse.json({ error: 'Image upload is only available for image attachments.' }, { status: 400 })
   }
 
   const formData = await request.formData()

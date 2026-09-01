@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatMissingAttachmentConfirmation,
+  getAssignmentAttachmentSubmissionGate,
   getSubmissionRequirementCompletion,
   getSubmissionArtifactStatusLabel,
   normalizeAssignmentSubmissionValidationPolicy,
@@ -102,7 +104,7 @@ describe('normalizeAssignmentSubmissionRequirementDrafts', () => {
 })
 
 describe('getSubmissionRequirementCompletion', () => {
-  it('blocks submit when a required artifact is missing', () => {
+  it('treats every configured attachment as expected without blocking missing items', () => {
     const completion = getSubmissionRequirementCompletion([
       requirement({ id: 'req-1', required: true }),
       requirement({ id: 'req-2', required: false, position: 1 }),
@@ -110,9 +112,9 @@ describe('getSubmissionRequirementCompletion', () => {
       artifact({ requirement_id: 'req-2', validation_status: 'valid' }),
     ])
 
-    expect(completion.requiredCount).toBe(1)
-    expect(completion.completedRequiredCount).toBe(0)
-    expect(completion.canSubmit).toBe(false)
+    expect(completion.requiredCount).toBe(2)
+    expect(completion.completedRequiredCount).toBe(1)
+    expect(completion.canSubmit).toBe(true)
     expect(completion.missingRequiredRequirementIds).toEqual(['req-1'])
   })
 
@@ -134,6 +136,39 @@ describe('getSubmissionRequirementCompletion', () => {
 
     expect(invalidCompletion.canSubmit).toBe(false)
     expect(invalidCompletion.blockingRequirementIds).toEqual(['req-1'])
+  })
+
+  it('formats one concise confirmation for one or several missing attachments', () => {
+    const requirements = [
+      requirement({ id: 'req-1', label: 'Repo link' }),
+      requirement({ id: 'req-2', type: 'image', label: 'Image', position: 1 }),
+      requirement({ id: 'req-3', label: 'Demo', position: 2 }),
+    ]
+
+    expect(formatMissingAttachmentConfirmation(requirements, ['req-1']))
+      .toBe('Repo link is missing. Submit anyway?')
+    expect(formatMissingAttachmentConfirmation(requirements, ['req-1', 'req-2']))
+      .toBe('Repo link and Image are missing. Submit anyway?')
+    expect(formatMissingAttachmentConfirmation(requirements, ['req-1', 'req-2', 'req-3']))
+      .toBe('Repo link, Image, and Demo are missing. Submit anyway?')
+  })
+
+  it('requires acknowledgement only for missing attachments and never for invalid ones', () => {
+    const missing = getSubmissionRequirementCompletion([requirement({})], [])
+    expect(getAssignmentAttachmentSubmissionGate(missing, false)).toEqual({
+      ok: false,
+      reason: 'missing_confirmation_required',
+    })
+    expect(getAssignmentAttachmentSubmissionGate(missing, true)).toEqual({
+      ok: true,
+      acknowledgedMissingAttachments: true,
+    })
+
+    const invalid = getSubmissionRequirementCompletion([requirement({})], [artifact({ validation_status: 'invalid' })])
+    expect(getAssignmentAttachmentSubmissionGate(invalid, true)).toEqual({
+      ok: false,
+      reason: 'invalid_attachments',
+    })
   })
 
   it('labels format-only links as saved and verified links as verified', () => {
@@ -189,7 +224,7 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
       {
         type: 'image',
         url: 'https://signed.example.com/image.png',
-        title: 'Screenshot',
+        title: 'Image',
         is_required_submission: true,
         requirement_id: 'req-2',
         requirement_required: true,

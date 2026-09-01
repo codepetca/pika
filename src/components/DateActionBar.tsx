@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { format, parseISO } from 'date-fns'
-import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
+import { DateLabelButton } from '@/components/DateLabelButton'
 
 interface DateActionBarProps {
   value: string
@@ -10,6 +10,7 @@ interface DateActionBarProps {
   rightActions?: React.ReactNode
   className?: string
   layout?: 'default' | 'compact'
+  subtitle?: string | null
 }
 
 export function DateActionBar({
@@ -18,6 +19,7 @@ export function DateActionBar({
   rightActions,
   className = '',
   layout = 'default',
+  subtitle,
 }: DateActionBarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
   const formattedDate = value ? format(parseISO(value), 'EEE MMM d') : ''
@@ -26,8 +28,8 @@ export function DateActionBar({
     ? 'flex items-center gap-2'
     : 'flex w-full flex-wrap items-center justify-between gap-4'
   const buttonClassName = isCompact
-    ? `${ACTIONBAR_BUTTON_CLASSNAME} w-[6.75rem] text-center sm:w-[8.25rem]`
-    : `${ACTIONBAR_BUTTON_CLASSNAME} min-w-[7rem] text-center`
+    ? 'w-[6.75rem] text-center sm:w-[8.25rem]'
+    : 'min-w-[7rem] text-center'
 
   return (
     <div className={[containerClassName, className].join(' ')}>
@@ -41,13 +43,17 @@ export function DateActionBar({
           tabIndex={-1}
         />
 
-        <button
+        <DateLabelButton
           type="button"
-          className={buttonClassName}
+          variant="subtle"
+          size="sm"
+          className={`${buttonClassName}${subtitle ? ' flex-col gap-0' : ''}`}
           onClick={() => dateInputRef.current?.showPicker()}
-        >
-          {formattedDate || 'Select date'}
-        </button>
+          label={formattedDate || 'Select date'}
+          subtitle={subtitle}
+          reserveSubtitleSpace
+          ariaLabel={formattedDate || 'Select date'}
+        />
       </div>
 
       {rightActions && <div className="flex items-center gap-2">{rightActions}</div>}

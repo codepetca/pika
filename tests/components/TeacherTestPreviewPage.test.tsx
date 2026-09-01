@@ -434,6 +434,10 @@ describe('TeacherTestPreviewPage', () => {
     await waitFor(() => {
       expect(backButton).toHaveFocus()
     })
+    expect(screen.getByRole('heading', { name: 'Reference sheet' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', {
+      name: 'Resize documents and questions panes',
+    })).toHaveAttribute('aria-valuenow', '50')
     expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
       'Reference content',
     )

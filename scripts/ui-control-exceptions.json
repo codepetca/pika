@@ -35,17 +35,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/StudentTestsTab.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/StudentTodayTab.tsx",
       "reviewBy": "phase-3-daily-attendance",
       "controls": [
@@ -414,11 +403,6 @@
           "kind": "button",
           "count": 1,
           "reason": "legacy-form-control"
-        },
-        {
-          "kind": "input:checkbox",
-          "count": 1,
-          "reason": "native-input-capability"
         }
       ]
     },
@@ -452,11 +436,6 @@
       "file": "src/components/DateActionBar.tsx",
       "reviewBy": "phase-2-shared-foundation-debt",
       "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "composite-widget"
-        },
         {
           "kind": "input:date",
           "count": 1,
@@ -678,17 +657,6 @@
         {
           "kind": "button",
           "count": 2,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/components/TeacherTestPreviewPage.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
           "reason": "legacy-form-control"
         }
       ]

@@ -10033,29 +10033,56 @@ export type Database = {
         }
         Returns: boolean
       }
-      submit_assignment_doc_atomic: {
-        Args: {
-          p_assignment_id: string
-          p_char_count: number
-          p_content: Json
-          p_expected_updated_at: string
-          p_student_id: string
-          p_word_count: number
-        }
-        Returns: Json
-      }
-      submit_assignment_doc_with_pal_event_atomic: {
-        Args: {
-          p_assignment_id: string
-          p_char_count: number
-          p_content: Json
-          p_expected_updated_at: string
-          p_pal_event: Json
-          p_student_id: string
-          p_word_count: number
-        }
-        Returns: Json
-      }
+      submit_assignment_doc_atomic:
+        | {
+            Args: {
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_acknowledged_missing_requirement_ids: string[]
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+      submit_assignment_doc_with_pal_event_atomic:
+        | {
+            Args: {
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_pal_event: Json
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_acknowledged_missing_requirement_ids: string[]
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_pal_event: Json
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
       submit_test_attempt_atomic: {
         Args: {
           p_responses: Json

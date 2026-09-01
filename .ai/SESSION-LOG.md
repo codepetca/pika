@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Prepare final Pattern Lab integration review
-
-**Risk profile:** none for the remaining development-only UI reconciliation.
-**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
-review, with at most one follow-up launch inside the remaining review budget.
-
-- User authorized final independent review and CI for PR #1124, not merging.
-- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
-  workflow and both sides of the session-history conflict. No product source
-  changed in this sync; Daily-only relative-date scope remains intact.
-- Existing local UI checks passed at `471020c2`; the final integrated revision
-  receives refreshed focused checks before ready-for-review. Review results and
-  exact-head CI evidence will be recorded on the PR so evidence does not require
-  an unreviewed post-review commit.
-- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
-  this checkpoint allows at most 2 additional launches and 2 remaining batches,
-  20 minutes per reviewer, and 45 minutes for the review session. The integration
-  preparation is not remediation of a reviewer finding.
-
-## 2026-08-30 — Focused check and agent workflow efficiency
-
-- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
-- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
-- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
-- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
-
-## 2026-08-30 — Sync Pattern Lab after PR #1128
-
-- Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
-- This task remains sole writer for `codex/pattern-lab-governance`. Returned the PR to draft before updating; refreshed focused checks, targeted integration review, and exact-head CI evidence will be recorded on the PR without post-review commits.
-- Risk profile: none (tooling/history integration). Model recommendation: GPT-5.6 Terra/medium for one bounded fixed-commit review in a separate detached checkout. Ledger: 7 prior launches and 4 prior remediation batches; at most 1 launch remains. Merge approval is still outstanding.
-
-## 2026-08-31 — UI consistency approach (read-only review)
-
-Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures, committed Pattern Lab visual evidence, and current product-experience progress. Recommended a page/role/state adoption matrix, family-scoped reference compositions, a Roster pilot, and incremental visual/interaction verification. No product code changed; no fresh live page audit performed. Next: baseline active routes and approve missing family patterns before implementation.
-
-## 2026-08-31 — Reference-page audit and local preview
-
-Started local Pika preview at localhost:3000 with the governed launcher and seeded local accounts. Captured Student Tests list/submitted detail, teacher Daily unselected/selected, and live Pattern Lab teacher examples. Initial findings: test Closed labels hide submitted progress; Daily first names truncate in current width configuration; Lab lacks complete source-page state examples. Preliminary audit and eight screenshots saved under the task visualization directory, pika-reference-audit/audit.md. No product code changed. Next: agree one small source-page preview before broader adoption.
-
 ## 2026-08-31 — Relative-date clipping local preview
 
 Fixed clipped descenders in both DateNavigator subtitle render paths by restoring 16px line height. Local Daily/Lab preview updated, 44px control retained. Six component tests and four Pattern Lab browser matrix checks passed; all default captures reviewed; UI/design policy pass. Evidence: task visualization relative-date-fix/brief.md. Local preview on codex/fix-relative-date-descenders; awaiting visual acceptance before publishing.
@@ -228,6 +188,17 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Reused the current Settings `SegmentedControl`, panel, and switch row. The settings scroller now brings the selected section fully into view so the final Advanced option is not clipped on direct mobile URLs. No shared component contract, Pattern Lab example, API, schema, permission, or dependency changed; risk profile none.
 - Verification: 32 Settings tests and four shared selector keyboard tests pass. Focused checks pass 12 files / 154 tests plus architecture, UI/design policy, TypeScript, and lint. Playwright screenshots were inspected for teacher desktop/mobile in light/dark, selected Advanced, focus, and toggle on/off. Student capture confirmed the teacher-only section is inaccessible and the normal student surface is unchanged.
 - User authorized the draft PR, independent review, CI, and merge to `main`; production promotion, deployment, and database operations remain excluded. Low-risk review plan: one GPT-5.6 Terra/medium fixed-commit review. Ledger starts at zero launches, zero remediation waves, and zero fix batches; record final evidence on the PR without post-review commits.
+
+## 2026-08-31 — Repair attendance epoch restaging and Daily availability controls
+
+- Confirmed the production failure mode: migration 142 correctly superseded stale roster/schedule outbox rows, but preparation reused the same source revisions and therefore the same globally unique idempotency keys. Bara correctly rejects a second snapshot at the same revision, so the repair belongs in Pika rather than Bara.
+- Added migration 145 so the private roster and schedule source documents include the teacher entitlement revision. A recovery epoch now changes both source tokens, advances both snapshot revisions, and generates fresh keys that Bara accepts. Added a rollback-only database lifecycle proving revision-1 stage, exact supersession, revision-2 restage, fresh pending rows, and idempotent retry.
+- Daily now renders its selection column and Student actions menu only when the selected session is actually editable (`open` or `closed`). Scheduled, unconfigured, disabled, archived, and other non-editable views retain check-in/status evidence without dead checkboxes. The governed brief and composite-widget checklist are recorded in `daily-attendance-availability.md`.
+- Verification after the first independent-review remediation: 51 focused attendance tests pass; the canonical focused gate passes 13 files / 163 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passes. Teacher Playwright verification passes and screenshots were inspected for desktop/mobile, light/dark, open/closed/scheduled/unconfigured. The recovery runbook now makes migration 145 and newer revision/key proof explicit preconditions. Student UI is unchanged. Migration 145 has not been applied to any database; ephemeral replay remains a PR-CI gate and production application requires fresh exact-target authorization.
+- Final cumulative review found no code, SQL, privilege, rollback, or UI blocker. A second documentation-only remediation aligned the completion audit with the control runbook: migrations 142 and 145 are a coupled recovery prerequisite, while migration application, supersession, fresh preparation/staging, tenant-link repair, delivery, and canary remain separate authorization gates. Added a documentation contract preventing a return to 142-only guidance. The cumulative focused gate passes 14 files / 167 tests plus architecture, UI/design policy, TypeScript, and lint.
+- Exact-head CI replayed every migration successfully, then exposed an untyped `smallint` argument in the new rollback-only database lifecycle fixture before its recovery assertions could run. The PR returned to draft; the browser and Test & Build lanes were canceled by that draft transition rather than failed assertions. Added explicit UUID, time, smallint, bigint, and timestamptz casts matching the existing timing-policy RPC signature. This is remediation batch 3/3; 167 focused tests and every static gate pass locally. Reviewer launches remain at the default ceiling of 5/5, so a fresh exact-head review and CI retry require the owner checkpoint before merge.
+- After the owner extended the bounded review, current-main rebase preserved the product patch. Exact-head CI then exposed one remaining stale fixture field: `class_days.course_code`, removed since migration 006. Owner authorized remediation batch 4, final review launch 8/8, and source-epoch migration replay only in a new disposable local Supabase target. The disposable `pika-attendance-144-ci:56322` project replayed the then-current migrations 001–144 and the complete Bara attendance database harness passed, then was stopped and moved to Trash; the existing local Pika stack remained healthy and untouched. The final reviewer found that the temporary configurable-target support could fall back after a misspelled explicit container, so owner-directed remediation batch 5 removes that support entirely and restores the original strict `pika:54322` guard while keeping the valid current-schema fixture correction. After current main added its own migration 144, the attendance source-epoch migration was resequenced to 145. The refreshed focused gate passes 14 files / 168 tests plus every static gate; current-main teacher Daily verification passes desktop/mobile in light/dark and open/closed/scheduled/unconfigured states. Production remains unchanged.
+
 ## 2026-08-31 Test corrections after first Start
 - Added a reviewable migration and application policy: after first student Start only question prompt wording/instructions remain editable; structure, choices, grading, identities and response settings remain frozen.
 - Start now persists through the atomic attempt transaction and returns its post-lock student snapshot; title/documents/result visibility stay on existing paths. Added focused UI/API/policy/migration coverage and a dev preview on port 3006.
@@ -240,3 +211,33 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Rebasing PR #1140 onto `ad13b3d7` exposed the newly merged Attendance migration 142. Resequenced the Test editing migration to 143 and updated its runtime, test and rollout references. Reconciled the already-applied local Test schema to version 143 without resetting local data; a dry run then proposed only Attendance 142, which applied successfully. The local ledger is aligned through 143, generated types match, and the Attendance, Test editing, atomic submit and atomic grading database harnesses pass. No hosted migration or deployment occurred.
 - Ready-PR CI passed Test & Build but exposed a remaining pre-policy fixture in the Blueprint question-identity database harness, so the PR returned to draft. Directly inserted attempt/response fixtures now set the durable Test lock, wording-only corrections are asserted to succeed without changing answers, points or responses, and grading mutations remain rejected. The exact Blueprint database harness, 25 targeted static tests, and the focused gate (67 files / 934 tests plus policies, TypeScript and lint) pass locally.
 - Follow-up: Close should confirm discarding unapplied Markdown.
+
+## 2026-08-31 — Refine the exam document workspace
+
+- Replaced the duplicated teacher Preview and student live-exam document compositions with a shared `ExamDocumentWorkspace`. The persistent pane header now transitions from Documents to Back plus the active document title without a jarring horizontal morph; list/viewer layers and the question form stay mounted.
+- Added an accessible desktop split-pane resizer. Documents begin at 30% in the list, open at or remember 30–50%, and questions remain at least 50%. Pointer drag, Arrow keys, Home/End, double-click reset, visible focus, and semantic separator values are covered; compact screens retain the stacked layout without a divider.
+- Focused verification passes 60 component tests and the repository gate passes 15 files / 184 tests plus architecture, UI/design policy, TypeScript and lint. Pika audit passes. Inspected actual teacher Preview and student attempt at desktop/mobile and light/dark; a compact document-body collapse found during verification was corrected. A live unsaved answer remained mounted while opening docs. Temporary local visual-only records were deleted; no existing data changed.
+- Draft PR #1145 review found one non-blocking P2: inactive eager iframes could remain in the screen-reader tree. They now retain eager mounting while receiving inactive `tabIndex` and `aria-hidden` isolation; two-frame coverage and the full 184-test focused gate pass after the fix. Final cumulative review and exact-head CI remain.
+
+## 2026-08-31 — Preview simpler Assignment attachments
+
+- In worktree `codex/assignment-attachments-redesign`, Assignment creation now uses a compact 52px single-line Submission Requirement row at every width: 44px drag target, type icon, editable label and 44px trash target. Its tooltip-backed 44px `+` button opens the Link, Repo and Image menu. Removed visible Required, helper-text, image-limit and Link-check rows while keeping image limits as accessible label help and preserving existing hidden values during edits. Teacher work review continues to call submitted artifacts Attachments and shows missing legacy optional rows.
+- Assignment Title and Instructions labels are now visually hidden and their reserved rows collapse; empty fields show `Title` and `Instructions` placeholders while retaining associated accessible labels and required semantics. Removed the student-facing instructions hint and tightened the Assignment-only inset between the modal heading and title field. Assignment and Daily now share one zero-gap date/subtitle button that reserves the subtitle line for constant height when relative context is absent. Other creation forms retain their existing visible labels and spacing.
+- Student Turn in treats every configured attachment as expected, flushes pending link edits before submit, and uses one shared `Submit without attachments?` confirmation listing all missing labels. Present invalid/inaccessible attachments and save failures still block. The submit API requires explicit `allow_missing_attachments`; empty work is allowed only through that acknowledged missing-attachment path.
+- Prepared migration `144_allow_acknowledged_missing_assignment_attachments.sql` so acknowledged missing attachments are accepted only inside the locked submission RPC while present invalid/inaccessible artifacts remain blocked. It was not applied to any shared database.
+- Draft-PR review hardened that boundary: the API requires an exact, duplicate-free match and passes only its canonical missing-requirement IDs to both standard and Pal submission RPCs; the shared locked validator independently re-derives the missing set and requires exact cardinality and membership. Extra IDs, duplicates, a concurrently added requirement, or a deleted artifact are not covered by an earlier confirmation. Legacy call shapes remain strict, ordinary submissions safely fall back during migration-first rollout, and acknowledged missing submissions return a retryable migration-required response until migration 144 is present. Failed or in-flight image uploads block confirmation and submission until retry or an explicit continue-without action.
+- Rollback-scoped atomic checks and disposable-database concurrency checks pass, including strict/scoped acknowledgement, invalid, Pal, acknowledged requirement-add and acknowledged artifact-delete cases. Remediation tests pass 89/89; the focused gate passes 186 files / 1,856 tests plus architecture, UI/design policy, TypeScript and lint. The eight desktop/mobile × light/dark Pattern Lab contracts pass and representative captures were inspected. Migration 144 remains unapplied to shared databases.
+- Pattern Lab has API-free teacher/student examples. Desktop/mobile × light/dark teacher rows, populated/empty label states, the shared fixed-height relative-date subtitle, the open requirement menu, student checklist and confirmation all passed and were inspected; geometry caps the three-row card at 220px and checks same-row centering. Evidence is under session artifacts `assignment-attachments`. Final focused checks pass 185 files / 1,837 tests plus architecture, UI/design policy, TypeScript and lint. Preview remains on localhost:3007; no commit, PR, merge or deployment yet.
+
+## 2026-08-31 — Remove Daily corner clipping artifact
+
+- Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
+- Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
+- Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
+
+## 2026-09-01 — Record AI PR lifecycle evidence
+
+- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
+- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
+- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
+- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.

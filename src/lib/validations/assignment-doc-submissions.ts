@@ -13,7 +13,17 @@ const keystrokeCountSchema = z.coerce.number().int().min(0).max(2_147_483_647)
 export const assignmentDocSubmitRequestSchema = z.object({
   content: assignmentSubmissionContentSchema,
   expected_updated_at: z.string().datetime({ offset: true }),
-}).strict()
+  allow_missing_attachments: z.boolean().optional().default(false),
+  acknowledged_missing_attachment_ids: z.array(z.string().uuid()).max(100).optional().default([]),
+}).strict().superRefine((request, context) => {
+  if (request.acknowledged_missing_attachment_ids.length > 0 && !request.allow_missing_attachments) {
+    context.addIssue({
+      code: 'custom',
+      path: ['allow_missing_attachments'],
+      message: 'Must be true when missing attachment IDs are acknowledged',
+    })
+  }
+})
 
 export const assignmentDocAtomicSaveRequestSchema = z.object({
   content: assignmentSubmissionContentSchema,

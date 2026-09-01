@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Loader2, Upload } from 'lucide-react'
 import { Button, FormField, Input } from '@/ui'
 import {
@@ -20,6 +20,10 @@ interface StudentAssignmentSubmissionChecklistProps {
   disabled?: boolean
   onArtifactsChange: (artifacts: AssignmentSubmissionArtifact[]) => void
   onError: (message: string) => void
+}
+
+export interface StudentAssignmentSubmissionChecklistHandle {
+  savePendingArtifacts: () => Promise<AssignmentSubmissionArtifact[]>
 }
 
 type DraftState = Record<string, { url: string; githubLogin: string }>
@@ -69,7 +73,7 @@ function normalizeDraftValue(value: string | null | undefined) {
   return (value ?? '').trim()
 }
 
-export function StudentAssignmentSubmissionChecklist({
+export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignmentSubmissionChecklistHandle, StudentAssignmentSubmissionChecklistProps>(function StudentAssignmentSubmissionChecklist({
   assignmentId,
   requirements,
   artifacts,
@@ -77,9 +81,13 @@ export function StudentAssignmentSubmissionChecklist({
   disabled = false,
   onArtifactsChange,
   onError,
-}: StudentAssignmentSubmissionChecklistProps) {
+}, ref) {
   const [drafts, setDrafts] = useState<DraftState>(() => buildDraftState(requirements, artifacts, githubIdentity))
   const [savingRequirementId, setSavingRequirementId] = useState<string | null>(null)
+  const [failedImageRequirementIds, setFailedImageRequirementIds] = useState<Set<string>>(() => new Set())
+  const failedImageRequirementIdsRef = useRef(new Set<string>())
+  const pendingImageUploadsRef = useRef(new Map<string, Promise<void>>())
+  const uploadedImageArtifactsRef = useRef(new Map<string, AssignmentSubmissionArtifact>())
 
   useEffect(() => {
     setDrafts(buildDraftState(requirements, artifacts, githubIdentity))
@@ -89,8 +97,6 @@ export function StudentAssignmentSubmissionChecklist({
     () => getSubmissionRequirementCompletion(requirements, artifacts),
     [artifacts, requirements]
   )
-
-  if (requirements.length === 0) return null
 
   function updateDraft(requirementId: string, patch: Partial<DraftState[string]>) {
     setDrafts((current) => ({
@@ -103,12 +109,15 @@ export function StudentAssignmentSubmissionChecklist({
     }))
   }
 
-  function replaceArtifact(nextArtifact: AssignmentSubmissionArtifact) {
-    const filtered = artifacts.filter((artifact) => artifact.requirement_id !== nextArtifact.requirement_id)
-    onArtifactsChange([...filtered, nextArtifact])
+  function replaceArtifactInList(
+    currentArtifacts: AssignmentSubmissionArtifact[],
+    nextArtifact: AssignmentSubmissionArtifact
+  ) {
+    const filtered = currentArtifacts.filter((artifact) => artifact.requirement_id !== nextArtifact.requirement_id)
+    return [...filtered, nextArtifact]
   }
 
-  async function saveUrlArtifact(requirement: AssignmentSubmissionRequirement) {
+  async function persistUrlArtifact(requirement: AssignmentSubmissionRequirement) {
     const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
     setSavingRequirementId(requirement.id)
     onError('')
@@ -125,37 +134,119 @@ export function StudentAssignmentSubmissionChecklist({
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save submission')
-      replaceArtifact(data.artifact)
+      return data.artifact as AssignmentSubmissionArtifact
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to save submission')
+      const message = error instanceof Error ? error.message : 'Failed to save attachment'
+      onError(message)
+      throw new Error(message)
     } finally {
       setSavingRequirementId(null)
     }
   }
 
-  async function uploadImageArtifact(requirement: AssignmentSubmissionRequirement, event: ChangeEvent<HTMLInputElement>) {
+  async function saveUrlArtifact(requirement: AssignmentSubmissionRequirement) {
+    try {
+      const nextArtifact = await persistUrlArtifact(requirement)
+      onArtifactsChange(replaceArtifactInList(artifacts, nextArtifact))
+    } catch {
+      // The shared error region already explains why the save stopped.
+    }
+  }
+
+  useImperativeHandle(ref, () => ({
+    async savePendingArtifacts() {
+      let nextArtifacts = artifacts
+
+      await Promise.all(pendingImageUploadsRef.current.values())
+      for (const uploadedArtifact of uploadedImageArtifactsRef.current.values()) {
+        nextArtifacts = replaceArtifactInList(nextArtifacts, uploadedArtifact)
+      }
+      if (failedImageRequirementIdsRef.current.size > 0) {
+        throw new Error('Retry the failed image upload or choose to continue without it.')
+      }
+
+      for (const requirement of requirements) {
+        if (requirement.type === 'image') continue
+        const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
+        const savedArtifact = nextArtifacts.find((artifact) => artifact.requirement_id === requirement.id)
+        const savedGithubLogin =
+          typeof savedArtifact?.metadata_json?.github_login === 'string'
+            ? savedArtifact.metadata_json.github_login
+            : githubIdentity?.github_login ?? ''
+        const hasChanges =
+          normalizeDraftValue(draft.url) !== normalizeDraftValue(savedArtifact?.url) ||
+          (requirement.type === 'repo_link' &&
+            normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
+
+        if (!hasChanges) continue
+        const nextArtifact = await persistUrlArtifact(requirement)
+        nextArtifacts = replaceArtifactInList(nextArtifacts, nextArtifact)
+        onArtifactsChange(nextArtifacts)
+      }
+
+      return nextArtifacts
+    },
+  }))
+
+  if (requirements.length === 0) return null
+
+  function uploadImageArtifact(requirement: AssignmentSubmissionRequirement, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
+    const input = event.target
 
     setSavingRequirementId(requirement.id)
+    failedImageRequirementIdsRef.current.delete(requirement.id)
+    setFailedImageRequirementIds((current) => {
+      const next = new Set(current)
+      next.delete(requirement.id)
+      return next
+    })
     onError('')
 
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const response = await fetch(`/api/assignment-docs/${assignmentId}/artifacts/${requirement.id}`, {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to upload image')
-      replaceArtifact(data.artifact)
-    } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to upload image')
-    } finally {
-      event.target.value = ''
-      setSavingRequirementId(null)
-    }
+    const upload = (async () => {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch(`/api/assignment-docs/${assignmentId}/artifacts/${requirement.id}`, {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to upload image')
+        const nextArtifact = data.artifact as AssignmentSubmissionArtifact
+        uploadedImageArtifactsRef.current.set(requirement.id, nextArtifact)
+        let nextArtifacts = artifacts
+        for (const uploadedArtifact of uploadedImageArtifactsRef.current.values()) {
+          nextArtifacts = replaceArtifactInList(nextArtifacts, uploadedArtifact)
+        }
+        onArtifactsChange(nextArtifacts)
+      } catch (error) {
+        failedImageRequirementIdsRef.current.add(requirement.id)
+        setFailedImageRequirementIds((current) => new Set(current).add(requirement.id))
+        onError(error instanceof Error ? error.message : 'Failed to upload image')
+      } finally {
+        input.value = ''
+        setSavingRequirementId((current) => current === requirement.id ? null : current)
+      }
+    })()
+
+    pendingImageUploadsRef.current.set(requirement.id, upload)
+    void upload.finally(() => {
+      if (pendingImageUploadsRef.current.get(requirement.id) === upload) {
+        pendingImageUploadsRef.current.delete(requirement.id)
+      }
+    })
+  }
+
+  function dismissFailedImageUpload(requirementId: string) {
+    failedImageRequirementIdsRef.current.delete(requirementId)
+    setFailedImageRequirementIds((current) => {
+      const next = new Set(current)
+      next.delete(requirementId)
+      return next
+    })
+    onError('')
   }
 
   return (
@@ -164,7 +255,7 @@ export function StudentAssignmentSubmissionChecklist({
         <div>
           <h3 className="text-sm font-semibold text-text-default">Turn in</h3>
           <p className="text-xs text-text-muted">
-            {completion.completedRequiredCount}/{completion.requiredCount} required complete
+            {completion.completedRequiredCount} of {completion.requiredCount} added
           </p>
         </div>
       </div>
@@ -190,14 +281,7 @@ export function StudentAssignmentSubmissionChecklist({
                   <RequirementIcon type={requirement.type} />
                 </span>
                 <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-medium text-text-default">{requirement.label}</span>
-                    {requirement.required ? (
-                      <span className="shrink-0 rounded-badge bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-muted">
-                        Required
-                      </span>
-                    ) : null}
-                  </div>
+                  <span className="block truncate text-sm font-medium text-text-default">{requirement.label}</span>
                   {requirement.instructions ? (
                     <p className="mt-0.5 text-xs text-text-muted">{requirement.instructions}</p>
                   ) : null}
@@ -229,6 +313,16 @@ export function StudentAssignmentSubmissionChecklist({
                       {isSaving ? 'Uploading...' : item.isPresent ? 'Replace' : 'Upload'}
                     </span>
                   </label>
+                  {failedImageRequirementIds.has(requirement.id) ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={disabled || isSaving}
+                      onClick={() => dismissFailedImageUpload(requirement.id)}
+                    >
+                      {item.isPresent ? 'Keep current image' : 'Continue without image'}
+                    </Button>
+                  ) : null}
                 </div>
               ) : (
                 <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -274,4 +368,4 @@ export function StudentAssignmentSubmissionChecklist({
       </div>
     </div>
   )
-}
+})

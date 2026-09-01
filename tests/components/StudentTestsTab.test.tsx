@@ -1230,8 +1230,10 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     const splitContainerAfterStart = getSplitContainer(container)
-    expect(splitContainerAfterStart.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainerAfterStart.className).not.toContain('lg:grid-cols-[50%_50%]')
+    expect(splitContainerAfterStart.parentElement).toHaveStyle({
+      '--exam-documents-grow': '30',
+      '--exam-questions-grow': '70',
+    })
     expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
 
@@ -1246,7 +1248,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
-  it('switches to 50/50 split when opening a doc and restores 30/70 on back', async () => {
+  it('opens docs at 50/50 with a resizer and restores 30/70 on back', async () => {
     mockFullscreenSuccess()
 
     fetchMock.mockImplementation(async (url: string) => {
@@ -1360,22 +1362,23 @@ describe('StudentTestsTab exam mode', () => {
     expect(container.querySelector('iframe[title="Node.js API"]')).toBeInTheDocument()
 
     const splitContainerExamMode = getSplitContainer(container)
-    expect(splitContainerExamMode.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-[50%_50%]')
-    expect(splitContainerExamMode.className).toContain('lg:h-[calc(100dvh-3rem)]')
-    expect(splitContainerExamMode.className).toContain('lg:min-h-0')
+    expect(splitContainerExamMode.parentElement).toHaveStyle({
+      '--exam-documents-grow': '30',
+      '--exam-questions-grow': '70',
+    })
+    expect(splitContainerExamMode.parentElement?.className || '').toContain('lg:h-[calc(100dvh-3rem)]')
+    expect(splitContainerExamMode.parentElement?.className || '').toContain('lg:min-h-0')
 
     const documentsPane = screen.getByTestId('student-test-documents-pane')
     const detailPane = screen.getByTestId('student-test-detail-pane')
     expect(documentsPane.className).toContain('min-h-0')
-    expect(documentsPane.className).toContain('overflow-y-auto')
+    expect(documentsPane.className).toContain('overflow-hidden')
     expect(documentsPane.className).not.toContain('lg:sticky')
     expect(detailPane.className).toContain('min-h-0')
     expect(detailPane.className).toContain('overflow-y-auto')
     expect(detailPane.className).not.toContain('lg:sticky')
 
-    const docsHeading = screen.getByRole('heading', { name: 'Documents' })
-    const leftPaneScroller = docsHeading.closest('.scrollbar-hover')
+    const leftPaneScroller = documentsPane.querySelector('.scrollbar-hover')
     expect(leftPaneScroller).toBeInTheDocument()
     expect(leftPaneScroller?.className || '').toContain('overflow-y-auto')
 
@@ -1393,8 +1396,12 @@ describe('StudentTestsTab exam mode', () => {
     expect(activeIframe?.className || '').not.toContain('group-focus-within:w-full')
     expect(container.querySelector('.z-\\[1\\].w-3.bg-white')).not.toBeInTheDocument()
     const splitContainerDocOpen = getSplitContainer(container)
-    expect(splitContainerDocOpen.className).toContain('lg:grid-cols-[50%_50%]')
-    expect(splitContainerDocOpen.className).not.toContain('lg:grid-cols-[30%_70%]')
+    expect(splitContainerDocOpen.parentElement).toHaveStyle({
+      '--exam-documents-grow': '50',
+      '--exam-questions-grow': '50',
+    })
+    expect(screen.getByRole('separator', { name: 'Resize documents and questions panes' }))
+      .toHaveAttribute('aria-valuenow', '50')
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
 
@@ -1402,7 +1409,10 @@ describe('StudentTestsTab exam mode', () => {
       expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
     })
     const splitContainerBack = getSplitContainer(container)
-    expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
+    expect(splitContainerBack.parentElement).toHaveStyle({
+      '--exam-documents-grow': '30',
+      '--exam-questions-grow': '70',
+    })
   })
 
   it('renders the submit actions after the last question in an active test', async () => {

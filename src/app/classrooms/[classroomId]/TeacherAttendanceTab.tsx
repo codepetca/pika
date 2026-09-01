@@ -206,6 +206,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     isActive,
     visibleStudentIds,
   })
+  const showAttendanceSelection = attendanceEnabled && attendance.canMark
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
   const hoursActionLabel = hours.label
@@ -776,6 +777,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           <DateNavigator
             label={selectedDateLabel}
             subtitle={showRelativeDate ? relativeDateLabel : null}
+            reserveSubtitleSpace
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -834,7 +836,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               </Button>
             </Tooltip>
           ) : null}
-          {attendance.attendanceReady ? (
+          {showAttendanceSelection ? (
             <TeacherWorkSurfaceMenuButton
               label={(
                 <span className="inline-flex items-center gap-1.5">
@@ -878,7 +880,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   )
 
   function renderStudentTable(showLogColumn: boolean) {
-    const visibleColumnCount = 3 + (showIdColumn ? 1 : 0) + (attendanceEnabled ? 3 : 0)
+    const visibleColumnCount = 3
+      + (showIdColumn ? 1 : 0)
+      + (attendanceEnabled ? 2 : 0)
+      + (showAttendanceSelection ? 1 : 0)
 
     return (
       <KeyboardNavigableTable
@@ -896,7 +901,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           )}
           <DataTable className="table-fixed">
             <colgroup>
-              {attendanceEnabled ? <col className="w-10" /> : null}
+              {showAttendanceSelection ? <col className="w-10" /> : null}
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
               {showIdColumn ? (
@@ -916,13 +921,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </colgroup>
             <DataTableHead sticky className="bg-surface-3">
               <DataTableRow>
-                {attendanceEnabled ? (
+                {showAttendanceSelection ? (
                   <TableSelectionHeaderCell
                     checked={attendance.allSelected}
                     indeterminate={attendance.someSelected}
                     onChange={attendance.toggleSelectAll}
                     ariaLabel="Select all students"
-                    disabled={!attendance.canMark || Boolean(attendance.activeCommand)
+                    disabled={Boolean(attendance.activeCommand)
                       || attendance.pendingStudentIds.size > 0 || attendance.students.length === 0}
                   />
                 ) : null}
@@ -1074,7 +1079,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
-                    {attendanceEnabled ? (
+                    {showAttendanceSelection ? (
                       <TableSelectionCell
                         checked={attendanceSelected}
                         onChange={() => attendance.toggleSelect(row.student_id)}
@@ -1444,7 +1449,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         summary={null}
         workspace={workspace}
         workspaceFrame="standalone"
-        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+        workspaceFrameClassName="min-h-[360px] rounded-none border-0 bg-page"
       />
       <ContentDialog
         isOpen={attendance.qrOpen}

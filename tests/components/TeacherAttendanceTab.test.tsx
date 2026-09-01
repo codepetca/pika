@@ -220,7 +220,7 @@ function combinedAttendanceView(
   }
 }
 
-function mockCombinedFetch() {
+function mockCombinedFetch(attendanceView = combinedAttendanceView()) {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = String(input)
     if (url.startsWith('/api/teacher/logs?')) {
@@ -246,7 +246,7 @@ function mockCombinedFetch() {
       })
     }
     if (url.startsWith('/api/teacher/attendance/session?')) {
-      return mockJson(combinedAttendanceView())
+      return mockJson(attendanceView)
     }
     if (url.startsWith('/api/teacher/attendance/policy?')) {
       return mockJson({ policy: classroomPolicy() })
@@ -568,6 +568,63 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
+  it('shows selection controls only when the selected attendance session can be marked', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      session: {
+        ...combinedAttendanceView().session,
+        state: 'scheduled',
+      },
+    }))
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    expect(await screen.findByRole('columnheader', { name: 'Check-in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open QR check-in' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
+    const statusGroup = screen.getByRole('group', {
+      name: 'Attendance status for Student1 Test',
+    })
+    for (const button of within(statusGroup).getAllByRole('button')) {
+      expect(button).toBeDisabled()
+    }
+  })
+
+  it('keeps selection controls available for closed-session corrections', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      session: {
+        ...combinedAttendanceView().session,
+        state: 'closed',
+      },
+    }))
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const studentCheckbox = await screen.findByRole('checkbox', {
+      name: 'Select Student1 Test',
+    })
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeEnabled()
+    expect(screen.getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })).toBeDisabled()
+
+    await user.click(studentCheckbox)
+    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+  })
+
   it('hides and restores the relative date from Daily More actions', async () => {
     mockLogsFetch()
     const user = userEvent.setup()
@@ -582,6 +639,7 @@ describe('TeacherAttendanceTab', () => {
 
     expect(dateButton).toHaveTextContent('Tue May 5')
     expect(within(dateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+    expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
 
     view.unmount()
@@ -699,7 +757,7 @@ describe('TeacherAttendanceTab', () => {
 
     expect(await screen.findByRole('columnheader', { name: 'Check-in' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Sort attendance by status' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Select Student1 Test' })).toBeDisabled()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
     const timingTrigger = screen.getByRole('button', { name: 'Set attendance hours' })
@@ -1288,7 +1346,11 @@ describe('TeacherAttendanceTab', () => {
     await screen.findByRole('columnheader', { name: /^Log/ })
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
+    const scrollPane = screen.getByTestId('daily-student-scroll-pane')
+    const workspaceFrame = scrollPane.parentElement?.parentElement?.parentElement
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
+    expect(scrollPane).toHaveClass('rounded-lg')
+    expect(workspaceFrame).toHaveClass('rounded-none', 'border-0', 'bg-page')
     expect(screen.getByRole('columnheader', { name: /^Log/ }).closest('thead')).toHaveClass('bg-surface-3')
     const previousButton = screen.getByRole('button', { name: 'Previous day' })
     const nextButton = screen.getByRole('button', { name: 'Next day' })

@@ -86,6 +86,26 @@ describe('SplitButton', () => {
     expect(onPrimaryClick).not.toHaveBeenCalled()
   })
 
+  it('can render one named menu trigger', () => {
+    render(
+      <SplitButton
+        label="+"
+        singleMenuTrigger
+        options={[
+          { id: 'link', label: 'Link', onSelect: vi.fn() },
+        ]}
+        primaryButtonProps={{ 'aria-label': 'Add submission requirement' }}
+      />
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Add submission requirement' })
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
+
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toHaveFocus()
+  })
+
   it('renders dropdown below when menuPlacement is down', () => {
     render(
       <SplitButton
@@ -243,6 +263,34 @@ describe('SplitButton', () => {
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(primary).toHaveFocus()
+  })
+
+  it('closes its menu with Escape without closing a containing dialog', () => {
+    const onClose = vi.fn()
+
+    render(
+      <DialogPanel isOpen onClose={onClose} ariaLabelledBy="assignment-title">
+        <h2 id="assignment-title">Edit assignment</h2>
+        <SplitButton
+          label="+"
+          singleMenuTrigger
+          options={[{ id: 'link', label: 'Link', onSelect: vi.fn() }]}
+          primaryButtonProps={{ 'aria-label': 'Add submission requirement' }}
+        />
+      </DialogPanel>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Add submission requirement' })
+    fireEvent.click(trigger)
+    const option = screen.getByRole('menuitem', { name: 'Link' })
+    expect(option).toHaveFocus()
+
+    fireEvent.keyDown(option, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Edit assignment' })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(trigger).toHaveFocus()
   })
 
   it('does not restore focus to the opener when selected action opens a modal dialog', async () => {

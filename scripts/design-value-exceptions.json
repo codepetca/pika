@@ -55,14 +55,14 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "864000abc5b64cda",
+          "count": 2,
+          "fingerprint": "f4422c46a07107ec",
           "reason": "layout-geometry"
         },
         {
           "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "20ec8227ed178c8f",
+          "count": 1,
+          "fingerprint": "e117b07c460ed612",
           "reason": "legacy-visual-value"
         },
         {
@@ -415,8 +415,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "6558d2be703257cf",
+          "count": 1,
+          "fingerprint": "314bf12bd9d6ab8f",
           "reason": "layout-geometry"
         }
       ]
@@ -644,18 +644,6 @@
       ]
     },
     {
-      "file": "src/components/StudentAssignmentSubmissionChecklist.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "0e9d29b47a05a496",
-          "reason": "legacy-visual-value"
-        }
-      ]
-    },
-    {
       "file": "src/components/StudentCountBadge.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
@@ -770,7 +758,7 @@
       ]
     },
     {
-      "file": "src/components/TeacherTestPreviewPage.tsx",
+      "file": "src/components/ExamDocumentWorkspace.tsx",
       "reviewBy": "phase-3-tests-exam-mode",
       "values": [
         {
@@ -781,8 +769,20 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "20ec8227ed178c8f",
+          "count": 1,
+          "fingerprint": "7eea8611e7cbb6e6",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherTestPreviewPage.tsx",
+      "reviewBy": "phase-3-tests-exam-mode",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "e117b07c460ed612",
           "reason": "legacy-visual-value"
         },
         {

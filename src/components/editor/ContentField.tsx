@@ -10,6 +10,7 @@ export interface ContentFieldProps {
   error?: string
   required?: boolean
   hideLabel?: boolean
+  collapseHiddenLabel?: boolean
   className?: string
   saveStatus?: SaveStatusState
   saveErrorMessage?: string
@@ -28,6 +29,7 @@ export function ContentField({
   error,
   required,
   hideLabel,
+  collapseHiddenLabel,
   className,
   saveStatus,
   saveErrorMessage,
@@ -40,6 +42,7 @@ export function ContentField({
       error={error}
       required={required}
       hideLabel={hideLabel}
+      collapseHiddenLabel={collapseHiddenLabel}
       className={className}
       labelAccessory={
         saveStatus ? (

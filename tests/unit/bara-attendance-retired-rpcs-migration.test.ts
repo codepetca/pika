@@ -89,6 +89,9 @@ describe('retired unscoped Bara attendance RPC migration', () => {
 
   it('keeps active rollout guidance aligned with the production migration state', () => {
     expect(completionAudit).toContain('Production migrations through 132 are\nrecorded as applied')
+    expect(completionAudit).toContain('recovery sequence requires migrations 142 and 145 together')
+    expect(completionAudit).toContain('Applying or authorizing 142 alone is incomplete')
+    expect(completionAudit).not.toContain('Proposed in migration 142.')
     expect(roadmap).toContain('production migrations through 132 are\nrecorded as applied')
     expect(completionAudit).toContain('enabled `teacher_entitlements` gate passed 4/4 in production')
     expect(roadmap).toContain('deployed bidirectional smoke passed 4/4 in that mode')

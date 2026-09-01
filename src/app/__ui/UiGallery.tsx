@@ -60,6 +60,7 @@ import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
+import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 
 type Role = 'teacher' | 'student'
 
@@ -415,6 +416,7 @@ export function UiGallery({ role }: Props) {
           <div className="space-y-6">
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
+            {role === 'student' && <StudentAssignmentAttachmentsPattern />}
           <PatternSection
             id="student-tests"
             eyebrow="Experimental · student workflow"
