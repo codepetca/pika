@@ -34,52 +34,36 @@ vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabase),
 }))
 
-const mockDownload = vi.fn()
+const mockCreateSignedUrl = vi.fn()
 const mockSupabase = {
   storage: {
     from: vi.fn(() => ({
-      download: mockDownload,
+      createSignedUrl: mockCreateSignedUrl,
     })),
   },
-}
-
-function createMockDownloadBody(content: string, contentType: string) {
-  const bytes = new TextEncoder().encode(content)
-  return {
-    type: contentType,
-    stream: () =>
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(bytes)
-          controller.close()
-        },
-      }),
-    arrayBuffer: async () => bytes.slice().buffer,
-    text: async () => content,
-  }
-}
-
-async function readResponseText(response: Response) {
-  return Buffer.from(await response.arrayBuffer()).toString('utf8')
 }
 
 describe('GET /api/teacher/tests/[id]/documents/[docId]/snapshot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockDownload.mockResolvedValue({
-      data: createMockDownloadBody('%PDF-1.4', 'application/pdf'),
+    mockCreateSignedUrl.mockResolvedValue({
+      data: { signedUrl: 'https://project.supabase.co/storage/v1/object/sign/test-documents/snapshot?token=short-lived' },
       error: null,
     })
   })
 
-  it('streams the stored snapshot for preview mode', async () => {
+  it('redirects preview mode to a short-lived signed PDF URL', async () => {
     const response = await GET(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/documents/doc-1/snapshot'),
       { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) }
     )
 
-    expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toBe('application/pdf')
-    expect(await readResponseText(response)).toContain('%PDF-1.4')
+    expect(response.status).toBe(302)
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(response.headers.get('location')).toContain('token=short-lived')
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith(
+      'link-docs/teacher-1/test-1/doc-1/snapshot',
+      60,
+    )
   })
 })

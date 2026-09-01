@@ -19,6 +19,7 @@ import { assessmentUxParity } from './assessment-ux-parity'
 import { blueprintRollover } from './blueprint-rollover'
 import { createClassroomWizard } from './create-classroom-wizard'
 import { courseGuideCurriculumImport } from './course-guide-curriculum-import'
+import { patternLabPageMockups } from './pattern-lab-page-mockups'
 
 const scenarios: Record<string, VerificationScript> = {
   'add-students-modal': addStudentsModal,
@@ -26,6 +27,7 @@ const scenarios: Record<string, VerificationScript> = {
   'blueprint-rollover': blueprintRollover,
   'create-classroom-wizard': createClassroomWizard,
   'course-guide-curriculum-import': courseGuideCurriculumImport,
+  'pattern-lab-page-mockups': patternLabPageMockups,
 }
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'

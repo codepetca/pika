@@ -727,6 +727,19 @@ function collectManagedUrls(
     return
   }
   if (isJsonObject(value)) {
+    if (
+      typeof value.storage_bucket === 'string'
+      && typeof value.storage_path === 'string'
+      && allowedBuckets.has(value.storage_bucket as ManagedSourceBucket)
+    ) {
+      const path = normalizeRelativePath(value.storage_path)
+      if (path) {
+        push({
+          bucket: value.storage_bucket as ManagedSourceBucket,
+          path,
+        })
+      }
+    }
     for (const [childKey, item] of Object.entries(value)) {
       collectManagedUrls(
         item,

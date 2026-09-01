@@ -2528,9 +2528,7 @@ Prompt:
       })
       fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
 
-      await waitFor(() => {
-        expect(screen.getByText(/Title is required/)).toBeInTheDocument()
-      })
+      expect(screen.getByText(/Title is required/)).toBeInTheDocument()
 
       const patchCalls = fetchMock.mock.calls.filter(
         (call: any[]) =>

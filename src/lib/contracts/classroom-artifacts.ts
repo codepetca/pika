@@ -407,14 +407,14 @@ export const CLASSROOM_STORAGE_CONTRACT = {
     },
     {
       bucket: 'submission-images',
-      visibility: 'public',
-      reference_discovery: 'embedded_content_urls',
+      visibility: 'private',
+      reference_discovery: 'managed_identity_or_legacy_embedded_url',
       copy_policy: 'referenced_only',
     },
     {
       bucket: 'test-documents',
-      visibility: 'public',
-      reference_discovery: 'tests.documents.url_or_snapshot_path',
+      visibility: 'private',
+      reference_discovery: 'tests.documents.managed_identity_or_snapshot_path',
       copy_policy: 'referenced_only',
     },
   ],

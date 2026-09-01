@@ -886,6 +886,8 @@ export interface TestDocument {
   title: string
   source: TestDocumentSource
   url?: string
+  storage_bucket?: 'test-documents'
+  storage_path?: string
   managed_object_id?: string
   content?: string
   snapshot_path?: string

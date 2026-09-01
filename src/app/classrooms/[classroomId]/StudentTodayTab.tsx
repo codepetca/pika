@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
 import { Button, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
@@ -58,18 +58,20 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
-const DAILY_PLAN_PROMPT = "What's your plan for today?"
+const DAILY_LOG_TITLE = 'Daily Log'
 
 
 interface StudentTodayTabProps {
   classroom: Classroom
   layout?: 'page' | 'pane'
+  mobilePlan?: ReactNode
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
 }
 
 export function StudentTodayTab({
   classroom,
   layout = 'page',
+  mobilePlan,
   onLessonPlanLoad,
 }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
@@ -615,13 +617,31 @@ export function StudentTodayTab({
     </div>
   ) : null
 
+  const mobilePlanContent = mobilePlan ? (
+    <div className="min-h-0 w-full overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+      {mobilePlan}
+    </div>
+  ) : null
+
   if (blockingState) {
     if (layout === 'pane') {
-      return <div className="h-full min-h-0 overflow-y-auto">{blockingState}</div>
+      return (
+        <div className="h-full min-h-0 overflow-y-auto">
+          <PageStack>
+            {blockingState}
+            {mobilePlanContent}
+          </PageStack>
+        </div>
+      )
     }
     return (
       <PageLayout>
-        <PageContent>{blockingState}</PageContent>
+        <PageContent>
+          <PageStack>
+            {blockingState}
+            {mobilePlanContent}
+          </PageStack>
+        </PageContent>
       </PageLayout>
     )
   }
@@ -666,19 +686,20 @@ export function StudentTodayTab({
         ) : (
           <div className="space-y-4">
             <div className="flex items-start justify-between mb-2">
-              <p className="text-sm font-medium text-text-default">
-                {DAILY_PLAN_PROMPT}
-              </p>
+              <h2 id="student-daily-log-heading" className="text-sm font-medium text-text-default">
+                {DAILY_LOG_TITLE}
+              </h2>
               <SaveStatus status={saveStatus} className="text-sm" />
             </div>
             <RichTextEditor
               content={content}
               onChange={handleContentChange}
               onBlur={flushAutosave}
-              placeholder="Write something..."
+              placeholder="What is your plan today?"
+              aria-labelledby="student-daily-log-heading"
               editable={true}
               toolbarPreset="brief"
-              className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
+              className="[&_.tiptap.ProseMirror]:!min-h-[100px] [&_.tiptap.ProseMirror]:!p-0 lg:[&_.tiptap.ProseMirror]:!min-h-[200px]"
             />
 
             {saveError && (
@@ -699,6 +720,8 @@ export function StudentTodayTab({
           </div>
         )}
       </div>
+
+      {mobilePlanContent}
 
       <div className="bg-surface border border-border rounded-lg">
         <div className="px-4 py-3 border-b border-border">

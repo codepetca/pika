@@ -88,8 +88,35 @@ jobs:
         with:
           version: 10.25.0
 
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: database-pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
+        id: database-install
+        shell: bash
         run: pnpm install --frozen-lockfile
+
+      - name: Summarize dependency setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Database lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.database-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo '- Dependencies are always installed from the lockfile.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify managed-storage migration lineage
         run: pnpm run check:managed-storage-lineage
@@ -346,7 +373,23 @@ jobs:
         with:
           version: 10.25.0
 
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: browser-pnpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
+        id: browser-install
+        shell: bash
         run: pnpm install --frozen-lockfile
 
       - name: Start ephemeral Supabase and replay migrations
@@ -368,8 +411,29 @@ jobs:
       - name: Seed browser fixtures
         run: pnpm seed
 
-      - name: Install Chromium
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Chromium and system dependencies
+        id: browser-install-chromium
+        shell: bash
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Summarize browser setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Browser lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.browser-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo "- Playwright browser exact-key hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
+            echo '- Chromium and its system dependencies are verified on every run.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
         run: pnpm e2e:ci

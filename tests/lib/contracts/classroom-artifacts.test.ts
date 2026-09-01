@@ -349,6 +349,7 @@ describe('classroom artifact contracts', () => {
       'submission-images',
       'test-documents',
     ])
+    expect(CLASSROOM_STORAGE_CONTRACT.sources.every((source) => source.visibility === 'private')).toBe(true)
     expect(CLASSROOM_STORAGE_CONTRACT.sources.every((source) => source.copy_policy === 'referenced_only')).toBe(true)
   })
 

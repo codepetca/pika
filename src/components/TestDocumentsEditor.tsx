@@ -12,6 +12,7 @@ import {
   isValidHttpUrl,
 } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
+import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { TestDocument } from '@/types'
 
 interface Props {
@@ -339,24 +340,21 @@ export function TestDocumentsEditor({
     setUploading(true)
     setError('')
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const uploadRes = await fetch(`${apiBasePath}/${testId}/documents/upload`, {
-        method: 'POST',
-        body: formData,
+      const documentId = crypto.randomUUID()
+      const uploadData = await uploadFileDirectly<Record<string, unknown>>({
+        endpoint: `${apiBasePath}/${testId}/documents/upload`,
+        file,
+        metadata: { document_id: documentId },
       })
-      const uploadData = await uploadRes.json()
-      if (!uploadRes.ok) {
-        throw new Error(uploadData.error || 'Failed to upload document')
-      }
 
-      const title = uploadTitle.trim() || uploadData.title || file.name
+      const title = uploadTitle.trim() || file.name
       const nextDocs = [
         ...localDocs,
         {
-          id: crypto.randomUUID(),
+          id: documentId,
           title: String(title).trim().slice(0, 120),
-          url: String(uploadData.url || ''),
+          storage_bucket: 'test-documents' as const,
+          storage_path: String(uploadData.storage_path || ''),
           ...(uploadData.managed_object_id
             ? { managed_object_id: String(uploadData.managed_object_id) }
             : {}),
@@ -471,10 +469,13 @@ export function TestDocumentsEditor({
                     size="sm"
                     className="px-2"
                     onClick={() => {
-                      if (!doc.url) return
-                      window.open(doc.url, '_blank', 'noopener,noreferrer')
+                      const url = doc.source === 'upload'
+                        ? `${apiBasePath}/${testId}/documents/${doc.id}/file`
+                        : doc.url
+                      if (!url) return
+                      window.open(url, '_blank', 'noopener,noreferrer')
                     }}
-                    disabled={!doc.url}
+                    disabled={doc.source !== 'upload' && !doc.url}
                     aria-label={`Open ${doc.title}`}
                   >
                     <ExternalLink className="h-4 w-4" />

@@ -300,8 +300,21 @@ function hasManagedStorageReference(args: {
     return args.value.some((value) => hasManagedStorageReference({ ...args, value, key: undefined }))
   }
   if (!isJsonObject(args.value)) return false
+  if (
+    args.value.storage_bucket === args.bucket
+    && args.value.storage_path === args.path
+  ) return true
   return Object.entries(args.value).some(([key, value]) =>
     hasManagedStorageReference({ ...args, value, key }))
+}
+
+function hasExactKeyValue(value: unknown, key: string, expected: string): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasExactKeyValue(item, key, expected))
+  }
+  if (!isJsonObject(value)) return false
+  if (value[key] === expected) return true
+  return Object.values(value).some((item) => hasExactKeyValue(item, key, expected))
 }
 
 function legacyRestoreManagedOwner(args: {
@@ -374,8 +387,13 @@ function legacyRestoreManagedOwner(args: {
       path: object.source_path,
     }))
   if (tests.length !== 1) throw new Error('Legacy test document ownership is ambiguous')
+  const isSnapshot = hasExactKeyValue(
+    tests[0].documents,
+    'snapshot_path',
+    object.source_path,
+  )
   return {
-    purpose: 'test_execution_snapshot',
+    purpose: isSnapshot ? 'test_execution_snapshot' : 'teacher_test_material',
     createdByUserId: args.teacherId,
     dataSubjectUserId: null,
     resourceType: 'test',
@@ -440,10 +458,15 @@ function rewriteResourceValue(args: {
       inTestDocuments: inTestDocuments || (table === 'tests' && childKey === 'documents'),
     }),
   ]))
-  const rawPath = typeof value.storage_path === 'string'
-    ? (table === 'assignment_submission_artifacts'
-      ? `assignment-artifacts\0${value.storage_path}`
-      : null)
+  const explicitStorageBucket = typeof value.storage_bucket === 'string'
+    && ['assignment-artifacts', 'submission-images', 'test-documents']
+      .includes(value.storage_bucket)
+    ? value.storage_bucket
+    : table === 'assignment_submission_artifacts'
+      ? 'assignment-artifacts'
+      : null
+  const rawPath = explicitStorageBucket && typeof value.storage_path === 'string'
+    ? `${explicitStorageBucket}\0${value.storage_path}`
     : null
   const snapshotPath = table === 'tests' && inTestDocuments
     && typeof value.snapshot_path === 'string'
@@ -459,6 +482,9 @@ function rewriteResourceValue(args: {
   }
   const directIdentity = rawPath ? restoredManagedIds.get(rawPath) : undefined
   const snapshotIdentity = snapshotPath ? restoredManagedIds.get(snapshotPath) : undefined
+  if (rawPath) {
+    rewritten.storage_path = restoredPaths.get(rawPath) || value.storage_path
+  }
   if (directIdentity) embeddedIdentities.add(directIdentity)
   if (embeddedIdentities.size === 1) {
     rewritten.managed_object_id = [...embeddedIdentities][0]

@@ -1289,6 +1289,14 @@ describe('StudentTestsTab exam mode', () => {
                   snapshot_content_type: 'text/html',
                   synced_at: '2026-04-02T12:00:00.000Z',
                 },
+                {
+                  id: 'doc-2',
+                  title: 'Teacher reference PDF',
+                  source: 'upload',
+                  storage_bucket: 'test-documents',
+                  storage_path: 'classrooms/classroom-1/tests/test-1/private.pdf',
+                  managed_object_id: '10000000-0000-4000-8000-000000000001',
+                },
               ],
               position: 0,
               student_status: 'not_started',
@@ -1413,6 +1421,12 @@ describe('StudentTestsTab exam mode', () => {
       '--exam-documents-grow': '30',
       '--exam-questions-grow': '70',
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Teacher reference PDF' }))
+    await waitFor(() => {
+      expect(container.querySelector('iframe[title="Teacher reference PDF"]')).toBeInTheDocument()
+    })
+    expect(container.querySelector('iframe[title="Teacher reference PDF"]')?.getAttribute('src'))
+      .toBe('/api/student/tests/test-1/documents/doc-2/file')
   })
 
   it('renders the submit actions after the last question in an active test', async () => {

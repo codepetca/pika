@@ -412,7 +412,7 @@ function StudentTodayWorkspace({
       className="flex-1 pt-2"
       splitVariant="gapped"
       primaryClassName="min-h-0"
-      inspectorClassName="min-h-0 rounded-lg border border-border bg-surface"
+      inspectorClassName="hidden min-h-0 rounded-lg border border-border bg-surface lg:block"
       inspectorCollapsed={false}
       inspectorWidth={planPaneWidth}
       minInspectorPx={300}
@@ -425,10 +425,10 @@ function StudentTodayWorkspace({
         <StudentTodayTab
           classroom={classroom}
           layout="pane"
+          mobilePlan={planSidebar}
           onLessonPlanLoad={onLessonPlanLoad}
         />
       }
-      mobileInspector={planSidebar}
       inspector={planSidebar}
     />
   )

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { TestDocument } from '@/types'
+import { getTestDocumentStoragePath } from '@/lib/test-documents'
 import {
   queueManagedStorageCleanupBestEffort,
   reserveManagedStorageUpload,
@@ -41,18 +42,6 @@ function deterministicBlueprintCopyUuid(seed: string): string {
     hex.slice(16, 20).join(''),
     hex.slice(20, 32).join(''),
   ].join('-')
-}
-
-function testDocumentStoragePath(url: string): string | null {
-  try {
-    const marker = '/storage/v1/object/public/test-documents/'
-    const parsed = new URL(url)
-    if (!parsed.pathname.startsWith(marker)) return null
-    const path = decodeURIComponent(parsed.pathname.slice(marker.length))
-    return path && !path.startsWith('/') ? path : null
-  } catch {
-    return null
-  }
 }
 
 function isMissingFoundation(error: { code?: string; message?: string } | null): boolean {
@@ -212,7 +201,7 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   const sourceIdByDocument = new Map<TestDocument, string>()
   const sourceById = new Map<string, any>()
   for (const document of managedDocuments) {
-    const sourcePath = testDocumentStoragePath(document.url || '')
+    const sourcePath = getTestDocumentStoragePath(document)
     if (!document.managed_object_id && !sourcePath) {
       throw new Error('managed_storage_blueprint_copy_source_identity_missing')
     }
@@ -250,7 +239,6 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   const targetBySourceId = new Map<string, {
     objectId: string
     targetPath: string
-    publicUrl: string
   }>()
   for (const [sourceId, source] of sourceById) {
     const objectId = deterministicBlueprintCopyUuid(
@@ -261,8 +249,6 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     targetBySourceId.set(sourceId, {
       objectId,
       targetPath,
-      publicUrl: input.supabase.storage.from('test-documents')
-        .getPublicUrl(targetPath).data.publicUrl,
     })
   }
 
@@ -273,11 +259,13 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
       if (!sourceId) return document
       const target = targetBySourceId.get(sourceId) as {
         objectId: string
-        publicUrl: string
+        targetPath: string
       }
       return {
         ...document,
-        url: target.publicUrl,
+        url: undefined,
+        storage_bucket: 'test-documents' as const,
+        storage_path: target.targetPath,
         managed_object_id: target.objectId,
       }
     }),
