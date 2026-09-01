@@ -20,8 +20,8 @@ experimental.
   keyboard focus, preview dialog, gradebook-category setup, assessment details,
   calendar view/range, announcement filter, settings section/save/confirmation,
   and summary/workspace/inspector.
-- Primary signal: stable centered scope/actions; quiet context left; ellipsis
-  utilities right. Table selection never replaces global controls.
+- Primary signal: stable centered scope/actions; quiet context left; ghost
+  ellipsis utilities right. Table selection never replaces global controls.
 - Exclusions: live APIs, persistent preferences, real email/clipboard writes,
   live grading writes from Pattern Lab, enrollment changes, publishing, new
   dependencies, and promotion of unrelated experimental compositions.
@@ -47,7 +47,7 @@ experimental.
 | Announcements | TeacherAnnouncementsSection already has centered + and right ellipsis, but duplicates creation in menu | Preserve +; demonstrate All/Posted/Scheduled filter in menu, reading cards and contextual Eye preview; no operational status-count table |
 | Roster | TeacherRosterTab has + Students and settings in center, selected email/removal commands mixed into global menu | Icon-only +, persistent selection menu, CSV import in right ellipsis; separate sortable names, quiet joined/not-joined text and contextual details |
 | Settings | TeacherSettingsTab uses section navigation, local field saves, feature switches, and guarded access changes | Keep one section visible at a time; show save feedback without a global submit bar; retain confirmation for join-code replacement |
-| Classwork/Tests workspaces | TeacherClassroomView and TeacherTestsTab share the formal summary-to-workspace ladder and activate inspectors only after selection | Compare both families with one deterministic list → selected item → student inspector fixture while preserving family-owned labels and statuses |
+| Classwork/Tests workspaces | TeacherClassroomView and TeacherTestsTab share the formal summary-to-workspace ladder and activate inspectors only after selection | Compare both families with one deterministic list → selected item → student inspector fixture while preserving family-owned labels and statuses; keep only Create in the centered summary cluster and place Organize once in More actions |
 
 Gradebook student scores remain explicit examples. Category setup uses the live
 calculation contract: Attendance 10%, Term 65% and Final 25%, with Term as the

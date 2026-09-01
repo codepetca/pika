@@ -47,6 +47,8 @@ export const patternLabPageMockups: VerificationScript = {
         await page.setViewportSize(viewport)
         for (const pageName of PAGES) {
           await section.getByRole('tab', { name: pageName }).click()
+          const workspace = pageName === 'Workspaces' ? section.getByTestId('work-surface-mockup') : null
+          if (workspace) await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
           const targetId = await section.getByRole('tab', { name: pageName }).getAttribute('aria-controls')
           checks.push({
             name: `${viewportName} ${theme} ${pageName} tab target exists`,
@@ -59,6 +61,23 @@ export const patternLabPageMockups: VerificationScript = {
           const artifact = path.join(artifactDir, `${viewportName}-${theme}-${pageName.toLowerCase()}.png`)
           await section.screenshot({ path: artifact })
           artifacts.push(artifact)
+          if (workspace) {
+            await workspace.getByRole('button', { name: 'More actions' }).click()
+            const classworkMoreArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-classwork-more.png`)
+            await section.screenshot({ path: classworkMoreArtifact })
+            artifacts.push(classworkMoreArtifact)
+            await page.keyboard.press('Escape')
+
+            await workspace.getByRole('button', { name: 'Tests' }).click()
+            const testsArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-tests.png`)
+            await section.screenshot({ path: testsArtifact })
+            artifacts.push(testsArtifact)
+            await workspace.getByRole('button', { name: 'More actions' }).click()
+            const testsMoreArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-tests-more.png`)
+            await section.screenshot({ path: testsMoreArtifact })
+            artifacts.push(testsMoreArtifact)
+            await page.keyboard.press('Escape')
+          }
         }
       }
     }
@@ -513,9 +532,16 @@ export const patternLabPageMockups: VerificationScript = {
     await workspace.screenshot({ path: workspaceInspectorArtifact })
     artifacts.push(workspaceInspectorArtifact)
     await workspace.getByRole('button', { name: 'Back to item list' }).click()
+    checks.push({ name: 'Classwork summary keeps Organize out of the center cluster', passed: await workspace.getByRole('button', { name: 'Organize classwork' }).count() === 0 })
     await workspace.getByRole('button', { name: 'More actions' }).click()
-    checks.push({ name: 'Work summary More actions includes Markdown editing', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() })
+    checks.push({ name: 'Classwork More actions includes Markdown editing and Organize', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() && await workspace.getByRole('menuitem', { name: 'Organize classwork' }).isVisible() })
     await page.keyboard.press('Escape')
+    await workspace.getByRole('button', { name: 'Tests' }).click()
+    checks.push({ name: 'Tests summary keeps Organize out of the center cluster', passed: await workspace.getByRole('button', { name: 'Organize tests' }).count() === 0 })
+    await workspace.getByRole('button', { name: 'More actions' }).click()
+    checks.push({ name: 'Tests More actions retains Organize', passed: await workspace.getByRole('menuitem', { name: 'Organize tests' }).isVisible() })
+    await page.keyboard.press('Escape')
+    await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
 
     await page.setViewportSize(VIEWPORTS.mobile)
     await workspace.getByRole('button', { name: /^Field observations/ }).click()

@@ -41,8 +41,9 @@ Use one compact row directly above the table:
 2. **Centered actions:** the active scope control and only its immediate
    workflow commands. The elevated cluster is mathematically centered and is
    the obvious place to act.
-3. **Trailing utilities:** low-priority utilities only. Row-derived totals do
-   not belong here.
+3. **Trailing utilities:** low-priority utilities only. Icon-menu triggers use
+   the ghost treatment so they blend into the surrounding surface until hover
+   or focus. Row-derived totals do not belong here.
 
 The table begins immediately below this row. Avoid an empty spacer, a second
 summary row, or permanent top chrome. On narrow screens, preserve the centered

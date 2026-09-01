@@ -168,7 +168,7 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
-- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
 - `PageActionBar` keeps primary context and actions on one row. Actions marked `primary` stay
   visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
   use the keyboard-accessible More actions menu at the far right, after any trailing content.

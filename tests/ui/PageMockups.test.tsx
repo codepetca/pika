@@ -348,6 +348,20 @@ describe('PageMockups', () => {
     const workspace = within(mockups).getByTestId('work-surface-mockup')
 
     expect(within(workspace).queryByText('Student work')).not.toBeInTheDocument()
+    expect(within(workspace).getByRole('button', { name: 'Create classwork' })).toBeVisible()
+    expect(within(workspace).queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
+    expect(within(workspace).getByRole('menuitem', { name: 'Organize classwork' })).toBeVisible()
+    await user.keyboard('{Escape}')
+
+    await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
+    expect(within(workspace).getByRole('button', { name: 'Create test' })).toBeVisible()
+    expect(within(workspace).queryByRole('button', { name: 'Organize tests' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
+    expect(within(workspace).getByRole('menuitem', { name: 'Organize tests' })).toBeVisible()
+    await user.keyboard('{Escape}')
+
+    await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     await user.click(within(workspace).getByRole('button', { name: /^Field observations/ }))
     expect(within(workspace).getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
     expect(document.getElementById('work-pattern-students-panel')).toBeInTheDocument()
