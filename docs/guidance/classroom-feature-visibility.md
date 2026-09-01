@@ -25,7 +25,7 @@ All preferences default to enabled so existing and newly created classrooms reta
 - Gradebook is unavailable when both Classwork and Tests are hidden. Its stored preference is retained, so it returns automatically if either source feature is re-enabled.
 - Achievements is shown only when both its classroom preference and the deployment's Pal integration are enabled.
 - Attendance controls are shown inside Daily only when both the classroom preference and the server-owned teacher/classroom entitlement are active. Turning Attendance off never hides Daily or changes Daily-log data.
-- Daily/Today remains the safe fallback for invalid or newly hidden direct links.
+- Daily remains the safe fallback for invalid or newly hidden direct links.
 
 ## Enforcement Surfaces
 
