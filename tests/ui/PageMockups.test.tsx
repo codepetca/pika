@@ -54,6 +54,11 @@ describe('PageMockups', () => {
     expect(within(classrooms).getByText('Editing')).toBeVisible()
     expect(within(classrooms).getByRole('button', { name: 'Archive Grade 10 Science' })).toBeVisible()
 
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.keyboard('{Escape}')
+    await user.click(within(mockups).getByRole('tab', { name: 'Classrooms' }))
+    expect(within(classrooms).getByText('Editing')).toBeVisible()
+
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
     await user.click(within(classrooms).getByRole('menuitemradio', { name: 'Archived' }))
     expect(within(classrooms).getByText('Archived classrooms')).toBeVisible()

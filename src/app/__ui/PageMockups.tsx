@@ -175,7 +175,7 @@ export function PageMockups() {
       {PAGE_ITEMS.map((item) => (
         <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
           <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
-            {item.value === 'classrooms' ? <ClassroomsMockup onPrototypeAction={explain} /> : null}
+            {item.value === 'classrooms' ? <ClassroomsMockup isActive={page === 'classrooms'} onPrototypeAction={explain} /> : null}
             {item.value === 'gradebook' ? <GradebookMockup onPrototypeAction={explain} /> : null}
             {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
             {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
@@ -193,12 +193,20 @@ export function PageMockups() {
   )
 }
 
-function ClassroomsMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+function ClassroomsMockup({
+  isActive,
+  onPrototypeAction,
+}: {
+  isActive: boolean
+  onPrototypeAction: (action: string) => void
+}) {
   const [view, setView] = useState<'active' | 'archived'>('active')
   const [isEditing, setIsEditing] = useState(false)
   const classrooms = view === 'active' ? CLASSROOM_LIST : ARCHIVED_CLASSROOM_LIST
 
   useEffect(() => {
+    if (!isActive) return
+
     function returnToActiveList(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       setView('active')
@@ -207,7 +215,7 @@ function ClassroomsMockup({ onPrototypeAction }: { onPrototypeAction: (action: s
 
     window.addEventListener('keydown', returnToActiveList)
     return () => window.removeEventListener('keydown', returnToActiveList)
-  }, [])
+  }, [isActive])
 
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     {
