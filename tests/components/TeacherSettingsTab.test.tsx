@@ -198,8 +198,15 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     expect(screen.queryByText('Classroom name updated')).not.toBeInTheDocument()
   })
 
-  it('persists the show markdown display setting from the general settings tab', async () => {
-    const { rerender } = render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+  it('persists the show markdown display setting from the advanced settings tab', async () => {
+    const { rerender } = render(
+      <TeacherSettingsTab classroom={mockClassroom} sectionParam="general" />,
+      { wrapper: Wrapper },
+    )
+
+    expect(screen.queryByRole('switch', { name: 'Show markdown' })).not.toBeInTheDocument()
+
+    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="advanced" />)
 
     const markdownToggle = await screen.findByRole('switch', { name: 'Show markdown' })
     expect(markdownToggle).toHaveAttribute('aria-checked', 'true')
@@ -210,7 +217,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       expect(markdownToggle).toHaveAttribute('aria-checked', 'false')
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
-    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="general" />)
+    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="advanced" />)
     expect(screen.getByRole('switch', { name: 'Show markdown' })).toHaveAttribute('aria-checked', 'false')
   })
 
@@ -240,6 +247,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     expect(within(sectionSwitcher).getByRole('button', { name: 'Features' })).toBeInTheDocument()
     expect(within(sectionSwitcher).queryByRole('button', { name: 'Course Guide' })).toBeNull()
     expect(within(sectionSwitcher).getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    expect(within(sectionSwitcher).getByRole('button', { name: 'Advanced' })).toBeInTheDocument()
 
     fireEvent.click(within(sectionSwitcher).getByRole('button', { name: 'Class Days' }))
 
