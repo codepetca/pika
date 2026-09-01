@@ -160,4 +160,30 @@ describe('manual attendance store', () => {
       status: 'present',
     })).rejects.toMatchObject({ code: 'roster_changed' })
   })
+
+  it('reports missing settings and marks RPCs as migration-required', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202' } })
+      .mockResolvedValueOnce({ data: null, error: { code: '42883' } })
+    const supabase = { rpc }
+
+    await expect(saveManualAttendanceSettings({
+      supabase,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+      expectedRevision: 1,
+      sourceMode: 'manual',
+      sessionStartsLocal: null,
+      sessionEndsLocal: null,
+    })).rejects.toMatchObject({ code: 'migration_required' })
+
+    await expect(saveManualAttendanceMarks({
+      supabase,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+      classDate: '2026-05-06',
+      studentIds: ['30000000-0000-4000-8000-000000000003'],
+      status: 'present',
+    })).rejects.toMatchObject({ code: 'migration_required' })
+  })
 })

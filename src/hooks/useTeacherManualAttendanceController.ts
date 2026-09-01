@@ -99,11 +99,14 @@ export function useTeacherManualAttendanceController(input: {
     loadScope(scopeRef.current, background)
   ), [loadScope])
 
-  useEffect(() => () => {
-    mountedRef.current = false
-    requestSequence.current += 1
-    commandSequence.current += 1
-    activeCommandRef.current = null
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      requestSequence.current += 1
+      commandSequence.current += 1
+      activeCommandRef.current = null
+    }
   }, [])
 
   useEffect(() => {

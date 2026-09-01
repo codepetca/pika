@@ -16,6 +16,8 @@ export class ManualAttendanceStoreError extends Error {
 function isMissingRelation(error: { code?: string; message?: string } | null | undefined) {
   return error?.code === '42P01'
     || error?.code === '42703'
+    || error?.code === '42883'
+    || error?.code === 'PGRST202'
     || error?.code === 'PGRST204'
     || error?.code === 'PGRST205'
 }

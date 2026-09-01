@@ -29,9 +29,26 @@ describe('Pika manual attendance migration', () => {
     expect(migration).toContain("using errcode = '40001'")
     expect(migration).toContain('set_pika_manual_attendance_marks')
     expect(migration).toContain('student_id = any(p_student_ids)')
+    expect(migration.indexOf('for update;')).toBeLessThan(
+      migration.indexOf('update public.classroom_enrollments'),
+    )
     expect(migration).toContain("using errcode = '23503'")
     expect(migration).toContain('from public, anon, authenticated')
     expect(migration).toContain('to service_role')
+  })
+
+  it('defaults new fields when restoring archives created before migration 147', () => {
+    expect(migration).toContain('normalize_classroom_archive_restore_row')
+    for (const field of [
+      'manual_attendance_source_mode',
+      'manual_attendance_session_starts_local',
+      'manual_attendance_session_ends_local',
+      'manual_attendance_revision',
+      'manual_attendance_marks',
+    ]) {
+      expect(migration).toContain(`not (p_row ? '${field}')`)
+    }
+    expect(migration).toContain("p_table_name = 'classroom_enrollments'")
   })
 
   it('changes the QR close-before-end default to zero minutes', () => {

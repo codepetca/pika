@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { createElement, StrictMode, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useTeacherManualAttendanceController } from '@/hooks/useTeacherManualAttendanceController'
 import type { ManualAttendanceSettings, ManualAttendanceView } from '@/lib/manual-attendance'
@@ -17,6 +18,10 @@ vi.mock('@/ui', async (importOriginal) => {
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const studentId = '30000000-0000-4000-8000-000000000003'
+
+function strictModeWrapper({ children }: { children: ReactNode }) {
+  return createElement(StrictMode, null, children)
+}
 
 function response(value: unknown) {
   return new Response(JSON.stringify(value), {
@@ -146,5 +151,30 @@ describe('useTeacherManualAttendanceController', () => {
       await Promise.resolve()
     })
     expect(result.current.settings).toMatchObject({ sourceMode: 'log', revision: 2 })
+  })
+
+  it('loads and applies commands after React Strict Mode effect replay', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view('2026-05-06')))
+      if (init.method === 'POST') return Promise.resolve(response({ ok: true }))
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: [studentId],
+    }), { wrapper: strictModeWrapper })
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    await act(async () => {
+      await result.current.submitMarks([studentId], 'absent')
+    })
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
   })
 })
