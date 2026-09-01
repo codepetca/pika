@@ -670,6 +670,8 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
         body: JSON.stringify({
           content: latestDraft,
           expected_updated_at: '2026-07-01T12:00:00.000Z',
+          allow_missing_attachments: false,
+          acknowledged_missing_attachment_ids: [],
         }),
       }),
     )
@@ -3648,6 +3650,143 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Save service unavailable')
     })
     expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(0)
+  })
+
+  it('combines missing attachments into one confirmation before submitting anyway', async () => {
+    const submitBodies: Array<Record<string, unknown>> = []
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const requirements = [
+      {
+        id: 'req-repo', assignment_id: 'assignment-1', type: 'repo_link', label: 'Repo link',
+        instructions: '', required: true, position: 0, validation_policy_json: {},
+        created_at: '2026-07-01T12:00:00.000Z', updated_at: '2026-07-01T12:00:00.000Z',
+      },
+      {
+        id: 'req-image', assignment_id: 'assignment-1', type: 'image', label: 'Image',
+        instructions: '', required: false, position: 1, validation_policy_json: {},
+        created_at: '2026-07-01T12:00:00.000Z', updated_at: '2026-07-01T12:00:00.000Z',
+      },
+    ]
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(), doc: makeDoc(), feedback_entries: [],
+            submission_requirements: requirements, submission_artifacts: [], wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        return { ok: true, json: async () => ({ doc: makeDoc(), historyEntry: null }) }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) {
+        submitBodies.push(JSON.parse(String(init?.body)))
+        return {
+          ok: true,
+          json: async () => ({
+            doc: { ...makeDoc(), is_submitted: true, submitted_at: '2026-07-01T12:05:00.000Z' },
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    expect(ref.current?.canSubmit).toBe(true)
+    await act(async () => { await ref.current?.submit() })
+
+    const dialog = screen.getByRole('dialog', { name: 'Submit without attachments?' })
+    expect(within(dialog).getByText('Repo link and Image are missing. Submit anyway?')).toBeInTheDocument()
+    expect(submitBodies).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Submit anyway' }))
+    await waitFor(() => expect(submitBodies).toHaveLength(1))
+    expect(submitBodies[0].allow_missing_attachments).toBe(true)
+    expect(submitBodies[0].acknowledged_missing_attachment_ids).toEqual(['req-repo', 'req-image'])
+    await waitFor(() => expect(ref.current?.isSubmitted).toBe(true))
+  })
+
+  it('waits for a pending image upload and blocks submission when that upload fails', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    let resolveUpload: ((value: any) => void) | undefined
+    const requirements = [{
+      id: 'req-image', assignment_id: 'assignment-1', type: 'image', label: 'Image',
+      instructions: '', required: true, position: 0, validation_policy_json: {},
+      created_at: '2026-07-01T12:00:00.000Z', updated_at: '2026-07-01T12:00:00.000Z',
+    }]
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(), doc: makeDoc(), feedback_entries: [],
+            submission_requirements: requirements, submission_artifacts: [], wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        return { ok: true, json: async () => ({ doc: makeDoc(), historyEntry: null }) }
+      }
+      if (url.endsWith('/artifacts/req-image') && init?.method === 'POST') {
+        return await new Promise((resolve) => { resolveUpload = resolve })
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) {
+        throw new Error('Submission API must not run after a failed image upload')
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    await user.upload(
+      screen.getByLabelText('Upload'),
+      new File(['image'], 'work.png', { type: 'image/png' }),
+    )
+    await waitFor(() => expect(resolveUpload).toBeTypeOf('function'))
+
+    let pendingSubmit: Promise<void> | undefined
+    await act(async () => {
+      pendingSubmit = ref.current!.submit()
+      await Promise.resolve()
+    })
+    expect(screen.queryByRole('dialog', { name: 'Submit without attachments?' })).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveUpload!({ ok: false, json: async () => ({ error: 'Image upload failed' }) })
+      await pendingSubmit
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Retry the failed image upload')
+    expect(screen.queryByRole('dialog', { name: 'Submit without attachments?' })).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(0)
   })
 })

@@ -31,6 +31,8 @@ export interface SplitButtonProps {
   onPrimaryClick?: () => void
   options: SplitButtonOption[]
   primaryOpensMenu?: boolean
+  /** Render one menu trigger instead of separate primary and toggle buttons. */
+  singleMenuTrigger?: boolean
   variant?: NonNullable<ButtonProps['variant']>
   size?: NonNullable<ButtonProps['size']>
   disabled?: boolean
@@ -46,6 +48,7 @@ export function SplitButton({
   onPrimaryClick,
   options,
   primaryOpensMenu = false,
+  singleMenuTrigger = false,
   variant = 'primary',
   size = 'sm',
   disabled = false,
@@ -69,6 +72,7 @@ export function SplitButton({
   const orderedOptions = [...normalOptions, ...destructiveOptions]
   const firstDestructiveOption = destructiveOptions[0] ?? null
   const hasLeadingVisual = options.some((option) => option.icon || option.checked !== undefined)
+  const primaryIsMenuTrigger = primaryOpensMenu || singleMenuTrigger
 
   const clearOptionHover = useCallback(() => {
     options.forEach((option) => option.onHoverChange?.(false))
@@ -181,11 +185,11 @@ export function SplitButton({
         type="button"
         variant={variant}
         size={size}
-        aria-haspopup={primaryOpensMenu ? 'menu' : undefined}
-        aria-controls={primaryOpensMenu ? menuId : undefined}
-        aria-expanded={primaryOpensMenu ? isOpen : undefined}
+        aria-haspopup={primaryIsMenuTrigger ? 'menu' : undefined}
+        aria-controls={primaryIsMenuTrigger ? menuId : undefined}
+        aria-expanded={primaryIsMenuTrigger ? isOpen : undefined}
         onClick={(event) => {
-          if (!primaryOpensMenu) {
+          if (!primaryIsMenuTrigger) {
             onPrimaryClick?.()
             return
           }
@@ -193,30 +197,32 @@ export function SplitButton({
           event.stopPropagation()
           toggleMenu(primaryButtonRef.current ?? event.currentTarget)
         }}
-        disabled={disabled || (primaryOpensMenu && options.length === 0)}
-        className={cn('rounded-r-none', primaryClassName)}
+        disabled={disabled || (primaryIsMenuTrigger && options.length === 0)}
+        className={cn(!singleMenuTrigger && 'rounded-r-none', primaryClassName)}
         {...restPrimaryButtonProps}
       >
         {label}
       </Button>
-      <Button
-        ref={toggleButtonRef}
-        type="button"
-        variant={variant}
-        size={size}
-        aria-haspopup="menu"
-        aria-controls={menuId}
-        aria-expanded={isOpen}
-        aria-label={toggleAriaLabel}
-        onClick={(event) => {
-          event.stopPropagation()
-          toggleMenu(toggleButtonRef.current ?? event.currentTarget)
-        }}
-        disabled={disabled || options.length === 0}
-        className={cn('rounded-l-none border-l border-black/15 px-3', toggleButtonClassName)}
-      >
-        <ChevronDown className="h-4 w-4" aria-hidden="true" />
-      </Button>
+      {!singleMenuTrigger ? (
+        <Button
+          ref={toggleButtonRef}
+          type="button"
+          variant={variant}
+          size={size}
+          aria-haspopup="menu"
+          aria-controls={menuId}
+          aria-expanded={isOpen}
+          aria-label={toggleAriaLabel}
+          onClick={(event) => {
+            event.stopPropagation()
+            toggleMenu(toggleButtonRef.current ?? event.currentTarget)
+          }}
+          disabled={disabled || options.length === 0}
+          className={cn('rounded-l-none border-l border-black/15 px-3', toggleButtonClassName)}
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      ) : null}
 
       {isOpen && (
         <div

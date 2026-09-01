@@ -14,7 +14,7 @@ export const ASSIGNMENT_SUBMISSION_REQUIREMENT_TYPES: AssignmentSubmissionRequir
 export const DEFAULT_REQUIREMENT_LABELS: Record<AssignmentSubmissionRequirementType, string> = {
   repo_link: 'Repo link',
   link: 'Link',
-  image: 'Screenshot',
+  image: 'Image',
 }
 
 export type AssignmentLinkValidationMode =
@@ -135,6 +135,10 @@ export type SubmissionRequirementCompletion = {
   items: SubmissionRequirementCompletionItem[]
 }
 
+export type AssignmentAttachmentSubmissionGate =
+  | { ok: true; acknowledgedMissingAttachments: boolean }
+  | { ok: false; reason: 'invalid_attachments' | 'missing_confirmation_required' }
+
 export function isAssignmentSubmissionRequirementType(
   value: unknown
 ): value is AssignmentSubmissionRequirementType {
@@ -180,8 +184,7 @@ export function isSubmissionArtifactPresent(
 export function isSubmissionArtifactBlocking(
   artifact: AssignmentSubmissionArtifact | null | undefined
 ): boolean {
-  if (!artifact) return true
-  if (!isSubmissionArtifactPresent(artifact)) return true
+  if (!artifact || !isSubmissionArtifactPresent(artifact)) return false
   return artifact.validation_status === 'invalid' || artifact.validation_status === 'inaccessible'
 }
 
@@ -226,16 +229,14 @@ export function getSubmissionRequirementCompletion(
       const isPresent = isSubmissionArtifactPresent(artifact)
       const isBlocking = isSubmissionArtifactBlocking(artifact)
 
-      if (requirement.required) {
-        requiredCount += 1
-        if (isPresent && !isBlocking) {
-          completedRequiredCount += 1
-        } else if (!isPresent) {
-          missingRequiredRequirementIds.push(requirement.id)
-        }
+      requiredCount += 1
+      if (isPresent && !isBlocking) {
+        completedRequiredCount += 1
+      } else if (!isPresent) {
+        missingRequiredRequirementIds.push(requirement.id)
       }
 
-      if (isBlocking && (requirement.required || isPresent)) {
+      if (isBlocking) {
         blockingRequirementIds.push(requirement.id)
       }
 
@@ -253,8 +254,41 @@ export function getSubmissionRequirementCompletion(
     completedRequiredCount,
     missingRequiredRequirementIds,
     blockingRequirementIds,
-    canSubmit: missingRequiredRequirementIds.length === 0 && blockingRequirementIds.length === 0,
+    canSubmit: blockingRequirementIds.length === 0,
     items,
+  }
+}
+
+export function formatMissingAttachmentConfirmation(
+  requirements: AssignmentSubmissionRequirement[],
+  missingRequirementIds: string[]
+): string {
+  const missingIds = new Set(missingRequirementIds)
+  const labels = requirements
+    .filter((requirement) => missingIds.has(requirement.id))
+    .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
+    .map((requirement) => requirement.label.trim() || DEFAULT_REQUIREMENT_LABELS[requirement.type])
+
+  if (labels.length === 0) return ''
+  if (labels.length === 1) return `${labels[0]} is missing. Submit anyway?`
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]} are missing. Submit anyway?`
+  return `${labels.slice(0, -1).join(', ')}, and ${labels.at(-1)} are missing. Submit anyway?`
+}
+
+export function getAssignmentAttachmentSubmissionGate(
+  completion: SubmissionRequirementCompletion,
+  allowMissingAttachments: boolean
+): AssignmentAttachmentSubmissionGate {
+  if (completion.blockingRequirementIds.length > 0) {
+    return { ok: false, reason: 'invalid_attachments' }
+  }
+  if (completion.missingRequiredRequirementIds.length > 0 && !allowMissingAttachments) {
+    return { ok: false, reason: 'missing_confirmation_required' }
+  }
+  return {
+    ok: true,
+    acknowledgedMissingAttachments:
+      completion.missingRequiredRequirementIds.length > 0 && allowMissingAttachments,
   }
 }
 

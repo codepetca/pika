@@ -106,20 +106,32 @@ function invalidResult(error: z.ZodError): AssignmentDocMutationResult {
   return { ok: false, status: 500, error: 'Assignment document operation failed', errorCode: 'invalid_rpc_result' }
 }
 
+function isMissingAtomicMigration(error: any) {
+  return error?.code === '42883' || error?.code === 'PGRST202'
+}
+
 function mapRpcError(error: any, operation: 'save' | 'submit' | 'unsubmit'): AssignmentDocMutationResult {
+  if (error?.code === '23514' && error?.message?.includes('assignment_submission_requirements_missing')) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    }
+  }
   if (error?.code === '23514' && error?.message?.includes('assignment_submission_requirements_incomplete')) {
     return {
       ok: false,
       status: 400,
-      error: 'Complete the required submissions before submitting.',
+      error: 'Fix invalid attachments before submitting.',
       errorCode: 'assignment_submission_requirements_incomplete',
     }
   }
-  if (error?.code === '42883' || error?.code === 'PGRST202') {
+  if (isMissingAtomicMigration(error)) {
     return {
       ok: false,
-      status: 500,
-      error: 'Assignment submission migration is required',
+      status: 503,
+      error: 'Submitting without the missing attachment is temporarily unavailable. Try again shortly.',
       errorCode: 'assignment_submission_migration_required',
     }
   }
@@ -225,23 +237,42 @@ export async function submitAssignmentDocAtomic(input: {
   studentId: string
   content: TiptapContent
   expectedUpdatedAt: string
+  acknowledgedMissingRequirementIds?: string[]
   palEvent?: v1.LearningItemCompletedEvent | null
 }): Promise<AssignmentDocMutationResult> {
   const usePalOutbox = input.palEvent !== undefined
-  const { data, error } = await input.supabase.rpc(
-    usePalOutbox
-      ? 'submit_assignment_doc_with_pal_event_atomic'
-      : 'submit_assignment_doc_atomic',
+  const acknowledgedMissingRequirementIds = input.acknowledgedMissingRequirementIds ?? []
+  const rpcName = usePalOutbox
+    ? 'submit_assignment_doc_with_pal_event_atomic'
+    : 'submit_assignment_doc_atomic'
+  const baseArguments = {
+    p_assignment_id: input.assignmentId,
+    p_student_id: input.studentId,
+    p_content: input.content,
+    p_expected_updated_at: input.expectedUpdatedAt,
+    p_word_count: countWords(input.content),
+    p_char_count: countCharacters(input.content),
+    ...(usePalOutbox ? { p_pal_event: input.palEvent } : {}),
+  }
+  let { data, error } = await input.supabase.rpc(
+    rpcName,
     {
-      p_assignment_id: input.assignmentId,
-      p_student_id: input.studentId,
-      p_content: input.content,
-      p_expected_updated_at: input.expectedUpdatedAt,
-      p_word_count: countWords(input.content),
-      p_char_count: countCharacters(input.content),
-      ...(usePalOutbox ? { p_pal_event: input.palEvent } : {}),
+      ...baseArguments,
+      p_acknowledged_missing_requirement_ids: acknowledgedMissingRequirementIds,
     },
   )
+
+  // During a migration-first rollout, old database instances do not know the new
+  // parameter. Strict submissions can safely use the legacy call shape; an
+  // acknowledged-missing submission must wait for the transaction-bound RPC.
+  if (isMissingAtomicMigration(error) && acknowledgedMissingRequirementIds.length === 0) {
+    const legacyResult = await input.supabase.rpc(
+      rpcName,
+      baseArguments,
+    )
+    data = legacyResult.data
+    error = legacyResult.error
+  }
 
   if (error) return mapRpcError(error, 'submit')
 

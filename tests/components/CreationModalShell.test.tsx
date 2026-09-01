@@ -2,9 +2,25 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 
 describe('CreationModalShell', () => {
+  it('can visually hide and collapse a top-row label without removing its semantics', () => {
+    render(
+      <CreationModalTopRow
+        title="Field observations"
+        titlePlaceholder="Title"
+        hideTitleLabel
+        titleStatus={<span role="status">Saved</span>}
+        onTitleChange={vi.fn()}
+      />,
+    )
+
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    expect(document.querySelector(`label[for="${title.id}"]`)).toHaveClass('sr-only')
+    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+  })
+
   it('labels the dialog and exposes its close control', () => {
     const onClose = vi.fn()
 

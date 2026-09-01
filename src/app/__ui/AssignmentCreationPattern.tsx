@@ -11,6 +11,19 @@ import { Button, Card, ContentDialog, DialogPanel, SaveStatus, SplitButton } fro
 
 const SAMPLE_INSTRUCTIONS = 'Read the field guide before our next class.\n\nBring one observation and one question to discuss.'
 const SAMPLE_DUE_DATE = '2026-09-01'
+const SAMPLE_ATTACHMENTS: AssignmentSubmissionRequirementDraft[] = [
+  {
+    id: '10000000-0000-4000-8000-000000000001',
+    type: 'link',
+    label: 'Link',
+    instructions: 'Legacy helper text stays stored but is no longer edited here.',
+    required: false,
+    position: 0,
+    validation_policy_json: { mode: 'expected_domain', expected_domains: ['example.com'] },
+  },
+  { id: '10000000-0000-4000-8000-000000000002', type: 'repo_link', label: 'Repo link', position: 1 },
+  { id: '10000000-0000-4000-8000-000000000003', type: 'image', label: 'Image', position: 2 },
+]
 const ACTIONS = ['Post', 'Schedule', 'Draft'] as const
 type Action = typeof ACTIONS[number]
 
@@ -22,7 +35,7 @@ export function AssignmentCreationPattern() {
   const [title, setTitle] = useState('Field observations')
   const [instructions, setInstructions] = useState(SAMPLE_INSTRUCTIONS)
   const [dueAt, setDueAt] = useState(SAMPLE_DUE_DATE)
-  const [requirements, setRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
+  const [requirements, setRequirements] = useState<AssignmentSubmissionRequirementDraft[]>(SAMPLE_ATTACHMENTS)
   const [changed, setChanged] = useState(false)
   const [action, setAction] = useState<Action>('Post')
   const [scheduleDate, setScheduleDate] = useState(SAMPLE_DUE_DATE)
@@ -34,7 +47,7 @@ export function AssignmentCreationPattern() {
     setTitle('Field observations')
     setInstructions(SAMPLE_INSTRUCTIONS)
     setDueAt(SAMPLE_DUE_DATE)
-    setRequirements([])
+    setRequirements(SAMPLE_ATTACHMENTS.map((requirement) => ({ ...requirement })))
     setChanged(false)
     setAction('Post')
     setScheduleDate(SAMPLE_DUE_DATE)
@@ -56,7 +69,7 @@ export function AssignmentCreationPattern() {
       <Card tone="panel" padding="md">
         <h3 className="font-semibold">Assignment creation</h3>
         <p className="mt-2 text-sm text-text-muted">
-          The production Assignment form in the same shell as Material, with its due date, required submissions and centered save status.
+          The production Assignment form in the same shell as Material, with its due date, attachments and centered save status.
         </p>
         <Button className="mt-3" variant="surface" onClick={openExample}>Open assignment example</Button>
         <p role="status" className="mt-2 text-xs text-text-muted">{result}</p>
@@ -69,6 +82,7 @@ export function AssignmentCreationPattern() {
         closeLabel="Close assignment example"
         tall
         showTitle
+        contentClassName="!pt-1"
         headerCenter={<SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />}
       >
         <AssignmentForm

@@ -415,8 +415,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "6558d2be703257cf",
+          "count": 1,
+          "fingerprint": "314bf12bd9d6ab8f",
           "reason": "layout-geometry"
         }
       ]
@@ -633,18 +633,6 @@
     },
     {
       "file": "src/components/StudentAssignmentEditor.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "0e9d29b47a05a496",
-          "reason": "legacy-visual-value"
-        }
-      ]
-    },
-    {
-      "file": "src/components/StudentAssignmentSubmissionChecklist.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
         {

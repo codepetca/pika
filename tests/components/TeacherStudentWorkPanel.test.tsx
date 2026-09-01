@@ -630,7 +630,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
+    expect(await screen.findByText('Attachments')).toBeInTheDocument()
     expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
@@ -744,7 +744,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
+    expect(await screen.findByText('Attachments')).toBeInTheDocument()
     expect(screen.getByText('Published demo')).toBeInTheDocument()
     expect(screen.getByText('Source repo')).toBeInTheDocument()
     expect(screen.getByText('Process screenshot')).toBeInTheDocument()
@@ -756,7 +756,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByText('Public link')).not.toBeInTheDocument()
   })
 
-  it('shows dashed cards for missing required submissions in student details', async () => {
+  it('shows dashed cards for missing configured attachments in student details', async () => {
     mockFetchByStudent({
       'student-1': {
         graded: false,
@@ -768,7 +768,7 @@ describe('TeacherStudentWorkPanel', () => {
             type: 'link',
             label: 'Published demo',
             instructions: '',
-            required: true,
+            required: false,
             position: 0,
             validation_policy_json: {},
             created_at: '2026-02-20T12:00:00Z',
@@ -791,7 +791,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
+    expect(await screen.findByText('Attachments')).toBeInTheDocument()
     expect(screen.getByText('Published demo')).toBeInTheDocument()
     expect(screen.getByText('Missing')).toBeInTheDocument()
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
