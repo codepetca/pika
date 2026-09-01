@@ -6,6 +6,7 @@ export interface ManualAttendanceSettings {
   sourceMode: ManualAttendanceSourceMode
   sessionStartsLocal: string | null
   sessionEndsLocal: string | null
+  revision: number
 }
 
 export interface ManualAttendanceOverride {
@@ -24,6 +25,7 @@ export const DEFAULT_MANUAL_ATTENDANCE_SETTINGS: ManualAttendanceSettings = {
   sourceMode: 'manual',
   sessionStartsLocal: null,
   sessionEndsLocal: null,
+  revision: 1,
 }
 
 export function deriveManualAttendanceStatus(input: {

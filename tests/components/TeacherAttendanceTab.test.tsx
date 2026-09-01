@@ -367,6 +367,7 @@ function mockManualAttendanceFetch() {
       sourceMode: 'log' as const,
       sessionStartsLocal: '09:00',
       sessionEndsLocal: '10:00',
+      revision: 3,
     },
     overrides: [{ studentId: 'student-2', status: 'late' as const }],
   }
@@ -414,6 +415,7 @@ function mockManualAttendanceFetch() {
     if (url === '/api/teacher/manual-attendance' && init?.method === 'PUT') {
       const body = JSON.parse(String(init.body)) as {
         source_mode: 'log' | 'manual'
+        expected_revision: number
         session_starts_local: string | null
         session_ends_local: string | null
       }
@@ -423,6 +425,7 @@ function mockManualAttendanceFetch() {
           sourceMode: body.source_mode,
           sessionStartsLocal: body.session_starts_local,
           sessionEndsLocal: body.session_ends_local,
+          revision: body.expected_revision + 1,
         },
       }
       return mockJson({ settings: view.settings })

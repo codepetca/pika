@@ -50,7 +50,12 @@ const studentId = '30000000-0000-4000-8000-000000000003'
 const view = {
   classroomId,
   classDate: '2026-05-06',
-  settings: { sourceMode: 'log', sessionStartsLocal: null, sessionEndsLocal: null },
+  settings: {
+    sourceMode: 'log',
+    sessionStartsLocal: null,
+    sessionEndsLocal: null,
+    revision: 3,
+  },
   overrides: [{ studentId, status: 'late' }],
 }
 
@@ -81,6 +86,7 @@ describe('/api/teacher/manual-attendance', () => {
       method: 'PUT',
       body: JSON.stringify({
         classroom_id: classroomId,
+        expected_revision: 3,
         source_mode: 'manual',
         session_starts_local: '09:00',
         session_ends_local: '10:00',
@@ -89,6 +95,7 @@ describe('/api/teacher/manual-attendance', () => {
     expect(response.status).toBe(200)
     expect(saveManualAttendanceSettings).toHaveBeenCalledWith(expect.objectContaining({
       teacherId: 'teacher-1', classroomId, sourceMode: 'manual',
+      expectedRevision: 3,
       sessionStartsLocal: '09:00', sessionEndsLocal: '10:00',
     }))
   })
@@ -119,5 +126,40 @@ describe('/api/teacher/manual-attendance', () => {
     expect(await response.json()).toEqual({
       error: 'Manual attendance is not available until its Pika migration is applied',
     })
+  })
+
+  it('returns a refresh conflict for stale settings and roster races', async () => {
+    saveManualAttendanceSettings.mockRejectedValueOnce(
+      new ManualAttendanceStoreError('stale_revision'),
+    )
+    const stale = await PUT(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'PUT',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        expected_revision: 3,
+        source_mode: 'manual',
+        session_starts_local: null,
+        session_ends_local: null,
+      }),
+    }))
+    expect(stale.status).toBe(409)
+    expect(await stale.json()).toEqual({
+      error: 'Manual attendance settings changed; refresh and try again',
+    })
+
+    saveManualAttendanceMarks.mockRejectedValueOnce(
+      new ManualAttendanceStoreError('roster_changed'),
+    )
+    const roster = await POST(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        date: '2026-05-06',
+        student_ids: [studentId],
+        status: 'present',
+      }),
+    }))
+    expect(roster.status).toBe(409)
+    expect(await roster.json()).toEqual({ error: 'The roster changed; refresh and try again' })
   })
 })

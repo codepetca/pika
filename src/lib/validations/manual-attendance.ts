@@ -11,6 +11,7 @@ export const manualAttendanceViewQuerySchema = z.object({
 
 export const manualAttendanceSettingsSchema = z.object({
   classroom_id: classroomId,
+  expected_revision: z.number().int().positive(),
   source_mode: z.enum(['log', 'manual']),
   session_starts_local: localTime.nullable(),
   session_ends_local: localTime.nullable(),

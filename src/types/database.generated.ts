@@ -2951,18 +2951,21 @@ export type Database = {
           classroom_id: string
           created_at: string
           id: string
+          manual_attendance_marks: Json
           student_id: string
         }
         Insert: {
           classroom_id: string
           created_at?: string
           id?: string
+          manual_attendance_marks?: Json
           student_id: string
         }
         Update: {
           classroom_id?: string
           created_at?: string
           id?: string
+          manual_attendance_marks?: Json
           student_id?: string
         }
         Relationships: [
@@ -3693,6 +3696,10 @@ export type Database = {
           id: string
           join_policy: string
           lesson_plan_visibility: string
+          manual_attendance_revision: number
+          manual_attendance_session_ends_local: string | null
+          manual_attendance_session_starts_local: string | null
+          manual_attendance_source_mode: string
           position: number
           source_blueprint_id: string | null
           source_blueprint_origin: Json | null
@@ -3720,6 +3727,10 @@ export type Database = {
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string
+          manual_attendance_revision?: number
+          manual_attendance_session_ends_local?: string | null
+          manual_attendance_session_starts_local?: string | null
+          manual_attendance_source_mode?: string
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
@@ -3747,6 +3758,10 @@ export type Database = {
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string
+          manual_attendance_revision?: number
+          manual_attendance_session_ends_local?: string | null
+          manual_attendance_session_starts_local?: string | null
+          manual_attendance_source_mode?: string
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
@@ -5686,96 +5701,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      manual_attendance_marks: {
-        Row: {
-          class_date: string
-          classroom_id: string
-          created_at: string
-          status: string
-          student_id: string
-          updated_at: string
-          updated_by: string
-        }
-        Insert: {
-          class_date: string
-          classroom_id: string
-          created_at?: string
-          status: string
-          student_id: string
-          updated_at?: string
-          updated_by: string
-        }
-        Update: {
-          class_date?: string
-          classroom_id?: string
-          created_at?: string
-          status?: string
-          student_id?: string
-          updated_at?: string
-          updated_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manual_attendance_marks_classroom_id_student_id_fkey"
-            columns: ["classroom_id", "student_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_enrollments"
-            referencedColumns: ["classroom_id", "student_id"]
-          },
-          {
-            foreignKeyName: "manual_attendance_marks_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      manual_attendance_settings: {
-        Row: {
-          classroom_id: string
-          created_at: string
-          session_ends_local: string | null
-          session_starts_local: string | null
-          source_mode: string
-          updated_at: string
-          updated_by: string
-        }
-        Insert: {
-          classroom_id: string
-          created_at?: string
-          session_ends_local?: string | null
-          session_starts_local?: string | null
-          source_mode?: string
-          updated_at?: string
-          updated_by: string
-        }
-        Update: {
-          classroom_id?: string
-          created_at?: string
-          session_ends_local?: string | null
-          session_starts_local?: string | null
-          source_mode?: string
-          updated_at?: string
-          updated_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manual_attendance_settings_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: true
-            referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manual_attendance_settings_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       pal_daily_log_week_configurations: {
         Row: {
@@ -10187,6 +10112,27 @@ export type Database = {
           p_teacher_id: string
           p_valid_from: string
           p_valid_until: string
+        }
+        Returns: Json
+      }
+      set_pika_manual_attendance_marks: {
+        Args: {
+          p_class_date: string
+          p_classroom_id: string
+          p_status: string
+          p_student_ids: string[]
+          p_teacher_id: string
+        }
+        Returns: number
+      }
+      set_pika_manual_attendance_settings: {
+        Args: {
+          p_classroom_id: string
+          p_expected_revision: number
+          p_session_ends_local: string | null
+          p_session_starts_local: string | null
+          p_source_mode: string
+          p_teacher_id: string
         }
         Returns: Json
       }

@@ -30,7 +30,7 @@ approved_on: 2026-09-01
 | Joined QR/time actions | `IconButton`, `Button` | extend | Daily-specific composition, shared accessible controls |
 | Status marking and sorting | `DataTable`, `AttendanceStatusSortChip` | extend | Preserve table semantics while splitting statuses into fixed far-right columns |
 | Class-wide commands | Teacher work-surface More actions, `ContentDialog` | reuse | Remove row-selection dependency without creating a new menu primitive |
-| Manual persistence | Existing teacher API ownership and Pika log data | create | Pika must own settings and overrides when QR Attendance is unavailable |
+| Manual persistence | Existing teacher API ownership, `classrooms`, `classroom_enrollments`, and Pika log data | extend | Store settings and date-keyed marks on archive-owned rows; revision-check settings and update roster marks atomically |
 | Timing rules | `AttendanceWindowDialog`, `SegmentedControl`, `FormField` | extend | Reuse the production policy editor with approved defaults, clamps, and copy |
 
 Verification matrix: teacher and student; desktop and mobile; light and dark;

@@ -26,6 +26,9 @@ function mapStoreError(error: unknown): never {
     if (error.code === 'roster_changed') {
       throw new ApiError(409, 'The roster changed; refresh and try again')
     }
+    if (error.code === 'stale_revision') {
+      throw new ApiError(409, 'Manual attendance settings changed; refresh and try again')
+    }
     throw new ApiError(503, 'Manual attendance is temporarily unavailable')
   }
   throw error
@@ -63,6 +66,7 @@ export const PUT = withErrorHandler('PutTeacherManualAttendanceSettings', async 
       supabase,
       teacherId: user.id,
       classroomId: input.classroom_id,
+      expectedRevision: input.expected_revision,
       sourceMode: input.source_mode,
       sessionStartsLocal: input.session_starts_local,
       sessionEndsLocal: input.session_ends_local,

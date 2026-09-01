@@ -7,18 +7,23 @@ import {
 } from '@/lib/manual-attendance'
 
 export class ManualAttendanceStoreError extends Error {
-  constructor(readonly code: 'migration_required' | 'roster_changed' | 'unavailable') {
+  constructor(readonly code: 'migration_required' | 'roster_changed' | 'stale_revision' | 'unavailable') {
     super(code)
     this.name = 'ManualAttendanceStoreError'
   }
 }
 
 function isMissingRelation(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === '42P01' || error?.message?.includes('manual_attendance_') === true
+  return error?.code === '42P01'
+    || error?.code === '42703'
+    || error?.code === 'PGRST204'
+    || error?.code === 'PGRST205'
 }
 
 function mapStoreError(error: { code?: string; message?: string } | null | undefined): never {
   if (isMissingRelation(error)) throw new ManualAttendanceStoreError('migration_required')
+  if (error?.code === '23503') throw new ManualAttendanceStoreError('roster_changed')
+  if (error?.code === '40001') throw new ManualAttendanceStoreError('stale_revision')
   throw new ManualAttendanceStoreError('unavailable')
 }
 
@@ -28,11 +33,26 @@ function localTime(value: unknown) {
 
 function parseSettings(row: any): ManualAttendanceSettings {
   if (!row) return DEFAULT_MANUAL_ATTENDANCE_SETTINGS
+  const sourceMode = row.manual_attendance_source_mode ?? row.source_mode
+  const startsAt = row.manual_attendance_session_starts_local ?? row.session_starts_local
+  const endsAt = row.manual_attendance_session_ends_local ?? row.session_ends_local
+  const revision = row.manual_attendance_revision ?? row.revision
   return {
-    sourceMode: row.source_mode === 'log' ? 'log' : 'manual',
-    sessionStartsLocal: localTime(row.session_starts_local),
-    sessionEndsLocal: localTime(row.session_ends_local),
+    sourceMode: sourceMode === 'log' ? 'log' : 'manual',
+    sessionStartsLocal: localTime(startsAt),
+    sessionEndsLocal: localTime(endsAt),
+    revision: Number.isSafeInteger(revision) && revision > 0
+      ? revision
+      : 1,
   }
+}
+
+function markForDate(value: unknown, classDate: string): ManualAttendanceStatus | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const status = (value as Record<string, unknown>)[classDate]
+  return status === 'present' || status === 'late' || status === 'absent'
+    ? status
+    : null
 }
 
 export async function loadManualAttendanceView(input: {
@@ -42,26 +62,25 @@ export async function loadManualAttendanceView(input: {
 }): Promise<ManualAttendanceView> {
   const [settingsResult, marksResult] = await Promise.all([
     input.supabase
-      .from('manual_attendance_settings')
-      .select('source_mode, session_starts_local, session_ends_local')
-      .eq('classroom_id', input.classroomId)
-      .maybeSingle(),
+      .from('classrooms')
+      .select('manual_attendance_source_mode, manual_attendance_session_starts_local, manual_attendance_session_ends_local, manual_attendance_revision')
+      .eq('id', input.classroomId)
+      .single(),
     input.supabase
-      .from('manual_attendance_marks')
-      .select('student_id, status')
-      .eq('classroom_id', input.classroomId)
-      .eq('class_date', input.classDate),
+      .from('classroom_enrollments')
+      .select('student_id, manual_attendance_marks')
+      .eq('classroom_id', input.classroomId),
   ])
 
   if (settingsResult.error) mapStoreError(settingsResult.error)
   if (marksResult.error) mapStoreError(marksResult.error)
 
-  const overrides = (marksResult.data ?? []).flatMap((row: any) => (
-    typeof row.student_id === 'string'
-      && (row.status === 'present' || row.status === 'late' || row.status === 'absent')
-      ? [{ studentId: row.student_id, status: row.status as ManualAttendanceStatus }]
+  const overrides = (marksResult.data ?? []).flatMap((row: any) => {
+    const status = markForDate(row.manual_attendance_marks, input.classDate)
+    return typeof row.student_id === 'string' && status
+      ? [{ studentId: row.student_id, status }]
       : []
-  ))
+  })
 
   return {
     classroomId: input.classroomId,
@@ -75,22 +94,22 @@ export async function saveManualAttendanceSettings(input: {
   supabase: any
   teacherId: string
   classroomId: string
+  expectedRevision: number
   sourceMode: ManualAttendanceSourceMode
   sessionStartsLocal: string | null
   sessionEndsLocal: string | null
 }): Promise<ManualAttendanceSettings> {
-  const { data, error } = await input.supabase
-    .from('manual_attendance_settings')
-    .upsert({
-      classroom_id: input.classroomId,
-      source_mode: input.sourceMode,
-      session_starts_local: input.sessionStartsLocal,
-      session_ends_local: input.sessionEndsLocal,
-      updated_by: input.teacherId,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'classroom_id' })
-    .select('source_mode, session_starts_local, session_ends_local')
-    .single()
+  const { data, error } = await input.supabase.rpc(
+    'set_pika_manual_attendance_settings',
+    {
+      p_teacher_id: input.teacherId,
+      p_classroom_id: input.classroomId,
+      p_expected_revision: input.expectedRevision,
+      p_source_mode: input.sourceMode,
+      p_session_starts_local: input.sessionStartsLocal,
+      p_session_ends_local: input.sessionEndsLocal,
+    },
+  )
 
   if (error) mapStoreError(error)
   return parseSettings(data)
@@ -104,39 +123,12 @@ export async function saveManualAttendanceMarks(input: {
   studentIds: string[]
   status: ManualAttendanceStatus | 'automatic'
 }) {
-  const { data: enrollmentRows, error: enrollmentError } = await input.supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', input.classroomId)
-    .in('student_id', input.studentIds)
-  if (enrollmentError) throw new ManualAttendanceStoreError('unavailable')
-
-  const enrolled = new Set((enrollmentRows ?? []).map((row: any) => row.student_id))
-  if (input.studentIds.some((studentId) => !enrolled.has(studentId))) {
-    throw new ManualAttendanceStoreError('roster_changed')
-  }
-
-  if (input.status === 'automatic') {
-    const { error } = await input.supabase
-      .from('manual_attendance_marks')
-      .delete()
-      .eq('classroom_id', input.classroomId)
-      .eq('class_date', input.classDate)
-      .in('student_id', input.studentIds)
-    if (error) mapStoreError(error)
-    return
-  }
-
-  const now = new Date().toISOString()
-  const { error } = await input.supabase
-    .from('manual_attendance_marks')
-    .upsert(input.studentIds.map((studentId) => ({
-      classroom_id: input.classroomId,
-      class_date: input.classDate,
-      student_id: studentId,
-      status: input.status,
-      updated_by: input.teacherId,
-      updated_at: now,
-    })), { onConflict: 'classroom_id,class_date,student_id' })
+  const { error } = await input.supabase.rpc('set_pika_manual_attendance_marks', {
+    p_teacher_id: input.teacherId,
+    p_classroom_id: input.classroomId,
+    p_class_date: input.classDate,
+    p_student_ids: input.studentIds,
+    p_status: input.status,
+  })
   if (error) mapStoreError(error)
 }
