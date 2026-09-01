@@ -11,6 +11,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-31 — Inspect Attendance catalog direction
+
+- Audited current combined Daily/Attendance controls, semantic colors, count ownership/sorting behavior, student confirmation semantics and older attendance implementations. Recorded findings in `docs/guidance/ui/changes/status-catalog-audit.md`; catalog implementation awaits the number-only versus icon-plus-count design choice.
+- Current direction: green Present, yellow Late, red Absent; rounded tabular-number header pills with contextual tooltips and active-sort rings; click sorts rather than filters; Unmarked has no count chip. Student Checked in stays separate from teacher-derived marks.
+- Fixed an incidental regression from this worktree's earlier PageActionBar change: omit an empty trailing flex slot for primary-only bars to remove a 6px left shift. Existing Attendance browser contracts pass 4/4 (desktop/mobile, light/dark); screenshots inspected and saved under session artifacts `attendance-catalog-review`. No business logic, API, schema or permissions changed.
+
+## 2026-08-31 — Confirm number-only status count chips
+
+User chose color-only status count chips: retain colored fills and numeric counts without added status icons. Recorded the decision in the status-catalog audit and operational-table guidance. Preserve contextual tooltips, accessible names, focus and active-sort rings. Documentation only; existing Attendance controls already match this choice. No UI or business behavior changed.
+
+## 2026-08-31 — Render the agreed status examples in Pattern Lab
+
+- Corrected the documentation-only handoff: Controls now visibly includes an interactive Attendance example with production green/yellow/red number-only count chips and row controls, plus actual Classwork/Test status labels and colors. Direct preview: localhost:3004/pattern-lab#status-colors; Statuses links back to it.
+- Five fixed sample students support count sorting, local status changes, zero counts and reset. Reused existing production controls and display mappings; no API, saved attendance, grading or permission changes. Added catalog owner entries and semantic/browser tests.
+- Focused checks passed: 135 files / 1,335 tests plus architecture, UI/design, TypeScript and lint. Eight role/viewport/theme browser contracts pass; screenshots inspected, with teacher/student captures identical in each visual variant. Artifacts saved under `status-catalog-preview` in this session's visualization folder. Existing screenshot baseline acceptance remains required before publication. Changes remain local and uncommitted.
+
 ## 2026-08-31 — Reduce visible attendance selection circles
 
 - User requested smaller attendance selection circles. Reduced visible discs from 28px to 20px in the production Attendance controls and matching standalone Attendance implementation; preserved 44px targets, count-chip size, colors, selection rings and behavior. Pattern Lab reflects the production owner automatically.
@@ -286,3 +302,8 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Focused gate passes 12 files / 112 tests plus architecture, UI/design policy, TypeScript, and lint. Email and code-entry states were visually reviewed at desktop/mobile in light/dark with no overflow; teacher/student are pre-role and share this surface. Pika audit passes. Risk profile: none. Model recommendation: GPT-5.6 Terra — localized copy-only UI refinement.
 - Follow-up brand refinement reuses the production Pika logo beside the title, adds the approved subtitle “School days, simplified.”, and removes the visible School Email asterisk while retaining native required semantics in both login modes. The shared pre-role email state was visually inspected at desktop/mobile in light/dark. Per explicit user direction, tests and CI were not run for this follow-up before its draft push; focused assertions were updated for the final copy and semantics.
 - Final independent review found the title-adjacent logo duplicated “Pika” for assistive technology. The login treatment now hides that decorative instance from the accessibility tree while retaining the visible mark; a matching semantic assertion covers the correction.
+## 2026-09-01 — Resolve database lint warnings
+
+- Added migration 147 to resolve all warning-level findings found by a fresh migration replay while preserving deployed RPC signatures, grants, security modes, and established lock order. Dead declarations and discarded results were removed; Test unsubmit now enforces its teacher actor at the database boundary, and clear-grade rejects a null deterministic clock.
+- The shared local stack already contained the separate Gradebook migration 147, so verification used a disposable isolated Supabase project built only from this branch. Fresh migrations 001–147 replayed successfully, generated public-schema types are unchanged, and `supabase db lint --local --level warning` reports zero findings.
+- Current archive staging/compaction, assignment mutation/concurrency, Test submit/grading, student purge, attendance, managed storage, and cleanup-health database contracts pass on the isolated replay. Focused checks pass 11 files / 96 tests plus architecture, TypeScript, and lint; Pika audit reports no TypeScript changes. Risk profile runtime-platform. Model recommendation: GPT-5.6 Sol — cross-domain PostgreSQL migration and authorization boundary change.
