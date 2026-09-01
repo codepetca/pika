@@ -1445,7 +1445,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         summary={null}
         workspace={workspace}
         workspaceFrame="standalone"
-        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+        workspaceFrameClassName="min-h-[360px] rounded-none border-0 bg-page"
       />
       <ContentDialog
         isOpen={attendance.qrOpen}
