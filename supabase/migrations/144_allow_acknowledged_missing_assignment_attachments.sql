@@ -11,6 +11,9 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_current_missing_requirement_ids uuid[];
+  v_distinct_acknowledgement_count integer;
 begin
   if exists (
     select 1
@@ -35,28 +38,45 @@ begin
       message = 'assignment_submission_requirements_incomplete';
   end if;
 
-  if p_acknowledged_missing_requirement_ids is not null and exists (
-    select 1
-    from public.assignment_submission_requirements r
-    left join public.assignment_submission_artifacts a
-      on a.requirement_id = r.id
-      and a.assignment_doc_id = p_doc.id
-      and a.student_id = p_doc.student_id
-      and a.type = r.type
-    where r.assignment_id = p_doc.assignment_id
-      and not (r.id = any(p_acknowledged_missing_requirement_ids))
-      and (
-        a.id is null
-        or case
-          when r.type = 'image' then
-            coalesce(nullif(btrim(a.storage_path), ''), nullif(btrim(a.url), '')) is null
-          else nullif(btrim(coalesce(a.url, '')), '') is null
-        end
+  select coalesce(array_agg(r.id order by r.id), '{}'::uuid[])
+  into v_current_missing_requirement_ids
+  from public.assignment_submission_requirements r
+  left join public.assignment_submission_artifacts a
+    on a.requirement_id = r.id
+    and a.assignment_doc_id = p_doc.id
+    and a.student_id = p_doc.student_id
+    and a.type = r.type
+  where r.assignment_id = p_doc.assignment_id
+    and (
+      a.id is null
+      or case
+        when r.type = 'image' then
+          coalesce(nullif(btrim(a.storage_path), ''), nullif(btrim(a.url), '')) is null
+        else nullif(btrim(coalesce(a.url, '')), '') is null
+      end
+    );
+
+  if p_acknowledged_missing_requirement_ids is not null then
+    select count(distinct acknowledged_id)
+    into v_distinct_acknowledgement_count
+    from unnest(p_acknowledged_missing_requirement_ids) as acknowledged(acknowledged_id);
+
+    if cardinality(p_acknowledged_missing_requirement_ids) <> v_distinct_acknowledgement_count
+      or cardinality(p_acknowledged_missing_requirement_ids) <> cardinality(v_current_missing_requirement_ids)
+      or exists (
+        select 1
+        from unnest(p_acknowledged_missing_requirement_ids) as acknowledged(acknowledged_id)
+        where not (acknowledged_id = any(v_current_missing_requirement_ids))
       )
-  ) then
-    raise exception using
-      errcode = '23514',
-      message = 'assignment_submission_requirements_missing';
+      or exists (
+        select 1
+        from unnest(v_current_missing_requirement_ids) as missing(missing_id)
+        where not (missing_id = any(p_acknowledged_missing_requirement_ids))
+      ) then
+      raise exception using
+        errcode = '23514',
+        message = 'assignment_submission_requirements_missing';
+    end if;
   end if;
 end;
 $$;

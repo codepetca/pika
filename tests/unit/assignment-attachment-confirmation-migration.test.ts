@@ -8,12 +8,17 @@ const migration = readFileSync(
 ).toLowerCase()
 
 describe('acknowledged missing assignment attachments migration', () => {
-  it('keeps invalid artifacts blocked and makes missing rows conditional on acknowledgement', () => {
+  it('keeps invalid artifacts blocked and requires an exact duplicate-free missing acknowledgement', () => {
     expect(migration).toContain('create or replace function private.validate_assignment_submission_requirements')
     expect(migration).toContain("a.validation_status in ('invalid', 'inaccessible')")
     expect(migration).toContain('join public.assignment_submission_artifacts a')
-    expect(migration).toContain('if p_acknowledged_missing_requirement_ids is not null and exists')
-    expect(migration).toContain('not (r.id = any(p_acknowledged_missing_requirement_ids))')
+    expect(migration).toContain('if p_acknowledged_missing_requirement_ids is not null then')
+    expect(migration).toContain('count(distinct acknowledged_id)')
+    expect(migration).toContain(
+      'cardinality(p_acknowledged_missing_requirement_ids) <> cardinality(v_current_missing_requirement_ids)'
+    )
+    expect(migration).toContain('not (acknowledged_id = any(v_current_missing_requirement_ids))')
+    expect(migration).toContain('not (missing_id = any(p_acknowledged_missing_requirement_ids))')
     expect(migration).toContain('left join public.assignment_submission_artifacts a')
     expect(migration).toContain('a.id is null')
     expect(migration).toContain("message = 'assignment_submission_requirements_missing'")

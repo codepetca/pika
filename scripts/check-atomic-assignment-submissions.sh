@@ -500,6 +500,7 @@ declare
   v_ids assignment_integrity_ids%rowtype;
   v_revision timestamptz;
   v_result jsonb;
+  v_bad_acknowledgement uuid[];
 begin
   select * into v_ids from assignment_integrity_ids;
   select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
@@ -516,6 +517,28 @@ begin
         raise;
       end if;
   end;
+
+  for v_bad_acknowledgement in
+    select bad_acknowledgement
+    from (values
+      (array[v_ids.requirement_id, '10000000-0000-4000-8000-000000000040'::uuid]),
+      (array[v_ids.requirement_id, v_ids.requirement_id])
+    ) as bad(bad_acknowledgement)
+  loop
+    begin
+      perform public.submit_assignment_doc_atomic(
+        v_ids.assignment_id, v_ids.student_id,
+        (select content from public.assignment_docs where id = v_ids.doc_id),
+        v_revision, 1, 6, v_bad_acknowledgement
+      );
+      raise exception 'Standard submission accepted a non-exact acknowledgement: %', v_bad_acknowledgement;
+    exception
+      when check_violation then
+        if sqlerrm not like '%assignment_submission_requirements_missing%' then
+          raise;
+        end if;
+    end;
+  end loop;
 
   v_result := public.submit_assignment_doc_atomic(
     v_ids.assignment_id, v_ids.student_id,
@@ -544,6 +567,28 @@ begin
         raise;
       end if;
   end;
+
+  for v_bad_acknowledgement in
+    select bad_acknowledgement
+    from (values
+      (array[v_ids.requirement_id, '10000000-0000-4000-8000-000000000040'::uuid]),
+      (array[v_ids.requirement_id, v_ids.requirement_id])
+    ) as bad(bad_acknowledgement)
+  loop
+    begin
+      perform public.submit_assignment_doc_with_pal_event_atomic(
+        v_ids.assignment_id, v_ids.student_id,
+        (select content from public.assignment_docs where id = v_ids.doc_id),
+        v_revision, 1, 6, null, v_bad_acknowledgement
+      );
+      raise exception 'Pal submission accepted a non-exact acknowledgement: %', v_bad_acknowledgement;
+    exception
+      when check_violation then
+        if sqlerrm not like '%assignment_submission_requirements_missing%' then
+          raise;
+        end if;
+    end;
+  end loop;
 
   v_result := public.submit_assignment_doc_with_pal_event_atomic(
     v_ids.assignment_id, v_ids.student_id,
