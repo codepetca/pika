@@ -16,7 +16,7 @@ export default async function TestPreviewPage({ params }: PageProps) {
 
   const user = await getCurrentUser()
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
   if (user.role !== 'teacher') {
     notFound()

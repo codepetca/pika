@@ -17,14 +17,23 @@ vi.mock('@/components/CourseGuideView', () => ({
 }))
 
 describe('Course Guide import visual fixture', () => {
-  it('renders teacher, student, and public roles for the verification matrix', () => {
-    const { rerender } = render(<CourseGuideImportFixturePage searchParams={{}} />)
+  it('renders teacher, student, and public roles for the verification matrix', async () => {
+    const teacherPage = await CourseGuideImportFixturePage({
+      searchParams: Promise.resolve({}),
+    })
+    const { rerender } = render(teacherPage)
     expect(screen.getByTestId('course-guide-role')).toHaveTextContent('teacher')
 
-    rerender(<CourseGuideImportFixturePage searchParams={{ role: 'student' }} />)
+    const studentPage = await CourseGuideImportFixturePage({
+      searchParams: Promise.resolve({ role: 'student' }),
+    })
+    rerender(studentPage)
     expect(screen.getByTestId('course-guide-role')).toHaveTextContent('student')
 
-    rerender(<CourseGuideImportFixturePage searchParams={{ role: 'public' }} />)
+    const publicPage = await CourseGuideImportFixturePage({
+      searchParams: Promise.resolve({ role: 'public' }),
+    })
+    rerender(publicPage)
     expect(screen.getByTestId('public-course-guide')).toHaveTextContent(
       'Design portfolio · Programming concepts test',
     )

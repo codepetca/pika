@@ -71,9 +71,9 @@ describe('PatternLabPage guard', () => {
     process.env.ENABLE_UI_GALLERY = 'true'
     process.env.PIKA_E2E_FIXTURES = 'true'
 
-    const page = (await PatternLabPage({ searchParams: { role: 'student' } })) as ReactElement<{
-      role: string
-    }>
+    const page = (await PatternLabPage({
+      searchParams: Promise.resolve({ role: 'student' }),
+    })) as ReactElement<{ role: string }>
 
     expect(page.props.role).toBe('student')
     expect(mocks.getCurrentUser).not.toHaveBeenCalled()
@@ -84,9 +84,9 @@ describe('PatternLabPage guard', () => {
     process.env.ENABLE_UI_GALLERY = 'true'
     process.env.PIKA_E2E_FIXTURES = 'true'
 
-    await expect(PatternLabPage({ searchParams: { role: 'student' } })).rejects.toThrow(
-      'not-found',
-    )
+    await expect(
+      PatternLabPage({ searchParams: Promise.resolve({ role: 'student' }) }),
+    ).rejects.toThrow('not-found')
     expect(mocks.getCurrentUser).not.toHaveBeenCalled()
   })
 

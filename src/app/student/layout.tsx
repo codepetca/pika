@@ -17,7 +17,7 @@ export default async function StudentLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
 
   if (user.role !== 'student') {
