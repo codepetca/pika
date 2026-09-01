@@ -63,6 +63,8 @@ describe('UiGallery accessibility contracts', () => {
 
     expect(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Find a pattern' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Pattern Lab role' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Student' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('tablist', { name: 'Pattern example panels' })).toBeInTheDocument()
     const detailsTab = screen.getByRole('tab', { name: 'Details' })
     const historyTab = screen.getByRole('tab', { name: 'History' })
@@ -136,12 +138,12 @@ describe('UiGallery accessibility contracts', () => {
     requestAnimationFrame.mockRestore()
   })
 
-  it('keeps page mockups teacher-only and exposes named interactive owners', async () => {
+  it('exposes role-appropriate page mockups and named interactive owners', async () => {
     const user = userEvent.setup()
     const { unmount } = renderGallery('teacher')
     expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
     const mockups = within(screen.getByTestId('page-mockups'))
-    expect(mockups.getByRole('tablist', { name: 'Classroom page mockups' })).toBeInTheDocument()
+    expect(mockups.getByRole('tablist', { name: 'Teacher classroom page mockups' })).toBeInTheDocument()
     await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     expect(mockups.queryByText('Semester 1 · 4 students')).not.toBeInTheDocument()
     expect(mockups.queryByRole('columnheader', { name: 'Preview' })).not.toBeInTheDocument()
@@ -172,7 +174,7 @@ describe('UiGallery accessibility contracts', () => {
     await user.click(mockups.getByRole('button', { name: 'More actions' }))
     expect(mockups.getByRole('menuitem', { name: 'Show %' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
-    for (const name of ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
+    for (const name of ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = mockups.getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
@@ -189,7 +191,10 @@ describe('UiGallery accessibility contracts', () => {
     expect(mockups.getByRole('status')).toHaveTextContent('Create announcement selected. Example only')
     unmount()
     renderGallery('student')
-    expect(screen.queryByTestId('page-mockups')).not.toBeInTheDocument()
+    const studentMockups = within(screen.getByTestId('page-mockups'))
+    expect(studentMockups.getByRole('tablist', { name: 'Student classroom page mockups' })).toBeInTheDocument()
+    expect(studentMockups.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'true')
+    expect(studentMockups.getByTestId('student-today-mockup')).toBeVisible()
   })
 
   it('moves tab focus and selection with arrow keys', () => {

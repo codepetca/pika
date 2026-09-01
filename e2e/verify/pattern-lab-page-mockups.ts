@@ -2,7 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import type { VerificationCheck, VerificationResult, VerificationScript } from './types'
 
-const PAGES = ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
+const TEACHER_PAGES = ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
+const STUDENT_PAGES = ['Today', 'Classwork', 'Tests', 'Calendar', 'Announcements', 'Resources'] as const
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -37,6 +38,7 @@ export const patternLabPageMockups: VerificationScript = {
         return bounds.top >= 0 && bounds.top < 24 && bounds.bottom <= window.innerHeight
       }),
     })
+    await navigator.evaluate((element) => { element.style.position = 'static' })
 
     for (const theme of ['light', 'dark'] as const) {
       const wantedButton = theme === 'dark' ? 'Use dark theme' : 'Use light theme'
@@ -45,7 +47,7 @@ export const patternLabPageMockups: VerificationScript = {
 
       for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
         await page.setViewportSize(viewport)
-        for (const pageName of PAGES) {
+        for (const pageName of TEACHER_PAGES) {
           await section.getByRole('tab', { name: pageName }).click()
           const workspace = pageName === 'Workspaces' ? section.getByTestId('work-surface-mockup') : null
           if (workspace) await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
@@ -130,6 +132,14 @@ export const patternLabPageMockups: VerificationScript = {
       passed: await section.getByRole('tab', { name: 'Classrooms' }).getAttribute('aria-selected') === 'true'
         && await section.getByRole('tabpanel', { name: 'Classrooms' }).isVisible()
         && await page.evaluate(() => window.location.hash === '#mockup-classrooms-panel'),
+    })
+    await jumpSelect.selectOption('mockup-daily-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator opens the Daily mockup directly',
+      passed: await section.getByRole('tab', { name: 'Daily' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Daily' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-daily-panel'),
     })
     await jumpSelect.selectOption('mockup-settings-panel')
     await page.waitForTimeout(100)
@@ -552,8 +562,65 @@ export const patternLabPageMockups: VerificationScript = {
     await workspace.screenshot({ path: mobileWorkspaceArtifact })
     artifacts.push(mobileWorkspaceArtifact)
 
-    await page.goto(`${baseUrl}/pattern-lab?role=student`)
-    checks.push({ name: 'Student gallery excludes teacher page mockups', passed: await page.locator('#page-mockups').count() === 0 })
+    await page.goto(`${baseUrl}/pattern-lab?role=teacher#page-mockups`)
+    await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Student' }).click()
+    await page.waitForURL(`${baseUrl}/pattern-lab?role=student#page-mockups`)
+    checks.push({
+      name: 'Sticky navigator switches from teacher to student page patterns',
+      passed: await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Student', exact: true }).getAttribute('aria-pressed') === 'true'
+        && await section.getByRole('tablist', { name: 'Student classroom page mockups' }).isVisible(),
+    })
+    await navigator.evaluate((element) => { element.style.position = 'static' })
+    await page.setViewportSize(VIEWPORTS.desktop)
+    const studentNavigatorDesktopArtifact = path.join(artifactDir, 'navigator-student-desktop-light.png')
+    await navigator.screenshot({ path: studentNavigatorDesktopArtifact })
+    artifacts.push(studentNavigatorDesktopArtifact)
+
+    for (const theme of ['light', 'dark'] as const) {
+      const wantedButton = theme === 'dark' ? 'Use dark theme' : 'Use light theme'
+      const themeButton = page.getByRole('button', { name: wantedButton })
+      if (await themeButton.isVisible().catch(() => false)) await themeButton.click()
+
+      for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+        await page.setViewportSize(viewport)
+        for (const pageName of STUDENT_PAGES) {
+          await section.getByRole('tab', { name: pageName }).click()
+          const targetId = await section.getByRole('tab', { name: pageName }).getAttribute('aria-controls')
+          checks.push({
+            name: `student ${viewportName} ${theme} ${pageName} tab target exists`,
+            passed: Boolean(targetId && await page.locator(`#${targetId}`).count()),
+          })
+          checks.push({
+            name: `student ${viewportName} ${theme} ${pageName} has no page overflow`,
+            passed: await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+          })
+          const artifact = path.join(artifactDir, `student-${viewportName}-${theme}-${pageName.toLowerCase()}.png`)
+          await section.screenshot({ path: artifact })
+          artifacts.push(artifact)
+        }
+      }
+    }
+
+    const studentNavigatorMobileArtifact = path.join(artifactDir, 'navigator-student-mobile-dark.png')
+    await navigator.screenshot({ path: studentNavigatorMobileArtifact })
+    artifacts.push(studentNavigatorMobileArtifact)
+
+    await page.setViewportSize(VIEWPORTS.desktop)
+    await jumpSelect.selectOption('mockup-student-tests-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Student navigator opens the Tests mockup directly',
+      passed: await section.getByRole('tab', { name: 'Tests' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Tests' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-student-tests-panel'),
+    })
+    await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Teacher' }).click()
+    await page.waitForURL(`${baseUrl}/pattern-lab?role=teacher#page-mockups`)
+    checks.push({
+      name: 'Sticky navigator switches back to teacher page patterns',
+      passed: await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Teacher', exact: true }).getAttribute('aria-pressed') === 'true'
+        && await section.getByRole('tablist', { name: 'Teacher classroom page mockups' }).isVisible(),
+    })
 
     return {
       scenario: 'pattern-lab-page-mockups',

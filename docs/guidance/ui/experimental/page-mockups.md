@@ -9,17 +9,20 @@ experimental.
 
 ## Brief
 
-- Surface: `/pattern-lab#page-mockups`, Gradebook, Calendar, Announcements,
-  Roster, Settings, and the shared Classwork/Tests workspace progression.
+- Surface: `/pattern-lab#page-mockups`; teacher Daily, Classrooms, Gradebook,
+  Calendar, Announcements, Roster, Settings, and the shared Classwork/Tests
+  workspace progression; student Today, Classwork, Tests, Calendar,
+  Announcements, and Resources.
 - References: Pattern Lab core page actions and teacher date context;
   Attendance table density; selected Test grading selection/action hierarchy.
-- Roles: teacher. Student gallery is checked for exclusion/regression; no student
-  product surface changes.
+- Roles: teacher and student. The sticky Pattern Lab navigator owns the role
+  switch; each role receives its own tabs and deterministic fixtures.
 - Viewports/themes: desktop 1440×900 and mobile 390×844, light and dark.
 - States: populated, loading, empty, error/retry, sorted, selected, open menu,
   keyboard focus, preview dialog, gradebook-category setup, assessment details,
   calendar view/range, announcement filter, settings section/save/confirmation,
-  and summary/workspace/inspector.
+  Daily attendance marking, student list actions, and
+  summary/workspace/inspector.
 - Primary signal: stable centered scope/actions; quiet context left; ghost
   ellipsis utilities right. Table selection never replaces global controls.
 - Exclusions: live APIs, persistent preferences, real email/clipboard writes,
@@ -31,7 +34,7 @@ experimental.
 |---|---|---|---|
 | Page controls | PageActionBar, TeacherWorkSurfaceContextBar | reuse | Stable center and edge responsibilities |
 | Menus/selection | TeacherWorkSurface action menus | reuse | Named, keyboard-accessible scope actions |
-| Dates/views | DateNavigator, SegmentedControl | reuse | Existing scope and display contracts |
+| Dates/views/role | DateNavigator, SegmentedControl | reuse | Existing scope, display, and keyboard contracts |
 | Tables | DataTable, SortableHeaderCell, TeacherWorkSurfaceTableFrame | reuse | Density, sticky header and sorting semantics |
 | States/overlays | PageState, ContentDialog, IconButton | reuse | Standard feedback, focus return and targets |
 | Gradebook setup | ContentDialog, FormField, Input, Select, Button | extend | One feature-owned editor is shared by Pattern Lab and the live gradebook |
@@ -43,11 +46,13 @@ experimental.
 | Page | Current evidence | Proposal |
 |---|---|---|
 | Gradebook | TeacherGradebookTab replaces score-display button with email on selection; settings menu shares center | Keep %/Raw stable, persistent disabled-until-selected student menu, ellipsis right; add Edit gradebook for category percentages/defaults; assessment titles open category, item-weight, and exact-course-weight details; retain row preview |
+| Daily | TeacherAttendanceTab owns date, QR/session commands, log completion, check-in evidence, and attendance status | Reuse the same shared owners with fixed rows, local sorting/selection/status changes, and no attendance API |
 | Calendar | CalendarActionBar nests a context bar in PageActionBar; date, Week/Month/All and edit controls share one wrapping cluster | Date remains centered; use Week/Month/Term and Markdown in the right menu, where Term means the configured classroom date range; preserve real calendar rendering and selected date content |
 | Announcements | TeacherAnnouncementsSection already has centered + and right ellipsis, but duplicates creation in menu | Preserve +; demonstrate All/Posted/Scheduled filter in menu, reading cards and contextual Eye preview; no operational status-count table |
 | Roster | TeacherRosterTab has + Students and settings in center, selected email/removal commands mixed into global menu | Icon-only +, persistent selection menu, CSV import in right ellipsis; separate sortable names, quiet joined/not-joined text and contextual details |
 | Settings | TeacherSettingsTab uses section navigation, local field saves, feature switches, and guarded access changes | Keep one section visible at a time; show save feedback without a global submit bar; retain confirmation for join-code replacement |
 | Classwork/Tests workspaces | TeacherClassroomView and TeacherTestsTab share the formal summary-to-workspace ladder and activate inspectors only after selection | Compare both families with one deterministic list → selected item → student inspector fixture while preserving family-owned labels and statuses; keep only Create in the centered summary cluster and place Organize once in More actions |
+| Student classroom pages | Student Today, Assignments, Tests, Calendar, Announcements, and Resources have separate production owners | Expose a role-appropriate local set using their existing cards, status labels, date controls, content renderer, and resource actions; do not reuse teacher-only operational controls |
 
 Gradebook student scores remain explicit examples. Category setup uses the live
 calculation contract: Attendance 10%, Term 65% and Final 25%, with Term as the

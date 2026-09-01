@@ -26,5 +26,11 @@ export default async function PatternLabPage({
     redirect(await getServerLoginRedirectPath())
   }
 
-  return <UiGallery role={user.role} />
+  const referenceRole = searchParams?.role === 'student'
+    ? 'student'
+    : searchParams?.role === 'teacher'
+      ? 'teacher'
+      : user.role
+
+  return <UiGallery role={referenceRole} />
 }

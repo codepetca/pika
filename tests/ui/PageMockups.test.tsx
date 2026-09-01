@@ -14,7 +14,7 @@ describe('PageMockups', () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
-    for (const name of ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
+    for (const name of ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = within(mockups).getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
@@ -23,6 +23,39 @@ describe('PageMockups', () => {
     await user.keyboard('{ArrowRight}')
     expect(within(mockups).getByRole('tab', { name: 'Gradebook' })).toHaveAttribute('aria-selected', 'true')
     expect(within(mockups).getByRole('tabpanel', { name: 'Gradebook' })).toBeVisible()
+  })
+
+  it('renders the production-shaped Daily controls with deterministic attendance interactions', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    const daily = within(mockups).getByTestId('daily-mockup')
+
+    expect(within(daily).getByRole('button', { name: 'Return to reference Daily date' })).toHaveAccessibleDescription('Today')
+    expect(within(daily).getByRole('button', { name: 'Show attendance QR' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    await user.click(within(daily).getByRole('checkbox', { name: 'Select Maya Chen' }))
+    await user.click(within(daily).getByRole('button', { name: 'Student actions for 1 selected' }))
+    await user.click(within(daily).getByRole('menuitem', { name: 'Mark late' }))
+    expect(within(mockups).getByRole('status')).toHaveTextContent('Mark 1 late selected. Example only')
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    expect(within(daily).getByRole('menuitemcheckbox', { name: 'Hide relative date' })).toBeChecked()
+  })
+
+  it('renders the student classroom page set with its own mounted tab targets', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><PageMockups role="student" /></TooltipProvider></ThemeProvider>)
+    const mockups = screen.getByTestId('page-mockups')
+
+    expect(within(mockups).getByRole('tablist', { name: 'Student classroom page mockups' })).toBeInTheDocument()
+    for (const name of ['Today', 'Classwork', 'Tests', 'Calendar', 'Announcements', 'Resources']) {
+      const tab = within(mockups).getByRole('tab', { name })
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
+    }
+    await user.click(within(mockups).getByRole('tab', { name: 'Tests' }))
+    expect(within(mockups).getByTestId('student-tests-mockup')).toBeVisible()
+    expect(within(mockups).getByRole('button', { name: /Ecosystems test/ })).toBeVisible()
   })
 
   it('retries local error state and explains prototype-only actions', async () => {
@@ -245,6 +278,7 @@ describe('PageMockups', () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Classrooms' }))
     const classrooms = within(mockups).getByTestId('classrooms-mockup')
 
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
