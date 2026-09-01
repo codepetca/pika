@@ -81,18 +81,46 @@ select private.replace_function_definition_fragment_v147(
 
 -- The service-role-only RPC receives the authenticated teacher ID from the
 -- route. Enforce that actor and the active Classroom at the atomic boundary
--- before mutating attempts; the empty-selection no-op remains unchanged.
+-- before mutating attempts. Lock Classroom then Test to match established Test
+-- mutation order and retain the authorization decision through the write; the
+-- empty-selection no-op remains unchanged.
+select private.replace_function_definition_fragment_v147(
+  'public.unsubmit_test_attempts_atomic(uuid,uuid[],uuid)'::regprocedure,
+  E'  v_attempts jsonb := ''[]''::jsonb;\n'
+    || E'  v_deleted_responses integer := 0;\n',
+  E'  v_attempts jsonb := ''[]''::jsonb;\n'
+    || E'  v_deleted_responses integer := 0;\n'
+    || E'  v_classroom_id uuid;\n'
+    || E'  v_classroom_teacher_id uuid;\n'
+    || E'  v_archived_at timestamptz;\n'
+);
 select private.replace_function_definition_fragment_v147(
   'public.unsubmit_test_attempts_atomic(uuid,uuid[],uuid)'::regprocedure,
   E'  with target_attempts as materialized (',
-  E'  if p_updated_by is null or not exists (\n'
-    || E'    select 1\n'
-    || E'    from public.tests test\n'
-    || E'    join public.classrooms classroom on classroom.id = test.classroom_id\n'
-    || E'    where test.id = p_test_id\n'
-    || E'      and classroom.teacher_id = p_updated_by\n'
-    || E'      and classroom.archived_at is null\n'
-    || E'  ) then\n'
+  E'  select test.classroom_id into v_classroom_id\n'
+    || E'  from public.tests test\n'
+    || E'  where test.id = p_test_id;\n'
+    || E'  if not found then\n'
+    || E'    raise exception ''Test unsubmission is not allowed'' using errcode = ''42501'';\n'
+    || E'  end if;\n\n'
+    || E'  select classroom.teacher_id, classroom.archived_at\n'
+    || E'  into v_classroom_teacher_id, v_archived_at\n'
+    || E'  from public.classrooms classroom\n'
+    || E'  where classroom.id = v_classroom_id\n'
+    || E'  for update;\n'
+    || E'  if not found then\n'
+    || E'    raise exception ''Test unsubmission is not allowed'' using errcode = ''42501'';\n'
+    || E'  end if;\n\n'
+    || E'  perform 1\n'
+    || E'  from public.tests test\n'
+    || E'  where test.id = p_test_id\n'
+    || E'    and test.classroom_id = v_classroom_id\n'
+    || E'  for update;\n'
+    || E'  if not found\n'
+    || E'    or p_updated_by is null\n'
+    || E'    or v_classroom_teacher_id is distinct from p_updated_by\n'
+    || E'    or v_archived_at is not null\n'
+    || E'  then\n'
     || E'    raise exception ''Test unsubmission is not allowed'' using errcode = ''42501'';\n'
     || E'  end if;\n\n'
     || E'  with target_attempts as materialized ('

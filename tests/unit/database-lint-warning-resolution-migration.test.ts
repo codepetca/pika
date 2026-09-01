@@ -32,8 +32,18 @@ describe('database lint warning resolution migration', () => {
   })
 
   it('uses the retained actor and clock parameters as database contracts', () => {
-    expect(migration).toContain('classroom.teacher_id = p_updated_by')
-    expect(migration).toContain('classroom.archived_at is null')
+    const classroomLock = migration.indexOf(
+      "E'  from public.classrooms classroom\\n'",
+    )
+    const testLock = migration.indexOf(
+      "E'  from public.tests test\\n'",
+      classroomLock + 1,
+    )
+
+    expect(classroomLock).toBeGreaterThan(-1)
+    expect(testLock).toBeGreaterThan(classroomLock)
+    expect(migration).toContain('v_classroom_teacher_id is distinct from p_updated_by')
+    expect(migration).toContain('v_archived_at is not null')
     expect(migration).toContain("using errcode = ''42501''")
     expect(migration).toContain('if p_now is null')
   })
