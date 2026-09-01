@@ -24,6 +24,8 @@ describe('gradebook categories migration', () => {
     expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.assignments')
     expect(migration).toContain('before insert or update of gradebook_category_id, classroom_id on public.tests')
     expect(migration).toContain('gradebook category must belong to the assessment classroom')
+    expect(migration).toContain('alter column gradebook_weight set default 0')
+    expect(migration).toContain("if tg_op = 'INSERT' and new.gradebook_weight = 0 then")
   })
 
   it('validates one default and category percentages totaling 100 atomically', () => {
@@ -32,5 +34,18 @@ describe('gradebook categories migration', () => {
     expect(migration).toContain('if percentage_total <> 100 then')
     expect(migration).toContain('gradebook category ids must be unique')
     expect(migration).toContain("scale((category.value->>'percentage')::numeric) > 2")
+    expect(migration).toContain("name = '__pika_replacing__'")
+  })
+
+  it('extends archive and purge contracts with restore compatibility', () => {
+    expect(migration).toContain("'gradebook_categories',\n  array['id']")
+    expect(migration).toContain("array_append(restore_after, 'gradebook_categories')")
+    expect(migration).toContain('create trigger car_gradebook_categories')
+    expect(migration).toContain('create trigger classroom_purge_fence_gradebook_categories')
+    expect(migration).toContain('normalize_classroom_archive_restore_row_v143')
+    expect(migration).toContain("jsonb_build_object('gradebook_category_id', null)")
+    expect(migration).toMatch(
+      /create or replace function public\.create_default_gradebook_categories\(\)[\s\S]*?current_setting\('pika\.classroom_archive_restore', true\) = 'on'[\s\S]*?create trigger create_default_gradebook_categories/,
+    )
   })
 })

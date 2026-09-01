@@ -742,7 +742,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     ),
   )
   const sourceResourceCounts = Object.fromEntries(
-    sourceContract.resources.map((resource) => [
+    manifest.resources.map((resource) => [
       resource.table,
       decoded.resources[resource.table]?.length || 0,
     ]),

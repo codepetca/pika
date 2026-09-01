@@ -141,4 +141,11 @@ describe('gradebookCategoriesPutSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('reserves the collision-free replacement namespace', () => {
+    expect(() => gradebookCategoriesPutSchema.parse({
+      classroom_id: 'classroom-1',
+      categories: [category({ name: '__pika_replacing__custom' })],
+    })).toThrow('Category name is reserved')
+  })
 })

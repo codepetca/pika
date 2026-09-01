@@ -556,6 +556,60 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
   })
 
+  it('serializes rapid saves for the same assessment so the newest weight persists', async () => {
+    let persistedWeight = 10
+    let resolveFirstSave: (() => void) | null = null
+    const patchWeights: number[] = []
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { gradebook_weight: number }
+        patchWeights.push(body.gradebook_weight)
+        if (patchWeights.length === 1) {
+          return new Promise((resolve) => {
+            resolveFirstSave = () => {
+              persistedWeight = body.gradebook_weight
+              resolve({ ok: true, json: async () => ({}) })
+            }
+          })
+        }
+        persistedWeight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => ({
+          ...column,
+          weight: column.assessment_id === 'assignment-1' ? persistedWeight : column.weight,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    renderGradebook('settings')
+    let input = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    fireEvent.change(input, { target: { value: '20' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(resolveFirstSave).toEqual(expect.any(Function)))
+
+    input = screen.getByRole('spinbutton', { name: 'A1 assessment weight' })
+    input.removeAttribute('disabled')
+    fireEvent.change(input, { target: { value: '30' } })
+    fireEvent.blur(input)
+    expect(patchWeights).toEqual([20])
+
+    await act(async () => {
+      resolveFirstSave?.()
+    })
+
+    await waitFor(() => expect(patchWeights).toEqual([20, 30]))
+    await waitFor(() => {
+      expect(screen.getByRole('spinbutton', { name: 'A1 assessment weight' })).toHaveValue(30)
+    })
+    expect(persistedWeight).toBe(30)
+  })
+
   it('ignores a stale classroom response after the classroom changes', async () => {
     const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
     let resolveFirst: ((value: unknown) => void) | null = null

@@ -1272,8 +1272,7 @@ export function TeacherGradebookTab({
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [detailPaneWidth, setDetailPaneWidth] = useState(32)
   const loadRequestIdRef = useRef(0)
-  const assessmentSaveSequenceRef = useRef(0)
-  const assessmentSaveRequestIdsRef = useRef<Map<string, number>>(new Map())
+  const assessmentSaveChainsRef = useRef<Map<string, Promise<void>>>(new Map())
   const dialogSaveSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
@@ -1426,9 +1425,8 @@ export function TeacherGradebookTab({
 
   useEffect(() => {
     loadRequestIdRef.current += 1
-    assessmentSaveSequenceRef.current += 1
     dialogSaveSequenceRef.current += 1
-    assessmentSaveRequestIdsRef.current = new Map()
+    assessmentSaveChainsRef.current = new Map()
     setAssessmentColumns([])
     setCategories([])
     setAssessmentWeightDrafts({})
@@ -1591,7 +1589,6 @@ export function TeacherGradebookTab({
     if (isReadOnly) return
 
     const key = getAssessmentColumnKey(column)
-    if (savingAssessmentKeys.has(key)) return
     const rawValue = assessmentWeightDrafts[key] ?? String(column.weight)
     const nextWeight = Number(rawValue)
 
@@ -1608,59 +1605,53 @@ export function TeacherGradebookTab({
     if (nextWeight === column.weight) return
 
     const classroomId = classroom.id
-    const requestId = assessmentSaveSequenceRef.current + 1
-    assessmentSaveSequenceRef.current = requestId
-    assessmentSaveRequestIdsRef.current.set(key, requestId)
     setSavingAssessmentKeys((previous) => new Set(previous).add(key))
     setActionError('')
-    try {
-      const response = await fetch('/api/teacher/gradebook', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroomId,
-          assessment_type: column.assessment_type,
-          assessment_id: column.assessment_id,
-          gradebook_weight: nextWeight,
-        }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save assessment weight')
-      }
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) !== requestId
-        || currentClassroomIdRef.current !== classroomId
-      ) return
+    const previousSave = assessmentSaveChainsRef.current.get(key) ?? Promise.resolve()
+    let queuedSave: Promise<void>
+    queuedSave = previousSave.catch(() => undefined).then(async () => {
+      try {
+        const response = await fetch('/api/teacher/gradebook', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classroom_id: classroomId,
+            assessment_type: column.assessment_type,
+            assessment_id: column.assessment_id,
+            gradebook_weight: nextWeight,
+          }),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to save assessment weight')
+        }
+        if (currentClassroomIdRef.current !== classroomId) return
 
-      setAssessmentColumns((previous) => previous.map((assessmentColumn) => (
-        getAssessmentColumnKey(assessmentColumn) === key
-          ? { ...assessmentColumn, weight: nextWeight }
-          : assessmentColumn
-      )))
-      setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
-      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
-      await loadGradebook({ preserveSnapshot: true })
-    } catch (err: unknown) {
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) !== requestId
-        || currentClassroomIdRef.current !== classroomId
-      ) return
-      setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
-      setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
-    } finally {
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) === requestId
-        && currentClassroomIdRef.current === classroomId
-      ) {
-        assessmentSaveRequestIdsRef.current.delete(key)
+        setAssessmentColumns((previous) => previous.map((assessmentColumn) => (
+          getAssessmentColumnKey(assessmentColumn) === key
+            ? { ...assessmentColumn, weight: nextWeight }
+            : assessmentColumn
+        )))
+        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
+        invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+        await loadGradebook({ preserveSnapshot: true })
+      } catch (err: unknown) {
+        if (currentClassroomIdRef.current !== classroomId) return
+        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
+        setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
+      }
+    }).finally(() => {
+      if (assessmentSaveChainsRef.current.get(key) === queuedSave) {
+        assessmentSaveChainsRef.current.delete(key)
         setSavingAssessmentKeys((previous) => {
           const next = new Set(previous)
           next.delete(key)
           return next
         })
       }
-    }
+    })
+    assessmentSaveChainsRef.current.set(key, queuedSave)
+    await queuedSave
   }
 
   async function saveGradebookCategories(nextCategories: GradebookCategory[]) {

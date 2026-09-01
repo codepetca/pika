@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { calculateAssessmentCourseWeight } from '@/lib/gradebook'
 import type { GradebookAssessmentColumn, GradebookCategory } from '@/types'
 import { Button, Card, ContentDialog, FormField, Input, Select } from '@/ui'
@@ -84,6 +84,18 @@ export function GradebookEditorDialog({
     })
   }
 
+  function moveCategory(id: string, direction: -1 | 1) {
+    setDrafts((current) => {
+      const index = current.findIndex((category) => category.id === id)
+      const nextIndex = index + direction
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current
+      const reordered = [...current]
+      const [moved] = reordered.splice(index, 1)
+      reordered.splice(nextIndex, 0, moved)
+      return normalizeCategories(reordered)
+    })
+  }
+
   function addCategory() {
     setDrafts((current) => normalizeCategories([
       ...current,
@@ -108,7 +120,7 @@ export function GradebookEditorDialog({
       showFooterClose={false}
     >
       <div className="space-y-3">
-        {drafts.map((category) => (
+        {drafts.map((category, index) => (
           <Card key={category.id} tone="muted" padding="sm">
             <div className="grid gap-3 md:grid-cols-4 md:items-end">
               <FormField label="Category name">
@@ -144,6 +156,26 @@ export function GradebookEditorDialog({
                 />
               </FormField>
               <div className="flex min-h-control items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Move ${category.name || 'category'} up`}
+                  disabled={index === 0}
+                  onClick={() => moveCategory(category.id, -1)}
+                >
+                  <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Move ${category.name || 'category'} down`}
+                  disabled={index === drafts.length - 1}
+                  onClick={() => moveCategory(category.id, 1)}
+                >
+                  <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                </Button>
                 <Button
                   type="button"
                   variant={category.is_default ? 'primary' : 'secondary'}

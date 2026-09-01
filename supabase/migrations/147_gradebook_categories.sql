@@ -32,6 +32,12 @@ alter table public.assignments
 alter table public.tests
   add column gradebook_category_id uuid references public.gradebook_categories (id) on delete set null;
 
+-- Zero is an insert-only sentinel that lets the trigger distinguish an omitted
+-- weight from an explicitly supplied valid weight. The trigger replaces it
+-- before constraints are checked, so stored rows remain in the 1-999 range.
+alter table public.assignments alter column gradebook_weight set default 0;
+alter table public.tests alter column gradebook_weight set default 0;
+
 create index assignments_gradebook_category_id_idx
   on public.assignments (gradebook_category_id);
 
@@ -82,6 +88,21 @@ language plpgsql
 set search_path = public
 as $$
 begin
+  -- Current-format restores stage category rows before inserting the classroom.
+  -- Let those archived rows restore with their stable IDs instead of creating
+  -- conflicting random defaults. Legacy archives have no staged category rows
+  -- and safely receive the standard defaults.
+  if current_setting('pika.classroom_archive_restore', true) = 'on'
+    and exists (
+      select 1
+      from public.classroom_archive_restore_staging as staged
+      where staged.table_name = 'gradebook_categories'
+        and staged.row_data->>'classroom_id' = new.id::text
+    )
+  then
+    return new;
+  end if;
+
   insert into public.gradebook_categories (
     classroom_id,
     name,
@@ -120,12 +141,19 @@ set search_path = public
 as $$
 begin
   if tg_op = 'INSERT' and new.gradebook_category_id is null then
-    select categories.id, categories.default_assessment_weight
-    into new.gradebook_category_id, new.gradebook_weight
+    select categories.id
+    into new.gradebook_category_id
     from public.gradebook_categories as categories
     where categories.classroom_id = new.classroom_id
     order by categories.is_default desc, categories.position, categories.id
     limit 1;
+  end if;
+
+  if tg_op = 'INSERT' and new.gradebook_weight = 0 then
+    select categories.default_assessment_weight
+    into new.gradebook_weight
+    from public.gradebook_categories as categories
+    where categories.id = new.gradebook_category_id;
   end if;
 
   if new.gradebook_category_id is not null and not exists (
@@ -209,6 +237,7 @@ begin
     from jsonb_array_elements(p_categories) as category(value)
     where nullif(category.value->>'id', '') is null
       or char_length(btrim(coalesce(category.value->>'name', ''))) not between 1 and 80
+      or starts_with(lower(btrim(category.value->>'name')), '__pika_replacing__')
       or (category.value->>'percentage')::numeric not between 0 and 100
       or scale((category.value->>'percentage')::numeric) > 2
       or (category.value->>'default_assessment_weight')::integer not between 1 and 999
@@ -227,10 +256,24 @@ begin
     raise exception 'gradebook category belongs to another classroom';
   end if;
 
-  update public.gradebook_categories
-  set is_default = false
+  perform 1
+  from public.gradebook_categories
   where classroom_id = p_classroom_id
-    and is_default;
+  for update;
+
+  update public.gradebook_categories
+  set
+    is_default = false,
+    name = '__pika_replacing__' || replace(id::text, '-', '')
+  where classroom_id = p_classroom_id;
+
+  delete from public.gradebook_categories as existing
+  where existing.classroom_id = p_classroom_id
+    and not exists (
+      select 1
+      from jsonb_array_elements(p_categories) as category(value)
+      where (category.value->>'id')::uuid = existing.id
+    );
 
   insert into public.gradebook_categories (
     id,
@@ -257,14 +300,6 @@ begin
     position = excluded.position,
     is_default = excluded.is_default;
 
-  delete from public.gradebook_categories as existing
-  where existing.classroom_id = p_classroom_id
-    and not exists (
-      select 1
-      from jsonb_array_elements(p_categories) as category(value)
-      where (category.value->>'id')::uuid = existing.id
-    );
-
   return query
   select categories.*
   from public.gradebook_categories as categories
@@ -272,6 +307,130 @@ begin
   order by categories.position, categories.id;
 end;
 $$;
+
+-- Gradebook categories are portable classroom state. Extend the active v2
+-- resource contract additively; legacy v2 archives are restored with an empty
+-- category resource and the defaults above.
+update public.classroom_archive_resource_contract_versions
+set export_position = export_position + 1000
+where format_version = 2;
+
+update public.classroom_archive_resource_contract_versions
+set export_position = case
+  when export_position >= 1003 then export_position - 999
+  else export_position - 1000
+end
+where format_version = 2;
+
+insert into public.classroom_archive_resource_contract_versions (
+  format_version,
+  table_name,
+  primary_key_columns,
+  parent_table,
+  parent_column,
+  actor_columns,
+  restore_after,
+  export_position
+) values (
+  2,
+  'gradebook_categories',
+  array['id'],
+  'classrooms',
+  'classroom_id',
+  array[]::text[],
+  array['classrooms'],
+  3
+);
+
+update public.classroom_archive_resource_contract_versions
+set restore_after = array_append(restore_after, 'gradebook_categories')
+where format_version = 2
+  and table_name in ('assignments', 'tests')
+  and not restore_after @> array['gradebook_categories'];
+
+update public.classroom_archive_resource_contract
+set export_position = export_position + 1000;
+
+update public.classroom_archive_resource_contract
+set export_position = case
+  when export_position >= 1003 then export_position - 999
+  else export_position - 1000
+end;
+
+insert into public.classroom_archive_resource_contract (
+  table_name,
+  primary_key_columns,
+  parent_table,
+  parent_column,
+  actor_columns,
+  restore_after,
+  export_position
+) values (
+  'gradebook_categories',
+  array['id'],
+  'classrooms',
+  'classroom_id',
+  array[]::text[],
+  array['classrooms'],
+  3
+);
+
+update public.classroom_archive_resource_contract
+set restore_after = array_append(restore_after, 'gradebook_categories')
+where table_name in ('assignments', 'tests')
+  and not restore_after @> array['gradebook_categories'];
+
+create trigger car_gradebook_categories
+  before insert or delete or update on public.gradebook_categories
+  for each row execute function public.bump_classroom_archive_revision_from_resource(
+    'classrooms',
+    'classroom_id'
+  );
+
+create trigger classroom_purge_fence_gradebook_categories
+  before insert or delete or update on public.gradebook_categories
+  for each row execute function public.reject_classroom_resource_change_during_purge(
+    'classrooms',
+    'classroom_id'
+  );
+
+alter function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  rename to normalize_classroom_archive_restore_row_v143;
+
+revoke all on function public.normalize_classroom_archive_restore_row_v143(uuid, text, jsonb)
+  from public, anon, authenticated;
+
+create function public.normalize_classroom_archive_restore_row(
+  p_operation_id uuid,
+  p_table_name text,
+  p_row jsonb
+)
+returns jsonb
+language plpgsql
+stable
+set search_path = ''
+as $$
+begin
+  p_row := public.normalize_classroom_archive_restore_row_v143(
+    p_operation_id,
+    p_table_name,
+    p_row
+  );
+
+  if p_table_name in ('assignments', 'tests')
+    and not (p_row ? 'gradebook_category_id')
+  then
+    p_row := p_row || jsonb_build_object('gradebook_category_id', null);
+  end if;
+
+  return p_row;
+end;
+$$;
+
+revoke all on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  to service_role;
 
 alter table public.gradebook_categories enable row level security;
 

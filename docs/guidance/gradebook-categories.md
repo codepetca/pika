@@ -47,6 +47,10 @@ Draft and excluded assessments also make no contribution and display no exact
 course weight. Exact course weight otherwise uses all non-draft, included
 assessments in that category, whether or not a particular student has a score.
 
+Category definitions and assessment memberships are included in classroom
+archives. Archives created before categories existed restore the standard
+Attendance, Term, and Final setup and place restored assessments in Term.
+
 ## Teacher workflow
 
 - **Edit gradebook** opens the category editor.

@@ -120,6 +120,13 @@ describe('PageMockups', () => {
     expect(screen.getByRole('heading', { name: 'Edit gradebook' })).toBeInTheDocument()
     expect(screen.getAllByRole('textbox', { name: 'Category name' })[1]).toHaveValue('Term')
     expect(screen.getByRole('button', { name: 'Default' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Move Term up' }))
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
+    await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
     await user.keyboard('{Escape}')
     expect(moreActions).toHaveFocus()
 

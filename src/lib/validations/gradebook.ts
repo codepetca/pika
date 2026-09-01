@@ -135,7 +135,10 @@ export type GradebookPatchCommand = z.infer<typeof gradebookPatchSchema>
 
 const gradebookCategoryInputSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(80).refine(
+    (name) => !name.toLocaleLowerCase().startsWith('__pika_replacing__'),
+    'Category name is reserved',
+  ),
   percentage: z.number().min(0).max(100).multipleOf(0.01),
   default_assessment_weight: z.number().int().min(1).max(ASSESSMENT_WEIGHT_MAX),
   is_default: z.boolean(),

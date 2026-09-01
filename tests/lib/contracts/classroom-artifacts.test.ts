@@ -114,10 +114,14 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
-  it('is a valid, complete 40-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(40)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(40)
+  it('is a valid, complete 41-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(41)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(41)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'assignments')?.restore_after)
+      .toContain('gradebook_categories')
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'tests')?.restore_after)
+      .toContain('gradebook_categories')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
       .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
