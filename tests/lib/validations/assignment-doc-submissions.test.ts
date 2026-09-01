@@ -15,7 +15,18 @@ describe('assignmentDocSubmitRequestSchema', () => {
       expected_updated_at: '2026-07-16T12:00:00.000Z',
     }
 
-    expect(assignmentDocSubmitRequestSchema.parse(input)).toEqual(input)
+    expect(assignmentDocSubmitRequestSchema.parse(input)).toEqual({
+      ...input,
+      allow_missing_attachments: false,
+    })
+  })
+
+  it('accepts an explicit missing-attachment acknowledgement', () => {
+    expect(assignmentDocSubmitRequestSchema.parse({
+      content: { type: 'doc', content: [] },
+      expected_updated_at: '2026-07-16T12:00:00.000Z',
+      allow_missing_attachments: true,
+    }).allow_missing_attachments).toBe(true)
   })
 
   it('rejects malformed content and revisions', () => {

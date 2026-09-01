@@ -114,7 +114,7 @@ describe('AssignmentModal', () => {
 
       const instructions = screen.getByRole('textbox', { name: 'Instructions' })
       expect(instructions).toHaveTextContent('Original instructions')
-      expect(screen.getByText('Students see this before they begin.')).toBeInTheDocument()
+      expect(screen.queryByText('Students see this before they begin.')).not.toBeInTheDocument()
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
 
@@ -157,7 +157,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('textbox', { name: 'Instructions' })).toHaveTextContent('Original instructions')
     })
 
-    it('places required submissions above instructions with compact split add actions', () => {
+    it('places attachments above instructions with one editable label per item', () => {
       render(
         <AssignmentModal
           isOpen={true}
@@ -168,32 +168,33 @@ describe('AssignmentModal', () => {
         />
       )
 
-      const requiredSubmissions = screen.getByText('Required submissions')
-      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
+      const attachments = screen.getByText('Submission Requirement')
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Submission Requirement' }))
       const instructions = screen.getByRole('textbox', { name: 'Instructions' })
 
-      expect(requiredSubmissions.compareDocumentPosition(instructions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(attachments.compareDocumentPosition(instructions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(requirementsGroup.queryByText('None')).not.toBeInTheDocument()
       expect(screen.queryByText('No structured submissions required.')).not.toBeInTheDocument()
 
-      const addButton = requirementsGroup.getByRole('button', { name: 'Add submission' })
-      expect(addButton).toHaveTextContent('+')
-      expect(addButton).toHaveTextContent('Add')
-      expect(addButton).not.toHaveTextContent('Link')
+      const addButton = requirementsGroup.getByRole('button', { name: 'Add submission requirement' })
+      expect(addButton).toHaveTextContent('')
+      expect(addButton.querySelector('svg')).toBeInTheDocument()
+      expect(requirementsGroup.getAllByRole('button')).toContain(addButton)
 
       fireEvent.click(addButton)
-      expect(screen.getByRole('menuitem', { name: 'Link' })).toHaveTextContent('+')
+      expect(screen.getByRole('menuitem', { name: 'Link' })).toBeInTheDocument()
       fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
 
       expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
-      expect(requirementsGroup.getByLabelText('Check')).toHaveValue('format_only')
-      expect(requirementsGroup.getByPlaceholderText('Optional helper text')).toBeInTheDocument()
+      expect(requirementsGroup.queryByLabelText('Check')).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByPlaceholderText('Optional helper text')).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByText('Required')).not.toBeInTheDocument()
       expect(requirementsGroup.queryByText('1 item')).not.toBeInTheDocument()
       expect(requirementsGroup.queryByRole('button', { name: 'Move requirement up' })).not.toBeInTheDocument()
       expect(requirementsGroup.queryByRole('button', { name: 'Move requirement down' })).not.toBeInTheDocument()
 
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
-      expect(screen.getByRole('menuitem', { name: 'Image' })).toHaveTextContent('+')
+      fireEvent.click(addButton)
+      expect(screen.getByRole('menuitem', { name: 'Image' })).toBeInTheDocument()
       fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
 
       expect(requirementsGroup.getByDisplayValue('Repo link')).toBeInTheDocument()
@@ -219,8 +220,8 @@ describe('AssignmentModal', () => {
         />
       )
 
-      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Add submission' }))
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Submission Requirement' }))
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Add submission requirement' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
 
       await act(async () => {
@@ -228,7 +229,7 @@ describe('AssignmentModal', () => {
       })
       expect(fetchMock).toHaveBeenCalledTimes(1)
 
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Add submission requirement' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
 
       await act(async () => {
@@ -285,54 +286,59 @@ describe('AssignmentModal', () => {
         />
       )
 
-      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove requirement' }))
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Submission Requirement' }))
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove attachment' }))
 
-      let dialog = screen.getByRole('dialog', { name: 'Remove required submission?' })
+      let dialog = screen.getByRole('dialog', { name: 'Remove attachment?' })
       expect(within(dialog).getByText('This removes "Link" from the assignment.')).toBeInTheDocument()
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Keep' }))
-      expect(screen.queryByRole('dialog', { name: 'Remove required submission?' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Remove attachment?' })).not.toBeInTheDocument()
       expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
 
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove requirement' }))
-      dialog = screen.getByRole('dialog', { name: 'Remove required submission?' })
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove attachment' }))
+      dialog = screen.getByRole('dialog', { name: 'Remove attachment?' })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
-      expect(screen.queryByRole('dialog', { name: 'Remove required submission?' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Remove attachment?' })).not.toBeInTheDocument()
       expect(requirementsGroup.queryByDisplayValue('Link')).not.toBeInTheDocument()
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
     })
 
-    it('stores expected-domain policy for link submissions without adding setup friction for other types', () => {
+    it('preserves existing helper text and non-default link policy while hiding their controls', () => {
       render(
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
-          assignment={baseAssignment}
+          assignment={{
+            ...baseAssignment,
+            submission_requirements: [{
+              id: 'requirement-link',
+              assignment_id: baseAssignment.id,
+              type: 'link',
+              label: 'Published project',
+              instructions: 'Use the public view.',
+              required: false,
+              position: 0,
+              validation_policy_json: { mode: 'expected_domain', expected_domains: ['codehs.com'] },
+              created_at: '2025-01-01T00:00:00.000Z',
+              updated_at: '2025-01-01T00:00:00.000Z',
+            }],
+          }}
           onClose={vi.fn()}
           onSuccess={vi.fn()}
         />
       )
 
-      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Add submission' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Submission Requirement' }))
+      expect(requirementsGroup.getByDisplayValue('Published project')).toBeInTheDocument()
+      expect(requirementsGroup.queryByLabelText('Check')).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByText('Use the public view.')).not.toBeInTheDocument()
 
-      fireEvent.change(requirementsGroup.getByLabelText('Check'), {
-        target: { value: 'expected_domain' },
+      fireEvent.change(requirementsGroup.getByDisplayValue('Published project'), {
+        target: { value: 'Final project' },
       })
-      fireEvent.change(requirementsGroup.getByLabelText('Expected domain'), {
-        target: { value: 'codehs.com' },
-      })
-
-      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
-
-      expect(requirementsGroup.getByLabelText('Check')).toHaveValue('expected_domain')
-      expect(requirementsGroup.getByLabelText('Expected domain')).toHaveValue('codehs.com')
-      expect(requirementsGroup.getAllByDisplayValue('Repo link')).toHaveLength(1)
-      expect(requirementsGroup.getAllByLabelText('Check')).toHaveLength(1)
+      expect(requirementsGroup.getByDisplayValue('Final project')).toBeInTheDocument()
     })
 
     it('shows save status indicator', () => {
@@ -619,7 +625,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      const titleInput = screen.getByPlaceholderText('Add a title')
+      const titleInput = screen.getByPlaceholderText('Title')
       expect(titleInput).toHaveValue('')
 
       fireEvent.click(screen.getByRole('button', { name: 'Post' }))
@@ -891,7 +897,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
-      expect(screen.getByPlaceholderText('Add a title')).toHaveValue('')
+      expect(screen.getByPlaceholderText('Title')).toHaveValue('')
       expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toHaveClass('h-[90dvh]')
       expect(screen.queryByDisplayValue('Untitled Assignment')).not.toBeInTheDocument()
 
@@ -1144,7 +1150,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
-      fireEvent.change(screen.getByPlaceholderText('Add a title'), { target: { value: 'Essay outline' } })
+      fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Essay outline' } })
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
 
@@ -1214,7 +1220,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
-      fireEvent.change(screen.getByPlaceholderText('Add a title'), { target: { value: 'Research summary' } })
+      fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Research summary' } })
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
       await waitFor(() => {

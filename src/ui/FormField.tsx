@@ -26,6 +26,8 @@ export interface FormFieldProps {
   required?: boolean
   /** Keep the label available to assistive tech without showing it visually */
   hideLabel?: boolean
+  /** Remove the visible label row when the hidden label has no accessory */
+  collapseHiddenLabel?: boolean
   /** Optional status or action displayed on the label row */
   labelAccessory?: ReactNode
   /** Exactly one form control (Input, Select, Textarea, etc.) */
@@ -66,6 +68,7 @@ export function FormField({
   hint,
   required,
   hideLabel,
+  collapseHiddenLabel,
   labelAccessory,
   children,
   className,
@@ -93,13 +96,20 @@ export function FormField({
 
   return (
     <div className={cn('w-full', className)}>
-      <div className="mb-1 flex min-h-5 items-center justify-between gap-3">
-        <label id={labelId} htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
+      {hideLabel && collapseHiddenLabel && !labelAccessory ? (
+        <label id={labelId} htmlFor={fieldId} className="sr-only">
           {label}
           {required && <span className={requiredMarkerStyles} aria-hidden="true">*</span>}
         </label>
-        {labelAccessory}
-      </div>
+      ) : (
+        <div className="mb-1 flex min-h-5 items-center justify-between gap-3">
+          <label id={labelId} htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
+            {label}
+            {required && <span className={requiredMarkerStyles} aria-hidden="true">*</span>}
+          </label>
+          {labelAccessory}
+        </div>
+      )}
       {enhancedChild}
       {hint && (
         <p id={hintId} className={hintStyles}>

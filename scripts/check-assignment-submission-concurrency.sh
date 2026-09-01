@@ -104,6 +104,9 @@ SQL
 docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
   psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   < "$ROOT/supabase/migrations/099_assignment_submission_integrity_guards.sql" >/dev/null
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/142_allow_acknowledged_missing_assignment_attachments.sql" >/dev/null
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 do $$

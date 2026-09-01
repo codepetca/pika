@@ -111,7 +111,7 @@ function mapRpcError(error: any, operation: 'save' | 'submit' | 'unsubmit'): Ass
     return {
       ok: false,
       status: 400,
-      error: 'Complete the required submissions before submitting.',
+      error: 'Fix invalid attachments before submitting.',
       errorCode: 'assignment_submission_requirements_incomplete',
     }
   }

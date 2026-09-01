@@ -1,10 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { StudentAssignmentSubmissionChecklist } from '@/components/StudentAssignmentSubmissionChecklist'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createRef } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  StudentAssignmentSubmissionChecklist,
+  type StudentAssignmentSubmissionChecklistHandle,
+} from '@/components/StudentAssignmentSubmissionChecklist'
 import type {
   AssignmentSubmissionArtifact,
   AssignmentSubmissionRequirement,
 } from '@/types'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function requirement(
   overrides: Partial<AssignmentSubmissionRequirement>
@@ -133,5 +141,44 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     expect(screen.getByText('Needs review')).toBeInTheDocument()
     expect(screen.getByText('This page may require login.')).toBeInTheDocument()
     expect(screen.getByDisplayValue('https://codehs.com/sandbox/example')).toBeInTheDocument()
+  })
+
+  it('saves pending URL edits before the parent checks for missing attachments', async () => {
+    const nextArtifact = artifact({ url: 'https://example.com/final' })
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ artifact: nextArtifact }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
+    const onArtifactsChange = vi.fn()
+
+    render(
+      <StudentAssignmentSubmissionChecklist
+        ref={ref}
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[artifact({})]}
+        githubIdentity={null}
+        onArtifactsChange={onArtifactsChange}
+        onError={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('URL'), {
+      target: { value: 'https://example.com/final' },
+    })
+
+    let savedArtifacts: AssignmentSubmissionArtifact[] = []
+    await act(async () => {
+      savedArtifacts = await ref.current!.savePendingArtifacts()
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/assignment-docs/assignment-1/artifacts/req-link',
+      expect.objectContaining({ method: 'PUT' })
+    )
+    expect(savedArtifacts).toContainEqual(nextArtifact)
+    await waitFor(() => expect(onArtifactsChange).toHaveBeenCalledWith(expect.arrayContaining([nextArtifact])))
   })
 })

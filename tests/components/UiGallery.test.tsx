@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
 import { MaterialCreationPattern } from '@/app/__ui/MaterialCreationPattern'
+import { StudentAssignmentAttachmentsPattern } from '@/app/__ui/StudentAssignmentAttachmentsPattern'
+import { TeacherPatterns } from '@/app/__ui/TeacherPatterns'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -86,6 +88,51 @@ describe('UiGallery history preview fixture', () => {
     await user.click(within(dialog).getByRole('button', { name: closeLabel }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(opener).toHaveFocus())
+  })
+
+  it('demonstrates the Assignment submission requirement menu without closing its dialog', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><AssignmentCreationPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open assignment example' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'New Assignment' })
+    const requirements = within(dialog).getByRole('group', { name: 'Submission Requirement' })
+    const addRequirement = within(requirements).getByRole('button', { name: 'Add submission requirement' })
+
+    await user.click(addRequirement)
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toHaveFocus()
+    expect(screen.getByRole('menuitem', { name: 'Repo' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Image' })).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(dialog).toBeInTheDocument()
+    expect(addRequirement).toHaveFocus()
+  })
+
+  it('reserves Daily date subtitle space when relative context is hidden', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><TeacherPatterns /></TooltipProvider></ThemeProvider>)
+
+    const date = screen.getByRole('button', { name: 'Go to reference today' })
+    expect(date).toHaveAccessibleDescription('2 days ago')
+
+    await user.click(screen.getByRole('button', { name: 'Relative date' }))
+
+    expect(date).not.toHaveAccessibleDescription()
+    expect(date.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
+  })
+
+  it('demonstrates one student confirmation for all missing attachments', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><StudentAssignmentAttachmentsPattern /></TooltipProvider></ThemeProvider>)
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    const confirmation = screen.getByRole('dialog', { name: 'Submit without attachments?' })
+    expect(within(confirmation).getByText('Repo link and Image are missing. Submit anyway?')).toBeInTheDocument()
+    await user.click(within(confirmation).getByRole('button', { name: 'Submit anyway' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Submit anyway selected')
   })
 
   it('demonstrates teacher hover, pin, and exit states', async () => {

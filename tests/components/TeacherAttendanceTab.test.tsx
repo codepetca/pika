@@ -582,6 +582,7 @@ describe('TeacherAttendanceTab', () => {
 
     expect(dateButton).toHaveTextContent('Tue May 5')
     expect(within(dateButton).queryByText('Yesterday')).not.toBeInTheDocument()
+    expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
 
     view.unmount()

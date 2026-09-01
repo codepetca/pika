@@ -50,15 +50,21 @@ export function AssignmentForm({
   markdownWarning,
   fillHeight = false,
 }: AssignmentFormProps) {
+  const relativeDueDate = getRelativeDueDate(dueAt, classDays)
+  const relativeDateSubtitle = relativeDueDate
+    ? `${relativeDueDate.text.charAt(0).toUpperCase()}${relativeDueDate.text.slice(1)}`
+    : null
+
   return (
     <div className={fillHeight ? 'flex h-full min-h-0 w-full flex-col gap-3' : 'space-y-3 w-full'}>
       <CreationModalTopRow
         title={title}
-        titlePlaceholder="Add a title"
+        titlePlaceholder="Title"
+        hideTitleLabel
         titleDisabled={disabled}
         titleInputRef={titleInputRef}
         titleInputClassName="flex-1"
-        titleFieldClassName="col-span-2 !max-w-none sm:col-span-1 sm:!max-w-[24rem]"
+        titleFieldClassName="col-span-2 !max-w-none sm:col-span-1 sm:self-start sm:!max-w-[24rem]"
         className="shrink-0 grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(9rem,1fr)_auto_auto]"
         titleStatus={statusContent}
         onTitleChange={onTitleChange}
@@ -74,29 +80,12 @@ export function AssignmentForm({
                 disabled={disabled}
               />
             )}
-            <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
-              {(() => {
-                const relative = getRelativeDueDate(dueAt, classDays)
-                const labelText = relative ? `Due ${relative.text}` : 'Due Date'
-                const colorClass = relative
-                  ? relative.isPast
-                    ? 'text-warning'
-                    : 'text-primary'
-                  : 'text-text-muted'
-                return (
-                  <div className={`truncate text-sm font-medium ${colorClass}`}>
-                    {labelText}
-                  </div>
-                )
-              })()}
-              <div className="flex">
-                <DateActionBar
-                  value={dueAt}
-                  onChange={onDueAtChange}
-                  layout="compact"
-                />
-              </div>
-            </div>
+            <DateActionBar
+              value={dueAt}
+              onChange={onDueAtChange}
+              layout="compact"
+              subtitle={relativeDateSubtitle}
+            />
           </div>
         )}
         actions={topRowActions}
@@ -114,7 +103,8 @@ export function AssignmentForm({
             )}
             <ContentField
               label="Instructions"
-              hint="Students see this before they begin."
+              hideLabel
+              collapseHiddenLabel
               className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}
             >
               <MarkdownContentEditor
@@ -122,7 +112,7 @@ export function AssignmentForm({
                 onMarkdownChange={onInstructionsMarkdownChange}
                 onConversionWarningChange={onInstructionsConversionWarningChange}
                 onBlur={onBlur}
-                placeholder="Assignment instructions"
+                placeholder="Instructions"
                 disabled={disabled}
                 editable={!disabled}
                 toolbarPreset="markdown-safe"

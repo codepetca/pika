@@ -776,6 +776,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           <DateNavigator
             label={selectedDateLabel}
             subtitle={showRelativeDate ? relativeDateLabel : null}
+            reserveSubtitleSpace
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}

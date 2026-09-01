@@ -1,12 +1,13 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useId } from 'react'
 import { Button, cn } from '@/ui'
+import { DateLabelButton, DateLabelContent } from '@/components/DateLabelButton'
 
 export interface DateNavigatorProps {
   label: string
   subtitle?: string | null
+  reserveSubtitleSpace?: boolean
   onPrev?: () => void
   onNext?: () => void
   onLabelClick?: () => void
@@ -28,6 +29,7 @@ export interface DateNavigatorProps {
 export function DateNavigator({
   label,
   subtitle,
+  reserveSubtitleSpace = false,
   onPrev,
   onNext,
   onLabelClick,
@@ -39,7 +41,7 @@ export function DateNavigator({
   labelClassName,
   joined = false,
 }: DateNavigatorProps) {
-  const subtitleId = useId()
+  const showSubtitleRow = Boolean(subtitle) || reserveSubtitleSpace
 
   return (
     <div
@@ -68,42 +70,34 @@ export function DateNavigator({
       ) : null}
 
       {onLabelClick ? (
-        <Button
+        <DateLabelButton
           type="button"
           variant="ghost"
           size="sm"
           onClick={onLabelClick}
+          label={label}
+          subtitle={subtitle}
+          reserveSubtitleSpace={reserveSubtitleSpace}
+          ariaLabel={labelAriaLabel}
           className={cn(
-            'min-w-0 px-2 py-1 text-sm font-semibold sm:text-base',
-            subtitle && 'flex-col gap-0',
             joined && 'rounded-none border-0',
             labelClassName,
           )}
-          aria-label={labelAriaLabel}
-          aria-describedby={subtitle ? subtitleId : undefined}
-        >
-          <span className="max-w-full truncate leading-tight">{label}</span>
-          {subtitle ? (
-            <span id={subtitleId} className="max-w-full truncate text-xs font-normal leading-4 text-text-muted">
-              {subtitle}
-            </span>
-          ) : null}
-        </Button>
+        />
       ) : (
         <span
           className={cn(
             'min-w-0 px-2 py-1 text-sm font-semibold text-text-default sm:text-base',
-            subtitle && 'flex flex-col items-center gap-0',
+            showSubtitleRow && 'flex flex-col items-center gap-0',
             joined && 'flex min-h-control items-center justify-center',
             labelClassName,
           )}
         >
-          <span className="max-w-full truncate leading-tight">{label}</span>
-          {subtitle ? (
-            <span className="max-w-full truncate text-xs font-normal leading-4 text-text-muted">
-              {subtitle}
-            </span>
-          ) : null}
+          <DateLabelContent
+            label={label}
+            subtitle={subtitle}
+            reserveSubtitleSpace={reserveSubtitleSpace}
+          />
         </span>
       )}
 

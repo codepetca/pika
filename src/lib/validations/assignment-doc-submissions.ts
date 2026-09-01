@@ -13,6 +13,7 @@ const keystrokeCountSchema = z.coerce.number().int().min(0).max(2_147_483_647)
 export const assignmentDocSubmitRequestSchema = z.object({
   content: assignmentSubmissionContentSchema,
   expected_updated_at: z.string().datetime({ offset: true }),
+  allow_missing_attachments: z.boolean().optional().default(false),
 }).strict()
 
 export const assignmentDocAtomicSaveRequestSchema = z.object({

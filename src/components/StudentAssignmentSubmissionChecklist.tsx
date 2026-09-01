@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Loader2, Upload } from 'lucide-react'
 import { Button, FormField, Input } from '@/ui'
 import {
@@ -20,6 +20,10 @@ interface StudentAssignmentSubmissionChecklistProps {
   disabled?: boolean
   onArtifactsChange: (artifacts: AssignmentSubmissionArtifact[]) => void
   onError: (message: string) => void
+}
+
+export interface StudentAssignmentSubmissionChecklistHandle {
+  savePendingArtifacts: () => Promise<AssignmentSubmissionArtifact[]>
 }
 
 type DraftState = Record<string, { url: string; githubLogin: string }>
@@ -69,7 +73,7 @@ function normalizeDraftValue(value: string | null | undefined) {
   return (value ?? '').trim()
 }
 
-export function StudentAssignmentSubmissionChecklist({
+export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignmentSubmissionChecklistHandle, StudentAssignmentSubmissionChecklistProps>(function StudentAssignmentSubmissionChecklist({
   assignmentId,
   requirements,
   artifacts,
@@ -77,7 +81,7 @@ export function StudentAssignmentSubmissionChecklist({
   disabled = false,
   onArtifactsChange,
   onError,
-}: StudentAssignmentSubmissionChecklistProps) {
+}, ref) {
   const [drafts, setDrafts] = useState<DraftState>(() => buildDraftState(requirements, artifacts, githubIdentity))
   const [savingRequirementId, setSavingRequirementId] = useState<string | null>(null)
 
@@ -90,8 +94,6 @@ export function StudentAssignmentSubmissionChecklist({
     [artifacts, requirements]
   )
 
-  if (requirements.length === 0) return null
-
   function updateDraft(requirementId: string, patch: Partial<DraftState[string]>) {
     setDrafts((current) => ({
       ...current,
@@ -103,12 +105,15 @@ export function StudentAssignmentSubmissionChecklist({
     }))
   }
 
-  function replaceArtifact(nextArtifact: AssignmentSubmissionArtifact) {
-    const filtered = artifacts.filter((artifact) => artifact.requirement_id !== nextArtifact.requirement_id)
-    onArtifactsChange([...filtered, nextArtifact])
+  function replaceArtifactInList(
+    currentArtifacts: AssignmentSubmissionArtifact[],
+    nextArtifact: AssignmentSubmissionArtifact
+  ) {
+    const filtered = currentArtifacts.filter((artifact) => artifact.requirement_id !== nextArtifact.requirement_id)
+    return [...filtered, nextArtifact]
   }
 
-  async function saveUrlArtifact(requirement: AssignmentSubmissionRequirement) {
+  async function persistUrlArtifact(requirement: AssignmentSubmissionRequirement) {
     const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
     setSavingRequirementId(requirement.id)
     onError('')
@@ -125,13 +130,53 @@ export function StudentAssignmentSubmissionChecklist({
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save submission')
-      replaceArtifact(data.artifact)
+      return data.artifact as AssignmentSubmissionArtifact
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Failed to save submission')
+      const message = error instanceof Error ? error.message : 'Failed to save attachment'
+      onError(message)
+      throw new Error(message)
     } finally {
       setSavingRequirementId(null)
     }
   }
+
+  async function saveUrlArtifact(requirement: AssignmentSubmissionRequirement) {
+    try {
+      const nextArtifact = await persistUrlArtifact(requirement)
+      onArtifactsChange(replaceArtifactInList(artifacts, nextArtifact))
+    } catch {
+      // The shared error region already explains why the save stopped.
+    }
+  }
+
+  useImperativeHandle(ref, () => ({
+    async savePendingArtifacts() {
+      let nextArtifacts = artifacts
+
+      for (const requirement of requirements) {
+        if (requirement.type === 'image') continue
+        const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
+        const savedArtifact = nextArtifacts.find((artifact) => artifact.requirement_id === requirement.id)
+        const savedGithubLogin =
+          typeof savedArtifact?.metadata_json?.github_login === 'string'
+            ? savedArtifact.metadata_json.github_login
+            : githubIdentity?.github_login ?? ''
+        const hasChanges =
+          normalizeDraftValue(draft.url) !== normalizeDraftValue(savedArtifact?.url) ||
+          (requirement.type === 'repo_link' &&
+            normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
+
+        if (!hasChanges) continue
+        const nextArtifact = await persistUrlArtifact(requirement)
+        nextArtifacts = replaceArtifactInList(nextArtifacts, nextArtifact)
+        onArtifactsChange(nextArtifacts)
+      }
+
+      return nextArtifacts
+    },
+  }))
+
+  if (requirements.length === 0) return null
 
   async function uploadImageArtifact(requirement: AssignmentSubmissionRequirement, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -149,7 +194,7 @@ export function StudentAssignmentSubmissionChecklist({
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to upload image')
-      replaceArtifact(data.artifact)
+      onArtifactsChange(replaceArtifactInList(artifacts, data.artifact))
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Failed to upload image')
     } finally {
@@ -164,7 +209,7 @@ export function StudentAssignmentSubmissionChecklist({
         <div>
           <h3 className="text-sm font-semibold text-text-default">Turn in</h3>
           <p className="text-xs text-text-muted">
-            {completion.completedRequiredCount}/{completion.requiredCount} required complete
+            {completion.completedRequiredCount} of {completion.requiredCount} added
           </p>
         </div>
       </div>
@@ -190,14 +235,7 @@ export function StudentAssignmentSubmissionChecklist({
                   <RequirementIcon type={requirement.type} />
                 </span>
                 <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-sm font-medium text-text-default">{requirement.label}</span>
-                    {requirement.required ? (
-                      <span className="shrink-0 rounded-badge bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-muted">
-                        Required
-                      </span>
-                    ) : null}
-                  </div>
+                  <span className="block truncate text-sm font-medium text-text-default">{requirement.label}</span>
                   {requirement.instructions ? (
                     <p className="mt-0.5 text-xs text-text-muted">{requirement.instructions}</p>
                   ) : null}
@@ -274,4 +312,4 @@ export function StudentAssignmentSubmissionChecklist({
       </div>
     </div>
   )
-}
+})

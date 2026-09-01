@@ -670,6 +670,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
         body: JSON.stringify({
           content: latestDraft,
           expected_updated_at: '2026-07-01T12:00:00.000Z',
+          allow_missing_attachments: false,
         }),
       }),
     )
@@ -3649,5 +3650,73 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
     expect(screen.getByText('Unsaved')).toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(0)
+  })
+
+  it('combines missing attachments into one confirmation before submitting anyway', async () => {
+    const submitBodies: Array<Record<string, unknown>> = []
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const requirements = [
+      {
+        id: 'req-repo', assignment_id: 'assignment-1', type: 'repo_link', label: 'Repo link',
+        instructions: '', required: true, position: 0, validation_policy_json: {},
+        created_at: '2026-07-01T12:00:00.000Z', updated_at: '2026-07-01T12:00:00.000Z',
+      },
+      {
+        id: 'req-image', assignment_id: 'assignment-1', type: 'image', label: 'Image',
+        instructions: '', required: false, position: 1, validation_policy_json: {},
+        created_at: '2026-07-01T12:00:00.000Z', updated_at: '2026-07-01T12:00:00.000Z',
+      },
+    ]
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(), doc: makeDoc(), feedback_entries: [],
+            submission_requirements: requirements, submission_artifacts: [], wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        return { ok: true, json: async () => ({ doc: makeDoc(), historyEntry: null }) }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) {
+        submitBodies.push(JSON.parse(String(init?.body)))
+        return {
+          ok: true,
+          json: async () => ({
+            doc: { ...makeDoc(), is_submitted: true, submitted_at: '2026-07-01T12:05:00.000Z' },
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    expect(ref.current?.canSubmit).toBe(true)
+    await act(async () => { await ref.current?.submit() })
+
+    const dialog = screen.getByRole('dialog', { name: 'Submit without attachments?' })
+    expect(within(dialog).getByText('Repo link and Image are missing. Submit anyway?')).toBeInTheDocument()
+    expect(submitBodies).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Submit anyway' }))
+    await waitFor(() => expect(submitBodies).toHaveLength(1))
+    expect(submitBodies[0].allow_missing_attachments).toBe(true)
+    await waitFor(() => expect(ref.current?.isSubmitted).toBe(true))
   })
 })

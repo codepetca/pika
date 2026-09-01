@@ -38,8 +38,12 @@ import {
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { StudentAssignmentSubmissionChecklist } from '@/components/StudentAssignmentSubmissionChecklist'
 import {
+  StudentAssignmentSubmissionChecklist,
+  type StudentAssignmentSubmissionChecklistHandle,
+} from '@/components/StudentAssignmentSubmissionChecklist'
+import {
+  formatMissingAttachmentConfirmation,
   getSubmissionRequirementCompletion,
   isSubmissionArtifactPresent,
 } from '@/lib/assignment-submission-requirements'
@@ -234,6 +238,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [missingAttachmentConfirmation, setMissingAttachmentConfirmation] = useState<string | null>(null)
 
   // Save state
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
@@ -259,6 +264,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const isMountedRef = useRef(true)
+  const submissionChecklistRef = useRef<StudentAssignmentSubmissionChecklistHandle | null>(null)
 
   const updatePreservedRecoveryContent = useCallback((nextContent: TiptapContent | null) => {
     preservedRecoveryContentRef.current = nextContent
@@ -1095,7 +1101,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
   }
 
-  const handleSubmit = useCallback(async () => {
+  const submitAssignment = useCallback(async (allowMissingAttachments: boolean) => {
     setSubmitting(true)
     setError('')
     const submissionContent = pendingContentRef.current ?? content
@@ -1118,12 +1124,42 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         return
       }
 
+      let latestSubmissionArtifacts = submissionArtifacts
+      try {
+        latestSubmissionArtifacts = await submissionChecklistRef.current?.savePendingArtifacts()
+          ?? submissionArtifacts
+      } catch (artifactSaveFailure) {
+        setError(
+          `Your latest attachment could not be saved, so this assignment was not submitted. ${
+            artifactSaveFailure instanceof Error ? artifactSaveFailure.message : 'Save failed.'
+          } Try again.`
+        )
+        return
+      }
+
+      const latestCompletion = getSubmissionRequirementCompletion(
+        submissionRequirements,
+        latestSubmissionArtifacts
+      )
+      if (latestCompletion.blockingRequirementIds.length > 0) {
+        setError('Fix the attachment marked “Fix needed” before submitting.')
+        return
+      }
+      if (!allowMissingAttachments && latestCompletion.missingRequiredRequirementIds.length > 0) {
+        setMissingAttachmentConfirmation(formatMissingAttachmentConfirmation(
+          submissionRequirements,
+          latestCompletion.missingRequiredRequirementIds
+        ))
+        return
+      }
+
       const { response, payload: data } = await fetchJsonWithTimeout<any>(`/api/assignment-docs/${assignmentId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: submissionContent,
           expected_updated_at: expectedUpdatedAt,
+          allow_missing_attachments: allowMissingAttachments,
         }),
       }, SAVE_REQUEST_TIMEOUT_MS, 'Submission timed out. Check your connection and try again.')
 
@@ -1167,7 +1203,20 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }, [SAVE_REQUEST_TIMEOUT_MS, applySubmittedDoc, assignmentId, content, refreshAfterRevisionConflict, saveContent])
+  }, [
+    SAVE_REQUEST_TIMEOUT_MS,
+    applySubmittedDoc,
+    assignmentId,
+    content,
+    refreshAfterRevisionConflict,
+    saveContent,
+    submissionArtifacts,
+    submissionRequirements,
+  ])
+
+  const handleSubmit = useCallback(async () => {
+    await submitAssignment(false)
+  }, [submitAssignment])
 
   const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)
@@ -1337,12 +1386,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     [submissionArtifacts, submissionRequirements]
   )
   const hasStructuredSubmissionArtifact = submissionArtifacts.some(isSubmissionArtifactPresent)
-  const structuredRequirementsSatisfied = submissionRequirements.length === 0 || submissionCompletion.canSubmit
   const isSubmitted = doc?.is_submitted || false
   const canUnsubmit = canUnsubmitAssignmentDoc(doc)
   const canSubmit = (
-    hasAssignmentSubmissionContent({ content }) || hasStructuredSubmissionArtifact
-  ) && structuredRequirementsSatisfied && !previewEntry
+    hasAssignmentSubmissionContent({ content })
+    || hasStructuredSubmissionArtifact
+    || submissionRequirements.length > 0
+  ) && submissionCompletion.canSubmit && !previewEntry
 
   // Expose imperative handle for parent components
   useImperativeHandle(ref, () => ({
@@ -1450,6 +1500,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
       {submissionRequirements.length > 0 && (
         <StudentAssignmentSubmissionChecklist
+          ref={submissionChecklistRef}
           assignmentId={assignmentId}
           requirements={submissionRequirements}
           artifacts={submissionArtifacts}
@@ -1653,6 +1704,21 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           </div>
         </section>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(missingAttachmentConfirmation)}
+        title="Submit without attachments?"
+        description={missingAttachmentConfirmation ?? undefined}
+        confirmLabel="Submit anyway"
+        cancelLabel="Go back"
+        isCancelDisabled={submitting}
+        isConfirmDisabled={submitting}
+        onCancel={() => setMissingAttachmentConfirmation(null)}
+        onConfirm={async () => {
+          setMissingAttachmentConfirmation(null)
+          await submitAssignment(true)
+        }}
+      />
 
       <ConfirmDialog
         isOpen={showRestoreModal && Boolean(previewEntry)}

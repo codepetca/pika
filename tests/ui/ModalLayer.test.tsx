@@ -69,6 +69,20 @@ describe('ModalLayer', () => {
     expect(closeOuter).not.toHaveBeenCalled()
   })
 
+  it('leaves Escape from an open menu for the menu to handle', () => {
+    const onClose = vi.fn()
+    render(
+      <ModalLayer isOpen onClose={onClose} ariaLabel="Dialog with menu">
+        <div role="menu">
+          <button type="button" role="menuitem">Link</button>
+        </div>
+      </ModalLayer>,
+    )
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Link' }), { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('wraps reverse Tab from a panel-focused custom dialog', async () => {
     render(
       <ModalLayer isOpen onClose={vi.fn()} ariaLabel="Custom dialog">

@@ -16,6 +16,7 @@ fi
 {
   printf 'begin;\n'
   sed 's/^/ /' "$ROOT/supabase/migrations/099_assignment_submission_integrity_guards.sql"
+  sed 's/^/ /' "$ROOT/supabase/migrations/142_allow_acknowledged_missing_assignment_attachments.sql"
   cat <<'SQL'
 
 create temporary table assignment_integrity_ids (
@@ -495,6 +496,35 @@ do $$
 declare
   v_ids assignment_integrity_ids%rowtype;
   v_revision timestamptz;
+  v_result jsonb;
+begin
+  select * into v_ids from assignment_integrity_ids;
+  select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
+  v_result := public.submit_assignment_doc_atomic(
+    v_ids.assignment_id, v_ids.student_id,
+    (select content from public.assignment_docs where id = v_ids.doc_id),
+    v_revision, 1, 6
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Acknowledged missing attachment could not be submitted: %', v_result;
+  end if;
+  v_result := public.unsubmit_assignment_doc_atomic(v_ids.assignment_id, v_ids.student_id);
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Missing-attachment fixture could not be unsubmitted: %', v_result;
+  end if;
+end;
+$$;
+
+insert into public.assignment_submission_artifacts (
+  assignment_doc_id, requirement_id, student_id, type, url, validation_status
+)
+select doc_id, requirement_id, student_id, 'link', 'not-a-url', 'invalid'
+from assignment_integrity_ids;
+
+do $$
+declare
+  v_ids assignment_integrity_ids%rowtype;
+  v_revision timestamptz;
 begin
   select * into v_ids from assignment_integrity_ids;
   select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
@@ -504,7 +534,7 @@ begin
       (select content from public.assignment_docs where id = v_ids.doc_id),
       v_revision, 1, 6
     );
-    raise exception 'Submission without its required artifact unexpectedly succeeded';
+    raise exception 'Submission with an invalid attachment unexpectedly succeeded';
   exception
     when check_violation then
       if sqlerrm not like '%assignment_submission_requirements_incomplete%' then
@@ -514,11 +544,9 @@ begin
 end;
 $$;
 
-insert into public.assignment_submission_artifacts (
-  assignment_doc_id, requirement_id, student_id, type, url, validation_status
-)
-select doc_id, requirement_id, student_id, 'link', 'https://example.invalid/work', 'valid'
-from assignment_integrity_ids;
+update public.assignment_submission_artifacts
+set url = 'https://example.invalid/work', validation_status = 'valid'
+where requirement_id = (select requirement_id from assignment_integrity_ids);
 
 do $$
 declare

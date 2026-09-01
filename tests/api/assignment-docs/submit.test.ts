@@ -181,6 +181,139 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     expect(response.status).toBe(400)
   })
 
+  it('requires one explicit acknowledgement before submitting with missing attachments', async () => {
+    const emptyContent = { type: 'doc', content: [] }
+    const savedRevision = '2026-04-20T14:00:00.000Z'
+    const requirement = {
+      id: 'req-repo',
+      assignment_id: 'assign-1',
+      type: 'repo_link',
+      label: 'Repo link',
+      instructions: '',
+      required: false,
+      position: 0,
+      validation_policy_json: {},
+      created_at: savedRevision,
+      updated_at: savedRevision,
+    }
+
+    vi.mocked(submitAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: true,
+      doc: {
+        id: 'doc-1',
+        assignment_id: 'assign-1',
+        student_id: 'student-1',
+        content: emptyContent,
+        is_submitted: true,
+        submitted_at: savedRevision,
+        updated_at: savedRevision,
+      } as any,
+      historyEntry: null,
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  is_draft: false,
+                  released_at: null,
+                  due_at: null,
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'doc-1',
+                    assignment_id: 'assign-1',
+                    student_id: 'student-1',
+                    content: emptyContent,
+                    is_submitted: false,
+                    submitted_at: null,
+                    updated_at: savedRevision,
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_submission_requirements') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                order: vi.fn().mockResolvedValue({ data: [requirement], error: null }),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_submission_artifacts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      if (table === 'assignment_doc_history') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const makeRequest = (allowMissingAttachments: boolean) => new NextRequest(
+      'http://localhost:3000/api/assignment-docs/assign-1/submit',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: emptyContent,
+          expected_updated_at: savedRevision,
+          allow_missing_attachments: allowMissingAttachments,
+        }),
+      }
+    )
+
+    const unacknowledgedResponse = await POST(makeRequest(false), { params: { id: 'assign-1' } })
+    await expect(unacknowledgedResponse.json()).resolves.toEqual({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: ['req-repo'],
+    })
+    expect(unacknowledgedResponse.status).toBe(400)
+    expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
+
+    const acknowledgedResponse = await POST(makeRequest(true), { params: { id: 'assign-1' } })
+    expect(acknowledgedResponse.status).toBe(200)
+    expect(submitAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
+      assignmentId: 'assign-1',
+      studentId: 'student-1',
+      content: emptyContent,
+      expectedUpdatedAt: savedRevision,
+    }))
+  })
+
   it('rejects saved repo metadata only because repo links must be in assignment content', async () => {
     const historyInsert = vi.fn(async () => ({ error: null }))
     const emptyContent = { type: 'doc', content: [] }
