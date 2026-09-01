@@ -128,6 +128,27 @@ export function UiGallery({ role }: Props) {
             </Button>
           </div>
 
+          <nav aria-label="Pattern Lab overview sections" className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              ['catalog', 'Catalog'],
+              ['controls', 'Controls'],
+              ['icons', 'Icons'],
+              ['statuses', 'Statuses'],
+              ['page-states', 'Page states'],
+              ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
+              ...(role === 'teacher' ? [['page-mockups', 'Page mockups']] : []),
+              ['feature-patterns', 'Feature patterns'],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={`#${href}`}
+                className="inline-flex min-h-control shrink-0 items-center rounded-control border border-border bg-surface px-3 py-2 text-sm font-medium text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+
           <Card tone="panel" padding="sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -221,7 +242,7 @@ export function UiGallery({ role }: Props) {
           </div>
         </PatternSection>
 
-        <div data-testid="pattern-lab-contracts" className="space-y-8">
+        <div data-testid="pattern-lab-contracts" className="scroll-mt-28 space-y-8">
           <PatternSection
             id="controls"
             eyebrow="Stable foundation"

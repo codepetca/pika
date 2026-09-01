@@ -94,7 +94,7 @@ describe('UiGallery accessibility contracts', () => {
 
     expect(window.location.hash).toBe('#page-mockups')
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(screen.getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
+    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
       'href',
       '#page-mockups',
     )
@@ -110,7 +110,7 @@ describe('UiGallery accessibility contracts', () => {
   it('keeps page mockups teacher-only and exposes named interactive owners', async () => {
     const user = userEvent.setup()
     const { unmount } = renderGallery('teacher')
-    expect(screen.getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
+    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
     const mockups = within(screen.getByTestId('page-mockups'))
     expect(mockups.getByRole('tablist', { name: 'Classroom page mockups' })).toBeInTheDocument()
     expect(mockups.getByRole('group', { name: 'Score display' })).toBeInTheDocument()
