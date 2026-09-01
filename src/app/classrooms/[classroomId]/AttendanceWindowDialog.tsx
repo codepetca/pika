@@ -1,9 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import { CircleHelp } from 'lucide-react'
 import { fetchJSON } from '@/lib/request-cache'
+import {
+  invalidateTeacherAttendancePolicy,
+  isTeacherAttendanceScheduleAcknowledged,
+  parseTeacherAttendancePolicy,
+  readTeacherAttendancePolicy,
+  type TeacherAttendancePolicy,
+} from '@/lib/teacher-attendance-policy'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
   Button,
@@ -17,89 +24,21 @@ import {
   useAppMessage,
 } from '@/ui'
 
-interface AttendanceWindowPolicy {
-  classroomId: string
-  timezone: 'America/Toronto'
-  sessionStartsLocal: string
-  sessionEndsLocal: string
-  sessionEndDayOffset: 0 | 1
-  entryOpensMinutesBefore: number
-  presentGraceMinutes: number
-  entryClosesMinutesBeforeEnd: number
-  absentMinutesBeforeEnd: number
-  enabled: boolean
-  revision: number
-  updatedAt: string
-}
-
 interface AttendanceWindowDialogProps {
   classroomId: string
   isOpen: boolean
   onClose: () => void
-  onSaved: () => void
+  onSaved: (policy: TeacherAttendancePolicy, scheduleSynced: boolean) => void
 }
-
-function policyUrl(classroomId: string) {
-  const params = new URLSearchParams({ classroom_id: classroomId })
-  return `/api/teacher/attendance/policy?${params.toString()}`
-}
-
-const POLICY_KEYS = [
-  'classroomId',
-  'timezone',
-  'sessionStartsLocal',
-  'sessionEndsLocal',
-  'sessionEndDayOffset',
-  'entryOpensMinutesBefore',
-  'presentGraceMinutes',
-  'entryClosesMinutesBeforeEnd',
-  'absentMinutesBeforeEnd',
-  'enabled',
-  'revision',
-  'updatedAt',
-].sort()
 
 const CLOSING_DAY_HELP = 'Use next day only for classes that continue past midnight.'
 const AUTOMATIC_HOURS_HELP = 'Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.'
 
-function isPolicy(value: unknown, expectedClassroomId: string): value is AttendanceWindowPolicy {
-  if (!value || typeof value !== 'object') return false
-  const policy = value as Record<string, unknown>
-  return (
-    Object.keys(policy).sort().every((key, index) => key === POLICY_KEYS[index]) &&
-    Object.keys(policy).length === POLICY_KEYS.length &&
-    policy.classroomId === expectedClassroomId &&
-    policy.timezone === 'America/Toronto' &&
-    typeof policy.sessionStartsLocal === 'string' &&
-    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.sessionStartsLocal) &&
-    typeof policy.sessionEndsLocal === 'string' &&
-    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.sessionEndsLocal) &&
-    (policy.sessionEndDayOffset === 0 || policy.sessionEndDayOffset === 1) &&
-    Number.isSafeInteger(policy.entryOpensMinutesBefore) &&
-    Number.isSafeInteger(policy.presentGraceMinutes) &&
-    Number.isSafeInteger(policy.entryClosesMinutesBeforeEnd) &&
-    Number.isSafeInteger(policy.absentMinutesBeforeEnd) &&
-    typeof policy.enabled === 'boolean' &&
-    Number.isSafeInteger(policy.revision) &&
-    Number(policy.revision) > 0 &&
-    typeof policy.updatedAt === 'string' &&
-    Number.isFinite(Date.parse(policy.updatedAt))
-  )
+export function AttendanceWindowDialog(props: AttendanceWindowDialogProps) {
+  return <AttendanceWindowDialogContent key={props.classroomId} {...props} />
 }
 
-function parsePolicyResponse(value: unknown, expectedClassroomId: string): AttendanceWindowPolicy | null {
-  if (!value || typeof value !== 'object' || !('policy' in value)) {
-    throw new Error('Attendance settings are temporarily unavailable')
-  }
-  const policy = (value as { policy: unknown }).policy
-  if (policy === null) return null
-  if (!isPolicy(policy, expectedClassroomId)) {
-    throw new Error('Attendance settings are temporarily unavailable')
-  }
-  return policy
-}
-
-export function AttendanceWindowDialog({
+function AttendanceWindowDialogContent({
   classroomId,
   isOpen,
   onClose,
@@ -119,15 +58,28 @@ export function AttendanceWindowDialog({
   const [absentMinutesBeforeEnd, setAbsentMinutesBeforeEnd] = useState(0)
   const [enabled, setEnabled] = useState(true)
   const [expandedHelp, setExpandedHelp] = useState<'closing-day' | 'automatic' | null>(null)
+  const mounted = useRef(true)
+  const requestSequence = useRef(0)
+  const openRef = useRef(isOpen)
+  if (openRef.current !== isOpen) {
+    openRef.current = isOpen
+    requestSequence.current += 1
+  }
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   const loadPolicy = useCallback(async () => {
+    const request = ++requestSequence.current
+    const current = () => mounted.current && openRef.current && requestSequence.current === request
     setLoading(true)
+    setSaving(false)
     setError('')
     try {
-      const response = await fetchJSON<unknown>(policyUrl(classroomId), {
-        errorMessage: 'Attendance settings are temporarily unavailable',
-      })
-      const policy = parsePolicyResponse(response, classroomId)
+      invalidateTeacherAttendancePolicy(classroomId)
+      const policy = await readTeacherAttendancePolicy(classroomId)
+      if (!current()) return
       setRevision(policy?.revision ?? null)
       setSessionStartsLocal(policy?.sessionStartsLocal ?? '09:00')
       setSessionEndsLocal(policy?.sessionEndsLocal ?? '10:00')
@@ -138,9 +90,9 @@ export function AttendanceWindowDialog({
       setAbsentMinutesBeforeEnd(policy?.absentMinutesBeforeEnd ?? 0)
       setEnabled(policy?.enabled ?? true)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
+      if (current()) setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
   }, [classroomId])
 
@@ -166,6 +118,8 @@ export function AttendanceWindowDialog({
 
   async function savePolicy() {
     if (saving || validationError) return
+    const request = ++requestSequence.current
+    const current = () => mounted.current && openRef.current && requestSequence.current === request
     setSaving(true)
     setError('')
     try {
@@ -188,15 +142,16 @@ export function AttendanceWindowDialog({
         },
         errorMessage: 'Attendance settings are temporarily unavailable',
       })
-      const savedPolicy = parsePolicyResponse(response, classroomId)
+      const savedPolicy = parseTeacherAttendancePolicy(response, classroomId)
       if (!savedPolicy) throw new Error('Attendance settings are temporarily unavailable')
-      setRevision(savedPolicy.revision)
+      invalidateTeacherAttendancePolicy(classroomId)
+      if (current()) setRevision(savedPolicy.revision)
 
       const windowStart = getTodayInToronto()
       const windowEnd = format(addDays(parseISO(windowStart), 90), 'yyyy-MM-dd')
       let scheduleSynced = true
       try {
-        await fetchJSON('/api/teacher/attendance/sync', {
+        const delivery = await fetchJSON<unknown>('/api/teacher/attendance/sync', {
           init: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -208,29 +163,31 @@ export function AttendanceWindowDialog({
           },
           errorMessage: 'Attendance schedule is temporarily unavailable',
         })
+        scheduleSynced = isTeacherAttendanceScheduleAcknowledged(delivery, savedPolicy)
       } catch {
         scheduleSynced = false
       }
 
+      if (!current()) return
       showMessage({
         text: scheduleSynced
           ? 'Attendance timing saved'
-          : 'Timing saved; automatic schedule sync will retry',
+          : 'Hours saved; schedule delivery not confirmed',
         tone: scheduleSynced ? 'success' : 'warning',
       })
-      onSaved()
+      onSaved(savedPolicy, scheduleSynced)
       onClose()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
+      if (current()) setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
     } finally {
-      setSaving(false)
+      if (current()) setSaving(false)
     }
   }
 
   return (
     <ContentDialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => { if (!saving) onClose() }}
       title="Attendance timing"
       maxWidth="max-w-lg"
       showHeaderClose={!saving}

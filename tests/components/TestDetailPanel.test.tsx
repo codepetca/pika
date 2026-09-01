@@ -1801,7 +1801,8 @@ Current Test reference material.
       const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
       promptField.focus()
-      await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
+      await user.keyboard('{Control>}a{/Control}')
+      await user.paste('Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)
 
       expect(
