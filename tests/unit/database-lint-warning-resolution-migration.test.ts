@@ -9,6 +9,10 @@ const migration = readFileSync(
   ),
   'utf8',
 )
+const workflow = readFileSync(
+  resolve(process.cwd(), '.github/workflows/ci.yml'),
+  'utf8',
+)
 
 describe('database lint warning resolution migration', () => {
   it('fails closed when an installed function differs from the reviewed definition', () => {
@@ -91,6 +95,15 @@ describe('database lint warning resolution migration', () => {
     )
     expect(migration).toContain(
       'alter function public.get_cleanup_history_cron_health_snapshot(integer, integer) volatile;',
+    )
+  })
+
+  it('gates warning-level lint and the runtime lock contract in CI', () => {
+    expect(workflow).toContain(
+      'supabase db lint --local --level warning --fail-on warning',
+    )
+    expect(workflow).toContain(
+      'bash scripts/check-database-lint-warning-resolutions.sh',
     )
   })
 })
