@@ -434,7 +434,8 @@ begin
       v_content,
       v_doc_updated_at,
       2,
-      50
+      50,
+      array[v_requirement_id]::uuid[]
     );
     if not coalesce((v_result->>'ok')::boolean, false) then
       raise exception 'Could not create submitted Blueprint fixture: %', v_result;
