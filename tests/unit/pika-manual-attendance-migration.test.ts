@@ -60,7 +60,9 @@ describe('Pika manual attendance migration', () => {
   it('enforces the shared 12-hour maximum in stored attendance policies', () => {
     expect(migration).toContain('attendance_window_policy_duration_check')
     expect(migration).toContain('classrooms_manual_attendance_duration_check')
-    expect(migration).toContain('between 1 and 720')
+    expect(migration).toContain('closes_local - opens_local')
+    expect(migration).toContain("close_day_offset * interval '1 day'")
+    expect(migration).not.toContain('extract(hour from')
     expect(migration).toContain("interval '12 hours'")
   })
 })

@@ -95,6 +95,16 @@ begin
   ) is null then
     raise exception 'Migration 145 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '147'
+  ) or not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.attendance_window_policies'::regclass
+      and conname = 'attendance_window_policy_duration_check'
+  ) then
+    raise exception 'Migration 147 attendance duration guard is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -1475,6 +1485,8 @@ do $pilot_readiness$
 declare
   v_before jsonb;
   v_after jsonb;
+  v_policy jsonb;
+  v_constraint text;
 begin
   insert into public.users (id, email, role, workos_user_id) values (
     'a1330000-0000-4000-8000-000000000001',
@@ -1510,6 +1522,50 @@ begin
   ) values (
     'a1330000-0000-4000-8000-000000000010', '09:00', '10:00'
   );
+
+  select public.upsert_attendance_timing_policy_v1(
+    'a1330000-0000-4000-8000-000000000001',
+    'a1330000-0000-4000-8000-000000000010',
+    '20:00:00', '08:00:00', 1,
+    10, 5, 0, 0, true, 1,
+    '2026-08-25T16:00:00Z'
+  ) into v_policy;
+  if v_policy->>'session_starts_local' <> '20:00'
+    or v_policy->>'session_ends_local' <> '08:00'
+    or (v_policy->>'session_end_day_offset')::integer <> 1
+    or (v_policy->>'revision')::bigint <> 2
+  then
+    raise exception 'Exact 12-hour attendance policy was not accepted: %', v_policy;
+  end if;
+
+  begin
+    perform public.upsert_attendance_timing_policy_v1(
+      'a1330000-0000-4000-8000-000000000001',
+      'a1330000-0000-4000-8000-000000000010',
+      '19:59:59', '08:00:00', 1,
+      10, 5, 0, 0, true, 2,
+      '2026-08-25T16:00:00Z'
+    );
+    raise exception 'Attendance policy accepted a session one second over 12 hours';
+  exception
+    when check_violation then
+      get stacked diagnostics v_constraint = constraint_name;
+      if v_constraint <> 'attendance_window_policy_duration_check' then
+        raise exception 'Unexpected attendance duration constraint: %', v_constraint;
+      end if;
+  end;
+
+  if not exists (
+    select 1
+    from public.attendance_window_policies
+    where classroom_id = 'a1330000-0000-4000-8000-000000000010'
+      and (closes_local - opens_local) + close_day_offset * interval '1 day'
+        = interval '12 hours'
+      and policy_revision = 2
+  ) then
+    raise exception 'Rejected attendance duration changed the stored policy';
+  end if;
+
   insert into public.attendance_roster_mappings (
     classroom_id, source_revision, synced_revision,
     schedule_source_revision, schedule_synced_revision

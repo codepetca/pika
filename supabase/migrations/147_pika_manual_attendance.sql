@@ -12,13 +12,10 @@ begin
   if exists (
     select 1
     from public.attendance_window_policies
-    where (
-      extract(hour from session_ends_local) * 60
-      + extract(minute from session_ends_local)
-      - extract(hour from session_starts_local) * 60
-      - extract(minute from session_starts_local)
-      + session_end_day_offset * 1440
-    ) not between 1 and 720
+    where (closes_local - opens_local) + close_day_offset * interval '1 day'
+      <= interval '0 seconds'
+      or (closes_local - opens_local) + close_day_offset * interval '1 day'
+      > interval '12 hours'
   ) then
     raise exception 'Existing attendance session exceeds the 12-hour maximum';
   end if;
@@ -28,13 +25,10 @@ $$;
 alter table public.attendance_window_policies
   add constraint attendance_window_policy_duration_check
   check (
-    (
-      extract(hour from session_ends_local) * 60
-      + extract(minute from session_ends_local)
-      - extract(hour from session_starts_local) * 60
-      - extract(minute from session_starts_local)
-      + session_end_day_offset * 1440
-    ) between 1 and 720
+    (closes_local - opens_local) + close_day_offset * interval '1 day'
+      > interval '0 seconds'
+    and (closes_local - opens_local) + close_day_offset * interval '1 day'
+      <= interval '12 hours'
   );
 
 alter table public.classrooms
