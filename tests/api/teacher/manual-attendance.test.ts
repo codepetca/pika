@@ -100,6 +100,22 @@ describe('/api/teacher/manual-attendance', () => {
     }))
   })
 
+  it('rejects passive attendance sessions longer than 12 hours before storage', async () => {
+    const response = await PUT(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'PUT',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        expected_revision: 3,
+        source_mode: 'manual',
+        session_starts_local: '08:00',
+        session_ends_local: '20:01',
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(saveManualAttendanceSettings).not.toHaveBeenCalled()
+  })
+
   it('saves a bounded set of teacher overrides', async () => {
     const response = await POST(new NextRequest('http://localhost/api/teacher/manual-attendance', {
       method: 'POST',

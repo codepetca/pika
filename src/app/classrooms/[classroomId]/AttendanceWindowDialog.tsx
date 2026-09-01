@@ -12,6 +12,11 @@ import {
 } from '@/lib/teacher-attendance-policy'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
+  ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+  MAX_ATTENDANCE_SESSION_MINUTES,
+  attendanceSessionDurationMinutes,
+} from '@/lib/attendance-session-duration'
+import {
   Button,
   ContentDialog,
   FormField,
@@ -101,25 +106,33 @@ function AttendanceWindowDialogContent({
     }
   }, [isOpen, loadPolicy])
 
-  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
-  const duration = minutes(sessionEndsLocal) - minutes(sessionStartsLocal)
-    + sessionEndDayOffset * 1440
-  const timingRuleMaximum = Math.max(0, duration)
+  const duration = attendanceSessionDurationMinutes(
+    sessionStartsLocal,
+    sessionEndsLocal,
+    sessionEndDayOffset,
+  ) ?? 0
+  const timingRuleMaximum = Math.min(MAX_ATTENDANCE_SESSION_MINUTES, Math.max(0, duration))
 
   useEffect(() => {
     setPresentGraceMinutes((current) => clampMinutes(current, timingRuleMaximum))
     setEntryClosesMinutesBeforeEnd((current) => clampMinutes(current, timingRuleMaximum))
     setAbsentMinutesBeforeEnd((current) => clampMinutes(current, timingRuleMaximum))
   }, [timingRuleMaximum])
-  const validationError = !sessionStartsLocal || !sessionEndsLocal
+  const sessionDurationError = !sessionStartsLocal || !sessionEndsLocal
     ? 'Choose both session times.'
     : duration <= 0
       ? 'Session end must be after session start.'
-      : presentGraceMinutes >= duration - entryClosesMinutesBeforeEnd
+      : duration > MAX_ATTENDANCE_SESSION_MINUTES
+        ? ATTENDANCE_SESSION_TOO_LONG_MESSAGE
+        : ''
+  const timingValidationError = sessionDurationError
+    ? ''
+    : presentGraceMinutes >= duration - entryClosesMinutesBeforeEnd
         ? 'The Present window must end before QR check-in closes.'
         : entryClosesMinutesBeforeEnd < absentMinutesBeforeEnd
           ? 'Students cannot become absent before QR check-in closes.'
           : ''
+  const validationError = sessionDurationError || timingValidationError
 
   async function savePolicy() {
     if (saving || validationError) return
@@ -225,7 +238,7 @@ function AttendanceWindowDialogContent({
                 onChange={(event) => setSessionStartsLocal(event.target.value)}
               />
             </FormField>
-            <FormField label="Session ends" required>
+            <FormField label="Session ends" required error={sessionDurationError || undefined}>
               <Input
                 type="time"
                 value={sessionEndsLocal}
@@ -308,8 +321,8 @@ function AttendanceWindowDialogContent({
             Timezone: America/Toronto. Changes apply to future sessions; a session keeps its rules
             once QR entry opens.
           </p>
-          {validationError && (sessionStartsLocal || sessionEndsLocal) ? (
-            <p role="alert" className="text-sm text-danger">{validationError}</p>
+          {timingValidationError ? (
+            <p role="alert" className="text-sm text-danger">{timingValidationError}</p>
           ) : null}
           {error ? (
             <p role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

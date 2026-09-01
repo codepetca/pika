@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+  MAX_ATTENDANCE_SESSION_MINUTES,
+  attendanceSessionDurationMinutes,
+} from '@/lib/attendance-session-duration'
 
 const classroomId = z.string().uuid()
 const classDate = z.string().date()
@@ -22,6 +27,27 @@ export const manualAttendanceSettingsSchema = z.object({
       path: ['session_ends_local'],
       message: 'Choose both attendance times or clear both',
     })
+    return
+  }
+  if (value.session_starts_local !== null && value.session_ends_local !== null) {
+    const duration = attendanceSessionDurationMinutes(
+      value.session_starts_local,
+      value.session_ends_local,
+      0,
+    )
+    if (duration === null || duration <= 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['session_ends_local'],
+        message: 'Session end must be after session start',
+      })
+    } else if (duration > MAX_ATTENDANCE_SESSION_MINUTES) {
+      context.addIssue({
+        code: 'custom',
+        path: ['session_ends_local'],
+        message: ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+      })
+    }
   }
 })
 

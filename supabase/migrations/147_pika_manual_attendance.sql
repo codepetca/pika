@@ -7,6 +7,36 @@
 alter table public.attendance_window_policies
   alter column entry_closes_minutes_before_end set default 0;
 
+do $$
+begin
+  if exists (
+    select 1
+    from public.attendance_window_policies
+    where (
+      extract(hour from session_ends_local) * 60
+      + extract(minute from session_ends_local)
+      - extract(hour from session_starts_local) * 60
+      - extract(minute from session_starts_local)
+      + session_end_day_offset * 1440
+    ) not between 1 and 720
+  ) then
+    raise exception 'Existing attendance session exceeds the 12-hour maximum';
+  end if;
+end;
+$$;
+
+alter table public.attendance_window_policies
+  add constraint attendance_window_policy_duration_check
+  check (
+    (
+      extract(hour from session_ends_local) * 60
+      + extract(minute from session_ends_local)
+      - extract(hour from session_starts_local) * 60
+      - extract(minute from session_starts_local)
+      + session_end_day_offset * 1440
+    ) between 1 and 720
+  );
+
 alter table public.classrooms
   add column manual_attendance_source_mode text not null default 'manual',
   add column manual_attendance_session_starts_local time,
@@ -18,6 +48,15 @@ alter table public.classrooms
     check (
       (manual_attendance_session_starts_local is null)
       = (manual_attendance_session_ends_local is null)
+    ),
+  add constraint classrooms_manual_attendance_duration_check
+    check (
+      manual_attendance_session_starts_local is null
+      or (
+        manual_attendance_session_ends_local > manual_attendance_session_starts_local
+        and manual_attendance_session_ends_local - manual_attendance_session_starts_local
+          <= interval '12 hours'
+      )
     ),
   add constraint classrooms_manual_attendance_revision_check
     check (manual_attendance_revision > 0);
@@ -203,6 +242,13 @@ begin
     or p_source_mode is null
     or p_source_mode not in ('log', 'manual')
     or ((p_session_starts_local is null) <> (p_session_ends_local is null))
+    or (
+      p_session_starts_local is not null
+      and (
+        p_session_ends_local <= p_session_starts_local
+        or p_session_ends_local - p_session_starts_local > interval '12 hours'
+      )
+    )
   then
     raise exception 'Invalid manual attendance settings' using errcode = '23514';
   end if;

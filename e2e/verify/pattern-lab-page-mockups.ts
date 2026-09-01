@@ -85,6 +85,31 @@ export const patternLabPageMockups: VerificationScript = {
             const timingArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-time-rules.png`)
             await page.screenshot({ path: timingArtifact })
             artifacts.push(timingArtifact)
+            await timeDialog.getByLabel('Starts').fill('19:59')
+            await timeDialog.getByLabel('Ends').fill('08:00')
+            await timeDialog.getByRole('button', { name: 'Next day' }).click()
+            await page.mouse.move(0, 0)
+            checks.push({
+              name: `${viewportName} ${theme} Daily rejects attendance sessions over 12 hours`,
+              passed: await timeDialog.getByText('Maximum is 12 hours.').isVisible()
+                && await timeDialog.getByRole('button', { name: 'Save time' }).isDisabled()
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const durationErrorArtifact = path.join(
+              artifactDir,
+              `${viewportName}-${theme}-daily-time-duration-error.png`,
+            )
+            await page.screenshot({ path: durationErrorArtifact })
+            artifacts.push(durationErrorArtifact)
+            await timeDialog.getByLabel('Starts').fill('20:00')
+            checks.push({
+              name: `${viewportName} ${theme} Daily accepts an exact 12-hour session`,
+              passed: await timeDialog.getByText('Maximum is 12 hours.').count() === 0
+                && await timeDialog.getByRole('button', { name: 'Save time' }).isEnabled(),
+            })
+            await timeDialog.getByLabel('Starts').fill('09:00')
+            await timeDialog.getByLabel('Ends').fill('10:00')
+            await timeDialog.getByRole('button', { name: 'Same class day' }).click()
             await page.keyboard.press('Escape')
           }
           if (pageName === 'Daily' && theme === 'dark') {
@@ -127,6 +152,20 @@ export const patternLabPageMockups: VerificationScript = {
             const manualTimeArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-manual-time.png`)
             await page.screenshot({ path: manualTimeArtifact })
             artifacts.push(manualTimeArtifact)
+            await manualTimeDialog.getByLabel('Starts').fill('07:00')
+            await manualTimeDialog.getByLabel('Ends').fill('20:00')
+            checks.push({
+              name: `${viewportName} ${theme} Manual Daily rejects attendance sessions over 12 hours`,
+              passed: await manualTimeDialog.getByText('Maximum is 12 hours.').isVisible()
+                && await manualTimeDialog.getByRole('button', { name: 'Save time' }).isDisabled()
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const manualDurationErrorArtifact = path.join(
+              artifactDir,
+              `${viewportName}-${theme}-daily-manual-time-duration-error.png`,
+            )
+            await page.screenshot({ path: manualDurationErrorArtifact })
+            artifacts.push(manualDurationErrorArtifact)
             await page.keyboard.press('Escape')
             await section.getByRole('combobox', { name: 'Attendance mode' }).selectOption('qr')
           }
@@ -341,7 +380,14 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.screenshot({ path: dailyNoTimeArtifact })
     artifacts.push(dailyNoTimeArtifact)
     await daily.getByRole('button', { name: 'Set attendance time, attendance open' }).click()
-    await page.getByRole('dialog', { name: 'Attendance time' }).getByRole('button', { name: 'Save time' }).click()
+    const reopenedTimeDialog = page.getByRole('dialog', { name: 'Attendance time' })
+    checks.push({
+      name: 'Daily prevents saving a stale next-day session over 12 hours',
+      passed: await reopenedTimeDialog.getByText('Maximum is 12 hours.').isVisible()
+        && await reopenedTimeDialog.getByRole('button', { name: 'Save time' }).isDisabled(),
+    })
+    await reopenedTimeDialog.getByRole('button', { name: 'Same class day' }).click()
+    await reopenedTimeDialog.getByRole('button', { name: 'Save time' }).click()
     await daily.getByRole('button', { name: 'More actions' }).click()
     checks.push({
       name: 'Daily More actions owns session and class-wide attendance commands',

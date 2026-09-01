@@ -56,6 +56,28 @@ describe('manual attendance', () => {
       status: 'present',
     }).success).toBe(false)
   })
+
+  it('accepts an exact 12-hour passive session and rejects longer or inverted times', () => {
+    const base = {
+      classroom_id: '20000000-0000-4000-8000-000000000002',
+      expected_revision: 1,
+      source_mode: 'manual' as const,
+      session_starts_local: '08:00',
+    }
+
+    expect(manualAttendanceSettingsSchema.safeParse({
+      ...base,
+      session_ends_local: '20:00',
+    }).success).toBe(true)
+    expect(manualAttendanceSettingsSchema.safeParse({
+      ...base,
+      session_ends_local: '20:01',
+    }).success).toBe(false)
+    expect(manualAttendanceSettingsSchema.safeParse({
+      ...base,
+      session_ends_local: '07:59',
+    }).success).toBe(false)
+  })
 })
 
 describe('manual attendance store', () => {

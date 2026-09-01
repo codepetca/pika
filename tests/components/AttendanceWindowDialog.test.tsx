@@ -244,6 +244,24 @@ describe('AttendanceWindowDialog', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
   })
 
+  it('blocks sessions over 12 hours and allows the exact boundary', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: null }))
+    renderDialog()
+
+    await screen.findByLabelText('Session starts*')
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '19:59' } })
+    fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '08:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+
+    expect(screen.getByText('Maximum is 12 hours.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '20:00' } })
+    expect(screen.queryByText('Maximum is 12 hours.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeEnabled()
+    expect(screen.getByLabelText('Grace period before late (min)')).toHaveAttribute('max', '720')
+  })
+
   it('rejects a policy response for another classroom or with extra fields', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
       policy: savedPolicy({

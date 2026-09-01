@@ -17,6 +17,11 @@ import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
+import {
+  ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+  MAX_ATTENDANCE_SESSION_MINUTES,
+  attendanceSessionDurationMinutes,
+} from '@/lib/attendance-session-duration'
 import type { TeacherAttendanceStatus } from '@/lib/teacher-attendance'
 import {
   Button,
@@ -78,15 +83,6 @@ function attendanceTimeDate(time: string) {
 function clampMinutes(value: number, maximum: number) {
   if (!Number.isFinite(value)) return 0
   return Math.min(Math.max(value, 0), maximum)
-}
-
-function attendanceDurationMinutes(startsAt: string, endsAt: string, endDay: 'same' | 'next') {
-  if (!startsAt || !endsAt) return 0
-  const [startHours, startMinutes] = startsAt.split(':').map(Number)
-  const [endHours, endMinutes] = endsAt.split(':').map(Number)
-  const duration = endHours * 60 + endMinutes - (startHours * 60 + startMinutes)
-    + (endDay === 'next' ? 1440 : 0)
-  return Math.max(0, duration)
 }
 
 function formatAttendanceTime(time: string, compact = false) {
@@ -181,7 +177,22 @@ export function DailyMockup({
   const [checkIns, setCheckIns] = useState<Record<DailyStudentId, string | null>>(() => (
     initialStudentRecord((student) => student.checkIn)
   ))
-  const timingRuleMaxMinutes = attendanceDurationMinutes(draftStartsAt, draftEndsAt, sessionEndDay)
+  const attendanceDuration = attendanceSessionDurationMinutes(
+    draftStartsAt,
+    draftEndsAt,
+    sessionEndDay === 'next' ? 1 : 0,
+  ) ?? 0
+  const timingRuleMaxMinutes = Math.min(
+    MAX_ATTENDANCE_SESSION_MINUTES,
+    Math.max(0, attendanceDuration),
+  )
+  const attendanceTimeValidationError = !draftStartsAt || !draftEndsAt
+    ? 'Choose both session times.'
+    : attendanceDuration <= 0
+      ? 'Session end must be after session start.'
+      : attendanceDuration > MAX_ATTENDANCE_SESSION_MINUTES
+        ? ATTENDANCE_SESSION_TOO_LONG_MESSAGE
+        : ''
 
   useEffect(() => {
     setPresentGraceMinutes((current) => clampMinutes(current, timingRuleMaxMinutes))
@@ -258,7 +269,7 @@ export function DailyMockup({
     setIsTimeDialogOpen(true)
   }
   const saveAttendanceTime = () => {
-    if (!draftStartsAt || !draftEndsAt) return
+    if (attendanceTimeValidationError) return
     setAttendanceTime({ startsAt: draftStartsAt, endsAt: draftEndsAt })
     setIsTimeDialogOpen(false)
     onPrototypeAction('Save attendance time')
@@ -568,7 +579,7 @@ export function DailyMockup({
             <FormField label="Starts">
               <Input type="time" value={draftStartsAt} onChange={(event) => setDraftStartsAt(event.target.value)} />
             </FormField>
-            <FormField label="Ends">
+            <FormField label="Ends" error={attendanceTimeValidationError || undefined}>
               <Input type="time" value={draftEndsAt} onChange={(event) => setDraftEndsAt(event.target.value)} />
             </FormField>
           </div>
@@ -637,10 +648,10 @@ export function DailyMockup({
               </label>
             </div>
           ) : null}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={clearAttendanceTime}>Clear time</Button>
-            <Button type="button" variant="secondary" onClick={() => setIsTimeDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={!draftStartsAt || !draftEndsAt}>Save time</Button>
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
+            <Button type="button" variant="ghost" size="sm" className="w-full sm:w-auto" onClick={clearAttendanceTime}>Clear time</Button>
+            <Button type="button" variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => setIsTimeDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={Boolean(attendanceTimeValidationError)}>Save time</Button>
           </div>
         </form>
       </ContentDialog>

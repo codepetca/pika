@@ -83,6 +83,11 @@ import {
 } from '@/hooks/useTeacherAttendanceController'
 import { useTeacherManualAttendanceController } from '@/hooks/useTeacherManualAttendanceController'
 import { deriveManualAttendanceStatus } from '@/lib/manual-attendance'
+import {
+  ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+  MAX_ATTENDANCE_SESSION_MINUTES,
+  attendanceSessionDurationMinutes,
+} from '@/lib/attendance-session-duration'
 
 type SortColumn = 'first_name' | 'last_name' | 'id' | 'log' | 'check_in' | 'attendance_status'
 type ResizableColumn = 'first' | 'last' | 'id' | 'checkIn'
@@ -248,6 +253,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       manualAttendance.settings.sessionEndsLocal,
     )
     : null
+  const manualDraftDuration = attendanceSessionDurationMinutes(
+    manualDraftStartsAt,
+    manualDraftEndsAt,
+    0,
+  )
+  const manualTimeValidationError = !manualDraftStartsAt || !manualDraftEndsAt
+    ? 'Choose both session times.'
+    : manualDraftDuration === null || manualDraftDuration <= 0
+      ? 'Session end must be after session start.'
+      : manualDraftDuration > MAX_ATTENDANCE_SESSION_MINUTES
+        ? ATTENDANCE_SESSION_TOO_LONG_MESSAGE
+        : ''
   currentClassroomIdRef.current = classroom.id
   currentSelectedDateRef.current = selectedDate
   onSelectEntryRef.current = onSelectEntry
@@ -1541,6 +1558,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault()
+            if (manualTimeValidationError) return
             void manualAttendance.saveSettings({
               sessionStartsLocal: manualDraftStartsAt,
               sessionEndsLocal: manualDraftEndsAt,
@@ -1556,7 +1574,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 onChange={(event) => setManualDraftStartsAt(event.target.value)}
               />
             </FormField>
-            <FormField label="Ends">
+            <FormField label="Ends" error={manualTimeValidationError || undefined}>
               <Input
                 type="time"
                 value={manualDraftEndsAt}
@@ -1565,10 +1583,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               />
             </FormField>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
             <Button
               type="button"
               variant="ghost"
+              size="sm"
+              className="w-full sm:w-auto"
               disabled={manualAttendance.activeCommand === 'settings'}
               onClick={() => {
                 void manualAttendance.saveSettings({
@@ -1582,6 +1602,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             <Button
               type="button"
               variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
               disabled={manualAttendance.activeCommand === 'settings'}
               onClick={() => setIsManualTimeDialogOpen(false)}
             >
@@ -1589,8 +1611,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </Button>
             <Button
               type="submit"
+              size="sm"
+              className="w-full sm:w-auto"
               loading={manualAttendance.activeCommand === 'settings'}
-              disabled={!manualDraftStartsAt || !manualDraftEndsAt}
+              disabled={Boolean(manualTimeValidationError)}
             >
               Save time
             </Button>

@@ -672,6 +672,38 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeInTheDocument()
   })
 
+  it('blocks passive attendance times longer than 12 hours', async () => {
+    mockManualAttendanceFetch()
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} manualAttendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    await screen.findByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: /Edit time/ }))
+
+    const starts = screen.getByLabelText('Starts')
+    const ends = screen.getByLabelText('Ends')
+    await user.clear(starts)
+    await user.type(starts, '07:00')
+    await user.clear(ends)
+    await user.type(ends, '20:00')
+
+    expect(screen.getByText('Maximum is 12 hours.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save time' })).toBeDisabled()
+
+    await user.clear(starts)
+    await user.type(starts, '08:00')
+    expect(screen.queryByText('Maximum is 12 hours.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save time' })).toBeEnabled()
+  })
+
   it('opens the Daily More menu from the keyboard and restores trigger focus on close', async () => {
     mockLogsFetch()
     const user = userEvent.setup()
