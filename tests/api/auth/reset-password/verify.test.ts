@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/reset-password/verify/route'
 import { NextRequest } from 'next/server'
 
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRateLimit: vi.fn() }))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -15,6 +17,7 @@ vi.mock('@/lib/crypto', () => ({
   generateHandoffToken: vi.fn(() => 'reset-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'),
   hashHandoffToken: vi.fn((token: string) => `hashed_${token}`),
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 vi.mock('@/lib/auth', () => ({
   AuthenticationError: class AuthenticationError extends Error {
@@ -30,6 +33,7 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('POST /api/auth/reset-password/verify', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
   })
 
   it('should return 400 for missing required fields', async () => {

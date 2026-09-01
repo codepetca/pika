@@ -77,7 +77,7 @@ describe('POST /api/auth/create-password', () => {
     expect(data.error).toContain('Verification session is required')
   })
 
-  it('should return 400 when user already has password', async () => {
+  it('returns a generic 401 when the account already has a password', async () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -97,10 +97,10 @@ describe('POST /api/auth/create-password', () => {
 
     const response = await POST(createRequest(validBody()))
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(401)
   })
 
-  it('should return 400 when email is not verified', async () => {
+  it('returns a generic 401 when the email is not verified', async () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -120,7 +120,7 @@ describe('POST /api/auth/create-password', () => {
 
     const response = await POST(createRequest(validBody()))
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(401)
   })
 
   it('should reject an invalid, expired, or reused handoff token', async () => {

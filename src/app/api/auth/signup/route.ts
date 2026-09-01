@@ -5,14 +5,27 @@ import { sendSignupCode } from '@/lib/email'
 import { isTeacherEmail } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { signupSchema } from '@/lib/validations/auth'
+import { consumeAuthRateLimit } from '@/lib/server/auth-rate-limit'
 
 const MAX_CODES_PER_HOUR = 5
 const CODE_EXPIRY_MINUTES = 10
+const SIGNUP_RESPONSE = {
+  success: true,
+  message: 'Verification code sent to your email',
+}
 
 export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
   const { email: normalizedEmail } = signupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRateLimit({
+    scope: 'signup_code',
+    value: normalizedEmail,
+    maxAttempts: MAX_CODES_PER_HOUR,
+    windowSeconds: 60 * 60,
+    supabase,
+  })
 
   // Check if user already exists with a password
   const { data: existingUser } = await supabase
@@ -22,7 +35,7 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     .single()
 
   if (existingUser && existingUser.password_hash) {
-    throw new ApiError(400, 'An account with this email already exists. Please login instead.')
+    return NextResponse.json(SIGNUP_RESPONSE)
   }
 
   // Create user if doesn't exist (or update existing user without password)
@@ -49,25 +62,6 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     }
 
     userId = newUser!.id
-  }
-
-  // Rate limiting: check how many codes were requested in the last hour
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-
-  const { data: recentCodes, error: checkError } = await supabase
-    .from('verification_codes')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('purpose', 'signup')
-    .gte('created_at', oneHourAgo.toISOString())
-
-  if (checkError) {
-    console.error('Error checking recent codes:', checkError)
-    throw new ApiError(500, 'Internal server error')
-  }
-
-  if (recentCodes && recentCodes.length >= MAX_CODES_PER_HOUR) {
-    throw new ApiError(429, 'Too many code requests. Please try again later.')
   }
 
   // Generate and hash code
@@ -101,8 +95,5 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     // Don't fail the request if email fails, code is still in DB
   }
 
-  return NextResponse.json({
-    success: true,
-    message: 'Verification code sent to your email',
-  })
+  return NextResponse.json(SIGNUP_RESPONSE)
 })

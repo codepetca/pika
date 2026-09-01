@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { verifySignupSchema } from '@/lib/validations/auth'
+import { consumeAuthRateLimit } from '@/lib/server/auth-rate-limit'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
@@ -11,6 +12,14 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
   const { email: normalizedEmail, code: normalizedCode } = verifySignupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRateLimit({
+    scope: 'signup_verify',
+    value: normalizedEmail,
+    maxAttempts: MAX_VERIFICATION_ATTEMPTS,
+    windowSeconds: 10 * 60,
+    supabase,
+  })
 
   // Find user by email
   const { data: user, error: userError } = await supabase
@@ -25,7 +34,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
 
   // Check if user already has a password
   if (user.password_hash) {
-    throw new ApiError(400, 'This account already has a password. Please login instead.')
+    throw new ApiError(401, 'Invalid email or code')
   }
 
   // Find unused, non-expired verification codes for this user

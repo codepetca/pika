@@ -7,6 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/verify-signup/route'
 import { NextRequest } from 'next/server'
 
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRateLimit: vi.fn() }))
+
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -17,12 +19,14 @@ vi.mock('@/lib/crypto', () => ({
   generateHandoffToken: vi.fn(() => 'signup-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'),
   hashHandoffToken: vi.fn((token: string) => `hashed_${token}`),
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('POST /api/auth/verify-signup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
   })
 
   describe('validation', () => {
@@ -80,7 +84,7 @@ describe('POST /api/auth/verify-signup', () => {
       expect(data.error).toBe('Invalid email or code')
     })
 
-    it('should return 400 when user already has password', async () => {
+    it('returns the same generic 401 when the account already has a password', async () => {
       const mockFrom = vi.fn((table: string) => {
         if (table === 'users') {
           return {
@@ -105,8 +109,8 @@ describe('POST /api/auth/verify-signup', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('This account already has a password. Please login instead.')
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Invalid email or code')
     })
 
     it('should return 401 when no valid codes exist', async () => {

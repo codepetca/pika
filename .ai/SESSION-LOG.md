@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Inspect Attendance catalog direction
-
-- Audited current combined Daily/Attendance controls, semantic colors, count ownership/sorting behavior, student confirmation semantics and older attendance implementations. Recorded findings in `docs/guidance/ui/changes/status-catalog-audit.md`; catalog implementation awaits the number-only versus icon-plus-count design choice.
-- Current direction: green Present, yellow Late, red Absent; rounded tabular-number header pills with contextual tooltips and active-sort rings; click sorts rather than filters; Unmarked has no count chip. Student Checked in stays separate from teacher-derived marks.
-- Fixed an incidental regression from this worktree's earlier PageActionBar change: omit an empty trailing flex slot for primary-only bars to remove a 6px left shift. Existing Attendance browser contracts pass 4/4 (desktop/mobile, light/dark); screenshots inspected and saved under session artifacts `attendance-catalog-review`. No business logic, API, schema or permissions changed.
-
-## 2026-08-31 — Confirm number-only status count chips
-
-User chose color-only status count chips: retain colored fills and numeric counts without added status icons. Recorded the decision in the status-catalog audit and operational-table guidance. Preserve contextual tooltips, accessible names, focus and active-sort rings. Documentation only; existing Attendance controls already match this choice. No UI or business behavior changed.
-
 ## 2026-08-31 — Render the agreed status examples in Pattern Lab
 
 - Corrected the documentation-only handoff: Controls now visibly includes an interactive Attendance example with production green/yellow/red number-only count chips and row controls, plus actual Classwork/Test status labels and colors. Direct preview: localhost:3004/pattern-lab#status-colors; Statuses links back to it.
@@ -274,9 +264,18 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - With one-time authorization, applied migration `147_gradebook_categories.sql` to local Supabase, regenerated matching database types, and verified the seeded defaults, Term assignment default, atomic replacement, and delete-to-Uncategorized behavior in a rolled-back transaction. Database lint found no new warnings. Draft PR review and CI remain.
 - Independent review remediation added category reordering, serialized same-assessment saves, explicit-weight preservation, safe name swaps/delete-recreate behavior, reserved internal-name validation, and full classroom archive/restore/purge integration. The corrected migration replayed from a clean local database; category, archive, compaction, schema-audit, and hot-to-cold-to-restore recovery checks pass with all 41 resources. Full tests pass 652 files / 5,619 tests; the final focused gate passes 73 files / 828 tests plus architecture, UI/design policy, TypeScript, lint, and Pika audit.
 - Final integration review caught restore drift for intentionally Uncategorized assessments. Current-format restores now preserve explicit null category membership, legacy archives still default missing category data to Term, and the recovery drill fixture proves Uncategorized survives hot-to-cold-to-restore unchanged. The frozen migration-108 archive wrapper and current migration-147 archive checks both pass with strict version-aware resource/trigger counts.
+
 ## 2026-09-01 — Harden application dependencies
 
 - Upgraded Next.js and its lint config to the patched 15.5 line, Vitest/coverage to 4.1.11, Vite to 7.3.5, and PostCSS to 8.5.26. Added narrow pnpm overrides for vulnerable transitive packages; `pnpm audit` now reports zero vulnerabilities at every severity.
 - Adapted server-page request APIs and fixture tests for Next 15's asynchronous headers and search parameters. Authentication redirect destinations and teacher/student route behavior remain unchanged.
 - Verification: frozen-lockfile install, production build, focused gate (18 files / 115 tests plus architecture, UI/design policy, TypeScript, and lint), full suite (650 files / 5,599 tests), diff check, and Pika audit pass. Independent fixed-SHA security and compatibility review plus exact-head PR Gate follow before the authorized merge.
 - First exact-head CI exposed that Next 15 development Flight diagnostics could serialize raw fulfilled Supabase assessment results before the public planned-course page projected them, including private question and document fields. The public loader now resolves only to an explicit least-data DTO with no database identities or private Test fields, and no longer fetches answer-bearing assessment JSON; public Test cards retain their titles but omit question counts. Child rows use stable position/ID ordering. E2E-only Next developer chrome is disabled so keyboard-order checks exercise the application. The exact raw-response privacy and not-found keyboard matrix covers desktop/mobile and light/dark; full checks, targeted re-review, and fresh CI follow.
+
+## 2026-09-01 — Harden authentication sessions and abuse controls
+
+- Replaced PII/role-bearing long-lived cookie authority with version-3 opaque tokens whose hashes, current user binding, authentication source, and expiry are held in a server-only `auth_sessions` table. Login rotation and logout revoke the exact row; password reset consumes the handoff, changes the password, and revokes every prior session atomically.
+- Added shared concurrency-safe database rate limits for login, signup/reset code sends, and code verification. Limiter keys are HMAC-normalized email hashes, browser roles have no table/RPC access, stale limiter metadata is removed after one day, and expired sessions are swept during login.
+- Replaced legacy `Math.random` verification-code generation, equalized password-login hash work for missing/passwordless accounts, removed response-based signup/login/reset enumeration, and made `/api/auth/me` explicitly private/non-cacheable.
+- Added migration `148_auth_session_and_rate_limit_hardening.sql`, database concurrency/revocation/privilege contracts, focused route/runtime/migration tests, and a migration-first rollout/rollback canary runbook. Migration 148 is unapplied everywhere and still requires exact target/migration authorization before rollout.
+- Verification: 98 auth-focused tests, focused gate (164 files / 1,214 tests), full suite (654 files / 5,597 tests), architecture/UI/design policy, TypeScript, lint, Pika audit, shell validation, and desktop/mobile light/dark auth visual inspection pass. Independent high-risk review remains.

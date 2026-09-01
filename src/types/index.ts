@@ -155,14 +155,18 @@ export interface Entry {
 }
 
 export interface SessionData {
-  user: {
-    id: string
-    email: string
-    role: UserRole
-    version?: 2
-    authSource?: 'password' | 'workos'
-    workosUserId?: string
+  auth?: {
+    token: string
+    version: 3
   }
+}
+
+export interface AuthenticatedUser {
+  id: string
+  email: string
+  role: UserRole
+  authSource: 'password' | 'workos'
+  workosUserId?: string
 }
 
 export interface AttendanceRecord {

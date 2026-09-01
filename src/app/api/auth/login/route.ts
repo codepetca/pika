@@ -4,11 +4,29 @@ import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { loginSchema } from '@/lib/validations/auth'
+import {
+  clearAuthRateLimit,
+  consumeAuthRateLimit,
+} from '@/lib/server/auth-rate-limit'
+
+const LOGIN_MAX_ATTEMPTS = 10
+const LOGIN_WINDOW_SECONDS = 15 * 60
+// A public fixed bcrypt hash makes missing-account and passwordless-account
+// failures perform the same expensive comparison as a normal login failure.
+const DUMMY_PASSWORD_HASH = '$2a$10$lpkNmMXcHq.HXd/ovw0RxehO6zovy.9SfT9kFmgSxAU9Ufk7G6f.K'
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
   const { email: normalizedEmail, password } = loginSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRateLimit({
+    scope: 'login',
+    value: normalizedEmail,
+    maxAttempts: LOGIN_MAX_ATTEMPTS,
+    windowSeconds: LOGIN_WINDOW_SECONDS,
+    supabase,
+  })
 
   // Find user by email
   const { data: user, error: userError } = await supabase
@@ -17,23 +35,18 @@ export const POST = withErrorHandler('Login', async (request: NextRequest) => {
     .eq('email', normalizedEmail)
     .single()
 
-  if (userError || !user) {
+  const isValidPassword = await verifyPassword(
+    password,
+    user?.password_hash || DUMMY_PASSWORD_HASH,
+  )
+
+  if (userError || !user || !user.password_hash || !isValidPassword) {
     throw new ApiError(401, 'Invalid email or password')
   }
 
-  // Check if user has a password set
-  if (!user.password_hash) {
-    throw new ApiError(400, 'Please complete signup by setting a password')
-  }
+  await clearAuthRateLimit({ scope: 'login', value: normalizedEmail, supabase })
 
-  // Verify password
-  const isValidPassword = await verifyPassword(password, user.password_hash)
-
-  if (!isValidPassword) {
-    throw new ApiError(401, 'Invalid email or password')
-  }
-
-  // Create session
+  // Create session only after the shared limiter has been reset successfully.
   await createSession(user.id, user.email, user.role)
 
   const redirectUrl = '/classrooms'

@@ -123,7 +123,7 @@ tests/                             # Vitest unit + API suites
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
 - **Login**: `/api/auth/login` with email/password.
 - **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` issues a short-lived one-time handoff token; `/confirm` requires that token before updating the password.
-- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
+- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production. The sealed cookie contains only a versioned opaque token; its SHA-256 hash, current user binding, authentication source, and expiry live in the server-only `auth_sessions` table. Authorization resolves current email/role from `users`, logout revokes the current row, and password reset revokes every row for that user. Expired sessions are swept during login; HMAC-keyed authentication throttle metadata is removed one day after its last update.
 - **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
 
 ### Attendance Logic
@@ -441,7 +441,7 @@ Existing indexes (migration 038):
   functions: Pika reserves the exact immutable object, the browser uploads with Supabase's
   signed token, and Pika verifies stored size/MIME before finalizing the managed identity.
   The service-role credential and ownership decisions remain server-only.
-- Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret.
+- Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret. Deployments that require session format 3 must apply migration 148 before the compatible application release.
 
 ---
 

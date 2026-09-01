@@ -18,17 +18,17 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
     .single()
 
   if (userError || !user) {
-    throw new ApiError(404, 'User not found')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   // Check if user already has a password
   if (user.password_hash) {
-    throw new ApiError(400, 'This account already has a password')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   // Check if email is verified
   if (!user.email_verified_at) {
-    throw new ApiError(400, 'Email must be verified before creating a password')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   const now = new Date().toISOString()

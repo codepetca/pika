@@ -154,6 +154,65 @@ export type Database = {
           },
         ]
       }
+      auth_rate_limits: {
+        Row: {
+          attempt_timestamps: string[]
+          key_hash: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_timestamps?: string[]
+          key_hash: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_timestamps?: string[]
+          key_hash?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      auth_sessions: {
+        Row: {
+          auth_source: string
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string
+          workos_user_id: string | null
+        }
+        Insert: {
+          auth_source: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          user_id: string
+          workos_user_id?: string | null
+        }
+        Update: {
+          auth_source?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string
+          workos_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_ai_grading_run_items: {
         Row: {
           assignment_doc_id: string | null
@@ -8311,6 +8370,10 @@ export type Database = {
         Args: { p_metrics: Json }
         Returns: boolean
       }
+      clear_auth_rate_limit: {
+        Args: { p_key_hash: string; p_scope: string }
+        Returns: boolean
+      }
       clear_test_open_response_grades_atomic: {
         Args: {
           p_expected_responses: Json
@@ -8526,6 +8589,15 @@ export type Database = {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
       }
+      consume_auth_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_scope: string
+          p_window_seconds: number
+        }
+        Returns: Json
+      }
       consume_attendance_integration_smoke_nonce_v1: {
         Args: {
           p_challenge_hash: string
@@ -8535,6 +8607,14 @@ export type Database = {
           p_nonce: string
           p_request_timestamp: string
           p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      consume_password_reset_and_revoke_sessions: {
+        Args: {
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
         }
         Returns: boolean
       }

@@ -1,7 +1,7 @@
 import { getIronSession, IronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { randomUUID } from 'node:crypto'
-import type { SessionData, UserRole } from '@/types'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import type { AuthenticatedUser, SessionData, UserRole } from '@/types'
 import {
   AUTH_SESSION_MAX_AGE_SECONDS,
   AUTH_SESSION_TTL_SECONDS,
@@ -9,6 +9,13 @@ import {
 } from '@/lib/auth-session-policy'
 import { recordPalAuthenticatedSession } from '@/lib/server/pal-signals'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import { getServiceRoleClient } from '@/lib/supabase'
+
+const AUTH_SESSION_TOKEN_BYTES = 32
+
+function hashSessionToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
+}
 
 /**
  * Custom error class for authentication failures (401)
@@ -71,13 +78,48 @@ export async function createSession(
   } = {},
 ) {
   const session = await getSession()
-  session.user = {
-    id: userId,
-    email,
-    role,
+  const supabase = getServiceRoleClient()
+  const { error: cleanupError } = await supabase
+    .from('auth_sessions')
+    .delete()
+    .lte('expires_at', new Date().toISOString())
+  if (cleanupError) {
+    // Cleanup is best-effort so a transient maintenance failure does not turn
+    // into an authentication outage. The indexed sweep repeats at next login.
+    console.error('Failed to remove expired authentication sessions:', cleanupError)
+  }
+
+  const previousToken = session.auth?.version === AUTH_SESSION_VERSION
+    ? session.auth.token
+    : null
+  if (previousToken) {
+    const { error: revokeError } = await supabase
+      .from('auth_sessions')
+      .delete()
+      .eq('token_hash', hashSessionToken(previousToken))
+    if (revokeError) {
+      console.error('Failed to rotate existing authentication session:', revokeError)
+      throw new Error('Failed to create authentication session')
+    }
+  }
+
+  const token = randomBytes(AUTH_SESSION_TOKEN_BYTES).toString('base64url')
+  const authSource = options.workosUserId ? 'workos' : 'password'
+  const { error: insertError } = await supabase.from('auth_sessions').insert({
+    user_id: userId,
+    token_hash: hashSessionToken(token),
+    auth_source: authSource,
+    workos_user_id: options.workosUserId || null,
+    expires_at: new Date(Date.now() + AUTH_SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
+  })
+  if (insertError) {
+    console.error('Failed to persist authentication session:', insertError)
+    throw new Error('Failed to create authentication session')
+  }
+
+  session.auth = {
+    token,
     version: AUTH_SESSION_VERSION,
-    authSource: options.workosUserId ? 'workos' : 'password',
-    ...(options.workosUserId ? { workosUserId: options.workosUserId } : {}),
   }
   await session.save()
 
@@ -94,18 +136,68 @@ export async function createSession(
  */
 export async function destroySession() {
   const session = await getSession()
+  let revokeError: unknown = null
+  if (session.auth?.version === AUTH_SESSION_VERSION) {
+    const supabase = getServiceRoleClient()
+    const { error } = await supabase
+      .from('auth_sessions')
+      .delete()
+      .eq('token_hash', hashSessionToken(session.auth.token))
+    revokeError = error
+  }
   session.destroy()
+  if (revokeError) {
+    console.error('Failed to revoke authentication session:', revokeError)
+    throw new Error('Failed to revoke authentication session')
+  }
 }
 
 /**
  * Gets the current user from session (or null if not authenticated)
  */
-export async function getCurrentUser(): Promise<SessionData['user'] | null> {
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   const session = await getSession()
-  const pikaUser = session.user || null
-
-  if (!pikaUser) {
+  if (session.auth?.version !== AUTH_SESSION_VERSION || !session.auth.token) {
     return null
+  }
+
+  const supabase = getServiceRoleClient()
+  const { data: resolvedSession, error } = await supabase
+    .from('auth_sessions')
+    .select(`
+      user_id,
+      auth_source,
+      workos_user_id,
+      expires_at,
+      users!inner(id, email, role, workos_user_id)
+    `)
+    .eq('token_hash', hashSessionToken(session.auth.token))
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle()
+
+  if (error) {
+    console.error('Failed to resolve authentication session:', error)
+    return null
+  }
+  if (!resolvedSession) return null
+
+  const currentUser = resolvedSession.users
+  if (
+    currentUser.id !== resolvedSession.user_id
+    || (currentUser.role !== 'student' && currentUser.role !== 'teacher')
+    || (resolvedSession.auth_source !== 'password' && resolvedSession.auth_source !== 'workos')
+  ) {
+    return null
+  }
+
+  const pikaUser: AuthenticatedUser = {
+    id: currentUser.id,
+    email: currentUser.email,
+    role: currentUser.role,
+    authSource: resolvedSession.auth_source,
+    ...(resolvedSession.workos_user_id
+      ? { workosUserId: resolvedSession.workos_user_id }
+      : {}),
   }
 
   if (!isWorkOSMagicAuthPilotEnabled()) {
@@ -113,8 +205,7 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
     // credentials during rollback. WorkOS mappings and ambiguous legacy seals
     // fail closed rather than being promoted into independent credentials.
     return (
-      pikaUser.version === AUTH_SESSION_VERSION
-      && pikaUser.authSource === 'password'
+      pikaUser.authSource === 'password'
       && !pikaUser.workosUserId
     ) ? pikaUser : null
   }
@@ -130,10 +221,10 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
   }
 
   if (
-    pikaUser.version !== AUTH_SESSION_VERSION
-    || pikaUser.authSource !== 'workos'
+    pikaUser.authSource !== 'workos'
     || !pikaUser.workosUserId
     || pikaUser.workosUserId !== workOSUser.id
+    || pikaUser.workosUserId !== currentUser.workos_user_id
   ) {
     return null
   }
@@ -146,7 +237,7 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
 /**
  * Requires authentication - throws AuthenticationError if not authenticated
  */
-export async function requireAuth(): Promise<SessionData['user']> {
+export async function requireAuth(): Promise<AuthenticatedUser> {
   const user = await getCurrentUser()
 
   if (!user) {
@@ -159,7 +250,7 @@ export async function requireAuth(): Promise<SessionData['user']> {
 /**
  * Requires specific role - throws AuthenticationError if not authenticated, AuthorizationError if wrong role
  */
-export async function requireRole(role: UserRole): Promise<SessionData['user']> {
+export async function requireRole(role: UserRole): Promise<AuthenticatedUser> {
   const user = await requireAuth()  // Throws AuthenticationError if not logged in
 
   if (user.role !== role) {
@@ -173,7 +264,7 @@ export async function requireRole(role: UserRole): Promise<SessionData['user']> 
  * Requires a user who can view the snapshot gallery:
  * - any authenticated teacher in non-production environments only
  */
-export async function requireSnapshotGalleryAccess(): Promise<SessionData['user']> {
+export async function requireSnapshotGalleryAccess(): Promise<AuthenticatedUser> {
   const user = await requireRole('teacher')
 
   if (process.env.NODE_ENV === 'production') {

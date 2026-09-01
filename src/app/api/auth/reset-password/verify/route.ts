@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { resetPasswordVerifySchema } from '@/lib/validations/auth'
+import { consumeAuthRateLimit } from '@/lib/server/auth-rate-limit'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
@@ -11,6 +12,14 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
   const { email: normalizedEmail, code: normalizedCode } = resetPasswordVerifySchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRateLimit({
+    scope: 'reset_verify',
+    value: normalizedEmail,
+    maxAttempts: MAX_VERIFICATION_ATTEMPTS,
+    windowSeconds: 10 * 60,
+    supabase,
+  })
 
   // Find user by email
   const { data: user, error: userError } = await supabase

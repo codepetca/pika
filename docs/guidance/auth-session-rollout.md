@@ -1,0 +1,37 @@
+# Authentication session hardening rollout
+
+Migration `148_auth_session_and_rate_limit_hardening.sql` is an additive
+prerequisite for the compatible application release. It creates server-only
+session and authentication-throttle records plus the atomic password-reset
+function. The old application ignores these objects, so the safe order is:
+
+1. Merge and verify the application change without promoting it to Production.
+2. With fresh one-time approval naming the Production Supabase target and exact
+   migration 148, apply the migration and run database lint plus the auth
+   database contract.
+3. Deploy the compatible application.
+4. Verify one teacher and one student can sign in, read `/api/auth/me`, open a
+   protected route, log out, and cannot reuse the logged-out session.
+5. With synthetic accounts only, prove a password reset revokes an older
+   session while the newly issued session remains valid. Remove the fixture.
+
+The session format advances from 2 to 3. Existing password-session cookies fail
+closed and require one login after deployment. When the WorkOS pilot is active,
+an existing verified WorkOS session can restore the new Pika mapping through
+the existing exact-link path. This one-time invalidation is intentional; do not
+add compatibility code that treats a version-2 seal as an independent
+credential.
+
+Expired session rows are removed opportunistically during successful login
+attempts, and authentication-rate metadata is removed after one day by the
+limiter itself. Both tables remain inaccessible to browser roles. `/api/auth/me`
+responses are explicitly private and non-cacheable.
+
+Rollback is application-safe because migration 148 is additive. Rolling the
+application back makes version-3 cookies unreadable to the older authorization
+logic, so affected users must sign in again. Leave the tables/functions in
+place during rollback; removing them is unnecessary and would discard
+revocation evidence.
+
+No migration application, production deployment, password reset, or hosted
+fixture creation is implicit in this runbook. Each remains separately gated.

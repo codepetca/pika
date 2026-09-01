@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/login/route'
 import { NextRequest } from 'next/server'
 
+const rateLimitMocks = vi.hoisted(() => ({
+  consumeAuthRateLimit: vi.fn(),
+  clearAuthRateLimit: vi.fn(),
+}))
+
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -27,6 +32,8 @@ vi.mock('@/lib/auth', () => ({
   },
 }))
 
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
+
 // Import mocked modules
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
@@ -44,6 +51,8 @@ const mockSupabaseClient = {
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRateLimit.mockResolvedValue(undefined)
+    rateLimitMocks.clearAuthRateLimit.mockResolvedValue(undefined)
   })
 
   // ==========================================================================
@@ -121,7 +130,7 @@ describe('POST /api/auth/login', () => {
       expect(data.error).toBe('Invalid email or password')
     })
 
-    it('should return 400 when user has no password set', async () => {
+    it('returns the same generic 401 when the account has no password set', async () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -147,8 +156,8 @@ describe('POST /api/auth/login', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Please complete signup by setting a password')
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Invalid email or password')
     })
 
     it('should return 401 when password is incorrect', async () => {
@@ -207,6 +216,34 @@ describe('POST /api/auth/login', () => {
       await POST(request)
 
       expect(verifyPassword).toHaveBeenCalledWith('ValidPassword123', 'hashed_ValidPassword123')
+      expect(rateLimitMocks.consumeAuthRateLimit).toHaveBeenCalledWith(expect.objectContaining({
+        scope: 'login',
+        value: 'test@example.com',
+        maxAttempts: 10,
+        windowSeconds: 900,
+      }))
+      expect(rateLimitMocks.clearAuthRateLimit).toHaveBeenCalledOnce()
+    })
+
+    it('performs a dummy password comparison for a missing account', async () => {
+      mockSupabaseClient.from = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+          })),
+        })),
+      })) as never
+
+      await POST(new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'missing@example.com', password: 'guess' }),
+      }))
+
+      expect(verifyPassword).toHaveBeenCalledWith(
+        'guess',
+        expect.stringMatching(/^\$2a\$10\$/),
+      )
+      expect(rateLimitMocks.clearAuthRateLimit).not.toHaveBeenCalled()
     })
   })
 
