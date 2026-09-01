@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-const sql = readFileSync('supabase/migrations/142_test_prompt_corrections_after_start.sql', 'utf8')
-describe('migration 142 Test editing boundary', () => {
+const sql = readFileSync('supabase/migrations/143_test_prompt_corrections_after_start.sql', 'utf8')
+describe('migration 143 Test editing boundary', () => {
   it('persists an irreversible first-start boundary and backfills historical work', () => {
     expect(sql).toContain('add column questions_locked_at timestamptz')
     expect(sql).toContain('new.questions_locked_at := old.questions_locked_at')

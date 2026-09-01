@@ -56,7 +56,8 @@ Follow-up outside scope: Close should confirm discarding unapplied Markdown.
 
 ## Rollout
 
-142_test_prompt_corrections_after_start.sql is prepared, not applied. The new
-application fails closed if the column is missing. Generate database types and
-run database replay/concurrency checks after exact local-migration authorization.
-No hosted migration, merge or deployment is authorized.
+143_test_prompt_corrections_after_start.sql was applied and verified locally under
+its original version 142 before `main` introduced the Attendance migration now at
+142. After resequencing, replay both migrations through 143 and regenerate the
+database types. The application fails closed if the Test editing column is
+missing. No hosted migration or deployment is authorized.

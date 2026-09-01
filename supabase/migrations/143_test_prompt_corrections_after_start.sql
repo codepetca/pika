@@ -1,4 +1,4 @@
--- Migration 142. Apply only with approval naming this file and target.
+-- Migration 143. Apply only with approval naming this file and target.
 -- Keep the boundary on the Test: closing, unsubmitting, deleting student work,
 -- and roster cleanup must never make an already-started Test structural again.
 set lock_timeout = '5s';
@@ -327,7 +327,7 @@ begin
 end;
 $$;
 
--- Pre-142 archives store student work but no explicit Test boundary. Both
+-- Pre-143 archives store student work but no explicit Test boundary. Both
 -- restore contract versions insert attempts/responses before questions while
 -- the owner-scoped maintenance flag is active, so rebuild the irreversible
 -- boundary in the same transaction before any question rows are restored.

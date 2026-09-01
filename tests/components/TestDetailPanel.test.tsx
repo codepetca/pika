@@ -1754,7 +1754,6 @@ Current Test reference material.
     })
 
     it('updates the markdown mirror immediately after structured edits in summary-detail mode', async () => {
-      holdAutosaveDebounce()
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
