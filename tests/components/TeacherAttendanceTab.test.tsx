@@ -1405,19 +1405,22 @@ describe('TeacherAttendanceTab', () => {
     view.rerender(
       <TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />,
     )
+    todayMock.today = '2026-05-07'
     fireEvent.focus(window)
 
-    expect(dateButton).toHaveTextContent('Tue May 5Yesterday')
-    expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    await waitFor(() => {
+      expect(dateButton).toHaveTextContent('Tue May 52 days ago')
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    })
 
     view.unmount()
     render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent(
-        'Wed May 6Today',
+        'Thu May 7Today',
       )
-      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-07')
     })
   })
 
