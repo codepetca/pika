@@ -127,10 +127,11 @@ describe('UiGallery accessibility contracts', () => {
     expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute('href', '#page-mockups')
     const mockups = within(screen.getByTestId('page-mockups'))
     expect(mockups.getByRole('tablist', { name: 'Classroom page mockups' })).toBeInTheDocument()
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     expect(mockups.getByRole('group', { name: 'Score display' })).toBeInTheDocument()
     expect(mockups.getByRole('button', { name: 'More actions' })).toHaveAttribute('aria-haspopup', 'menu')
     expect(mockups.getByRole('table')).toBeInTheDocument()
-    for (const name of ['Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
+    for (const name of ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = mockups.getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }

@@ -1,10 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addMonths, addWeeks, format, subMonths, subWeeks } from 'date-fns'
 import {
   CalendarDays,
+  Archive,
+  ArchiveRestore,
+  CircleDot,
   Eye,
+  GripVertical,
   ListFilter,
   Mail,
   MoreVertical,
@@ -55,12 +59,13 @@ import {
   type SortDirection,
 } from '@/ui'
 
-type PageId = 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
+type PageId = 'classrooms' | 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
 type FixtureState = 'populated' | 'loading' | 'empty' | 'error'
 type ScoreMode = 'percent' | 'raw'
 type AnnouncementFilter = 'all' | 'posted' | 'scheduled'
 
 const PAGE_ITEMS = [
+  { value: 'classrooms', label: 'Classrooms' },
   { value: 'gradebook', label: 'Gradebook' },
   { value: 'calendar', label: 'Calendar' },
   { value: 'announcements', label: 'Announcements' },
@@ -74,6 +79,17 @@ const STUDENTS = [
   { id: 'noah', first: 'Noah', last: 'Williams', email: 'noah.williams@example.com', joined: true, scores: ['14/20', '38/50', '17/20'], final: '77%' },
   { id: 'sana', first: 'Sana', last: 'Patel', email: 'sana.patel@example.com', joined: false, scores: ['—', '—', '—'], final: '—' },
   { id: 'theo', first: 'Theo', last: 'Martin', email: 'theo.martin@example.com', joined: true, scores: ['20/20', '46/50', '19/20'], final: '94%' },
+] as const
+
+const CLASSROOM_LIST = [
+  { id: 'science', title: 'Grade 10 Science', term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', accentClassName: 'bg-info' },
+  { id: 'biology', title: 'Grade 11 Biology', term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', accentClassName: 'bg-success' },
+  { id: 'chemistry', title: 'Grade 12 Chemistry', term: 'Full year', dates: 'Sep 1, 2026 – Jun 25, 2027', accentClassName: 'bg-warning' },
+] as const
+
+const ARCHIVED_CLASSROOM_LIST = [
+  { id: 'earth-space', title: 'Earth and Space Science', term: 'Semester 2', dates: 'Feb 2 – Jun 26, 2026', accentClassName: 'bg-info' },
+  { id: 'general-science', title: 'General Science', term: 'Semester 1', dates: 'Sep 2, 2025 – Jan 30, 2026', accentClassName: 'bg-success' },
 ] as const
 
 const DOC: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Review models of ecological succession and bring one question.' }] }] }
@@ -127,7 +143,7 @@ function StateBoundary({ state, page, onRetry, children }: { state: FixtureState
 }
 
 export function PageMockups() {
-  const [page, setPage] = useState<PageId>('gradebook')
+  const [page, setPage] = useState<PageId>('classrooms')
   const [state, setState] = useState<FixtureState>('populated')
   const [prototypeMessage, setPrototypeMessage] = useState('Example controls never read or write live data.')
   const explain = (action: string) => setPrototypeMessage(`${action} selected. Example only—nothing was changed.`)
@@ -159,6 +175,7 @@ export function PageMockups() {
       {PAGE_ITEMS.map((item) => (
         <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
           <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
+            {item.value === 'classrooms' ? <ClassroomsMockup onPrototypeAction={explain} /> : null}
             {item.value === 'gradebook' ? <GradebookMockup onPrototypeAction={explain} /> : null}
             {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
             {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
@@ -171,6 +188,155 @@ export function PageMockups() {
       <p role="status" className="text-xs text-text-muted">{prototypeMessage}</p>
       <Description>
         Human review required before adoption. Page-specific statuses and operations stay local; this set proposes hierarchy and component reuse rather than one universal page template.
+      </Description>
+    </div>
+  )
+}
+
+function ClassroomsMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+  const [view, setView] = useState<'active' | 'archived'>('active')
+  const [isEditing, setIsEditing] = useState(false)
+  const classrooms = view === 'active' ? CLASSROOM_LIST : ARCHIVED_CLASSROOM_LIST
+
+  useEffect(() => {
+    function returnToActiveList(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      setView('active')
+      setIsEditing(false)
+    }
+
+    window.addEventListener('keydown', returnToActiveList)
+    return () => window.removeEventListener('keydown', returnToActiveList)
+  }, [])
+
+  const menuItems: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'create',
+      label: 'Create classroom',
+      icon: <Plus className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onPrototypeAction('Create classroom'),
+    },
+    {
+      id: 'edit',
+      label: 'Edit classrooms',
+      icon: <GripVertical className="h-4 w-4" aria-hidden="true" />,
+      checked: isEditing,
+      checkedRole: 'menuitemcheckbox',
+      onSelect: () => {
+        setView('active')
+        setIsEditing((current) => !current)
+      },
+    },
+    {
+      id: 'active',
+      label: 'Active',
+      icon: <CircleDot className="h-4 w-4" aria-hidden="true" />,
+      checked: view === 'active',
+      checkedRole: 'menuitemradio',
+      dividerBefore: true,
+      onSelect: () => setView('active'),
+    },
+    {
+      id: 'archived',
+      label: 'Archived',
+      icon: <Archive className="h-4 w-4" aria-hidden="true" />,
+      checked: view === 'archived',
+      checkedRole: 'menuitemradio',
+      onSelect: () => {
+        setView('archived')
+        setIsEditing(false)
+      },
+    },
+  ]
+
+  return (
+    <div className="relative min-h-96 pb-20" data-testid="classrooms-mockup">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h4 className="font-semibold text-text-default">
+            {view === 'active' ? 'Active classrooms' : 'Archived classrooms'}
+          </h4>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {isEditing && view === 'active'
+              ? 'Drag to reorder or archive a classroom.'
+              : view === 'archived'
+                ? 'Open or restore a previous classroom.'
+                : `${classrooms.length} classrooms`}
+          </p>
+        </div>
+        {isEditing ? <span className="text-xs font-medium text-primary">Editing</span> : null}
+      </div>
+
+      <div className="space-y-2">
+        {classrooms.map((classroom) => (
+          <Card key={classroom.id} tone="panel" padding="none" interactive>
+            <div className="flex min-h-20 items-center gap-2 px-3 py-3 sm:gap-4 sm:px-4">
+              <div className="flex min-w-8 justify-center">
+                {isEditing && view === 'active' ? (
+                  <IconButton
+                    icon={GripVertical}
+                    label={`Drag to reorder ${classroom.title}`}
+                    variant="ghost"
+                    onClick={() => onPrototypeAction(`Reorder ${classroom.title}`)}
+                  />
+                ) : (
+                  <span className={cn('h-8 w-1.5 rounded-full', classroom.accentClassName)} aria-hidden="true" />
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto min-h-control min-w-0 flex-1 justify-start px-1 text-left"
+                onClick={() => onPrototypeAction(`Open ${classroom.title}`)}
+              >
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="truncate font-semibold text-text-default">{classroom.title}</span>
+                    <span className="text-sm font-normal text-text-muted">{classroom.term}</span>
+                  </span>
+                  <span className="mt-1 block text-sm font-normal text-text-muted">{classroom.dates}</span>
+                </span>
+              </Button>
+              <div className="flex min-w-11 justify-end">
+                {isEditing && view === 'active' ? (
+                  <IconButton
+                    icon={Archive}
+                    label={`Archive ${classroom.title}`}
+                    variant="ghost"
+                    onClick={() => onPrototypeAction(`Archive ${classroom.title}`)}
+                  />
+                ) : view === 'archived' ? (
+                  <IconButton
+                    icon={ArchiveRestore}
+                    label={`Unarchive ${classroom.title}`}
+                    variant="ghost"
+                    onClick={() => onPrototypeAction(`Unarchive ${classroom.title}`)}
+                  />
+                ) : null}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-2 flex justify-end px-2 sm:px-4">
+        <div className="rounded-lg border border-border bg-surface p-1 shadow-elevated">
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="Classroom actions"
+            menuAriaLabel="Classroom actions"
+            tooltip="Classroom actions"
+            icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+            items={menuItems}
+            menuPlacement="up"
+            menuAlign="end"
+            menuClassName="w-64"
+          />
+        </div>
+      </div>
+
+      <Description>
+        The bottom three-dot menu owns classroom creation, edit mode, and Active/Archived scope. Escape returns to the main Active list and clears edit mode.
       </Description>
     </div>
   )

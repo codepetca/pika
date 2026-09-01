@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — UI consistency approach (read-only review)
-
-Reviewed DESIGN.md, stable/family UI guidance, Pattern Lab catalog and fixtures, committed Pattern Lab visual evidence, and current product-experience progress. Recommended a page/role/state adoption matrix, family-scoped reference compositions, a Roster pilot, and incremental visual/interaction verification. No product code changed; no fresh live page audit performed. Next: baseline active routes and approve missing family patterns before implementation.
-
-## 2026-08-31 — Reference-page audit and local preview
-
-Started local Pika preview at localhost:3000 with the governed launcher and seeded local accounts. Captured Student Tests list/submitted detail, teacher Daily unselected/selected, and live Pattern Lab teacher examples. Initial findings: test Closed labels hide submitted progress; Daily first names truncate in current width configuration; Lab lacks complete source-page state examples. Preliminary audit and eight screenshots saved under the task visualization directory, pika-reference-audit/audit.md. No product code changed. Next: agree one small source-page preview before broader adoption.
-
-## 2026-08-31 — Relative-date clipping local preview
-
-Fixed clipped descenders in both DateNavigator subtitle render paths by restoring 16px line height. Local Daily/Lab preview updated, 44px control retained. Six component tests and four Pattern Lab browser matrix checks passed; all default captures reviewed; UI/design policy pass. Evidence: task visualization relative-date-fix/brief.md. Local preview on codex/fix-relative-date-descenders; awaiting visual acceptance before publishing.
-
 ## 2026-08-31 — History timestamp local preview
 
 Extended shared HistoryGraph so hover/selected context shows only Toronto date/time below the chart, with a reserved line to prevent hover layout shifts. Removed overlay and character-count summary; kept detailed accessible slider labels and existing selection behavior. Updated Pattern Lab explanation and existing semantic tests. All 27 HistoryGraph tests, UI/design policy, and diff checks pass. Playwright verified both authenticated roles at desktop/mobile sizes in light/dark, with hover, pin, keyboard, clear and daily overview checks; screenshots visually reviewed. Evidence: task visualization history-tooltip-fix/brief.md. Local preview only, preserving relative-date fix; not published.
@@ -269,3 +257,8 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 ## 2026-08-31 — Stabilize invalid Test Markdown coverage
 
 - Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.
+
+## 2026-08-31 — Add the Classrooms list to Pattern Lab
+
+- Extended the experimental teacher Page mockups with the main Classrooms list. Its contained bottom three-dot menu offers Create classroom, Edit classrooms, and Active/Archived scope; edit mode exposes reorder/archive actions, archived scope exposes restore actions, and Escape restores the active non-editing list. The production Classrooms route remains unchanged.
+- Added a direct Find a pattern destination plus semantic and durable browser coverage. Visual verification covers desktop/mobile, light/dark, menu-open, editing, and archived states. The focused gate passes 14 files / 149 tests plus architecture, UI policy, design policy, TypeScript, and lint.

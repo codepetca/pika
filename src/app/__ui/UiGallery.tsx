@@ -489,7 +489,7 @@ export function UiGallery({ role }: Props) {
             id="page-mockups"
             eyebrow="Experimental · page compositions"
             title="Classroom page patterns"
-            description="Interactive controls and representative content for Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces. These local-only fixtures support comparison before live-page implementation."
+            description="Interactive controls and representative content for Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces. These local-only fixtures support comparison before live-page implementation."
           >
             <PageMockups />
           </PatternSection>
@@ -575,7 +575,8 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
-      { value: 'page-mockups', label: 'Page mockups — Gradebook, calendar, announcements, roster, settings, and workspaces' },
+      { value: 'page-mockups', label: 'Page mockups — Classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },
+      { value: 'mockup-classrooms-panel', label: 'Page mockups — Classrooms' },
       { value: 'mockup-gradebook-panel', label: 'Page mockups — Gradebook' },
       { value: 'mockup-calendar-panel', label: 'Page mockups — Calendar' },
       { value: 'mockup-announcements-panel', label: 'Page mockups — Announcements' },

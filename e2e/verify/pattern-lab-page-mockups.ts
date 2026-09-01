@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import type { VerificationCheck, VerificationResult, VerificationScript } from './types'
 
-const PAGES = ['Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
+const PAGES = ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -104,6 +104,14 @@ export const patternLabPageMockups: VerificationScript = {
     await page.evaluate(() => localStorage.setItem('theme', 'light'))
     await page.reload()
     await page.locator('html:not(.dark)').waitFor()
+    await jumpSelect.selectOption('mockup-classrooms-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator opens the Classrooms mockup directly',
+      passed: await section.getByRole('tab', { name: 'Classrooms' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Classrooms' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-classrooms-panel'),
+    })
     await jumpSelect.selectOption('mockup-settings-panel')
     await page.waitForTimeout(100)
     checks.push({
@@ -122,25 +130,72 @@ export const patternLabPageMockups: VerificationScript = {
     })
     await navigator.evaluate((element) => { element.style.position = 'static' })
     await jumpSelect.selectOption('page-mockups')
+    await section.getByRole('tab', { name: 'Classrooms' }).click()
+    const classrooms = section.getByTestId('classrooms-mockup')
+    await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
+    checks.push({
+      name: 'Classroom bottom menu contains create, edit, Active, and Archived actions',
+      passed: await classrooms.getByRole('menuitem', { name: 'Create classroom' }).isVisible()
+        && await classrooms.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }).isVisible()
+        && await classrooms.getByRole('menuitemradio', { name: 'Active' }).isVisible()
+        && await classrooms.getByRole('menuitemradio', { name: 'Archived' }).isVisible(),
+    })
+    const classroomMenuArtifact = path.join(artifactDir, 'desktop-light-classrooms-menu.png')
+    await section.screenshot({ path: classroomMenuArtifact })
+    artifacts.push(classroomMenuArtifact)
+    await classrooms.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }).click()
+    const classroomEditArtifact = path.join(artifactDir, 'desktop-light-classrooms-edit.png')
+    await section.screenshot({ path: classroomEditArtifact })
+    artifacts.push(classroomEditArtifact)
+    await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
+    await classrooms.getByRole('menuitemradio', { name: 'Archived' }).click()
+    checks.push({
+      name: 'Archived Classroom scope leaves edit mode',
+      passed: await classrooms.getByText('Archived classrooms').isVisible()
+        && await classrooms.getByText('Editing').count() === 0,
+    })
+    const classroomArchivedArtifact = path.join(artifactDir, 'desktop-light-classrooms-archived.png')
+    await section.screenshot({ path: classroomArchivedArtifact })
+    artifacts.push(classroomArchivedArtifact)
+    await page.keyboard.press('Escape')
+    checks.push({
+      name: 'Escape returns Classrooms to the active list outside edit mode',
+      passed: await classrooms.getByText('Active classrooms').isVisible()
+        && await classrooms.getByText('Editing').count() === 0
+        && await classrooms.getByRole('button', { name: 'Archive Grade 10 Science' }).count() === 0,
+    })
+    await page.setViewportSize(VIEWPORTS.mobile)
+    await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
+    checks.push({
+      name: 'Mobile Classroom menu stays contained without page overflow',
+      passed: await classrooms.getByRole('menu', { name: 'Classroom actions' }).isVisible()
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    const classroomMobileMenuArtifact = path.join(artifactDir, 'mobile-light-classrooms-menu.png')
+    await section.screenshot({ path: classroomMobileMenuArtifact })
+    artifacts.push(classroomMobileMenuArtifact)
+    await page.keyboard.press('Escape')
+    await page.setViewportSize(VIEWPORTS.desktop)
     await section.getByRole('tab', { name: 'Calendar' }).click()
-    await section.getByRole('button', { name: 'More actions' }).click()
-    const termView = section.getByRole('menuitemradio', { name: 'Term' })
+    const calendar = section.getByRole('tabpanel', { name: 'Calendar' })
+    await calendar.getByRole('button', { name: 'More actions' }).click()
+    const termView = calendar.getByRole('menuitemradio', { name: 'Term' })
     checks.push({
       name: 'Calendar More actions offers Week, Month, and Term without All or Year',
       passed: await termView.isVisible()
-        && await section.getByRole('menuitemradio', { name: 'Week' }).isVisible()
-        && await section.getByRole('menuitemradio', { name: 'Month' }).isVisible()
-        && await section.getByRole('menuitemradio', { name: 'All' }).count() === 0
-        && await section.getByRole('menuitemradio', { name: 'Year' }).count() === 0,
+        && await calendar.getByRole('menuitemradio', { name: 'Week' }).isVisible()
+        && await calendar.getByRole('menuitemradio', { name: 'Month' }).isVisible()
+        && await calendar.getByRole('menuitemradio', { name: 'All' }).count() === 0
+        && await calendar.getByRole('menuitemradio', { name: 'Year' }).count() === 0,
     })
     await termView.click()
     checks.push({
       name: 'Calendar Term renders the full Semester 1 fixture through January',
-      passed: await section.getByText('Semester 1', { exact: true }).isVisible()
-        && await section.getByText('January', { exact: true }).isVisible()
-        && await section.getByText('Semester ecosystem reflection.').isVisible(),
+      passed: await calendar.getByText('Semester 1', { exact: true }).isVisible()
+        && await calendar.getByText('January', { exact: true }).isVisible()
+        && await calendar.getByText('Semester ecosystem reflection.').isVisible(),
     })
-    await section.getByRole('button', { name: 'More actions' }).click()
+    await calendar.getByRole('button', { name: 'More actions' }).click()
     const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')
     await section.screenshot({ path: calendarMenuArtifact })
     artifacts.push(calendarMenuArtifact)

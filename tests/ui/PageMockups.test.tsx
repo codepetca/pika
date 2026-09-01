@@ -14,21 +14,22 @@ describe('PageMockups', () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
-    for (const name of ['Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
+    for (const name of ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = within(mockups).getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
-    const gradebook = within(mockups).getByRole('tab', { name: 'Gradebook' })
-    gradebook.focus()
+    const classrooms = within(mockups).getByRole('tab', { name: 'Classrooms' })
+    classrooms.focus()
     await user.keyboard('{ArrowRight}')
-    expect(within(mockups).getByRole('tab', { name: 'Calendar' })).toHaveAttribute('aria-selected', 'true')
-    expect(within(mockups).getByRole('tabpanel', { name: 'Calendar' })).toBeVisible()
+    expect(within(mockups).getByRole('tab', { name: 'Gradebook' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(mockups).getByRole('tabpanel', { name: 'Gradebook' })).toBeVisible()
   })
 
   it('retries local error state and explains prototype-only actions', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
     await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'error')
     await user.click(within(mockups).getByRole('button', { name: 'Try loading gradebook again' }))
     expect(within(mockups).getByRole('table')).toBeInTheDocument()
@@ -41,23 +42,48 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
   })
 
+  it('uses a bottom classroom menu and Escape returns to the active non-editing list', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    const classrooms = within(mockups).getByTestId('classrooms-mockup')
+
+    await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
+    expect(within(classrooms).getByRole('menuitem', { name: 'Create classroom' })).toBeInTheDocument()
+    await user.click(within(classrooms).getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
+    expect(within(classrooms).getByText('Editing')).toBeVisible()
+    expect(within(classrooms).getByRole('button', { name: 'Archive Grade 10 Science' })).toBeVisible()
+
+    await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
+    await user.click(within(classrooms).getByRole('menuitemradio', { name: 'Archived' }))
+    expect(within(classrooms).getByText('Archived classrooms')).toBeVisible()
+    expect(within(classrooms).queryByText('Editing')).not.toBeInTheDocument()
+    expect(within(classrooms).getByRole('button', { name: 'Unarchive Earth and Space Science' })).toBeVisible()
+
+    await user.keyboard('{Escape}')
+    expect(within(classrooms).getByText('Active classrooms')).toBeVisible()
+    expect(within(classrooms).queryByText('Editing')).not.toBeInTheDocument()
+    expect(within(classrooms).queryByRole('button', { name: 'Archive Grade 10 Science' })).not.toBeInTheDocument()
+  })
+
   it('offers Week, Month, and Term as the Calendar view choices', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
     await user.click(within(mockups).getByRole('tab', { name: 'Calendar' }))
-    await user.click(within(mockups).getByRole('button', { name: 'More actions' }))
+    const calendar = within(mockups).getByRole('tabpanel', { name: 'Calendar' })
+    await user.click(within(calendar).getByRole('button', { name: 'More actions' }))
 
-    expect(within(mockups).getByRole('menuitemradio', { name: 'Week' })).toBeInTheDocument()
-    expect(within(mockups).getByRole('menuitemradio', { name: 'Month' })).toBeInTheDocument()
-    expect(within(mockups).getByRole('menuitemradio', { name: 'Term' })).toBeInTheDocument()
-    expect(within(mockups).queryByRole('menuitemradio', { name: 'All' })).not.toBeInTheDocument()
-    expect(within(mockups).queryByRole('menuitemradio', { name: 'Year' })).not.toBeInTheDocument()
-    await user.click(within(mockups).getByRole('menuitemradio', { name: 'Term' }))
-    expect(within(mockups).getByText('Semester 1')).toBeVisible()
-    expect(within(mockups).queryByRole('button', { name: /Return to reference/ })).not.toBeInTheDocument()
-    expect(within(mockups).getByText('January', { exact: true })).toBeVisible()
-    expect(within(mockups).getByText('Semester ecosystem reflection.')).toBeInTheDocument()
+    expect(within(calendar).getByRole('menuitemradio', { name: 'Week' })).toBeInTheDocument()
+    expect(within(calendar).getByRole('menuitemradio', { name: 'Month' })).toBeInTheDocument()
+    expect(within(calendar).getByRole('menuitemradio', { name: 'Term' })).toBeInTheDocument()
+    expect(within(calendar).queryByRole('menuitemradio', { name: 'All' })).not.toBeInTheDocument()
+    expect(within(calendar).queryByRole('menuitemradio', { name: 'Year' })).not.toBeInTheDocument()
+    await user.click(within(calendar).getByRole('menuitemradio', { name: 'Term' }))
+    expect(within(calendar).getByText('Semester 1')).toBeVisible()
+    expect(within(calendar).queryByRole('button', { name: /Return to reference/ })).not.toBeInTheDocument()
+    expect(within(calendar).getByText('January', { exact: true })).toBeVisible()
+    expect(within(calendar).getByText('Semester ecosystem reflection.')).toBeInTheDocument()
   })
 
   it('exercises SettingsMockup section semantics, inline save feedback, and guarded access changes', async () => {
