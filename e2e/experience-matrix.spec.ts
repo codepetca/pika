@@ -1814,7 +1814,7 @@ test.describe('public planned course experience matrix', () => {
     }
     await expect(page.getByRole('heading', { level: 3, name: 'Algorithm Design Brief' })).toBeVisible()
     await expect(page.getByRole('heading', { level: 3, name: 'Programming Foundations Test' })).toBeVisible()
-    await expect(page.getByText('1 question', { exact: true })).toBeVisible()
+    await expect(page.getByText(/questions?/i)).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 3, name: 'Tracing and Debugging' })).toBeVisible()
 
     const pageSource = `${await response!.text()}\n${await page.content()}`

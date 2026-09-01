@@ -56,7 +56,6 @@ export type PublishedPlannedCourseSiteData = {
     assessments: Array<{
       assessment_type: string
       title: string
-      question_count: number
     }>
     lesson_templates: Array<{
       title: string
@@ -352,6 +351,7 @@ export function getPublishedPlannedCourseSite(
           .select('title,instructions_markdown,position')
           .eq('course_blueprint_id', blueprintId)
           .order('position', { ascending: true })
+          .order('id', { ascending: true })
           .then(({ data, error: assignmentsError }) => ({
             data: (data || []).map((assignment) => ({
               title: String(assignment.title || ''),
@@ -361,16 +361,14 @@ export function getPublishedPlannedCourseSite(
           })),
         supabase
           .from('course_blueprint_assessments')
-          .select('assessment_type,title,content,position')
+          .select('assessment_type,title,position')
           .eq('course_blueprint_id', blueprintId)
           .order('position', { ascending: true })
+          .order('id', { ascending: true })
           .then(({ data, error: assessmentsError }) => ({
             data: (data || []).map((assessment) => ({
               assessment_type: String(assessment.assessment_type || ''),
               title: String(assessment.title || ''),
-              question_count: Array.isArray(assessment.content?.questions)
-                ? assessment.content.questions.length
-                : 0,
             })),
             error: assessmentsError,
           })),
@@ -379,6 +377,7 @@ export function getPublishedPlannedCourseSite(
           .select('title,content_markdown,position')
           .eq('course_blueprint_id', blueprintId)
           .order('position', { ascending: true })
+          .order('id', { ascending: true })
           .then(({ data, error: lessonsError }) => ({
             data: (data || []).map((lesson) => ({
               title: String(lesson.title || ''),

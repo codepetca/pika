@@ -123,9 +123,6 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
                   return (
                     <article key={`test-${index}`} className={itemClassName}>
                       <h3 className="text-base font-semibold text-text-default">{assessment.title}</h3>
-                      <p className="mt-1 text-sm text-text-muted">
-                        {assessment.question_count} question{assessment.question_count === 1 ? '' : 's'}
-                      </p>
                     </article>
                   )
                 })}

@@ -52,7 +52,6 @@ describe('PlannedCourseSitePage', () => {
           assessments: [{
             assessment_type: 'test',
             title: 'Programming Foundations Test',
-            question_count: 1,
           }],
           lesson_templates: [{
             title: 'Tracing and Debugging',
@@ -81,7 +80,7 @@ describe('PlannedCourseSitePage', () => {
       'Lesson Sequence',
     ])
     expect(screen.getByRole('heading', { level: 3, name: 'Programming Foundations Test' })).toBeVisible()
-    expect(screen.getByText('1 question')).toBeVisible()
+    expect(screen.queryByText(/questions?/i)).toBeNull()
     expect(screen.queryByText('Private question')).toBeNull()
     expect(screen.queryByText('Private answer')).toBeNull()
     expect(container.innerHTML).not.toContain('assignment-1')
