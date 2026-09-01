@@ -174,11 +174,15 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     studentId: user.id,
     content: submissionContent as TiptapContent,
     expectedUpdatedAt: submitRequest.expected_updated_at,
+    allowMissingAttachments: hasAcknowledgedMissingAttachments,
     ...(palEnabled ? { palEvent } : {}),
   })
 
   if (!submitResult.ok) {
-    return NextResponse.json({ error: submitResult.error }, { status: submitResult.status })
+    return NextResponse.json(
+      { error: submitResult.error, error_code: submitResult.errorCode },
+      { status: submitResult.status }
+    )
   }
 
   const palDelivery = palEvent

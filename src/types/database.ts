@@ -314,6 +314,7 @@ type FunctionOverrides = {
       p_expected_updated_at: string
       p_word_count: number
       p_char_count: number
+      p_allow_missing_attachments?: boolean
     }
     Returns: Json
   }

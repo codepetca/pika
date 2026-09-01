@@ -164,6 +164,7 @@ describe('atomic assignment document operations', () => {
       p_expected_updated_at: '2026-07-16T12:01:00.000Z',
       p_word_count: 1,
       p_char_count: 5,
+      p_allow_missing_attachments: false,
     }))
   })
 
@@ -196,7 +197,10 @@ describe('atomic assignment document operations', () => {
 
     expect(rpc).toHaveBeenCalledWith(
       'submit_assignment_doc_with_pal_event_atomic',
-      expect.objectContaining({ p_pal_event: palEvent }),
+      expect.objectContaining({
+        p_pal_event: palEvent,
+        p_allow_missing_attachments: false,
+      }),
     )
   })
 
@@ -284,23 +288,51 @@ describe('atomic assignment document operations', () => {
     expect(result.doc).not.toHaveProperty('future_doc_field')
   })
 
-  it('reports a missing atomic migration without falling back to split writes', async () => {
+  it('reports a missing acknowledgement migration without falling back for missing attachments', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } })
     const result = await submitAssignmentDocAtomic({
-      supabase: {
-        rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } }),
-      },
+      supabase: { rpc },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      content: afterContent,
+      expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
+      allowMissingAttachments: true,
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      status: 503,
+      error: 'Submitting without the missing attachment is temporarily unavailable. Try again shortly.',
+      errorCode: 'assignment_submission_migration_required',
+    })
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the strict legacy call shape during migration-first rollout', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202' } })
+      .mockResolvedValueOnce({
+        data: {
+          ok: true,
+          idempotent: false,
+          doc: makeDoc({ is_submitted: true, submitted_at: '2026-07-16T12:02:00.000Z' }),
+          history_entry: null,
+        },
+        error: null,
+      })
+
+    const result = await submitAssignmentDocAtomic({
+      supabase: { rpc },
       assignmentId: 'assignment-1',
       studentId: 'student-1',
       content: afterContent,
       expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
     })
 
-    expect(result).toEqual({
-      ok: false,
-      status: 500,
-      error: 'Assignment submission migration is required',
-      errorCode: 'assignment_submission_migration_required',
-    })
+    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc.mock.calls[0][1]).toHaveProperty('p_allow_missing_attachments', false)
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_allow_missing_attachments')
   })
 
   it('returns a structured conflict when atomic unsubmit loses to teacher return', async () => {

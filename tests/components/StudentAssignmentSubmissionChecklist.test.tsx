@@ -181,4 +181,36 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     expect(savedArtifacts).toContainEqual(nextArtifact)
     await waitFor(() => expect(onArtifactsChange).toHaveBeenCalledWith(expect.arrayContaining([nextArtifact])))
   })
+
+  it('blocks a failed image upload until the student explicitly continues without it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ error: 'Image upload failed' }),
+    })))
+    const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
+    const onError = vi.fn()
+
+    render(
+      <StudentAssignmentSubmissionChecklist
+        ref={ref}
+        assignmentId="assignment-1"
+        requirements={[requirement({ id: 'req-image', type: 'image', label: 'Image' })]}
+        artifacts={[]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={onError}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('Upload'), {
+      target: { files: [new File(['image'], 'work.png', { type: 'image/png' })] },
+    })
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Image upload failed'))
+
+    await expect(ref.current!.savePendingArtifacts()).rejects.toThrow('Retry the failed image upload')
+    expect(screen.getByRole('button', { name: 'Continue without image' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue without image' }))
+    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([])
+  })
 })

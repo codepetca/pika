@@ -311,7 +311,21 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       studentId: 'student-1',
       content: emptyContent,
       expectedUpdatedAt: savedRevision,
+      allowMissingAttachments: true,
     }))
+
+    vi.mocked(submitAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      error: 'Submitting without the missing attachment is temporarily unavailable. Try again shortly.',
+      errorCode: 'assignment_submission_migration_required',
+    })
+    const migrationRequiredResponse = await POST(makeRequest(true), { params: { id: 'assign-1' } })
+    expect(migrationRequiredResponse.status).toBe(503)
+    await expect(migrationRequiredResponse.json()).resolves.toEqual({
+      error: 'Submitting without the missing attachment is temporarily unavailable. Try again shortly.',
+      error_code: 'assignment_submission_migration_required',
+    })
   })
 
   it('rejects saved repo metadata only because repo links must be in assignment content', async () => {
