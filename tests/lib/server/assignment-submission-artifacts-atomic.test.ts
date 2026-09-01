@@ -10,6 +10,7 @@ function makeAssignment() {
     created_by: 'teacher-1',
     description: 'Instructions',
     due_at: '2026-08-01T03:59:59.000Z',
+    gradebook_category_id: null,
     gradebook_weight: 1,
     id: 'assignment-1',
     include_in_final: true,

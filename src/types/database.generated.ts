@@ -1048,6 +1048,7 @@ export type Database = {
           created_by: string
           description: string
           due_at: string
+          gradebook_category_id: string | null
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -1071,6 +1072,7 @@ export type Database = {
           created_by: string
           description?: string
           due_at: string
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1094,6 +1096,7 @@ export type Database = {
           created_by?: string
           description?: string
           due_at?: string
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1122,6 +1125,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_gradebook_category_id_fkey"
+            columns: ["gradebook_category_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_categories"
             referencedColumns: ["id"]
           },
           {
@@ -4972,6 +4982,50 @@ export type Database = {
           },
         ]
       }
+      gradebook_categories: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          default_assessment_weight: number
+          id: string
+          is_default: boolean
+          name: string
+          percentage: number
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          default_assessment_weight?: number
+          id?: string
+          is_default?: boolean
+          name: string
+          percentage: number
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          default_assessment_weight?: number
+          id?: string
+          is_default?: boolean
+          name?: string
+          percentage?: number
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gradebook_categories_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_settings: {
         Row: {
           assignments_weight: number
@@ -6895,6 +6949,7 @@ export type Database = {
           created_at: string
           created_by: string
           documents: Json
+          gradebook_category_id: string | null
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -6915,6 +6970,7 @@ export type Database = {
           created_at?: string
           created_by: string
           documents?: Json
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6935,6 +6991,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           documents?: Json
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6961,6 +7018,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_gradebook_category_id_fkey"
+            columns: ["gradebook_category_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_categories"
             referencedColumns: ["id"]
           },
           {
@@ -9578,6 +9642,26 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "assignment_submission_requirements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      replace_gradebook_categories: {
+        Args: { p_categories: Json; p_classroom_id: string }
+        Returns: {
+          classroom_id: string
+          created_at: string
+          default_assessment_weight: number
+          id: string
+          is_default: boolean
+          name: string
+          percentage: number
+          position: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "gradebook_categories"
           isOneToOne: false
           isSetofReturn: true
         }

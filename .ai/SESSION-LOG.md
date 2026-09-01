@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Student Tests local redesign review
-
-- Worktree `/Users/stew/.codex/worktrees/9667/pika`, branch `codex/student-tests-page-review`: progress-first test cards, mobile title wrapping, shared Back/focus return, and explicit detail read recovery. API, data, exam rules, and grading untouched.
-- Experimental brief: `docs/guidance/ui/experimental/student-tests-progress.md`; deterministic production-owner examples under Pattern Lab feature patterns. Unrelated date/history fixes left to their owning task.
-- Evidence: `/Users/stew/.codex/visualizations/2026/08/31/01a057fb-2a22-7e92-88f4-9d582c079959/student-tests/`. Focused checks: 176 tests plus policy/types/lint; 66 targeted access/exam regressions; four browser combinations; semantic-token contrast passes. Local preview runs on port 3001 with its own worktree build and local Supabase credentials.
-- User accepted moving the preview through commit, draft PR, and independent review; leave card/page spacing and active exam workspace unchanged. Merge remains a separate approval; no migration or test-data writes.
-- Risk profile: workspace-state. Model recommendation: GPT-5.6 Terra/high for one independent fixed-commit review in a detached checkout. Review budget: five launches, three remediation batches, 45 minutes maximum; final review and CI evidence will be recorded on the PR without changing the reviewed commit.
-
-## 2026-08-31 — Approve Student Tests merge and integrate current main
-
-- User manually verified the student preview and authorized PR review and main merge for #1131. This task remains sole writer of `codex/student-tests-page-review`; no production promotion is authorized.
-- Integrated the Classwork-dialog change from current main. Preserved both Pattern Lab examples and both continuity histories; Student Tests application files and existing spacing are unchanged from the reviewed preview.
-- Risk profile: none for integration (underlying PR workspace-state). Model recommendation: GPT-5.6 Terra/medium for one targeted fixed-commit integration review; earlier Terra/high behavioral review remains valid. Prior ledger: one review, zero remediation batches. Final focused checks, integration review, and CI will be recorded on the PR without post-review commits.
-
-## 2026-08-31 — Consume published Pal badge-label cleanup
-
-Task owns codex/pal-widget-alpha6. User authorized widget publication and Pika PR/review/main merge; production promotion is excluded. Pinned @codepet/pal-widget 0.1.0-alpha.6 and its registry integrity after Pal #102 merged and the guarded alpha release passed. Reused StudentAchievementsTab and PalWidgetThemeBoundary without host UI/API/schema changes (runtime-platform dependency risk). Regression tests fail against alpha.5 and pass against alpha.6: 25 Pal integration tests verify exact package version, name-only earned labels, focusability, unfinished status, and progress. Playwright inspected the real student achievement component with synthetic local data at 1440x900 and 390x844 in both themes, hover and keyboard focus; final mobile width 390/390, no broken images. Pattern Lab reference inspected; teacher badge surface is n/a. Evidence: /tmp/pika-pal-alpha6-visual.nEY1f9; temporary fixture removed, no authenticated classroom or production-data validation claimed. Focused checks, draft PR, one independent Terra/high fixed-commit review, and exact-head PR Gate follow; record final results on the PR without post-review commits.
-
-## 2026-08-31 — Preview centered creation and page action icons
-
-- Worktree `codex/standardize-page-action-icons`: shared IconButton composes Button/Tooltip; classroom, classwork, test, announcement and blueprint creation entry points use Plus with contextual names. Final form submissions and chooser labels retain text. Classroom-load retry uses RotateCw.
-- PageActionBar primary actions/custom center slot use equal side columns; secondary actions use the rightmost More actions menu at every width. Announcements now uses the same centered create/right overflow arrangement. Pattern Lab and UI canon document the user-approved direction.
-- Focused checks passed: 134 files / 1,332 tests plus architecture, UI/design, TypeScript and lint. Eight centered-action browser contracts passed across both roles, desktop/mobile and light/dark; screenshots and keyboard/menu/tooltip states inspected. Real classroom and announcement creation entry points verified without creating records.
-- Preview runs on localhost:3004; no commit, PR or merge for this new change. Screenshot contract baseline refresh (Darwin/Linux) remains a pre-publication step after visual acceptance. Evidence is in the session visualization folder under `page-action-icons`.
-
 ## 2026-08-31 — Inspect Attendance catalog direction
 
 - Audited current combined Daily/Attendance controls, semantic colors, count ownership/sorting behavior, student confirmation semantics and older attendance implementations. Recorded findings in `docs/guidance/ui/changes/status-catalog-audit.md`; catalog implementation awaits the number-only versus icon-plus-count design choice.
@@ -290,3 +265,10 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Added one dynamic More actions command to swap First/Last name order. The reverse label always describes the next arrangement, each field retains its own width and sorting behavior, and `Keep key columns visible` defaults on while pinning whichever name field currently leads.
 - Added semantic coverage and a measured browser assertion for the actual sticky geometry. The Pattern Lab verifier passes across teacher desktop/mobile, light/dark, vertical/horizontal scrolling, frozen columns, empty/few-assessment states, and no page overflow. Representative light/dark desktop/mobile captures were inspected; student is intentionally n/a for this teacher-only table pattern.
 - Independent fixed-SHA review found the populated footer still summarized the original four-student fixture. Remediation batch one now derives Average/Median from every displayed row and proves the ten-student Ecosystems average is 85% in component and browser coverage. A second review claim that both name columns should freeze was rejected against the approved contract: selection plus only the leading First/Last field are key columns, with Final pinned right. Full local tests pass 644 files / 5,575 tests; Pika audit and the 100-check Pattern Lab browser suite pass. Targeted re-review and exact-head CI remain.
+
+## 2026-09-01 — Add configurable Gradebook categories
+
+- Synced after PR #1146 merged and added teacher-managed Gradebook categories with course percentages totaling 100, one default category, per-category default assessment weights, and per-assessment category/weight overrides. The seeded setup is Attendance 10%, Term 65% (default), and Final 25%; deleting a category leaves its assessments Uncategorized.
+- Added the shared category and assessment dialogs to the live teacher Gradebook and Pattern Lab. Assessment titles now open details showing category, relative weight, and exact course weight. Running grades use assessment weights within categories and renormalize category percentages when a student has no qualifying score in a category.
+- Full tests pass 651 files / 5,614 tests; focused checks, TypeScript, lint, design/UI policies, Pika audit, and teacher/student desktop/mobile light/dark visual review pass. Composite checklist reviewed: keyboard/focus behavior and semantic states are covered; no manual UI follow-up remains.
+- With one-time authorization, applied migration `147_gradebook_categories.sql` to local Supabase, regenerated matching database types, and verified the seeded defaults, Term assignment default, atomic replacement, and delete-to-Uncategorized behavior in a rolled-back transaction. Database lint found no new warnings. Draft PR review and CI remain.

@@ -29,9 +29,20 @@ import {
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
+import {
+  GradebookAssessmentDialog,
+  GradebookEditorDialog,
+} from '@/components/gradebook/GradebookDialogs'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
-import type { Classroom, ClassDay, LessonPlan, TiptapContent } from '@/types'
+import type {
+  Classroom,
+  ClassDay,
+  GradebookAssessmentColumn,
+  GradebookCategory,
+  LessonPlan,
+  TiptapContent,
+} from '@/types'
 import { SettingsMockup } from './SettingsMockup'
 import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import {
@@ -87,6 +98,12 @@ const GRADEBOOK_ASSESSMENTS = [
   'Matter',
   'Sustainability',
 ] as const
+
+const GRADEBOOK_CATEGORY_FIXTURES: GradebookCategory[] = [
+  { id: '10000000-0000-4000-8000-000000000001', name: 'Attendance', percentage: 10, default_assessment_weight: 10, position: 0, is_default: false },
+  { id: '10000000-0000-4000-8000-000000000002', name: 'Term', percentage: 65, default_assessment_weight: 10, position: 1, is_default: true },
+  { id: '10000000-0000-4000-8000-000000000003', name: 'Final', percentage: 25, default_assessment_weight: 10, position: 2, is_default: false },
+]
 
 const GRADEBOOK_SELECTION_COLUMN_WIDTH = 40
 const GRADEBOOK_STUDENT_ID_COLUMN_WIDTH = 80
@@ -456,9 +473,36 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   const [firstColumnWidth, setFirstColumnWidth] = useState(96)
   const [lastColumnWidth, setLastColumnWidth] = useState(96)
   const [selected, setSelected] = useState<string[]>([])
+  const [categories, setCategories] = useState<GradebookCategory[]>(GRADEBOOK_CATEGORY_FIXTURES)
+  const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
+  const [selectedAssessmentTitle, setSelectedAssessmentTitle] = useState<string | null>(null)
+  const [assessmentDetails, setAssessmentDetails] = useState<Record<string, { categoryId: string | null; weight: number }>>(() => (
+    Object.fromEntries(GRADEBOOK_ASSESSMENTS.map((title) => [title, {
+      categoryId: GRADEBOOK_CATEGORY_FIXTURES[1].id,
+      weight: 10,
+    }]))
+  ))
   const empty = fixtureState === 'empty'
   const fewAssessments = fixtureState === 'few-assessments'
   const assessments = empty ? [] : fewAssessments ? GRADEBOOK_ASSESSMENTS.slice(0, 3) : GRADEBOOK_ASSESSMENTS
+  const assessmentColumns: GradebookAssessmentColumn[] = assessments.map((title, index) => {
+    const details = assessmentDetails[title] || { categoryId: null, weight: 10 }
+    const category = categories.find((candidate) => candidate.id === details.categoryId)
+    return {
+      assessment_id: `fixture-${index + 1}`,
+      assessment_type: 'assignment',
+      code: `A${index + 1}`,
+      title,
+      possible: 30,
+      weight: details.weight,
+      include_in_final: true,
+      category_id: details.categoryId,
+      category_name: category?.name ?? 'Uncategorized',
+      category_percentage: category?.percentage ?? null,
+      exact_course_weight: null,
+    }
+  })
+  const selectedAssessment = assessmentColumns.find((assessment) => assessment.title === selectedAssessmentTitle) || null
   const [sort, setSort] = useState<{ key: 'first' | 'last'; direction: SortDirection }>({ key: 'last', direction: 'asc' })
   const gradebookStudents = empty || fewAssessments ? STUDENTS : POPULATED_GRADEBOOK_STUDENTS
   const rows = useMemo(() => [...gradebookStudents].sort((a, b) => {
@@ -512,6 +556,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           />
         </TeacherWorkSurfaceActionCluster>}
         actions={<MoreMenu label="Gradebook" items={[
+          { id: 'edit-gradebook', label: 'Edit gradebook', onSelect: () => setGradebookEditorOpen(true) },
           { id: 'score-mode', label: scoreMode === 'percent' ? 'Show raw scores' : 'Show %', onSelect: () => setScoreMode((current) => current === 'percent' ? 'raw' : 'percent') },
           { id: 'summary-kind', label: summaryKind === 'average' ? 'Show median' : 'Show average', onSelect: () => setSummaryKind((current) => current === 'average' ? 'median' : 'average') },
           { id: 'name-order', label: nameOrder === 'first-last' ? 'Show last name first' : 'Show first name first', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
@@ -553,7 +598,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                 />
               ))}
               {showStudentIds ? <DataTableHeaderCell>ID</DataTableHeaderCell> : null}
-              {empty ? <DataTableHeaderCell align="center">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" title={assessment} className="overflow-hidden whitespace-nowrap"><span className="block truncate">{assessment}</span></DataTableHeaderCell>)}
+              {empty ? <DataTableHeaderCell align="center">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" title={assessment} className="overflow-hidden whitespace-nowrap"><Button type="button" variant="ghost" size="xs" className="w-full overflow-hidden px-1 text-center font-normal text-text-default" onClick={() => setSelectedAssessmentTitle(assessment)}><span className="min-w-0 truncate">{assessment}</span></Button></DataTableHeaderCell>)}
               {fewAssessments ? <DataTableHeaderCell><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
               <DataTableHeaderCell align="right" className={cn('whitespace-nowrap', keepKeyColumnsVisible && 'sticky right-0 top-0 z-sticky-table border-l border-border-strong bg-surface-2')}>Final</DataTableHeaderCell>
             </DataTableRow></DataTableHead>
@@ -630,6 +675,42 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           </DataTable>
         </div>
       </TeacherWorkSurfaceTableFrame>
+      <GradebookEditorDialog
+        isOpen={gradebookEditorOpen}
+        categories={categories}
+        isSaving={false}
+        onClose={() => setGradebookEditorOpen(false)}
+        onSave={(nextCategories) => {
+          const nextCategoryIds = new Set(nextCategories.map((category) => category.id))
+          setCategories(nextCategories)
+          setAssessmentDetails((current) => Object.fromEntries(
+            Object.entries(current).map(([title, details]) => [
+              title,
+              details.categoryId && !nextCategoryIds.has(details.categoryId)
+                ? { ...details, categoryId: null }
+                : details,
+            ]),
+          ))
+          setGradebookEditorOpen(false)
+        }}
+      />
+      <GradebookAssessmentDialog
+        isOpen={Boolean(selectedAssessment)}
+        assessment={selectedAssessment}
+        assessments={assessmentColumns}
+        categories={categories}
+        isSaving={false}
+        onClose={() => setSelectedAssessmentTitle(null)}
+        onSave={(categoryId, weight) => {
+          if (selectedAssessmentTitle) {
+            setAssessmentDetails((current) => ({
+              ...current,
+              [selectedAssessmentTitle]: { categoryId, weight },
+            }))
+          }
+          setSelectedAssessmentTitle(null)
+        }}
+      />
       <Description>{empty
         ? 'With no assessments, the roster remains visible and the Assessments column spans the remaining table width.'
         : fewAssessments

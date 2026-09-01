@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, PATCH } from '@/app/api/teacher/gradebook/route'
+import { GET, PATCH, PUT } from '@/app/api/teacher/gradebook/route'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 type SupabaseReadError = { code?: string; message?: string; details?: string; hint?: string }
 
@@ -28,6 +28,8 @@ type GradebookFixture = {
   testAttemptsError?: SupabaseReadError | null
   settings?: { use_weights: boolean; assignments_weight: number; quizzes_weight: number; tests_weight?: number } | null
   settingsError?: SupabaseReadError | null
+  categories?: Array<any>
+  categoriesError?: SupabaseReadError | null
 }
 
 function buildMockFrom(fixture: GradebookFixture) {
@@ -52,6 +54,19 @@ function buildMockFrom(fixture: GradebookFixture) {
             maybeSingle: vi.fn().mockResolvedValue({
               data: fixture.settings ?? null,
               error: fixture.settingsError ?? null,
+            }),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'gradebook_categories') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({
+              data: fixture.categoriesError ? null : fixture.categories ?? [],
+              error: fixture.categoriesError ?? null,
             }),
           })),
         })),
@@ -316,6 +331,10 @@ describe('GET /api/teacher/gradebook', () => {
         title: 'Essay',
         possible: 30,
         weight: 10,
+        category_id: null,
+        category_name: 'Uncategorized',
+        category_percentage: null,
+        exact_course_weight: null,
         due_at: '2025-01-01T12:00:00.000Z',
         is_draft: false,
         include_in_final: true,
@@ -479,6 +498,42 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].assignments_possible).toBe(110)
     expect(body.students[0].assignments_percent).toBe(50)
     expect(body.students[0].final_percent).toBe(50)
+  })
+
+  it('calculates a running final from teacher-defined categories', async () => {
+    const termId = '10000000-0000-4000-8000-000000000002'
+    const finalId = '10000000-0000-4000-8000-000000000003'
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      categories: [
+        { id: termId, name: 'Term', percentage: 65, default_assessment_weight: 10, position: 0, is_default: true },
+        { id: finalId, name: 'Final', percentage: 25, default_assessment_weight: 10, position: 1, is_default: false },
+      ],
+      assignments: [
+        { id: 'a1', title: 'Term work', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true, gradebook_weight: 10, gradebook_category_id: termId },
+        { id: 'a2', title: 'Final project', due_at: '2025-01-02T12:00:00.000Z', position: 2, is_draft: false, points_possible: 30, include_in_final: true, gradebook_weight: 10, gradebook_category_id: finalId },
+        { id: 'a3', title: 'Practice', due_at: '2025-01-03T12:00:00.000Z', position: 3, is_draft: false, points_possible: 30, include_in_final: false, gradebook_weight: 10, gradebook_category_id: termId },
+      ],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 },
+        { assignment_id: 'a2', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+      ],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].final_percent).toBe(85.56)
+    expect(body.assessment_columns[0]).toMatchObject({
+      category_id: termId,
+      category_name: 'Term',
+      category_percentage: 65,
+      exact_course_weight: 65,
+    })
+    expect(body.assessment_columns[2]).toMatchObject({
+      category_id: termId,
+      exact_course_weight: null,
+    })
   })
 
   it('ignores legacy category weights and uses assessment weights for final calculations', async () => {
@@ -959,6 +1014,19 @@ describe('GET /api/teacher/gradebook', () => {
         }
       }
 
+      if (table === 'gradebook_categories') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: null,
+                error: { code: 'PGRST205', message: 'table gradebook_categories does not exist' },
+              }),
+            })),
+          })),
+        }
+      }
+
       if (table === 'classroom_enrollments') {
         return {
           select: vi.fn(() => ({
@@ -1270,5 +1338,33 @@ describe('PATCH /api/teacher/gradebook', () => {
     expect(body.error).toBe('Classroom is archived')
     expect(update).not.toHaveBeenCalled()
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('assignments')
+  })
+})
+
+describe('PUT /api/teacher/gradebook', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ;(mockSupabaseClient.from as any) = buildMockFrom({})
+  })
+
+  it('replaces valid category settings atomically', async () => {
+    const categories = [
+      { id: '10000000-0000-4000-8000-000000000001', name: 'Term', percentage: 65, default_assessment_weight: 10, position: 0, is_default: true },
+      { id: '10000000-0000-4000-8000-000000000002', name: 'Final', percentage: 35, default_assessment_weight: 20, position: 1, is_default: false },
+    ]
+    mockSupabaseClient.rpc.mockResolvedValue({ data: categories, error: null })
+
+    const response = await PUT(new NextRequest('http://localhost:3000/api/teacher/gradebook', {
+      method: 'PUT',
+      body: JSON.stringify({ classroom_id: 'c1', categories }),
+    }))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('replace_gradebook_categories', {
+      p_classroom_id: 'c1',
+      p_categories: categories,
+    })
+    expect(body.categories).toEqual(categories)
   })
 })

@@ -55,6 +55,7 @@ function makeAssignmentRpcRow(overrides: Record<string, unknown> = {}) {
     artifact_id: '10000000-0000-4000-8000-000000000010',
     blueprint_archived_at: null,
     classroom_id: 'classroom-1',
+    gradebook_category_id: null,
     gradebook_weight: 1,
     include_in_final: true,
     points_possible: 100,
