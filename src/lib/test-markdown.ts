@@ -24,6 +24,7 @@ const FIELD_KEYS = new Set([
   'source',
   'title',
   'url',
+  'managed upload',
   'content',
   'show results',
 ])
@@ -440,6 +441,12 @@ function parseDocumentBlock(
         lineIndex += 1
         break
       }
+      case 'managed upload': {
+        // Private upload identities are preserved from the current Test by ID;
+        // storage paths are intentionally not editable in markdown.
+        lineIndex += 1
+        break
+      }
       case 'content': {
         const block = parseMultilineField(blockLines, lineIndex, field.value)
         parsed.content = block.value
@@ -478,6 +485,18 @@ function parseDocumentBlock(
       title,
       source,
       content,
+    }
+  }
+
+  if (source === 'upload') {
+    const existing = options.existingDocuments?.find((document) => document.id === id)
+    if (!existing || existing.source !== 'upload' || !existing.storage_path) {
+      errors.push(`${documentLabel}: Private uploads must be added with Add Document`)
+      return null
+    }
+    return {
+      ...existing,
+      title,
     }
   }
 
@@ -560,6 +579,8 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
       if (document.source === 'text') {
         lines.push('Content:')
         lines.push(...(document.content || '').split('\n'))
+      } else if (document.source === 'upload') {
+        lines.push('Managed Upload: private')
       } else {
         lines.push(`URL: ${document.url || ''}`)
       }

@@ -6,6 +6,8 @@ import type { NodeType } from "@tiptap/pm/model"
 export type ImageUploadResult = {
   url: string
   managedObjectId?: string
+  storageBucket?: 'submission-images'
+  storagePath?: string
 }
 
 export type UploadFunction = (

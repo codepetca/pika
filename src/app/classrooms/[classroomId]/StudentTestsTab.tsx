@@ -345,12 +345,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         doc.source === 'link' && selectedTest?.test?.id && doc.snapshot_path
           ? `/api/student/tests/${selectedTest.test.id}/documents/${doc.id}/snapshot`
           : undefined
+      const uploadUrl =
+        doc.source === 'upload' && selectedTest?.test?.id && doc.storage_path
+          ? `/api/student/tests/${selectedTest.test.id}/documents/${doc.id}/file`
+          : undefined
 
       return {
         id: doc.id,
         title: doc.title,
         source: doc.source,
-        url: doc.source === 'link' ? snapshotUrl : doc.url,
+        url: doc.source === 'link' ? snapshotUrl : uploadUrl,
         content: doc.content,
       }
     })

@@ -55,7 +55,15 @@ function buildFixtureBundle() {
         assignment_id: '10000000-0000-4000-8000-000000000001',
         student_id: STUDENT_ID,
         content: {
-          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/work.png',
+          type: 'doc',
+          content: [{
+            type: 'image',
+            attrs: {
+              src: '/api/storage/submission-images?object_id=legacy',
+              storage_bucket: 'submission-images',
+              storage_path: 'student/work.png',
+            },
+          }],
         },
       }],
       assignment_submission_artifacts: [{
@@ -68,10 +76,22 @@ function buildFixtureBundle() {
         id: '40000000-0000-4000-8000-000000000001',
         classroom_id: CLASSROOM_ID,
         created_by: TEACHER_ID,
-        documents: [{
-          snapshot_path: 'teacher/test/snapshot.html',
-          url: 'https://project.supabase.co/storage/v1/object/public/test-documents/teacher/test/source.pdf',
-        }],
+        documents: [
+          {
+            id: '41000000-0000-4000-8000-000000000001',
+            title: 'Source PDF',
+            source: 'upload',
+            storage_bucket: 'test-documents',
+            storage_path: 'teacher/test/source.pdf',
+          },
+          {
+            id: '41000000-0000-4000-8000-000000000002',
+            title: 'Synced link',
+            source: 'link',
+            url: 'https://docs.example.test/source',
+            snapshot_path: 'teacher/test/snapshot.html',
+          },
+        ],
       }],
       quizzes: [{
         id: '60000000-0000-4000-8000-000000000001',
@@ -381,16 +401,22 @@ describe('classroom archive restore planning', () => {
       plan.storageObjects.find((object) => object.bucket === 'assignment-artifacts')
         ?.managedObjectId,
     )
-    expect(JSON.stringify(plan.resources.assignment_docs[0].content)).toContain(
-      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
+    const restoredImage = (plan.resources.assignment_docs[0].content as any).content[0].attrs
+    expect(restoredImage.storage_path).toMatch(
+      new RegExp(`^restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
     )
-    expect(plan.resources.assignment_docs[0].content).toEqual(expect.objectContaining({
-      managed_object_id: plan.storageObjects.find((object) => (
-        object.bucket === 'submission-images'
+    expect(restoredImage.managed_object_id).toEqual(
+      plan.storageObjects.find((object) => object.bucket === 'submission-images')?.managedObjectId,
+    )
+    const restoredUpload = (plan.resources.tests[0].documents as any[])
+      .find((document) => document.source === 'upload')
+    expect(restoredUpload.storage_path).toMatch(
+      new RegExp(`^restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
+    )
+    expect(restoredUpload.managed_object_id).toEqual(
+      plan.storageObjects.find((object) => (
+        object.bucket === 'test-documents' && object.sourcePath === 'teacher/test/source.pdf'
       ))?.managedObjectId,
-    }))
-    expect(JSON.stringify(plan.resources.tests[0].documents)).toContain(
-      `/test-documents/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
     )
     expect(JSON.stringify(plan.resources.tests[0].documents)).not.toContain(
       'teacher/test/snapshot.html',
