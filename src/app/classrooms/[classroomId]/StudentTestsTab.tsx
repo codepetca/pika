@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ClockAlert, LogOut, Maximize } from 'lucide-react'
+import { ChevronLeft, ClockAlert, LogOut, Maximize } from 'lucide-react'
+import {
+  ExamDocumentWorkspace,
+  type ExamDocumentItem,
+} from '@/components/ExamDocumentWorkspace'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
-import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
   getTestExitCount,
   mergeTestFocusSummaries,
@@ -49,14 +52,6 @@ interface RouteExitAttemptDetail {
   source?: string
   metadata?: Record<string, unknown> | null
   dedupe?: boolean
-}
-
-interface AllowedDocItem {
-  id: string
-  title: string
-  source: 'link' | 'upload' | 'text'
-  url?: string
-  content?: string
 }
 
 interface RemoteClosureNotice {
@@ -240,10 +235,10 @@ function settleFocusEventWithinQueueTimeout(request: Promise<void>): Promise<voi
   })
 }
 
-function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
+function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): ExamDocumentItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const plainUrlPattern = /\bhttps?:\/\/[^\s)]+/g
-  const linksByUrl = new Map<string, AllowedDocItem>()
+  const linksByUrl = new Map<string, ExamDocumentItem>()
 
   for (const question of questions) {
     const text = question.question_text || ''
@@ -302,7 +297,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isWindowCompliantNow, setIsWindowCompliantNow] = useState(true)
   const [isWindowCompliantStable, setIsWindowCompliantStable] = useState(true)
-  const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
+  const [activeDoc, setActiveDoc] = useState<ExamDocumentItem | null>(null)
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedTestIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
@@ -1441,7 +1436,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     hasResponded &&
     selectedTest.test.student_status === 'can_view_results'
   const showCurrentTestInfoPanel = hasSelectedTest && focusEnabled
-  const showDocPanel = showCurrentTestInfoPanel && activeDoc !== null
   const awayDurationLabel = formatDuration(focusSummary?.away_total_seconds ?? 0)
   const exitsCount = getTestExitCount(focusSummary)
   const awayCount = focusSummary?.away_count ?? 0
@@ -1449,7 +1443,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
   const showNotMaximizedWarning =
     EXAM_LOCK_OVERLAY_ENABLED && showCurrentTestInfoPanel && !isWindowCompliantStable
-    const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
     const selectedTestTitle = hasSelectedTest ? selectedTest.test.title : ''
     const selectedTestPanelTitle = isViewingResults
       ? `${selectedTestTitle} Results`
@@ -1522,162 +1515,38 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
             style={showNotMaximizedWarning ? { visibility: 'hidden' } : undefined}
           >
             {showSplitExamShell ? (
-                <div
-                  data-testid="student-test-split-container"
-                  className={`grid grid-cols-1 gap-2 ${
-                    showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
-                  } lg:min-h-0 lg:h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
-                >
-                  <section
-                    data-testid="student-test-documents-pane"
-                    className={`rounded-xl border border-border bg-surface ${
-                      showCurrentTestInfoPanel
-                        ? 'relative min-h-0 overflow-x-hidden overflow-y-auto scrollbar-hover p-0'
-                        : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
-                    }`}
-                  >
-                    {showCurrentTestInfoPanel ? (
-                      <>
-                        <div
-                          aria-hidden={showDocPanel}
-                          className={`p-3 sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
-                            showDocPanel
-                              ? 'pointer-events-none translate-x-2 opacity-0'
-                              : 'translate-x-0 opacity-100'
-                          }`}
-                        >
-                          <div className="space-y-4">
-                            <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
-
-                            {allowedDocs.length > 0 ? (
-                              <div className="space-y-2">
-                                {allowedDocs.map((doc) => (
-                                  <Button
-                                    key={doc.id}
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    className="w-full justify-between gap-2 text-left"
-                                    onClick={() => {
-                                      markAllowedDocInteraction()
-                                      setActiveDoc(doc)
-                                    }}
-                                    tabIndex={showDocPanel ? -1 : 0}
-                                  >
-                                    <span className="min-w-0 truncate">{doc.title}</span>
-                                    <ChevronRight
-                                      aria-hidden="true"
-                                      data-testid="student-test-document-open-icon"
-                                      className="h-4 w-4 flex-shrink-0 text-text-muted"
-                                    />
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-text-muted">No documents provided for this test.</p>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                                aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
-                              >
-                                <LogOut className="h-4 w-4" />
-                                <span>{exitsCount}</span>
-                              </span>
-                              <span
-                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                                aria-label={`Away time ${awayDurationLabel}.`}
-                              >
-                                <ClockAlert className="h-4 w-4" />
-                                <span>{awayDurationLabel}</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div
-                          aria-hidden={!showDocPanel}
-                          onPointerDown={markAllowedDocInteraction}
-                          onPointerMove={markAllowedDocInteraction}
-                          onWheel={markAllowedDocInteraction}
-                          className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
-                            showDocPanel
-                              ? 'pointer-events-auto translate-x-0 opacity-100'
-                              : 'pointer-events-none -translate-x-2 opacity-0'
-                          }`}
-                        >
-                          <div className="flex h-full flex-col bg-surface">
-                            <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  markAllowedDocInteraction()
-                                  setActiveDoc(null)
-                                }}
-                                aria-label="Back to documents list"
-                                className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
-                                tabIndex={showDocPanel ? 0 : -1}
-                              >
-                                <ChevronLeft className="h-3.5 w-3.5" />
-                                <span>Back</span>
-                              </button>
-                              <span className="min-w-0 truncate text-center text-sm text-text-muted">
-                                {activeDoc?.title || 'Documentation'}
-                              </span>
-                              <span
-                                aria-hidden="true"
-                                className="invisible inline-flex items-center gap-1 justify-self-end whitespace-nowrap rounded-md border border-primary/40 px-2 py-1 text-xs font-semibold"
-                              >
-                                <ChevronLeft className="h-3.5 w-3.5" />
-                                <span>Back</span>
-                              </span>
-                            </div>
-
-                            {activeDoc?.source === 'text' ? (
-                              <TestTextDocumentViewer
-                                content={activeDoc.content || ''}
-                                onKeyUp={handleTextDocPointerUp}
-                                onMouseUp={handleTextDocPointerUp}
-                              />
-                            ) : iframeDocs.length > 0 ? (
-                              <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
-                                {iframeDocs.map((doc) => {
-                                  const isVisible = activeDoc?.id === doc.id
-                                  return (
-                                    <iframe
-                                      key={doc.id}
-                                      src={doc.url}
-                                      title={doc.title || 'Documentation'}
-                                      onFocus={markAllowedDocInteraction}
-                                      onPointerEnter={markAllowedDocInteraction}
-                                      className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
-                                        isVisible
-                                          ? 'opacity-100'
-                                          : 'pointer-events-none opacity-0'
-                                      }`}
-                                      sandbox="allow-same-origin allow-scripts allow-forms"
-                                      loading="eager"
-                                    />
-                                  )
-                                })}
-                              </div>
-                            ) : (
-                              <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-                                <p className="text-sm text-text-muted">This document is unavailable.</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <h2 className="mb-3 text-lg font-semibold text-text-default">Tests</h2>
-                        {renderAssessmentList(true)}
-                      </>
-                    )}
-                  </section>
-
+                <ExamDocumentWorkspace
+                  className="lg:h-[calc(100dvh-3rem)] lg:min-h-0"
+                  resetKey={selectedTestId!}
+                  activeDocument={activeDoc}
+                  documents={allowedDocs}
+                  onOpenDocument={setActiveDoc}
+                  onCloseDocument={() => setActiveDoc(null)}
+                  onDocumentInteraction={markAllowedDocInteraction}
+                  onTextDocumentKeyUp={handleTextDocPointerUp}
+                  onTextDocumentMouseUp={handleTextDocPointerUp}
+                  splitTestId="student-test-split-container"
+                  documentsPaneTestId="student-test-documents-pane"
+                  documentOpenIconTestId="student-test-document-open-icon"
+                  documentListFooter={(
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                        aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>{exitsCount}</span>
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                        aria-label={`Away time ${awayDurationLabel}.`}
+                      >
+                        <ClockAlert className="h-4 w-4" />
+                        <span>{awayDurationLabel}</span>
+                      </span>
+                    </div>
+                  )}
+                  questionsPane={(
                   <section
                     data-testid="student-test-detail-pane"
                     className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
@@ -1790,7 +1659,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       </div>
                     )}
                   </section>
-                </div>
+                  )}
+                />
             ) : selectedTestId && (loadingTest || detailError) ? (
                 <div>
                   <Button ref={detailBackRef} type="button" variant="ghost" size="sm" onClick={handleBack} className="mb-4">
