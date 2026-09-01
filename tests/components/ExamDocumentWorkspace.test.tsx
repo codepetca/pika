@@ -20,6 +20,12 @@ const DOCUMENTS: ExamDocumentItem[] = [
     url: '/api/reference',
   },
   {
+    id: 'second-link-doc',
+    title: 'Formula reference',
+    source: 'link',
+    url: '/formula/reference',
+  },
+  {
     id: 'unavailable-doc',
     title: 'Unavailable reference',
     source: 'link',
@@ -59,6 +65,8 @@ describe('ExamDocumentWorkspace', () => {
     expect(screen.queryByRole('separator')).not.toBeInTheDocument()
     expect(screen.getByTitle('API reference')).toHaveAttribute('loading', 'eager')
     expect(screen.getByTitle('API reference')).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByTitle('API reference')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByTitle('Formula reference')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByRole('region', { name: 'Test documents' }).parentElement)
       .toHaveClass('flex-1')
     expect(screen.getByRole('region', { name: 'Test questions' }).parentElement)
@@ -94,6 +102,8 @@ describe('ExamDocumentWorkspace', () => {
     expect(separator).toHaveAttribute('aria-valuemax', '50')
     expect(separator).toHaveAttribute('aria-valuenow', '50')
     expect(screen.getByTitle('API reference')).toHaveAttribute('tabindex', '0')
+    expect(screen.getByTitle('API reference')).toHaveAttribute('aria-hidden', 'false')
+    expect(screen.getByTitle('Formula reference')).toHaveAttribute('aria-hidden', 'true')
 
     fireEvent.keyDown(separator, { key: 'ArrowLeft' })
     expect(separator).toHaveAttribute('aria-valuenow', '45')

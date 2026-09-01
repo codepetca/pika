@@ -369,6 +369,7 @@ export function ExamDocumentWorkspace({
                         key={document.id}
                         src={document.url}
                         title={document.title || 'Documentation'}
+                        aria-hidden={!isVisible}
                         onFocus={onDocumentInteraction}
                         onPointerEnter={onDocumentInteraction}
                         className={cn(

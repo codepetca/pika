@@ -58,4 +58,5 @@ Status: implemented and visually verified; feature-owned experimental compositio
 - Focused component verification: 4 files, 60 tests passed.
 - Repository focused gate: 15 files, 184 tests passed; architecture, UI policy, design policy, TypeScript, and lint passed.
 - Pika audit: passed with no violations.
+- Independent review: one non-blocking P2 was accepted and corrected; eagerly mounted inactive iframes are now hidden from both keyboard navigation and the accessibility tree, with two-frame regression coverage.
 - Visual-only data: one temporary local Test, document, question, attempt, and draft were created for the real student/teacher flows and then removed; no existing records were changed.
