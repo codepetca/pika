@@ -1,11 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Maximize, X } from 'lucide-react'
+import { Maximize, X } from 'lucide-react'
 import { Button } from '@/ui'
+import {
+  ExamDocumentWorkspace,
+  type ExamDocumentItem,
+} from '@/components/ExamDocumentWorkspace'
 import { Spinner } from '@/components/Spinner'
 import { StudentTestForm } from '@/components/StudentTestForm'
-import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchJSON } from '@/lib/request-cache'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
@@ -18,14 +21,6 @@ interface Props {
   embedded?: boolean
   listenForUpdates?: boolean
   onClose?: () => void
-}
-
-interface AllowedDocItem {
-  id: string
-  title: string
-  source: 'link' | 'upload' | 'text'
-  url?: string
-  content?: string
 }
 
 function isFullscreenActive(): boolean {
@@ -44,10 +39,10 @@ function isWindowNearMaximized(): boolean {
   return widthRatio >= 0.96 && heightRatio >= 0.9
 }
 
-function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
+function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): ExamDocumentItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const plainUrlPattern = /\bhttps?:\/\/[^\s)]+/g
-  const linksByUrl = new Map<string, AllowedDocItem>()
+  const linksByUrl = new Map<string, ExamDocumentItem>()
 
   for (const question of questions) {
     const text = question.question_text || ''
@@ -83,15 +78,12 @@ export function TeacherTestPreviewPage({
   const [error, setError] = useState('')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [allowWindowMaximizedFallback, setAllowWindowMaximizedFallback] = useState(false)
-  const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
+  const [activeDoc, setActiveDoc] = useState<ExamDocumentItem | null>(null)
   const [loadedTestId, setLoadedTestId] = useState<string | null>(null)
   const fullscreenActiveRef = useRef(false)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
   const previewOwnerRef = useRef(testId)
   const previewRequestIdRef = useRef(0)
-  const backToDocumentsButtonRef = useRef<HTMLButtonElement | null>(null)
-  const documentButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
-  const returnFocusDocumentIdRef = useRef<string | null>(null)
 
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
@@ -116,18 +108,6 @@ export function TeacherTestPreviewPage({
       return allowedDocs.find((doc) => doc.id === previous.id) ?? null
     })
   }, [allowedDocs])
-
-  useEffect(() => {
-    if (activeDoc) {
-      backToDocumentsButtonRef.current?.focus()
-      return
-    }
-
-    const documentId = returnFocusDocumentIdRef.current
-    if (!documentId) return
-    returnFocusDocumentIdRef.current = null
-    documentButtonRefs.current.get(documentId)?.focus()
-  }, [activeDoc])
 
   const requestExamFullscreen = useCallback(async (options?: { allowWindowFallback?: boolean }) => {
     const fullscreenElement = document.documentElement
@@ -287,7 +267,6 @@ export function TeacherTestPreviewPage({
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
-    returnFocusDocumentIdRef.current = null
     setActiveDoc(null)
   }, [testId])
 
@@ -363,11 +342,6 @@ export function TeacherTestPreviewPage({
     }, 150)
   }
 
-  function handleCloseDocument() {
-    returnFocusDocumentIdRef.current = activeDoc?.id ?? null
-    setActiveDoc(null)
-  }
-
   const isLoadingCurrentPreview = loading || loadedTestId !== testId
 
   if (isLoadingCurrentPreview) {
@@ -392,10 +366,8 @@ export function TeacherTestPreviewPage({
     )
   }
 
-  const showDocPanel = activeDoc !== null
   const isPreviewMaximized = isFullscreen || allowWindowMaximizedFallback
   const showNotMaximizedWarning = !isPreviewMaximized
-  const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
   const rootClassName = embedded
     ? 'fixed inset-0 z-[90] h-dvh overflow-hidden bg-page'
     : 'h-dvh overflow-hidden bg-page'
@@ -478,142 +450,33 @@ export function TeacherTestPreviewPage({
         />
       ) : (
         <div className="flex-1 min-h-0 mx-auto w-full max-w-none px-3 pb-3 sm:px-4">
-          <div
-            className={`grid grid-cols-1 gap-2 h-full grid-rows-[1fr] ${
-              showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
-            } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
-          >
-            <section
-              aria-label="Test documents"
-              className="rounded-xl border border-border bg-surface h-full relative overflow-hidden"
-            >
-              {/* Doc list — always in DOM so switching back is instant */}
-              <div
-                aria-hidden={showDocPanel}
-                className={`h-full overflow-x-hidden overflow-y-auto p-3 scrollbar-none sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
-                  showDocPanel
-                    ? 'pointer-events-none translate-x-2 opacity-0'
-                    : 'translate-x-0 opacity-100'
-                }`}
+          <ExamDocumentWorkspace
+            resetKey={testId}
+            activeDocument={activeDoc}
+            documents={allowedDocs}
+            onOpenDocument={setActiveDoc}
+            onCloseDocument={() => setActiveDoc(null)}
+            splitTestId="teacher-test-split-container"
+            textViewerClassName="scrollbar-none"
+            questionsPane={(
+              <section
+                aria-label="Test questions"
+                className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4"
               >
-                <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
-                {allowedDocs.length > 0 ? (
-                  <div className="space-y-2">
-                    {allowedDocs.map((doc) => (
-                      <Button
-                        key={doc.id}
-                        ref={(node) => {
-                          if (node) {
-                            documentButtonRefs.current.set(doc.id, node)
-                          } else {
-                            documentButtonRefs.current.delete(doc.id)
-                          }
-                        }}
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full justify-between gap-2 text-left"
-                        onClick={() => setActiveDoc(doc)}
-                        tabIndex={showDocPanel ? -1 : 0}
-                      >
-                        <span className="min-w-0 truncate">{doc.title}</span>
-                        <ChevronRight
-                          aria-hidden="true"
-                          className="h-4 w-4 flex-shrink-0 text-text-muted"
-                        />
-                      </Button>
-                    ))}
-                  </div>
+                <h2 className="text-xl font-bold text-text-default">{title}</h2>
+                {questions.length > 0 ? (
+                  <StudentTestForm
+                    testId={testId}
+                    questions={questions}
+                    previewMode
+                    onSubmitted={() => {}}
+                  />
                 ) : (
-                  <p className="text-sm text-text-muted">No documents provided for this test.</p>
+                  <p className="mt-4 text-sm text-text-muted">No questions to preview.</p>
                 )}
-              </div>
-
-              {/* Doc viewer — always in DOM so iframes preload before user opens them */}
-              <div
-                aria-hidden={!showDocPanel}
-                className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
-                  showDocPanel
-                    ? 'pointer-events-auto translate-x-0 opacity-100'
-                    : 'pointer-events-none -translate-x-2 opacity-0'
-                }`}
-              >
-                <div className="flex h-full flex-col bg-surface">
-                  <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
-                    <button
-                      ref={backToDocumentsButtonRef}
-                      type="button"
-                      onClick={handleCloseDocument}
-                      aria-label="Back to documents list"
-                      className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
-                      tabIndex={showDocPanel ? 0 : -1}
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                      <span>Back</span>
-                    </button>
-                    <span className="min-w-0 truncate text-center text-sm text-text-muted">
-                      {activeDoc?.title || 'Documentation'}
-                    </span>
-                    <span
-                      aria-hidden="true"
-                      className="invisible inline-flex items-center gap-1 justify-self-end whitespace-nowrap rounded-md border border-primary/40 px-2 py-1 text-xs font-semibold"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                      <span>Back</span>
-                    </span>
-                  </div>
-
-                  {activeDoc?.source === 'text' ? (
-                    <TestTextDocumentViewer
-                      className="scrollbar-none"
-                      content={activeDoc.content || ''}
-                    />
-                  ) : iframeDocs.length > 0 ? (
-                    <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
-                      {iframeDocs.map((doc) => {
-                        const isVisible = activeDoc?.id === doc.id
-                        return (
-                          <iframe
-                            key={doc.id}
-                            src={doc.url}
-                            title={doc.title || 'Documentation'}
-                            className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
-                              isVisible
-                                ? 'opacity-100'
-                                : 'pointer-events-none opacity-0'
-                            }`}
-                            sandbox="allow-same-origin allow-scripts allow-forms"
-                            loading="eager"
-                          />
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-                      <p className="text-sm text-text-muted">This document is unavailable.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section
-              aria-label="Test questions"
-              className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4"
-            >
-              <h2 className="text-xl font-bold text-text-default">{title}</h2>
-              {questions.length > 0 ? (
-                <StudentTestForm
-                  testId={testId}
-                  questions={questions}
-                  previewMode
-                  onSubmitted={() => {}}
-                />
-              ) : (
-                <p className="mt-4 text-sm text-text-muted">No questions to preview.</p>
-              )}
-            </section>
-          </div>
+              </section>
+            )}
+          />
         </div>
       )}
     </div>

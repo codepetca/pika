@@ -29395,3 +29395,30 @@ pending.
 
 **Model recommendation:** GPT-5.6 Terra high for CI admission and protected
 branch-safety review; no product-domain review is needed.
+
+<!-- pika-session-log-archive-batch:cde7a2c30f0f8228e99dac0a17e71e6dfd65aa65ef806b1bd990e08185a1c4ef -->
+## 2026-08-30 — Prepare final Pattern Lab integration review
+
+**Risk profile:** none for the remaining development-only UI reconciliation.
+**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
+review, with at most one follow-up launch inside the remaining review budget.
+
+- User authorized final independent review and CI for PR #1124, not merging.
+- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
+  workflow and both sides of the session-history conflict. No product source
+  changed in this sync; Daily-only relative-date scope remains intact.
+- Existing local UI checks passed at `471020c2`; the final integrated revision
+  receives refreshed focused checks before ready-for-review. Review results and
+  exact-head CI evidence will be recorded on the PR so evidence does not require
+  an unreviewed post-review commit.
+- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
+  this checkpoint allows at most 2 additional launches and 2 remaining batches,
+  20 minutes per reviewer, and 45 minutes for the review session. The integration
+  preparation is not remediation of a reviewer finding.
+
+## 2026-08-30 — Focused check and agent workflow efficiency
+
+- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
+- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
+- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
+- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.

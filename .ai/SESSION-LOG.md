@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-30 — Prepare final Pattern Lab integration review
-
-**Risk profile:** none for the remaining development-only UI reconciliation.
-**Model recommendation:** GPT-5.6 Terra/medium for one bounded final integration
-review, with at most one follow-up launch inside the remaining review budget.
-
-- User authorized final independent review and CI for PR #1124, not merging.
-- Integrated main through `61ec4bbf`, preserving its stable-SHA CI admission
-  workflow and both sides of the session-history conflict. No product source
-  changed in this sync; Daily-only relative-date scope remains intact.
-- Existing local UI checks passed at `471020c2`; the final integrated revision
-  receives refreshed focused checks before ready-for-review. Review results and
-  exact-head CI evidence will be recorded on the PR so evidence does not require
-  an unreviewed post-review commit.
-- Ledger carried forward: 6 earlier reviewer launches and 4 remediation batches;
-  this checkpoint allows at most 2 additional launches and 2 remaining batches,
-  20 minutes per reviewer, and 45 minutes for the review session. The integration
-  preparation is not remediation of a reviewer finding.
-
-## 2026-08-30 — Focused check and agent workflow efficiency
-
-- Combined workflow, changed, and related test selection in one native Vitest run; successful checks now print summaries/timings with full private temporary logs and complete failure output.
-- Added opt-in startup context reuse while retaining environment/current-state checks; documented single-writer handoff, detached reviewer checkouts, evidence reuse, and compact context in the canonical workflow.
-- Measured date-helper case: old runs executed 14 + 292 tests; combined selection retained the identical 292 unique cases in 21 files. One local sample took 9.94s versus 7.97s; not a general speed guarantee. Startup output was approximately 20 KB versus 5 KB when guidance was already loaded.
-- Native two-project selection, standalone/space-containing paths, failure propagation, dry-run, invalid workflow/base, and startup-verification regression checks passed. No CI topology, application behavior, coverage threshold, dependency, model default, or migration changes.
-
 ## 2026-08-30 — Sync Pattern Lab after PR #1128
 
 - Integrated `origin/main` at `e1f4fb61` into PR #1124; resolved only the archive conflict while preserving both histories. Developer-tooling changes apply unchanged; no `src/` or `e2e/` changes from the previously reviewed `976b958d`.
@@ -228,6 +202,7 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Reused the current Settings `SegmentedControl`, panel, and switch row. The settings scroller now brings the selected section fully into view so the final Advanced option is not clipped on direct mobile URLs. No shared component contract, Pattern Lab example, API, schema, permission, or dependency changed; risk profile none.
 - Verification: 32 Settings tests and four shared selector keyboard tests pass. Focused checks pass 12 files / 154 tests plus architecture, UI/design policy, TypeScript, and lint. Playwright screenshots were inspected for teacher desktop/mobile in light/dark, selected Advanced, focus, and toggle on/off. Student capture confirmed the teacher-only section is inaccessible and the normal student surface is unchanged.
 - User authorized the draft PR, independent review, CI, and merge to `main`; production promotion, deployment, and database operations remain excluded. Low-risk review plan: one GPT-5.6 Terra/medium fixed-commit review. Ledger starts at zero launches, zero remediation waves, and zero fix batches; record final evidence on the PR without post-review commits.
+
 ## 2026-08-31 Test corrections after first Start
 - Added a reviewable migration and application policy: after first student Start only question prompt wording/instructions remain editable; structure, choices, grading, identities and response settings remain frozen.
 - Start now persists through the atomic attempt transaction and returns its post-lock student snapshot; title/documents/result visibility stay on existing paths. Added focused UI/API/policy/migration coverage and a dev preview on port 3006.
@@ -240,3 +215,10 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Rebasing PR #1140 onto `ad13b3d7` exposed the newly merged Attendance migration 142. Resequenced the Test editing migration to 143 and updated its runtime, test and rollout references. Reconciled the already-applied local Test schema to version 143 without resetting local data; a dry run then proposed only Attendance 142, which applied successfully. The local ledger is aligned through 143, generated types match, and the Attendance, Test editing, atomic submit and atomic grading database harnesses pass. No hosted migration or deployment occurred.
 - Ready-PR CI passed Test & Build but exposed a remaining pre-policy fixture in the Blueprint question-identity database harness, so the PR returned to draft. Directly inserted attempt/response fixtures now set the durable Test lock, wording-only corrections are asserted to succeed without changing answers, points or responses, and grading mutations remain rejected. The exact Blueprint database harness, 25 targeted static tests, and the focused gate (67 files / 934 tests plus policies, TypeScript and lint) pass locally.
 - Follow-up: Close should confirm discarding unapplied Markdown.
+
+## 2026-08-31 — Refine the exam document workspace
+
+- Replaced the duplicated teacher Preview and student live-exam document compositions with a shared `ExamDocumentWorkspace`. The persistent pane header now transitions from Documents to Back plus the active document title without a jarring horizontal morph; list/viewer layers and the question form stay mounted.
+- Added an accessible desktop split-pane resizer. Documents begin at 30% in the list, open at or remember 30–50%, and questions remain at least 50%. Pointer drag, Arrow keys, Home/End, double-click reset, visible focus, and semantic separator values are covered; compact screens retain the stacked layout without a divider.
+- Focused verification passes 60 component tests and the repository gate passes 15 files / 184 tests plus architecture, UI/design policy, TypeScript and lint. Pika audit passes. Inspected actual teacher Preview and student attempt at desktop/mobile and light/dark; a compact document-body collapse found during verification was corrected. A live unsaved answer remained mounted while opening docs. Temporary local visual-only records were deleted; no existing data changed.
+- Draft PR #1145 review found one non-blocking P2: inactive eager iframes could remain in the screen-reader tree. They now retain eager mounting while receiving inactive `tabIndex` and `aria-hidden` isolation; two-frame coverage and the full 184-test focused gate pass after the fix. Final cumulative review and exact-head CI remain.
