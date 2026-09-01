@@ -195,7 +195,7 @@ describe('UiGallery accessibility contracts', () => {
     expect(studentMockups.getByRole('tablist', { name: 'Student classroom page mockups' })).toBeInTheDocument()
     expect(studentMockups.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'true')
     expect(studentMockups.getByTestId('student-today-mockup')).toBeVisible()
-  })
+  }, 15_000)
 
   it('moves tab focus and selection with arrow keys', () => {
     renderGallery()

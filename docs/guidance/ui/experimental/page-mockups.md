@@ -21,10 +21,13 @@ experimental.
 - States: populated, loading, empty, error/retry, sorted, selected, open menu,
   keyboard focus, preview dialog, gradebook-category setup, assessment details,
   calendar view/range, announcement filter, settings section/save/confirmation,
-  Daily attendance marking, student list actions, and
-  summary/workspace/inspector.
+  Daily session toggling, batch attendance
+  dialog, per-student manual marking/undo, QR reset, student list
+  actions, and summary/workspace/inspector.
 - Primary signal: stable centered scope/actions; quiet context left; ghost
-  ellipsis utilities right. Table selection never replaces global controls.
+  ellipsis utilities right. Daily joins its QR action and attendance time beside
+  the date for QR check-in mode, while Manual mode keeps a passive time control
+  and omits QR evidence. Class-wide attendance commands remain in More actions.
 - Exclusions: live APIs, persistent preferences, real email/clipboard writes,
   live grading writes from Pattern Lab, enrollment changes, publishing, new
   dependencies, and promotion of unrelated experimental compositions.
@@ -35,6 +38,7 @@ experimental.
 | Page controls | PageActionBar, TeacherWorkSurfaceContextBar | reuse | Stable center and edge responsibilities |
 | Menus/selection | TeacherWorkSurface action menus | reuse | Named, keyboard-accessible scope actions |
 | Dates/views/role | DateNavigator, SegmentedControl | reuse | Existing scope, display, and keyboard contracts |
+| Daily attendance modes | Pattern Lab fixture selector, IconButton, Button, and local joined geometry | extend | Compare QR check-in and Manual fixtures while preserving governed control contracts without promoting an experimental Daily-only composition |
 | Tables | DataTable, SortableHeaderCell, TeacherWorkSurfaceTableFrame | reuse | Density, sticky header and sorting semantics |
 | States/overlays | PageState, ContentDialog, IconButton | reuse | Standard feedback, focus return and targets |
 | Gradebook setup | ContentDialog, FormField, Input, Select, Button | extend | One feature-owned editor is shared by Pattern Lab and the live gradebook |
@@ -46,7 +50,7 @@ experimental.
 | Page | Current evidence | Proposal |
 |---|---|---|
 | Gradebook | TeacherGradebookTab replaces score-display button with email on selection; settings menu shares center | Keep %/Raw stable, persistent disabled-until-selected student menu, ellipsis right; add Edit gradebook for category percentages/defaults; assessment titles open category, item-weight, and exact-course-weight details; retain row preview |
-| Daily | TeacherAttendanceTab owns date, QR/session commands, log completion, check-in evidence, and attendance status | Reuse the same shared owners with fixed rows, local sorting/selection/status changes, and no attendance API |
+| Daily | TeacherAttendanceTab and AttendanceWindowDialog own date, QR/session commands, timing policy, log completion, scan-time evidence, and attendance status | Add a Pattern Lab Attendance mode selector. QR check-in puts the date beside an equal-height joined QR-icon/time control; QR is disabled unless attendance is open, while the clickable time area carries a subtle semantic green open state. Its time editor always shows the production timing-rule fields without an Advanced disclosure or cutoff blurb. The Grace field is labeled `Grace period before late (min)`; defaults are 10 minutes open, 5 minutes grace, 0 minutes close, and 0 minutes Absent. QR-open minutes hard-clamp to 0–120; grace, QR-close, and Absent minutes hard-clamp to 0–the calculated session duration, including the selected Same class day / Next day boundary. The end-day choice remains a segmented toggle with option-specific day-boundary tooltips, followed by `Open and close QR attendance automatically`, enabled by default. Manual removes those automatic settings along with the QR action, Time of scan column, open/close command, and QR reset while keeping the optional time neutral and editable. Its More menu has one off-by-default Attendance from log checkbox; checking it makes completed logs supply the automatic Present baseline, while unchecked means teacher-only marking. A configured passive time uses the full `9:00 - 10:00 AM` form at every viewport. In both modes, clearing time retains only the clock icon; Edit time and class-wide Edit attendance remain in More actions, and the batch editor relies on its action labels without explanatory instructions. Remove row selection, keep the compact Present/Late/Absent plus conditional undo group sticky at the far right, and show undo only when a manual mark overrides the automatic baseline. Count tooltips use compact `2 Present` language; the active sort adds a chevron inside the existing count pill without widening its 44px column. Row undo keeps the student-specific accessible name with the concise `Undo manual change` tooltip. Keep fixed rows and no attendance API |
 | Calendar | CalendarActionBar nests a context bar in PageActionBar; date, Week/Month/All and edit controls share one wrapping cluster | Date remains centered; use Week/Month/Term and Markdown in the right menu, where Term means the configured classroom date range; preserve real calendar rendering and selected date content |
 | Announcements | TeacherAnnouncementsSection already has centered + and right ellipsis, but duplicates creation in menu | Preserve +; demonstrate All/Posted/Scheduled filter in menu, reading cards and contextual Eye preview; no operational status-count table |
 | Roster | TeacherRosterTab has + Students and settings in center, selected email/removal commands mixed into global menu | Icon-only +, persistent selection menu, CSV import in right ellipsis; separate sortable names, quiet joined/not-joined text and contextual details |

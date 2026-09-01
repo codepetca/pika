@@ -1,0 +1,36 @@
+export type ManualAttendanceSourceMode = 'log' | 'manual'
+export type ManualAttendanceStatus = 'present' | 'late' | 'absent'
+export type ManualAttendanceMark = ManualAttendanceStatus | 'automatic'
+
+export interface ManualAttendanceSettings {
+  sourceMode: ManualAttendanceSourceMode
+  sessionStartsLocal: string | null
+  sessionEndsLocal: string | null
+}
+
+export interface ManualAttendanceOverride {
+  studentId: string
+  status: ManualAttendanceStatus
+}
+
+export interface ManualAttendanceView {
+  classroomId: string
+  classDate: string
+  settings: ManualAttendanceSettings
+  overrides: ManualAttendanceOverride[]
+}
+
+export const DEFAULT_MANUAL_ATTENDANCE_SETTINGS: ManualAttendanceSettings = {
+  sourceMode: 'manual',
+  sessionStartsLocal: null,
+  sessionEndsLocal: null,
+}
+
+export function deriveManualAttendanceStatus(input: {
+  sourceMode: ManualAttendanceSourceMode
+  hasCompletedLog: boolean
+  override?: ManualAttendanceStatus | null
+}): ManualAttendanceStatus | 'unmarked' {
+  if (input.override) return input.override
+  return input.sourceMode === 'log' && input.hasCompletedLog ? 'present' : 'unmarked'
+}

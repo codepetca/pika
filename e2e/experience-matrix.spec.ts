@@ -625,7 +625,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Show relative date' }).click()
   await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
   if (viewport === 'desktop') {
     await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
@@ -741,7 +741,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
 

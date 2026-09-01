@@ -43,7 +43,7 @@ import type {
   LessonPlan,
   TiptapContent,
 } from '@/types'
-import { DailyMockup } from './DailyMockup'
+import { DailyMockup, type DailyAttendanceMode } from './DailyMockup'
 import { SettingsMockup } from './SettingsMockup'
 import { STUDENT_PAGE_ITEMS, StudentPageMockup, type StudentPageId } from './StudentPageMockups'
 import { WorkSurfaceMockup } from './WorkSurfaceMockup'
@@ -251,6 +251,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
   const [teacherPage, setTeacherPage] = useState<TeacherPageId>('daily')
   const [studentPage, setStudentPage] = useState<StudentPageId>('today')
   const [state, setState] = useState<FixtureState>('populated')
+  const [dailyAttendanceMode, setDailyAttendanceMode] = useState<DailyAttendanceMode>('qr')
   const [prototypeMessage, setPrototypeMessage] = useState('Example controls never read or write live data.')
   const explain = (action: string) => setPrototypeMessage(`${action} selected. Example only—nothing was changed.`)
 
@@ -262,12 +263,27 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
             <h3 className="text-sm font-semibold">Experimental classroom page set</h3>
             <p className="mt-1 text-sm text-text-muted">{role === 'teacher' ? 'Teacher' : 'Student'} fixtures only. Use the sticky role switch, tabs and state selector to compare behavior before touching live pages.</p>
           </div>
-          <FormField label="Example state" className="w-44">
-            <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
-              { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' }, { value: 'loading', label: 'Loading' },
-              { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
-            ]} />
-          </FormField>
+          <div className="flex flex-wrap items-end gap-3">
+            {role === 'teacher' && teacherPage === 'daily' ? (
+              <FormField label="Attendance mode" className="w-40">
+                <Select
+                  id="page-mockup-attendance-mode"
+                  value={dailyAttendanceMode}
+                  onChange={(event) => setDailyAttendanceMode(event.target.value as DailyAttendanceMode)}
+                  options={[
+                    { value: 'qr', label: 'QR check-in' },
+                    { value: 'manual', label: 'Manual' },
+                  ]}
+                />
+              </FormField>
+            ) : null}
+            <FormField label="Example state" className="w-40">
+              <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
+                { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' }, { value: 'loading', label: 'Loading' },
+                { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
+              ]} />
+            </FormField>
+          </div>
         </div>
       </Card>
       {role === 'teacher' ? (
@@ -283,7 +299,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
           {TEACHER_PAGE_ITEMS.map((item) => (
             <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={teacherPage !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
               <StateBoundary state={item.value === 'gradebook' && state === 'empty' ? 'populated' : state} page={item.label} onRetry={() => setState('populated')}>
-                {item.value === 'daily' ? <DailyMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'daily' ? <DailyMockup key={dailyAttendanceMode} attendanceMode={dailyAttendanceMode} onPrototypeAction={explain} /> : null}
                 {item.value === 'classrooms' ? <ClassroomsMockup isActive={teacherPage === 'classrooms'} onPrototypeAction={explain} /> : null}
                 {item.value === 'gradebook' ? <GradebookMockup fixtureState={state} onPrototypeAction={explain} /> : null}
                 {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}

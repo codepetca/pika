@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
@@ -10,6 +11,21 @@ function renderMockups() {
 }
 
 describe('PageMockups', () => {
+  it('gives the Daily attendance composite controls explicit accessible names', () => {
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DailyMockup attendanceMode="manual" />
+        </TooltipProvider>
+      </ThemeProvider>,
+    )
+
+    const daily = screen.getByTestId('daily-mockup')
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'More actions' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' })).toBeVisible()
+  })
+
   it('keeps every named tab target mounted and supports keyboard tab changes', async () => {
     const user = userEvent.setup()
     renderMockups()
@@ -32,15 +48,160 @@ describe('PageMockups', () => {
     const daily = within(mockups).getByTestId('daily-mockup')
 
     expect(within(daily).getByRole('button', { name: 'Return to reference Daily date' })).toHaveAccessibleDescription('Today')
-    expect(within(daily).getByRole('button', { name: 'Show attendance QR' })).toBeVisible()
-    expect(within(daily).getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
-    await user.click(within(daily).getByRole('checkbox', { name: 'Select Maya Chen' }))
-    await user.click(within(daily).getByRole('button', { name: 'Student actions for 1 selected' }))
-    await user.click(within(daily).getByRole('menuitem', { name: 'Mark late' }))
-    expect(within(mockups).getByRole('status')).toHaveTextContent('Mark 1 late selected. Example only')
+    expect(within(daily).getByRole('group', { name: 'Attendance time and QR check-in' })).toHaveTextContent('9:00 - 10:00 AM')
+    const scanHeader = within(daily).getByRole('columnheader', { name: 'Time of scan' })
+    expect(scanHeader).not.toHaveTextContent('Check-in')
+    expect(scanHeader.querySelector('svg')).toBeInTheDocument()
+    const openQr = within(daily).getByRole('button', { name: 'Show QR' })
+    expect(openQr).toBeEnabled()
+    const editTime = within(daily).getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' })
+    await user.click(editTime)
+    let timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    expect(within(timeDialog).getByLabelText('Starts')).toHaveValue('09:00')
+    expect(within(timeDialog).getByLabelText('Ends')).toHaveValue('10:00')
+    expect(within(timeDialog).queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument()
+    expect(within(timeDialog).getByText('Timing rules')).toBeVisible()
+    const opensBefore = within(timeDialog).getByLabelText('QR opens before start (min)')
+    const graceBeforeLate = within(timeDialog).getByLabelText('Grace period before late (min)')
+    const closesBeforeEnd = within(timeDialog).getByLabelText('QR closes before end (min)')
+    const absentBeforeEnd = within(timeDialog).getByLabelText('Absent before end (min)')
+    expect(opensBefore).toHaveValue(10)
+    expect(opensBefore).toHaveAttribute('max', '120')
+    expect(graceBeforeLate).toHaveValue(5)
+    expect(graceBeforeLate).toHaveAttribute('max', '60')
+    expect(closesBeforeEnd).toHaveValue(0)
+    expect(closesBeforeEnd).toHaveAttribute('max', '60')
+    expect(absentBeforeEnd).toHaveValue(0)
+    expect(absentBeforeEnd).toHaveAttribute('max', '60')
+    fireEvent.change(opensBefore, { target: { value: '999' } })
+    fireEvent.change(graceBeforeLate, { target: { value: '999' } })
+    fireEvent.change(closesBeforeEnd, { target: { value: '999' } })
+    fireEvent.change(absentBeforeEnd, { target: { value: '-5' } })
+    expect(opensBefore).toHaveValue(120)
+    expect(graceBeforeLate).toHaveValue(60)
+    expect(closesBeforeEnd).toHaveValue(60)
+    expect(absentBeforeEnd).toHaveValue(0)
+    expect(within(timeDialog).queryByText(/A scan at the Present cutoff/)).not.toBeInTheDocument()
+    expect(within(timeDialog).getByRole('button', { name: 'Same class day' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(timeDialog).getByRole('button', { name: 'Next day' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(timeDialog).getByRole('checkbox', { name: 'Open and close QR attendance automatically' })).toBeChecked()
+    await user.hover(within(timeDialog).getByRole('button', { name: 'Same class day' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class end on the same day')
+    await user.unhover(within(timeDialog).getByRole('button', { name: 'Same class day' }))
+    await user.hover(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class ends the next day after midnight')
+    await user.unhover(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    await user.click(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    expect(within(timeDialog).getByRole('button', { name: 'Next day' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(timeDialog).getByRole('button', { name: 'Clear time' }))
+    expect(within(daily).getByRole('button', { name: 'Set attendance time, attendance open' })).toBeVisible()
+    expect(within(daily).getByRole('group', { name: 'Attendance time and QR check-in' })).not.toHaveTextContent('9:00')
+    await user.click(within(daily).getByRole('button', { name: 'Set attendance time, attendance open' }))
+    timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    await user.click(within(timeDialog).getByRole('button', { name: 'Save time' }))
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' })).toBeVisible()
+    await user.hover(openQr)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show QR')
+    await user.unhover(openQr)
+    expect(within(daily).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(daily).queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
+    expect(within(daily).queryByLabelText('Complete')).not.toBeInTheDocument()
+
+    expect(within(daily).queryByRole('button', { name: 'Undo manual change for Maya Chen' })).not.toBeInTheDocument()
+    const noahUndo = within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })
+    const noahAbsent = within(daily).getByRole('button', { name: 'Mark Noah Williams absent' })
+    const presentSort = within(daily).getByRole('button', { name: 'Sort Present first, 2 students' })
+    expect(noahUndo).toBeVisible()
+    expect(noahAbsent.closest('td')).toHaveClass('sticky')
+    expect(noahUndo.closest('td')?.cellIndex).toBe((noahAbsent.closest('td')?.cellIndex ?? 0) + 1)
+    await user.hover(noahUndo)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Undo manual change$/)
+    await user.unhover(noahUndo)
+    await user.hover(presentSort)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^2 Present$/)
+    await user.unhover(presentSort)
+    expect(presentSort.querySelector('svg')).toHaveClass('opacity-0')
+    await user.click(presentSort)
+    expect(presentSort).toHaveAttribute('aria-pressed', 'true')
+    expect(presentSort.querySelector('svg')).not.toHaveClass('opacity-0')
+    await user.click(within(daily).getByRole('button', { name: 'Mark Maya Chen late' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen late' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).queryByRole('button', { name: 'Undo manual change for Maya Chen' })).not.toBeInTheDocument()
 
     await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    expect(within(daily).getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeChecked()
+    expect(within(daily).getByRole('menuitem', { name: 'Edit time' })).toBeVisible()
+    expect(within(daily).getByRole('menuitem', { name: /Edit attendance/ })).toBeVisible()
     expect(within(daily).getByRole('menuitemcheckbox', { name: 'Hide relative date' })).toBeChecked()
+    await user.click(within(daily).getByRole('menuitemcheckbox', { name: /Close attendance/ }))
+    expect(within(daily).getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, attendance closed, 9:00 - 10:00 AM' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit attendance' })
+    expect(within(dialog).getByRole('button', { name: 'Mark all present' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Revert manual changes' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Clear QR check-ins' })).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Mark all present' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Sana Patel present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Edit attendance' })).getByRole('button', { name: 'Revert manual changes' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Noah Williams present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).queryByRole('button', { name: /Undo manual change/ })).not.toBeInTheDocument()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Edit attendance' })).getByRole('button', { name: 'Clear QR check-ins' }))
+    expect(within(daily).queryByText('8:52 AM')).not.toBeInTheDocument()
+    expect(within(daily).getAllByLabelText('No QR check-in')).toHaveLength(4)
+  })
+
+  it('switches Daily to passive manual attendance without QR check-in evidence', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Attendance mode' }), 'manual')
+    const daily = within(mockups).getByTestId('daily-mockup')
+
+    expect(within(daily).queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
+    expect(within(daily).queryByRole('columnheader', { name: 'Time of scan' })).not.toBeInTheDocument()
+    const manualTime = within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })
+    expect(manualTime).toHaveClass('bg-surface')
+    expect(manualTime).toHaveTextContent('9:00 - 10:00 AM')
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Sana Patel' })).toBeVisible()
+
+    await user.click(manualTime)
+    const timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    expect(within(timeDialog).queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument()
+    expect(within(timeDialog).queryByText('Timing rules')).not.toBeInTheDocument()
+    await user.click(within(timeDialog).getByRole('button', { name: 'Cancel' }))
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    expect(within(daily).getByRole('menuitem', { name: 'Edit time' })).toBeVisible()
+    const attendanceFromLog = within(daily).getByRole('menuitemcheckbox', { name: /Attendance from log/ })
+    expect(attendanceFromLog).not.toBeChecked()
+    expect(within(daily).queryByText('Manual marking')).not.toBeInTheDocument()
+    await user.click(attendanceFromLog)
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit attendance' })
+    expect(within(dialog).queryByText(/Apply one status/)).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Clear QR check-ins' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark all present' })).toBeVisible()
   })
 
   it('renders the student classroom page set with its own mounted tab targets', async () => {

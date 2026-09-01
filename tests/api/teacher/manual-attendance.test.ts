@@ -1,0 +1,123 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
+import { GET, POST, PUT } from '@/app/api/teacher/manual-attendance/route'
+import { ManualAttendanceStoreError } from '@/lib/server/manual-attendance'
+
+const {
+  requireRole,
+  assertTeacherOwnsClassroom,
+  assertTeacherCanMutateClassroom,
+  loadManualAttendanceView,
+  saveManualAttendanceMarks,
+  saveManualAttendanceSettings,
+  supabase,
+} = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  assertTeacherOwnsClassroom: vi.fn(),
+  assertTeacherCanMutateClassroom: vi.fn(),
+  loadManualAttendanceView: vi.fn(),
+  saveManualAttendanceMarks: vi.fn(),
+  saveManualAttendanceSettings: vi.fn(),
+  supabase: { from: vi.fn() },
+}))
+
+vi.mock('@/lib/auth', () => ({
+  requireRole,
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor() { super('Unauthorized'); this.name = 'AuthenticationError' }
+  },
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor() { super('Forbidden'); this.name = 'AuthorizationError' }
+  },
+}))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => supabase }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherOwnsClassroom,
+  assertTeacherCanMutateClassroom,
+}))
+vi.mock('@/lib/server/manual-attendance', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/manual-attendance')>()
+  return {
+    ...actual,
+    loadManualAttendanceView,
+    saveManualAttendanceMarks,
+    saveManualAttendanceSettings,
+  }
+})
+
+const classroomId = '20000000-0000-4000-8000-000000000002'
+const studentId = '30000000-0000-4000-8000-000000000003'
+const view = {
+  classroomId,
+  classDate: '2026-05-06',
+  settings: { sourceMode: 'log', sessionStartsLocal: null, sessionEndsLocal: null },
+  overrides: [{ studentId, status: 'late' }],
+}
+
+describe('/api/teacher/manual-attendance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
+    assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
+    assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
+    loadManualAttendanceView.mockResolvedValue(view)
+    saveManualAttendanceSettings.mockResolvedValue(view.settings)
+    saveManualAttendanceMarks.mockResolvedValue(undefined)
+  })
+
+  it('returns the Pika-owned view only after teacher ownership', async () => {
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/manual-attendance?classroom_id=${classroomId}&date=2026-05-06`,
+    ))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(view)
+    expect(assertTeacherOwnsClassroom).toHaveBeenCalledWith(
+      'teacher-1', classroomId, { supabase },
+    )
+  })
+
+  it('saves paired passive time and attendance source settings', async () => {
+    const response = await PUT(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'PUT',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        source_mode: 'manual',
+        session_starts_local: '09:00',
+        session_ends_local: '10:00',
+      }),
+    }))
+    expect(response.status).toBe(200)
+    expect(saveManualAttendanceSettings).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: 'teacher-1', classroomId, sourceMode: 'manual',
+      sessionStartsLocal: '09:00', sessionEndsLocal: '10:00',
+    }))
+  })
+
+  it('saves a bounded set of teacher overrides', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        date: '2026-05-06',
+        student_ids: [studentId],
+        status: 'absent',
+      }),
+    }))
+    expect(response.status).toBe(200)
+    expect(saveManualAttendanceMarks).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: 'teacher-1', classroomId, classDate: '2026-05-06',
+      studentIds: [studentId], status: 'absent',
+    }))
+  })
+
+  it('reports an unapplied migration without exposing store details', async () => {
+    loadManualAttendanceView.mockRejectedValue(new ManualAttendanceStoreError('migration_required'))
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/manual-attendance?classroom_id=${classroomId}&date=2026-05-06`,
+    ))
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({
+      error: 'Manual attendance is not available until its Pika migration is applied',
+    })
+  })
+})

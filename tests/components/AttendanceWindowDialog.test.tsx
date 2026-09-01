@@ -95,7 +95,7 @@ describe('AttendanceWindowDialog', () => {
       session_end_day_offset: 0,
       entry_opens_minutes_before: 10,
       present_grace_minutes: 5,
-      entry_closes_minutes_before_end: 10,
+      entry_closes_minutes_before_end: 0,
       absent_minutes_before_end: 0,
       enabled: true,
       expected_revision: null,
@@ -130,7 +130,7 @@ describe('AttendanceWindowDialog', () => {
     expect(await screen.findByLabelText('Session starts*')).toHaveValue('08:45')
     fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '23:30' } })
     fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '00:30' } })
-    fireEvent.change(screen.getByLabelText('Session end day'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
@@ -153,7 +153,7 @@ describe('AttendanceWindowDialog', () => {
     const { onSaved } = renderDialog()
 
     const automaticToggle = await screen.findByRole('checkbox', {
-      name: 'Open and close automatically',
+      name: 'Open and close QR attendance automatically',
     })
     expect(automaticToggle).not.toBeChecked()
 
@@ -167,65 +167,52 @@ describe('AttendanceWindowDialog', () => {
     })
   })
 
-  it('keeps optional attendance guidance in help tooltips', async () => {
+  it('uses concise timing guidance and option-specific end-day tooltips', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
     renderDialog()
 
     await screen.findByDisplayValue('08:45')
 
-    expect(screen.queryByText('Applied automatically on scheduled class days')).not.toBeInTheDocument()
-    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Pika sends concrete Toronto-time windows/)).not.toBeInTheDocument()
-    const closingDayHelp = screen.getByRole('button', { name: 'About closing day' })
-    const automaticHelp = screen.getByRole('button', { name: 'About automatic attendance hours' })
-    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
-    expect(automaticHelp).toHaveAttribute('aria-expanded', 'false')
-    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
-    expect(automaticHelp).not.toHaveAttribute('aria-controls')
+    expect(screen.getByLabelText('Grace period before late (min)')).toBeInTheDocument()
+    expect(screen.queryByText(/A scan at the Present cutoff/)).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Open and close QR attendance automatically' })).toBeInTheDocument()
 
-    fireEvent.pointerMove(closingDayHelp, { pointerType: 'mouse' })
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Use next day only')
-    fireEvent.pointerLeave(closingDayHelp)
+    const sameDay = screen.getByRole('button', { name: 'Same class day' })
+    fireEvent.pointerMove(sameDay, { pointerType: 'mouse' })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class end on the same day')
+    fireEvent.pointerLeave(sameDay)
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
 
-    fireEvent.focus(automaticHelp)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Pika sends concrete Toronto-time windows')
-    fireEvent.blur(automaticHelp)
+    const nextDay = screen.getByRole('button', { name: 'Next day' })
+    fireEvent.focus(nextDay)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class ends the next day after midnight')
+    fireEvent.blur(nextDay)
     await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
-
-    fireEvent.click(closingDayHelp)
-    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'true')
-    expect(closingDayHelp).toHaveAttribute('aria-controls', 'closing-day-help')
-    expect(document.getElementById('closing-day-help')).toBeVisible()
-    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
-
-    fireEvent.click(closingDayHelp)
-    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
-    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
-    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
-
-    fireEvent.click(automaticHelp)
-    expect(automaticHelp).toHaveAttribute('aria-expanded', 'true')
-    expect(automaticHelp).toHaveAttribute('aria-controls', 'automatic-hours-help')
-    expect(document.getElementById('automatic-hours-help')).toBeVisible()
   })
 
-  it('collapses tapped help when the dialog is reopened', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
-    const { rerenderDialog } = renderDialog()
+  it('hard-clamps timing rules to the approved bounds', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    renderDialog()
 
-    await screen.findByDisplayValue('08:45')
-    fireEvent.click(screen.getByRole('button', { name: 'About closing day' }))
-    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
+    const opens = await screen.findByLabelText('QR opens before start (min)')
+    const grace = screen.getByLabelText('Grace period before late (min)')
+    const closes = screen.getByLabelText('QR closes before end (min)')
+    const absent = screen.getByLabelText('Absent before end (min)')
 
-    rerenderDialog(false)
-    rerenderDialog(true)
+    expect(opens).toHaveAttribute('max', '120')
+    expect(grace).toHaveAttribute('max', '30')
+    expect(closes).toHaveAttribute('max', '30')
+    expect(absent).toHaveAttribute('max', '30')
 
-    await screen.findByDisplayValue('08:45')
-    expect(screen.getByRole('button', { name: 'About closing day' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+    fireEvent.change(opens, { target: { value: '999' } })
+    fireEvent.change(grace, { target: { value: '999' } })
+    fireEvent.change(closes, { target: { value: '999' } })
+    fireEvent.change(absent, { target: { value: '-5' } })
+
+    expect(opens).toHaveValue(120)
+    expect(grace).toHaveValue(30)
+    expect(closes).toHaveValue(30)
+    expect(absent).toHaveValue(0)
   })
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {

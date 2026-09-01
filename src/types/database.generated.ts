@@ -5687,6 +5687,96 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_attendance_marks: {
+        Row: {
+          class_date: string
+          classroom_id: string
+          created_at: string
+          status: string
+          student_id: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          class_date: string
+          classroom_id: string
+          created_at?: string
+          status: string
+          student_id: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          class_date?: string
+          classroom_id?: string
+          created_at?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_attendance_marks_classroom_id_student_id_fkey"
+            columns: ["classroom_id", "student_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_enrollments"
+            referencedColumns: ["classroom_id", "student_id"]
+          },
+          {
+            foreignKeyName: "manual_attendance_marks_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_attendance_settings: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          session_ends_local: string | null
+          session_starts_local: string | null
+          source_mode: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          session_ends_local?: string | null
+          session_starts_local?: string | null
+          source_mode?: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          session_ends_local?: string | null
+          session_starts_local?: string | null
+          source_mode?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_attendance_settings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_attendance_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pal_daily_log_week_configurations: {
         Row: {
           config_version: number

@@ -11,10 +11,10 @@ export const teacherAttendancePolicyUpdateSchema = z.object({
   session_starts_local: localTimeSchema,
   session_ends_local: localTimeSchema,
   session_end_day_offset: z.union([z.literal(0), z.literal(1)]),
-  entry_opens_minutes_before: z.number().int().min(0).max(720),
-  present_grace_minutes: z.number().int().min(0).max(720),
-  entry_closes_minutes_before_end: z.number().int().min(0).max(720),
-  absent_minutes_before_end: z.number().int().min(0).max(720),
+  entry_opens_minutes_before: z.number().int().min(0).max(120),
+  present_grace_minutes: z.number().int().min(0).max(1440),
+  entry_closes_minutes_before_end: z.number().int().min(0).max(1440),
+  absent_minutes_before_end: z.number().int().min(0).max(1440),
   enabled: z.boolean(),
   expected_revision: z.number().int().safe().positive().nullable(),
 }).strict().superRefine((value, context) => {
@@ -27,6 +27,19 @@ export const teacherAttendancePolicyUpdateSchema = z.object({
       path: ['session_ends_local'],
       message: 'Session end must be after session start',
     })
+  }
+  for (const field of [
+    'present_grace_minutes',
+    'entry_closes_minutes_before_end',
+    'absent_minutes_before_end',
+  ] as const) {
+    if (value[field] > duration) {
+      context.addIssue({
+        code: 'custom',
+        path: [field],
+        message: 'Timing rule cannot exceed the session duration',
+      })
+    }
   }
   if (value.present_grace_minutes >= duration - value.entry_closes_minutes_before_end) {
     context.addIssue({
