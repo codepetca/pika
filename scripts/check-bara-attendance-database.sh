@@ -1838,10 +1838,10 @@ begin
     'database_guard', 'ci:attendance', 'epoch_restage_fixture', 0
   );
   perform public.upsert_attendance_timing_policy_v1(
-    'f1440000-0000-4000-8000-000000000001',
-    'f1440000-0000-4000-8000-000000000011',
-    '14:00', '15:00', 0, 10, 5, 10, 0, true, null,
-    '2026-08-31T12:00:00Z'
+    'f1440000-0000-4000-8000-000000000001'::uuid,
+    'f1440000-0000-4000-8000-000000000011'::uuid,
+    '14:00'::time, '15:00'::time, 0::smallint, 10, 5, 10, 0, true, null::bigint,
+    '2026-08-31T12:00:00Z'::timestamptz
   );
   insert into public.class_days (
     classroom_id, course_code, date, prompt_text, is_class_day
