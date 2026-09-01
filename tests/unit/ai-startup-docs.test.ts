@@ -245,6 +245,7 @@ describe('AI startup docs', () => {
       expect(prompt).toContain('gh pr ready --undo')
       expect(prompt).toContain('gh pr ready')
       expect(prompt).toContain('PR Gate')
+      expect(prompt).toContain('record:ai-pr-lifecycle')
     }
   })
 
@@ -270,6 +271,13 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('completed draft-skipped run does not count')
     expect(workflow).toContain('Rerun a failed eligible pull-request run through')
     expect(workflow).toMatch(/never launch it concurrently\s+with the ready-event run/)
+  })
+
+  it('keeps attributable AI lifecycle measurement in the canonical workflow', () => {
+    const workflow = readRepoFile('docs/dev-workflow.md')
+    expect(workflow).toContain('record:ai-pr-lifecycle')
+    expect(workflow).toMatch(/leave them unknown rather\s+than estimating from PR wall time/)
+    expect(workflow).toContain('CI queue/run duration separately')
   })
 
   it('documents orient-only startup for read-only work', () => {

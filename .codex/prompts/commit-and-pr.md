@@ -17,3 +17,11 @@ Steps:
 6. Run affected local checks, commit and push the batch while the PR is draft, and use targeted re-review. Complete any required final cumulative review.
 7. Record the final reviewed SHA in the PR, run `gh pr ready`, and wait for `PR Gate` on that exact SHA. If CI fails, return the PR to draft before correcting it and repeat only the targeted review/check cycle.
 8. Merge only when `PR Gate`, review, conflict, sensitive-data, and authority gates all pass. Otherwise leave the PR open and report the exact blocker.
+
+Lifecycle measurement is automatic for AI-authored development PRs. Once the PR
+number exists, record `started`, `implementation`, and `draft-created` with
+`pnpm record:ai-pr-lifecycle event --pr <PR> --event <stage>`. Record
+`independent-review`, each batched `remediation`, `ready-for-ci`, the final CI
+result (with separately observed queue/run seconds), and `merged`. Add active
+time and token counts only when directly attributable; never infer them from
+open-to-merge time. Finish with `pnpm record:ai-pr-lifecycle summary --pr <PR>`.
