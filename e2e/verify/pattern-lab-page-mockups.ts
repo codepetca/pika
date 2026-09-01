@@ -124,20 +124,21 @@ export const patternLabPageMockups: VerificationScript = {
     await jumpSelect.selectOption('page-mockups')
     await section.getByRole('tab', { name: 'Calendar' }).click()
     await section.getByRole('button', { name: 'More actions' }).click()
-    const yearView = section.getByRole('menuitemradio', { name: 'Year' })
+    const termView = section.getByRole('menuitemradio', { name: 'Term' })
     checks.push({
-      name: 'Calendar More actions offers Week, Month, and Year without All',
-      passed: await yearView.isVisible()
+      name: 'Calendar More actions offers Week, Month, and Term without All or Year',
+      passed: await termView.isVisible()
         && await section.getByRole('menuitemradio', { name: 'Week' }).isVisible()
         && await section.getByRole('menuitemradio', { name: 'Month' }).isVisible()
-        && await section.getByRole('menuitemradio', { name: 'All' }).count() === 0,
+        && await section.getByRole('menuitemradio', { name: 'All' }).count() === 0
+        && await section.getByRole('menuitemradio', { name: 'Year' }).count() === 0,
     })
-    await yearView.click()
+    await termView.click()
     checks.push({
-      name: 'Calendar Year renders the full school-year fixture through June',
-      passed: await section.getByText('2026–27 school year').isVisible()
-        && await section.getByText('June', { exact: true }).isVisible()
-        && await section.getByText('Year-end ecosystem reflection.').isVisible(),
+      name: 'Calendar Term renders the full Semester 1 fixture through January',
+      passed: await section.getByText('Semester 1', { exact: true }).isVisible()
+        && await section.getByText('January', { exact: true }).isVisible()
+        && await section.getByText('Semester ecosystem reflection.').isVisible(),
     })
     await section.getByRole('button', { name: 'More actions' }).click()
     const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')

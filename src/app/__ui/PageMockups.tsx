@@ -79,8 +79,8 @@ const STUDENTS = [
 const DOC: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Review models of ecological succession and bring one question.' }] }] }
 const CLASSROOM: Classroom = {
   id: 'pattern-classroom', teacher_id: 'pattern-teacher', title: 'Grade 10 Science', class_code: 'SCI2D',
-  theme_color: 'blue', term_label: '2026–27 school year', allow_enrollment: true, join_policy: 'roster',
-  start_date: '2026-09-01', end_date: '2027-06-30', lesson_plan_visibility: 'all',
+  theme_color: 'blue', term_label: 'Semester 1', allow_enrollment: true, join_policy: 'roster',
+  start_date: '2026-09-01', end_date: '2027-01-29', lesson_plan_visibility: 'all',
   feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY, blueprint_source_revision: 0,
   source_blueprint_id: null, source_blueprint_origin: null, actual_site_slug: null,
   actual_site_published: false, actual_site_config: DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
@@ -90,7 +90,7 @@ const CLASSROOM: Classroom = {
 const LESSON_PLANS: LessonPlan[] = [
   { id: 'lp-1', classroom_id: CLASSROOM.id, date: '2026-09-14', content: DOC, content_markdown: 'Review models of ecological succession.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
   { id: 'lp-2', classroom_id: CLASSROOM.id, date: '2026-09-16', content: DOC, content_markdown: 'Field observation: compare two habitats.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
-  { id: 'lp-3', classroom_id: CLASSROOM.id, date: '2027-06-18', content: DOC, content_markdown: 'Year-end ecosystem reflection.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
+  { id: 'lp-3', classroom_id: CLASSROOM.id, date: '2027-01-22', content: DOC, content_markdown: 'Semester ecosystem reflection.', created_at: CLASSROOM.created_at, updated_at: CLASSROOM.updated_at },
 ]
 const CLASS_DAYS: ClassDay[] = Array.from({ length: 18 }, (_, index) => ({
   id: `day-${index}`,
@@ -241,20 +241,20 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
   const [view, setView] = useState<CalendarViewMode>('week')
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
-  const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : '2026–27 school year'
-  const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode === 'all' ? 'Year' : mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
+  const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : CLASSROOM.term_label || 'Term'
+  const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode === 'all' ? 'Term' : mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
   viewItems.push({ id: 'markdown', label: 'Edit calendar in Markdown', dividerBefore: true, onSelect: () => onPrototypeAction('Edit calendar in Markdown') })
   return <div className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
       context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
-      primary={<DateNavigator joined label={label} showNavigation={view !== 'all'} onPrev={() => advance(-1)} onNext={() => advance(1)} onLabelClick={() => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel="Return to reference week" />}
+      primary={<DateNavigator joined label={label} showNavigation={view !== 'all'} onPrev={() => advance(-1)} onNext={() => advance(1)} onLabelClick={view === 'all' ? undefined : () => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel={view === 'week' ? 'Return to reference week' : 'Return to reference month'} />}
       actions={<MoreMenu label="Calendar" items={viewItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <LessonCalendar classroom={CLASSROOM} lessonPlans={LESSON_PLANS} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>The date owns the center. Week, Month, Year, and Markdown editing move to More actions so the bar does not wrap into competing controls.</Description>
+    <Description>The date owns the center. Week, Month, Term, and Markdown editing move to More actions so the bar does not wrap into competing controls.</Description>
   </div>
 }
 

@@ -41,7 +41,7 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
   })
 
-  it('offers Week, Month, and Year as the Calendar view choices', async () => {
+  it('offers Week, Month, and Term as the Calendar view choices', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
@@ -50,12 +50,14 @@ describe('PageMockups', () => {
 
     expect(within(mockups).getByRole('menuitemradio', { name: 'Week' })).toBeInTheDocument()
     expect(within(mockups).getByRole('menuitemradio', { name: 'Month' })).toBeInTheDocument()
-    expect(within(mockups).getByRole('menuitemradio', { name: 'Year' })).toBeInTheDocument()
+    expect(within(mockups).getByRole('menuitemradio', { name: 'Term' })).toBeInTheDocument()
     expect(within(mockups).queryByRole('menuitemradio', { name: 'All' })).not.toBeInTheDocument()
-    await user.click(within(mockups).getByRole('menuitemradio', { name: 'Year' }))
-    expect(within(mockups).getByText('2026–27 school year')).toBeVisible()
-    expect(within(mockups).getByText('June', { exact: true })).toBeVisible()
-    expect(within(mockups).getByText('Year-end ecosystem reflection.')).toBeInTheDocument()
+    expect(within(mockups).queryByRole('menuitemradio', { name: 'Year' })).not.toBeInTheDocument()
+    await user.click(within(mockups).getByRole('menuitemradio', { name: 'Term' }))
+    expect(within(mockups).getByText('Semester 1')).toBeVisible()
+    expect(within(mockups).queryByRole('button', { name: /Return to reference/ })).not.toBeInTheDocument()
+    expect(within(mockups).getByText('January', { exact: true })).toBeVisible()
+    expect(within(mockups).getByText('Semester ecosystem reflection.')).toBeInTheDocument()
   })
 
   it('exercises SettingsMockup section semantics, inline save feedback, and guarded access changes', async () => {
