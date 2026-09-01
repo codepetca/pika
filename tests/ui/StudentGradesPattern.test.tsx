@@ -13,6 +13,18 @@ describe('Pattern Lab student Grades visibility concept', () => {
     expect(screen.getByText('Based on returned work')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Returned grades' })).toBeInTheDocument()
     expect(screen.getByText('Not counted')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Functions and Graphs/ })).toHaveAttribute(
+      'href',
+      '/classrooms/example-classroom?tab=tests',
+    )
+    expect(screen.getByRole('link', { name: /Field Study Reflection/ })).toHaveAttribute(
+      'href',
+      '/classrooms/example-classroom?tab=assignments&assignmentId=field-study',
+    )
+    expect(screen.getByRole('link', { name: /Practice Check/ })).toHaveAttribute(
+      'href',
+      '/classrooms/example-classroom?tab=assignments&assignmentId=practice-check',
+    )
     expect(screen.queryByText(/trend/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/rank/i)).not.toBeInTheDocument()
   })

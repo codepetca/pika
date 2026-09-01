@@ -28,9 +28,21 @@ for (const role of ['teacher', 'student'] as const) {
     ).toBeVisible()
     await expect(example.getByText('84%')).toBeVisible()
     await expect(example.getByText('Not counted')).toBeVisible()
+    const feedbackLinks = example.getByRole('link')
+    await expect(feedbackLinks).toHaveCount(3)
     await testInfo.attach('student-grades-visible', {
       body: await example.screenshot({
         path: testInfo.outputPath('student-grades-visible.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await feedbackLinks.first().focus()
+    await expect(feedbackLinks.first()).toBeFocused()
+    await testInfo.attach('student-grades-feedback-focus', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-feedback-focus.png'),
         animations: 'disabled',
       }),
       contentType: 'image/png',

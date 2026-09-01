@@ -12,6 +12,7 @@ const RETURNED_GRADES = [
     score: '18 / 20',
     percent: '90%',
     counted: true,
+    feedbackHref: '/classrooms/example-classroom?tab=tests',
   },
   {
     id: 'field-study',
@@ -20,6 +21,7 @@ const RETURNED_GRADES = [
     score: '24 / 30',
     percent: '80%',
     counted: true,
+    feedbackHref: '/classrooms/example-classroom?tab=assignments&assignmentId=field-study',
   },
   {
     id: 'practice-check',
@@ -28,6 +30,7 @@ const RETURNED_GRADES = [
     score: '8 / 10',
     percent: '80%',
     counted: false,
+    feedbackHref: '/classrooms/example-classroom?tab=assignments&assignmentId=practice-check',
   },
 ] as const
 
@@ -92,22 +95,27 @@ export function StudentGradesPattern() {
 
                 <ul aria-label="Returned grades" className="divide-y divide-border border-t border-border">
                   {RETURNED_GRADES.map((grade) => (
-                    <li key={grade.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-text-default">{grade.title}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                          <span>{grade.kind}</span>
-                          {!grade.counted ? (
-                            <span className="rounded-badge bg-surface-2 px-2 py-0.5 font-medium text-text-muted">
-                              Not counted
-                            </span>
-                          ) : null}
+                    <li key={grade.id}>
+                      <a
+                        href={grade.feedbackHref}
+                        className="flex min-h-11 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-text-default">{grade.title}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                            <span>{grade.kind}</span>
+                            {!grade.counted ? (
+                              <span className="rounded-badge bg-surface-2 px-2 py-0.5 font-medium text-text-muted">
+                                Not counted
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                      <div className="shrink-0 text-right tabular-nums">
-                        <p className="text-sm font-semibold text-text-default">{grade.percent}</p>
-                        <p className="mt-0.5 text-xs text-text-muted">{grade.score}</p>
-                      </div>
+                        <div className="shrink-0 text-right tabular-nums">
+                          <p className="text-sm font-semibold text-text-default">{grade.percent}</p>
+                          <p className="mt-0.5 text-xs text-text-muted">{grade.score}</p>
+                        </div>
+                      </a>
                     </li>
                   ))}
                 </ul>
