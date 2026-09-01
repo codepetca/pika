@@ -110,6 +110,15 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
     avoidWhen: 'A domain already owns a more precise status contract.',
     reference: 'DESIGN.md#semantic-color-and-themes',
   },
+  {
+    id: 'student-grades-visibility',
+    name: 'Student Grades visibility',
+    owner: 'src/app/__ui/StudentGradesPattern.tsx',
+    maturity: 'experimental',
+    useWhen: 'Reviewing the paired teacher visibility control and minimal returned-only student Grades concept.',
+    avoidWhen: 'Do not treat the fixture as production authorization, a reporting surface, or a reusable analytics pattern.',
+    reference: 'docs/guidance/ui/experimental/student-grades-visibility.md',
+  },
 ] as const
 
 export type ApprovedIconName =

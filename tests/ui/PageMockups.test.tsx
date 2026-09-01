@@ -34,12 +34,159 @@ describe('PageMockups', () => {
     await user.click(within(mockups).getByRole('button', { name: 'Try loading gradebook again' }))
     expect(within(mockups).getByRole('table')).toBeInTheDocument()
     await user.click(within(mockups).getByRole('checkbox', { name: 'Select Maya Chen' }))
-    await user.click(within(mockups).getByRole('button', { name: 'Selected students (1)' }))
-    await user.click(within(mockups).getByRole('menuitem', { name: 'Email 1 selected' }))
+    await user.click(within(mockups).getByRole('button', { name: '1 selected' }))
+    await user.click(within(mockups).getByRole('menuitem', { name: 'Email selected students' }))
     expect(within(mockups).getByRole('status')).toHaveTextContent('Email students selected. Example only')
     await user.click(within(mockups).getByRole('tab', { name: 'Roster' }))
     await user.click(within(mockups).getByRole('button', { name: 'Add students' }))
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
+  })
+
+  it('keeps compact identity columns and lets Assessments fill the empty table', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
+
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const table = within(gradebook).getByRole('table')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveStyle({ width: '96px' })
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveStyle({ width: '96px' })
+    expect(within(gradebook).getByRole('columnheader', { name: 'Assessments' })).toBeInTheDocument()
+    expect(within(gradebook).getByRole('columnheader', { name: 'Final' })).toBeInTheDocument()
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Ecosystems' })).not.toBeInTheDocument()
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Cells' })).not.toBeInTheDocument()
+    expect(table.querySelectorAll('col')).toHaveLength(5)
+    expect(table.parentElement).toHaveClass('w-full')
+    expect(table.parentElement).toHaveStyle({ minWidth: '408px' })
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '40px' })
+    expect(table.querySelectorAll('col')[3]).not.toHaveAttribute('style')
+    expect(table.querySelectorAll('col')[4]).toHaveStyle({ width: '80px' })
+
+    const firstResizeHandle = within(gradebook).getByRole('separator', { name: 'Resize First column' })
+    firstResizeHandle.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveStyle({ width: '104px' })
+
+    const lastResizeHandle = within(gradebook).getByRole('separator', { name: 'Resize Last column' })
+    lastResizeHandle.focus()
+    await user.keyboard('{Home}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveStyle({ width: '72px' })
+    const longLastName = within(gradebook).getByRole('cell', { name: 'Williams-Montgomery' })
+    expect(longLastName).toHaveClass('truncate', 'whitespace-nowrap')
+    expect(longLastName).toHaveAttribute('title', 'Williams-Montgomery')
+
+    const mayaRow = within(gradebook).getByRole('row', { name: /Maya Chen/ })
+    expect(within(mayaRow).getByRole('cell', { name: 'No assessments' })).toBeEmptyDOMElement()
+    expect(within(mayaRow).getByRole('cell', { name: '—' })).toBeInTheDocument()
+  })
+
+  it('keeps each assessment at minimum width in the few-assessments state', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'few-assessments')
+
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const table = within(gradebook).getByRole('table')
+    expect(table.querySelectorAll('col')).toHaveLength(8)
+    expect(table.parentElement).toHaveClass('w-full')
+    expect(table.parentElement).toHaveStyle({ minWidth: '672px' })
+    for (const columnIndex of [3, 4, 5]) {
+      expect(table.querySelectorAll('col')[columnIndex]).toHaveStyle({ width: '88px' })
+    }
+    expect(table.querySelectorAll('col')[6]).not.toHaveAttribute('style')
+    expect(table.querySelectorAll('col')[7]).toHaveStyle({ width: '80px' })
+    for (const assessment of ['Ecosystems', 'Cells', 'Genetics']) {
+      expect(within(gradebook).getByRole('columnheader', { name: assessment })).toBeInTheDocument()
+    }
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Reactions' })).not.toBeInTheDocument()
+    expect(within(gradebook).getByRole('columnheader', { name: 'Unused assessment space' })).toBeInTheDocument()
+    expect(within(gradebook).getByText(/empty assessment area expands and keeps Final at the far edge/)).toBeInTheDocument()
+  })
+
+  it('pins one class summary row and swaps average with median from More actions', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const scrollFrame = within(gradebook).getByTestId('gradebook-scroll-frame')
+    const summaryFooter = within(gradebook).getByTestId('gradebook-summary-footer')
+
+    expect(scrollFrame).toHaveClass('h-80', 'overflow-auto')
+    expect(summaryFooter).toHaveClass('sticky', 'bottom-0', 'bg-surface-2')
+    const averageRow = within(summaryFooter).getByRole('row', { name: 'Class average' })
+    expect(within(averageRow).getAllByRole('cell')[3]).toHaveTextContent('85%')
+    expect(within(summaryFooter).queryByRole('row', { name: 'Class median' })).not.toBeInTheDocument()
+    expect(within(gradebook).getByText(/roster rows scroll underneath/)).toBeInTheDocument()
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show median' }))
+    const medianRow = within(summaryFooter).getByRole('row', { name: 'Class median' })
+    expect(within(medianRow).getAllByRole('cell')[3]).toHaveTextContent('90%')
+    expect(within(summaryFooter).queryByRole('row', { name: 'Class average' })).not.toBeInTheDocument()
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show average' }))
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show raw scores' }))
+    expect(within(summaryFooter).getByRole('row', { name: 'Class average' }).querySelectorAll('td')[3]).toHaveTextContent('17/20')
+
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
+    expect(within(gradebook).queryByTestId('gradebook-summary-footer')).not.toBeInTheDocument()
+  })
+
+  it('swaps First and Last while keeping the leading name column pinnable', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 2)
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show last name first' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 1)
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 2)
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitem', { name: 'Show first name first' })).toBeInTheDocument()
+    expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Escape}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveClass('sticky', 'left-10', 'top-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).not.toHaveClass('sticky')
+    expect(within(gradebook).getByRole('cell', { name: 'Chen', exact: true })).toHaveClass('sticky', 'left-10')
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).not.toHaveClass('sticky')
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show first name first' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
+  })
+
+  it('keeps selection, First, and Final visible when key columns are frozen', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    const keepVisible = within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
+    expect(keepVisible).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Escape}')
+
+    expect(within(gradebook).getByRole('checkbox', { name: 'Select all gradebook students' }).closest('th')).toHaveClass('sticky', 'left-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveClass('sticky', 'left-10', 'top-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'right-0')
+    expect(within(gradebook).getByRole('checkbox', { name: 'Select Maya Chen' }).closest('td')).toHaveClass('sticky', 'left-0')
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).toHaveClass('sticky', 'left-10')
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('uses a bottom classroom menu and Escape returns to the active non-editing list', async () => {

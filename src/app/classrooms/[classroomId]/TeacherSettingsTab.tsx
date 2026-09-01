@@ -34,6 +34,7 @@ import {
   type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
+import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
 import type { Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -94,70 +95,6 @@ function SettingsHeading({ title, tooltip }: { title: string; tooltip?: ReactNod
           </span>
         </Tooltip>
       ) : null}
-    </div>
-  )
-}
-
-function SettingsSwitch({
-  checked,
-  onChange,
-  disabled,
-  ariaLabel,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-  ariaLabel: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        'relative h-7 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
-        disabled
-          ? 'cursor-not-allowed border-border bg-surface-2'
-          : checked
-            ? 'hover:border-primary-hover hover:bg-info-bg-hover'
-            : 'hover:bg-surface-hover',
-        !disabled && (checked ? 'border-primary bg-info-bg' : 'border-border bg-surface-2'),
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'absolute left-0 top-1 h-5 w-5 rounded-full shadow-sm transition-transform',
-          checked ? 'translate-x-7' : 'translate-x-1',
-          'bg-primary',
-        )}
-      />
-    </button>
-  )
-}
-
-function SettingsSwitchRow({
-  checked,
-  onChange,
-  disabled,
-  ariaLabel,
-  children,
-  className,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-  ariaLabel: string
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('flex items-center gap-3', className)}>
-      <SettingsSwitch checked={checked} onChange={onChange} disabled={disabled} ariaLabel={ariaLabel} />
-      <div className={cn('min-w-0 text-sm', disabled ? 'text-text-muted' : 'text-text-default')}>{children}</div>
     </div>
   )
 }

@@ -63,6 +63,7 @@ import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { PageMockups } from './PageMockups'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
+import { StudentGradesPattern } from './StudentGradesPattern'
 
 type Role = 'teacher' | 'student'
 
@@ -536,14 +537,15 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
-          <PatternSection
-            id="student-tests"
-            eyebrow="Experimental · student workflow"
-            title="Student Tests: progress and access"
-            description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
-          >
-            <StudentTestExamples />
-          </PatternSection>
+            <StudentGradesPattern />
+            <PatternSection
+              id="student-tests"
+              eyebrow="Experimental · student workflow"
+              title="Student Tests: progress and access"
+              description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
+            >
+              <StudentTestExamples />
+            </PatternSection>
 
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />

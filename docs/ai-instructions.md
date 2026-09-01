@@ -26,6 +26,7 @@ After startup, load only task-specific docs:
 | Large TSX/shared shell refactors | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Grading behavior, profiles, providers, provenance, or evals | [`docs/guidance/grading-architecture.md`](./guidance/grading-architecture.md), [`docs/guidance/ai-grading-egress.md`](./guidance/ai-grading-egress.md), [`docs/guidance/teacher-grading-evals.md`](./guidance/teacher-grading-evals.md) |
+| Student Grades visibility, disclosure, or calculation | [`docs/guidance/student-grades.md`](./guidance/student-grades.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
 | Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
 | Multi-agent delegation | [`docs/core/agents.md`](./core/agents.md) |

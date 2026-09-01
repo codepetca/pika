@@ -137,7 +137,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 2,
+          "count": 1,
           "reason": "legacy-form-control"
         }
       ]
@@ -511,6 +511,17 @@
           "kind": "input:time",
           "count": 1,
           "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/settings/SettingsSwitchRow.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "composite-widget"
         }
       ]
     },
