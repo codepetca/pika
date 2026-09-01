@@ -83,7 +83,7 @@ async function captureCourseGuideState(page: Page, testInfo: TestInfo, state: st
   })
 }
 
-async function verifyActiveClassroomTab(page: Page, testInfo: TestInfo, label: 'Daily' | 'Today') {
+async function verifyActiveClassroomTab(page: Page, testInfo: TestInfo, label: 'Daily') {
   const { viewport } = getExperienceMetadata(testInfo)
 
   if (viewport === 'mobile') {
@@ -1657,7 +1657,7 @@ test.describe('student experience matrix', () => {
     await enterSeededClassroom(page, 'student')
 
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
-    await verifyActiveClassroomTab(page, testInfo, 'Today')
+    await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
   })
 

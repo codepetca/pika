@@ -25,7 +25,7 @@ export interface ClassroomNavCatalogItem {
 
 export const CLASSROOM_NAV_ITEMS: readonly ClassroomNavCatalogItem[] = [
   { id: 'daily', label: 'Daily', icon: ClipboardCheck, lucideName: 'ClipboardCheck', roles: ['teacher'] },
-  { id: 'today', label: 'Today', icon: ClipboardCheck, lucideName: 'ClipboardCheck', roles: ['student'] },
+  { id: 'today', label: 'Daily', icon: ClipboardCheck, lucideName: 'ClipboardCheck', roles: ['student'] },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList, lucideName: 'ClipboardList', roles: ['teacher', 'student'] },
   { id: 'tests', label: 'Tests', icon: SquarePen, lucideName: 'SquarePen', roles: ['teacher', 'student'] },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent, lucideName: 'SquarePercent', roles: ['teacher'] },
