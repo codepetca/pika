@@ -17,6 +17,13 @@ describe('MagicAuthForm', () => {
     vi.unstubAllGlobals()
   })
 
+  it('requires a school email without showing a required marker', () => {
+    render(<MagicAuthForm intent="sign-in" />)
+
+    expect(screen.getByLabelText(/school email/i)).toBeRequired()
+    expect(screen.getByText('School Email')).not.toHaveTextContent('*')
+  })
+
   it('stays on Pika while moving from email to six-digit code', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
@@ -37,7 +44,7 @@ describe('MagicAuthForm', () => {
         next: '/attendance/check-in/token-123',
       }),
     }))
-    expect(screen.getByText(/without opening an email link/i)).toBeInTheDocument()
+    expect(screen.getByText('The code expires in 10 minutes.')).toBeInTheDocument()
   })
 
   it('submits only six digits and follows the server-approved Pika path', async () => {
