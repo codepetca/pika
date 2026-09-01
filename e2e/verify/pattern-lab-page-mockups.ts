@@ -151,7 +151,8 @@ export const patternLabPageMockups: VerificationScript = {
     checks.push({
       name: 'Archived Classroom scope leaves edit mode',
       passed: await classrooms.getByText('Archived classrooms').isVisible()
-        && await classrooms.getByText('Editing').count() === 0,
+        && await classrooms.getByText('Editing').count() === 0
+        && await classrooms.getByRole('button', { name: 'Back to classrooms' }).isVisible(),
     })
     const classroomArchivedArtifact = path.join(artifactDir, 'desktop-light-classrooms-archived.png')
     await section.screenshot({ path: classroomArchivedArtifact })

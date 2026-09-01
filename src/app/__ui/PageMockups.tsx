@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addMonths, addWeeks, format, subMonths, subWeeks } from 'date-fns'
 import {
+  ArrowLeft,
   CalendarDays,
   Archive,
   ArchiveRestore,
@@ -202,20 +203,29 @@ function ClassroomsMockup({
 }) {
   const [view, setView] = useState<'active' | 'archived'>('active')
   const [isEditing, setIsEditing] = useState(false)
+  const classroomsRef = useRef<HTMLDivElement>(null)
+  const activeListHeadingRef = useRef<HTMLHeadingElement>(null)
   const classrooms = view === 'active' ? CLASSROOM_LIST : ARCHIVED_CLASSROOM_LIST
+  const returnToActiveList = useCallback(() => {
+    setView('active')
+    setIsEditing(false)
+    window.requestAnimationFrame(() => activeListHeadingRef.current?.focus())
+  }, [])
 
   useEffect(() => {
     if (!isActive) return
 
-    function returnToActiveList(event: KeyboardEvent) {
+    function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
-      setView('active')
-      setIsEditing(false)
+      if (view === 'active' && !isEditing) return
+      const activeElement = document.activeElement
+      if (!activeElement || !classroomsRef.current?.contains(activeElement)) return
+      returnToActiveList()
     }
 
-    window.addEventListener('keydown', returnToActiveList)
-    return () => window.removeEventListener('keydown', returnToActiveList)
-  }, [isActive])
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [isActive, isEditing, returnToActiveList, view])
 
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     {
@@ -250,10 +260,22 @@ function ClassroomsMockup({
   ]
 
   return (
-    <div className="relative min-h-96 pb-20" data-testid="classrooms-mockup">
+    <div ref={classroomsRef} className="relative min-h-96 pb-20" data-testid="classrooms-mockup">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h4 className="font-semibold text-text-default">
+          {isEditing || view === 'archived' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="-ml-2 mb-1 px-2 text-text-muted"
+              onClick={returnToActiveList}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to classrooms
+            </Button>
+          ) : null}
+          <h4 ref={activeListHeadingRef} tabIndex={-1} className="font-semibold text-text-default focus:outline-none">
             {view === 'active' ? 'Active classrooms' : 'Archived classrooms'}
           </h4>
           <p className="mt-0.5 text-xs text-text-muted">
@@ -335,7 +357,7 @@ function ClassroomsMockup({
       </div>
 
       <Description>
-        The borderless bottom three-dot menu owns New Classroom, edit mode, and the Show Archived/Show Active toggle. Escape returns to the main Active list and clears edit mode.
+        The borderless bottom three-dot menu owns New Classroom, edit mode, and the Show Archived/Show Active toggle. Back to classrooms and Escape both return to the main Active list and clear edit mode.
       </Description>
     </div>
   )

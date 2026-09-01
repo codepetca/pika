@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { PageMockups } from '@/app/__ui/PageMockups'
@@ -52,6 +52,7 @@ describe('PageMockups', () => {
     expect(within(classrooms).getByRole('menuitem', { name: 'New Classroom' })).toBeInTheDocument()
     await user.click(within(classrooms).getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
     expect(within(classrooms).getByText('Editing')).toBeVisible()
+    expect(within(classrooms).getByRole('button', { name: 'Back to classrooms' })).toBeVisible()
     expect(within(classrooms).getByRole('button', { name: 'Archive Grade 10 Science' })).toBeVisible()
 
     await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
@@ -59,11 +60,24 @@ describe('PageMockups', () => {
     await user.click(within(mockups).getByRole('tab', { name: 'Classrooms' }))
     expect(within(classrooms).getByText('Editing')).toBeVisible()
 
+    const exampleState = within(mockups).getByRole('combobox', { name: 'Example state' })
+    exampleState.focus()
+    await user.keyboard('{Escape}')
+    expect(exampleState).toHaveFocus()
+    expect(within(classrooms).getByText('Editing')).toBeVisible()
+
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
     await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Archived' }))
     expect(within(classrooms).getByText('Archived classrooms')).toBeVisible()
     expect(within(classrooms).queryByText('Editing')).not.toBeInTheDocument()
     expect(within(classrooms).getByRole('button', { name: 'Unarchive Earth and Space Science' })).toBeVisible()
+    await user.click(within(classrooms).getByRole('button', { name: 'Back to classrooms' }))
+    const activeHeading = within(classrooms).getByRole('heading', { name: 'Active classrooms' })
+    expect(activeHeading).toBeVisible()
+    await waitFor(() => expect(activeHeading).toHaveFocus())
+
+    await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
+    await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Archived' }))
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
     await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Active' }))
     expect(within(classrooms).getByText('Active classrooms')).toBeVisible()
@@ -72,7 +86,7 @@ describe('PageMockups', () => {
     await user.click(within(classrooms).getByRole('menuitem', { name: 'Show Archived' }))
 
     await user.keyboard('{Escape}')
-    expect(within(classrooms).getByText('Active classrooms')).toBeVisible()
+    await waitFor(() => expect(within(classrooms).getByRole('heading', { name: 'Active classrooms' })).toHaveFocus())
     expect(within(classrooms).queryByText('Editing')).not.toBeInTheDocument()
     expect(within(classrooms).queryByRole('button', { name: 'Archive Grade 10 Science' })).not.toBeInTheDocument()
   })
