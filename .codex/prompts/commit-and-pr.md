@@ -19,7 +19,8 @@ Steps:
 8. Merge only when `PR Gate`, review, conflict, sensitive-data, and authority gates all pass. Otherwise leave the PR open and report the exact blocker.
 
 Lifecycle measurement is automatic for AI-authored development PRs. Once the PR
-number exists, record `started`, `implementation`, and `draft-created` with
+number exists, record the tracking-start (`started`), `implementation`, and
+`draft-created` events with
 `pnpm record:ai-pr-lifecycle event --pr <PR> --event <stage>`. Record
 `independent-review`, each batched `remediation`, `ready-for-ci`, the final CI
 result (with separately observed queue/run seconds), and `merged`. Add active

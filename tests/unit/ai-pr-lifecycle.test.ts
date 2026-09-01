@@ -18,7 +18,7 @@ describe('AI PR lifecycle recorder', () => {
       { pr: 42, event: 'implementation', recordedAt: '2026-09-01T00:01:00Z', activeSeconds: 120, inputTokens: 50, outputTokens: 75 },
       { pr: 42, event: 'ci-passed', recordedAt: '2026-09-01T00:02:00Z', ciQueueSeconds: 3, ciRunSeconds: 480, quality: 'passed' },
       { pr: 7, event: 'implementation', recordedAt: '2026-09-01T00:03:00Z', activeSeconds: 999 },
-    ], 42)).toMatchObject({ activeDevelopmentSeconds: 120, tokens: { input: 50, output: 75, reasoning: null }, ci: { queueSeconds: 3, runSeconds: 480 }, quality: 'passed' })
+    ], 42)).toMatchObject({ trackingStartedAt: '2026-09-01T00:00:00Z', activeDevelopmentSeconds: 120, tokens: { input: 50, output: 75, reasoning: null }, ci: { queueSeconds: 3, runSeconds: 480 }, quality: 'passed' })
   })
 
   it('writes append-only local JSONL through the CLI', () => {

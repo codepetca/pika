@@ -189,7 +189,8 @@ automatically; it is not a checklist the maintainer must remember.
 For every AI-authored development PR, agents also record lifecycle evidence with
 `pnpm record:ai-pr-lifecycle`. The recorder writes append-only local metadata at
 `~/.codex/metrics/pika-pr-lifecycle.jsonl` (never into the product, database,
-or Git history). Record an event at start, draft creation, independent review,
+or Git history). Record a tracking-start event once the PR number is known, then
+record draft creation, independent review,
 each remediation batch, ready-for-CI, CI result, and merge. Provide active time
 and token components only when directly attributable; leave them unknown rather
 than estimating from PR wall time. Record CI queue/run duration separately and
@@ -216,8 +217,9 @@ records only PR number, timestamps, numeric metrics, stages, and quality outcome
    base are unchanged, and record the checked commit/tree and command. Do not
    rerun solely for a newer timestamp. New commits still require their own
    required CI gate; local evidence never substitutes for it.
-   Start the local record with `pnpm record:ai-pr-lifecycle event --pr <PR>
-   --event started` as soon as the PR number is known. After implementation,
+   Start local tracking with `pnpm record:ai-pr-lifecycle event --pr <PR>
+   --event started` as soon as the PR number is known. This timestamp is only
+   the start of tracking, not a proxy for active development time. After implementation,
    record `implementation` with attributable active/tokens when available.
 2. Commit and push the implementation, then create the PR as a draft with
     `gh pr create --draft`. If an existing PR is ready while implementation or

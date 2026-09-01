@@ -74,7 +74,7 @@ export function summarizeEvents(events, pr) {
   const latest = (key) => [...selected].reverse().find((event) => Number.isInteger(event[key]))?.[key] ?? null
   return {
     pr, eventCount: selected.length,
-    startedAt: selected.find((event) => event.event === 'started')?.recordedAt ?? null,
+    trackingStartedAt: selected.find((event) => event.event === 'started')?.recordedAt ?? null,
     completedAt: selected.find((event) => event.event === 'merged')?.recordedAt ?? null,
     activeDevelopmentSeconds: sumOrUnknown(selected, 'activeSeconds'),
     tokens: { input: sumOrUnknown(selected, 'inputTokens'), output: sumOrUnknown(selected, 'outputTokens'), reasoning: sumOrUnknown(selected, 'reasoningTokens') },
