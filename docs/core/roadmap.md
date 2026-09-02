@@ -6,6 +6,9 @@ Phase-based tracking for **Pika**.
 
 ## Current Status
 
+Active access/monetization work: [Classroom access and entitlements](../guidance/classroom-access-and-entitlements-roadmap.md).
+Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcement are later releases.
+
 ✅ Classrooms, roster upload, assignments, and password-based auth are live.  
 🔄 Expanding test coverage and polishing docs/security.
 
