@@ -1215,6 +1215,41 @@ export type Database = {
           },
         ]
       }
+      attendance_classroom_qr_handles: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          generation: number
+          handle_id: string
+          rotated_at: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          generation?: number
+          handle_id?: string
+          rotated_at?: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          generation?: number
+          handle_id?: string
+          rotated_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_classroom_qr_handles_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_integration_inbox: {
         Row: {
           classroom_id: string

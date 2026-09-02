@@ -25,13 +25,18 @@ teachers must print and replace it. The live display remains occurrence-specific
   authorized classroom deletion cascades them. A recreated/restored classroom
   requires a fresh poster rather than reviving a previously deleted locator.
 - Apply migration `151_stable_classroom_attendance_qr.sql` before enabling use of
-  the poster feature. This task has not applied it to local or production.
+  the poster feature. Applied to local and Pika production on 2026-09-02 with
+  explicit user approval. Both histories and read-only schema/access checks
+  confirm migration 151. Preserve its applied filename and version during rebases;
+  any future numbering collision requires coordinated history handling, not a rename.
   Without it, poster requests return a setup-unavailable error; there is no
   alternate storage fallback. Existing occurrence QR behavior remains available.
-- The generated database contract is pending authorized local migration application
-  and regeneration. The current CLI emits JSON migration history, which the
-  existing pipe-table drift guard does not recognize; a nominal local type-check
-  pass against migration 150 is not evidence for migration 151.
+- The generated database contract was regenerated from local migration 151 and
+  verified on 2026-09-02. Read-only database checks confirmed the table, constraints,
+  row-level security and service-role-only application grants. Migration history
+  was independently checked because the current CLI's formatted/JSON output is
+  not reliably recognized by the existing pipe-table drift guard. A fresh full
+  migration replay and real-stack smoke remain final PR verification requirements.
 
 ## UI acceptance and ownership
 
@@ -65,3 +70,8 @@ test remains required after rollout. No new animation is introduced.
 Screenshot provenance: 2026-09-02, feature worktree on main `cb797436`,
 `test-results/experience-matrix-*` (fixture routes) and
 `output/playwright/qr-gallery-*` (Pattern Lab). Artifacts are local, not product data.
+
+After rebasing onto main `a068a846` (#1138), the teacher/student fixture matrix
+was rerun: all eight role/viewport/theme cases passed. Refreshed poster and
+student closed-state screenshots in `test-results/experience-matrix-*` were
+visually inspected; the earlier Pattern Lab evidence remains unchanged.
