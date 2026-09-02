@@ -64,6 +64,13 @@ async function applyProjectTheme(page: Page, testInfo: TestInfo) {
   }, theme)
 }
 
+async function detachSharedAuthFixture(page: Page) {
+  // Saved Playwright auth state is reused across projects. A real login rotates
+  // the current server-side session, so mutation scenarios must first detach
+  // from the shared token or they invalidate unrelated browser contexts.
+  await page.context().clearCookies()
+}
+
 async function verifyProjectContract(page: Page, testInfo: TestInfo) {
   const { theme, viewport } = getExperienceMetadata(testInfo)
   const expectedWidth = viewport === 'mobile' ? 390 : 1440
@@ -1450,6 +1457,7 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('School Email')).toBeFocused()
 
     await page.unroute('**/api/auth/me')
+    await detachSharedAuthFixture(page)
     await page.getByLabel('School Email').fill('teacher@example.com')
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
@@ -1485,6 +1493,7 @@ test.describe('teacher experience matrix', () => {
   test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One redirect-safety pass is sufficient')
 
+    await detachSharedAuthFixture(page)
     for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
       await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
       await page.getByLabel('School Email').fill('teacher@example.com')

@@ -161,6 +161,7 @@ for (const entry of matrix) {
       await route.abort()
     })
     await studentPage.goto(`/classrooms/${classroomId}?tab=roster`)
+    await studentPage.waitForURL((url) => url.searchParams.get('tab') === 'today')
     await expect(studentPage.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
     await expect(studentPage.getByText('Purge classroom data')).toHaveCount(0)
     expect(studentPurgeRequestCount).toBe(0)
