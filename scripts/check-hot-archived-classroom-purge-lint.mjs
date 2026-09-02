@@ -42,12 +42,21 @@ if (lint.status !== 0) {
 }
 
 let report
-try {
-  report = JSON.parse(lint.stdout.trim())
-} catch {
-  process.stderr.write(lint.stderr)
-  console.error('Supabase database lint did not return valid JSON.')
-  process.exit(2)
+const lintOutput = lint.stdout.trim()
+const cleanTextResult = lintOutput
+  .split(/\r?\n/)
+  .some((line) => line.trim() === 'No schema errors found')
+
+if (cleanTextResult) {
+  report = { results: [] }
+} else {
+  try {
+    report = JSON.parse(lintOutput)
+  } catch {
+    process.stderr.write(lint.stderr)
+    console.error('Supabase database lint did not return valid JSON.')
+    process.exit(2)
+  }
 }
 
 const findings = (report.results || []).filter(
