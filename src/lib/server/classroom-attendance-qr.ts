@@ -228,6 +228,18 @@ async function loadCurrentOpenOccurrence(input: {
     throw new ClassroomAttendanceQrError('not_open')
   }
   const occurrence = occurrences.data[0]
+  // Local teacher changes are authoritative immediately; provider cancellation
+  // and the corresponding projection update are asynchronous.
+  const [policy, classDay] = await Promise.all([
+    input.supabase.from('attendance_window_policies').select('enabled')
+      .eq('classroom_id', input.classroomId).maybeSingle(),
+    input.supabase.from('class_days').select('is_class_day')
+      .eq('classroom_id', input.classroomId).eq('date', occurrence.class_date).maybeSingle(),
+  ])
+  if (policy.error || classDay.error) throw new ClassroomAttendanceQrError('unavailable')
+  if (policy.data?.enabled !== true || classDay.data?.is_class_day !== true) {
+    throw new ClassroomAttendanceQrError('not_open')
+  }
   const { data: session, error: sessionError } = await input.supabase
     .from('attendance_session_projection')
     .select('occurrence_ref')

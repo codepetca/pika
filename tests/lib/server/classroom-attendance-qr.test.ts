@@ -24,12 +24,16 @@ type Scenario = {
   currentHandle?: string | null
   enrolled?: boolean
   open?: boolean
+  enabled?: boolean | null
+  isClassDay?: boolean | null
 }
 
 function fakeSupabase({
   currentHandle = handleId,
   enrolled = true,
   open = true,
+  enabled = true,
+  isClassDay = true,
 }: Scenario = {}) {
   return {
     from(table: string) {
@@ -51,6 +55,14 @@ function fakeSupabase({
           })
         },
         maybeSingle() {
+          if (table === 'attendance_window_policies') {
+            expect(filters.classroom_id).toBe(classroomId)
+            return Promise.resolve({ data: enabled === null ? null : { enabled }, error: null })
+          }
+          if (table === 'class_days') {
+            expect(filters).toEqual({ classroom_id: classroomId, date: '2026-09-01' })
+            return Promise.resolve({ data: isClassDay === null ? null : { is_class_day: isClassDay }, error: null })
+          }
           if (table === 'attendance_classroom_qr_handles') {
             const matches = currentHandle && filters.handle_id === currentHandle
             return Promise.resolve({
@@ -169,6 +181,23 @@ describe('stable classroom attendance QR', () => {
       loadPresentation,
     })).rejects.toMatchObject({ code: 'invalid_or_revoked' })
     expect(loadPresentation).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { enabled: false }, { enabled: null }, { isClassDay: false }, { isClassDay: null },
+  ])('rejects locally ineligible attendance despite an open provider projection: %j', async (scenario) => {
+    const loadPresentation = vi.fn()
+    const executeCheckIn = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase(scenario),
+      pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      loadPresentation, executeCheckIn,
+    })).rejects.toMatchObject({ code: 'not_open' })
+    expect(loadPresentation).not.toHaveBeenCalled()
+    expect(executeCheckIn).not.toHaveBeenCalled()
   })
 
   it('blocks a student from another classroom before occurrence or Bara resolution', async () => {

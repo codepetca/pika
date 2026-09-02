@@ -115,11 +115,13 @@ export function TeacherClassroomQrDialog({
       validatedUrl(next)
       setPresentation(next)
       setRotateOpen(false)
-    } catch (rotationError) {
+    } catch {
       if (version !== requestVersion.current) return
-      setRotateError(rotationError instanceof Error
-        ? rotationError.message
-        : 'Permanent classroom QR could not be rotated')
+      // The write may have committed despite a lost response, or another device
+      // may have rotated it. Never offer the possibly revoked poster for export.
+      setPresentation(null)
+      setRotateOpen(false)
+      setError('The rotation could not be confirmed. Reload the current QR before printing or rotating again.')
     } finally {
       if (version === requestVersion.current) setRotating(false)
     }

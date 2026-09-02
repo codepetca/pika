@@ -114,6 +114,17 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
+  it('classifies non-portable classroom QR locators without archiving or exporting them', () => {
+    const relation = { child_table: 'attendance_classroom_qr_handles', parent_table: 'classrooms', child_columns: ['classroom_id'] }
+    expect(CLASSROOM_NON_OWNING_REFERENCES).toContainEqual(relation)
+    expect(auditClassroomResourceSchema(contractRelationships(), contractPrimaryKeys()).ok).toBe(true)
+    expect(auditClassroomResourceSchema(
+      contractRelationships().filter(row => row.child_table !== relation.child_table),
+      contractPrimaryKeys(),
+    ).stale_non_owning_references).toContain('attendance_classroom_qr_handles.classroom_id->classrooms')
+    expect(CLASSROOM_ARCHIVE_V2_RESOURCES.some(row => row.table === relation.child_table)).toBe(false)
+    expect(GRADEX_RESOURCE_TABLES).not.toContain(relation.child_table)
+  })
   it('is a valid, complete 41-resource classroom ownership graph', () => {
     expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(41)
     expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(41)

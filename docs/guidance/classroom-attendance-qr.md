@@ -11,12 +11,19 @@ teachers must print and replace it. The live display remains occurrence-specific
   Rotating that environment secret also invalidates existing posters.
 - Pika requires a student session, an enabled classroom, current enrollment and
   an active attendance participant mapping. It resolves an eligible scheduled
-  window and its open projection, then uses existing Bara presentation/check-in
+  window and its open projection, verifies enabled attendance policy and an active
+  class day even while provider cancellation is syncing, then uses Bara presentation/check-in
   operations entirely server-side. Bara remains authoritative for check-in.
 - No raw classroom UUID or reusable Bara token appears in the poster URL. Existing
   occurrence entry routes and their authorization contracts remain in place.
 - Teacher view/create and rotate routes require classroom ownership and attendance
   access. Rotation uses an expected generation to reject concurrent stale writes.
+  A failed/uncertain rotation removes the old preview and requires a fresh read
+  before printing, downloading or rotating again.
+- Handles are explicitly classified as non-portable locator state, excluded from
+  classroom archives and Gradex. Soft archive retains them but disables resolution;
+  authorized classroom deletion cascades them. A recreated/restored classroom
+  requires a fresh poster rather than reviving a previously deleted locator.
 - Apply migration `151_stable_classroom_attendance_qr.sql` before enabling use of
   the poster feature. This task has not applied it to local or production.
   Without it, poster requests return a setup-unavailable error; there is no

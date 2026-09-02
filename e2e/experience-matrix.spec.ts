@@ -477,6 +477,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
   let classroomQrGeneration = 1
   let classroomQrToken = 'a'.repeat(43)
+  let loseNextRotationResponse = false
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -613,7 +614,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await page.route('**/api/teacher/attendance/classroom-qr**', async (route) => {
     if (route.request().method() === 'POST') {
       classroomQrGeneration += 1
-      classroomQrToken = 'b'.repeat(43)
+      classroomQrToken = String.fromCharCode(96 + classroomQrGeneration).repeat(43)
+      if (loseNextRotationResponse) {
+        loseNextRotationResponse = false
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Response unavailable' }) })
+        return
+      }
     }
     await route.fulfill({
       status: 200,
@@ -691,6 +697,16 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
   await expect(rotateDialog).toBeHidden()
   expect(classroomQrGeneration).toBe(2)
+  loseNextRotationResponse = true
+  await posterDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await expect(posterDialog.getByText(/Reload the current QR before printing/)).toBeVisible()
+  await expect(posterDialog.getByRole('button', { name: 'Print' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('img')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-rotation-recovery.png`) })
+  await posterDialog.getByRole('button', { name: 'Try again' }).click()
+  await expect(posterDialog.getByRole('button', { name: 'Print' })).toBeVisible()
+  expect(classroomQrGeneration).toBe(3)
   await page.evaluate(() => {
     window.print = () => window.dispatchEvent(new Event('afterprint'))
   })
