@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    'supabase/migrations/147_resolve_current_database_lint_warnings.sql',
+    'supabase/migrations/149_resolve_current_database_lint_warnings.sql',
   ),
   'utf8',
 )
@@ -20,7 +20,7 @@ describe('database lint warning resolution migration', () => {
     expect(migration).toContain("using errcode = '55000'")
     expect(migration).toContain('pg_catalog.pg_get_functiondef')
     expect(migration).toContain(
-      'drop function private.replace_function_definition_fragment_v147',
+      'drop function private.replace_function_definition_fragment_v149',
     )
   })
 
