@@ -15,8 +15,9 @@ export default async function PatternLabPage({
     notFound()
   }
 
+  const resolvedSearchParams = await searchParams
+
   if (process.env.PIKA_E2E_FIXTURES === 'true') {
-    const resolvedSearchParams = await searchParams
     const fixtureRole = resolvedSearchParams?.role === 'student' ? 'student' : 'teacher'
     return <UiGallery role={fixtureRole} />
   }
@@ -26,5 +27,11 @@ export default async function PatternLabPage({
     redirect(await getServerLoginRedirectPath())
   }
 
-  return <UiGallery role={user.role} />
+  const referenceRole = resolvedSearchParams?.role === 'student'
+    ? 'student'
+    : resolvedSearchParams?.role === 'teacher'
+      ? 'teacher'
+      : user.role
+
+  return <UiGallery role={referenceRole} />
 }

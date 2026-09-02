@@ -30041,6 +30041,7 @@ User paused proposed historical changes and asked to confirm the current one-ran
 
 User explicitly excluded Codepet Labs historical attendance and wants future-course reliability only. Existing entitlement mode admits new active classrooms for an entitled teacher; hours must be configured independently per classroom. Four additional access/student/readiness suites passed, 26/26 (72 relevant tests total with prior unchanged checks). The aggregate-only production readiness command using the canonical local env failed its target guard before database access; no target override attempted. Fresh new-classroom save isolation and actual Bara schedule/student check-in remain live verification gaps, not established defects. Need explicit authorization for dedicated production test setup before creating a future-dated test course or recording a test check-in. No product implementation or hosted mutations.
 
+<!-- pika-session-log-archive-batch:34f09a4a5a8f374bfd3cafb33f79ce000c1d8c04031f78cfba651e38f7c633cd -->
 ## 2026-08-31 — Authorized future-course production test setup
 
 User approved a dedicated production classroom and test-student check-in. Created Attendance verification — 2026-08-31 for September 2026 only through signed-in teacher UI. The whole-month August–September attempt was rejected before execution; switched to the materially safer verified September-only range. Saved automatic 09:00–10:00 Toronto hours, QR open/close offsets 0, Present grace 5 minutes, Absent offset 0. Sep 1 and Sep 2 both display the same hours, but UI says Last confirmed, so this is not proof of Bara acknowledgement. No test student enrolled or check-in performed; requested user sign in an authorized test student in the in-app browser. Automatic opening cannot yet be checked before Sep 1 09:00. Local configured database/origin/credentials are not production and were not overridden. Existing real classrooms untouched. Browser handoff remains on Sep 1; no code, flags, entitlements, migrations, manual session-open, or recovery commands changed. Test classroom retained, not archived/deleted; no follow-up automation created. Detailed handoff is in the task visualization directory.
@@ -30122,3 +30123,43 @@ User chose color-only status count chips: retain colored fills and numeric count
 - Corrected the documentation-only handoff: Controls now visibly includes an interactive Attendance example with production green/yellow/red number-only count chips and row controls, plus actual Classwork/Test status labels and colors. Direct preview: localhost:3004/pattern-lab#status-colors; Statuses links back to it.
 - Five fixed sample students support count sorting, local status changes, zero counts and reset. Reused existing production controls and display mappings; no API, saved attendance, grading or permission changes. Added catalog owner entries and semantic/browser tests.
 - Focused checks passed: 135 files / 1,335 tests plus architecture, UI/design, TypeScript and lint. Eight role/viewport/theme browser contracts pass; screenshots inspected, with teacher/student captures identical in each visual variant. Artifacts saved under `status-catalog-preview` in this session's visualization folder. Existing screenshot baseline acceptance remains required before publication. Changes remain local and uncommitted.
+
+## 2026-08-31 — Reduce visible attendance selection circles
+
+- User requested smaller attendance selection circles. Reduced visible discs from 28px to 20px in the production Attendance controls and matching standalone Attendance implementation; preserved 44px targets, count-chip size, colors, selection rings and behavior. Pattern Lab reflects the production owner automatically.
+- Updated existing geometry assertions. Verification: 56 component tests and 12 browser contracts pass; inspected Lab role/theme/viewport screenshots and confirmed 20px visible discs in the user's local preview. Evidence saved in session artifacts under `smaller-attendance-circles`. Explained that local preview changes do not require a production merge. No commit or publication.
+
+<!-- pika-session-log-archive-batch:19fd28c028f4e8571990765eb2dbbae002ff198a79e430ce1c35077e6c6ab08c -->
+## 2026-08-31 — Sync main and audit Classwork creation
+
+- Synced page-action-icons worktree to main de3f73cd (#1132), preserving local UI work. Resolved Pattern Lab imports and archive history; retained applied safety stash 0950d7fb. No publish or production merge.
+- Focused checks: 135 files / 1,338 tests plus architecture, UI/design, TypeScript and lint pass. Inspected Assignment draft/action menu, Material and Survey creation in local teacher browser without changing content or publishing.
+- Recorded source-backed comparison, screenshots, reuse decisions and proposed shared top bar in docs/guidance/ui/changes/classwork-creation-audit.md. Recommend Material first; survey composer consolidation and new scheduling/autosave behavior remain separate proposals. Dark desktop audit only.
+
+## 2026-08-31 — Standardize Material creation controls
+
+- Material now uses the Assignment-style pinned title/action row, eye-only Preview with tooltip, and Post/Save draft split action. Removed Ungraded classwork; added an opt-in visible modal heading. Existing manual persistence, permissions and delete confirmation remain; Assignment/Survey unchanged.
+- Added a deterministic production-owner example at /pattern-lab#material-creation. Preview shows unsaved content through the student RichTextViewer without saving. Fixed initial focus through the existing ModalLayer marker.
+- Verification: 1,341 focused tests; after an equivalent spacing-token correction, 59 affected tests and architecture/UI/design/TypeScript/lint passed. Four browser variants passed with inspected editor/menu/preview/error captures under material-creation-bar. Local only; full Pattern Lab snapshot baseline acceptance remains pre-publication work.
+
+## 2026-08-31 — Show Classwork modal headings and center save status
+
+- User refined the proposed above-editor status placement to the modal header. Assignment now shows its existing autosave status centered between the visible modal heading and Close; Saved is muted. Survey opts into the same visible heading as Material. Manual-save modals do not show false autosave status.
+- Extended CreationModalShell with an optional center slot and aligned the 44px Close target in the header. Updated the deterministic Pattern Lab creation example. Preserved scheduled-release context, save logic and focus behavior.
+- Verification: 45 component tests, eight browser contracts, architecture/UI/design policy, TypeScript and lint pass. Inspected actual Assignment/Survey and Material example screenshots at desktop/mobile × light/dark; actual-route verification made no write requests. Evidence: session visualization folder modal-headings. Local and uncommitted; baseline acceptance still required before publication.
+
+## 2026-08-31 — Replace the misleading generic creation preview
+
+- User found that Open creation dialog showed placeholder paragraphs instead of a real authoring form. Removed the generic shell example and added clearly named Open assignment example beside Open material example.
+- Assignment example reuses production form/editor/submission, shell, preview and scheduling components with gallery-local state. Publication outcomes are simulated; no API calls or production controller changes. Same modal frame, with Assignment-specific date/submission controls.
+- Eight browser contracts and architecture/UI/design/TypeScript/lint pass. Inspected desktop/mobile × light/dark form/preview/schedule captures; verified centered/pinned status, edited-content preview, nested Escape/focus, draft selection, reopen reset and zero API writes. Artifacts: real-creation-examples in session visualization folder. Local only.
+
+## 2026-08-31 — Make Assignment Preview icon-only
+
+- Reused Material's IconButton in AssignmentForm, removing the visible Preview text at every width while retaining its tooltip, accessible name, disabled behavior and 44px target. Production and Pattern Lab update together; no save or preview-content behavior changed.
+- Forty component tests, four browser contracts, UI/design policy, TypeScript and lint pass. Inspected desktop/mobile × light/dark screenshots; keyboard tooltip/activation and nested Escape/focus return pass. Evidence: assignment-preview-icon in session visualization folder. Local only.
+
+## 2026-08-31 — Remove the success-alert checkmark
+
+- User disliked the success checkmark shifting alert text. Removed the decorative icon from shared AlertDialog; its conditional indentation now disappears too, aligning title, description and action to the same content width. Error alerts, dismissal, focus and auto-dismiss behavior remain unchanged.
+- Forty dialog/gallery tests and UI/design/TypeScript/lint pass. Eight Playwright role/viewport/theme checks passed with inspected screenshots, aligned bounds, accessible description, keyboard/button dismissal and focus return. Evidence: alert-alignment in session visualization folder. Local only; full Lab snapshot-baseline acceptance remains pre-publication work.

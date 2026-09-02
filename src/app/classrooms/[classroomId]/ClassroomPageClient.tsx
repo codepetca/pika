@@ -1301,6 +1301,7 @@ function ClassroomPageContent({
                         classroom={classroom}
                         isActive={activeTab === 'daily'}
                         attendanceEnabled={featureVisibility.attendance}
+                        manualAttendanceEnabled={!featureVisibility.attendance}
                       />
                     </TabContentTransition>
                   )}

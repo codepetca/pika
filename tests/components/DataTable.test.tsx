@@ -9,6 +9,7 @@ import {
   SortableHeaderCell,
   TableSelectionCheckbox,
   TableCard,
+  TooltipProvider,
 } from '@/ui'
 
 describe('TableCard', () => {
@@ -71,6 +72,30 @@ describe('TableCard', () => {
       'focus-visible:ring-inset',
     )
     expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('keeps icon-only sortable headers named when a visual label and tooltip are supplied', () => {
+    render(
+      <TooltipProvider>
+        <DataTable>
+          <DataTableHead>
+            <tr>
+              <SortableHeaderCell
+                label="Time of scan"
+                visualLabel={<span aria-hidden="true">clock</span>}
+                tooltipContent="Time of scan"
+                isActive={false}
+                direction="asc"
+                onClick={vi.fn()}
+              />
+            </tr>
+          </DataTableHead>
+        </DataTable>
+      </TooltipProvider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Time of scan' })).toBeVisible()
+    expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'none')
   })
 
   it('provides shared separator semantics and keyboard resizing for sortable columns', () => {

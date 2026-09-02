@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { SegmentedControl, TooltipProvider } from '@/ui'
 
 describe('SegmentedControl', () => {
@@ -126,5 +127,26 @@ describe('SegmentedControl', () => {
 
     fireEvent.keyDown(grid, { key: 'Home' })
     expect(onChange).toHaveBeenLastCalledWith('list')
+  })
+
+  it('supports option-specific tooltips without changing visible labels', async () => {
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <SegmentedControl
+          ariaLabel="Session end day"
+          value="same"
+          options={[
+            { value: 'same', label: 'Same class day', tooltip: 'Class end on the same day' },
+            { value: 'next', label: 'Next day', tooltip: 'Class ends the next day after midnight' },
+          ]}
+          onChange={vi.fn()}
+        />
+      </TooltipProvider>,
+    )
+
+    const sameDay = screen.getByRole('button', { name: 'Same class day' })
+    await user.hover(sameDay)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class end on the same day')
   })
 })

@@ -2,6 +2,7 @@
 
 import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type CSSProperties, type HTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Tooltip } from './Tooltip'
 
 export type DataTableDensity = 'tight' | 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
@@ -141,6 +142,8 @@ export function SortableHeaderCell({
   align = 'left',
   className = '',
   buttonClassName = '',
+  visualLabel,
+  tooltipContent,
   trailing,
   trailingPlacement = 'after-sort',
   resize,
@@ -153,6 +156,8 @@ export function SortableHeaderCell({
   align?: 'left' | 'center' | 'right'
   className?: string
   buttonClassName?: string
+  visualLabel?: ReactNode
+  tooltipContent?: ReactNode
   trailing?: React.ReactNode
   trailingPlacement?: 'after-label' | 'after-sort'
   resize?: ColumnResizeConfig
@@ -163,6 +168,35 @@ export function SortableHeaderCell({
   const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
   const Icon = direction === 'asc' ? ChevronUp : ChevronDown
 
+  const sortButton = (
+    <button
+      type="button"
+      aria-label={visualLabel ? label : undefined}
+      onClick={onClick}
+      className={[
+        densityPadding(density),
+        'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
+        alignClass,
+        'hover:bg-surface-hover transition-colors',
+        resize ? 'relative' : '',
+        buttonClassName,
+      ].join(' ')}
+    >
+      <span className={visualLabel ? 'flex items-center' : 'truncate'}>{visualLabel ?? label}</span>
+      {trailingPlacement === 'after-label' ? trailing : null}
+      <Icon
+        className={[
+          resize
+            ? 'pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2'
+            : 'h-4 w-4 flex-shrink-0',
+          isActive ? 'text-text-muted' : 'opacity-0',
+        ].join(' ')}
+        aria-hidden="true"
+      />
+      {trailingPlacement === 'after-sort' ? trailing : null}
+    </button>
+  )
+
   return (
     <DataTableHeaderCell
       density={density}
@@ -172,31 +206,7 @@ export function SortableHeaderCell({
       aria-label={resize ? label : undefined}
       style={resize ? { width: `${resize.value}px`, maxWidth: `${resize.value}px` } : undefined}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        className={[
-          densityPadding(density),
-          'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
-          alignClass,
-          'hover:bg-surface-hover transition-colors',
-          resize ? 'relative' : '',
-          buttonClassName,
-        ].join(' ')}
-      >
-        <span className="truncate">{label}</span>
-        {trailingPlacement === 'after-label' ? trailing : null}
-        <Icon
-          className={[
-            resize
-              ? 'pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2'
-              : 'h-4 w-4 flex-shrink-0',
-            isActive ? 'text-text-muted' : 'opacity-0',
-          ].join(' ')}
-          aria-hidden="true"
-        />
-        {trailingPlacement === 'after-sort' ? trailing : null}
-      </button>
+      {tooltipContent ? <Tooltip content={tooltipContent}>{sortButton}</Tooltip> : sortButton}
       {resize ? (
         <ColumnResizeHandle
           label={resize.label ?? label}

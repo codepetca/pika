@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronDown } from 'lucide-react'
 import { Button, SegmentedControl, Tooltip, cn } from '@/ui'
 import type { TeacherAttendanceStatus } from '@/lib/teacher-attendance'
 import type { TeacherAttendanceMark } from '@/hooks/useTeacherAttendanceController'
@@ -29,22 +30,62 @@ const STATUS_BUTTON_CLASSES: Record<TeacherAttendanceMark, string> = {
   absent: 'bg-transparent hover:bg-transparent after:bg-attendance-absent',
 }
 
+export function AttendanceMarkButton({
+  studentName,
+  status,
+  active,
+  disabled,
+  onClick,
+}: {
+  studentName: string
+  status: TeacherAttendanceMark
+  active: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  const label = ATTENDANCE_STATUS_LABELS[status]
+  return (
+    <Tooltip content={label}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="xs"
+        className={cn(
+          "relative h-11 w-11 rounded-full p-0 after:pointer-events-none after:absolute after:h-5 after:w-5 after:rounded-full after:content-['']",
+          STATUS_BUTTON_CLASSES[status],
+          active
+            ? 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm'
+            : 'after:opacity-[0.12] hover:after:opacity-40',
+        )}
+        aria-label={`Mark ${studentName} ${label.toLowerCase()}`}
+        aria-pressed={active}
+        disabled={disabled}
+        onClick={onClick}
+      />
+    </Tooltip>
+  )
+}
+
 export function AttendanceStatusSortChip({
   status,
   count,
   active,
   onClick,
+  tooltipContent,
+  showSortIndicator = false,
 }: {
   status: TeacherAttendanceMark
   count: number
   active: boolean
   onClick: () => void
+  tooltipContent?: string
+  showSortIndicator?: boolean
 }) {
   const label = ATTENDANCE_STATUS_LABELS[status]
   const studentLabel = count === 1 ? 'student' : 'students'
 
   return (
-    <Tooltip content={`${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
+    <Tooltip content={tooltipContent ?? `${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
       <Button
         type="button"
         variant="ghost"
@@ -58,11 +99,21 @@ export function AttendanceStatusSortChip({
           aria-hidden="true"
           className={cn(
             'inline-flex h-5 w-7 items-center justify-center rounded-badge px-0 text-xs font-semibold tabular-nums',
+            showSortIndicator && 'relative',
             STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
         >
           {count}
+          {showSortIndicator ? (
+            <ChevronDown
+              className={cn(
+                'absolute right-0.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2',
+                active ? 'text-current' : 'opacity-0',
+              )}
+              aria-hidden="true"
+            />
+          ) : null}
         </span>
       </Button>
     </Tooltip>

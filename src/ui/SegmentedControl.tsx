@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip'
 export interface SegmentedControlOption<TValue extends string> {
   value: TValue
   label: string
+  tooltip?: ReactNode
   icon?: ReactNode
   disabled?: boolean
   className?: string
@@ -121,8 +122,8 @@ export function SegmentedControl<TValue extends string>({
           </button>
         )
 
-        return iconOnly ? (
-          <Tooltip key={option.value} content={option.label} side="top">
+        return iconOnly || option.tooltip ? (
+          <Tooltip key={option.value} content={option.tooltip ?? option.label} side="top">
             {button}
           </Tooltip>
         ) : (

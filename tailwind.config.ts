@@ -146,6 +146,11 @@ const config: Config = {
       minWidth: {
         control: 'var(--size-control-min)',
       },
+      inset: {
+        'attendance-one': 'var(--size-attendance-trailing-one)',
+        'attendance-two': 'var(--size-attendance-trailing-two)',
+        'attendance-three': 'var(--size-attendance-trailing-three)',
+      },
       maxWidth: {
         reading: 'var(--page-width-reading)',
         standard: 'var(--page-width-standard)',

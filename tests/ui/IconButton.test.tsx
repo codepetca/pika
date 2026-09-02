@@ -32,4 +32,17 @@ describe('IconButton', () => {
     await user.click(button)
     expect(onClick).toHaveBeenCalledOnce()
   })
+
+  it('can keep a specific accessible name with a shorter visible tooltip', async () => {
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <IconButton icon={Plus} label="Undo manual change for Noah Williams" tooltip="Undo manual change" />
+      </TooltipProvider>,
+    )
+
+    const button = screen.getByRole('button', { name: 'Undo manual change for Noah Williams' })
+    await user.hover(button)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Undo manual change$/)
+  })
 })

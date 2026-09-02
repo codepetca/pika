@@ -179,6 +179,36 @@ describe('/api/teacher/attendance/policy', () => {
     expect(saveTeacherAttendancePolicy).not.toHaveBeenCalled()
   })
 
+  it('accepts exactly 12 hours and rejects a longer attendance session', async () => {
+    const body = {
+      classroom_id: classroomId,
+      session_starts_local: '08:00',
+      session_ends_local: '20:00',
+      session_end_day_offset: 0,
+      entry_opens_minutes_before: 10,
+      present_grace_minutes: 5,
+      entry_closes_minutes_before_end: 0,
+      absent_minutes_before_end: 0,
+      enabled: true,
+      expected_revision: 1,
+    }
+    const exact = await PUT(new NextRequest('http://localhost/api/teacher/attendance/policy', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }))
+    expect(exact.status).toBe(200)
+
+    vi.clearAllMocks()
+    requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
+    assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
+    const tooLong = await PUT(new NextRequest('http://localhost/api/teacher/attendance/policy', {
+      method: 'PUT',
+      body: JSON.stringify({ ...body, session_ends_local: '20:01' }),
+    }))
+    expect(tooLong.status).toBe(400)
+    expect(saveTeacherAttendancePolicy).not.toHaveBeenCalled()
+  })
+
   it('maps revision conflict and missing migration to stable public errors', async () => {
     saveTeacherAttendancePolicy.mockRejectedValueOnce(new TeacherAttendancePolicyError('conflict'))
     const conflict = await PUT(new NextRequest('http://localhost/api/teacher/attendance/policy', {

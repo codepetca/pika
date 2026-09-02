@@ -1,12 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Code, Eye, MoreVertical, Pencil, Plus, Users } from 'lucide-react'
+import { ArrowLeft, Code, Eye, MoreVertical, Plus, Users } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import {
   TeacherWorkSurfaceActionCluster,
-  TeacherWorkSurfaceIconButton,
   TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
@@ -100,12 +99,6 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
       primary={(
         <TeacherWorkSurfaceActionCluster>
           <IconButton icon={Plus} label={family === 'classwork' ? 'Create classwork' : 'Create test'} variant="primary" onClick={() => onPrototypeAction(family === 'classwork' ? 'Create classwork' : 'Create test')} />
-          <TeacherWorkSurfaceIconButton
-            ariaLabel={`Organize ${family}`}
-            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-            onClick={() => onPrototypeAction(`Organize ${family}`)}
-            tooltip={`Organize ${family}`}
-          />
         </TeacherWorkSurfaceActionCluster>
       )}
       actions={(
@@ -297,7 +290,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           contentClassName={selectedItem ? 'pt-1' : undefined}
         />
       </div>
-      <p className="text-xs leading-5 text-text-muted">Summary starts full width with no empty inspector. Selecting an item opens its workspace; selecting a student then activates the resizable inspector. Classwork and Tests retain their own labels, statuses, and commands.</p>
+      <p className="text-xs leading-5 text-text-muted">Summary starts full width with creation centered and organization in More actions. Selecting an item opens its workspace; selecting a student then activates the resizable inspector. Classwork and Tests retain their own labels, statuses, and commands.</p>
     </div>
   )
 }

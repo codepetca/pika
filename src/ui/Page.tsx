@@ -65,6 +65,10 @@ export const ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME = cn(
   buttonVariants({ variant: 'subtle', size: 'sm' }),
   'px-4',
 )
+const ACTIONBAR_MORE_BUTTON_CLASSNAME = cn(
+  buttonVariants({ variant: 'ghost', size: 'sm' }),
+  'h-11 w-11 p-0',
+)
 
 export interface PageLayoutProps {
   children: ReactNode
@@ -283,7 +287,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         <button
           ref={buttonRef}
           type="button"
-          className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+          className={ACTIONBAR_MORE_BUTTON_CLASSNAME}
           disabled={!hasEnabledItems}
           onClick={() => {
             if (!hasEnabledItems) return
