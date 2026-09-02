@@ -22,9 +22,11 @@ type ViewState =
 export function StudentAttendanceCheckIn({
   entryToken,
   canCheckIn,
+  mode = 'occurrence',
 }: {
   entryToken: string
   canCheckIn: boolean
+  mode?: 'occurrence' | 'classroom'
 }) {
   const [view, setView] = useState<ViewState>(() => canCheckIn
     ? { kind: 'loading' }
@@ -43,10 +45,14 @@ export function StudentAttendanceCheckIn({
     attemptIdRef.current ??= crypto.randomUUID()
     setView({ kind: 'loading' })
     try {
-      const response = await fetch('/api/student/attendance/check-in', {
+      const response = await fetch(mode === 'classroom'
+        ? '/api/student/attendance/classroom-check-in'
+        : '/api/student/attendance/check-in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryToken, attemptId: attemptIdRef.current }),
+        body: JSON.stringify(mode === 'classroom'
+          ? { classroomQrToken: entryToken, attemptId: attemptIdRef.current }
+          : { entryToken, attemptId: attemptIdRef.current }),
         cache: 'no-store',
         signal,
       })
@@ -79,7 +85,7 @@ export function StudentAttendanceCheckIn({
       if (error instanceof DOMException && error.name === 'AbortError') return
       setView({ kind: 'unavailable' })
     }
-  }, [canCheckIn, entryToken])
+  }, [canCheckIn, entryToken, mode])
 
   useEffect(() => {
     const controller = new AbortController()

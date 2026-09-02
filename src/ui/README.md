@@ -134,7 +134,10 @@ interface ConfirmDialogProps {
 
 `QrCode` renders a machine-readable dark-on-light code in both themes. Pass the
 absolute public URL as `value` and a concise accessible `label`; do not style a
-feature-local QR with theme-dependent foreground/background colors.
+feature-local QR with theme-dependent foreground/background colors. Use
+`className` to size the square outer quiet-zone surface and `codeClassName` only
+to let the SVG fill that surface; retain a clear light quiet zone around every
+code.
 
 The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
 

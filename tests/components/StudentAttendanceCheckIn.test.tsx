@@ -84,4 +84,32 @@ describe('StudentAttendanceCheckIn', () => {
     const retryBody = JSON.parse(fetcher.mock.calls[1][1].body)
     expect(retryBody.attemptId).toBe(firstBody.attemptId)
   })
+
+  it('resolves a stable classroom QR after authentication and clearly shows closed attendance', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      state: 'closed',
+      title: 'Attendance is not open',
+      description: 'This classroom poster works when your teacher opens attendance.',
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetcher)
+
+    render(
+      <StudentAttendanceCheckIn
+        entryToken={'a'.repeat(43)}
+        canCheckIn
+        mode="classroom"
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
+    expect(screen.getByText('This classroom poster works when your teacher opens attendance.'))
+      .toBeVisible()
+    expect(fetcher).toHaveBeenCalledWith(
+      '/api/student/attendance/classroom-check-in',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
+      classroomQrToken: 'a'.repeat(43),
+    })
+  })
 })

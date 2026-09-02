@@ -7,9 +7,10 @@ export interface QrCodeProps {
   value: string
   label: string
   className?: string
+  codeClassName?: string
 }
 
-export function QrCode({ value, label, className }: QrCodeProps) {
+export function QrCode({ value, label, className, codeClassName }: QrCodeProps) {
   return (
     <div
       role="img"
@@ -21,7 +22,7 @@ export function QrCode({ value, label, className }: QrCodeProps) {
         size={256}
         bgColor="var(--color-qr-background)"
         fgColor="var(--color-qr-foreground)"
-        className="h-auto w-full max-w-64"
+        className={cn('h-auto w-full max-w-64', codeClassName)}
         aria-hidden="true"
       />
     </div>
