@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Sync main and audit Classwork creation
-
-- Synced page-action-icons worktree to main de3f73cd (#1132), preserving local UI work. Resolved Pattern Lab imports and archive history; retained applied safety stash 0950d7fb. No publish or production merge.
-- Focused checks: 135 files / 1,338 tests plus architecture, UI/design, TypeScript and lint pass. Inspected Assignment draft/action menu, Material and Survey creation in local teacher browser without changing content or publishing.
-- Recorded source-backed comparison, screenshots, reuse decisions and proposed shared top bar in docs/guidance/ui/changes/classwork-creation-audit.md. Recommend Material first; survey composer consolidation and new scheduling/autosave behavior remain separate proposals. Dark desktop audit only.
-
-## 2026-08-31 — Standardize Material creation controls
-
-- Material now uses the Assignment-style pinned title/action row, eye-only Preview with tooltip, and Post/Save draft split action. Removed Ungraded classwork; added an opt-in visible modal heading. Existing manual persistence, permissions and delete confirmation remain; Assignment/Survey unchanged.
-- Added a deterministic production-owner example at /pattern-lab#material-creation. Preview shows unsaved content through the student RichTextViewer without saving. Fixed initial focus through the existing ModalLayer marker.
-- Verification: 1,341 focused tests; after an equivalent spacing-token correction, 59 affected tests and architecture/UI/design/TypeScript/lint passed. Four browser variants passed with inspected editor/menu/preview/error captures under material-creation-bar. Local only; full Pattern Lab snapshot baseline acceptance remains pre-publication work.
-
-## 2026-08-31 — Show Classwork modal headings and center save status
-
-- User refined the proposed above-editor status placement to the modal header. Assignment now shows its existing autosave status centered between the visible modal heading and Close; Saved is muted. Survey opts into the same visible heading as Material. Manual-save modals do not show false autosave status.
-- Extended CreationModalShell with an optional center slot and aligned the 44px Close target in the header. Updated the deterministic Pattern Lab creation example. Preserved scheduled-release context, save logic and focus behavior.
-- Verification: 45 component tests, eight browser contracts, architecture/UI/design policy, TypeScript and lint pass. Inspected actual Assignment/Survey and Material example screenshots at desktop/mobile × light/dark; actual-route verification made no write requests. Evidence: session visualization folder modal-headings. Local and uncommitted; baseline acceptance still required before publication.
-
-## 2026-08-31 — Replace the misleading generic creation preview
-
-- User found that Open creation dialog showed placeholder paragraphs instead of a real authoring form. Removed the generic shell example and added clearly named Open assignment example beside Open material example.
-- Assignment example reuses production form/editor/submission, shell, preview and scheduling components with gallery-local state. Publication outcomes are simulated; no API calls or production controller changes. Same modal frame, with Assignment-specific date/submission controls.
-- Eight browser contracts and architecture/UI/design/TypeScript/lint pass. Inspected desktop/mobile × light/dark form/preview/schedule captures; verified centered/pinned status, edited-content preview, nested Escape/focus, draft selection, reopen reset and zero API writes. Artifacts: real-creation-examples in session visualization folder. Local only.
-
-## 2026-08-31 — Make Assignment Preview icon-only
-
-- Reused Material's IconButton in AssignmentForm, removing the visible Preview text at every width while retaining its tooltip, accessible name, disabled behavior and 44px target. Production and Pattern Lab update together; no save or preview-content behavior changed.
-- Forty component tests, four browser contracts, UI/design policy, TypeScript and lint pass. Inspected desktop/mobile × light/dark screenshots; keyboard tooltip/activation and nested Escape/focus return pass. Evidence: assignment-preview-icon in session visualization folder. Local only.
-
-## 2026-08-31 — Remove the success-alert checkmark
-
-- User disliked the success checkmark shifting alert text. Removed the decorative icon from shared AlertDialog; its conditional indentation now disappears too, aligning title, description and action to the same content width. Error alerts, dismissal, focus and auto-dismiss behavior remain unchanged.
-- Forty dialog/gallery tests and UI/design/TypeScript/lint pass. Eight Playwright role/viewport/theme checks passed with inspected screenshots, aligned bounds, accessible description, keyboard/button dismissal and focus return. Evidence: alert-alignment in session visualization folder. Local only; full Lab snapshot-baseline acceptance remains pre-publication work.
-
 ## 2026-08-31 — Discuss simpler assignment attachments
 
 - Audited teacher requirement fields, validation modes, image formats and student submission flow for the user's proposed single-label rows and missing-attachment warning. Basic/Reachable/Expected site are Link validation settings; supported images are PNG/JPEG/GIF/WebP, 10 MB maximum.
@@ -281,6 +247,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Focused gate passes 12 files / 112 tests plus architecture, UI/design policy, TypeScript, and lint. Email and code-entry states were visually reviewed at desktop/mobile in light/dark with no overflow; teacher/student are pre-role and share this surface. Pika audit passes. Risk profile: none. Model recommendation: GPT-5.6 Terra — localized copy-only UI refinement.
 - Follow-up brand refinement reuses the production Pika logo beside the title, adds the approved subtitle “School days, simplified.”, and removes the visible School Email asterisk while retaining native required semantics in both login modes. The shared pre-role email state was visually inspected at desktop/mobile in light/dark. Per explicit user direction, tests and CI were not run for this follow-up before its draft push; focused assertions were updated for the final copy and semantics.
 - Final independent review found the title-adjacent logo duplicated “Pika” for assistive technology. The login treatment now hides that decorative instance from the accessibility tree while retaining the visible mark; a matching semantic assertion covers the correction.
+
 ## 2026-09-01 — Resolve database lint warnings
 
 - Added migration 149 to resolve all warning-level findings found by a fresh migration replay while preserving deployed RPC signatures, grants, security modes, and established lock order. Dead declarations and discarded results were removed; Test unsubmit now enforces its teacher actor at the database boundary, and clear-grade rejects a null deterministic clock.
@@ -296,6 +263,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - After PR 1162 merged, the branch rebased without conflicts and retained migration 149. Fresh targeted review found the clean-output fallback could accept the sentinel alongside contradictory output. The new review session's remediation batch one parses full JSON first and accepts only the complete normalized CLI clean transcript; managed-function warning JSON still exits 1, while mixed or malformed output exits 2.
 - Final cumulative review found syntactically valid but structurally invalid JSON could still default to an empty result. Remediation batch two requires a non-array report object with an actual `results` array; `{}`, `[]`, and null-results reports now exit 2 instead of passing.
 - Targeted re-review found malformed entries inside a valid `results` array could still pass filtering. Remediation batch three validates every result and issue before filtering, including non-managed functions and optional statement line metadata; empty results, null issues, and malformed issue objects now fail closed.
+
 ## 2026-09-01 — Record AI PR lifecycle evidence
 
 - Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
@@ -340,3 +308,9 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - The first ready-PR gate replayed migration 147 successfully but caught two mechanical artifacts: nullable RPC arguments left over from the discarded local prototype and stale Pattern Lab snapshots for the approved subtle More actions treatment. The generated types now match the clean schema, and the desktop/mobile light/dark contract snapshots were regenerated on both macOS and Linux. The full focused gate remains green at 149 files / 1,450 tests; production remains untouched.
 - Capped both QR and Pika-owned manual attendance sessions at 12 hours. A shared duration helper now aligns dialog and API validation; exact 12-hour same-day/overnight windows are accepted and longer or non-positive windows are rejected. Migration 147 adds stored-policy constraints plus a fail-safe precondition that stops rollout if existing QR policy data violates the cap rather than altering it. Pattern Lab mirrors production and keeps all time-dialog actions visible on mobile. The full focused gate passes 150 files / 1,458 tests, Pika audit passes, and QR/manual invalid states were visually verified across teacher and student Pattern Lab matrices, desktop/mobile, and light/dark. Composite checklist reviewed: keyboard behavior is unchanged and covered, semantic invalid/pressed/disabled state is covered by tests, and no manual follow-up remains. Migration 147 remains unapplied.
 - The approved extra migration review caught incorrect API-shaped column names and minute-only SQL arithmetic in the new QR duration constraint. The constraint now uses the real `opens_local`/`closes_local`/`close_day_offset` schema and exact interval arithmetic. The database harness requires migration 147, accepts an exact 12-hour overnight RPC write, rejects 12 hours plus one second through the named constraint, and proves the rejected write leaves the valid policy unchanged. The full focused gate remains green at 150 files / 1,458 tests; the clean migration replay remains required in final CI because migration 147 was not applied to the stale local prototype database.
+
+## 2026-09-02 — Rebase Daily attendance after database-lint merge
+
+- After PR 1161 merged, rebased PR 1163 onto `a9cf57ae`, preserving the newer Gradebook/role-aware Pattern Lab work and the approved Daily attendance behavior. Resolved only Pattern Lab guidance/composition and append-only journal conflicts.
+- Resequenced the branch migration to `150_pika_manual_attendance.sql` after main migrations 147–149 and updated its unit/database harness references. The local database was intentionally not migrated; its read-only harness correctly reports migration 150 absent, while migration/API/domain/component tests pass 82/82.
+- Refreshed worktree dependencies to current main, corrected authenticated Pattern Lab role selection for asynchronous Next.js search parameters, and passed the full focused gate: 151 files / 1,465 tests plus architecture, UI/design policy, TypeScript, and lint. Final visual verification, independent review, and exact-head CI remain before merge.

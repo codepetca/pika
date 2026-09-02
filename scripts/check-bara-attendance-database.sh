@@ -96,14 +96,14 @@ begin
     raise exception 'Migration 145 is not applied to the local database';
   end if;
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '147'
+    select 1 from supabase_migrations.schema_migrations where version = '150'
   ) or not exists (
     select 1
     from pg_constraint
     where conrelid = 'public.attendance_window_policies'::regclass
       and conname = 'attendance_window_policy_duration_check'
   ) then
-    raise exception 'Migration 147 attendance duration guard is not applied to the local database';
+    raise exception 'Migration 150 attendance duration guard is not applied to the local database';
   end if;
 end;
 $migration$;

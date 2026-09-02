@@ -5,7 +5,7 @@ import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archiv
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/147_pika_manual_attendance.sql'),
+  resolve(process.cwd(), 'supabase/migrations/150_pika_manual_attendance.sql'),
   'utf8',
 )
 
@@ -37,7 +37,7 @@ describe('Pika manual attendance migration', () => {
     expect(migration).toContain('to service_role')
   })
 
-  it('defaults new fields when restoring archives created before migration 147', () => {
+  it('defaults new fields when restoring archives created before migration 150', () => {
     expect(migration).toContain('normalize_classroom_archive_restore_row')
     for (const field of [
       'manual_attendance_source_mode',

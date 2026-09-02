@@ -85,9 +85,9 @@ describe('PatternLabPage guard', () => {
     delete process.env.PIKA_E2E_FIXTURES
     mocks.getCurrentUser.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
 
-    const page = (await PatternLabPage({ searchParams: { role: 'student' } })) as ReactElement<{
-      role: string
-    }>
+    const page = (await PatternLabPage({
+      searchParams: Promise.resolve({ role: 'student' }),
+    })) as ReactElement<{ role: string }>
 
     expect(page.props.role).toBe('student')
     expect(mocks.getCurrentUser).toHaveBeenCalledOnce()

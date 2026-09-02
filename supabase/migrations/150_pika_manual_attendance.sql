@@ -75,7 +75,7 @@ alter table public.classroom_enrollments
   add constraint classroom_enrollments_manual_attendance_marks_check
     check (private.is_valid_manual_attendance_marks(manual_attendance_marks));
 
--- Archives created before migration 147 do not contain the new fields. Keep
+-- Archives created before migration 150 do not contain the new fields. Keep
 -- every existing adapter and supply the same defaults used for hot rows.
 create or replace function public.normalize_classroom_archive_restore_row(
   p_operation_id uuid,
