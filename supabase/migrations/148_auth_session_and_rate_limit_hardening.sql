@@ -56,7 +56,7 @@ create table public.auth_rate_limits (
   constraint auth_rate_limits_key_hash_check
     check (key_hash ~ '^[0-9a-f]{64}$'),
   constraint auth_rate_limits_attempt_count_check
-    check (cardinality(attempt_timestamps) between 0 and 10000)
+    check (cardinality(attempt_timestamps) between 0 and 100)
 );
 
 create index auth_rate_limits_updated_at_idx
@@ -64,6 +64,23 @@ create index auth_rate_limits_updated_at_idx
 
 alter table public.auth_rate_limits enable row level security;
 revoke all on table public.auth_rate_limits from public, anon, authenticated;
+
+create table public.auth_global_rate_limits (
+  key_hash text primary key,
+  window_started_at timestamptz not null,
+  attempt_count integer not null default 0,
+  updated_at timestamptz not null default now(),
+  constraint auth_global_rate_limits_key_hash_check
+    check (key_hash ~ '^[0-9a-f]{64}$'),
+  constraint auth_global_rate_limits_attempt_count_check
+    check (attempt_count between 0 and 100000)
+);
+
+create index auth_global_rate_limits_updated_at_idx
+  on public.auth_global_rate_limits (updated_at);
+
+alter table public.auth_global_rate_limits enable row level security;
+revoke all on table public.auth_global_rate_limits from public, anon, authenticated;
 
 create function public.issue_auth_session(
   p_user_id uuid,
@@ -136,6 +153,84 @@ begin
 end;
 $$;
 
+create function public.consume_auth_global_rate_limit(
+  p_key_hash text,
+  p_max_attempts integer,
+  p_window_seconds integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_limit public.auth_global_rate_limits%rowtype;
+  v_retry_after_seconds integer;
+begin
+  if p_key_hash !~ '^[0-9a-f]{64}$'
+    or p_max_attempts not between 1 and 100000
+    or p_window_seconds not between 1 and 300 then
+    raise exception using
+      errcode = '22023',
+      message = 'invalid_auth_global_rate_limit_input';
+  end if;
+
+  delete from public.auth_global_rate_limits
+  where updated_at < v_now - interval '1 day';
+
+  insert into public.auth_global_rate_limits (
+    key_hash,
+    window_started_at,
+    attempt_count,
+    updated_at
+  ) values (
+    p_key_hash,
+    v_now,
+    0,
+    v_now
+  )
+  on conflict (key_hash) do nothing;
+
+  select * into v_limit
+  from public.auth_global_rate_limits
+  where key_hash = p_key_hash
+  for update;
+
+  if v_limit.window_started_at <= v_now - make_interval(secs => p_window_seconds) then
+    v_limit.window_started_at := v_now;
+    v_limit.attempt_count := 0;
+  end if;
+
+  if v_limit.attempt_count >= p_max_attempts then
+    v_retry_after_seconds := greatest(
+      1,
+      ceil(extract(epoch from (
+        v_limit.window_started_at
+        + make_interval(secs => p_window_seconds)
+        - v_now
+      )))::integer
+    );
+    update public.auth_global_rate_limits
+    set window_started_at = v_limit.window_started_at,
+        attempt_count = v_limit.attempt_count,
+        updated_at = v_now
+    where key_hash = p_key_hash;
+    return jsonb_build_object(
+      'ok', false,
+      'retry_after_seconds', v_retry_after_seconds
+    );
+  end if;
+
+  update public.auth_global_rate_limits
+  set window_started_at = v_limit.window_started_at,
+      attempt_count = v_limit.attempt_count + 1,
+      updated_at = v_now
+  where key_hash = p_key_hash;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
 create function public.consume_auth_rate_limit(
   p_scope text,
   p_key_hash text,
@@ -155,7 +250,7 @@ declare
 begin
   if p_scope !~ '^[a-z][a-z0-9_]{0,63}$'
     or p_key_hash !~ '^[0-9a-f]{64}$'
-    or p_max_attempts not between 1 and 10000
+    or p_max_attempts not between 1 and 100
     or p_window_seconds not between 1 and 86400 then
     raise exception using
       errcode = '22023',
@@ -322,6 +417,11 @@ revoke all on function public.issue_auth_session(
 grant execute on function public.issue_auth_session(
   uuid, bigint, text, text, text, timestamptz, text
 ) to service_role;
+
+revoke all on function public.consume_auth_global_rate_limit(text, integer, integer)
+  from public, anon, authenticated, service_role;
+grant execute on function public.consume_auth_global_rate_limit(text, integer, integer)
+  to service_role;
 
 revoke all on function public.consume_auth_rate_limit(text, text, integer, integer)
   from public, anon, authenticated, service_role;

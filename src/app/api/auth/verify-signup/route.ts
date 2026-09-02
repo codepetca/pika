@@ -10,6 +10,7 @@ const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
 const INVALID_VERIFICATION_MESSAGE = 'Invalid email or code'
 const NONEXISTENT_USER_ID = '00000000-0000-0000-0000-000000000000'
+const NONEXISTENT_CODE_ID = '00000000-0000-0000-0000-000000000001'
 
 export const POST = withErrorHandler('VerifySignup', async (request: NextRequest) => {
   const { email: normalizedEmail, code: normalizedCode } = verifySignupSchema.parse(await request.json())
@@ -60,12 +61,13 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
   )
 
   if (!eligibleUser || !candidateUsable || !isValid) {
-    if (eligibleUser && candidateCode && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS) {
-      await supabase
-        .from('verification_codes')
-        .update({ attempts: candidateCode.attempts + 1 })
-        .eq('id', candidateCode.id)
-    }
+    const shouldIncrementCandidate = Boolean(
+      eligibleUser && candidateCode && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS,
+    )
+    await supabase
+      .from('verification_codes')
+      .update({ attempts: shouldIncrementCandidate ? candidateCode!.attempts + 1 : 1 })
+      .eq('id', shouldIncrementCandidate ? candidateCode!.id : NONEXISTENT_CODE_ID)
     throw new ApiError(401, INVALID_VERIFICATION_MESSAGE)
   }
 

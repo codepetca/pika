@@ -62,26 +62,39 @@ export async function consumeAuthRequestRateLimits(args: {
 }): Promise<void> {
   const supabase = args.supabase || getServiceRoleClient()
   await consumeAuthRateLimit({
-    scope: `${args.action}_identifier`,
-    value: args.identifier,
-    maxAttempts: args.identifierMaxAttempts,
-    windowSeconds: args.windowSeconds,
-    supabase,
-  })
-  await consumeAuthRateLimit({
     scope: `${args.action}_client`,
     value: getAuthClientFingerprint(args.request),
     maxAttempts: args.clientMaxAttempts,
     windowSeconds: args.windowSeconds,
     supabase,
   })
+  await consumeAuthGlobalRateLimit({ supabase })
   await consumeAuthRateLimit({
-    scope: 'auth_global',
-    value: 'all-authentication-requests',
-    maxAttempts: 5_000,
-    windowSeconds: 60 * 60,
+    scope: `${args.action}_identifier`,
+    value: args.identifier,
+    maxAttempts: args.identifierMaxAttempts,
+    windowSeconds: args.windowSeconds,
     supabase,
   })
+}
+
+async function consumeAuthGlobalRateLimit(args: {
+  supabase: RateLimitClient
+}): Promise<void> {
+  const { data, error } = await args.supabase.rpc('consume_auth_global_rate_limit', {
+    p_key_hash: hashAuthRateLimitKey('auth_global', 'all-authentication-requests'),
+    p_max_attempts: 10_000,
+    p_window_seconds: 60,
+  })
+
+  const parsed = resultSchema.safeParse(data)
+  if (error || !parsed.success) {
+    console.error('Authentication overload guard failed:', error || parsed.error)
+    throw new ApiError(503, 'Authentication is temporarily unavailable')
+  }
+  if (!parsed.data.ok) {
+    throw new ApiError(429, 'Too many attempts. Please try again later.')
+  }
 }
 
 export async function consumeAuthRateLimit(args: {

@@ -24,11 +24,15 @@ describe('authentication session and rate-limit migration', () => {
   it('keeps session and throttle records inaccessible to browser roles', () => {
     expect(migration).toContain('alter table public.auth_sessions enable row level security;')
     expect(migration).toContain('alter table public.auth_rate_limits enable row level security;')
+    expect(migration).toContain('alter table public.auth_global_rate_limits enable row level security;')
     expect(migration).toContain(
       'revoke all on table public.auth_sessions from public, anon, authenticated;',
     )
     expect(migration).toContain(
       'revoke all on function public.consume_auth_rate_limit(text, text, integer, integer)',
+    )
+    expect(migration).toContain(
+      'revoke all on function public.consume_auth_global_rate_limit(text, integer, integer)',
     )
     expect(migration).toContain('to service_role;')
   })
@@ -39,6 +43,14 @@ describe('authentication session and rate-limit migration', () => {
     expect(migration).toContain("'retry_after_seconds', v_retry_after_seconds")
     expect(migration).toContain('make_interval(secs => p_window_seconds)')
     expect(migration).toContain("where updated_at < v_now - interval '1 day';")
+  })
+
+  it('uses a bounded fixed-window counter for short-lived overload shedding', () => {
+    expect(migration).toContain('create table public.auth_global_rate_limits')
+    expect(migration).toContain('create function public.consume_auth_global_rate_limit')
+    expect(migration).toContain('p_window_seconds not between 1 and 300')
+    expect(migration).toContain('v_limit.attempt_count >= p_max_attempts')
+    expect(migration).toContain('attempt_count = v_limit.attempt_count + 1')
   })
 
   it('consumes reset handoff, updates the password, and revokes every session atomically', () => {

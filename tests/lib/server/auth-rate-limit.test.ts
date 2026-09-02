@@ -95,7 +95,7 @@ describe('authentication rate limits', () => {
     }))).toBe('unresolved-client')
   })
 
-  it('charges identifier, client, and global budgets for every auth request', async () => {
+  it('charges client, overload, and identifier budgets in upstream-first order', async () => {
     vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
     vi.stubEnv('NODE_ENV', 'production')
     const client = createClient([
@@ -116,8 +116,19 @@ describe('authentication rate limits', () => {
       supabase: client as never,
     })
 
-    expect(client.rpc.mock.calls.map((call: unknown[]) => (call[1] as { p_scope: string }).p_scope))
-      .toEqual(['login_identifier', 'login_client', 'auth_global'])
+    expect(client.rpc.mock.calls.map((call: unknown[]) => [
+      call[0],
+      (call[1] as { p_scope?: string }).p_scope,
+    ])).toEqual([
+      ['consume_auth_rate_limit', 'login_client'],
+      ['consume_auth_global_rate_limit', undefined],
+      ['consume_auth_rate_limit', 'login_identifier'],
+    ])
+    expect(client.rpc).toHaveBeenNthCalledWith(2, 'consume_auth_global_rate_limit', {
+      p_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      p_max_attempts: 10_000,
+      p_window_seconds: 60,
+    })
   })
 
   it('shares client and global budgets when one client rotates account identifiers', async () => {
@@ -146,8 +157,62 @@ describe('authentication rate limits', () => {
     const keys = client.rpc.mock.calls.map(
       (call: unknown[]) => (call[1] as { p_key_hash: string }).p_key_hash,
     )
-    expect(keys[0]).not.toBe(keys[3])
+    expect(keys[0]).toBe(keys[3])
     expect(keys[1]).toBe(keys[4])
-    expect(keys[2]).toBe(keys[5])
+    expect(keys[2]).not.toBe(keys[5])
+  })
+
+  it('does not charge overload or victim identifier budgets after client denial', async () => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    vi.stubEnv('NODE_ENV', 'production')
+    const client = createClient([{
+      data: { ok: false, retry_after_seconds: 120 },
+      error: null,
+    }])
+
+    await expect(consumeAuthRequestRateLimits({
+      action: 'login',
+      request: new Request('https://pika.example/login', {
+        headers: { 'x-vercel-forwarded-for': '203.0.113.10' },
+      }),
+      identifier: 'victim@example.com',
+      identifierMaxAttempts: 10,
+      clientMaxAttempts: 60,
+      windowSeconds: 900,
+      supabase: client as never,
+    })).rejects.toMatchObject({ statusCode: 429 })
+
+    expect(client.rpc).toHaveBeenCalledTimes(1)
+    expect(client.rpc).toHaveBeenCalledWith('consume_auth_rate_limit', expect.objectContaining({
+      p_scope: 'login_client',
+    }))
+  })
+
+  it('does not charge a victim identifier budget after overload denial', async () => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    vi.stubEnv('NODE_ENV', 'production')
+    const client = createClient([
+      { data: { ok: true }, error: null },
+      { data: { ok: false, retry_after_seconds: 30 }, error: null },
+    ])
+
+    await expect(consumeAuthRequestRateLimits({
+      action: 'login',
+      request: new Request('https://pika.example/login', {
+        headers: { 'x-vercel-forwarded-for': '203.0.113.10' },
+      }),
+      identifier: 'victim@example.com',
+      identifierMaxAttempts: 10,
+      clientMaxAttempts: 60,
+      windowSeconds: 900,
+      supabase: client as never,
+    })).rejects.toMatchObject({ statusCode: 429 })
+
+    expect(client.rpc).toHaveBeenCalledTimes(2)
+    expect(client.rpc).toHaveBeenNthCalledWith(
+      2,
+      'consume_auth_global_rate_limit',
+      expect.any(Object),
+    )
   })
 })

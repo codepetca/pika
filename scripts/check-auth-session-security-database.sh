@@ -12,6 +12,8 @@ USER_ID="a1480000-0000-4000-8000-000000000001"
 RATE_SCOPE="auth_contract"
 RATE_HASH="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 RACE_HASH="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+GLOBAL_HASH="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+GLOBAL_RACE_HASH="9999999999999999999999999999999999999999999999999999999999999999"
 HANDOFF_HASH="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 STALE_HASH="dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 SIBLING_HASH="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
@@ -23,6 +25,8 @@ cleanup() {
   docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 \
     -c "delete from public.auth_rate_limits
         where scope = '$RATE_SCOPE' and key_hash in ('$RATE_HASH', '$RACE_HASH', '$STALE_HASH');
+        delete from public.auth_global_rate_limits
+        where key_hash in ('$GLOBAL_HASH', '$GLOBAL_RACE_HASH');
         delete from public.users where id = '$USER_ID';" >/dev/null 2>&1 || true
   rm -rf "$TMP_DIR"
 }
@@ -50,8 +54,10 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
       do \$contract\$
       begin
         if has_table_privilege('anon', 'public.auth_sessions', 'select')
-          or has_table_privilege('authenticated', 'public.auth_sessions', 'select') then
-          raise exception 'browser roles can read auth sessions';
+          or has_table_privilege('authenticated', 'public.auth_sessions', 'select')
+          or has_table_privilege('anon', 'public.auth_global_rate_limits', 'select')
+          or has_table_privilege('authenticated', 'public.auth_global_rate_limits', 'select') then
+          raise exception 'browser roles can read auth security tables';
         end if;
         if not has_table_privilege('service_role', 'public.auth_sessions', 'select,delete')
           or has_table_privilege('service_role', 'public.auth_sessions', 'insert') then
@@ -60,6 +66,18 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
         if has_function_privilege(
           'anon',
           'public.consume_auth_rate_limit(text,text,integer,integer)',
+          'execute'
+        ) or has_function_privilege(
+          'authenticated',
+          'public.consume_auth_rate_limit(text,text,integer,integer)',
+          'execute'
+        ) or has_function_privilege(
+          'anon',
+          'public.consume_auth_global_rate_limit(text,integer,integer)',
+          'execute'
+        ) or has_function_privilege(
+          'authenticated',
+          'public.consume_auth_global_rate_limit(text,integer,integer)',
           'execute'
         ) or has_function_privilege(
           'authenticated',
@@ -103,6 +121,32 @@ service_rpc "select public.clear_auth_rate_limit('$RATE_SCOPE', '$RATE_HASH');" 
 after_clear="$(service_rpc "select public.consume_auth_rate_limit('$RATE_SCOPE', '$RATE_HASH', 2, 600);")"
 if ! jq -e '.ok == true' <<<"$after_clear" >/dev/null; then
   echo "Authentication rate limit did not clear." >&2
+  exit 1
+fi
+
+global_first="$(service_rpc "select public.consume_auth_global_rate_limit('$GLOBAL_HASH', 2, 60);")"
+global_second="$(service_rpc "select public.consume_auth_global_rate_limit('$GLOBAL_HASH', 2, 60);")"
+global_third="$(service_rpc "select public.consume_auth_global_rate_limit('$GLOBAL_HASH', 2, 60);")"
+if ! jq -e '.ok == true' <<<"$global_first" >/dev/null \
+  || ! jq -e '.ok == true' <<<"$global_second" >/dev/null \
+  || ! jq -e '.ok == false and .retry_after_seconds > 0 and .retry_after_seconds <= 60' \
+    <<<"$global_third" >/dev/null; then
+  echo "Authentication global overload guard contract failed." >&2
+  exit 1
+fi
+
+for worker in 1 2 3; do
+  service_rpc "select public.consume_auth_global_rate_limit('$GLOBAL_RACE_HASH', 1, 60);" \
+    >"$TMP_DIR/global-race-$worker.json" &
+done
+wait
+
+global_race_successes="$(jq -s '[.[] | select(.ok == true)] | length' \
+  "$TMP_DIR"/global-race-*.json)"
+global_race_refusals="$(jq -s '[.[] | select(.ok == false)] | length' \
+  "$TMP_DIR"/global-race-*.json)"
+if [[ "$global_race_successes" != "1" || "$global_race_refusals" != "2" ]]; then
+  echo "Concurrent authentication overload guard admitted the wrong number of attempts." >&2
   exit 1
 fi
 

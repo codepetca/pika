@@ -154,6 +154,27 @@ export type Database = {
           },
         ]
       }
+      auth_global_rate_limits: {
+        Row: {
+          attempt_count: number
+          key_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          key_hash: string
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          attempt_count?: number
+          key_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       auth_rate_limits: {
         Row: {
           attempt_timestamps: string[]
@@ -8594,6 +8615,14 @@ export type Database = {
       complete_test_document_snapshot_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
+      }
+      consume_auth_global_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_window_seconds: number
+        }
+        Returns: Json
       }
       consume_auth_rate_limit: {
         Args: {

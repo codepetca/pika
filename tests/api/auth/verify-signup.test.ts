@@ -22,6 +22,9 @@ vi.mock('@/lib/crypto', () => ({
 vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 const mockSupabaseClient = { from: vi.fn() }
+const noopVerificationUpdate = () => vi.fn(() => ({
+  eq: vi.fn().mockResolvedValue({ error: null }),
+}))
 
 describe('POST /api/auth/verify-signup', () => {
   beforeEach(() => {
@@ -76,6 +79,7 @@ describe('POST /api/auth/verify-signup', () => {
               gt: vi.fn().mockReturnThis(),
               order: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+            update: noopVerificationUpdate(),
           }
         }
       })
@@ -114,6 +118,7 @@ describe('POST /api/auth/verify-signup', () => {
               gt: vi.fn().mockReturnThis(),
               order: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+            update: noopVerificationUpdate(),
           }
         }
       })
@@ -152,6 +157,7 @@ describe('POST /api/auth/verify-signup', () => {
               gt: vi.fn().mockReturnThis(),
               order: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+            update: noopVerificationUpdate(),
           }
         }
       })
@@ -170,24 +176,35 @@ describe('POST /api/auth/verify-signup', () => {
     })
 
     it('returns a byte-identical failure for missing, existing, inactive, and wrong-code states', async () => {
+      const sentinelCodeId = '00000000-0000-0000-0000-000000000001'
       const states = [
-        { user: null, codes: [] },
+        { user: null, codes: [], expectedUpdateId: sentinelCodeId },
         {
           user: { id: 'user-1', email: 'test@example.com', password_hash: 'hash' },
           codes: [],
+          expectedUpdateId: sentinelCodeId,
         },
         {
           user: { id: 'user-1', email: 'test@example.com', password_hash: null },
           codes: [],
+          expectedUpdateId: sentinelCodeId,
         },
         {
           user: { id: 'user-1', email: 'test@example.com', password_hash: null },
           codes: [{ id: 'code-1', code_hash: 'different_hash', attempts: 0 }],
+          expectedUpdateId: 'code-1',
+        },
+        {
+          user: { id: 'user-1', email: 'test@example.com', password_hash: null },
+          codes: [{ id: 'code-exhausted', code_hash: 'different_hash', attempts: 5 }],
+          expectedUpdateId: sentinelCodeId,
         },
       ]
       const bodies: string[] = []
 
       for (const state of states) {
+        const failureUpdateEq = vi.fn().mockResolvedValue({ error: null })
+        const failureUpdate = vi.fn(() => ({ eq: failureUpdateEq }))
         mockSupabaseClient.from = vi.fn((table: string) => {
           if (table === 'users') {
             return {
@@ -209,7 +226,7 @@ describe('POST /api/auth/verify-signup', () => {
           }
           return {
             select: vi.fn(() => lookup),
-            update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
+            update: failureUpdate,
           }
         }) as never
 
@@ -222,6 +239,8 @@ describe('POST /api/auth/verify-signup', () => {
         ))
         expect(response.status).toBe(401)
         bodies.push(await response.text())
+        expect(failureUpdate).toHaveBeenCalledTimes(1)
+        expect(failureUpdateEq).toHaveBeenCalledWith('id', state.expectedUpdateId)
       }
 
       expect(new Set(bodies)).toEqual(new Set(['{"error":"Invalid email or code"}']))

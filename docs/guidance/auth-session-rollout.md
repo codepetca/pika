@@ -27,11 +27,17 @@ credential.
 
 Expired session rows are removed during atomic session issuance, and
 authentication-rate metadata is removed after one day by the limiter itself.
-Every password flow charges HMAC-protected identifier, client, and global
-budgets. Production client identity comes only from Vercel's overwritten
+Every password flow charges its HMAC-protected client budget first, a
+high-capacity 10,000-request one-minute overload guard second, and its
+identifier budget last. A blocked source therefore cannot consume a victim's
+identifier quota. The short overload window is a database safety valve, not a
+normal user quota: it requires sustained aggregate traffic above roughly 166
+requests per second and can deny traffic for at most the remainder of one
+minute. Production client identity comes only from Vercel's overwritten
 `x-vercel-forwarded-for`; a missing or malformed header maps to one shared
-fail-closed client budget. Both tables remain inaccessible to browser roles.
-`/api/auth/me` responses are explicitly private and non-cacheable.
+fail-closed client budget. Limiter tables and functions remain inaccessible to
+browser roles. `/api/auth/me` responses are explicitly private and
+non-cacheable.
 
 Signup and forgot-password responses wait for the same 350 ms floor after
 fixed bcrypt work. Eligible delivery uses Next.js `after()`, so Brevo latency
