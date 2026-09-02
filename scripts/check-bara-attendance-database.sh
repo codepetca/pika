@@ -1612,11 +1612,11 @@ begin
   );
 
   select public.upsert_attendance_timing_policy_v1(
-    'a1330000-0000-4000-8000-000000000001',
-    'a1330000-0000-4000-8000-000000000010',
-    '20:00:00', '08:00:00', 1,
-    10, 5, 0, 0, true, 1,
-    '2026-08-25T16:00:00Z'
+    'a1330000-0000-4000-8000-000000000001'::uuid,
+    'a1330000-0000-4000-8000-000000000010'::uuid,
+    '20:00:00'::time, '08:00:00'::time, 1::smallint,
+    10, 5, 0, 0, true, 1::bigint,
+    '2026-08-25T16:00:00Z'::timestamptz
   ) into v_policy;
   if v_policy->>'session_starts_local' <> '20:00'
     or v_policy->>'session_ends_local' <> '08:00'
@@ -1628,11 +1628,11 @@ begin
 
   begin
     perform public.upsert_attendance_timing_policy_v1(
-      'a1330000-0000-4000-8000-000000000001',
-      'a1330000-0000-4000-8000-000000000010',
-      '19:59:59', '08:00:00', 1,
-      10, 5, 0, 0, true, 2,
-      '2026-08-25T16:00:00Z'
+      'a1330000-0000-4000-8000-000000000001'::uuid,
+      'a1330000-0000-4000-8000-000000000010'::uuid,
+      '19:59:59'::time, '08:00:00'::time, 1::smallint,
+      10, 5, 0, 0, true, 2::bigint,
+      '2026-08-25T16:00:00Z'::timestamptz
     );
     raise exception 'Attendance policy accepted a session one second over 12 hours';
   exception
