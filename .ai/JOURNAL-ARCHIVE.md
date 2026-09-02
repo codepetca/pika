@@ -30104,3 +30104,14 @@ Task owns codex/pal-widget-alpha6. User authorized widget publication and Pika P
 - PageActionBar primary actions/custom center slot use equal side columns; secondary actions use the rightmost More actions menu at every width. Announcements now uses the same centered create/right overflow arrangement. Pattern Lab and UI canon document the user-approved direction.
 - Focused checks passed: 134 files / 1,332 tests plus architecture, UI/design, TypeScript and lint. Eight centered-action browser contracts passed across both roles, desktop/mobile and light/dark; screenshots and keyboard/menu/tooltip states inspected. Real classroom and announcement creation entry points verified without creating records.
 - Preview runs on localhost:3004; no commit, PR or merge for this new change. Screenshot contract baseline refresh (Darwin/Linux) remains a pre-publication step after visual acceptance. Evidence is in the session visualization folder under `page-action-icons`.
+
+<!-- pika-session-log-archive-batch:68ce4ed7c4b3229710d736e845861e07ee137e5dd9b3dbdcdb3bd0654dec3a2e -->
+## 2026-08-31 — Inspect Attendance catalog direction
+
+- Audited current combined Daily/Attendance controls, semantic colors, count ownership/sorting behavior, student confirmation semantics and older attendance implementations. Recorded findings in `docs/guidance/ui/changes/status-catalog-audit.md`; catalog implementation awaits the number-only versus icon-plus-count design choice.
+- Current direction: green Present, yellow Late, red Absent; rounded tabular-number header pills with contextual tooltips and active-sort rings; click sorts rather than filters; Unmarked has no count chip. Student Checked in stays separate from teacher-derived marks.
+- Fixed an incidental regression from this worktree's earlier PageActionBar change: omit an empty trailing flex slot for primary-only bars to remove a 6px left shift. Existing Attendance browser contracts pass 4/4 (desktop/mobile, light/dark); screenshots inspected and saved under session artifacts `attendance-catalog-review`. No business logic, API, schema or permissions changed.
+
+## 2026-08-31 — Confirm number-only status count chips
+
+User chose color-only status count chips: retain colored fills and numeric counts without added status icons. Recorded the decision in the status-catalog audit and operational-table guidance. Preserve contextual tooltips, accessible names, focus and active-sort rings. Documentation only; existing Attendance controls already match this choice. No UI or business behavior changed.

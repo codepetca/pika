@@ -2124,6 +2124,89 @@ export type Database = {
           },
         ]
       }
+      auth_global_rate_limits: {
+        Row: {
+          attempt_count: number
+          key_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          key_hash: string
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          attempt_count?: number
+          key_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
+      auth_rate_limits: {
+        Row: {
+          attempt_timestamps: string[]
+          key_hash: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_timestamps?: string[]
+          key_hash: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_timestamps?: string[]
+          key_hash?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      auth_sessions: {
+        Row: {
+          auth_source: string
+          created_at: string
+          credential_version: number
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string
+          workos_user_id: string | null
+        }
+        Insert: {
+          auth_source: string
+          created_at?: string
+          credential_version: number
+          expires_at: string
+          id?: string
+          token_hash: string
+          user_id: string
+          workos_user_id?: string | null
+        }
+        Update: {
+          auth_source?: string
+          created_at?: string
+          credential_version?: number
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string
+          workos_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -7082,6 +7165,7 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_credential_version: number
           created_at: string
           email: string
           email_verified_at: string | null
@@ -7091,6 +7175,7 @@ export type Database = {
           workos_user_id: string | null
         }
         Insert: {
+          auth_credential_version?: number
           created_at?: string
           email: string
           email_verified_at?: string | null
@@ -7100,6 +7185,7 @@ export type Database = {
           workos_user_id?: string | null
         }
         Update: {
+          auth_credential_version?: number
           created_at?: string
           email?: string
           email_verified_at?: string | null
@@ -8311,6 +8397,10 @@ export type Database = {
         Args: { p_metrics: Json }
         Returns: boolean
       }
+      clear_auth_rate_limit: {
+        Args: { p_key_hash: string; p_scope: string }
+        Returns: boolean
+      }
       clear_test_open_response_grades_atomic: {
         Args: {
           p_expected_responses: Json
@@ -8537,6 +8627,31 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: boolean
+      }
+      consume_auth_global_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_window_seconds: number
+        }
+        Returns: Json
+      }
+      consume_auth_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_scope: string
+          p_window_seconds: number
+        }
+        Returns: Json
+      }
+      consume_password_reset_and_revoke_sessions: {
+        Args: {
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
@@ -9302,6 +9417,18 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      issue_auth_session: {
+        Args: {
+          p_auth_source: string
+          p_expected_credential_version: number
+          p_expires_at: string
+          p_previous_token_hash: string
+          p_token_hash: string
+          p_user_id: string
+          p_workos_user_id: string
+        }
+        Returns: boolean
+      }
       list_attendance_reconciliation_targets_v1: {
         Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
         Returns: Json
