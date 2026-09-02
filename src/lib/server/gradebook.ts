@@ -893,7 +893,7 @@ export async function loadTeacherGradebook(opts: {
       assignments: assignmentRows,
       tests: testRows,
     })
-    const categorizedCalc = categories.length > 0
+    const categorizedCalc = categorySchemaAvailable
       ? calculateCategorizedFinalPercent({
           categories: categories.map((category) => ({
             id: category.id,
@@ -929,7 +929,7 @@ export async function loadTeacherGradebook(opts: {
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
       tests_percent: legacyCalc.testsPercent,
-      final_percent: categorizedCalc?.finalPercent ?? legacyCalc.finalPercent,
+      final_percent: categorizedCalc ? categorizedCalc.finalPercent : legacyCalc.finalPercent,
       assessment_scores: [
         ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
         ...tests.map((test) => {

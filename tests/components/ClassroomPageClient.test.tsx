@@ -23,5 +23,6 @@ describe('ClassroomPageClient titlebar navigation', () => {
 
     expect(source).toContain('attendanceEnabled={featureVisibility.attendance}')
     expect(source).toContain('manualAttendanceEnabled={!featureVisibility.attendance}')
+    expect(source.match(/classroomQrAvailable=\{classroomQrAvailable\}/g)).toHaveLength(2)
   })
 })

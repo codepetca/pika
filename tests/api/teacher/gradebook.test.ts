@@ -66,7 +66,8 @@ function buildMockFrom(fixture: GradebookFixture) {
           eq: vi.fn(() => ({
             order: vi.fn().mockResolvedValue({
               data: fixture.categoriesError ? null : fixture.categories ?? [],
-              error: fixture.categoriesError ?? null,
+              // Legacy fixtures deliberately model the pre-category schema.
+              error: fixture.categoriesError ?? (fixture.categories === undefined ? { code: '42P01' } : null),
             }),
           })),
         })),
@@ -498,6 +499,31 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].assignments_possible).toBe(110)
     expect(body.students[0].assignments_percent).toBe(50)
     expect(body.students[0].final_percent).toBe(50)
+  })
+
+  it.each([
+    { name: 'all graded work became Uncategorized', percentage: 100, categoryId: null, empty: false },
+    { name: 'only a zero-percent category has scores', percentage: 0, categoryId: '10000000-0000-4000-8000-000000000002', empty: false },
+    { name: 'the category schema exists but has no categories', percentage: 100, categoryId: null, empty: true },
+  ])('preserves a null final when $name', async ({ percentage, categoryId, empty }) => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      categories: empty ? [] : [{
+        id: '10000000-0000-4000-8000-000000000002', name: 'Remaining', percentage,
+        default_assessment_weight: 10, position: 0, is_default: true,
+      }],
+      assignments: [{
+        id: 'a1', title: 'Graded work', due_at: '2025-01-01T12:00:00.000Z', position: 1,
+        is_draft: false, points_possible: 30, include_in_final: true,
+        gradebook_weight: 10, gradebook_category_id: categoryId,
+      }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.category_schema_available).toBe(true)
+    expect(body.students[0].assignments_percent).toBe(100)
+    expect(body.students[0].final_percent).toBeNull()
   })
 
   it('calculates a running final from teacher-defined categories', async () => {

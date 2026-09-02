@@ -30231,6 +30231,7 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Follow-up: Close should confirm discarding unapplied Markdown.
 
 <!-- pika-session-log-archive-batch:b8b8147976b683a6746000b478345694125a6634dbd5fd8fd6cc8b52e7d4a9ab -->
+<!-- pika-session-log-archive-batch:9f59f8a0b620d3f66a56ee645cf8ffa4a8a9d4405e4140d3c395d25da03db9d2 -->
 ## 2026-08-31 — Refine the exam document workspace
 
 - Replaced the duplicated teacher Preview and student live-exam document compositions with a shared `ExamDocumentWorkspace`. The persistent pane header now transitions from Documents to Back plus the active document title without a jarring horizontal morph; list/viewer layers and the question form stay mounted.
