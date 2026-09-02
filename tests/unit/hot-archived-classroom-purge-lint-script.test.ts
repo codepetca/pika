@@ -57,4 +57,33 @@ describe('hot archived classroom purge lint script', () => {
       'Supabase database lint did not return valid JSON.',
     )
   })
+
+  it('reports warning findings for managed purge functions', () => {
+    const result = runWithLintOutput(JSON.stringify({
+      results: [{
+        function: 'public.classroom_purge_try_lock',
+        issues: [{
+          level: 'warning',
+          message: 'fixture warning',
+          statement: { lineNumber: 7 },
+        }],
+      }],
+    }))
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(
+      'public.classroom_purge_try_lock line 7: warning: fixture warning',
+    )
+  })
+
+  it('rejects a clean sentinel mixed with contradictory output', () => {
+    const result = runWithLintOutput(
+      'Connecting to local database...\nLinting schema: public\nNo schema errors found\nunexpected lint output',
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain(
+      'Supabase database lint did not return valid JSON.',
+    )
+  })
 })

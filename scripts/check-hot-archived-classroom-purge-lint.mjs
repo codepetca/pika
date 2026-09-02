@@ -43,20 +43,28 @@ if (lint.status !== 0) {
 
 let report
 const lintOutput = lint.stdout.trim()
-const cleanTextResult = lintOutput
-  .split(/\r?\n/)
-  .some((line) => line.trim() === 'No schema errors found')
+try {
+  report = JSON.parse(lintOutput)
+} catch {
+  const normalizedLines = lintOutput
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const cleanTextLines = [
+    'Connecting to local database...',
+    'Linting schema: public',
+    'No schema errors found',
+  ]
+  const cleanTextResult = normalizedLines.length === cleanTextLines.length
+    && normalizedLines.every((line, index) => line === cleanTextLines[index])
 
-if (cleanTextResult) {
-  report = { results: [] }
-} else {
-  try {
-    report = JSON.parse(lintOutput)
-  } catch {
+  if (!cleanTextResult) {
     process.stderr.write(lint.stderr)
     console.error('Supabase database lint did not return valid JSON.')
     process.exit(2)
   }
+
+  report = { results: [] }
 }
 
 const findings = (report.results || []).filter(
