@@ -42,29 +42,65 @@ if (lint.status !== 0) {
 }
 
 let report
+let parsedJson = true
 const lintOutput = lint.stdout.trim()
+const normalizedOutputLines = lintOutput
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean)
+const normalizedDiagnosticLines = lint.stderr
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean)
+const expectedDiagnosticLines = [
+  'Connecting to local database...',
+  'Linting schema: public',
+]
+const cleanResultLine = 'No schema errors found'
+
+function hasExpectedDiagnosticPrefix(lines) {
+  return lines.length >= expectedDiagnosticLines.length
+    && lines.slice(0, expectedDiagnosticLines.length)
+      .every((line, index) => line === expectedDiagnosticLines[index])
+}
+
+function isKnownUpdateNotice(lines) {
+  return lines.length === 0 || (
+    lines.length === 2
+    && /^A new version of Supabase CLI is available: v\d+\.\d+\.\d+ \(currently installed v\d+\.\d+\.\d+\)$/.test(lines[0])
+    && lines[1] === 'We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli'
+  )
+}
+
+const knownJsonDiagnosticOutput = hasExpectedDiagnosticPrefix(normalizedDiagnosticLines)
+  && isKnownUpdateNotice(normalizedDiagnosticLines.slice(expectedDiagnosticLines.length))
+const knownStdoutCleanResult = normalizedOutputLines.length === 1
+  && normalizedOutputLines[0] === cleanResultLine
+  && knownJsonDiagnosticOutput
+const cleanResultDiagnosticIndex = expectedDiagnosticLines.length
+const knownStderrCleanResult = normalizedOutputLines.length === 0
+  && normalizedDiagnosticLines.length > cleanResultDiagnosticIndex
+  && hasExpectedDiagnosticPrefix(normalizedDiagnosticLines)
+  && normalizedDiagnosticLines[cleanResultDiagnosticIndex] === cleanResultLine
+  && isKnownUpdateNotice(normalizedDiagnosticLines.slice(cleanResultDiagnosticIndex + 1))
+
 try {
   report = JSON.parse(lintOutput)
 } catch {
-  const normalizedLines = lintOutput
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const cleanTextLines = [
-    'Connecting to local database...',
-    'Linting schema: public',
-    'No schema errors found',
-  ]
-  const cleanTextResult = normalizedLines.length === cleanTextLines.length
-    && normalizedLines.every((line, index) => line === cleanTextLines[index])
-
-  if (!cleanTextResult) {
+  parsedJson = false
+  if (!knownStdoutCleanResult && !knownStderrCleanResult) {
     process.stderr.write(lint.stderr)
     console.error('Supabase database lint did not return valid JSON.')
     process.exit(2)
   }
 
   report = { results: [] }
+}
+
+if (parsedJson && !knownJsonDiagnosticOutput) {
+  process.stderr.write(lint.stderr)
+  console.error('Supabase database lint did not return valid JSON.')
+  process.exit(2)
 }
 
 if (
@@ -94,6 +130,7 @@ if (
             issue.statement.lineNumber === undefined
             || issue.statement.lineNumber === null
             || Number.isInteger(issue.statement.lineNumber)
+            || (typeof issue.statement.lineNumber === 'string' && /^\d+$/.test(issue.statement.lineNumber))
           )
         )
       )

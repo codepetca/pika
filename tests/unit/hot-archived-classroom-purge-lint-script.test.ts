@@ -12,14 +12,17 @@ afterEach(() => {
   }
 })
 
-function runWithLintOutput(output: string) {
+function runWithLintOutput(
+  output: string,
+  diagnosticOutput = 'Connecting to local database...\nLinting schema: public',
+) {
   const commandDirectory = mkdtempSync(join(tmpdir(), 'pika-purge-lint-'))
   temporaryDirectories.push(commandDirectory)
 
   const pnpmPath = join(commandDirectory, 'pnpm')
   writeFileSync(
     pnpmPath,
-    `#!/bin/sh\nprintf '%b\\n' ${JSON.stringify(output)}\n`,
+    `#!/bin/sh\nprintf '%b\\n' ${JSON.stringify(output)}\nprintf '%b\\n' ${JSON.stringify(diagnosticOutput)} >&2\n`,
   )
   chmodSync(pnpmPath, 0o755)
 
@@ -40,7 +43,43 @@ function runWithLintOutput(output: string) {
 describe('hot archived classroom purge lint script', () => {
   it('accepts the Supabase CLI clean-text response when no findings remain', () => {
     const result = runWithLintOutput(
-      'Connecting to local database...\nLinting schema: public\n\nNo schema errors found',
+      'No schema errors found',
+      'Connecting to local database...\nLinting schema: public',
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(
+      'Managed purge PostgreSQL function lint passed',
+    )
+  })
+
+  it('accepts the Supabase CLI clean-text response with its update notice', () => {
+    const result = runWithLintOutput(
+      'No schema errors found',
+      [
+        'Connecting to local database...',
+        'Linting schema: public',
+        'A new version of Supabase CLI is available: v2.116.0 (currently installed v2.103.0)',
+        'We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli',
+      ].join('\n'),
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(
+      'Managed purge PostgreSQL function lint passed',
+    )
+  })
+
+  it('accepts the Supabase CLI clean transcript entirely on stderr', () => {
+    const result = runWithLintOutput(
+      '',
+      [
+        'Connecting to local database...',
+        'Linting schema: public',
+        'No schema errors found',
+        'A new version of Supabase CLI is available: v2.116.0 (currently installed v2.103.0)',
+        'We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli',
+      ].join('\n'),
     )
 
     expect(result.status).toBe(0)
@@ -65,7 +104,7 @@ describe('hot archived classroom purge lint script', () => {
         issues: [{
           level: 'warning',
           message: 'fixture warning',
-          statement: { lineNumber: 7 },
+          statement: { lineNumber: '7' },
         }],
       }],
     }))
@@ -78,7 +117,49 @@ describe('hot archived classroom purge lint script', () => {
 
   it('rejects a clean sentinel mixed with contradictory output', () => {
     const result = runWithLintOutput(
-      'Connecting to local database...\nLinting schema: public\nNo schema errors found\nunexpected lint output',
+      'No schema errors found\nunexpected lint output',
+      'Connecting to local database...\nLinting schema: public',
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain(
+      'Supabase database lint did not return valid JSON.',
+    )
+  })
+
+  it('rejects a clean sentinel with unrecognized diagnostic output', () => {
+    const result = runWithLintOutput(
+      'No schema errors found',
+      'Connecting to local database...\nLinting schema: public\nunexpected lint output',
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain(
+      'Supabase database lint did not return valid JSON.',
+    )
+  })
+
+  it('rejects valid JSON with unrecognized diagnostic output', () => {
+    const result = runWithLintOutput(
+      '{"results":[]}',
+      'Connecting to local database...\nLinting schema: public\nunexpected lint output',
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain(
+      'Supabase database lint did not return valid JSON.',
+    )
+  })
+
+  it('rejects a diagnostic-stream clean sentinel mixed with contradictory output', () => {
+    const result = runWithLintOutput(
+      '',
+      [
+        'Connecting to local database...',
+        'Linting schema: public',
+        'No schema errors found',
+        'unexpected lint output',
+      ].join('\n'),
     )
 
     expect(result.status).toBe(2)
@@ -94,6 +175,7 @@ describe('hot archived classroom purge lint script', () => {
     '{"results":[{}]}',
     '{"results":[{"function":"public.unrelated","issues":null}]}',
     '{"results":[{"function":"public.classroom_purge_try_lock","issues":[{}]}]}',
+    '{"results":[{"function":"public.classroom_purge_try_lock","issues":[{"level":"warning","message":"fixture","statement":{"lineNumber":"seven"}}]}]}',
   ])('rejects structurally invalid JSON reports: %s', (output) => {
     const result = runWithLintOutput(output)
 
