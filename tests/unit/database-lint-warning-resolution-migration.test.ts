@@ -99,11 +99,27 @@ describe('database lint warning resolution migration', () => {
   })
 
   it('gates warning-level lint and the runtime lock contract in CI', () => {
-    expect(workflow).toContain(
+    const databaseJobStart = workflow.indexOf(
+      '\n  architecture-database-contracts:\n',
+    )
+    const databaseJobEnd = workflow.indexOf(
+      '\n  test-and-build:\n',
+      databaseJobStart + 1,
+    )
+
+    expect(databaseJobStart).toBeGreaterThan(-1)
+    expect(databaseJobEnd).toBeGreaterThan(databaseJobStart)
+
+    const databaseJob = workflow.slice(databaseJobStart, databaseJobEnd)
+
+    expect(databaseJob).toContain(
       'supabase db lint --local --level warning --fail-on warning',
     )
-    expect(workflow).toContain(
+    expect(databaseJob).toContain(
       'bash scripts/check-database-lint-warning-resolutions.sh',
+    )
+    expect(databaseJob).toContain(
+      'bash scripts/check-auth-session-security-database.sh',
     )
   })
 })
