@@ -5,8 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/create-password/route'
 import { NextRequest } from 'next/server'
+import { ApiError } from '@/lib/api-handler'
 
 const VALID_HANDOFF_TOKEN = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -21,6 +23,7 @@ vi.mock('@/lib/crypto', () => ({
 vi.mock('@/lib/auth', () => ({
   createSession: vi.fn(async () => {}),
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 import { createSession } from '@/lib/auth'
 
@@ -57,6 +60,7 @@ function chainableUpdate(result: { data?: unknown; error: unknown }) {
 describe('POST /api/auth/create-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   it('should return 400 when passwords do not match', async () => {
@@ -77,6 +81,26 @@ describe('POST /api/auth/create-password', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toContain('Verification session is required')
+  })
+
+  it('applies signup confirmation limits before any database lookup', async () => {
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValueOnce(
+      new ApiError(429, 'Too many attempts. Please try again later.'),
+    )
+
+    const response = await POST(createRequest(validBody()))
+
+    expect(response.status).toBe(429)
+    expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith({
+      action: 'signup_confirm',
+      request: expect.any(NextRequest),
+      identifier: 'test@example.com',
+      identifierMaxAttempts: 5,
+      clientMaxAttempts: 30,
+      windowSeconds: 600,
+      supabase: mockSupabaseClient,
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('returns a generic 401 when the account already has a password', async () => {

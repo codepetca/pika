@@ -4,11 +4,22 @@ import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createPasswordSchema } from '@/lib/validations/auth'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 
 export const POST = withErrorHandler('CreatePassword', async (request: NextRequest) => {
   const { email: normalizedEmail, password, handoffToken } = createPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRequestRateLimits({
+    action: 'signup_confirm',
+    request,
+    identifier: normalizedEmail,
+    identifierMaxAttempts: 5,
+    clientMaxAttempts: 30,
+    windowSeconds: 10 * 60,
+    supabase,
+  })
 
   // Find user by email
   const { data: user, error: userError } = await supabase

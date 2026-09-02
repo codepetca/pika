@@ -16,6 +16,7 @@ export type AuthRateLimitAction =
   | 'login'
   | 'signup_code'
   | 'signup_verify'
+  | 'signup_confirm'
   | 'reset_code'
   | 'reset_verify'
   | 'reset_confirm'
