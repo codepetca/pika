@@ -86,4 +86,17 @@ describe('hot archived classroom purge lint script', () => {
       'Supabase database lint did not return valid JSON.',
     )
   })
+
+  it.each([
+    '{}',
+    '[]',
+    '{"results":null}',
+  ])('rejects structurally invalid JSON reports: %s', (output) => {
+    const result = runWithLintOutput(output)
+
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain(
+      'Supabase database lint did not return valid JSON.',
+    )
+  })
 })

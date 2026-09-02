@@ -67,7 +67,17 @@ try {
   report = { results: [] }
 }
 
-const findings = (report.results || []).filter(
+if (
+  report === null
+  || typeof report !== 'object'
+  || Array.isArray(report)
+  || !Array.isArray(report.results)
+) {
+  console.error('Supabase database lint did not return valid JSON.')
+  process.exit(2)
+}
+
+const findings = report.results.filter(
   (result) => migrationFunctions.has(result.function) && result.issues?.length > 0,
 )
 
