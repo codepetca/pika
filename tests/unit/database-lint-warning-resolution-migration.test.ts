@@ -112,14 +112,14 @@ describe('database lint warning resolution migration', () => {
 
     const databaseJob = workflow.slice(databaseJobStart, databaseJobEnd)
 
-    expect(databaseJob).toContain(
-      'supabase db lint --local --level warning --fail-on warning',
+    expect(databaseJob).toMatch(
+      /^      - name: Require warning-free database functions\n        run: supabase db lint --local --level warning --fail-on warning$/m,
     )
-    expect(databaseJob).toContain(
-      'bash scripts/check-database-lint-warning-resolutions.sh',
+    expect(databaseJob).toMatch(
+      /^      - name: Verify database lint warning behavior and lock interactions\n        run: bash scripts\/check-database-lint-warning-resolutions\.sh$/m,
     )
-    expect(databaseJob).toContain(
-      'bash scripts/check-auth-session-security-database.sh',
+    expect(databaseJob).toMatch(
+      /^      - name: Verify authentication session revocation and rate limits\n        run: bash scripts\/check-auth-session-security-database\.sh$/m,
     )
   })
 })
