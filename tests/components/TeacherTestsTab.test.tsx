@@ -1778,6 +1778,9 @@ describe('TeacherTestsTab', () => {
       'Return',
       'Delete Work',
     ])
+    expect(screen.getByRole('menuitem', { name: 'Return' }).querySelector('svg')).toHaveClass(
+      'lucide-reply',
+    )
     expect(screen.queryByRole('menuitem', { name: /Open selected/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: /Clear selection/i })).not.toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })

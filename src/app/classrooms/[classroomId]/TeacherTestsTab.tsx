@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ClockAlert, EllipsisVertical, Lock, LogOut, Pencil, RotateCcw, Send, Sparkles, Trash2, Unlock, X } from 'lucide-react'
+import { ChevronDown, ClockAlert, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -2480,7 +2480,7 @@ export function TeacherTestsTab({
     {
       id: 'return-selected',
       label: 'Return',
-      icon: <Send className="h-4 w-4" aria-hidden="true" />,
+      icon: <Reply className="h-4 w-4" aria-hidden="true" />,
       disabled: isCombinedTestActionsBusy,
       onSelect: () => {
         if (selectedOpenAccessCount > 0) {

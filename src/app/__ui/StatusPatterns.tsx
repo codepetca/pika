@@ -8,6 +8,7 @@ import {
   SORTABLE_ATTENDANCE_STATUSES,
 } from '@/app/classrooms/[classroomId]/TeacherAttendanceControls'
 import {
+  AssessmentStatusIndicator,
   getAssignmentWorkStatusDisplay,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
@@ -115,7 +116,7 @@ export function StatusPatterns() {
               const display = getAssignmentWorkStatusDisplay(status)
               return (
                 <div key={status} className="grid grid-cols-2 gap-3 py-2 text-sm">
-                  <dt className={`font-medium ${display.labelClassName}`}>{display.label}</dt>
+                  <dt><AssessmentStatusIndicator display={display} /></dt>
                   <dd className="text-text-muted">{meaning}</dd>
                 </div>
               )
@@ -125,10 +126,10 @@ export function StatusPatterns() {
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium">
             {TEST_STATES.map((status) => {
               const display = getTestGradingWorkStatusDisplay(status)
-              return <span key={status} className={display.labelClassName}>{display.label}</span>
+              return <AssessmentStatusIndicator key={status} display={display} />
             })}
           </div>
-          <p className="mt-4 text-xs text-text-muted">Submit, Grade, and Return are actions. Submitted, Graded, and Returned are states. Use Submitted for a student hand-in, rather than the ambiguous Sent.</p>
+          <p className="mt-4 text-xs text-text-muted">Submit, Grade, and Return are actions. Submitted, Graded, and Returned are states. Classwork and Tests use the Reply icon for Return and Returned. Use Submitted for a student hand-in, rather than the ambiguous Sent.</p>
           <p className="mt-2 text-xs text-text-muted">A student’s Checked in confirmation is separate from the teacher’s Present/Late/Absent mark.</p>
         </Card>
       </div>
