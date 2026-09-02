@@ -88,6 +88,22 @@ describe('hot archived classroom purge lint script', () => {
     )
   })
 
+  it('accepts valid JSON with the Supabase CLI clean sentinel on stderr', () => {
+    const result = runWithLintOutput(
+      '{"results":[],"message":"db lint"}',
+      [
+        'Connecting to local database...',
+        'Linting schema: public',
+        'No schema errors found',
+      ].join('\n'),
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(
+      'Managed purge PostgreSQL function lint passed',
+    )
+  })
+
   it('still fails closed for an unrecognized non-JSON response', () => {
     const result = runWithLintOutput('unexpected lint output')
 
