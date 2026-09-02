@@ -52,51 +52,79 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
       values ('$USER_ID', 'auth-contract@example.invalid', 'student', 'old-password-hash');
 
       do \$contract\$
+      declare
+        v_role text;
+        v_table text;
+        v_privilege text;
+        v_function text;
       begin
-        if has_table_privilege('anon', 'public.auth_sessions', 'select')
-          or has_table_privilege('authenticated', 'public.auth_sessions', 'select')
-          or has_table_privilege('anon', 'public.auth_global_rate_limits', 'select')
-          or has_table_privilege('authenticated', 'public.auth_global_rate_limits', 'select') then
-          raise exception 'browser roles can read auth security tables';
+        foreach v_role in array array['anon', 'authenticated'] loop
+          foreach v_table in array array[
+            'auth_sessions',
+            'auth_rate_limits',
+            'auth_global_rate_limits'
+          ] loop
+            foreach v_privilege in array array[
+              'select', 'insert', 'update', 'delete',
+              'truncate', 'references', 'trigger'
+            ] loop
+              if has_table_privilege(
+                v_role,
+                format('public.%I', v_table),
+                v_privilege
+              ) then
+                raise exception 'browser role % has % on %',
+                  v_role, v_privilege, v_table;
+              end if;
+            end loop;
+          end loop;
+
+          foreach v_function in array array[
+            'public.issue_auth_session(uuid,bigint,text,text,text,timestamptz,text)',
+            'public.consume_auth_global_rate_limit(text,integer,integer)',
+            'public.consume_auth_rate_limit(text,text,integer,integer)',
+            'public.clear_auth_rate_limit(text,text)',
+            'public.consume_password_reset_and_revoke_sessions(uuid,text,text)'
+          ] loop
+            if has_function_privilege(v_role, v_function, 'execute') then
+              raise exception 'browser role % can execute %', v_role, v_function;
+            end if;
+          end loop;
+        end loop;
+
+        if not has_table_privilege('service_role', 'public.auth_sessions', 'select')
+          or not has_table_privilege('service_role', 'public.auth_sessions', 'delete') then
+          raise exception 'service role lacks required auth session privileges';
         end if;
-        if not has_table_privilege('service_role', 'public.auth_sessions', 'select,delete')
-          or has_table_privilege('service_role', 'public.auth_sessions', 'insert') then
-          raise exception 'service role lacks auth session privileges';
-        end if;
-        if has_function_privilege(
-          'anon',
-          'public.consume_auth_rate_limit(text,text,integer,integer)',
-          'execute'
-        ) or has_function_privilege(
-          'authenticated',
-          'public.consume_auth_rate_limit(text,text,integer,integer)',
-          'execute'
-        ) or has_function_privilege(
-          'anon',
-          'public.consume_auth_global_rate_limit(text,integer,integer)',
-          'execute'
-        ) or has_function_privilege(
-          'authenticated',
-          'public.consume_auth_global_rate_limit(text,integer,integer)',
-          'execute'
-        ) or has_function_privilege(
-          'authenticated',
-          'public.consume_password_reset_and_revoke_sessions(uuid,text,text)',
-          'execute'
-        ) then
-          raise exception 'browser roles can execute auth security functions';
-        end if;
-        if has_function_privilege(
-          'anon',
-          'public.issue_auth_session(uuid,bigint,text,text,text,timestamptz,text)',
-          'execute'
-        ) or not has_function_privilege(
-          'service_role',
-          'public.issue_auth_session(uuid,bigint,text,text,text,timestamptz,text)',
-          'execute'
-        ) then
-          raise exception 'auth session issuance privileges are invalid';
-        end if;
+        foreach v_privilege in array array[
+          'insert', 'update', 'truncate', 'references', 'trigger'
+        ] loop
+          if has_table_privilege(
+            'service_role',
+            'public.auth_sessions',
+            v_privilege
+          ) then
+            raise exception 'service role has forbidden % on auth_sessions', v_privilege;
+          end if;
+        end loop;
+
+        foreach v_table in array array[
+          'auth_rate_limits',
+          'auth_global_rate_limits'
+        ] loop
+          foreach v_privilege in array array[
+            'select', 'insert', 'update', 'delete',
+            'truncate', 'references', 'trigger'
+          ] loop
+            if has_table_privilege(
+              'service_role',
+              format('public.%I', v_table),
+              v_privilege
+            ) then
+              raise exception 'service role has direct % on %', v_privilege, v_table;
+            end if;
+          end loop;
+        end loop;
       end;
       \$contract\$;" >/dev/null
 
