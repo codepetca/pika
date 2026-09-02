@@ -26,7 +26,16 @@ describe('authentication session and rate-limit migration', () => {
     expect(migration).toContain('alter table public.auth_rate_limits enable row level security;')
     expect(migration).toContain('alter table public.auth_global_rate_limits enable row level security;')
     expect(migration).toContain(
-      'revoke all on table public.auth_sessions from public, anon, authenticated;',
+      'revoke all on table public.auth_sessions from public, anon, authenticated, service_role;',
+    )
+    expect(migration).toContain(
+      'revoke all on table public.auth_rate_limits from public, anon, authenticated, service_role;',
+    )
+    expect(migration).toContain(
+      'revoke all on table public.auth_global_rate_limits from public, anon, authenticated, service_role;',
+    )
+    expect(migration).toContain(
+      'grant select, delete on table public.auth_sessions to service_role;',
     )
     expect(migration).toContain(
       'revoke all on function public.consume_auth_rate_limit(text, text, integer, integer)',

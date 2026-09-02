@@ -279,6 +279,14 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  issue_auth_session: FunctionContract<
+    'issue_auth_session',
+    boolean,
+    Replace<GeneratedFunctions['issue_auth_session']['Args'], {
+      p_previous_token_hash: string | null
+      p_workos_user_id: string | null
+    }>
+  >
   acquire_course_guide_import_extraction_slot: {
     Args: { p_teacher_id: string }
     Returns: Json

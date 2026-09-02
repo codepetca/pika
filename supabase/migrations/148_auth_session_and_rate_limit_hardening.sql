@@ -42,7 +42,7 @@ create index auth_sessions_expires_at_idx
   on public.auth_sessions (expires_at);
 
 alter table public.auth_sessions enable row level security;
-revoke all on table public.auth_sessions from public, anon, authenticated;
+revoke all on table public.auth_sessions from public, anon, authenticated, service_role;
 grant select, delete on table public.auth_sessions to service_role;
 
 create table public.auth_rate_limits (
@@ -63,7 +63,7 @@ create index auth_rate_limits_updated_at_idx
   on public.auth_rate_limits (updated_at);
 
 alter table public.auth_rate_limits enable row level security;
-revoke all on table public.auth_rate_limits from public, anon, authenticated;
+revoke all on table public.auth_rate_limits from public, anon, authenticated, service_role;
 
 create table public.auth_global_rate_limits (
   key_hash text primary key,
@@ -80,7 +80,7 @@ create index auth_global_rate_limits_updated_at_idx
   on public.auth_global_rate_limits (updated_at);
 
 alter table public.auth_global_rate_limits enable row level security;
-revoke all on table public.auth_global_rate_limits from public, anon, authenticated;
+revoke all on table public.auth_global_rate_limits from public, anon, authenticated, service_role;
 
 create function public.issue_auth_session(
   p_user_id uuid,

@@ -154,89 +154,6 @@ export type Database = {
           },
         ]
       }
-      auth_global_rate_limits: {
-        Row: {
-          attempt_count: number
-          key_hash: string
-          updated_at: string
-          window_started_at: string
-        }
-        Insert: {
-          attempt_count?: number
-          key_hash: string
-          updated_at?: string
-          window_started_at: string
-        }
-        Update: {
-          attempt_count?: number
-          key_hash?: string
-          updated_at?: string
-          window_started_at?: string
-        }
-        Relationships: []
-      }
-      auth_rate_limits: {
-        Row: {
-          attempt_timestamps: string[]
-          key_hash: string
-          scope: string
-          updated_at: string
-        }
-        Insert: {
-          attempt_timestamps?: string[]
-          key_hash: string
-          scope: string
-          updated_at?: string
-        }
-        Update: {
-          attempt_timestamps?: string[]
-          key_hash?: string
-          scope?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      auth_sessions: {
-        Row: {
-          auth_source: string
-          credential_version: number
-          created_at: string
-          expires_at: string
-          id: string
-          token_hash: string
-          user_id: string
-          workos_user_id: string | null
-        }
-        Insert: {
-          auth_source: string
-          credential_version: number
-          created_at?: string
-          expires_at: string
-          id?: string
-          token_hash: string
-          user_id: string
-          workos_user_id?: string | null
-        }
-        Update: {
-          auth_source?: string
-          credential_version?: number
-          created_at?: string
-          expires_at?: string
-          id?: string
-          token_hash?: string
-          user_id?: string
-          workos_user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "auth_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       assignment_ai_grading_run_items: {
         Row: {
           assignment_doc_id: string | null
@@ -2203,6 +2120,89 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: true
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_global_rate_limits: {
+        Row: {
+          attempt_count: number
+          key_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          key_hash: string
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          attempt_count?: number
+          key_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
+      auth_rate_limits: {
+        Row: {
+          attempt_timestamps: string[]
+          key_hash: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_timestamps?: string[]
+          key_hash: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_timestamps?: string[]
+          key_hash?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      auth_sessions: {
+        Row: {
+          auth_source: string
+          created_at: string
+          credential_version: number
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string
+          workos_user_id: string | null
+        }
+        Insert: {
+          auth_source: string
+          created_at?: string
+          credential_version: number
+          expires_at: string
+          id?: string
+          token_hash: string
+          user_id: string
+          workos_user_id?: string | null
+        }
+        Update: {
+          auth_source?: string
+          created_at?: string
+          credential_version?: number
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string
+          workos_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -8616,6 +8616,18 @@ export type Database = {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
       }
+      consume_attendance_integration_smoke_nonce_v1: {
+        Args: {
+          p_challenge_hash: string
+          p_classroom_id: string
+          p_direction: string
+          p_installation_ref: string
+          p_nonce: string
+          p_request_timestamp: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       consume_auth_global_rate_limit: {
         Args: {
           p_key_hash: string
@@ -8632,18 +8644,6 @@ export type Database = {
           p_window_seconds: number
         }
         Returns: Json
-      }
-      consume_attendance_integration_smoke_nonce_v1: {
-        Args: {
-          p_challenge_hash: string
-          p_classroom_id: string
-          p_direction: string
-          p_installation_ref: string
-          p_nonce: string
-          p_request_timestamp: string
-          p_teacher_id: string
-        }
-        Returns: boolean
       }
       consume_password_reset_and_revoke_sessions: {
         Args: {
@@ -9422,10 +9422,10 @@ export type Database = {
           p_auth_source: string
           p_expected_credential_version: number
           p_expires_at: string
-          p_previous_token_hash: string | null
+          p_previous_token_hash: string
           p_token_hash: string
           p_user_id: string
-          p_workos_user_id: string | null
+          p_workos_user_id: string
         }
         Returns: boolean
       }
