@@ -159,6 +159,15 @@ describe('auth utilities', () => {
     expect(mockSession.save).toHaveBeenCalledOnce()
   })
 
+  it('requires the password flow to provide the credential version used for authentication', async () => {
+    await expect(createSession('user-1', 'student@example.com', 'student')).rejects.toThrow(
+      'Password session issuance requires a credential version',
+    )
+
+    expect(databaseMocks.rpc).not.toHaveBeenCalled()
+    expect(mockSession.save).not.toHaveBeenCalled()
+  })
+
   it('binds WorkOS sessions server-side and can suppress restoration telemetry', async () => {
     await createSession('user-1', 'student@example.com', 'student', {
       workosUserId: 'user_workos_1',
@@ -173,6 +182,20 @@ describe('auth utilities', () => {
       }),
     )
     expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a WorkOS session cannot resolve the current credential version', async () => {
+    databaseMocks.userVersionMaybeSingle.mockResolvedValue({
+      data: null,
+      error: { message: 'unavailable' },
+    })
+
+    await expect(createSession('user-1', 'student@example.com', 'student', {
+      workosUserId: 'user_workos_1',
+    })).rejects.toThrow('Failed to create authentication session')
+
+    expect(databaseMocks.rpc).not.toHaveBeenCalled()
+    expect(mockSession.save).not.toHaveBeenCalled()
   })
 
   it('rotates the current server-side session before issuing a new one', async () => {
@@ -203,6 +226,13 @@ describe('auth utilities', () => {
     await destroySession()
 
     expect(databaseMocks.deleteEq).toHaveBeenCalledOnce()
+    expect(mockSession.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('destroys a browser cookie without a server-side lookup when no current token exists', async () => {
+    await destroySession()
+
+    expect(databaseMocks.deleteEq).not.toHaveBeenCalled()
     expect(mockSession.destroy).toHaveBeenCalledOnce()
   })
 
@@ -271,6 +301,14 @@ describe('auth utilities', () => {
 
     workOSMocks.withAuth.mockResolvedValue({
       user: { id: 'different', email: 'student@example.com', emailVerified: true },
+    })
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    workOSMocks.withAuth.mockResolvedValue({ user: null })
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    workOSMocks.withAuth.mockResolvedValue({
+      user: { id: 'user_workos_1', email: 'different@example.com', emailVerified: true },
     })
     await expect(getCurrentUser()).resolves.toBeNull()
   })
