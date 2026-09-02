@@ -2276,6 +2276,8 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
       'Use this feedback for the selected students.',
     )
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveClass('break-words')
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' }).parentElement).toHaveClass('min-h-0', 'overflow-y-auto')
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 

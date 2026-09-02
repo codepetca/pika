@@ -75,6 +75,7 @@ function TeacherWorkSurfaceActionMenuButton({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const restoreTriggerFocusRef = useRef(false)
+  const activePreviewRef = useRef<TeacherWorkSurfaceActionItem['onHoverChange']>(undefined)
   const triggerId = useId()
   const menuId = useId()
   const normalItems = items.filter((item) => !item.destructive)
@@ -93,11 +94,26 @@ function TeacherWorkSurfaceActionMenuButton({
   }, [])
 
   const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
+    activePreviewRef.current?.(false)
+    activePreviewRef.current = undefined
     if (options?.restoreFocus) {
       restoreTriggerFocusRef.current = true
     }
     setIsOpen(false)
   }, [])
+
+  useEffect(() => () => {
+    activePreviewRef.current?.(false)
+  }, [])
+
+  function handleItemPreview(item: TeacherWorkSurfaceActionItem, active: boolean) {
+    if (active) {
+      activePreviewRef.current = item.onHoverChange
+    } else if (activePreviewRef.current === item.onHoverChange) {
+      activePreviewRef.current = undefined
+    }
+    item.onHoverChange?.(active)
+  }
 
   useEffect(() => {
     if (isOpen || !restoreTriggerFocusRef.current) return
@@ -229,10 +245,10 @@ function TeacherWorkSurfaceActionMenuButton({
                   event.stopPropagation()
                   handleItemSelect(item)
                 }}
-                onMouseEnter={() => item.onHoverChange?.(true)}
-                onMouseLeave={() => item.onHoverChange?.(false)}
-                onFocus={() => item.onHoverChange?.(true)}
-                onBlur={() => item.onHoverChange?.(false)}
+                onMouseEnter={() => handleItemPreview(item, true)}
+                onMouseLeave={() => handleItemPreview(item, false)}
+                onFocus={() => handleItemPreview(item, true)}
+                onBlur={() => handleItemPreview(item, false)}
                 className={cn(
                   'min-h-control w-full rounded-sm px-3 py-2 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
                   item.destructive ? 'text-danger hover:bg-danger-bg' : '',

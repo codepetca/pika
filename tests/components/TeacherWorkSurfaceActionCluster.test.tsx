@@ -131,6 +131,25 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
   })
 
+  it.each(['keyboard', 'pointer'] as const)('clears the %s preview when the menu is dismissed', (input) => {
+    const onHoverChange = vi.fn()
+    render(
+      <TeacherWorkSurfaceMenuButton
+        label="Student actions"
+        items={[{ id: 'copy', label: 'Copy grade', onSelect: vi.fn(), onHoverChange }]}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: 'Student actions' })
+    fireEvent.click(trigger)
+    const item = screen.getByRole('menuitem', { name: 'Copy grade' })
+    if (input === 'pointer') fireEvent.mouseEnter(item)
+    expect(onHoverChange).toHaveBeenLastCalledWith(true)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onHoverChange).toHaveBeenLastCalledWith(false)
+  })
+
   it('keeps a tooltip-wrapped icon menu trigger mounted through a modal focus round trip', async () => {
     const user = userEvent.setup()
 

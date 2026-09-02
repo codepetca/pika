@@ -1,7 +1,5 @@
 'use client'
 
-import { Plus } from 'lucide-react'
-
 import { useCallback, useMemo, useState, useEffect, useId, useRef } from 'react'
 import {
   DndContext,
@@ -65,7 +63,6 @@ import {
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
-  TeacherWorkSurfaceIconButton,
   TeacherWorkSurfaceIconMenuButton,
   TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
@@ -501,7 +498,7 @@ function CopyCommentPreview({ comment }: { comment: string }) {
       role="textbox"
       aria-label="Comment to copy"
       aria-readonly="true"
-      className="min-h-24 whitespace-pre-wrap rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default"
+      className="min-h-24 whitespace-pre-wrap break-words rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default"
     >
       {comment || <span className="text-text-muted">No comment</span>}
     </div>
@@ -2857,19 +2854,19 @@ export function TeacherClassroomView({
         maxWidth="max-w-sm"
         ariaLabelledBy={gradeSelectedConfirmTitleId}
       >
-        <h2 id={gradeSelectedConfirmTitleId} className="text-base font-semibold text-text-default">
+        <h2 id={gradeSelectedConfirmTitleId} className="shrink-0 text-base font-semibold text-text-default">
           {gradeSelectedConfirmTarget === 'comments'
             ? `Copy comment to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`
             : `Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
         </h2>
-        <div className="mt-3">
+        <div className="mt-3 min-h-0 overflow-y-auto">
           {activeGradeSelectedTemplate
             ? gradeSelectedConfirmTarget === 'comments'
               ? <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />
               : <CopyGradePreview template={activeGradeSelectedTemplate} />
             : null}
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex shrink-0 gap-2">
           <Button
             type="button"
             variant="secondary"
