@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Remove Daily corner clipping artifact
-
-- Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
-- Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
-- Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
-
 ## 2026-08-31 Pattern Lab remaining classroom page mockups
 - Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
 - Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
@@ -304,6 +298,7 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - New contracts pass 81 tests with 100% statement/branch/function/line coverage; existing auth/create/join/access/attendance-entitlement regressions pass 153 tests. Pika audit and TypeScript pass. Shortened routing link labels without removing destinations to keep startup guidance within its enforced size budget after adding the epic.
 - Dev-flow risk profile: none (no live consumer); independent review risk: high (future authorization contracts). Required focused gate, draft PR, independent reviews and exact-head CI tracked in the PR lifecycle; no merge authorization assumed.
 - PR #1170 initial Sol/high review found no issues; Terra/high found a non-blocking malformed archive-timestamp contract mismatch. Added a red-first regression and offset-datetime validation. Synced main `ebf86178` after #1168; preserved shared history without duplicate archive entries, and removed a copied migration-status assertion from the roadmap. Live access code remains untouched. Targeted/final review and exact-head CI follow this single correction batch.
+
 ## 2026-09-02 — Refine Pattern Lab Gradebook category and weight controls
 
 - Prototyped table-card category editing with Term default, drag handles, half-point course percentages, read-only amber locks, and top-to-bottom automatic balancing. Removed the default item weight input (new categories use 10) and added a blank no-categories example.
@@ -321,3 +316,4 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Rebased onto `ebf86178` after #1138 and #1168 landed. Only archive markers conflicted; retained main's history and preserved the prototype. No migration changes/application, stash creation, deployment, or live Gradebook adoption. Final post-rebase checks precede a standard-risk Terra/high independent review and exact-head CI. Live adoption still requires design acceptance; no merge authority inferred.
 - Post-rebase verification: 17 files / 149 tests and all static gates pass. Both browser verifiers pass (212 full-page checks plus the dedicated Gradebook flows); refreshed teacher/student, desktop/mobile, light/dark and dialog/scrolling captures inspected. Shared-history trimming preserves the two newly archived entries and avoids re-adding seven entries already archived on main. Independent review/CI results will be recorded on the PR to keep its reviewed commit stable.
 - Independent review identified a fixture consistency bug: Few assessments hid nine retained items from the course-weight denominator. Remediation batch 1 builds calculation/editor inputs from all assessments while displaying only the three preview columns, and adds row/dialog/weight-edit regressions. The example description now makes the full-course calculation explicit. PR remains draft for targeted re-review and final cumulative integration review; no live behavior changed.
+- Targeted and final integration reviews cleared `8aef0260`; exact-head CI `33692785109` passed Test & Build, browser contracts and PR Gate. While CI ran, #1170 landed and conflicted only in shared archive history. Returned #1167 to draft and rebased onto `a9dcf20f`; Gradebook source/tests/browser verifiers are byte-for-byte unchanged from the passing candidate. A final bounded targeted rebase review and new exact-head CI are required; prior CI success is not represented as approval of the new commit. No merge authority inferred.

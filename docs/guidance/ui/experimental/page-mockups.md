@@ -1,8 +1,8 @@
 # Classroom page mockups
 
 Status: experimental. These development-only proposals need human acceptance
-before any live-page adoption. Risk profile: standard (fixture-only interaction state;
-no live data writes).
+before any live-page adoption. Risk profile: none (fixture-only UI; no live data writes).
+Independent review risk: standard, covering prototype interaction state.
 
 The Gradebook category editor and assessment-details dialog are Pattern Lab-only
 proposals. They demonstrate table-card category editing with automatic percentage
