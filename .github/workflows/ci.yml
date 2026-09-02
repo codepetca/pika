@@ -136,6 +136,9 @@ jobs:
       - name: Verify authentication session revocation and rate limits
         run: bash scripts/check-auth-session-security-database.sh
 
+      - name: Require warning-free database functions
+        run: supabase db lint --local --level warning --fail-on warning
+
       - name: Verify Course Guide import shared lease and rate window
         run: bash scripts/check-course-guide-import-rate-limit-database.sh
 
@@ -171,6 +174,9 @@ jobs:
 
       - name: Verify atomic test grading
         run: bash scripts/check-atomic-test-grading.sh
+
+      - name: Verify database lint warning behavior and lock interactions
+        run: bash scripts/check-database-lint-warning-resolutions.sh
 
       - name: Verify test document snapshot concurrency and cleanup
         run: bash scripts/check-test-document-snapshot-concurrency.sh
