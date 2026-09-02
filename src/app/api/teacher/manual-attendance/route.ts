@@ -26,6 +26,9 @@ function mapStoreError(error: unknown): never {
     if (error.code === 'roster_changed') {
       throw new ApiError(409, 'The roster changed; refresh and try again')
     }
+    if (error.code === 'class_day_changed') {
+      throw new ApiError(409, 'This date is no longer a class day; refresh and try again')
+    }
     if (error.code === 'stale_revision') {
       throw new ApiError(409, 'Manual attendance settings changed; refresh and try again')
     }

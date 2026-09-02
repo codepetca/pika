@@ -28,6 +28,10 @@ describe('Pika manual attendance migration', () => {
     expect(migration).toContain('manual_attendance_revision = p_expected_revision')
     expect(migration).toContain("using errcode = '40001'")
     expect(migration).toContain('set_pika_manual_attendance_marks')
+    expect(migration).toContain('from public.class_days')
+    expect(migration).toContain('and date = p_class_date')
+    expect(migration).toContain('and is_class_day')
+    expect(migration).toContain('Attendance date is not an active class day')
     expect(migration).toContain('student_id = any(p_student_ids)')
     expect(migration.indexOf('for update;')).toBeLessThan(
       migration.indexOf('update public.classroom_enrollments'),
@@ -39,6 +43,8 @@ describe('Pika manual attendance migration', () => {
 
   it('defaults new fields when restoring archives created before migration 150', () => {
     expect(migration).toContain('normalize_classroom_archive_restore_row')
+    expect(migration).toContain('rename to normalize_classroom_archive_restore_row_v147')
+    expect(migration).toContain('public.normalize_classroom_archive_restore_row_v147(')
     for (const field of [
       'manual_attendance_source_mode',
       'manual_attendance_session_starts_local',
@@ -55,6 +61,12 @@ describe('Pika manual attendance migration', () => {
     expect(migration).toContain(
       'alter column entry_closes_minutes_before_end set default 0',
     )
+  })
+
+  it('normalizes legacy early-open values before enforcing the two-hour maximum', () => {
+    expect(migration).toContain('set entry_opens_minutes_before = 120')
+    expect(migration).toContain('where entry_opens_minutes_before > 120')
+    expect(migration).toContain('check (entry_opens_minutes_before between 0 and 120)')
   })
 
   it('enforces the shared 12-hour maximum in stored attendance policies', () => {

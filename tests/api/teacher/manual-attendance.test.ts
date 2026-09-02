@@ -178,4 +178,24 @@ describe('/api/teacher/manual-attendance', () => {
     expect(roster.status).toBe(409)
     expect(await roster.json()).toEqual({ error: 'The roster changed; refresh and try again' })
   })
+
+  it('returns a refresh conflict when the selected date is no longer a class day', async () => {
+    saveManualAttendanceMarks.mockRejectedValueOnce(
+      new ManualAttendanceStoreError('class_day_changed'),
+    )
+    const response = await POST(new NextRequest('http://localhost/api/teacher/manual-attendance', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        date: '2026-05-06',
+        student_ids: [studentId],
+        status: 'present',
+      }),
+    }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'This date is no longer a class day; refresh and try again',
+    })
+  })
 })

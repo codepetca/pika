@@ -54,7 +54,7 @@ export const manualAttendanceSettingsSchema = z.object({
 export const manualAttendanceMarksSchema = z.object({
   classroom_id: classroomId,
   date: classDate,
-  student_ids: z.array(z.string().uuid()).min(1).max(200),
+  student_ids: z.array(z.string().uuid()).min(1),
   status: z.enum(['automatic', 'present', 'late', 'absent']),
 }).strict().superRefine((value, context) => {
   if (new Set(value.student_ids).size !== value.student_ids.length) {

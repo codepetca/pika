@@ -110,6 +110,42 @@ $migration$;
 
 begin;
 
+do $manual_attendance_restore_adapter$
+declare
+  v_assignment jsonb;
+  v_test jsonb;
+  v_classroom jsonb;
+  v_enrollment jsonb;
+begin
+  v_assignment := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'assignments', '{}'::jsonb
+  );
+  v_test := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'tests', '{}'::jsonb
+  );
+  v_classroom := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'classrooms', '{}'::jsonb
+  );
+  v_enrollment := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'classroom_enrollments', '{}'::jsonb
+  );
+
+  if not (v_assignment ? 'gradebook_category_id')
+    or jsonb_typeof(v_assignment->'gradebook_category_id') <> 'null'
+    or not (v_test ? 'gradebook_category_id')
+    or jsonb_typeof(v_test->'gradebook_category_id') <> 'null'
+  then
+    raise exception 'Migration 150 lost the migration 147 gradebook restore defaults';
+  end if;
+  if v_classroom->>'manual_attendance_source_mode' <> 'manual'
+    or (v_classroom->>'manual_attendance_revision')::bigint <> 1
+    or v_enrollment->'manual_attendance_marks' <> '{}'::jsonb
+  then
+    raise exception 'Migration 150 manual attendance restore defaults are incomplete';
+  end if;
+end;
+$manual_attendance_restore_adapter$;
+
 do $privileges$
 declare
   v_table text;
@@ -267,6 +303,58 @@ select
   'Attendance guard ' || value,
   'A126' || lpad(value::text, 2, '0')
 from generate_series(10, 20) value;
+
+do $manual_attendance_class_day_guard$
+begin
+  insert into public.classrooms (id, teacher_id, title, class_code) values (
+    'a1260000-0000-4000-8000-000000000021',
+    'a1260000-0000-4000-8000-000000000001',
+    'Manual attendance class-day guard',
+    'A12621'
+  );
+  insert into public.classroom_enrollments (classroom_id, student_id) values (
+    'a1260000-0000-4000-8000-000000000021',
+    'a1260000-0000-4000-8000-000000000002'
+  );
+  insert into public.class_days (classroom_id, date, is_class_day) values (
+    'a1260000-0000-4000-8000-000000000021', '2026-09-21', false
+  );
+
+  begin
+    perform public.set_pika_manual_attendance_marks(
+      'a1260000-0000-4000-8000-000000000001',
+      'a1260000-0000-4000-8000-000000000021',
+      '2026-09-21',
+      array['a1260000-0000-4000-8000-000000000002'::uuid],
+      'present'
+    );
+    raise exception 'Manual attendance accepted a non-class date';
+  exception
+    when check_violation then null;
+  end;
+
+  update public.class_days
+  set is_class_day = true
+  where classroom_id = 'a1260000-0000-4000-8000-000000000021'
+    and date = '2026-09-21';
+  perform public.set_pika_manual_attendance_marks(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000021',
+    '2026-09-21',
+    array['a1260000-0000-4000-8000-000000000002'::uuid],
+    'present'
+  );
+  if not exists (
+    select 1
+    from public.classroom_enrollments
+    where classroom_id = 'a1260000-0000-4000-8000-000000000021'
+      and student_id = 'a1260000-0000-4000-8000-000000000002'
+      and manual_attendance_marks->>'2026-09-21' = 'present'
+  ) then
+    raise exception 'Manual attendance rejected an active class date';
+  end if;
+end;
+$manual_attendance_class_day_guard$;
 
 insert into public.attendance_roster_mappings (classroom_id) values
   ('a1260000-0000-4000-8000-000000000010');

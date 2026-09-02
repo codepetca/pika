@@ -57,6 +57,19 @@ describe('manual attendance', () => {
     }).success).toBe(false)
   })
 
+  it('accepts a complete roster larger than 200 students', () => {
+    const studentIds = Array.from({ length: 201 }, (_, index) => (
+      `30000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`
+    ))
+
+    expect(manualAttendanceMarksSchema.safeParse({
+      classroom_id: '20000000-0000-4000-8000-000000000002',
+      date: '2026-05-06',
+      student_ids: studentIds,
+      status: 'present',
+    }).success).toBe(true)
+  })
+
   it('accepts an exact 12-hour passive session and rejects longer or inverted times', () => {
     const base = {
       classroom_id: '20000000-0000-4000-8000-000000000002',
@@ -181,6 +194,24 @@ describe('manual attendance store', () => {
       studentIds: ['30000000-0000-4000-8000-000000000003'],
       status: 'present',
     })).rejects.toMatchObject({ code: 'roster_changed' })
+  })
+
+  it('maps a class-day scheduling race separately from storage availability', async () => {
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { code: '23514', message: 'Attendance date is not an active class day' },
+      }),
+    }
+
+    await expect(saveManualAttendanceMarks({
+      supabase,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+      classDate: '2026-05-06',
+      studentIds: ['30000000-0000-4000-8000-000000000003'],
+      status: 'present',
+    })).rejects.toMatchObject({ code: 'class_day_changed' })
   })
 
   it('reports missing settings and marks RPCs as migration-required', async () => {

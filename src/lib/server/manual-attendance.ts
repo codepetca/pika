@@ -7,7 +7,7 @@ import {
 } from '@/lib/manual-attendance'
 
 export class ManualAttendanceStoreError extends Error {
-  constructor(readonly code: 'migration_required' | 'roster_changed' | 'stale_revision' | 'unavailable') {
+  constructor(readonly code: 'class_day_changed' | 'migration_required' | 'roster_changed' | 'stale_revision' | 'unavailable') {
     super(code)
     this.name = 'ManualAttendanceStoreError'
   }
@@ -24,6 +24,9 @@ function isMissingRelation(error: { code?: string; message?: string } | null | u
 
 function mapStoreError(error: { code?: string; message?: string } | null | undefined): never {
   if (isMissingRelation(error)) throw new ManualAttendanceStoreError('migration_required')
+  if (error?.code === '23514' && error.message?.includes('active class day')) {
+    throw new ManualAttendanceStoreError('class_day_changed')
+  }
   if (error?.code === '23503') throw new ManualAttendanceStoreError('roster_changed')
   if (error?.code === '40001') throw new ManualAttendanceStoreError('stale_revision')
   throw new ManualAttendanceStoreError('unavailable')
