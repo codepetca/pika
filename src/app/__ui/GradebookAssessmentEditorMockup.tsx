@@ -10,7 +10,6 @@ export function GradebookAssessmentEditorMockup({
   isOpen,
   assessment,
   assessments,
-  otherAssessmentTitles,
   categories,
   onClose,
   onSave,
@@ -18,7 +17,6 @@ export function GradebookAssessmentEditorMockup({
   isOpen: boolean
   assessment: GradebookAssessmentColumn | null
   assessments: GradebookAssessmentColumn[]
-  otherAssessmentTitles?: string[]
   categories: GradebookCategory[]
   onClose: () => void
   onSave: (title: string, categoryId: string | null, weight: number) => void
@@ -65,7 +63,7 @@ export function GradebookAssessmentEditorMockup({
   }, [assessment, assessments, selectedCategory, weight, weightIsValid])
 
   const normalizedTitle = title.trim()
-  const reservedTitles = otherAssessmentTitles ?? assessments
+  const reservedTitles = assessments
     .filter((candidate) => candidate.assessment_id !== assessment?.assessment_id)
     .map((candidate) => candidate.title)
   const titleIsUnique = !reservedTitles.some((candidate) => (

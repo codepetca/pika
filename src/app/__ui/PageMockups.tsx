@@ -550,7 +550,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   const empty = fixtureState === 'empty'
   const fewAssessments = fixtureState === 'few-assessments'
   const assessments = empty ? [] : fewAssessments ? assessmentTitles.slice(0, 3) : assessmentTitles
-  const baseAssessmentColumns: GradebookAssessmentColumn[] = assessments.map((title, index) => {
+  const baseAssessmentColumns: GradebookAssessmentColumn[] = assessmentTitles.map((title, index) => {
     const details = assessmentDetails[title] || { categoryId: null, weight: 10 }
     const category = categories.find((candidate) => candidate.id === details.categoryId)
     return {
@@ -567,7 +567,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       exact_course_weight: null,
     }
   })
-  const assessmentColumns = baseAssessmentColumns.map((assessment) => {
+  const allAssessmentColumns = baseAssessmentColumns.map((assessment) => {
     const category = categories.find((candidate) => candidate.id === assessment.category_id)
     const exactCourseWeight = category
       ? calculateAssessmentCourseWeight({
@@ -580,6 +580,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       : null
     return { ...assessment, exact_course_weight: exactCourseWeight }
   })
+  const assessmentColumns = empty ? [] : fewAssessments ? allAssessmentColumns.slice(0, 3) : allAssessmentColumns
   const selectedAssessment = assessmentColumns.find((assessment) => assessment.title === selectedAssessmentTitle) || null
   const [sort, setSort] = useState<{ key: 'first' | 'last'; direction: SortDirection }>({ key: 'last', direction: 'asc' })
   const gradebookStudents = empty || fewAssessments ? STUDENTS : POPULATED_GRADEBOOK_STUDENTS
@@ -915,8 +916,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       <GradebookAssessmentEditorMockup
         isOpen={Boolean(selectedAssessment)}
         assessment={selectedAssessment}
-        assessments={assessmentColumns}
-        otherAssessmentTitles={assessmentTitles.filter((title) => title !== selectedAssessmentTitle)}
+        assessments={allAssessmentColumns}
         categories={categories}
         onClose={() => setSelectedAssessmentTitle(null)}
         onSave={(title, categoryId, weight) => {
@@ -936,7 +936,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       <Description>{empty
         ? 'With no assessments, the roster remains visible and the Assessments column spans the remaining table width.'
         : fewAssessments
-          ? 'With only a few assessments, each assessment keeps its compact minimum width while the empty assessment area expands and keeps Final at the far edge.'
+          ? 'This preview shows only a few assessment columns; calculations still include the full course. Each assessment keeps its compact minimum width while the empty assessment area expands and keeps Final at the far edge.'
           : 'Compact assessment columns show the dense horizontal gradebook. Center controls set score display, class summary, and weights; More actions owns categories, name order, student IDs, and frozen columns.'}</Description>
     </div>
   )

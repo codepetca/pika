@@ -64,6 +64,8 @@ production adoption. The surrounding full-page compositions remain experimental.
 Gradebook student scores remain explicit examples. Category setup uses the live
 calculation contract: Attendance 10%, Term 65% and Final 25%, with Term as the
 default; assessment weights distribute their category's course percentage.
+The Few assessments example shows three columns from the same fixture course;
+hidden assessments remain in category-weight denominators and title validation.
 Calendar uses a fixed Semester 1 range from September 2026 through January 2027. Demo controls change local
 state only. Any unavailable live workflow opens an explicitly labeled explanation,
 never a fake success message. Announcement filters are proposed, not existing

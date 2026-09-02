@@ -44,6 +44,15 @@ export const patternLabGradebook: VerificationScript = {
     await expect(courseWeight).toHaveText('10%')
     await weight.fill('10')
     await weight.blur()
+    await section.getByRole('combobox', { name: 'Example state' }).selectOption('few-assessments')
+    await expect(courseWeight).toHaveText('5.42%')
+    await section.getByRole('button', { name: 'Ecosystems', exact: true }).click()
+    const fewAssessmentEditor = page.getByRole('dialog', { name: 'Edit assessment' })
+    await expect(fewAssessmentEditor.getByRole('textbox', { name: 'Course weight' })).toHaveValue('5.42%')
+    await fewAssessmentEditor.getByRole('spinbutton', { name: 'Category weight' }).fill('20')
+    await expect(fewAssessmentEditor.getByRole('textbox', { name: 'Course weight' })).toHaveValue('10%')
+    await fewAssessmentEditor.getByRole('button', { name: 'Cancel' }).click()
+    await section.getByRole('combobox', { name: 'Example state' }).selectOption('populated')
 
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(theme)

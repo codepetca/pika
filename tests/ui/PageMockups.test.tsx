@@ -11,6 +11,27 @@ function renderMockups() {
 }
 
 describe('PageMockups', () => {
+  it('keeps full-course weight calculations when only a few assessment columns are shown', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    await user.click(mockups.getByRole('button', { name: 'Show weights' }))
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'few-assessments')
+    expect(mockups.getAllByRole('spinbutton')).toHaveLength(3)
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+    await user.click(mockups.getByRole('button', { name: 'Ecosystems', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('5.42%')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Category weight' }), { target: { value: '20' } })
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('10%')
+    await user.click(screen.getByRole('button', { name: 'Save assessment' }))
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+    expect(mockups.getByLabelText('Course weight for Cells')).toHaveTextContent('5%')
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'populated')
+    expect(mockups.getByLabelText('Course weight for Motion')).toHaveTextContent('5%')
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+  })
+
   it('limits the no-category state to teacher Gradebook and clears it on leaving', async () => {
     const user = userEvent.setup()
     renderMockups()

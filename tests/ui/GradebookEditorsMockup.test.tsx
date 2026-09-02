@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { GradebookAssessmentEditorMockup } from '@/app/__ui/GradebookAssessmentEditorMockup'
@@ -24,6 +24,27 @@ const assessment: GradebookAssessmentColumn = {
 }
 
 describe('Gradebook editor mockup accessibility', () => {
+  it('calculates the read-only course weight from every supplied assessment', () => {
+    const allAssessments = Array.from({ length: 12 }, (_, index) => index === 0 ? assessment : {
+      ...assessment,
+      assessment_id: `item-${index}`,
+      title: `Assessment ${index}`,
+    })
+    render(<TooltipProvider>
+      <GradebookAssessmentEditorMockup
+        isOpen assessment={assessment} assessments={allAssessments} categories={categories}
+        onClose={() => undefined} onSave={() => undefined}
+      />
+    </TooltipProvider>)
+    const courseWeight = screen.getByRole('textbox', { name: 'Course weight' })
+    expect(courseWeight).toHaveAttribute('readonly')
+    expect(courseWeight).toHaveValue('5.42%')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Category weight' }), { target: { value: '20' } })
+    expect(courseWeight).toHaveValue('10%')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Assessment 11' } })
+    expect(screen.getByRole('button', { name: 'Save assessment' })).toBeDisabled()
+  })
+
   it('allocates a fresh category ID after a delete and reopen', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
