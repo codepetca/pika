@@ -30115,3 +30115,10 @@ Task owns codex/pal-widget-alpha6. User authorized widget publication and Pika P
 ## 2026-08-31 — Confirm number-only status count chips
 
 User chose color-only status count chips: retain colored fills and numeric counts without added status icons. Recorded the decision in the status-catalog audit and operational-table guidance. Preserve contextual tooltips, accessible names, focus and active-sort rings. Documentation only; existing Attendance controls already match this choice. No UI or business behavior changed.
+
+<!-- pika-session-log-archive-batch:3638aad739d4f5a854d699f044becbeaf05971761018579940b92dec1a6f5c37 -->
+## 2026-08-31 — Render the agreed status examples in Pattern Lab
+
+- Corrected the documentation-only handoff: Controls now visibly includes an interactive Attendance example with production green/yellow/red number-only count chips and row controls, plus actual Classwork/Test status labels and colors. Direct preview: localhost:3004/pattern-lab#status-colors; Statuses links back to it.
+- Five fixed sample students support count sorting, local status changes, zero counts and reset. Reused existing production controls and display mappings; no API, saved attendance, grading or permission changes. Added catalog owner entries and semantic/browser tests.
+- Focused checks passed: 135 files / 1,335 tests plus architecture, UI/design, TypeScript and lint. Eight role/viewport/theme browser contracts pass; screenshots inspected, with teacher/student captures identical in each visual variant. Artifacts saved under `status-catalog-preview` in this session's visualization folder. Existing screenshot baseline acceptance remains required before publication. Changes remain local and uncommitted.
