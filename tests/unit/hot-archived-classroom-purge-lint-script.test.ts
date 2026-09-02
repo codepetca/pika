@@ -91,6 +91,9 @@ describe('hot archived classroom purge lint script', () => {
     '{}',
     '[]',
     '{"results":null}',
+    '{"results":[{}]}',
+    '{"results":[{"function":"public.unrelated","issues":null}]}',
+    '{"results":[{"function":"public.classroom_purge_try_lock","issues":[{}]}]}',
   ])('rejects structurally invalid JSON reports: %s', (output) => {
     const result = runWithLintOutput(output)
 

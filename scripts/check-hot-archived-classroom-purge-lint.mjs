@@ -72,6 +72,33 @@ if (
   || typeof report !== 'object'
   || Array.isArray(report)
   || !Array.isArray(report.results)
+  || !report.results.every((result) => (
+    result !== null
+    && typeof result === 'object'
+    && !Array.isArray(result)
+    && typeof result.function === 'string'
+    && Array.isArray(result.issues)
+    && result.issues.every((issue) => (
+      issue !== null
+      && typeof issue === 'object'
+      && !Array.isArray(issue)
+      && typeof issue.level === 'string'
+      && typeof issue.message === 'string'
+      && (
+        issue.statement === undefined
+        || issue.statement === null
+        || (
+          typeof issue.statement === 'object'
+          && !Array.isArray(issue.statement)
+          && (
+            issue.statement.lineNumber === undefined
+            || issue.statement.lineNumber === null
+            || Number.isInteger(issue.statement.lineNumber)
+          )
+        )
+      )
+    ))
+  ))
 ) {
   console.error('Supabase database lint did not return valid JSON.')
   process.exit(2)
