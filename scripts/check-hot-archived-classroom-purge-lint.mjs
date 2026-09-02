@@ -72,17 +72,19 @@ function isKnownUpdateNotice(lines) {
   )
 }
 
-const knownJsonDiagnosticOutput = hasExpectedDiagnosticPrefix(normalizedDiagnosticLines)
+const knownBaseDiagnosticOutput = hasExpectedDiagnosticPrefix(normalizedDiagnosticLines)
   && isKnownUpdateNotice(normalizedDiagnosticLines.slice(expectedDiagnosticLines.length))
 const knownStdoutCleanResult = normalizedOutputLines.length === 1
   && normalizedOutputLines[0] === cleanResultLine
-  && knownJsonDiagnosticOutput
+  && knownBaseDiagnosticOutput
 const cleanResultDiagnosticIndex = expectedDiagnosticLines.length
-const knownStderrCleanResult = normalizedOutputLines.length === 0
-  && normalizedDiagnosticLines.length > cleanResultDiagnosticIndex
+const knownCleanDiagnosticOutput = normalizedDiagnosticLines.length > cleanResultDiagnosticIndex
   && hasExpectedDiagnosticPrefix(normalizedDiagnosticLines)
   && normalizedDiagnosticLines[cleanResultDiagnosticIndex] === cleanResultLine
   && isKnownUpdateNotice(normalizedDiagnosticLines.slice(cleanResultDiagnosticIndex + 1))
+const knownJsonDiagnosticOutput = knownBaseDiagnosticOutput || knownCleanDiagnosticOutput
+const knownStderrCleanResult = normalizedOutputLines.length === 0
+  && knownCleanDiagnosticOutput
 
 try {
   report = JSON.parse(lintOutput)
