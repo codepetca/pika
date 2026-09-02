@@ -5,6 +5,7 @@ import {
   REFERENCE_ROUTES,
   STATUS_CATALOG,
 } from '@/app/__ui/catalog'
+import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 
 function expectUnique(values: readonly string[]) {
   expect(new Set(values).size).toBe(values.length)
@@ -15,6 +16,15 @@ describe('Pattern Lab catalog', () => {
     expectUnique(PATTERN_CATALOG.map((pattern) => pattern.id))
     expectUnique(ICON_CATALOG.map((icon) => icon.id))
     expectUnique(STATUS_CATALOG.map((status) => status.id))
+  })
+
+  it('documents every production classroom feature icon', () => {
+    expectUnique(CLASSROOM_NAV_ITEMS.map((item) => item.id))
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.label).toBe('Daily')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.lucideName).toBe('ClipboardCheck')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'tests')?.lucideName).toBe('SquarePen')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'resources')?.lucideName).toBe('Compass')
+    expect(CLASSROOM_NAV_ITEMS.every((item) => item.roles.length > 0)).toBe(true)
   })
 
   it('maps every status to an approved icon and explicit usage guidance', () => {
@@ -64,6 +74,15 @@ describe('Pattern Lab catalog', () => {
     expect(pattern?.name).toBe('Shared date navigation')
     expect(pattern?.useWhen).not.toContain('relative')
     expect(pattern?.avoidWhen).toContain('Relative-date text is Daily-only')
+  })
+
+  it('keeps the student Grades visibility concept experimental and narrowly scoped', () => {
+    const pattern = PATTERN_CATALOG.find((entry) => entry.id === 'student-grades-visibility')
+
+    expect(pattern?.maturity).toBe('experimental')
+    expect(pattern?.owner).toBe('src/app/__ui/StudentGradesPattern.tsx')
+    expect(pattern?.useWhen).toContain('returned-only')
+    expect(pattern?.avoidWhen).toContain('reporting')
   })
 
   it('keeps teacher-only reference surfaces out of the student catalog', () => {

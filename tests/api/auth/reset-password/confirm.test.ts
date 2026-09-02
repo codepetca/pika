@@ -7,6 +7,7 @@ import { POST } from '@/app/api/auth/reset-password/confirm/route'
 import { NextRequest } from 'next/server'
 
 const VALID_HANDOFF_TOKEN = 'reset-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -26,8 +27,12 @@ vi.mock('@/lib/auth', () => ({
     constructor(message: string) { super(message); this.name = 'AuthorizationError' }
   },
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
-const mockSupabaseClient = { from: vi.fn() }
+import { hashPassword } from '@/lib/crypto'
+import { createSession } from '@/lib/auth'
+
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 function createRequest(body: Record<string, unknown>) {
   return new NextRequest('http://localhost:3000/api/auth/reset-password/confirm', {
@@ -46,20 +51,10 @@ function validBody(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function chainableUpdate(result: { data?: unknown; error: unknown }) {
-  const builder: any = {
-    eq: vi.fn(() => builder),
-    is: vi.fn(() => builder),
-    gt: vi.fn(() => builder),
-    select: vi.fn(() => builder),
-    maybeSingle: vi.fn().mockResolvedValue(result),
-  }
-  return builder
-}
-
 describe('POST /api/auth/reset-password/confirm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   it('should return 400 for missing required fields', async () => {
@@ -93,79 +88,57 @@ describe('POST /api/auth/reset-password/confirm', () => {
   })
 
   it('should return 401 when no valid reset handoff token exists', async () => {
-    const userUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
-
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-1', email: 'test@example.com', role: 'student' },
-                error: null,
-              }),
-            })),
-          })),
-          update: userUpdate,
-        }
-      }
-
-      if (table === 'verification_codes') {
-        return {
-          update: vi.fn(() => chainableUpdate({ data: null, error: null })),
-        }
-      }
-    })
+    const lookup: any = {
+      eq: vi.fn(() => lookup),
+      is: vi.fn(() => lookup),
+      gt: vi.fn(() => lookup),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const mockFrom = vi.fn(() => ({ select: vi.fn(() => lookup) }))
     ;(mockSupabaseClient.from as any) = mockFrom
 
     const response = await POST(createRequest(validBody()))
 
     expect(response.status).toBe(401)
-    expect(userUpdate).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
   it('should reset password with valid handoff token', async () => {
-    const userUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
-
-    const consumeBuilder = chainableUpdate({
-      data: { id: 'code-1' },
-      error: null,
-    })
-
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-1', email: 'test@example.com', role: 'student' },
-                error: null,
-              }),
-            })),
-          })),
-          update: userUpdate,
-        }
-      }
-
-      if (table === 'verification_codes') {
-        return {
-          update: vi.fn(() => consumeBuilder),
-        }
-      }
-    })
+    const lookup: any = {
+      eq: vi.fn(() => lookup),
+      is: vi.fn(() => lookup),
+      gt: vi.fn(() => lookup),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          user_id: 'user-1',
+          users: { id: 'user-1', email: 'test@example.com', role: 'student' },
+        },
+        error: null,
+      }),
+    }
+    const mockFrom = vi.fn(() => ({ select: vi.fn(() => lookup) }))
     ;(mockSupabaseClient.from as any) = mockFrom
+    mockSupabaseClient.rpc.mockResolvedValue({ data: 2, error: null })
 
     const response = await POST(createRequest(validBody()))
     const data = await response.json()
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(consumeBuilder.eq).toHaveBeenCalledWith('purpose', 'reset_password')
-    expect(consumeBuilder.eq).toHaveBeenCalledWith('handoff_token_hash', `hashed_${VALID_HANDOFF_TOKEN}`)
-    expect(userUpdate).toHaveBeenCalledWith({ password_hash: 'hashed_NewPassword123' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'consume_password_reset_and_revoke_sessions',
+      {
+        p_user_id: 'user-1',
+        p_handoff_token_hash: `hashed_${VALID_HANDOFF_TOKEN}`,
+        p_password_hash: 'hashed_NewPassword123',
+      },
+    )
+    expect(createSession).toHaveBeenCalledWith(
+      'user-1',
+      'test@example.com',
+      'student',
+      { expectedCredentialVersion: 2 },
+    )
   })
 })

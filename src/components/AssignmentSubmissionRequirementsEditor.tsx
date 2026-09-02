@@ -17,14 +17,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { FolderGit2, GripVertical, ImageIcon, Link2, Trash2 } from 'lucide-react'
+import { FolderGit2, GripVertical, ImageIcon, Link2, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Button, ConfirmDialog, FormField, Input, Select, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
+import { Button, ConfirmDialog, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
   DEFAULT_REQUIREMENT_LABELS,
-  LINK_VALIDATION_MODE_LABELS,
-  normalizeAssignmentSubmissionValidationPolicy,
-  type AssignmentLinkValidationMode,
   type AssignmentSubmissionRequirementDraft,
 } from '@/lib/assignment-submission-requirements'
 import type { AssignmentSubmissionRequirementType } from '@/types'
@@ -44,45 +41,14 @@ const TYPE_OPTIONS: Array<{
   { type: 'image', label: 'Image' },
 ]
 
-const LINK_VALIDATION_OPTIONS: Array<{ value: AssignmentLinkValidationMode; label: string }> = [
-  { value: 'format_only', label: LINK_VALIDATION_MODE_LABELS.format_only },
-  { value: 'reachable', label: LINK_VALIDATION_MODE_LABELS.reachable },
-  { value: 'expected_domain', label: LINK_VALIDATION_MODE_LABELS.expected_domain },
-]
-
 function RequirementIcon({ type }: { type: AssignmentSubmissionRequirementType }) {
   if (type === 'repo_link') return <FolderGit2 className="h-4 w-4" aria-hidden="true" />
   if (type === 'image') return <ImageIcon className="h-4 w-4" aria-hidden="true" />
   return <Link2 className="h-4 w-4" aria-hidden="true" />
 }
 
-function AddRequirementLabel({ type, label }: {
-  type: AssignmentSubmissionRequirementType
-  label: string
-}) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span aria-hidden="true">+</span>
-      {label}
-      <RequirementIcon type={type} />
-    </span>
-  )
-}
-
 function withPositions(requirements: AssignmentSubmissionRequirementDraft[]) {
   return requirements.map((requirement, position) => ({ ...requirement, position }))
-}
-
-function buildLinkValidationPolicyPatch(
-  mode: AssignmentLinkValidationMode,
-  expectedDomain: string
-): Record<string, unknown> {
-  if (mode === 'format_only') return {}
-  if (mode === 'reachable') return { mode }
-  return {
-    mode,
-    expected_domains: expectedDomain.trim() ? [expectedDomain.trim()] : [],
-  }
 }
 
 interface SortableRequirementRowProps {
@@ -118,129 +84,64 @@ function SortableRequirementRow({
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? undefined : transition,
   }
-  const linkPolicy = normalizeAssignmentSubmissionValidationPolicy(
-    requirement.type,
-    requirement.validation_policy_json
-  )
-  const rawMode = typeof requirement.validation_policy_json?.mode === 'string'
-    ? requirement.validation_policy_json.mode
-    : ''
-  const linkValidationMode = LINK_VALIDATION_OPTIONS.some((option) => option.value === rawMode)
-    ? rawMode as AssignmentLinkValidationMode
-    : linkPolicy.mode
-  const rawExpectedDomains = Array.isArray(requirement.validation_policy_json?.expected_domains)
-    ? requirement.validation_policy_json.expected_domains
-    : []
-  const expectedDomain = typeof rawExpectedDomains[0] === 'string'
-    ? rawExpectedDomains[0]
-    : linkPolicy.expected_domains[0] ?? ''
-
-  function updateLinkValidationMode(mode: AssignmentLinkValidationMode) {
-    onUpdate(index, {
-      validation_policy_json: buildLinkValidationPolicyPatch(mode, expectedDomain),
-    })
-  }
-
-  function updateExpectedDomain(domain: string) {
-    onUpdate(index, {
-      validation_policy_json: buildLinkValidationPolicyPatch('expected_domain', domain),
-    })
-  }
+  const imageLimitsId = `${sortableId}-image-limits`
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'grid gap-3 px-3 py-3 md:grid-cols-[auto_minmax(0,1fr)_auto]',
+        'grid grid-cols-[2.75rem_1.5rem_minmax(0,1fr)_2.75rem] items-center gap-1 px-1 py-1',
         isDragging ? 'relative z-10 bg-surface shadow-lg' : ''
       )}
     >
-      <div className="flex items-center gap-2 text-text-muted">
-        <button
-          type="button"
-          className={cn(
-            '-ml-1 rounded p-1 touch-none transition-colors',
-            isDragDisabled
-              ? 'cursor-default opacity-50'
-              : 'cursor-grab hover:bg-surface-hover hover:text-text-default active:cursor-grabbing'
-          )}
-          disabled={isDragDisabled}
-          aria-label={`Drag to reorder ${requirement.label || DEFAULT_REQUIREMENT_LABELS[requirement.type]}`}
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-4 w-4" aria-hidden="true" />
-        </button>
+      <button
+        type="button"
+        className={cn(
+          'flex h-11 w-11 touch-none items-center justify-center rounded text-text-muted transition-colors',
+          isDragDisabled
+            ? 'cursor-default opacity-50'
+            : 'cursor-grab hover:bg-surface-hover hover:text-text-default active:cursor-grabbing'
+        )}
+        disabled={isDragDisabled}
+        aria-label={`Drag to reorder ${requirement.label || DEFAULT_REQUIREMENT_LABELS[requirement.type]}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" aria-hidden="true" />
+      </button>
+      <span
+        className="flex items-center justify-center text-text-muted"
+        aria-label={`${DEFAULT_REQUIREMENT_LABELS[requirement.type]} attachment type`}
+      >
         <RequirementIcon type={requirement.type} />
-      </div>
-      <div className="grid gap-2">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
-          <FormField label="Label" hideLabel>
-            <Input
-              value={requirement.label ?? ''}
-              disabled={disabled}
-              onChange={(event) => onUpdate(index, { label: event.target.value })}
-              placeholder="Submission label"
-            />
-          </FormField>
-          <FormField label="Instructions" hideLabel>
-            <Input
-              value={requirement.instructions ?? ''}
-              disabled={disabled}
-              onChange={(event) => onUpdate(index, { instructions: event.target.value })}
-              placeholder="Optional helper text"
-            />
-          </FormField>
-          <label className="flex items-end gap-2 pb-2 text-sm text-text-default">
-            <input
-              type="checkbox"
-              checked={requirement.required !== false}
-              disabled={disabled}
-              onChange={(event) => onUpdate(index, { required: event.target.checked })}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-            />
-            Required
-          </label>
-        </div>
-        {requirement.type === 'link' ? (
-          <div className="grid gap-2 rounded-md border border-border bg-surface-2 p-2 sm:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)]">
-            <FormField label="Check">
-              <Select
-                value={linkValidationMode}
-                options={LINK_VALIDATION_OPTIONS}
-                disabled={disabled}
-                onChange={(event) => updateLinkValidationMode(event.target.value as AssignmentLinkValidationMode)}
-              />
-            </FormField>
-            {linkValidationMode === 'expected_domain' ? (
-              <FormField label="Expected domain">
-                <Input
-                  value={expectedDomain}
-                  disabled={disabled}
-                  placeholder="codehs.com"
-                  onChange={(event) => updateExpectedDomain(event.target.value)}
-                />
-              </FormField>
-            ) : null}
-          </div>
+      </span>
+      <div className="min-w-0">
+        <Input
+          value={requirement.label ?? ''}
+          disabled={disabled}
+          onChange={(event) => onUpdate(index, { label: event.target.value })}
+          placeholder={DEFAULT_REQUIREMENT_LABELS[requirement.type]}
+          aria-label={`${DEFAULT_REQUIREMENT_LABELS[requirement.type]} label`}
+          aria-describedby={requirement.type === 'image' ? imageLimitsId : undefined}
+        />
+        {requirement.type === 'image' ? (
+          <span id={imageLimitsId} className="sr-only">PNG, JPG, GIF, WebP · maximum 10 MB</span>
         ) : null}
       </div>
-      <div className="flex items-center justify-end gap-1">
-        <Tooltip content="Remove">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="px-2 text-danger"
-            disabled={disabled}
-            onClick={() => onRemove(index, sortableId)}
-            aria-label="Remove requirement"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-      </div>
+      <Tooltip content="Remove">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-11 w-11 p-0 text-danger"
+          disabled={disabled}
+          onClick={() => onRemove(index, sortableId)}
+          aria-label="Remove attachment"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </Tooltip>
     </div>
   )
 }
@@ -352,36 +253,33 @@ export function AssignmentSubmissionRequirementsEditor({
 
   return (
     <TooltipProvider>
-      <div role="group" aria-label="Required submissions" className="rounded-lg border border-border-strong bg-surface">
-        <div className="flex items-center justify-between gap-3 px-3 py-2">
+      <div role="group" aria-label="Submission Requirement" className="rounded-lg border border-border-strong bg-surface">
+        <div className="flex items-center justify-between gap-3 px-2 py-1">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium text-text-default">Required submissions</div>
+            <div className="truncate text-sm font-medium text-text-default">Submission Requirement</div>
           </div>
-          <SplitButton
-            label={(
-              <span className="inline-flex items-center gap-1">
-                <span aria-hidden="true">+</span>
-                Add
-              </span>
-            )}
-            primaryOpensMenu
-            options={TYPE_OPTIONS.map((option) => ({
-              id: option.type,
-              label: <AddRequirementLabel type={option.type} label={option.label} />,
-              onSelect: () => addRequirement(option.type),
-            }))}
-            variant="success"
-            size="sm"
-            disabled={disabled}
-            menuPlacement="down"
-            toggleAriaLabel="Choose submission type"
-            toggleButtonClassName="!px-2"
-            primaryButtonProps={{
-              'aria-label': 'Add submission',
-              className: 'justify-center gap-1 !px-2',
-              title: 'Add required submission',
-            }}
-          />
+          <Tooltip content="Add submission requirement" side="left">
+            <span className="inline-flex shrink-0">
+              <SplitButton
+                label={<Plus className="h-4 w-4" aria-hidden="true" />}
+                singleMenuTrigger
+                options={TYPE_OPTIONS.map((option) => ({
+                  id: option.type,
+                  label: option.label,
+                  icon: <RequirementIcon type={option.type} />,
+                  onSelect: () => addRequirement(option.type),
+                }))}
+                variant="success"
+                size="sm"
+                disabled={disabled}
+                menuPlacement="down"
+                primaryButtonProps={{
+                  'aria-label': 'Add submission requirement',
+                  className: 'h-11 w-11 p-0',
+                }}
+              />
+            </span>
+          </Tooltip>
         </div>
 
         {requirements.length > 0 ? (
@@ -411,7 +309,7 @@ export function AssignmentSubmissionRequirementsEditor({
       </div>
       <ConfirmDialog
         isOpen={Boolean(pendingRemoval)}
-        title="Remove required submission?"
+        title="Remove attachment?"
         description={pendingRemoval ? `This removes "${pendingRemoval.label}" from the assignment.` : undefined}
         confirmLabel="Remove"
         cancelLabel="Keep"

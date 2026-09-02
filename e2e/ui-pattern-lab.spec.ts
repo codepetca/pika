@@ -13,6 +13,57 @@ async function openPatternLab(page: Page, testInfo: TestInfo, role: 'teacher' | 
 }
 
 for (const role of ['teacher', 'student'] as const) {
+  test(`${role} visualizes the minimal student Grades visibility contract`, async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, role)
+    const example = page.getByTestId('student-grades-pattern')
+    await example.scrollIntoViewIfNeeded()
+
+    const visibility = example.getByRole('switch', { name: 'Show grades to students' })
+    const target = (await visibility.boundingBox())!
+    expect(target.width).toBeGreaterThanOrEqual(44)
+    expect(target.height).toBeGreaterThanOrEqual(44)
+    await expect(visibility).toHaveAttribute('aria-checked', 'true')
+    await expect(
+      example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
+    ).toBeVisible()
+    await expect(example.getByText('84%')).toBeVisible()
+    await expect(example.getByText('Not counted')).toBeVisible()
+    const feedbackLinks = example.getByRole('link')
+    await expect(feedbackLinks).toHaveCount(3)
+    await testInfo.attach('student-grades-visible', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-visible.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await feedbackLinks.first().focus()
+    await expect(feedbackLinks.first()).toBeFocused()
+    await testInfo.attach('student-grades-feedback-focus', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-feedback-focus.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await visibility.focus()
+    await expect(visibility).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(visibility).toHaveAttribute('aria-checked', 'false')
+    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
+    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
+    await testInfo.attach('student-grades-hidden', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-hidden.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
+  })
+
   test(`${role} demonstrates colored number-only attendance chips`, async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, role)
     const examples = page.getByTestId('status-pattern-examples')
@@ -88,14 +139,56 @@ test.describe('teacher Pattern Lab', () => {
     await opener.click()
     const dialog = page.getByRole('dialog', { name: 'New Assignment', exact: true })
     const heading = dialog.getByRole('heading', { name: 'New Assignment' })
-    const status = dialog.getByRole('status')
+    const status = dialog.locator('[role="status"][aria-live="polite"]')
     const close = dialog.getByRole('button', { name: 'Close assignment example' })
     await expect(heading).toBeVisible()
-    await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
-    await expect(dialog.getByText('Required submissions', { exact: true })).toBeVisible()
+    const titleField = dialog.getByRole('textbox', { name: 'Title' })
+    await expect(titleField).toHaveValue('Field observations')
+    await expect(titleField).toHaveAttribute('placeholder', 'Title')
+    await expect(dialog.locator('label').filter({ hasText: /^Title/ })).toHaveClass(/sr-only/)
+    const attachments = dialog.getByRole('group', { name: 'Submission Requirement' })
+    await expect(attachments.getByText('Submission Requirement', { exact: true })).toBeVisible()
+    const addRequirement = attachments.getByRole('button', { name: 'Add submission requirement' })
+    await expect(addRequirement).toHaveText('')
+    const addBounds = (await addRequirement.boundingBox())!
+    expect(addBounds.width).toBeGreaterThanOrEqual(44)
+    expect(addBounds.height).toBeGreaterThanOrEqual(44)
+    await addRequirement.focus()
+    await expect(page.getByRole('tooltip')).toHaveText('Add submission requirement')
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: 'Link', exact: true })).toBeFocused()
+    await expect(page.getByRole('menuitem', { name: 'Repo', exact: true })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Image', exact: true })).toBeVisible()
+    await testInfo.attach('submission-requirement-menu', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('submission-requirement-menu.png'), animations: 'disabled' }), contentType: 'image/png',
+    })
+    await page.keyboard.press('Escape')
+    await expect(addRequirement).toBeFocused()
+    const linkLabel = attachments.getByRole('textbox', { name: 'Link label', exact: true })
+    await expect(linkLabel).toHaveValue('Link')
+    await expect(dialog.getByRole('textbox', { name: 'Repo link label', exact: true })).toHaveValue('Repo link')
+    const imageLabel = dialog.getByRole('textbox', { name: 'Image label', exact: true })
+    await expect(imageLabel).toHaveValue('Image')
+    await expect(imageLabel).toHaveAccessibleDescription('PNG, JPG, GIF, WebP · maximum 10 MB')
+    const attachmentsBounds = (await attachments.boundingBox())!
+    const dragBounds = (await attachments.getByRole('button', { name: 'Drag to reorder Link' }).boundingBox())!
+    const typeBounds = (await attachments.getByLabel('Link attachment type', { exact: true }).boundingBox())!
+    const inputBounds = (await linkLabel.boundingBox())!
+    const removeBounds = (await attachments.getByRole('button', { name: 'Remove attachment' }).first().boundingBox())!
+    const rowCenters = [dragBounds, typeBounds, inputBounds, removeBounds]
+      .map((bounds) => bounds.y + bounds.height / 2)
+    expect(attachmentsBounds.height).toBeLessThanOrEqual(220)
+    expect(Math.max(...rowCenters) - Math.min(...rowCenters)).toBeLessThan(1)
+    await expect(dialog.getByText('Required', { exact: true })).toHaveCount(0)
+    await expect(dialog.getByLabel('Check', { exact: true })).toHaveCount(0)
     const editor = dialog.getByRole('textbox', { name: 'Instructions' })
+    await expect(dialog.locator('label').filter({ hasText: /^Instructions$/ })).toHaveClass(/sr-only/)
     await expect(editor).toContainText('Read the field guide before our next class.')
-    await expect(dialog.getByRole('button', { name: 'Tue Sep 1' })).toBeVisible()
+    const dueDate = dialog.getByRole('button', { name: 'Tue Sep 1' })
+    await expect(dueDate).toBeVisible()
+    await expect(dueDate).toHaveAccessibleDescription('Tomorrow')
+    await expect(dueDate.getByText('Tomorrow')).toBeVisible()
+    await expect(dialog.getByText('Due tomorrow')).toHaveCount(0)
     const preview = dialog.getByRole('button', { name: 'Preview', exact: true })
     await expect(preview).toHaveText('')
     const previewBounds = (await preview.boundingBox())!
@@ -104,6 +197,7 @@ test.describe('teacher Pattern Lab', () => {
     await expect(status).toHaveText('Saved')
     const frame = (await dialog.boundingBox())!
     const title = (await heading.boundingBox())!
+    const titleFieldBounds = (await titleField.boundingBox())!
     const save = (await status.boundingBox())!
     const dismiss = (await close.boundingBox())!
     expect(Math.abs(save.x + save.width / 2 - frame.x - frame.width / 2)).toBeLessThan(1)
@@ -113,6 +207,9 @@ test.describe('teacher Pattern Lab', () => {
     expect(dismiss.height).toBeGreaterThanOrEqual(44)
     expect(title.x + title.width).toBeLessThan(save.x)
     expect(save.x + save.width).toBeLessThan(dismiss.x)
+    expect(titleFieldBounds.y - title.y - title.height).toBeLessThanOrEqual(24)
+    await expect(dialog.getByText('Students see this before they begin.')).toHaveCount(0)
+    await titleField.focus()
     await testInfo.attach('creation-modal-heading', {
       body: await dialog.screenshot({ path: testInfo.outputPath('creation-modal-heading.png'), animations: 'disabled' }), contentType: 'image/png',
     })
@@ -154,6 +251,17 @@ test.describe('teacher Pattern Lab', () => {
     await opener.click()
     await expect(editor).toContainText('Read the field guide before our next class.')
     await expect(status).toHaveText('Saved')
+    const emptyTitleField = dialog.getByRole('textbox', { name: 'Title' })
+    const emptyInstructionsEditor = dialog.getByRole('textbox', { name: 'Instructions' })
+    await emptyTitleField.fill('')
+    await emptyInstructionsEditor.click()
+    await page.keyboard.press('ControlOrMeta+A')
+    await page.keyboard.press('Backspace')
+    await expect(emptyTitleField).toHaveAttribute('placeholder', 'Title')
+    await expect(emptyInstructionsEditor.locator('[data-placeholder="Instructions"]')).toBeVisible()
+    await testInfo.attach('assignment-empty-placeholders', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('assignment-empty-placeholders.png'), animations: 'disabled' }), contentType: 'image/png',
+    })
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
     await expect(opener).toBeFocused()
@@ -224,8 +332,10 @@ test.describe('teacher Pattern Lab', () => {
 
     const date = page.getByRole('button', { name: 'Go to reference today' })
     await expect(date).toHaveAccessibleDescription('2 days ago')
+    const dateHeightWithSubtitle = (await date.boundingBox())!.height
     await page.getByRole('button', { name: 'Relative date' }).click()
     await expect(date).not.toHaveAttribute('aria-describedby')
+    expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
     await testInfo.attach('teacher-family-hidden-subtitle', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-hidden-subtitle.png'), animations: 'disabled' }), contentType: 'image/png',
     })
@@ -235,6 +345,7 @@ test.describe('teacher Pattern Lab', () => {
     await page.getByRole('button', { name: 'Next example day' }).click()
     await expect(date).toContainText('Mon Aug 31')
     await expect(date).not.toHaveAttribute('aria-describedby')
+    expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
 
     await page.getByRole('tab', { name: 'Overview', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
@@ -249,6 +360,9 @@ test.describe('teacher Pattern Lab', () => {
   test('renders the component, icon, status, and page-state contracts', async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, 'teacher')
     await expect(page.getByText('teacher reference')).toBeVisible()
+    await page.getByRole('navigation', { name: 'Pattern Lab sections' }).evaluate((navigation) => {
+      navigation.style.position = 'static'
+    })
     await expect(page.getByTestId('pattern-lab-contracts')).toHaveScreenshot('teacher-pattern-contracts.png')
     await testInfo.attach('teacher-history-preview', {
       body: await page.getByTestId('history-preview-gallery').screenshot({ path: testInfo.outputPath('teacher-history-preview.png'), animations: 'disabled' }),
@@ -266,6 +380,30 @@ test.describe('teacher Pattern Lab', () => {
     await expect(dialog).toHaveScreenshot('teacher-pattern-dialog.png')
     await page.getByRole('button', { name: 'Close example' }).click()
     await expect(dialog).toBeHidden()
+  })
+})
+
+test.describe('student assignment attachments', () => {
+  test('shows one confirmation for all missing attachments', async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, 'student')
+    const example = page.locator('#student-assignment-attachments')
+    await example.scrollIntoViewIfNeeded()
+    await expect(example.getByText('1 of 3 added')).toBeVisible()
+    await expect(example.getByText('Required', { exact: true })).toHaveCount(0)
+    await testInfo.attach('student-attachments', {
+      body: await example.screenshot({ path: testInfo.outputPath('student-attachments.png'), animations: 'disabled' }), contentType: 'image/png',
+    })
+
+    await example.getByRole('button', { name: 'Submit' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Submit without attachments?' })
+    await expect(dialog).toContainText('Repo link and Image are missing. Submit anyway?')
+    await expect(dialog.getByRole('button', { name: 'Go back' })).toBeFocused()
+    await testInfo.attach('student-missing-confirmation', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('student-missing-confirmation.png'), animations: 'disabled' }), contentType: 'image/png',
+    })
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(example.getByRole('button', { name: 'Submit' })).toBeFocused()
   })
 })
 

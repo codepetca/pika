@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { loadTeacherGradebook, updateTeacherGradebook } from '@/lib/server/gradebook'
-import { gradebookPatchSchema, gradebookQuerySchema } from '@/lib/validations/gradebook'
+import {
+  loadTeacherGradebook,
+  replaceTeacherGradebookCategories,
+  updateTeacherGradebook,
+} from '@/lib/server/gradebook'
+import {
+  gradebookCategoriesPutSchema,
+  gradebookPatchSchema,
+  gradebookQuerySchema,
+} from '@/lib/validations/gradebook'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,5 +39,18 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
   }
   const command = gradebookPatchSchema.parse(rawBody)
   const result = await updateTeacherGradebook({ teacherId: user.id, command })
+  return NextResponse.json(result)
+})
+
+export const PUT = withErrorHandler('PutGradebookCategories', async (request: NextRequest) => {
+  const user = await requireRole('teacher')
+  let rawBody: unknown
+  try {
+    rawBody = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  const command = gradebookCategoriesPutSchema.parse(rawBody)
+  const result = await replaceTeacherGradebookCategories({ teacherId: user.id, command })
   return NextResponse.json(result)
 })

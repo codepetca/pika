@@ -6,9 +6,9 @@ import {
 
 const DEFAULT_AUTHENTICATED_DESTINATION = '/classrooms'
 
-export function getServerLoginRedirectPath(reason?: string): string {
+export async function getServerLoginRedirectPath(reason?: string): Promise<string> {
   const currentPath =
-    headers().get(PIKA_REQUEST_PATH_HEADER) ?? DEFAULT_AUTHENTICATED_DESTINATION
+    (await headers()).get(PIKA_REQUEST_PATH_HEADER) ?? DEFAULT_AUTHENTICATED_DESTINATION
 
   return buildLoginRedirectPath(currentPath, reason)
 }

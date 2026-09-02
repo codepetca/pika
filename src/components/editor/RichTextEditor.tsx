@@ -30,6 +30,7 @@ import {
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
+import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
@@ -156,30 +157,23 @@ async function uploadImage(
   // Compress image before upload
   const processedFile = await compressImage(file)
 
-  const formData = new FormData()
-  formData.append('file', processedFile)
-  if (assignmentDocId) formData.append('assignment_doc_id', assignmentDocId)
-
-  onProgress?.({ progress: 20 })
-
-  const response = await fetch('/api/upload-image', {
-    method: 'POST',
-    body: formData,
+  if (!assignmentDocId) throw new Error('Assignment document is required for image uploads')
+  const data = await uploadFileDirectly<Record<string, unknown>>({
+    endpoint: '/api/upload-image',
+    file: processedFile,
+    metadata: { assignment_doc_id: assignmentDocId },
+    onProgress,
   })
-
-  onProgress?.({ progress: 90 })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to upload image')
-  }
-
-  const data = await response.json()
-  onProgress?.({ progress: 100 })
   return {
     url: String(data.url || ''),
     ...(data.managed_object_id
       ? { managedObjectId: String(data.managed_object_id) }
+      : {}),
+    ...(data.storage_bucket === 'submission-images'
+      ? { storageBucket: 'submission-images' as const }
+      : {}),
+    ...(data.storage_path
+      ? { storagePath: String(data.storage_path) }
       : {}),
   }
 }
@@ -200,6 +194,8 @@ async function handleImageFile(
         src: result.url,
         alt: file.name.replace(/\.[^/.]+$/, ''),
         managed_object_id: result.managedObjectId ?? null,
+        storage_bucket: result.storageBucket ?? null,
+        storage_path: result.storagePath ?? null,
       } as any)
       .run()
     return true

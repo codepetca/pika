@@ -7,6 +7,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/signup/route'
 import { NextRequest } from 'next/server'
 
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
+const responseMocks = vi.hoisted(() => ({
+  completeAuthResponseFloor: vi.fn(async () => {}),
+  scheduleSignupCode: vi.fn(),
+}))
+
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -17,9 +23,7 @@ vi.mock('@/lib/crypto', () => ({
   hashCode: vi.fn(async (code: string) => `hashed_${code}`),
 }))
 
-vi.mock('@/lib/email', () => ({
-  sendSignupCode: vi.fn(async () => {}),
-}))
+vi.mock('@/lib/server/auth-response', () => responseMocks)
 
 vi.mock('@/lib/auth', () => ({
   isTeacherEmail: vi.fn((email: string) => email.includes('@gapps.yrdsb.ca') || email.includes('@yrdsb.ca')),
@@ -30,12 +34,13 @@ vi.mock('@/lib/auth', () => ({
     constructor(message = 'Forbidden') { super(message); this.name = 'AuthorizationError' }
   },
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 // Import mocked modules
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
-import { sendSignupCode } from '@/lib/email'
 import { isTeacherEmail } from '@/lib/auth'
+import { ApiError } from '@/lib/api-handler'
 
 // Create mock Supabase client
 const mockSupabaseClient = {
@@ -45,6 +50,7 @@ const mockSupabaseClient = {
 describe('POST /api/auth/signup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   // ==========================================================================
@@ -97,7 +103,7 @@ describe('POST /api/auth/signup', () => {
   // ==========================================================================
 
   describe('user creation', () => {
-    it('should return 400 when user already exists with password', async () => {
+    it('returns the generic success response when an account already has a password', async () => {
       const mockFrom = vi.fn((table: string) => {
         if (table === 'users') {
           return {
@@ -126,8 +132,14 @@ describe('POST /api/auth/signup', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('An account with this email already exists. Please login instead.')
+      expect(response.status).toBe(200)
+      expect(data).toEqual({
+        success: true,
+        message: 'Verification code sent to your email',
+      })
+      expect(hashCode).toHaveBeenCalledWith('ABC12')
+      expect(responseMocks.completeAuthResponseFloor).toHaveBeenCalledOnce()
+      expect(responseMocks.scheduleSignupCode).not.toHaveBeenCalled()
     })
 
     it('should create new student user when user does not exist', async () => {
@@ -273,6 +285,9 @@ describe('POST /api/auth/signup', () => {
 
   describe('rate limiting', () => {
     it('should return 429 when rate limit is exceeded (5+ requests in last hour)', async () => {
+      rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(
+        new ApiError(429, 'Too many attempts. Please try again later.'),
+      )
       const mockFrom = vi.fn((table: string) => {
         if (table === 'users') {
           return {
@@ -308,7 +323,7 @@ describe('POST /api/auth/signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(429)
-      expect(data.error).toBe('Too many code requests. Please try again later.')
+      expect(data.error).toBe('Too many attempts. Please try again later.')
     })
 
     it('should allow request when under rate limit', async () => {
@@ -347,6 +362,12 @@ describe('POST /api/auth/signup', () => {
       const response = await POST(request)
 
       expect(response.status).toBe(200)
+      expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'signup_code',
+        identifier: 'test@example.com',
+        identifierMaxAttempts: 5,
+        windowSeconds: 3600,
+      }))
     })
   })
 
@@ -478,11 +499,11 @@ describe('POST /api/auth/signup', () => {
 
       await POST(request)
 
-      expect(sendSignupCode).toHaveBeenCalledWith('test@example.com', 'ABC12')
+      expect(responseMocks.scheduleSignupCode).toHaveBeenCalledWith('test@example.com', 'ABC12')
     })
 
-    it('should still return success if email fails to send', async () => {
-      ;(sendSignupCode as any).mockRejectedValueOnce(new Error('Email service down'))
+    it('returns success without waiting for scheduled email delivery', async () => {
+      responseMocks.scheduleSignupCode.mockImplementationOnce(() => {})
 
       const mockFrom = vi.fn((table: string) => {
         if (table === 'users') {

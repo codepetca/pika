@@ -64,7 +64,7 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
-    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(40)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(41)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
@@ -112,15 +112,11 @@ describe('versioned classroom archive contracts', () => {
       'classroom_retired_assessment_record_actors',
     ]))
     expect(v2Tables).toEqual(expect.not.arrayContaining(LEGACY_QUIZ_ARCHIVE_V1_RESOURCES))
-    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER).toEqual([
-      ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.filter((table) =>
-        !LEGACY_QUIZ_ARCHIVE_V1_RESOURCES.includes(
-          table as typeof LEGACY_QUIZ_ARCHIVE_V1_RESOURCES[number],
-        ),
-      ),
-      'classroom_retired_assessment_records',
-      'classroom_retired_assessment_record_actors',
-    ])
+    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER).toContain('gradebook_categories')
+    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('gradebook_categories'))
+      .toBeLessThan(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('assignments'))
+    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('gradebook_categories'))
+      .toBeLessThan(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('tests'))
     for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
       const childPosition = restorePositions.get(resource.table)
       if (childPosition === undefined) continue
@@ -137,9 +133,14 @@ describe('versioned classroom archive contracts', () => {
   it('dispatches exact schemas and rejects cross-version resource graphs', () => {
     const v1 = manifest(1, CLASSROOM_ARCHIVE_V1_RESOURCES)
     const v2 = manifest(2, CLASSROOM_ARCHIVE_V2_RESOURCES)
+    const legacyV2 = manifest(
+      2,
+      CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) => resource.table !== 'gradebook_categories'),
+    )
 
     expect(parseClassroomArchiveManifest(v1).version).toBe(1)
     expect(parseClassroomArchiveManifest(v2).version).toBe(2)
+    expect(parseClassroomArchiveManifest(legacyV2).version).toBe(2)
     expect(classroomArchiveManifestV1Schema.safeParse({ ...v2, version: 1 }).success)
       .toBe(false)
     expect(classroomArchiveManifestV2Schema.safeParse({ ...v1, version: 2 }).success)

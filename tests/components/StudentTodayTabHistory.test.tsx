@@ -71,13 +71,23 @@ vi.mock('@/components/editor', async () => {
   }
 
   return {
-    RichTextEditor: ({ content, onBlur, onChange, placeholder, toolbarPreset }: any) =>
+    RichTextEditor: ({
+      'aria-labelledby': ariaLabelledBy,
+      className,
+      content,
+      onBlur,
+      onChange,
+      placeholder,
+      toolbarPreset,
+    }: any) =>
       React.createElement('textarea', {
-        'aria-label': placeholder,
+        'aria-labelledby': ariaLabelledBy,
+        className,
         'data-toolbar-preset': toolbarPreset,
         onBlur,
         onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
           onChange(toContent(event.currentTarget.value)),
+        placeholder,
         value: toText(content),
       }),
   }
@@ -201,11 +211,27 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-today-plan">Today and last class</div>}
+      />
+    )
 
     await screen.findByText('Past logs')
 
-    expect(screen.getByText("What's your plan for today?")).toHaveClass('font-medium')
+    const dailyPlanPrompt = screen.getByRole('heading', { name: 'Daily Log' })
+    const mobilePlan = screen.getByTestId('mobile-today-plan')
+    const pastLogsHeading = screen.getByText('Past logs')
+    const editor = await screen.findByRole('textbox', { name: 'Daily Log' })
+
+    expect(dailyPlanPrompt).toHaveClass('font-medium')
+    expect(editor).toHaveAttribute('placeholder', 'What is your plan today?')
+    expect(dailyPlanPrompt.compareDocumentPosition(mobilePlan)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(mobilePlan.compareDocumentPosition(pastLogsHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(mobilePlan.parentElement).toHaveClass('lg:hidden')
+    expect(editor.className).toContain('[&_.tiptap.ProseMirror]:!min-h-[100px]')
+    expect(editor.className).toContain('lg:[&_.tiptap.ProseMirror]:!min-h-[200px]')
     expect(screen.queryByText('What do you want to get better at?')).not.toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /hide history/i })).not.toBeInTheDocument()
@@ -274,10 +300,16 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-plan-during-entry-error">Today and last class</div>}
+      />
+    )
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Daily log unavailable')
-    expect(screen.queryByLabelText('Write something...')).not.toBeInTheDocument()
+    expect(screen.getByTestId('mobile-plan-during-entry-error')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Daily Log')).not.toBeInTheDocument()
     expect(screen.queryByText('No past logs yet')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -304,9 +336,15 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<StudentTodayTab classroom={classroom} />)
+    render(
+      <StudentTodayTab
+        classroom={classroom}
+        mobilePlan={<div data-testid="mobile-plan-during-schedule-error">Today and last class</div>}
+      />
+    )
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Class schedule unavailable')
+    expect(screen.getByTestId('mobile-plan-during-schedule-error')).toBeInTheDocument()
     expect(screen.queryByText('No class today')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -474,7 +512,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     const saveStatus = screen.getByText('Saved')
     expect(saveStatus).toHaveAttribute('role', 'status')
     expect(saveStatus).toHaveAttribute('aria-live', 'polite')
@@ -644,7 +682,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     expect(editor).toHaveValue('Cached today entry.')
 
     fireEvent.change(editor, { target: { value: 'Local unsaved draft.' } })
@@ -692,7 +730,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     expect(editor).toHaveValue('Cached today entry.')
 
     fireEvent.change(editor, { target: { value: 'Temporary local draft.' } })
@@ -742,7 +780,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     getTodayInTorontoMock.mockReturnValue('2025-05-11')
 
     fireEvent.change(editor, { target: { value: 'Worked today' } })
@@ -798,7 +836,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Local draft.' } })
     fireEvent.blur(editor)
 
@@ -829,7 +867,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Older save content.' } })
     fireEvent.blur(editor)
 
@@ -903,7 +941,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'First in-flight draft.' } })
     fireEvent.blur(editor)
 
@@ -971,7 +1009,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Draft that should clear.' } })
 
     expect(window.sessionStorage.getItem(draftKey)).toContain('Draft that should clear.')
@@ -1006,7 +1044,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Needs a valid session.' } })
     fireEvent.blur(editor)
 
@@ -1036,7 +1074,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Keep this local draft.' } })
     fireEvent.blur(editor)
 
@@ -1067,7 +1105,7 @@ describe('StudentTodayTab history section', () => {
 
     const firstRender = render(<StudentTodayTab classroom={classroom} />)
 
-    const firstEditor = await screen.findByLabelText('Write something...')
+    const firstEditor = await screen.findByLabelText('Daily Log')
     fireEvent.change(firstEditor, { target: { value: 'Recovered after login.' } })
     fireEvent.blur(firstEditor)
 
@@ -1079,7 +1117,7 @@ describe('StudentTodayTab history section', () => {
     firstRender.unmount()
     render(<StudentTodayTab classroom={classroom} />)
 
-    const restoredEditor = await screen.findByLabelText('Write something...')
+    const restoredEditor = await screen.findByLabelText('Daily Log')
     expect(restoredEditor).toHaveValue('Recovered after login.')
     expect(screen.getByText('Unsaved')).toBeInTheDocument()
   })
@@ -1114,7 +1152,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    const editor = await screen.findByLabelText('Write something...')
+    const editor = await screen.findByLabelText('Daily Log')
     expect(editor).toHaveValue('Autosave after login.')
 
     await waitFor(() => {

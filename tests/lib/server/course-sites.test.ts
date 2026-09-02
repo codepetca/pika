@@ -267,24 +267,102 @@ describe('course-sites server helpers', () => {
   })
 
   it('loads a published planned site and handles missing slugs', async () => {
-    mockGetCourseBlueprintDetail.mockResolvedValue({
-      detail: { id: 'b-1', title: 'Blueprint', assignments: [], assessments: [], lesson_templates: [] },
+    const blueprintQuery = makeQueryBuilder({
+      data: {
+        id: 'b-1',
+        title: 'Blueprint',
+        subject: 'Computer Science',
+        grade_level: 'Grade 11',
+        course_code: 'ICS3U',
+        term_template: 'Semester 1',
+        overview_markdown: 'Public overview',
+        outline_markdown: 'Public outline',
+        resources_markdown: 'Public resources',
+        planned_site_config: {
+          overview: true,
+          outline: true,
+          resources: true,
+          assignments: true,
+          tests: true,
+          lesson_plans: true,
+        },
+      },
+      error: null,
     })
-
+    const assignmentsQuery = makeQueryBuilder({
+      data: [{
+        id: 'private-assignment-id',
+        title: 'Public assignment',
+        instructions_markdown: 'Public instructions',
+        position: 0,
+      }],
+      error: null,
+    })
+    const assessmentsQuery = makeQueryBuilder({
+      data: [{
+        id: 'private-assessment-id',
+        assessment_type: 'test',
+        title: 'Public test',
+        content: {
+          questions: [{
+            id: 'private-question-id',
+            question_text: 'Private question',
+            answer_key: 'Private answer',
+          }],
+        },
+        documents: [{ url: 'https://private.example.test' }],
+        position: 0,
+      }],
+      error: null,
+    })
+    const lessonsQuery = makeQueryBuilder({
+      data: [{
+        id: 'private-lesson-id',
+        title: 'Public lesson',
+        content_markdown: 'Public lesson content',
+        position: 0,
+      }],
+      error: null,
+    })
     mockSupabase = makeSupabaseFromQueues({
-      course_blueprints: [
-        makeQueryBuilder({
-          data: { id: 'b-1', teacher_id: 'teacher-1', planned_site_slug: 'blueprint', planned_site_published: true },
-          error: null,
-        }),
-      ],
+      course_blueprints: [blueprintQuery],
+      course_blueprint_assignments: [assignmentsQuery],
+      course_blueprint_assessments: [assessmentsQuery],
+      course_blueprint_lesson_templates: [lessonsQuery],
     })
-    await expect(getPublishedPlannedCourseSite('blueprint')).resolves.toEqual(
-      expect.objectContaining({
-        ok: true,
-        site: { blueprint: expect.objectContaining({ id: 'b-1' }) },
-      })
+    const publishedResult = await getPublishedPlannedCourseSite('blueprint')
+    expect(publishedResult).toEqual(expect.objectContaining({
+      ok: true,
+      site: {
+        blueprint: expect.objectContaining({
+          title: 'Blueprint',
+          assignments: [{
+            title: 'Public assignment',
+            instructions_markdown: 'Public instructions',
+          }],
+          assessments: [{
+            assessment_type: 'test',
+            title: 'Public test',
+          }],
+          lesson_templates: [{
+            title: 'Public lesson',
+            content_markdown: 'Public lesson content',
+          }],
+        }),
+      },
+    }))
+    expect(JSON.stringify(publishedResult)).not.toMatch(/private/i)
+    expect(blueprintQuery.select).toHaveBeenCalledWith(
+      'id,title,subject,grade_level,course_code,term_template,overview_markdown,outline_markdown,resources_markdown,planned_site_config',
     )
+    expect(assignmentsQuery.select).toHaveBeenCalledWith('title,instructions_markdown,position')
+    expect(assessmentsQuery.select).toHaveBeenCalledWith('assessment_type,title,position')
+    expect(lessonsQuery.select).toHaveBeenCalledWith('title,content_markdown,position')
+    for (const query of [assignmentsQuery, assessmentsQuery, lessonsQuery]) {
+      expect(query.order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
+      expect(query.order).toHaveBeenNthCalledWith(2, 'id', { ascending: true })
+    }
+    expect(mockGetCourseBlueprintDetail).not.toHaveBeenCalled()
 
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [makeQueryBuilder({ data: null, error: { code: 'PGRST116' } })],

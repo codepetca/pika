@@ -64,6 +64,13 @@ async function applyProjectTheme(page: Page, testInfo: TestInfo) {
   }, theme)
 }
 
+async function detachSharedAuthFixture(page: Page) {
+  // Saved Playwright auth state is reused across projects. A real login rotates
+  // the current server-side session, so mutation scenarios must first detach
+  // from the shared token or they invalidate unrelated browser contexts.
+  await page.context().clearCookies()
+}
+
 async function verifyProjectContract(page: Page, testInfo: TestInfo) {
   const { theme, viewport } = getExperienceMetadata(testInfo)
   const expectedWidth = viewport === 'mobile' ? 390 : 1440
@@ -83,7 +90,7 @@ async function captureCourseGuideState(page: Page, testInfo: TestInfo, state: st
   })
 }
 
-async function verifyActiveClassroomTab(page: Page, testInfo: TestInfo, label: 'Daily' | 'Today') {
+async function verifyActiveClassroomTab(page: Page, testInfo: TestInfo, label: 'Daily') {
   const { viewport } = getExperienceMetadata(testInfo)
 
   if (viewport === 'mobile') {
@@ -467,6 +474,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   // Keep the fixture's relative "Today" timestamp stable across calendar days.
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
+  let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -478,7 +486,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       lastName: `Alpha${ordinal}`,
       status,
       source: index % 2 === 0 ? 'student_qr' as const : 'staff' as const,
-      checkedInAt: index % 2 === 0 ? `2026-08-17T13:${String(index).padStart(2, '0')}:00.000Z` : null,
+      checkedInAt: index % 2 === 0 ? `2026-08-29T13:${String(index).padStart(2, '0')}:00.000Z` : null,
       revision: 1,
       hasQrCheckIn: index % 2 === 0,
       hasManualOverride: index === 2 || index % 2 !== 0,
@@ -495,7 +503,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
         class_days: [{
           id: '50000000-0000-4000-8000-000000000001',
           classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
-          date: '2026-08-17',
+          date: '2026-08-29',
           prompt_text: null,
           is_class_day: true,
         }],
@@ -516,14 +524,14 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
             id: `60000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
             student_id: student.studentId,
             classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
-            date: '2026-08-17',
+            date: '2026-08-29',
             text: `Completed a detailed reflection for ${student.firstName} with enough content to demonstrate the full Daily log tooltip.`,
             rich_content: null,
             version: 1,
             minutes_reported: null,
             mood: null,
-            created_at: '2026-08-17T14:00:00.000Z',
-            updated_at: '2026-08-17T14:00:00.000Z',
+            created_at: '2026-08-29T14:00:00.000Z',
+            updated_at: '2026-08-29T14:00:00.000Z',
             on_time: true,
           } : null,
           history_preview: [],
@@ -558,7 +566,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
         sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
         entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
         entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
-        enabled: true, revision: 1, updatedAt: '2026-08-17T12:00:00.000Z',
+        enabled: true, revision: 1, updatedAt: '2026-08-29T12:00:00.000Z',
       } : null }),
     })
   })
@@ -568,22 +576,22 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       contentType: 'application/json',
       body: JSON.stringify({
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
-        classDate: '2026-08-17',
+        classDate: new URL(route.request().url()).searchParams.get('date'),
         integration: attendanceConfigured ? 'ready' : 'not_configured',
         session: {
-          state: attendanceConfigured ? 'open' : 'not_scheduled',
-          opensAt: attendanceConfigured ? '2026-08-17T12:45:00.000Z' : null,
-          closesAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
-          sessionStartsAt: attendanceConfigured ? '2026-08-17T13:00:00.000Z' : null,
-          sessionEndsAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
-          presentThroughAt: attendanceConfigured ? '2026-08-17T13:10:00.000Z' : null,
-          absentAt: attendanceConfigured ? '2026-08-17T14:00:00.000Z' : null,
+          state: attendanceConfigured ? attendanceSessionState : 'not_scheduled',
+          opensAt: attendanceConfigured ? '2026-08-29T12:45:00.000Z' : null,
+          closesAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
+          sessionStartsAt: attendanceConfigured ? '2026-08-29T13:00:00.000Z' : null,
+          sessionEndsAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
+          presentThroughAt: attendanceConfigured ? '2026-08-29T13:10:00.000Z' : null,
+          absentAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
           revision: attendanceConfigured ? 1 : null,
           pendingCommand: false,
           commandFailed: false,
         },
         sync: attendanceConfigured
-          ? { state: 'current', confirmedAt: '2026-08-17T13:20:00.000Z' }
+          ? { state: 'current', confirmedAt: '2026-08-29T13:20:00.000Z' }
           : { state: 'unavailable', confirmedAt: null },
         students,
       }),
@@ -596,14 +604,27 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const primaryControl = page.getByTestId('daily-primary-control')
   await expect(contextBar).toBeVisible()
   const dateButton = primaryControl.getByRole('button', { name: 'Select Daily date' })
-  await expect(dateButton.getByText('Mon Aug 17', { exact: true })).toBeVisible()
-  await expect(dateButton.getByText('a week ago', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('Sat Aug 29', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
+  await primaryControl.getByRole('button', { name: 'Previous day' }).click()
+  await expect(dateButton.getByText('Fri Aug 28', { exact: true })).toBeVisible()
+  await page.clock.setFixedTime(new Date('2026-08-30T15:00:00.000Z'))
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(dateButton.getByText('Fri Aug 28', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('2 days ago', { exact: true })).toBeVisible()
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(dateButton.getByText('Sun Aug 30', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
+  await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(dateButton.getByText('Sat Aug 29', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Hide relative date' }).click()
-  await expect(dateButton.getByText('a week ago', { exact: true })).toHaveCount(0)
+  await expect(dateButton.getByText('Today', { exact: true })).toHaveCount(0)
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Show relative date' }).click()
-  await expect(dateButton.getByText('a week ago', { exact: true })).toBeVisible()
+  await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
   if (viewport === 'desktop') {
@@ -660,10 +681,43 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   })
   await verifyProjectContract(page, testInfo)
 
-  attendanceConfigured = false
+  attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
   await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })).toBeEnabled()
+  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
+  await expect(primaryControl.getByRole('button', {
+    name: 'Student actions for 1 selected',
+  })).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-closed.png`),
+    animations: 'disabled',
+  })
+
+  attendanceSessionState = 'scheduled'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('group', {
+    name: 'Attendance status for Student 01 Alpha01',
+  })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('button', { name: 'Open QR check-in' })).toBeVisible()
+  } else {
+    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'Open QR check-in' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  }
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-scheduled.png`),
+    animations: 'disabled',
+  })
+
+  attendanceConfigured = false
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   if (viewport === 'desktop') {
     await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
   } else {
@@ -681,8 +735,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const dailyOnlyContextBar = page.getByTestId('daily-context-bar')
   await expect(dailyOnlyContextBar).toBeVisible()
   const dailyOnlyDateButton = dailyOnlyContextBar.getByRole('button', { name: 'Select Daily date' })
-  await expect(dailyOnlyDateButton.getByText('Mon Aug 17', { exact: true })).toBeVisible()
-  await expect(dailyOnlyDateButton.getByText('a week ago', { exact: true })).toBeVisible()
+  await expect(dailyOnlyDateButton.getByText('Sat Aug 29', { exact: true })).toBeVisible()
+  await expect(dailyOnlyDateButton.getByText('Today', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Attendance actions' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
@@ -721,7 +775,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
     let body: unknown
     let status = 200
     if (url.pathname.endsWith('/class-days')) {
-      body = { class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: '2026-08-28', prompt_text: null, is_class_day: true }] }
+      body = { class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: '2026-08-31', prompt_text: null, is_class_day: true }] }
     } else if (url.pathname === '/api/teacher/attendance/policy') {
       if (route.request().method() === 'PUT') {
         await saveGate
@@ -755,10 +809,10 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
     }
   }
   await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Fri Aug 28')
+  await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Mon Aug 31')
   if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
-  await capture('past-date')
-  for (let day = 0; day < 4; day += 1) await page.getByRole('button', { name: 'Next day' }).click()
+  await capture('today-date')
+  await page.getByRole('button', { name: 'Next day' }).click()
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Tue Sep 1')
   await openHours('Attendance hours, 2:00 PM to 3:00 PM')
   await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
@@ -1403,6 +1457,7 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('School Email')).toBeFocused()
 
     await page.unroute('**/api/auth/me')
+    await detachSharedAuthFixture(page)
     await page.getByLabel('School Email').fill('teacher@example.com')
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
@@ -1438,6 +1493,7 @@ test.describe('teacher experience matrix', () => {
   test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One redirect-safety pass is sufficient')
 
+    await detachSharedAuthFixture(page)
     for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
       await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
       await page.getByLabel('School Email').fill('teacher@example.com')
@@ -1610,7 +1666,7 @@ test.describe('student experience matrix', () => {
     await enterSeededClassroom(page, 'student')
 
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
-    await verifyActiveClassroomTab(page, testInfo, 'Today')
+    await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
   })
 
@@ -1767,7 +1823,7 @@ test.describe('public planned course experience matrix', () => {
     }
     await expect(page.getByRole('heading', { level: 3, name: 'Algorithm Design Brief' })).toBeVisible()
     await expect(page.getByRole('heading', { level: 3, name: 'Programming Foundations Test' })).toBeVisible()
-    await expect(page.getByText('1 question', { exact: true })).toBeVisible()
+    await expect(page.getByText(/questions?/i)).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 3, name: 'Tracing and Debugging' })).toBeVisible()
 
     const pageSource = `${await response!.text()}\n${await page.content()}`

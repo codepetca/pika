@@ -267,7 +267,9 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       { wrapper: Wrapper },
     )
 
-    expect(screen.getByText(/Hiding a feature does not delete its content/)).toBeInTheDocument()
+    expect(screen.getByText(
+      'Daily, Roster, and Settings are always available. Hiding a feature does not delete its content.',
+    )).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Show Attendance' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Show Classwork' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Show Achievements' })).toHaveAttribute('aria-checked', 'true')
@@ -640,6 +642,8 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(toggle).toHaveAttribute('type', 'button')
+    expect(toggle).toHaveClass('h-11', 'w-14')
 
     fireEvent.click(toggle)
 

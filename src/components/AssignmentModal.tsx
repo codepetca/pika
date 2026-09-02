@@ -700,6 +700,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         closeDisabled={saving || releasing}
         tall
         showTitle
+        contentClassName="!pt-1"
         headerCenter={<SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />}
       >
         <AssignmentForm

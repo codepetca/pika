@@ -17,7 +17,14 @@ import {
   isSupportedLinkSnapshotContentType,
   sanitizeSnapshotHtml,
   TEST_DOCUMENT_MAX_SIZE,
+  getTestDocumentStoragePath,
+  isAllowedTestDocumentType,
 } from '@/lib/test-documents'
+import {
+  buildPublicStorageCompatibilityRedirect,
+  buildPrivateStorageRedirect,
+  getPrivateStorageContentType,
+} from '@/lib/server/direct-storage-delivery'
 import type { TestDocument } from '@/types'
 import type { TestAccessRecord } from '@/lib/server/tests'
 
@@ -146,6 +153,26 @@ export async function buildSnapshotResponse(doc: TestDocument): Promise<NextResp
   }
 
   const supabase = getServiceRoleClient()
+  const contentType = normalizeSnapshotContentType(doc.snapshot_content_type)
+    || await getPrivateStorageContentType({
+      supabase,
+      bucket: TEST_DOCUMENTS_BUCKET,
+      path: doc.snapshot_path,
+    })
+  if (!contentType || !isSupportedLinkSnapshotContentType(contentType)) {
+    return NextResponse.json({ error: 'Snapshot not found' }, { status: 404 })
+  }
+
+  // Preserve the same-origin CSP wrapper for sanitized HTML. Other snapshot
+  // types can safely bypass the application function's response-size limit.
+  if (contentType !== 'text/html') {
+    return buildPrivateStorageRedirect({
+      supabase,
+      bucket: TEST_DOCUMENTS_BUCKET,
+      path: doc.snapshot_path,
+    })
+  }
+
   const { data, error } = await supabase.storage
     .from(TEST_DOCUMENTS_BUCKET)
     .download(doc.snapshot_path)
@@ -154,7 +181,6 @@ export async function buildSnapshotResponse(doc: TestDocument): Promise<NextResp
     return NextResponse.json({ error: 'Snapshot not found' }, { status: 404 })
   }
 
-  const contentType = normalizeSnapshotContentType(doc.snapshot_content_type) || 'application/octet-stream'
   const headers = new Headers({
     'Cache-Control': 'private, no-store',
     'Content-Disposition': 'inline',
@@ -182,4 +208,77 @@ export async function buildSnapshotResponse(doc: TestDocument): Promise<NextResp
   }
 
   return new NextResponse(data as BodyInit, { headers })
+}
+
+export async function buildUploadedTestDocumentResponse(options: {
+  testId: string
+  classroomId: string
+  doc: TestDocument
+}): Promise<NextResponse> {
+  const storagePath = getTestDocumentStoragePath(options.doc)
+  if (!storagePath) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  const supabase = getServiceRoleClient()
+  let objectQuery = supabase
+    .from('managed_storage_objects')
+    .select('id,storage_path,status,purpose,classroom_id,provisional_owner_id,content_type')
+    .eq('storage_bucket', TEST_DOCUMENTS_BUCKET)
+  objectQuery = options.doc.managed_object_id
+    ? objectQuery.eq('id', options.doc.managed_object_id)
+    : objectQuery.eq('storage_path', storagePath)
+  const { data: object, error: objectError } = await objectQuery.maybeSingle()
+
+  if (objectError) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  if (!object && !options.doc.managed_object_id) {
+    const contentType = await getPrivateStorageContentType({
+      supabase,
+      bucket: TEST_DOCUMENTS_BUCKET,
+      path: storagePath,
+    })
+    if (contentType && isAllowedTestDocumentType(contentType)) {
+      const compatibilityResponse = await buildPublicStorageCompatibilityRedirect({
+        supabase,
+        bucket: TEST_DOCUMENTS_BUCKET,
+        path: storagePath,
+      })
+      if (compatibilityResponse) return compatibilityResponse
+    }
+  }
+
+  if (!object || object.storage_path !== storagePath
+    || object.status !== 'ready' || object.purpose !== 'teacher_test_material'
+    || object.classroom_id !== options.classroomId || object.provisional_owner_id !== null) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  const { data: reference, error: referenceError } = await supabase
+    .from('managed_storage_json_references')
+    .select('managed_object_id')
+    .eq('managed_object_id', object.id)
+    .eq('test_id', options.testId)
+    .maybeSingle()
+  if (referenceError || !reference) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  const contentType = await getPrivateStorageContentType({
+    supabase,
+    bucket: TEST_DOCUMENTS_BUCKET,
+    path: storagePath,
+    registeredContentType: object.content_type,
+  })
+  if (!contentType || !isAllowedTestDocumentType(contentType)) {
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+  }
+
+  return buildPrivateStorageRedirect({
+    supabase,
+    bucket: TEST_DOCUMENTS_BUCKET,
+    path: storagePath,
+  })
 }

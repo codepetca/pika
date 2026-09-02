@@ -1,31 +1,27 @@
-/**
- * Unit tests for auth utilities (src/lib/auth.ts)
- * Tests session management, authentication, and authorization
- */
-
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IronSession } from 'iron-session'
-import type { SessionData } from '@/types'
+import type { SessionData, UserRole } from '@/types'
 
-const workOSMocks = vi.hoisted(() => ({
-  withAuth: vi.fn(),
+const workOSMocks = vi.hoisted(() => ({ withAuth: vi.fn() }))
+const palMocks = vi.hoisted(() => ({ recordPalAuthenticatedSession: vi.fn() }))
+const databaseMocks = vi.hoisted(() => ({
+  deleteEq: vi.fn(),
+  rpc: vi.fn(),
+  maybeSingle: vi.fn(),
+  userVersionMaybeSingle: vi.fn(),
+  from: vi.fn(),
 }))
 
-const palMocks = vi.hoisted(() => ({
-  recordPalAuthenticatedSession: vi.fn(),
-}))
-
-vi.mock('@workos-inc/authkit-nextjs', () => ({
-  withAuth: workOSMocks.withAuth,
-}))
-
+vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth: workOSMocks.withAuth }))
 vi.mock('@/lib/server/pal-signals', () => ({
   recordPalAuthenticatedSession: palMocks.recordPalAuthenticatedSession,
 }))
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: vi.fn(() => ({ from: databaseMocks.from, rpc: databaseMocks.rpc })),
+}))
 
-// Mock iron-session
 const mockSession: Partial<IronSession<SessionData>> = {
-  user: undefined,
+  auth: undefined,
   save: vi.fn(),
   destroy: vi.fn(),
 }
@@ -33,35 +29,86 @@ const mockSession: Partial<IronSession<SessionData>> = {
 vi.mock('iron-session', () => ({
   getIronSession: vi.fn(() => Promise.resolve(mockSession)),
 }))
-
-// Mock next/headers
 vi.mock('next/headers', () => ({
   cookies: vi.fn(() => Promise.resolve(new Map())),
 }))
 
-// Import after mocks are set up
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import {
-  getSession,
+  AuthenticationError,
+  AuthorizationError,
   createSession,
   destroySession,
   getCurrentUser,
+  getSession,
+  isTeacherEmail,
   requireAuth,
   requireRole,
   requireSnapshotGalleryAccess,
-  isTeacherEmail,
-  AuthenticationError,
-  AuthorizationError,
 } from '@/lib/auth'
+
+function resolvedRow(args: {
+  id?: string
+  email?: string
+  role?: UserRole | string
+  authSource?: 'password' | 'workos'
+  workosUserId?: string | null
+} = {}) {
+  const id = args.id || 'user-1'
+  const workosUserId = args.workosUserId ?? null
+  return {
+    user_id: id,
+    auth_source: args.authSource || 'password',
+    workos_user_id: workosUserId,
+    credential_version: 1,
+    expires_at: '2027-01-01T00:00:00.000Z',
+    users: {
+      id,
+      email: args.email || 'student@example.com',
+      role: args.role || 'student',
+      workos_user_id: workosUserId,
+      auth_credential_version: 1,
+    },
+  }
+}
+
+function useSealedSession(row = resolvedRow()) {
+  mockSession.auth = { token: 'opaque-session-token', version: 3 }
+  databaseMocks.maybeSingle.mockResolvedValue({ data: row, error: null })
+}
 
 describe('auth utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
     workOSMocks.withAuth.mockResolvedValue({ user: null })
-    // Reset session user to undefined before each test
-    mockSession.user = undefined
+    mockSession.auth = undefined
+    databaseMocks.deleteEq.mockResolvedValue({ error: null })
+    databaseMocks.rpc.mockResolvedValue({ data: true, error: null })
+    databaseMocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+    databaseMocks.userVersionMaybeSingle.mockResolvedValue({
+      data: { auth_credential_version: 1 },
+      error: null,
+    })
+    databaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({ maybeSingle: databaseMocks.userVersionMaybeSingle })),
+          })),
+        }
+      }
+      expect(table).toBe('auth_sessions')
+      return {
+        delete: vi.fn(() => ({ eq: databaseMocks.deleteEq })),
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            gt: vi.fn(() => ({ maybeSingle: databaseMocks.maybeSingle })),
+          })),
+        })),
+      }
+    })
   })
 
   afterEach(() => {
@@ -69,717 +116,260 @@ describe('auth utilities', () => {
     vi.restoreAllMocks()
   })
 
-  // ==========================================================================
-  // getSession()
-  // ==========================================================================
+  it('uses a secure HttpOnly same-site cookie whose seal matches its 180-day lifetime', async () => {
+    await getSession()
+    expect(cookies).toHaveBeenCalledOnce()
+    expect(getIronSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        cookieName: 'pika_session',
+        ttl: 180 * 24 * 60 * 60 + 60,
+        cookieOptions: expect.objectContaining({
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: 180 * 24 * 60 * 60,
+        }),
+      }),
+    )
+  })
 
-  describe('getSession', () => {
-    it('should return a session object', async () => {
-      const session = await getSession()
-      expect(session).toBeDefined()
-      expect(getIronSession).toHaveBeenCalled()
+  it('persists only a hash server-side and only an opaque token in the sealed cookie', async () => {
+    await createSession('user-1', 'student@example.com', 'student', {
+      expectedCredentialVersion: 1,
     })
 
-    it('should call cookies() to get cookie store', async () => {
-      await getSession()
-      expect(cookies).toHaveBeenCalled()
+    expect(mockSession.auth).toEqual({
+      token: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+      version: 3,
+    })
+    expect(mockSession.auth).not.toHaveProperty('email')
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_user_id: 'user-1',
+        p_expected_credential_version: 1,
+        p_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        p_auth_source: 'password',
+        p_workos_user_id: null,
+        p_expires_at: expect.any(String),
+        p_previous_token_hash: null,
+      }),
+    )
+    expect(databaseMocks.rpc.mock.calls[0][1].p_token_hash).not.toBe(mockSession.auth?.token)
+    expect(mockSession.save).toHaveBeenCalledOnce()
+  })
+
+  it('requires the password flow to provide the credential version used for authentication', async () => {
+    await expect(createSession('user-1', 'student@example.com', 'student')).rejects.toThrow(
+      'Password session issuance requires a credential version',
+    )
+
+    expect(databaseMocks.rpc).not.toHaveBeenCalled()
+    expect(mockSession.save).not.toHaveBeenCalled()
+  })
+
+  it('binds WorkOS sessions server-side and can suppress restoration telemetry', async () => {
+    await createSession('user-1', 'student@example.com', 'student', {
+      workosUserId: 'user_workos_1',
+      recordAuthenticationEvent: false,
     })
 
-    it('should pass correct session options to getIronSession', async () => {
-      await getSession()
-      expect(getIronSession).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cookieName: 'pika_session',
-          cookieOptions: expect.objectContaining({
-            httpOnly: true,
-            sameSite: 'lax',
-          }),
-        })
-      )
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_auth_source: 'workos',
+        p_workos_user_id: 'user_workos_1',
+      }),
+    )
+    expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a WorkOS session cannot resolve the current credential version', async () => {
+    databaseMocks.userVersionMaybeSingle.mockResolvedValue({
+      data: null,
+      error: { message: 'unavailable' },
     })
 
-    it('keeps both the browser cookie and encrypted seal valid for 180 days', async () => {
-      await getSession()
-      const expectedMaxAge = 180 * 24 * 60 * 60 // 180 days in seconds = 15552000
-      expect(getIronSession).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          ttl: expectedMaxAge + 60,
-          cookieOptions: expect.objectContaining({
-            maxAge: expectedMaxAge,
-          }),
-        })
-      )
+    await expect(createSession('user-1', 'student@example.com', 'student', {
+      workosUserId: 'user_workos_1',
+    })).rejects.toThrow('Failed to create authentication session')
+
+    expect(databaseMocks.rpc).not.toHaveBeenCalled()
+    expect(mockSession.save).not.toHaveBeenCalled()
+  })
+
+  it('rotates the current server-side session before issuing a new one', async () => {
+    mockSession.auth = { token: 'previous-token', version: 3 }
+    await createSession('teacher-1', 'teacher@yrdsb.ca', 'teacher', {
+      expectedCredentialVersion: 1,
+    })
+
+    expect(databaseMocks.rpc).toHaveBeenCalledWith(
+      'issue_auth_session',
+      expect.objectContaining({
+        p_previous_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
+    )
+  })
+
+  it('fails closed when the credential version changed before atomic issuance', async () => {
+    databaseMocks.rpc.mockResolvedValue({ data: false, error: null })
+
+    await expect(createSession('user-1', 'student@example.com', 'student', {
+      expectedCredentialVersion: 1,
+    })).rejects.toThrow('Failed to create authentication session')
+    expect(mockSession.save).not.toHaveBeenCalled()
+  })
+
+  it('revokes the current server-side session during logout', async () => {
+    mockSession.auth = { token: 'current-token', version: 3 }
+    await destroySession()
+
+    expect(databaseMocks.deleteEq).toHaveBeenCalledOnce()
+    expect(mockSession.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('destroys a browser cookie without a server-side lookup when no current token exists', async () => {
+    await destroySession()
+
+    expect(databaseMocks.deleteEq).not.toHaveBeenCalled()
+    expect(mockSession.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('still destroys the browser cookie when server-side revocation fails', async () => {
+    mockSession.auth = { token: 'current-token', version: 3 }
+    databaseMocks.deleteEq.mockResolvedValue({ error: { message: 'unavailable' } })
+
+    await expect(destroySession()).rejects.toThrow('Failed to revoke authentication session')
+    expect(mockSession.destroy).toHaveBeenCalledOnce()
+  })
+
+  it('rejects legacy seals, missing rows, and database failures', async () => {
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    mockSession.auth = { token: 'current-token', version: 3 }
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    databaseMocks.maybeSingle.mockResolvedValue({ data: null, error: { message: 'unavailable' } })
+    await expect(getCurrentUser()).resolves.toBeNull()
+  })
+
+  it('returns current database identity and role rather than cookie-carried PII', async () => {
+    useSealedSession(resolvedRow({
+      id: 'teacher-1',
+      email: 'current-teacher@yrdsb.ca',
+      role: 'teacher',
+    }))
+
+    await expect(getCurrentUser()).resolves.toEqual({
+      id: 'teacher-1',
+      email: 'current-teacher@yrdsb.ca',
+      role: 'teacher',
+      authSource: 'password',
     })
   })
 
-  // ==========================================================================
-  // createSession()
-  // ==========================================================================
+  it('rejects invalid current roles and mismatched linked users', async () => {
+    useSealedSession(resolvedRow({ role: 'admin' }))
+    await expect(getCurrentUser()).resolves.toBeNull()
 
-  describe('createSession', () => {
-    it('should create session with correct user data', async () => {
-      await createSession('user-1', 'test@student.com', 'student')
+    const row = resolvedRow()
+    row.user_id = 'different-user'
+    useSealedSession(row)
+    await expect(getCurrentUser()).resolves.toBeNull()
 
-      expect(mockSession.user).toEqual({
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      })
-      expect(mockSession.save).toHaveBeenCalled()
-    })
-
-    it('should create session for teacher role', async () => {
-      await createSession('teacher-1', 'teacher@gapps.yrdsb.ca', 'teacher')
-
-      expect(mockSession.user).toEqual({
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      })
-      expect(mockSession.save).toHaveBeenCalled()
-    })
-
-    it('should save the session after setting user', async () => {
-      await createSession('user-1', 'test@student.com', 'student')
-      expect(mockSession.save).toHaveBeenCalledTimes(1)
-    })
-
-    it('binds a WorkOS compatibility session to the exact external subject', async () => {
-      await createSession('user-1', 'test@student.com', 'student', {
-        workosUserId: 'user_workos_1',
-      })
-
-      expect(mockSession.user).toEqual(expect.objectContaining({
-        version: 2,
-        authSource: 'workos',
-        workosUserId: 'user_workos_1',
-      }))
-    })
-
-    it('does not emit a student authentication event during silent restoration', async () => {
-      await createSession('user-1', 'test@student.com', 'student', {
-        workosUserId: 'user_workos_1',
-        recordAuthenticationEvent: false,
-      })
-
-      expect(mockSession.save).toHaveBeenCalledOnce()
-      expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
-    })
-
-    it('should overwrite existing session data', async () => {
-      // Set initial user
-      mockSession.user = {
-        id: 'old-user',
-        email: 'old@example.com',
-        role: 'student',
-      }
-
-      await createSession('new-user', 'new@example.com', 'teacher')
-
-      expect(mockSession.user).toEqual({
-        id: 'new-user',
-        email: 'new@example.com',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      })
-    })
+    const staleCredential = resolvedRow()
+    staleCredential.users.auth_credential_version = 2
+    useSealedSession(staleCredential)
+    await expect(getCurrentUser()).resolves.toBeNull()
   })
 
-  // ==========================================================================
-  // destroySession()
-  // ==========================================================================
-
-  describe('destroySession', () => {
-    it('should call destroy on session', async () => {
-      await destroySession()
-      expect(mockSession.destroy).toHaveBeenCalled()
+  it('requires an exact verified WorkOS subject, mapping, and normalized email', async () => {
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    useSealedSession(resolvedRow({
+      email: ' Student@Example.com ',
+      authSource: 'workos',
+      workosUserId: 'user_workos_1',
+    }))
+    workOSMocks.withAuth.mockResolvedValue({
+      user: { id: 'user_workos_1', email: 'student@example.com', emailVerified: true },
     })
+    await expect(getCurrentUser()).resolves.toEqual(expect.objectContaining({
+      authSource: 'workos',
+      workosUserId: 'user_workos_1',
+    }))
 
-    it('should destroy session even if user is not set', async () => {
-      mockSession.user = undefined
-      await destroySession()
-      expect(mockSession.destroy).toHaveBeenCalled()
+    workOSMocks.withAuth.mockResolvedValue({
+      user: { id: 'different', email: 'student@example.com', emailVerified: true },
     })
+    await expect(getCurrentUser()).resolves.toBeNull()
 
-    it('should destroy session with existing user', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-      }
-      await destroySession()
-      expect(mockSession.destroy).toHaveBeenCalled()
+    workOSMocks.withAuth.mockResolvedValue({ user: null })
+    await expect(getCurrentUser()).resolves.toBeNull()
+
+    workOSMocks.withAuth.mockResolvedValue({
+      user: { id: 'user_workos_1', email: 'different@example.com', emailVerified: true },
     })
+    await expect(getCurrentUser()).resolves.toBeNull()
   })
 
-  // ==========================================================================
-  // getCurrentUser()
-  // ==========================================================================
+  it('rejects WorkOS mappings when the pilot is disabled and password sessions when enabled', async () => {
+    useSealedSession(resolvedRow({ authSource: 'workos', workosUserId: 'user_workos_1' }))
+    await expect(getCurrentUser()).resolves.toBeNull()
 
-  describe('getCurrentUser', () => {
-    it('preserves password-origin sessions when the WorkOS pilot is disabled', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await getCurrentUser()
-      expect(user).toEqual({
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      })
-      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    useSealedSession(resolvedRow())
+    workOSMocks.withAuth.mockResolvedValue({
+      user: { id: 'user_workos_1', email: 'student@example.com', emailVerified: true },
     })
-
-    it('rejects WorkOS-bound mapping sessions when the pilot is disabled', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'workos',
-        workosUserId: 'user_workos_1',
-      }
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
-    })
-
-    it('rejects an ambiguous legacy session when the pilot is disabled', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-      }
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
-    })
-
-    it('should return null when session has no user', async () => {
-      mockSession.user = undefined
-
-      const user = await getCurrentUser()
-      expect(user).toBeNull()
-    })
-
-    it('should return null when session user is explicitly null', async () => {
-      mockSession.user = null as any
-
-      const user = await getCurrentUser()
-      expect(user).toBeNull()
-    })
-
-    it('should return correct user data for teacher', async () => {
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await getCurrentUser()
-      expect(user).toEqual({
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      })
-    })
-
-    it('requires a matching verified WorkOS session when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: ' 123456789@GAPPS.YRDSB.CA ',
-        role: 'student',
-        version: 2,
-        authSource: 'workos',
-        workosUserId: 'user_workos_1',
-      }
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_1',
-          email: '123456789@gapps.yrdsb.ca',
-          emailVerified: true,
-        },
-      })
-
-      await expect(getCurrentUser()).resolves.toEqual(mockSession.user)
-      expect(workOSMocks.withAuth).toHaveBeenCalledOnce()
-    })
-
-    it('rejects a WorkOS session whose subject does not match the Pika session binding', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: 'student@example.com',
-        role: 'student',
-        version: 2,
-        authSource: 'workos',
-        workosUserId: 'user_workos_1',
-      }
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_2',
-          email: 'student@example.com',
-          emailVerified: true,
-        },
-      })
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-    })
-
-    it('rejects a matching WorkOS subject whose normalized email differs', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: 'student@example.com',
-        role: 'student',
-        version: 2,
-        authSource: 'workos',
-        workosUserId: 'user_workos_1',
-      }
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_1',
-          email: 'different@example.com',
-          emailVerified: true,
-        },
-      })
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-    })
-
-    it('rejects an unbound legacy compatibility session when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: 'student@example.com',
-        role: 'student',
-      }
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_1',
-          email: 'student@example.com',
-          emailVerified: true,
-        },
-      })
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-    })
-
-    it('rejects a Pika-only compatibility cookie when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: '123456789@gapps.yrdsb.ca',
-        role: 'student',
-      }
-
-      await expect(getCurrentUser()).resolves.toBeNull()
-    })
-
-    it('rejects mismatched or unverified WorkOS identities when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
-      mockSession.user = {
-        id: 'student-1',
-        email: '123456789@gapps.yrdsb.ca',
-        role: 'student',
-      }
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_2',
-          email: 'different@gapps.yrdsb.ca',
-          emailVerified: true,
-        },
-      })
-      await expect(getCurrentUser()).resolves.toBeNull()
-
-      workOSMocks.withAuth.mockResolvedValue({
-        user: {
-          id: 'user_workos_1',
-          email: '123456789@gapps.yrdsb.ca',
-          emailVerified: false,
-        },
-      })
-      await expect(getCurrentUser()).resolves.toBeNull()
-    })
+    await expect(getCurrentUser()).resolves.toBeNull()
   })
 
-  // ==========================================================================
-  // requireAuth()
-  // ==========================================================================
+  it('enforces authentication and role authorization from the resolved database user', async () => {
+    await expect(requireAuth()).rejects.toThrow(AuthenticationError)
 
-  describe('requireAuth', () => {
-    it('should return user when authenticated', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireAuth()
-      expect(user).toEqual({
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      })
-    })
-
-    it('should throw "Unauthorized" when not authenticated', async () => {
-      mockSession.user = undefined
-
-      await expect(requireAuth()).rejects.toThrow(AuthenticationError)
-      await expect(requireAuth()).rejects.toThrow('Not authenticated')
-    })
-
-    it('should throw when session user is null', async () => {
-      mockSession.user = null as any
-
-      await expect(requireAuth()).rejects.toThrow(AuthenticationError)
-      await expect(requireAuth()).rejects.toThrow('Not authenticated')
-    })
-
-    it('should return correct user object structure', async () => {
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireAuth()
-      expect(user).toHaveProperty('id')
-      expect(user).toHaveProperty('email')
-      expect(user).toHaveProperty('role')
-    })
-
-    it('should preserve all session user fields', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireAuth()
-      expect(user.id).toBe('user-1')
-      expect(user.email).toBe('test@student.com')
-      expect(user.role).toBe('student')
-    })
+    useSealedSession(resolvedRow({ role: 'student' }))
+    await expect(requireRole('student')).resolves.toEqual(expect.objectContaining({ role: 'student' }))
+    await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
+    await expect(requireRole('teacher')).rejects.toThrow(/teacher role required/)
   })
 
-  // ==========================================================================
-  // requireRole()
-  // ==========================================================================
+  it('keeps the snapshot gallery teacher-only and disabled in production', async () => {
+    useSealedSession(resolvedRow({ role: 'teacher', email: 'teacher@yrdsb.ca' }))
+    vi.stubEnv('NODE_ENV', 'development')
+    await expect(requireSnapshotGalleryAccess()).resolves.toEqual(
+      expect.objectContaining({ role: 'teacher' }),
+    )
 
-  describe('requireRole', () => {
-    it('should return user when role matches (student)', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireRole('student')
-      expect(user).toEqual({
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      })
-    })
-
-    it('should return user when role matches (teacher)', async () => {
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireRole('teacher')
-      expect(user).toEqual({
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      })
-    })
-
-    it('should throw "Forbidden" when role does not match', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
-      await expect(requireRole('teacher')).rejects.toThrow('Forbidden')
-    })
-
-    it('should throw "Unauthorized" when not authenticated', async () => {
-      mockSession.user = undefined
-
-      await expect(requireRole('student')).rejects.toThrow(AuthenticationError)
-      await expect(requireRole('student')).rejects.toThrow('Not authenticated')
-    })
-
-    it('should include permission context in forbidden error message', async () => {
-      mockSession.user = {
-        id: 'user-1',
-        email: 'test@student.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
-      await expect(requireRole('teacher')).rejects.toThrow(/teacher role required/)
-    })
-
-    it('should throw when student tries to access teacher route', async () => {
-      mockSession.user = {
-        id: 'student-1',
-        email: 'student@example.com',
-        role: 'student',
-        version: 2,
-        authSource: 'password',
-      }
-
-      await expect(requireRole('teacher')).rejects.toThrow()
-    })
-
-    it('should throw when teacher tries to access student route', async () => {
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      await expect(requireRole('student')).rejects.toThrow()
-    })
+    vi.stubEnv('NODE_ENV', 'production')
+    await expect(requireSnapshotGalleryAccess()).rejects.toThrow(AuthorizationError)
   })
-
-  // ==========================================================================
-  // requireSnapshotGalleryAccess()
-  // ==========================================================================
-
-  describe('requireSnapshotGalleryAccess', () => {
-    afterEach(() => {
-      vi.unstubAllEnvs()
-    })
-
-    it('allows teacher access in non-production environments', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      const user = await requireSnapshotGalleryAccess()
-
-      expect(user).toEqual({
-        id: 'teacher-1',
-        email: 'teacher@yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      })
-    })
-
-    it('rejects all access in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      mockSession.user = {
-        id: 'teacher-1',
-        email: 'teacher@yrdsb.ca',
-        role: 'teacher',
-        version: 2,
-        authSource: 'password',
-      }
-
-      await expect(requireSnapshotGalleryAccess()).rejects.toThrow(AuthorizationError)
-      await expect(requireSnapshotGalleryAccess()).rejects.toThrow('Forbidden: snapshot gallery is disabled in production')
-    })
-  })
-
-  // ==========================================================================
-  // isTeacherEmail()
-  // ==========================================================================
 
   describe('isTeacherEmail', () => {
-    // Save original env
-    const originalEnv = process.env.DEV_TEACHER_EMAILS
-
-    afterEach(() => {
-      // Restore original env
-      process.env.DEV_TEACHER_EMAILS = originalEnv
+    it.each([
+      'teacher@yrdsb.ca',
+      'john.smith@gapps.yrdsb.ca',
+      'john123@gapps.yrdsb.ca',
+    ])('classifies alphabetic YRDSB identity %s as teacher', (email) => {
+      expect(isTeacherEmail(email)).toBe(true)
     })
 
-    // Rule 1: @yrdsb.ca with alphabetic local part → Teacher
-    it('should return true for @yrdsb.ca with alphabetic local part', () => {
-      expect(isTeacherEmail('teacher@yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('john.smith@yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('any.teacher@yrdsb.ca')).toBe(true)
+    it.each([
+      '123456789@yrdsb.ca',
+      '123456789@gapps.yrdsb.ca',
+      '000000001@gapps.yrdsb.ca',
+      'user@gmail.com',
+      'teacher@fakegapps.yrdsb.ca.evil.com',
+      'notanemail',
+    ])('does not elevate student or invalid identity %s', (email) => {
+      expect(isTeacherEmail(email)).toBe(false)
     })
 
-    // Rule 1: @yrdsb.ca with numeric-only local part → Student (CRITICAL)
-    it('should return false for @yrdsb.ca with numeric-only local part (students)', () => {
-      expect(isTeacherEmail('123456789@yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('987654321@yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('1@yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('000000000@yrdsb.ca')).toBe(false)
-    })
-
-    // Rule 1: @gapps.yrdsb.ca with alphabetic local part → Teacher
-    it('should return true for @gapps.yrdsb.ca with alphabetic local part', () => {
-      expect(isTeacherEmail('john.smith@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('john.h.smith@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('teacher@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('a.b.c@gapps.yrdsb.ca')).toBe(true)
-    })
-
-    // Rule 1: @gapps.yrdsb.ca with numeric-only local part → Student (CRITICAL)
-    it('should return false for @gapps.yrdsb.ca with numeric-only local part (students)', () => {
-      expect(isTeacherEmail('123456789@gapps.yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('987654321@gapps.yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('1@gapps.yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('000000000@gapps.yrdsb.ca')).toBe(false)
-    })
-
-    // Rule 1: Mixed alphanumeric → Teacher (both domains)
-    it('should return true for YRDSB domains with mixed alphanumeric', () => {
-      expect(isTeacherEmail('john123@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('123john@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('j123@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('john123@yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('teacher99@yrdsb.ca')).toBe(true)
-    })
-
-    // Rule 2: DEV_TEACHER_EMAILS
-    it('should return true for emails in DEV_TEACHER_EMAILS', () => {
-      process.env.DEV_TEACHER_EMAILS = 'dev@example.com,test@teacher.com'
-      expect(isTeacherEmail('dev@example.com')).toBe(true)
-      expect(isTeacherEmail('test@teacher.com')).toBe(true)
-    })
-
-    it('should handle whitespace in DEV_TEACHER_EMAILS', () => {
-      process.env.DEV_TEACHER_EMAILS = '  dev@example.com  , test@teacher.com  '
-      expect(isTeacherEmail('dev@example.com')).toBe(true)
-      expect(isTeacherEmail('test@teacher.com')).toBe(true)
-    })
-
-    it('should handle empty DEV_TEACHER_EMAILS env var', () => {
-      process.env.DEV_TEACHER_EMAILS = ''
-      expect(isTeacherEmail('dev@example.com')).toBe(false)
-    })
-
-    it('should handle undefined DEV_TEACHER_EMAILS env var', () => {
-      delete process.env.DEV_TEACHER_EMAILS
-      expect(isTeacherEmail('dev@example.com')).toBe(false)
-    })
-
-    // Case sensitivity and normalization
-    it('should be case insensitive', () => {
-      expect(isTeacherEmail('TEACHER@YRDSB.CA')).toBe(true)
-      expect(isTeacherEmail('John.Smith@GAPPS.YRDSB.CA')).toBe(true)
-      expect(isTeacherEmail('123456789@GAPPS.YRDSB.CA')).toBe(false)
-      expect(isTeacherEmail('123456789@YRDSB.CA')).toBe(false)
-    })
-
-    it('should handle leading/trailing whitespace', () => {
-      expect(isTeacherEmail('  teacher@yrdsb.ca  ')).toBe(true)
-      expect(isTeacherEmail(' john.smith@gapps.yrdsb.ca ')).toBe(true)
-      expect(isTeacherEmail(' 123456789@gapps.yrdsb.ca ')).toBe(false)
-      expect(isTeacherEmail(' 123456789@yrdsb.ca ')).toBe(false)
-    })
-
-    // Default: Student
-    it('should return false for unknown domains', () => {
-      expect(isTeacherEmail('user@gmail.com')).toBe(false)
-      expect(isTeacherEmail('admin@school.org')).toBe(false)
-      expect(isTeacherEmail('student@student.yrdsb.ca')).toBe(false)
-    })
-
-    // Edge cases
-    it('should handle invalid email formats', () => {
-      expect(isTeacherEmail('notanemail')).toBe(false)
-      expect(isTeacherEmail('@gapps.yrdsb.ca')).toBe(false)
-      expect(isTeacherEmail('teacher@')).toBe(false)
-      expect(isTeacherEmail('')).toBe(false)
-    })
-
-    it('should not match partial domain matches', () => {
-      expect(isTeacherEmail('teacher@fakegapps.yrdsb.ca.evil.com')).toBe(false)
-      expect(isTeacherEmail('teacher@notyrdsb.ca')).toBe(false)
-    })
-
-    // Security: Ensure students can't become teachers
-    it('SECURITY: should never classify numeric YRDSB emails as teacher', () => {
-      const studentEmails = [
-        '123456789@gapps.yrdsb.ca',
-        '000000001@gapps.yrdsb.ca',
-        '999999999@gapps.yrdsb.ca',
-        '1@gapps.yrdsb.ca',
-        '123456789@yrdsb.ca',
-        '000000001@yrdsb.ca',
-        '999999999@yrdsb.ca',
-        '1@yrdsb.ca',
-      ]
-
-      studentEmails.forEach(email => {
-        expect(isTeacherEmail(email)).toBe(false)
-      })
-    })
-
-    it('SECURITY: should correctly classify alphabetic YRDSB emails as teacher', () => {
-      const teacherEmails = [
-        'john.smith@gapps.yrdsb.ca',
-        'jane.doe@gapps.yrdsb.ca',
-        'a.b.c@gapps.yrdsb.ca',
-        'teacher@gapps.yrdsb.ca',
-        'john.smith@yrdsb.ca',
-        'jane.doe@yrdsb.ca',
-        'teacher@yrdsb.ca',
-      ]
-
-      teacherEmails.forEach(email => {
-        expect(isTeacherEmail(email)).toBe(true)
-      })
+    it('normalizes case/whitespace and supports exact development teachers', () => {
+      vi.stubEnv('DEV_TEACHER_EMAILS', ' dev@example.com ')
+      expect(isTeacherEmail(' TEACHER@YRDSB.CA ')).toBe(true)
+      expect(isTeacherEmail('DEV@example.com')).toBe(true)
+      expect(isTeacherEmail('other@example.com')).toBe(false)
     })
   })
 })

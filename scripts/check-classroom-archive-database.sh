@@ -64,10 +64,21 @@ declare
   v_counts jsonb;
   v_revision bigint;
   v_trigger_count integer;
+  v_expected_resource_count integer;
+  v_expected_trigger_count integer;
   v_claim record;
 begin
-  if (select count(*) from public.classroom_archive_resource_contract) <> 40 then
-    raise exception 'Expected 40 database archive-v2 resources';
+  v_expected_resource_count := case
+    when to_regclass('public.gradebook_categories') is null then 40
+    else 41
+  end;
+  v_expected_trigger_count := case
+    when to_regclass('public.gradebook_categories') is null then 39
+    else 40
+  end;
+  if (select count(*) from public.classroom_archive_resource_contract)
+      <> v_expected_resource_count then
+    raise exception 'Expected % database archive-v2 resources', v_expected_resource_count;
   end if;
   if not exists (
     select 1
@@ -85,8 +96,9 @@ begin
   where not trigger_definition.tgisinternal
     and relation_namespace.nspname = 'public'
     and trigger_definition.tgname like 'car_%';
-  if v_trigger_count <> 39 then
-    raise exception 'Expected 39 classroom descendant revision triggers, got %', v_trigger_count;
+  if v_trigger_count <> v_expected_trigger_count then
+    raise exception 'Expected % classroom descendant revision triggers, got %',
+      v_expected_trigger_count, v_trigger_count;
   end if;
 
   v_result := public.begin_classroom_archive_export_v2(

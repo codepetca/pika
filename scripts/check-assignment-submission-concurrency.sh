@@ -104,6 +104,9 @@ SQL
 docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
   psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   < "$ROOT/supabase/migrations/099_assignment_submission_integrity_guards.sql" >/dev/null
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/144_allow_acknowledged_missing_assignment_attachments.sql" >/dev/null
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 do $$
@@ -482,11 +485,129 @@ $$;
 SQL
 }
 
+run_artifact_delete_submit_race() {
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+update public.assignment_submission_requirements
+set required = true
+where id = '10000000-0000-4000-8000-000000000008';
+insert into public.assignment_submission_requirements (
+  id, assignment_id, type, label, required, position
+) values (
+  '10000000-0000-4000-8000-000000000031',
+  '10000000-0000-4000-8000-000000000004',
+  'image', 'Already confirmed missing image', true, 2
+);
+SQL
+
+  docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c "
+    set lock_timeout = '5s';
+    begin;
+    delete from public.assignment_submission_artifacts
+      where id = '10000000-0000-4000-8000-000000000009';
+    select pg_sleep(1);
+    commit;
+  " >/dev/null &
+  local delete_pid=$!
+
+  sleep 0.2
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set lock_timeout = '5s';
+do $$
+declare
+  v_revision timestamptz;
+begin
+  select updated_at into v_revision
+  from public.assignment_docs
+  where id = '10000000-0000-4000-8000-000000000005';
+  begin
+    perform public.submit_assignment_doc_atomic(
+      '10000000-0000-4000-8000-000000000004',
+      '10000000-0000-4000-8000-000000000002',
+      (select content from public.assignment_docs where id = '10000000-0000-4000-8000-000000000005'),
+      v_revision, 0, 0, array['10000000-0000-4000-8000-000000000031'::uuid]
+    );
+    raise exception 'Scoped acknowledgement accepted an artifact deleted by a concurrent transaction';
+  exception
+    when check_violation then
+      if sqlerrm not like '%assignment_submission_requirements_missing%' then
+        raise;
+      end if;
+  end;
+end;
+$$;
+SQL
+  local submit_pid=$!
+
+  wait "$delete_pid"
+  wait "$submit_pid"
+
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.assignment_submission_artifacts (
+  id, assignment_doc_id, requirement_id, student_id, type, url, validation_status
+) values (
+  '10000000-0000-4000-8000-000000000009', '10000000-0000-4000-8000-000000000005',
+  '10000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000002',
+  'link', 'https://example.invalid/restored', 'valid'
+);
+SQL
+}
+
+run_requirement_add_submit_race() {
+  docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c "
+    set lock_timeout = '5s';
+    begin;
+    insert into public.assignment_submission_requirements (
+      id, assignment_id, type, label, required, position
+    ) values (
+      '10000000-0000-4000-8000-000000000030',
+      '10000000-0000-4000-8000-000000000004',
+      'image', 'Concurrent image', true, 1
+    );
+    select pg_sleep(1);
+    commit;
+  " >/dev/null &
+  local requirement_pid=$!
+
+  sleep 0.2
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set lock_timeout = '5s';
+do $$
+declare
+  v_revision timestamptz;
+begin
+  select updated_at into v_revision
+  from public.assignment_docs
+  where id = '10000000-0000-4000-8000-000000000005';
+  begin
+    perform public.submit_assignment_doc_atomic(
+      '10000000-0000-4000-8000-000000000004',
+      '10000000-0000-4000-8000-000000000002',
+      (select content from public.assignment_docs where id = '10000000-0000-4000-8000-000000000005'),
+      v_revision, 0, 0, array['10000000-0000-4000-8000-000000000031'::uuid]
+    );
+    raise exception 'Scoped acknowledgement covered a requirement added by a concurrent transaction';
+  exception
+    when check_violation then
+      if sqlerrm not like '%assignment_submission_requirements_missing%' then
+        raise;
+      end if;
+  end;
+end;
+$$;
+SQL
+  local submit_pid=$!
+
+  wait "$requirement_pid"
+  wait "$submit_pid"
+}
+
 run_history_cleanup_race
 run_legacy_stale_snapshot_repair
 run_old_submit_new_requirement_rpc_race
 run_teacher_artifact_race
 run_old_replace_new_combined_race
 run_artifact_cleanup_lease_reenqueue_race
+run_artifact_delete_submit_race
+run_requirement_add_submit_race
 
 echo "Assignment submission concurrency checks passed in a disposable database."

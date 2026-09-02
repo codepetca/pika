@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,7 +40,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
-import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
+import { isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import {
@@ -175,6 +176,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
+  const [summaryReadyScopeKey, setSummaryReadyScopeKey] = useState<string | null>(null)
   const { columnWidths, setColumnWidth } = useTableColumnWidths({
     storageKey: 'teacher-daily:v1',
     columns: COLUMN_LIMITS,
@@ -186,10 +188,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     setToday(currentToday)
     return currentToday
   }, [])
-  const lastClassDate = useMemo(
-    () => getMostRecentClassDayBefore(classDays, today),
-    [classDays, today]
-  )
   const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -206,6 +204,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     isActive,
     visibleStudentIds,
   })
+  const showAttendanceSelection = attendanceEnabled && attendance.canMark
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
   const hoursActionLabel = hours.label
@@ -260,13 +259,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     onSelectEntryRef.current?.(null, '', null)
   }, [classroom.id])
 
-  // Set initial date once class days are loaded from context
+  // A fresh Daily view starts on Toronto today. Once initialized, explicit
+  // teacher navigation remains selected for the lifetime of the mounted tab.
   useEffect(() => {
     if (classDaysLoading || (classDaysError && !hasClassDaysSnapshot)) return
     if (selectedDate) return // Already initialized
-    setSelectedDate(lastClassDate || addDaysToDateString(today, -1))
+    setSelectedDate(today)
     // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
-  }, [classDaysError, classDaysLoading, hasClassDaysSnapshot, lastClassDate, selectedDate, today])
+  }, [classDaysError, classDaysLoading, hasClassDaysSnapshot, selectedDate, today])
 
   useEffect(() => {
     function handleVisibilityChange() {
@@ -581,6 +581,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
+  const summaryScopeKey = `${classroom.id}:${selectedDate}`
+  const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
+
+  useLayoutEffect(() => {
+    setSummaryReadyScopeKey(null)
+  }, [summaryScopeKey])
+
+  const handleSummaryAvailabilityChange = useCallback((available: boolean) => {
+    setSummaryReadyScopeKey((currentScopeKey) => {
+      if (available) return summaryScopeKey
+      return currentScopeKey === summaryScopeKey ? null : currentScopeKey
+    })
+  }, [summaryScopeKey])
 
   const handleSummaryPanelDoubleClick = useCallback(() => {
     setSummaryPanelCollapsed((collapsed) => {
@@ -748,6 +761,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 className={cn(
                   'h-9 w-fit max-w-full justify-start whitespace-nowrap px-2.5 text-left tabular-nums text-text-muted hover:text-text-default',
                   !hours.label && 'w-9 justify-center px-0',
+                  hours.label && 'bg-page',
+                  hours.label
+                    && attendance.attendanceReady
+                    && attendance.sessionState === 'open'
+                    && !attendance.hasUnconfirmedView
+                    && !attendance.sessionPending
+                    && attendance.view?.sync.state !== 'pending'
+                    && 'bg-success-bg text-success hover:bg-success-bg-hover hover:text-success',
                 )}
                 aria-label={hoursActionLabel}
                 disabled={Boolean(attendance.activeCommand)}
@@ -776,6 +797,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           <DateNavigator
             label={selectedDateLabel}
             subtitle={showRelativeDate ? relativeDateLabel : null}
+            reserveSubtitleSpace
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -834,7 +856,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               </Button>
             </Tooltip>
           ) : null}
-          {attendance.attendanceReady ? (
+          {showAttendanceSelection ? (
             <TeacherWorkSurfaceMenuButton
               label={(
                 <span className="inline-flex items-center gap-1.5">
@@ -878,7 +900,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   )
 
   function renderStudentTable(showLogColumn: boolean) {
-    const visibleColumnCount = 3 + (showIdColumn ? 1 : 0) + (attendanceEnabled ? 3 : 0)
+    const visibleColumnCount = 3
+      + (showIdColumn ? 1 : 0)
+      + (attendanceEnabled ? 2 : 0)
+      + (showAttendanceSelection ? 1 : 0)
 
     return (
       <KeyboardNavigableTable
@@ -896,7 +921,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           )}
           <DataTable className="table-fixed">
             <colgroup>
-              {attendanceEnabled ? <col className="w-10" /> : null}
+              {showAttendanceSelection ? <col className="w-10" /> : null}
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
               {showIdColumn ? (
@@ -916,13 +941,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </colgroup>
             <DataTableHead sticky className="bg-surface-3">
               <DataTableRow>
-                {attendanceEnabled ? (
+                {showAttendanceSelection ? (
                   <TableSelectionHeaderCell
                     checked={attendance.allSelected}
                     indeterminate={attendance.someSelected}
                     onChange={attendance.toggleSelectAll}
                     ariaLabel="Select all students"
-                    disabled={!attendance.canMark || Boolean(attendance.activeCommand)
+                    disabled={Boolean(attendance.activeCommand)
                       || attendance.pendingStudentIds.size > 0 || attendance.students.length === 0}
                   />
                 ) : null}
@@ -1074,7 +1099,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
-                    {attendanceEnabled ? (
+                    {showAttendanceSelection ? (
                       <TableSelectionCell
                         checked={attendanceSelected}
                         onChange={() => attendance.toggleSelect(row.student_id)}
@@ -1328,11 +1353,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             role="region"
             aria-label="Class Log Summary"
             data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
-            className={
+            hidden={!summaryPanelVisible}
+            className={cn(
               summaryPanelCollapsed
                 ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface'
-                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
-            }
+                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
+              !summaryPanelVisible && '!hidden',
+            )}
             style={{ height: `${summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
             onDoubleClick={handleSummaryPanelDoubleClick}
           >
@@ -1356,21 +1383,21 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               {summaryPanelCollapsed ? <span>Log Summary</span> : null}
             </div>
             {!summaryPanelCollapsed && (
-              <>
-                <div className="flex items-center px-3 pt-3">
-                  <h3 className="truncate text-sm font-semibold text-text-default">
-                    Class Log Summary
-                  </h3>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <LogSummary
-                    classroomId={classroom.id}
-                    date={selectedDate}
-                    onStudentClick={selectStudentByName}
-                  />
-                </div>
-              </>
+              <div className="flex items-center px-3 pt-3">
+                <h3 className="truncate text-sm font-semibold text-text-default">
+                  Class Log Summary
+                </h3>
+              </div>
             )}
+            <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
+              <LogSummary
+                key={summaryScopeKey}
+                classroomId={classroom.id}
+                date={selectedDate}
+                onStudentClick={selectStudentByName}
+                onAvailabilityChange={handleSummaryAvailabilityChange}
+              />
+            </div>
           </section>
         )}
       </div>
@@ -1444,7 +1471,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         summary={null}
         workspace={workspace}
         workspaceFrame="standalone"
-        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+        workspaceFrameClassName="min-h-[360px] rounded-none border-0 bg-page"
       />
       <ContentDialog
         isOpen={attendance.qrOpen}

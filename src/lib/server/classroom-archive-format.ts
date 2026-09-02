@@ -620,6 +620,10 @@ export function decodeClassroomArchiveData(
   for (const resource of contract.resources) {
     const descriptor = verified.manifest.resources.find((item) => item.table === resource.table)
     const bytes = descriptor ? verified.files.get(descriptor.path) : undefined
+    if (!descriptor && verified.manifest.version === 2 && resource.table === 'gradebook_categories') {
+      resources[resource.table] = []
+      continue
+    }
     if (!descriptor || !bytes) throw new Error(`Archive resource is missing: ${resource.table}`)
     const rows = parseAndValidateNdjson(bytes, undefined, {
       allowLegacyV1Canonicalization,
@@ -727,6 +731,19 @@ function collectManagedUrls(
     return
   }
   if (isJsonObject(value)) {
+    if (
+      typeof value.storage_bucket === 'string'
+      && typeof value.storage_path === 'string'
+      && allowedBuckets.has(value.storage_bucket as ManagedSourceBucket)
+    ) {
+      const path = normalizeRelativePath(value.storage_path)
+      if (path) {
+        push({
+          bucket: value.storage_bucket as ManagedSourceBucket,
+          path,
+        })
+      }
+    }
     for (const [childKey, item] of Object.entries(value)) {
       collectManagedUrls(
         item,

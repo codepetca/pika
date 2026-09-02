@@ -5,6 +5,7 @@ import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { createPasswordSchema } from '@/lib/validations/auth'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 
 export const POST = withErrorHandler('CreatePassword', async (request: NextRequest) => {
   requireLegacyPasswordAuth()
@@ -12,25 +13,35 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
 
   const supabase = getServiceRoleClient()
 
+  await consumeAuthRequestRateLimits({
+    action: 'signup_confirm',
+    request,
+    identifier: normalizedEmail,
+    identifierMaxAttempts: 5,
+    clientMaxAttempts: 30,
+    windowSeconds: 10 * 60,
+    supabase,
+  })
+
   // Find user by email
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email, role, email_verified_at, password_hash')
+    .select('id, email, role, email_verified_at, password_hash, auth_credential_version')
     .eq('email', normalizedEmail)
     .single()
 
   if (userError || !user) {
-    throw new ApiError(404, 'User not found')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   // Check if user already has a password
   if (user.password_hash) {
-    throw new ApiError(400, 'This account already has a password')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   // Check if email is verified
   if (!user.email_verified_at) {
-    throw new ApiError(400, 'Email must be verified before creating a password')
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
   }
 
   const now = new Date().toISOString()
@@ -69,7 +80,9 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
   }
 
   // Create session
-  await createSession(user.id, user.email, user.role)
+  await createSession(user.id, user.email, user.role, {
+    expectedCredentialVersion: user.auth_credential_version,
+  })
 
   const redirectUrl = '/classrooms'
 

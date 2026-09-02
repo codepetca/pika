@@ -14,6 +14,7 @@ import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'luc
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
+  GradebookCategory,
   Classroom,
   GradebookStudentSummary,
 } from '@/types'
@@ -55,6 +56,10 @@ import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sor
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import {
+  GradebookAssessmentDialog,
+  GradebookEditorDialog,
+} from '@/components/gradebook/GradebookDialogs'
 
 type GradebookSection = 'grades' | 'settings'
 type ScoreDisplayMode = 'percent' | 'raw'
@@ -65,6 +70,8 @@ type GradebookSummaryRow = 'average' | 'median'
 
 interface GradebookPayload {
   assessment_columns?: GradebookAssessmentColumn[]
+  categories?: GradebookCategory[]
+  category_schema_available?: boolean
   students: GradebookStudentSummary[]
 }
 
@@ -628,6 +635,7 @@ function AssessmentMatrixTable({
   onSummaryRowVisibleChange,
   onAssessmentWeightDraftChange,
   onAssessmentWeightCommit,
+  onAssessmentOpen,
   selectedIds,
   allSelected,
   someSelected,
@@ -661,6 +669,7 @@ function AssessmentMatrixTable({
   onSummaryRowVisibleChange: (row: GradebookSummaryRow, visible: boolean) => void
   onAssessmentWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
   onAssessmentWeightCommit: (column: GradebookAssessmentColumn) => void
+  onAssessmentOpen: (column: GradebookAssessmentColumn) => void
   selectedIds: Set<string>
   allSelected: boolean
   someSelected: boolean
@@ -913,26 +922,37 @@ function AssessmentMatrixTable({
                     ].join(' ')}
                 >
                   <div className="flex flex-col items-center">
-                    <Tooltip content={column.title} side="bottom">
-                      <span
-                        tabIndex={0}
+                    <Tooltip content={`${column.title} · ${column.category_name ?? 'Uncategorized'}`} side="bottom">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => onAssessmentOpen(column)}
+                        disabled={editMode || isReadOnly}
                         className={[
-                          'inline-flex min-h-10 min-w-12 flex-col items-center justify-center rounded-sm px-1.5 py-0.5 font-normal tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                          'flex-col px-1.5 py-0.5 font-normal tabular-nums disabled:cursor-default',
                           column.is_draft || !column.include_in_final
                             ? 'text-text-muted'
                             : 'text-text-default',
                           hidden ? 'text-text-muted' : '',
                         ].join(' ')}
                         aria-label={[
-                          `${column.code}: ${column.title}`,
+                          `Edit ${column.code}: ${column.title}`,
+                          `Category ${column.category_name ?? 'Uncategorized'}`,
                           column.due_at ? `Due ${formatTorontoDateShort(column.due_at)}` : null,
                         ].filter(Boolean).join(', ')}
                       >
-                        <span>{column.code}</span>
+                        <span className="max-w-24 truncate font-medium">{column.title}</span>
                         <span className="mt-0.5 min-h-3 text-[10px] font-normal leading-none text-text-muted">
-                          {!hidden && column.due_at ? formatTorontoDateShort(column.due_at) : ''}
+                          <span>{column.code}</span>
+                          {!hidden && column.due_at ? (
+                            <>
+                              {' · '}
+                              <span>{formatTorontoDateShort(column.due_at)}</span>
+                            </>
+                          ) : null}
                         </span>
-                      </span>
+                      </Button>
                     </Tooltip>
                   </div>
                 </DataTableHeaderCell>
@@ -1243,12 +1263,17 @@ export function TeacherGradebookTab({
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
+  const [categories, setCategories] = useState<GradebookCategory[]>([])
+  const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
+  const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
+  const [dialogSaving, setDialogSaving] = useState(false)
+  const [dialogError, setDialogError] = useState('')
   const [students, setStudents] = useState<GradebookStudentSummary[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [detailPaneWidth, setDetailPaneWidth] = useState(32)
   const loadRequestIdRef = useRef(0)
-  const assessmentSaveSequenceRef = useRef(0)
-  const assessmentSaveRequestIdsRef = useRef<Map<string, number>>(new Map())
+  const assessmentSaveChainsRef = useRef<Map<string, Promise<void>>>(new Map())
+  const dialogSaveSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -1362,6 +1387,7 @@ export function TeacherGradebookTab({
         weight: Number(column.weight || ASSESSMENT_WEIGHT_DEFAULT),
       }))
       setAssessmentColumns(columnsWithWeights)
+      setCategories(data.categories || [])
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -1380,6 +1406,7 @@ export function TeacherGradebookTab({
       ) return
       if (!options?.preserveSnapshot) {
         setAssessmentColumns([])
+        setCategories([])
         setAssessmentWeightDrafts({})
         setStudents([])
         setLoadedClassroomId(null)
@@ -1398,9 +1425,10 @@ export function TeacherGradebookTab({
 
   useEffect(() => {
     loadRequestIdRef.current += 1
-    assessmentSaveSequenceRef.current += 1
-    assessmentSaveRequestIdsRef.current = new Map()
+    dialogSaveSequenceRef.current += 1
+    assessmentSaveChainsRef.current = new Map()
     setAssessmentColumns([])
+    setCategories([])
     setAssessmentWeightDrafts({})
     setStudents([])
     setLoadedClassroomId(null)
@@ -1408,6 +1436,10 @@ export function TeacherGradebookTab({
     setActionError('')
     setIsRetrying(false)
     setSavingAssessmentKeys(new Set())
+    setGradebookEditorOpen(false)
+    setSelectedAssessment(null)
+    setDialogSaving(false)
+    setDialogError('')
     setSelectedStudentId(null)
     retryFocusIntentRef.current = false
     void loadGradebook()
@@ -1557,7 +1589,6 @@ export function TeacherGradebookTab({
     if (isReadOnly) return
 
     const key = getAssessmentColumnKey(column)
-    if (savingAssessmentKeys.has(key)) return
     const rawValue = assessmentWeightDrafts[key] ?? String(column.weight)
     const nextWeight = Number(rawValue)
 
@@ -1574,58 +1605,153 @@ export function TeacherGradebookTab({
     if (nextWeight === column.weight) return
 
     const classroomId = classroom.id
-    const requestId = assessmentSaveSequenceRef.current + 1
-    assessmentSaveSequenceRef.current = requestId
-    assessmentSaveRequestIdsRef.current.set(key, requestId)
     setSavingAssessmentKeys((previous) => new Set(previous).add(key))
     setActionError('')
-    try {
-      const response = await fetch('/api/teacher/gradebook', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroomId,
-          assessment_type: column.assessment_type,
-          assessment_id: column.assessment_id,
-          gradebook_weight: nextWeight,
-        }),
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save assessment weight')
-      }
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) !== requestId
-        || currentClassroomIdRef.current !== classroomId
-      ) return
+    const previousSave = assessmentSaveChainsRef.current.get(key) ?? Promise.resolve()
+    let queuedSave: Promise<void>
+    queuedSave = previousSave.catch(() => undefined).then(async () => {
+      try {
+        const response = await fetch('/api/teacher/gradebook', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classroom_id: classroomId,
+            assessment_type: column.assessment_type,
+            assessment_id: column.assessment_id,
+            gradebook_weight: nextWeight,
+          }),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to save assessment weight')
+        }
+        if (currentClassroomIdRef.current !== classroomId) return
 
-      setAssessmentColumns((previous) => previous.map((assessmentColumn) => (
-        getAssessmentColumnKey(assessmentColumn) === key
-          ? { ...assessmentColumn, weight: nextWeight }
-          : assessmentColumn
-      )))
-      setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
-      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
-      await loadGradebook({ preserveSnapshot: true })
-    } catch (err: unknown) {
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) !== requestId
-        || currentClassroomIdRef.current !== classroomId
-      ) return
-      setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
-      setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
-    } finally {
-      if (
-        assessmentSaveRequestIdsRef.current.get(key) === requestId
-        && currentClassroomIdRef.current === classroomId
-      ) {
-        assessmentSaveRequestIdsRef.current.delete(key)
+        setAssessmentColumns((previous) => previous.map((assessmentColumn) => (
+          getAssessmentColumnKey(assessmentColumn) === key
+            ? { ...assessmentColumn, weight: nextWeight }
+            : assessmentColumn
+        )))
+        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
+        invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+        await loadGradebook({ preserveSnapshot: true })
+      } catch (err: unknown) {
+        if (currentClassroomIdRef.current !== classroomId) return
+        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
+        setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
+      }
+    }).finally(() => {
+      if (assessmentSaveChainsRef.current.get(key) === queuedSave) {
+        assessmentSaveChainsRef.current.delete(key)
         setSavingAssessmentKeys((previous) => {
           const next = new Set(previous)
           next.delete(key)
           return next
         })
       }
+    })
+    assessmentSaveChainsRef.current.set(key, queuedSave)
+    await queuedSave
+  }
+
+  async function saveGradebookCategories(nextCategories: GradebookCategory[]) {
+    if (isReadOnly || dialogSaving) return
+    const classroomId = classroom.id
+    const requestId = dialogSaveSequenceRef.current + 1
+    dialogSaveSequenceRef.current = requestId
+    setDialogSaving(true)
+    setDialogError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroomId,
+          categories: nextCategories.map((category) => ({
+            id: category.id,
+            name: category.name,
+            percentage: category.percentage,
+            default_assessment_weight: category.default_assessment_weight,
+            is_default: category.is_default,
+          })),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to save gradebook categories')
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+
+      setCategories(data.categories || nextCategories)
+      setGradebookEditorOpen(false)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      showMessage({ text: 'Gradebook categories saved', tone: 'success' })
+    } catch (error: unknown) {
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      setDialogError(error instanceof Error ? error.message : 'Failed to save gradebook categories')
+    } finally {
+      if (
+        dialogSaveSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) setDialogSaving(false)
+    }
+  }
+
+  async function saveAssessmentDetails(categoryId: string | null, weight: number) {
+    if (!selectedAssessment || isReadOnly || dialogSaving) return
+    const classroomId = classroom.id
+    const assessment = selectedAssessment
+    const requestId = dialogSaveSequenceRef.current + 1
+    dialogSaveSequenceRef.current = requestId
+    setDialogSaving(true)
+    setDialogError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroomId,
+          assessment_type: assessment.assessment_type,
+          assessment_id: assessment.assessment_id,
+          gradebook_category_id: categoryId,
+          gradebook_weight: weight,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to save assessment details')
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+
+      setSelectedAssessment(null)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      showMessage({ text: 'Assessment details saved', tone: 'success' })
+    } catch (error: unknown) {
+      if (
+        dialogSaveSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      setDialogError(error instanceof Error ? error.message : 'Failed to save assessment details')
+    } finally {
+      if (
+        dialogSaveSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) setDialogSaving(false)
     }
   }
 
@@ -1671,6 +1797,17 @@ export function TeacherGradebookTab({
   const gradebookActionOptions: TeacherWorkSurfaceActionItem[] = [
     ...scoreDisplayOptions,
     {
+      id: 'edit-gradebook',
+      label: 'Edit gradebook',
+      icon: <Settings className="h-4 w-4" aria-hidden="true" />,
+      disabled: isReadOnly,
+      onSelect: () => {
+        setDialogError('')
+        setGradebookEditorOpen(true)
+      },
+      dividerBefore: true,
+    },
+    {
       id: 'column-controls',
       label: (
         <span className="inline-flex items-center gap-2 whitespace-nowrap">
@@ -1680,7 +1817,6 @@ export function TeacherGradebookTab({
       ),
       checked: isSettingsActive,
       onSelect: () => handleSettingsActiveChange(!isSettingsActive),
-      dividerBefore: true,
     },
     ...(selectedStudentEmails.length > 0
       ? selectedEmailOptions.map((option, index) => ({
@@ -1754,6 +1890,10 @@ export function TeacherGradebookTab({
         onSummaryRowVisibleChange={handleSummaryRowVisibleChange}
         onAssessmentWeightDraftChange={handleAssessmentWeightDraftChange}
         onAssessmentWeightCommit={handleAssessmentWeightCommit}
+        onAssessmentOpen={(column) => {
+          setDialogError('')
+          setSelectedAssessment(column)
+        }}
         selectedIds={selectedIds}
         allSelected={allSelected}
         someSelected={someSelected}
@@ -1834,20 +1974,48 @@ export function TeacherGradebookTab({
   )
 
   return (
-    <TeacherWorkSurfaceShell
-      state="workspace"
-      workspaceFrame="standalone"
-      primary={actionBar}
-      feedback={
-        actionError ? (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {actionError}
-          </div>
-        ) : null
-      }
-      summary={null}
-      workspace={gradesWorkspace}
-      workspaceFrameClassName="min-h-[360px] border-0 bg-page"
-    />
+    <>
+      <TeacherWorkSurfaceShell
+        state="workspace"
+        workspaceFrame="standalone"
+        primary={actionBar}
+        feedback={
+          actionError ? (
+            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {actionError}
+            </div>
+          ) : null
+        }
+        summary={null}
+        workspace={gradesWorkspace}
+        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+      />
+      <GradebookEditorDialog
+        isOpen={gradebookEditorOpen}
+        categories={categories}
+        isSaving={dialogSaving}
+        error={dialogError}
+        onClose={() => {
+          if (dialogSaving) return
+          setGradebookEditorOpen(false)
+          setDialogError('')
+        }}
+        onSave={saveGradebookCategories}
+      />
+      <GradebookAssessmentDialog
+        isOpen={Boolean(selectedAssessment)}
+        assessment={selectedAssessment}
+        assessments={assessmentColumns}
+        categories={categories}
+        isSaving={dialogSaving}
+        error={dialogError}
+        onClose={() => {
+          if (dialogSaving) return
+          setSelectedAssessment(null)
+          setDialogError('')
+        }}
+        onSave={saveAssessmentDetails}
+      />
+    </>
   )
 }

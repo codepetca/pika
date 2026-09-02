@@ -52,9 +52,12 @@ describe('crypto utilities', () => {
       expect(code).toMatch(/^[A-Z0-9]{5}$/)
     })
 
-    it('should use Math.random to choose characters', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0)
-      expect(generateVerificationCode()).toBe('AAAAA')
+    it('does not use Math.random for security-sensitive code generation', () => {
+      const randomSpy = vi.spyOn(Math, 'random')
+      const codes = Array.from({ length: 20 }, () => generateVerificationCode())
+
+      expect(randomSpy).not.toHaveBeenCalled()
+      expect(codes.every(code => /^[A-HJ-NP-Z2-9]{5}$/.test(code))).toBe(true)
     })
   })
 

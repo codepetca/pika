@@ -16,6 +16,11 @@ function gradebookResponse() {
       assignments_weight: 50,
       tests_weight: 30,
     },
+    categories: [
+      { id: '10000000-0000-4000-8000-000000000001', name: 'Attendance', percentage: 10, default_assessment_weight: 10, position: 0, is_default: false },
+      { id: '10000000-0000-4000-8000-000000000002', name: 'Term', percentage: 65, default_assessment_weight: 10, position: 1, is_default: true },
+      { id: '10000000-0000-4000-8000-000000000003', name: 'Final', percentage: 25, default_assessment_weight: 10, position: 2, is_default: false },
+    ],
     assessment_columns: [
       {
         assessment_id: 'assignment-1',
@@ -25,6 +30,10 @@ function gradebookResponse() {
         possible: 10,
         weight: 10,
         include_in_final: true,
+        category_id: '10000000-0000-4000-8000-000000000002',
+        category_name: 'Term',
+        category_percentage: 65,
+        exact_course_weight: 32.5,
         due_at: '2025-01-01T12:00:00.000Z',
         is_draft: false,
       },
@@ -36,6 +45,10 @@ function gradebookResponse() {
         possible: 10,
         weight: 10,
         include_in_final: true,
+        category_id: '10000000-0000-4000-8000-000000000002',
+        category_name: 'Term',
+        category_percentage: 65,
+        exact_course_weight: 32.5,
         status: 'closed',
       },
     ],
@@ -165,6 +178,26 @@ describe('TeacherGradebookTab', () => {
     const menu = openGradebookActions()
     fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: 'Column controls' }))
   }
+
+  it('opens gradebook categories and assessment course-weight details', async () => {
+    renderGradebook('grades')
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+
+    let menu = openGradebookActions()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Edit gradebook' }))
+    expect(screen.getByRole('heading', { name: 'Edit gradebook' })).toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Attendance')
+    expect(screen.getByText('Total:')).toBeInTheDocument()
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Default' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit A1: Essay/ }))
+    expect(screen.getByRole('heading', { name: 'Essay' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveValue('10000000-0000-4000-8000-000000000002')
+    expect(screen.getByText('65%')).toBeInTheDocument()
+    expect(screen.getByText('32.5%')).toBeInTheDocument()
+  })
 
   it('renders the assessment matrix and delegates settings navigation', async () => {
     const onSectionChange = vi.fn()
@@ -521,6 +554,60 @@ describe('TeacherGradebookTab', () => {
     await waitFor(() => expect(gradebookReads).toBe(3))
     expect(screen.getByRole('spinbutton', { name: 'A1 assessment weight' })).toHaveValue(20)
     expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
+  })
+
+  it('serializes rapid saves for the same assessment so the newest weight persists', async () => {
+    let persistedWeight = 10
+    let resolveFirstSave: (() => void) | null = null
+    const patchWeights: number[] = []
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { gradebook_weight: number }
+        patchWeights.push(body.gradebook_weight)
+        if (patchWeights.length === 1) {
+          return new Promise((resolve) => {
+            resolveFirstSave = () => {
+              persistedWeight = body.gradebook_weight
+              resolve({ ok: true, json: async () => ({}) })
+            }
+          })
+        }
+        persistedWeight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => ({
+          ...column,
+          weight: column.assessment_id === 'assignment-1' ? persistedWeight : column.weight,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    renderGradebook('settings')
+    let input = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    fireEvent.change(input, { target: { value: '20' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(resolveFirstSave).toEqual(expect.any(Function)))
+
+    input = screen.getByRole('spinbutton', { name: 'A1 assessment weight' })
+    input.removeAttribute('disabled')
+    fireEvent.change(input, { target: { value: '30' } })
+    fireEvent.blur(input)
+    expect(patchWeights).toEqual([20])
+
+    await act(async () => {
+      resolveFirstSave?.()
+    })
+
+    await waitFor(() => expect(patchWeights).toEqual([20, 30]))
+    await waitFor(() => {
+      expect(screen.getByRole('spinbutton', { name: 'A1 assessment weight' })).toHaveValue(30)
+    })
+    expect(persistedWeight).toBe(30)
   })
 
   it('ignores a stale classroom response after the classroom changes', async () => {

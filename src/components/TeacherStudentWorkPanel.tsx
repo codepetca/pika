@@ -129,8 +129,6 @@ function RequiredSubmissionsList({
       renderedRequirementIds.add(item.requirement.id)
       return [renderSubmittedArtifactCard(artifact, item.requirement.id)]
     }
-    if (!item.requirement.required) return []
-
     renderedRequirementIds.add(item.requirement.id)
     return [
       <div
@@ -206,7 +204,7 @@ function RequiredSubmissionsList({
   return (
     <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-        Required submissions
+        Attachments
       </h3>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {cards}

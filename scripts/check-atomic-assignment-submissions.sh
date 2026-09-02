@@ -16,6 +16,7 @@ fi
 {
   printf 'begin;\n'
   sed 's/^/ /' "$ROOT/supabase/migrations/099_assignment_submission_integrity_guards.sql"
+  sed 's/^/ /' "$ROOT/supabase/migrations/144_allow_acknowledged_missing_assignment_attachments.sql"
   cat <<'SQL'
 
 create temporary table assignment_integrity_ids (
@@ -62,6 +63,9 @@ begin
   foreach v_function in array array[
     'public.save_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,text,integer,integer,jsonb,jsonb,integer,integer,uuid,bigint,uuid)',
     'public.submit_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer)',
+    'public.submit_assignment_doc_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,uuid[])',
+    'public.submit_assignment_doc_with_pal_event_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,jsonb)',
+    'public.submit_assignment_doc_with_pal_event_atomic(uuid,uuid,jsonb,timestamp with time zone,integer,integer,jsonb,uuid[])',
     'public.unsubmit_assignment_doc_atomic(uuid,uuid)',
     'public.delete_assignment_submission_artifact_atomic(uuid,uuid,uuid)',
     'public.claim_assignment_artifact_storage_cleanup(uuid,integer,integer)',
@@ -495,6 +499,8 @@ do $$
 declare
   v_ids assignment_integrity_ids%rowtype;
   v_revision timestamptz;
+  v_result jsonb;
+  v_bad_acknowledgement uuid[];
 begin
   select * into v_ids from assignment_integrity_ids;
   select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
@@ -504,7 +510,121 @@ begin
       (select content from public.assignment_docs where id = v_ids.doc_id),
       v_revision, 1, 6
     );
-    raise exception 'Submission without its required artifact unexpectedly succeeded';
+    raise exception 'Strict legacy submission unexpectedly accepted a missing attachment';
+  exception
+    when check_violation then
+      if sqlerrm not like '%assignment_submission_requirements_missing%' then
+        raise;
+      end if;
+  end;
+
+  for v_bad_acknowledgement in
+    select bad_acknowledgement
+    from (values
+      (array[v_ids.requirement_id, '10000000-0000-4000-8000-000000000040'::uuid]),
+      (array[v_ids.requirement_id, v_ids.requirement_id])
+    ) as bad(bad_acknowledgement)
+  loop
+    begin
+      perform public.submit_assignment_doc_atomic(
+        v_ids.assignment_id, v_ids.student_id,
+        (select content from public.assignment_docs where id = v_ids.doc_id),
+        v_revision, 1, 6, v_bad_acknowledgement
+      );
+      raise exception 'Standard submission accepted a non-exact acknowledgement: %', v_bad_acknowledgement;
+    exception
+      when check_violation then
+        if sqlerrm not like '%assignment_submission_requirements_missing%' then
+          raise;
+        end if;
+    end;
+  end loop;
+
+  v_result := public.submit_assignment_doc_atomic(
+    v_ids.assignment_id, v_ids.student_id,
+    (select content from public.assignment_docs where id = v_ids.doc_id),
+    v_revision, 1, 6, array[v_ids.requirement_id]
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Acknowledged missing attachment could not be submitted: %', v_result;
+  end if;
+  v_result := public.unsubmit_assignment_doc_atomic(v_ids.assignment_id, v_ids.student_id);
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Missing-attachment fixture could not be unsubmitted: %', v_result;
+  end if;
+
+  select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
+  begin
+    perform public.submit_assignment_doc_with_pal_event_atomic(
+      v_ids.assignment_id, v_ids.student_id,
+      (select content from public.assignment_docs where id = v_ids.doc_id),
+      v_revision, 1, 6, null
+    );
+    raise exception 'Strict legacy Pal submission unexpectedly accepted a missing attachment';
+  exception
+    when check_violation then
+      if sqlerrm not like '%assignment_submission_requirements_missing%' then
+        raise;
+      end if;
+  end;
+
+  for v_bad_acknowledgement in
+    select bad_acknowledgement
+    from (values
+      (array[v_ids.requirement_id, '10000000-0000-4000-8000-000000000040'::uuid]),
+      (array[v_ids.requirement_id, v_ids.requirement_id])
+    ) as bad(bad_acknowledgement)
+  loop
+    begin
+      perform public.submit_assignment_doc_with_pal_event_atomic(
+        v_ids.assignment_id, v_ids.student_id,
+        (select content from public.assignment_docs where id = v_ids.doc_id),
+        v_revision, 1, 6, null, v_bad_acknowledgement
+      );
+      raise exception 'Pal submission accepted a non-exact acknowledgement: %', v_bad_acknowledgement;
+    exception
+      when check_violation then
+        if sqlerrm not like '%assignment_submission_requirements_missing%' then
+          raise;
+        end if;
+    end;
+  end loop;
+
+  v_result := public.submit_assignment_doc_with_pal_event_atomic(
+    v_ids.assignment_id, v_ids.student_id,
+    (select content from public.assignment_docs where id = v_ids.doc_id),
+    v_revision, 1, 6, null, array[v_ids.requirement_id]
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Acknowledged Pal missing attachment could not be submitted: %', v_result;
+  end if;
+  v_result := public.unsubmit_assignment_doc_atomic(v_ids.assignment_id, v_ids.student_id);
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Pal missing-attachment fixture could not be unsubmitted: %', v_result;
+  end if;
+end;
+$$;
+
+insert into public.assignment_submission_artifacts (
+  assignment_doc_id, requirement_id, student_id, type, url, validation_status
+)
+select doc_id, requirement_id, student_id, 'link', 'not-a-url', 'invalid'
+from assignment_integrity_ids;
+
+do $$
+declare
+  v_ids assignment_integrity_ids%rowtype;
+  v_revision timestamptz;
+begin
+  select * into v_ids from assignment_integrity_ids;
+  select updated_at into v_revision from public.assignment_docs where id = v_ids.doc_id;
+  begin
+    perform public.submit_assignment_doc_atomic(
+      v_ids.assignment_id, v_ids.student_id,
+      (select content from public.assignment_docs where id = v_ids.doc_id),
+      v_revision, 1, 6, array[v_ids.requirement_id]
+    );
+    raise exception 'Submission with an invalid attachment unexpectedly succeeded';
   exception
     when check_violation then
       if sqlerrm not like '%assignment_submission_requirements_incomplete%' then
@@ -514,11 +634,9 @@ begin
 end;
 $$;
 
-insert into public.assignment_submission_artifacts (
-  assignment_doc_id, requirement_id, student_id, type, url, validation_status
-)
-select doc_id, requirement_id, student_id, 'link', 'https://example.invalid/work', 'valid'
-from assignment_integrity_ids;
+update public.assignment_submission_artifacts
+set url = 'https://example.invalid/work', validation_status = 'valid'
+where requirement_id = (select requirement_id from assignment_integrity_ids);
 
 do $$
 declare

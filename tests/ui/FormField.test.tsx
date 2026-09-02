@@ -67,6 +67,19 @@ describe('form control contract', () => {
     )
   })
 
+  it('can collapse a visually hidden label row without removing the label', () => {
+    render(
+      <FormField label="Assignment title" hideLabel collapseHiddenLabel>
+        <Input />
+      </FormField>,
+    )
+
+    const input = screen.getByRole('textbox', { name: 'Assignment title' })
+    const label = document.querySelector(`label[for="${input.id}"]`)
+    expect(label).toHaveClass('sr-only')
+    expect(label?.parentElement).not.toHaveClass('min-h-5')
+  })
+
   it('gives input and select controls accessible sizing and focus styles', () => {
     render(
       <>

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes, randomInt } from 'crypto'
 
 const VERIFICATION_CODE_LENGTH = 5 // For email verification (signup/reset)
 const HANDOFF_TOKEN_BYTES = 32
@@ -16,7 +16,7 @@ export function generateVerificationCode(): string {
   let code = ''
 
   for (let i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length)
+    const randomIndex = randomInt(characters.length)
     code += characters[randomIndex]
   }
 

@@ -46,7 +46,7 @@ describe('classroom feature visibility', () => {
     ])
   })
 
-  it('keeps Today as the student core while removing disabled shared features', () => {
+  it('keeps Daily as the student core while removing disabled shared features', () => {
     const visibility = normalizeClassroomFeatureVisibility({
       attendance: false,
       classwork: false,

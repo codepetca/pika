@@ -4,9 +4,14 @@ import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { resetPasswordVerifySchema } from '@/lib/validations/auth'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
 const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
+const INVALID_VERIFICATION_MESSAGE = 'Invalid email or code'
+const NONEXISTENT_USER_ID = '00000000-0000-0000-0000-000000000000'
+const NONEXISTENT_CODE_ID = '00000000-0000-0000-0000-000000000001'
 
 export const POST = withErrorHandler('ResetPasswordVerify', async (request: NextRequest) => {
   requireLegacyPasswordAuth()
@@ -14,22 +19,31 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
 
   const supabase = getServiceRoleClient()
 
+  await consumeAuthRequestRateLimits({
+    action: 'reset_verify',
+    request,
+    identifier: normalizedEmail,
+    identifierMaxAttempts: MAX_VERIFICATION_ATTEMPTS,
+    clientMaxAttempts: 60,
+    windowSeconds: 10 * 60,
+    supabase,
+  })
+
   // Find user by email
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email')
+    .select('id, email, password_hash')
     .eq('email', normalizedEmail)
     .single()
 
-  if (userError || !user) {
-    throw new ApiError(401, 'Invalid email or code')
-  }
+  const eligibleUser = !userError && user?.password_hash ? user : null
 
-  // Find unused, non-expired verification codes for this user
+  // Always perform the same code lookup and one bcrypt comparison. Only the
+  // latest code is valid after a resend, which also prevents code-count timing.
   const { data: codes, error: fetchError } = await supabase
     .from('verification_codes')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', eligibleUser?.id || NONEXISTENT_USER_ID)
     .eq('purpose', 'reset_password')
     .is('used_at', null)
     .gt('expires_at', new Date().toISOString())
@@ -40,36 +54,23 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
     throw new ApiError(500, 'Internal server error')
   }
 
-  if (!codes || codes.length === 0) {
-    throw new ApiError(401, 'Invalid or expired code')
-  }
+  const candidateCode = codes?.[0]
+  const candidateUsable = candidateCode
+    && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS
+  const isValid = await verifyCode(
+    normalizedCode,
+    candidateUsable ? candidateCode.code_hash : DUMMY_AUTH_BCRYPT_HASH,
+  )
 
-  // Try to verify against each code (most recent first)
-  let validCode = null
-
-  for (const codeRecord of codes) {
-    // Check if too many attempts
-    if (codeRecord.attempts >= MAX_VERIFICATION_ATTEMPTS) {
-      continue
-    }
-
-    // Verify code hash
-    const isValid = await verifyCode(normalizedCode, codeRecord.code_hash)
-
-    if (isValid) {
-      validCode = codeRecord
-      break
-    } else {
-      // Increment attempts
-      await supabase
-        .from('verification_codes')
-        .update({ attempts: codeRecord.attempts + 1 })
-        .eq('id', codeRecord.id)
-    }
-  }
-
-  if (!validCode) {
-    throw new ApiError(401, 'Invalid code')
+  if (!eligibleUser || !candidateUsable || !isValid) {
+    const shouldIncrementCandidate = Boolean(
+      eligibleUser && candidateCode && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS,
+    )
+    await supabase
+      .from('verification_codes')
+      .update({ attempts: shouldIncrementCandidate ? candidateCode!.attempts + 1 : 1 })
+      .eq('id', shouldIncrementCandidate ? candidateCode!.id : NONEXISTENT_CODE_ID)
+    throw new ApiError(401, INVALID_VERIFICATION_MESSAGE)
   }
 
   const usedAt = new Date()
@@ -82,7 +83,7 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
       handoff_expires_at: new Date(usedAt.getTime() + HANDOFF_TOKEN_TTL_MS).toISOString(),
       handoff_consumed_at: null,
     })
-    .eq('id', validCode.id)
+    .eq('id', candidateCode.id)
     .is('used_at', null)
     .select('id')
     .maybeSingle()
@@ -93,13 +94,13 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
   }
 
   if (!markedCode) {
-    throw new ApiError(401, 'Invalid or expired code')
+    throw new ApiError(401, INVALID_VERIFICATION_MESSAGE)
   }
 
   return NextResponse.json({
     success: true,
     message: 'Code verified successfully',
-    userId: user.id,
+    userId: eligibleUser.id,
     handoffToken,
   })
 })

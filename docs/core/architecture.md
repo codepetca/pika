@@ -120,10 +120,10 @@ tests/                             # Vitest unit + API suites
 - Full token reference: `src/ui/README.md` | Design rules: `DESIGN.md`
 
 ### Authentication (Current And WorkOS-Ready)
-- **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
-- **Login**: `/api/auth/login` with email/password.
-- **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` issues a short-lived one-time handoff token; `/confirm` requires that token before updating the password.
-- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
+- **Signup**: `/api/auth/signup` stores a verification code and schedules eligible email delivery after the response; `/verify-signup` validates only the latest code and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session. Generic responses, fixed bcrypt work, and a minimum response floor prevent account-state timing or body oracles.
+- **Login**: `/api/auth/login` with email/password. Each request charges its Vercel-derived client budget first, then a high-capacity one-minute database overload guard, and finally its identifier budget. This bounds guessing and roster-wide spraying across instances without letting an already-blocked source consume victim-account quotas.
+- **Forgot/Reset**: `/api/auth/forgot-password` schedules an eligible reset code after its generic response; `/reset-password/verify` issues a short-lived one-time handoff token; `/confirm` validates that 256-bit handoff before bcrypt. A successful reset invalidates every sibling code/handoff and session in the same user-locked transaction.
+- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production. The sealed cookie contains only a versioned opaque token; its SHA-256 hash, current user binding, authentication source, credential version, and expiry live in the server-only `auth_sessions` table. Authorization resolves current email/role and credential version from `users`. Session issuance atomically locks and checks the version observed before password verification, so a concurrent reset cannot mint a post-reset session from the old password. Logout revokes the current row. Expired sessions are swept during issuance; HMAC-keyed authentication throttle metadata is removed one day after its last update.
 - **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
 
 ### Attendance Logic
@@ -435,8 +435,13 @@ Existing indexes (migration 038):
 
 - Vercel for frontend + API; Supabase for DB.
 - Use the Supabase service-role/secret key server-side only. Do not expose it to browsers.
-- Supabase public-read storage URLs are product behavior for legacy public buckets, but uploads/deletes should go through server API routes.
-- Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret.
+- Student submission images and Test documents are private Supabase objects. Browsers request
+  same-origin Pika delivery URLs; after student/Test or teacher/Classroom authorization, Pika
+  redirects to a 60-second signed Supabase URL. Large upload bytes also bypass application
+  functions: Pika reserves the exact immutable object, the browser uploads with Supabase's
+  signed token, and Pika verifies stored size/MIME before finalizing the managed identity.
+  The service-role credential and ownership decisions remain server-only.
+- Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret. Deployments that require session format 3 must apply migration 148 before the compatible application release.
 
 ---
 

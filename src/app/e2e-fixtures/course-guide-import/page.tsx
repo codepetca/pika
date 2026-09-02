@@ -49,18 +49,19 @@ const publicGuide: CourseGuideData = {
   tests: [{ key: 'test:0', title: 'Programming concepts test' }],
 }
 
-export default function CourseGuideImportFixturePage({
+export default async function CourseGuideImportFixturePage({
   searchParams,
 }: {
-  searchParams: { role?: string }
+  searchParams: Promise<{ role?: string }>
 }) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
   }
-  if (searchParams.role === 'public') {
+  const resolvedSearchParams = await searchParams
+  if (resolvedSearchParams.role === 'public') {
     return <CourseGuideView guide={publicGuide} />
   }
-  const role = searchParams.role === 'student' ? 'student' : 'teacher'
+  const role = resolvedSearchParams.role === 'student' ? 'student' : 'teacher'
 
   return (
     <main className="flex h-screen min-h-0 flex-col bg-page">

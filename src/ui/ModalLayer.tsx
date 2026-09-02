@@ -173,6 +173,7 @@ export function ModalLayer({
       if (!isTopLayer(activeLayer)) return
 
       if (event.key === 'Escape' && closeOnEscapeRef.current) {
+        if (event.target instanceof Element && event.target.closest('[role="menu"]')) return
         event.preventDefault()
         event.stopPropagation()
         onCloseRef.current()

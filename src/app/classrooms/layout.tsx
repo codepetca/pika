@@ -17,7 +17,7 @@ export default async function ClassroomsLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
 
   const palApiUrl = user.role === 'student' ? getPalApiUrl() : null

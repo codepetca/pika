@@ -434,6 +434,10 @@ describe('TeacherTestPreviewPage', () => {
     await waitFor(() => {
       expect(backButton).toHaveFocus()
     })
+    expect(screen.getByRole('heading', { name: 'Reference sheet' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', {
+      name: 'Resize documents and questions panes',
+    })).toHaveAttribute('aria-valuenow', '50')
     expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
       'Reference content',
     )
@@ -443,6 +447,39 @@ describe('TeacherTestPreviewPage', () => {
     await waitFor(() => {
       expect(documentButton).toHaveFocus()
     })
+  })
+
+  it('opens uploaded test documents through the authenticated teacher route', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      previewResponse({
+        documents: [
+          {
+            id: 'doc-upload',
+            title: 'Teacher reference PDF',
+            source: 'upload',
+            storage_bucket: 'test-documents',
+            storage_path: 'classroom-1/tests/test-1/doc-upload/reference.pdf',
+          },
+        ],
+      }) as Awaited<ReturnType<typeof fetch>>,
+    )
+
+    render(
+      <TeacherTestPreviewPage
+        classroomId="classroom-1"
+        testId="test-1"
+        embedded
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Teacher reference PDF',
+    }))
+
+    expect(screen.getByTitle('Teacher reference PDF')).toHaveAttribute(
+      'src',
+      '/api/teacher/tests/test-1/documents/doc-upload/file',
+    )
   })
 
   it('refreshes an open same-id document and closes it when the document is removed', async () => {

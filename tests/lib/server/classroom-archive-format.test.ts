@@ -163,6 +163,15 @@ describe('classroom archive format', () => {
     expect(verification.ok && verification.manifest.version).toBe(2)
   })
 
+  it('decodes legacy v2 archives without a category resource as empty categories', () => {
+    const fixture = buildClassroomArchiveV2Fixture({ omitGradebookCategories: true })
+    const verification = verifyClassroomArchiveBundle(fixture.archive)
+
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
+    expect(decodeClassroomArchiveData(verification).resources.gradebook_categories).toEqual([])
+  })
+
   it('canonicalizes object keys recursively while retaining array order', () => {
     expect(canonicalJsonStringify({ z: 1, a: { y: 2, b: 3 }, items: [{ z: 4, a: 5 }] })).toBe(
       '{"a":{"b":3,"y":2},"items":[{"a":5,"z":4}],"z":1}',
@@ -347,6 +356,13 @@ describe('classroom archive storage discovery', () => {
               attrs: {
                 src: 'https://project.supabase.co/storage/v1/object/public/submission-images/student-1/work%20sample.png',
               },
+            }, {
+              type: 'image',
+              attrs: {
+                src: '/api/storage/submission-images?object_id=managed',
+                storage_bucket: 'submission-images',
+                storage_path: 'student-1/private-work.png',
+              },
             }],
           },
         },
@@ -366,15 +382,22 @@ describe('classroom archive storage discovery', () => {
             unrelated_submission_image: 'https://project.supabase.co/storage/v1/object/public/submission-images/other-student/work.png',
             snapshot_path: 'link-docs/teacher/test/doc/snapshot',
           },
+          {
+            source: 'upload',
+            storage_bucket: 'test-documents',
+            storage_path: 'teacher/test/private-file.pdf',
+          },
         ],
       }],
     }
 
     expect(discoverClassroomStorageReferences(resources, 'https://project.supabase.co')).toEqual([
       { bucket: 'assignment-artifacts', path: 'student-1/assignment-1/evidence.png' },
+      { bucket: 'submission-images', path: 'student-1/private-work.png' },
       { bucket: 'submission-images', path: 'student-1/work sample.png' },
       { bucket: 'test-documents', path: 'link-docs/teacher/test/doc/snapshot' },
       { bucket: 'test-documents', path: 'teacher/test/file.pdf' },
+      { bucket: 'test-documents', path: 'teacher/test/private-file.pdf' },
     ])
   })
 })

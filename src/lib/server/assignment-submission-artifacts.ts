@@ -24,6 +24,7 @@ const assignmentRowSchema = z.object({
   created_by: z.string().min(1),
   description: z.string(),
   due_at: timestampSchema,
+  gradebook_category_id: z.string().uuid().nullable(),
   gradebook_weight: z.number(),
   id: z.string().min(1),
   include_in_final: z.boolean(),

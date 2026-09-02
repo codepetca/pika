@@ -9,6 +9,7 @@ interface LogSummaryProps {
   classroomId: string
   date: string
   onStudentClick?: (studentName: string) => void
+  onAvailabilityChange?: (available: boolean) => void
 }
 
 interface SummaryData {
@@ -19,7 +20,12 @@ interface SummaryData {
 
 type SummaryStatus = 'ready' | 'pending' | 'no_entries' | 'unavailable'
 
-export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProps) {
+export function LogSummary({
+  classroomId,
+  date,
+  onStudentClick,
+  onAvailabilityChange,
+}: LogSummaryProps) {
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [summaryStatus, setSummaryStatus] = useState<SummaryStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,6 +90,12 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
       }
     }
   }, [classroomId, date])
+
+  const hasGeneratedSummary = summaryStatus === 'ready' && summary !== null
+
+  useEffect(() => {
+    onAvailabilityChange?.(hasGeneratedSummary)
+  }, [hasGeneratedSummary, onAvailabilityChange])
 
   if (loading) {
     return (

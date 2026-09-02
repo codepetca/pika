@@ -71,6 +71,34 @@ describe('RichTextEditor', () => {
     })
   })
 
+  it('renders managed submission images through the protected same-origin route', async () => {
+    const onChange = vi.fn()
+    const content = {
+      type: 'doc',
+      content: [
+        {
+          type: 'image',
+          attrs: {
+            src: 'https://project.supabase.co/storage/v1/object/public/submission-images/legacy.png',
+            alt: 'Student work',
+            managed_object_id: '30000000-0000-4000-8000-000000000002',
+            storage_bucket: 'submission-images',
+            storage_path: 'student-1/assignment-1/image.png',
+          },
+        },
+      ],
+    } as TiptapContent
+
+    render(<RichTextEditor content={content} onChange={onChange} editable={false} />)
+
+    const image = await screen.findByRole('img', { name: 'Student work' })
+    expect(image).toHaveAttribute(
+      'src',
+      '/api/storage/submission-images?object_id=30000000-0000-4000-8000-000000000002',
+    )
+    expect(image.getAttribute('src')).not.toContain('supabase.co')
+  })
+
   it('should render the toolbar when editable', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = { type: 'doc', content: [] }

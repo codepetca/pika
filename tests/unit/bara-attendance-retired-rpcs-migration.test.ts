@@ -89,6 +89,9 @@ describe('retired unscoped Bara attendance RPC migration', () => {
 
   it('keeps active rollout guidance aligned with the production migration state', () => {
     expect(completionAudit).toContain('Production migrations through 132 are\nrecorded as applied')
+    expect(completionAudit).toContain('recovery sequence requires migrations 142 and 145 together')
+    expect(completionAudit).toContain('Applying or authorizing 142 alone is incomplete')
+    expect(completionAudit).not.toContain('Proposed in migration 142.')
     expect(roadmap).toContain('production migrations through 132 are\nrecorded as applied')
     expect(completionAudit).toContain('enabled `teacher_entitlements` gate passed 4/4 in production')
     expect(roadmap).toContain('deployed bidirectional smoke passed 4/4 in that mode')
@@ -100,7 +103,7 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
-    expect(currentContext).toContain('Prod 001-141 applied; DB lint 0 errors')
+    expect(currentContext).toContain('Prod 001-146 applied; DB lint 0 errors')
     expect(currentContext).toContain('Attendance timing released')
     expect(currentContext).toContain('teacher_entitlements smoke 4/4 passed 2026-08-28')
     expect(operationalRecovery).toContain('records Pika migrations through 132')

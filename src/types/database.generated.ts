@@ -1048,6 +1048,7 @@ export type Database = {
           created_by: string
           description: string
           due_at: string
+          gradebook_category_id: string | null
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -1071,6 +1072,7 @@ export type Database = {
           created_by: string
           description?: string
           due_at: string
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1094,6 +1096,7 @@ export type Database = {
           created_by?: string
           description?: string
           due_at?: string
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1122,6 +1125,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_gradebook_category_id_fkey"
+            columns: ["gradebook_category_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_categories"
             referencedColumns: ["id"]
           },
           {
@@ -2110,6 +2120,89 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: true
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_global_rate_limits: {
+        Row: {
+          attempt_count: number
+          key_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          key_hash: string
+          updated_at?: string
+          window_started_at: string
+        }
+        Update: {
+          attempt_count?: number
+          key_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
+      auth_rate_limits: {
+        Row: {
+          attempt_timestamps: string[]
+          key_hash: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_timestamps?: string[]
+          key_hash: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_timestamps?: string[]
+          key_hash?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      auth_sessions: {
+        Row: {
+          auth_source: string
+          created_at: string
+          credential_version: number
+          expires_at: string
+          id: string
+          token_hash: string
+          user_id: string
+          workos_user_id: string | null
+        }
+        Insert: {
+          auth_source: string
+          created_at?: string
+          credential_version: number
+          expires_at: string
+          id?: string
+          token_hash: string
+          user_id: string
+          workos_user_id?: string | null
+        }
+        Update: {
+          auth_source?: string
+          created_at?: string
+          credential_version?: number
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          user_id?: string
+          workos_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -4972,6 +5065,50 @@ export type Database = {
           },
         ]
       }
+      gradebook_categories: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          default_assessment_weight: number
+          id: string
+          is_default: boolean
+          name: string
+          percentage: number
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          default_assessment_weight?: number
+          id?: string
+          is_default?: boolean
+          name: string
+          percentage: number
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          default_assessment_weight?: number
+          id?: string
+          is_default?: boolean
+          name?: string
+          percentage?: number
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gradebook_categories_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_settings: {
         Row: {
           assignments_weight: number
@@ -6895,6 +7032,7 @@ export type Database = {
           created_at: string
           created_by: string
           documents: Json
+          gradebook_category_id: string | null
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -6915,6 +7053,7 @@ export type Database = {
           created_at?: string
           created_by: string
           documents?: Json
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6935,6 +7074,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           documents?: Json
+          gradebook_category_id?: string | null
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6961,6 +7101,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_gradebook_category_id_fkey"
+            columns: ["gradebook_category_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_categories"
             referencedColumns: ["id"]
           },
           {
@@ -7018,6 +7165,7 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_credential_version: number
           created_at: string
           email: string
           email_verified_at: string | null
@@ -7027,6 +7175,7 @@ export type Database = {
           workos_user_id: string | null
         }
         Insert: {
+          auth_credential_version?: number
           created_at?: string
           email: string
           email_verified_at?: string | null
@@ -7036,6 +7185,7 @@ export type Database = {
           workos_user_id?: string | null
         }
         Update: {
+          auth_credential_version?: number
           created_at?: string
           email?: string
           email_verified_at?: string | null
@@ -8247,6 +8397,10 @@ export type Database = {
         Args: { p_metrics: Json }
         Returns: boolean
       }
+      clear_auth_rate_limit: {
+        Args: { p_key_hash: string; p_scope: string }
+        Returns: boolean
+      }
       clear_test_open_response_grades_atomic: {
         Args: {
           p_expected_responses: Json
@@ -8473,6 +8627,31 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: boolean
+      }
+      consume_auth_global_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_window_seconds: number
+        }
+        Returns: Json
+      }
+      consume_auth_rate_limit: {
+        Args: {
+          p_key_hash: string
+          p_max_attempts: number
+          p_scope: string
+          p_window_seconds: number
+        }
+        Returns: Json
+      }
+      consume_password_reset_and_revoke_sessions: {
+        Args: {
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
@@ -9238,6 +9417,18 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      issue_auth_session: {
+        Args: {
+          p_auth_source: string
+          p_expected_credential_version: number
+          p_expires_at: string
+          p_previous_token_hash: string
+          p_token_hash: string
+          p_user_id: string
+          p_workos_user_id: string
+        }
+        Returns: boolean
+      }
       list_attendance_reconciliation_targets_v1: {
         Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
         Returns: Json
@@ -9366,6 +9557,10 @@ export type Database = {
         }[]
       }
       normalize_classroom_archive_restore_row: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_v143: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
@@ -9578,6 +9773,26 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "assignment_submission_requirements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      replace_gradebook_categories: {
+        Args: { p_categories: Json; p_classroom_id: string }
+        Returns: {
+          classroom_id: string
+          created_at: string
+          default_assessment_weight: number
+          id: string
+          is_default: boolean
+          name: string
+          percentage: number
+          position: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "gradebook_categories"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -10033,29 +10248,56 @@ export type Database = {
         }
         Returns: boolean
       }
-      submit_assignment_doc_atomic: {
-        Args: {
-          p_assignment_id: string
-          p_char_count: number
-          p_content: Json
-          p_expected_updated_at: string
-          p_student_id: string
-          p_word_count: number
-        }
-        Returns: Json
-      }
-      submit_assignment_doc_with_pal_event_atomic: {
-        Args: {
-          p_assignment_id: string
-          p_char_count: number
-          p_content: Json
-          p_expected_updated_at: string
-          p_pal_event: Json
-          p_student_id: string
-          p_word_count: number
-        }
-        Returns: Json
-      }
+      submit_assignment_doc_atomic:
+        | {
+            Args: {
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_acknowledged_missing_requirement_ids: string[]
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+      submit_assignment_doc_with_pal_event_atomic:
+        | {
+            Args: {
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_pal_event: Json
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_acknowledged_missing_requirement_ids: string[]
+              p_assignment_id: string
+              p_char_count: number
+              p_content: Json
+              p_expected_updated_at: string
+              p_pal_event: Json
+              p_student_id: string
+              p_word_count: number
+            }
+            Returns: Json
+          }
       submit_test_attempt_atomic: {
         Args: {
           p_responses: Json

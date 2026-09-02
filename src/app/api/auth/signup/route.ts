@@ -1,20 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
-import { sendSignupCode } from '@/lib/email'
 import { isTeacherEmail } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { signupSchema } from '@/lib/validations/auth'
+import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import {
+  completeAuthResponseFloor,
+  scheduleSignupCode,
+} from '@/lib/server/auth-response'
 
 const MAX_CODES_PER_HOUR = 5
 const CODE_EXPIRY_MINUTES = 10
+const SIGNUP_RESPONSE = {
+  success: true,
+  message: 'Verification code sent to your email',
+}
 
 export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
   requireLegacyPasswordAuth()
+  const startedAtMs = Date.now()
   const { email: normalizedEmail } = signupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+
+  await consumeAuthRequestRateLimits({
+    action: 'signup_code',
+    request,
+    identifier: normalizedEmail,
+    identifierMaxAttempts: MAX_CODES_PER_HOUR,
+    clientMaxAttempts: 25,
+    windowSeconds: 60 * 60,
+    supabase,
+  })
+
+  // Pay the same password-hash work before account-state decisions. Delivery
+  // is scheduled after the response so provider latency cannot become an
+  // account-enumeration oracle.
+  const code = generateVerificationCode()
+  const codeHash = await hashCode(code)
+  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000)
 
   // Check if user already exists with a password
   const { data: existingUser } = await supabase
@@ -24,7 +50,8 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     .single()
 
   if (existingUser && existingUser.password_hash) {
-    throw new ApiError(400, 'An account with this email already exists. Please login instead.')
+    await completeAuthResponseFloor(startedAtMs)
+    return NextResponse.json(SIGNUP_RESPONSE)
   }
 
   // Create user if doesn't exist (or update existing user without password)
@@ -53,32 +80,6 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     userId = newUser!.id
   }
 
-  // Rate limiting: check how many codes were requested in the last hour
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-
-  const { data: recentCodes, error: checkError } = await supabase
-    .from('verification_codes')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('purpose', 'signup')
-    .gte('created_at', oneHourAgo.toISOString())
-
-  if (checkError) {
-    console.error('Error checking recent codes:', checkError)
-    throw new ApiError(500, 'Internal server error')
-  }
-
-  if (recentCodes && recentCodes.length >= MAX_CODES_PER_HOUR) {
-    throw new ApiError(429, 'Too many code requests. Please try again later.')
-  }
-
-  // Generate and hash code
-  const code = generateVerificationCode()
-  const codeHash = await hashCode(code)
-
-  // Calculate expiry
-  const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000)
-
   // Store hashed code
   const { error: insertError } = await supabase
     .from('verification_codes')
@@ -95,16 +96,8 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     throw new ApiError(500, 'Failed to generate code')
   }
 
-  // Send code via email
-  try {
-    await sendSignupCode(normalizedEmail, code)
-  } catch (emailError) {
-    console.error('Error sending email:', emailError)
-    // Don't fail the request if email fails, code is still in DB
-  }
+  scheduleSignupCode(normalizedEmail, code)
 
-  return NextResponse.json({
-    success: true,
-    message: 'Verification code sent to your email',
-  })
+  await completeAuthResponseFloor(startedAtMs)
+  return NextResponse.json(SIGNUP_RESPONSE)
 })
