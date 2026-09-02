@@ -2076,7 +2076,9 @@ _None_
         expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+      const preview = screen.getByRole('button', { name: 'Preview' })
+      expect(preview).toHaveTextContent(/^$/)
+      fireEvent.click(preview)
 
       await waitFor(() => {
         expect(openSpy).toHaveBeenCalled()

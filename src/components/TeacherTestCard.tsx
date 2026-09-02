@@ -2,14 +2,14 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ExternalLink, GripVertical, Lock, Trash2, Unlock } from 'lucide-react'
+import { Eye, GripVertical, Lock, Trash2, Unlock } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
   getAssessmentStatusLabel,
   getTestStatusBadgeClass,
   getTeacherTestListDisplayStatus,
 } from '@/lib/tests'
-import { Button, Tooltip } from '@/ui'
+import { Button, IconButton, Tooltip } from '@/ui'
 import type { TestAssessmentWithStats } from '@/types'
 
 interface TeacherTestCardProps {
@@ -124,21 +124,15 @@ export function TeacherTestCard({
         </div>
 
         <div className="flex items-center justify-end gap-1">
-          <Tooltip content="Preview test">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 px-2 py-1.5"
-              aria-label={`Preview ${test.title}`}
-              onClick={(event) => {
-                event.stopPropagation()
-                onRequestPreview()
-              }}
-            >
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              <span>Preview</span>
-            </Button>
-          </Tooltip>
+          <IconButton
+            icon={Eye}
+            label={`Preview ${test.title}`}
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRequestPreview()
+            }}
+          />
           {showDeleteButton ? (
             <Tooltip content="Delete test">
               <Button

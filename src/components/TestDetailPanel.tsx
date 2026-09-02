@@ -23,10 +23,10 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ChevronUp, ExternalLink, Plus, RotateCcw } from 'lucide-react'
+import { ChevronDown, ChevronUp, Eye, Plus, RotateCcw } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
-import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
+import { Button, EmptyState, IconButton, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
@@ -2019,19 +2019,16 @@ export function TestDetailPanel({
             trailing={
               <>
                 {showPreviewButton ? (
-                  <Button
-                    type="button"
+                  <IconButton
+                    icon={Eye}
+                    label={openingTestPreview ? 'Opening preview…' : 'Preview'}
                     variant="secondary"
-                    size="sm"
                     onClick={() => {
                       void handleOpenTestPreview()
                     }}
-                    disabled={openingTestPreview || hasPendingMarkdownImport}
-                    className="h-8 gap-1.5 px-3 font-semibold"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    {openingTestPreview ? 'Opening Preview...' : 'Preview'}
-                  </Button>
+                    loading={openingTestPreview}
+                    disabled={hasPendingMarkdownImport}
+                  />
                 ) : null}
                 {onRequestDelete && showInlineDeleteAction ? (
                   <Button

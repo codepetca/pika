@@ -50,10 +50,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
 the label supplies the accessible name and tooltip. Targets remain 44px, including
 loading/disabled states. Creation entry points use `Plus`; classroom read retries
-use `RotateCw`. Menu choices and final form confirmations retain explicit text.
+use `RotateCw`. Preview actions use `Eye`, without visible button text, with a
+contextual label such as `Preview` or `Preview Unit Test`. Use Eye even when the
+preview opens a separate window; ExternalLink describes an external destination.
+Menu choices and final form confirmations retain explicit text.
 
 ```tsx
 <IconButton icon={Plus} label="Create assignment" onClick={openCreate} />
+<IconButton icon={Eye} label="Preview" variant="secondary" onClick={openPreview} />
 ```
 
 ### Input (bare - no label/error)
