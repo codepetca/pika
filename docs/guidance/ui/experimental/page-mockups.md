@@ -3,9 +3,10 @@
 Status: experimental. These development-only proposals need human acceptance
 before any live-page adoption. Risk profile: none (fixture-only UI).
 
-The Gradebook category editor and assessment-details dialog mirror their
-production components. The surrounding full-page compositions remain
-experimental.
+The Gradebook category editor and assessment-details dialog are Pattern Lab-only
+proposals. They demonstrate table-card category editing with automatic percentage
+balancing and compact assessment details; they require human acceptance before
+production adoption. The surrounding full-page compositions remain experimental.
 
 ## Brief
 
@@ -18,7 +19,7 @@ experimental.
 - Roles: teacher and student. The sticky Pattern Lab navigator owns the role
   switch; each role receives its own tabs and deterministic fixtures.
 - Viewports/themes: desktop 1440×900 and mobile 390×844, light and dark.
-- States: populated, loading, empty, error/retry, sorted, selected, open menu,
+- States: populated, no gradebook categories, loading, empty, error/retry, sorted, selected, open menu,
   keyboard focus, preview dialog, gradebook-category setup, assessment details,
   calendar view/range, announcement filter, settings section/save/confirmation,
   Daily session toggling, batch attendance
@@ -41,7 +42,7 @@ experimental.
 | Daily attendance modes | Pattern Lab fixture selector, IconButton, Button, and local joined geometry | extend | Compare QR check-in and Manual fixtures while preserving governed control contracts without promoting an experimental Daily-only composition |
 | Tables | DataTable, SortableHeaderCell, TeacherWorkSurfaceTableFrame | reuse | Density, sticky header and sorting semantics |
 | States/overlays | PageState, ContentDialog, IconButton | reuse | Standard feedback, focus return and targets |
-| Gradebook setup | ContentDialog, FormField, Input, Select, Button | extend | One feature-owned editor is shared by Pattern Lab and the live gradebook |
+| Gradebook setup | ContentDialog, FormField, Input, IconButton, DnD Kit | create | Fixture-owned table-card experiment leaves the production editor unchanged during review |
 | Calendar/content | LessonCalendar, AnnouncementContent | reuse | Real feature-owned renderers with local fixtures |
 | Review surface | Pattern Lab catalog and gallery | extend | Page-level experiments without new production owners |
 
@@ -49,7 +50,7 @@ experimental.
 
 | Page | Current evidence | Proposal |
 |---|---|---|
-| Gradebook | TeacherGradebookTab replaces score-display button with email on selection; settings menu shares center | Keep %/Raw stable, persistent disabled-until-selected student menu, ellipsis right; add Edit gradebook for category percentages/defaults; assessment titles open category, item-weight, and exact-course-weight details; retain row preview |
+| Gradebook | TeacherGradebookTab replaces score-display button with email on selection; settings menu shares center | Keep Student Actions, %/x/y, AVG/MED, and one Lucide Dumbbell weight toggle in the centered action cluster with ellipsis actions right; once students are selected, the action menu offers Copy emails and Copy secondary emails and remains unclipped at desktop widths; frozen selected cells use an opaque semantic surface so horizontally scrolling scores never show through, and the pinned AVG/MED row uses one quiet top divider instead of boxed sticky-cell borders; the weight toggle changes to the selected color when active and has no separate Off label; on narrow layouts hide the inactive Student Actions control and let the mode cluster scroll without passing beneath ellipsis; prototype Edit categories as table-card rows with whole-or-half-point Course percentages, read-only amber percentage locks, lock-aware automatic balancing, drag handles, one default, an internal new-category item weight of 10, and a no-categories starting state; the weight toggle reveals two non-sticky metadata rows beneath the title header—editable Category weight and calculated Course weight—with horizontally pinned labels in the first identity column; assessment titles open a compact single-column editor for the shared title, Category/None assignment, Category weight, and calculated Course weight; retain row preview |
 | Daily | TeacherAttendanceTab and AttendanceWindowDialog own date, QR/session commands, timing policy, log completion, scan-time evidence, and attendance status | Add a Pattern Lab Attendance mode selector. QR check-in puts the date beside an equal-height joined QR-icon/time control; QR is disabled unless attendance is open, while the clickable time area carries a subtle semantic green open state. Its time editor always shows the production timing-rule fields without an Advanced disclosure or cutoff blurb. The Grace field is labeled `Grace period before late (min)`; defaults are 10 minutes open, 5 minutes grace, 0 minutes close, and 0 minutes Absent. QR-open minutes hard-clamp to 0–120; grace, QR-close, and Absent minutes hard-clamp to 0–the calculated session duration, including the selected Same class day / Next day boundary. The end-day choice remains a segmented toggle with option-specific day-boundary tooltips, followed by `Open and close QR attendance automatically`, enabled by default. Manual removes those automatic settings along with the QR action, Time of scan column, open/close command, and QR reset while keeping the optional time neutral and editable. Its More menu has one off-by-default Attendance from log checkbox; checking it makes completed logs supply the automatic Present baseline, while unchecked means teacher-only marking. A configured passive time uses the full `9:00 - 10:00 AM` form at every viewport. In both modes, clearing time retains only the clock icon; Edit time and class-wide Edit attendance remain in More actions, and the batch editor relies on its action labels without explanatory instructions. Remove row selection, keep the compact Present/Late/Absent plus conditional undo group sticky at the far right, and show undo only when a manual mark overrides the automatic baseline. Count tooltips use compact `2 Present` language; the active sort adds a chevron inside the existing count pill without widening its 44px column. Row undo keeps the student-specific accessible name with the concise `Undo manual change` tooltip. Keep fixed rows and no attendance API |
 | Calendar | CalendarActionBar nests a context bar in PageActionBar; date, Week/Month/All and edit controls share one wrapping cluster | Date remains centered; use Week/Month/Term and Markdown in the right menu, where Term means the configured classroom date range; preserve real calendar rendering and selected date content |
 | Announcements | TeacherAnnouncementsSection already has centered + and right ellipsis, but duplicates creation in menu | Preserve +; demonstrate All/Posted/Scheduled filter in menu, reading cards and contextual Eye preview; no operational status-count table |

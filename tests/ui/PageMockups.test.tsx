@@ -232,8 +232,9 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('table')).toBeInTheDocument()
     await user.click(within(mockups).getByRole('checkbox', { name: 'Select Maya Chen' }))
     await user.click(within(mockups).getByRole('button', { name: '1 selected' }))
-    await user.click(within(mockups).getByRole('menuitem', { name: 'Email selected students' }))
-    expect(within(mockups).getByRole('status')).toHaveTextContent('Email students selected. Example only')
+    expect(within(mockups).getByRole('menuitem', { name: 'Copy secondary emails' })).toBeInTheDocument()
+    await user.click(within(mockups).getByRole('menuitem', { name: 'Copy emails' }))
+    expect(within(mockups).getByRole('status')).toHaveTextContent('Copy emails selected. Example only')
     await user.click(within(mockups).getByRole('tab', { name: 'Roster' }))
     await user.click(within(mockups).getByRole('button', { name: 'Add students' }))
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
@@ -313,30 +314,64 @@ describe('PageMockups', () => {
 
     const moreActions = within(gradebook).getByRole('button', { name: 'More actions' })
     await user.click(moreActions)
-    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
     expect(screen.getByRole('heading', { name: 'Edit gradebook' })).toBeInTheDocument()
-    expect(screen.getAllByRole('textbox', { name: 'Category name' })[1]).toHaveValue('Term')
-    expect(screen.getByRole('button', { name: 'Default' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Move Term up' }))
-    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
+    expect(screen.getByRole('columnheader', { name: 'Category name' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Course %' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Default item weight' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Default' })).toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: /Category name for/ })[0]).toHaveValue('Term')
+    expect(screen.getByRole('button', { name: 'Term is the default category' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText(/Total:/)).not.toBeInTheDocument()
+
+    const termPercentage = screen.getByRole('spinbutton', { name: 'Course percentage for Term' })
+    expect(termPercentage).toHaveAttribute('step', '0.5')
+    await user.clear(termPercentage)
+    await user.type(termPercentage, '65.25')
+    expect(screen.getByRole('button', { name: 'Save gradebook' })).toBeDisabled()
+    await user.tab()
+    expect(termPercentage).toHaveValue(65)
+
+    const attendancePercentage = screen.getByRole('spinbutton', { name: 'Course percentage for Attendance' })
+    await user.click(screen.getByRole('button', { name: 'Lock Attendance course percentage' }))
+    expect(attendancePercentage).toBeDisabled()
+    expect(attendancePercentage).toHaveClass('border-warning', 'bg-warning-bg', 'text-warning')
+    expect(screen.getByRole('button', { name: 'Unlock Attendance course percentage' })).toHaveClass(
+      'border-warning',
+      'bg-warning-bg',
+      'text-warning',
+    )
+
+    await user.clear(termPercentage)
+    await user.type(termPercentage, '75.5')
+    expect(attendancePercentage).toHaveValue(10)
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Final' })).toHaveValue(14.5)
     await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
-    expect(screen.getAllByRole('textbox', { name: 'Category name' })[0]).toHaveValue('Term')
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
+    expect(screen.getAllByRole('textbox', { name: /Category name for/ })[0]).toHaveValue('Term')
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Term' })).toHaveValue(75.5)
     await user.keyboard('{Escape}')
     expect(moreActions).toHaveFocus()
 
     const assessmentTitle = within(gradebook).getByRole('button', { name: 'Ecosystems' })
     await user.click(assessmentTitle)
-    expect(screen.getByRole('heading', { name: 'Ecosystems' })).toBeInTheDocument()
+    const assessmentDialog = screen.getByRole('dialog')
+    expect(assessmentDialog).toHaveClass('max-w-md')
+    expect(screen.getByRole('heading', { name: 'Edit assessment' })).toBeInTheDocument()
+    const titleInput = screen.getByRole('textbox', { name: 'Assessment title' })
+    expect(titleInput).toHaveValue('Ecosystems')
     expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('Term')
-    expect(screen.getByText('65%')).toBeInTheDocument()
-    await user.keyboard('{Escape}')
-    expect(assessmentTitle).toHaveFocus()
+    expect(screen.getByRole('spinbutton', { name: 'Category weight' })).toHaveValue(10)
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('6.29%')
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Ecosystems Lab')
+    await user.click(screen.getByRole('button', { name: 'Save assessment' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'Ecosystems Lab' })).toBeInTheDocument()
   })
 
-  it('moves fixture assessments to Uncategorized when their category is deleted', async () => {
+  it('moves fixture assessments to None when their category is deleted', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
@@ -344,19 +379,36 @@ describe('PageMockups', () => {
     const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Edit gradebook' }))
-    expect(screen.getByText('Deleting a category leaves its assessments Uncategorized.')).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
     await user.click(screen.getByRole('button', { name: 'Delete Term' }))
-    const percentages = screen.getAllByRole('spinbutton', { name: 'Course %' })
-    await user.clear(percentages[0])
-    await user.type(percentages[0], '75')
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Attendance' })).toHaveValue(75)
     await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
 
     await user.click(within(gradebook).getByRole('button', { name: 'Ecosystems' }))
-    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('Uncategorized')
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('None')
   })
 
-  it('pins one class summary row and swaps average with median from More actions', async () => {
+  it('starts the no-category example with a blank editor', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(
+      within(mockups).getByRole('combobox', { name: 'Example state' }),
+      'empty-categories',
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Edit gradebook' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /Category name for/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save gradebook' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+    expect(screen.getByRole('textbox', { name: 'Category name for Category 1' })).toHaveValue('')
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Category 1' })).toHaveValue(100)
+    expect(screen.getByRole('button', { name: 'Category 1 is the default category' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('pins one class summary row and swaps average with median from the center controls', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
@@ -372,20 +424,51 @@ describe('PageMockups', () => {
     expect(within(summaryFooter).queryByRole('row', { name: 'Class median' })).not.toBeInTheDocument()
     expect(within(gradebook).getByText(/roster rows scroll underneath/)).toBeInTheDocument()
 
-    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show median' }))
+    const summaryControl = within(gradebook).getByRole('group', { name: 'Class summary' })
+    await user.click(within(summaryControl).getByRole('button', { name: 'MED' }))
     const medianRow = within(summaryFooter).getByRole('row', { name: 'Class median' })
     expect(within(medianRow).getAllByRole('cell')[3]).toHaveTextContent('90%')
     expect(within(summaryFooter).queryByRole('row', { name: 'Class average' })).not.toBeInTheDocument()
 
-    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show average' }))
-    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show raw scores' }))
+    await user.click(within(summaryControl).getByRole('button', { name: 'AVG' }))
+    const scoreControl = within(gradebook).getByRole('group', { name: 'Score display' })
+    await user.click(within(scoreControl).getByRole('button', { name: 'x/y' }))
     expect(within(summaryFooter).getByRole('row', { name: 'Class average' }).querySelectorAll('td')[3]).toHaveTextContent('17/20')
 
     await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
     expect(within(gradebook).queryByTestId('gradebook-summary-footer')).not.toBeInTheDocument()
+  })
+
+  it('shows editable category weights and calculated course weights below the headers', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    const showWeights = within(gradebook).getByRole('button', { name: 'Show weights' })
+    expect(showWeights).toHaveAttribute('aria-pressed', 'false')
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitem', { name: 'Show last name in column 1' })).toBeInTheDocument()
+    expect(within(gradebook).queryByRole('menuitemcheckbox', { name: 'Show weights' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(showWeights)
+    expect(showWeights).toHaveAttribute('aria-pressed', 'true')
+
+    const categoryWeightRow = within(gradebook).getByRole('row', { name: 'Category weight' })
+    const courseWeightRow = within(gradebook).getByRole('row', { name: 'Course weight' })
+    const ecosystemWeight = within(categoryWeightRow).getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
+    expect(ecosystemWeight).toHaveValue(10)
+    expect(within(courseWeightRow).getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+
+    await user.clear(ecosystemWeight)
+    await user.type(ecosystemWeight, '20')
+    expect(within(courseWeightRow).getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+
+    await user.click(showWeights)
+    expect(showWeights).toHaveAttribute('aria-pressed', 'false')
+    expect(within(gradebook).queryByRole('row', { name: 'Category weight' })).not.toBeInTheDocument()
+    expect(within(gradebook).queryByRole('row', { name: 'Course weight' })).not.toBeInTheDocument()
   })
 
   it('swaps First and Last while keeping the leading name column pinnable', async () => {
@@ -398,21 +481,21 @@ describe('PageMockups', () => {
     expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
     expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 2)
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show last name first' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show last name in column 1' }))
     expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 1)
     expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 2)
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    expect(within(gradebook).getByRole('menuitem', { name: 'Show first name first' })).toBeInTheDocument()
+    expect(within(gradebook).getByRole('menuitem', { name: 'Show first name in column 1' })).toBeInTheDocument()
     expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
     await user.keyboard('{Escape}')
     expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveClass('sticky', 'left-10', 'top-0')
-    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).not.toHaveClass('sticky')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).not.toHaveClass('left-10')
     expect(within(gradebook).getByRole('cell', { name: 'Chen', exact: true })).toHaveClass('sticky', 'left-10')
     expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).not.toHaveClass('sticky')
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
-    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show first name first' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show first name in column 1' }))
     expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
   })
 
@@ -433,6 +516,9 @@ describe('PageMockups', () => {
     expect(within(gradebook).getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'right-0')
     expect(within(gradebook).getByRole('checkbox', { name: 'Select Maya Chen' }).closest('td')).toHaveClass('sticky', 'left-0')
     expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).toHaveClass('sticky', 'left-10')
+
+    await user.click(within(gradebook).getByRole('checkbox', { name: 'Select Maya Chen' }))
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).toHaveClass('bg-surface-3')
 
     await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
     expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
