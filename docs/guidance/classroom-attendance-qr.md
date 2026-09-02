@@ -75,3 +75,11 @@ After rebasing onto main `a068a846` (#1138), the teacher/student fixture matrix
 was rerun: all eight role/viewport/theme cases passed. Refreshed poster and
 student closed-state screenshots in `test-results/experience-matrix-*` were
 visually inspected; the earlier Pattern Lab evidence remains unchanged.
+
+Final integration review identified that the QR example also changes the frozen
+teacher Pattern Lab contracts region. All eight teacher contracts references
+(desktop/mobile, light/dark, Darwin/Linux) were refreshed from source `445f6a46`
+on 2026-09-02 and visually inspected. Linux capture used Playwright 1.58.0 Noble
+with `fonts-dejavu-core`, matching the existing reference setup. The intentional
+difference is the Open QR example button (and its mobile row); assertions and
+tolerances are unchanged. Student contract references are unchanged.
