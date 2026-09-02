@@ -1255,7 +1255,9 @@ describe('TeacherAttendanceTab', () => {
     await user.click(await screen.findByRole('button', { name: 'Show QR' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Attendance QR' })
-    expect(within(dialog).getByLabelText('Student attendance check-in QR code')).toBeInTheDocument()
+    const qr = within(dialog).getByLabelText('Student attendance check-in QR code')
+    expect(qr).toBeInTheDocument()
+    expect(qr).toHaveClass('aspect-square', 'w-[min(80vw,70vh)]', 'shrink-0', 'max-w-full')
     expect(within(dialog).getByText('Scan to check in through Pika')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Copy link' })).toBeInTheDocument()
     expect(within(dialog).getAllByRole('button', { name: 'Close' })[0]).toHaveFocus()

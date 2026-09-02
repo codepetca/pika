@@ -475,6 +475,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
   let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
+  let classroomQrGeneration = 1
+  let classroomQrToken = 'a'.repeat(43)
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -597,6 +599,32 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       }),
     })
   })
+  await page.route('**/api/teacher/attendance/qr?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
+        expiresAt: '2026-08-29T16:00:00.000Z',
+        revision: 2,
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/classroom-qr**', async (route) => {
+    if (route.request().method() === 'POST') {
+      classroomQrGeneration += 1
+      classroomQrToken = 'b'.repeat(43)
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        entryPath: `/attendance/classroom/${classroomQrToken}`,
+        generation: classroomQrGeneration,
+        rotatedAt: '2026-08-29T15:00:00.000Z',
+      }),
+    })
+  })
 
   await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
 
@@ -629,6 +657,55 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
+  await page.getByRole('button', { name: 'Show QR' }).click()
+  const liveQrDialog = page.getByRole('dialog', { name: 'Attendance QR' })
+  const liveQr = liveQrDialog.getByLabel('Student attendance check-in QR code')
+  await expect(liveQr).toBeVisible()
+  const [liveQrBox, viewportSize] = await Promise.all([liveQr.boundingBox(), page.viewportSize()])
+  expect(liveQrBox).not.toBeNull()
+  expect(Math.abs(liveQrBox!.width - liveQrBox!.height)).toBeLessThanOrEqual(1)
+  expect(liveQrBox!.width).toBeGreaterThanOrEqual(Math.min(viewportSize!.width, viewportSize!.height) * 0.7)
+  const dialogBox = await liveQrDialog.boundingBox()
+  expect(liveQrBox!.x).toBeGreaterThan(dialogBox!.x)
+  expect(liveQrBox!.x + liveQrBox!.width).toBeLessThan(dialogBox!.x + dialogBox!.width)
+  const svgBox = await liveQr.locator('svg').boundingBox()
+  expect(Math.abs(svgBox!.width - svgBox!.height)).toBeLessThanOrEqual(1)
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-live-qr.png`),
+    animations: 'disabled',
+  })
+  await liveQrDialog.getByRole('button', { name: 'Close' }).click()
+
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Classroom QR poster' }).click()
+  const posterDialog = page.getByRole('dialog', { name: 'Classroom QR poster' })
+  await expect(posterDialog.getByLabel('Daily and Attendance Fixture permanent attendance QR code')).toBeVisible()
+  await expect(posterDialog.getByText('Print once and use for every class')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-permanent-poster.png`),
+    animations: 'disabled',
+  })
+  await posterDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  const rotateDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
+  await expect(rotateDialog).toContainText('current poster will stop working immediately')
+  await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await expect(rotateDialog).toBeHidden()
+  expect(classroomQrGeneration).toBe(2)
+  await page.evaluate(() => {
+    window.print = () => window.dispatchEvent(new Event('afterprint'))
+  })
+  await posterDialog.getByRole('button', { name: 'Print' }).click()
+  await expect.poll(() => page.evaluate(() => document.body.dataset.printClassroomQr ?? null))
+    .toBeNull()
+  const download = page.waitForEvent('download')
+  await posterDialog.getByRole('button', { name: 'Download SVG' }).click()
+  expect((await download).suggestedFilename()).toBe('daily-and-attendance-fixture-attendance-qr.svg')
+  await page.emulateMedia({ media: 'print' })
+  await page.evaluate(() => { document.body.dataset.printClassroomQr = 'true' })
+  await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-print.png`) })
+  await page.emulateMedia({ media: 'screen' })
+  await page.evaluate(() => { delete document.body.dataset.printClassroomQr })
+  await posterDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
@@ -834,6 +911,66 @@ test('shows student attendance states without exposing derived status labels', a
     fullPage: true,
     animations: 'disabled',
   })
+})
+
+test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  let state: 'open' | 'closed' | 'revoked' | 'cross_classroom' | 'error' = 'open'
+  await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    const bodies = {
+      open: {
+        state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
+        attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        studentId: '40000000-0000-4000-8000-000000000001',
+        occurrenceBinding: 'a'.repeat(32),
+      },
+      closed: {
+        state: 'closed', title: 'Attendance is not open',
+        description: 'This classroom poster works when your teacher opens attendance.',
+      },
+      revoked: {
+        state: 'invalid', title: 'This classroom QR is no longer valid',
+        description: 'Ask your teacher for the current classroom attendance poster.',
+      },
+      cross_classroom: {
+        state: 'needs_staff', title: 'Your teacher needs to help',
+        description: 'This signed-in account is not on the attendance roster for this classroom.',
+      },
+      error: { error: 'Attendance is temporarily unavailable' },
+    }
+    await route.fulfill({
+      status: state === 'error' ? 503 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(bodies[state]),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/student-classroom-attendance', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
+
+  state = 'closed'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-closed.png`),
+    animations: 'disabled',
+  })
+
+  state = 'revoked'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'This classroom QR is no longer valid' })).toBeVisible()
+
+  state = 'cross_classroom'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('not on the attendance roster for this classroom')).toBeVisible()
+
+  state = 'error'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
 })
 
 test('keeps the selected Test grading roster compact and selection-driven', async ({ page }, testInfo) => {

@@ -6,6 +6,8 @@ import {
   AlertDialog,
   Button,
   Card,
+  ContentDialog,
+  QrCode,
   FormField,
   Input,
   IconButton,
@@ -67,6 +69,18 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { StudentGradesPattern } from './StudentGradesPattern'
 
 type Role = 'teacher' | 'student'
+
+function QrSizingExample() {
+  const [open, setOpen] = useState(false)
+  return <>
+    <Button type="button" variant="surface" size="sm" onClick={() => setOpen(true)}>Open QR example</Button>
+    <ContentDialog isOpen={open} onClose={() => setOpen(false)} title="QR sizing example" panelClassName="h-full" showFooterClose={false}>
+      <div className="mx-auto w-full max-w-lg">
+        <QrCode value="https://example.invalid/attendance/classroom/example" label="Nonfunctional example QR" className="aspect-square w-full bg-qr-background p-12" codeClassName="max-w-none" />
+      </div>
+    </ContentDialog>
+  </>
+}
 
 interface PatternLabDestination {
   value: string
@@ -411,6 +425,7 @@ export function UiGallery({ role }: Props) {
                   Open alert dialog
                 </Button>
                 <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+                <QrSizingExample />
               </div>
             </Card>
           </div>

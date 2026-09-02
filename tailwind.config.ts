@@ -40,6 +40,10 @@ const config: Config = {
       colors: {
         // Semantic background colors
         page: 'var(--color-page)',
+        qr: {
+          background: 'var(--color-qr-background)',
+          foreground: 'var(--color-qr-foreground)',
+        },
         surface: {
           DEFAULT: 'var(--color-surface)',
           2: 'var(--color-surface-2)',

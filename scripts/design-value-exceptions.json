@@ -115,8 +115,20 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
+          "count": 9,
+          "fingerprint": "ad3b6fa170b12b46",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherClassroomQrDialog.tsx",
+      "reviewBy": "phase-3-attendance-printable-qr-geometry",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
           "count": 4,
-          "fingerprint": "75ff71d2b4d389c2",
+          "fingerprint": "6e55a4bac5611b78",
           "reason": "layout-geometry"
         }
       ]

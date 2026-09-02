@@ -6,6 +6,11 @@ export interface TeacherAttendanceQrPresentation {
   expiresAt: string
   revision: number
 }
+export interface TeacherClassroomQrPresentation {
+  entryPath: string
+  generation: number
+  rotatedAt: string
+}
 export type TeacherAttendanceSessionState =
   | 'not_scheduled'
   | 'scheduled'

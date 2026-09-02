@@ -5,6 +5,11 @@ export const studentAttendanceCheckInSchema = z.object({
   attemptId: z.string().uuid(),
 }).strict()
 
+export const studentClassroomAttendanceCheckInSchema = z.object({
+  classroomQrToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  attemptId: z.string().uuid(),
+}).strict()
+
 export const studentAttendanceCheckInViewSchema = z.object({
   state: z.enum(['checked_in', 'already_checked_in', 'needs_staff', 'closed', 'invalid']),
   title: z.string().min(1).max(120),
