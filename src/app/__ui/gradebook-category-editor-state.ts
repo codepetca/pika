@@ -3,6 +3,13 @@ import type { GradebookCategory } from '@/types'
 const PERCENTAGE_SCALE = 100
 const PERCENTAGE_INCREMENT = 0.5
 
+export function nextGradebookCategoryNumber(categories: GradebookCategory[]): number {
+  return categories.reduce((maximum, category) => {
+    const suffix = /^pattern-category-(\d+)$/.exec(category.id)
+    return suffix ? Math.max(maximum, Number(suffix[1])) : maximum
+  }, 0) + 1
+}
+
 export type GradebookCategoryEditorDraft = GradebookCategory & {
   percentageLocked: boolean
 }

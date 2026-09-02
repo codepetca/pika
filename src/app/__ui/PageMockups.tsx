@@ -18,6 +18,7 @@ import {
   Plus,
   RotateCw,
   Upload,
+  Users,
 } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { DateNavigator } from '@/components/DateNavigator'
@@ -47,6 +48,7 @@ import { STUDENT_PAGE_ITEMS, StudentPageMockup, type StudentPageId } from './Stu
 import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import { GradebookAssessmentEditorMockup } from './GradebookAssessmentEditorMockup'
 import { GradebookCategoryEditorMockup } from './GradebookCategoryEditorMockup'
+import { GradebookWeightInputMockup } from './GradebookWeightInputMockup'
 import {
   Button,
   Card,
@@ -254,6 +256,9 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
   const [teacherPage, setTeacherPage] = useState<TeacherPageId>('daily')
   const [studentPage, setStudentPage] = useState<StudentPageId>('today')
   const [state, setState] = useState<FixtureState>('populated')
+  useEffect(() => {
+    setState((current) => current === 'empty-categories' ? 'populated' : current)
+  }, [role])
   const [dailyAttendanceMode, setDailyAttendanceMode] = useState<DailyAttendanceMode>('qr')
   const [prototypeMessage, setPrototypeMessage] = useState('Example controls never read or write live data.')
   const explain = (action: string) => setPrototypeMessage(`${action} selected. Example only—nothing was changed.`)
@@ -283,7 +288,8 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
             <FormField label="Example state" className="w-40">
               <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
                 { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' },
-                { value: 'empty-categories', label: 'No gradebook categories' }, { value: 'loading', label: 'Loading' },
+                ...(role === 'teacher' && teacherPage === 'gradebook' ? [{ value: 'empty-categories', label: 'No gradebook categories' }] : []),
+                { value: 'loading', label: 'Loading' },
                 { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
               ]} />
             </FormField>
@@ -295,7 +301,10 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
           <Tabs<TeacherPageId>
             ariaLabel="Teacher classroom page mockups"
             value={teacherPage}
-            onValueChange={setTeacherPage}
+            onValueChange={(page) => {
+              setTeacherPage(page)
+              if (state === 'empty-categories') setState('populated')
+            }}
             items={TEACHER_PAGE_ITEMS}
             getTabId={(value) => `mockup-${value}-tab`}
             getPanelId={(value) => `mockup-${value}-panel`}
@@ -606,12 +615,13 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
     <div className="space-y-3">
       <TeacherWorkSurfaceContextBar
         ariaLabel="Gradebook mockup controls"
-        primaryClassName="max-w-44 overflow-hidden sm:max-w-none sm:overflow-visible"
-        primary={<TeacherWorkSurfaceActionCluster className="max-w-full justify-start overflow-x-auto sm:overflow-visible">
+        primaryClassName="max-w-44 sm:max-w-none"
+        primary={<TeacherWorkSurfaceActionCluster className="max-w-full justify-start">
           <TeacherWorkSurfaceMenuButton
-            className="hidden sm:inline-flex"
+            buttonProps={{ 'aria-label': selected.length ? `${selected.length} selected` : 'Student Actions' }}
             label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{selected.length ? `${selected.length} selected` : 'Student Actions'}</span>
+              <span className="hidden sm:inline">{selected.length ? `${selected.length} selected` : 'Student Actions'}</span>
+              <span className="sm:hidden" aria-hidden="true">{selected.length || <Users className="h-4 w-4" />}</span>
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </span>}
             items={[
@@ -631,31 +641,33 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             menuAriaLabel="Student actions"
             menuAlign="start"
           />
-          <SegmentedControl<ScoreMode>
-            ariaLabel="Score display"
-            value={scoreMode}
-            onChange={setScoreMode}
-            options={[
-              { value: 'percent', label: '%' },
-              { value: 'raw', label: 'x/y' },
-            ]}
-          />
-          <SegmentedControl<'average' | 'median'>
-            ariaLabel="Class summary"
-            value={summaryKind}
-            onChange={setSummaryKind}
-            options={[
-              { value: 'average', label: 'AVG' },
-              { value: 'median', label: 'MED' },
-            ]}
-          />
-          <IconButton
-            icon={Dumbbell}
-            label="Show weights"
-            variant={showWeights ? 'subtle' : 'ghost'}
-            aria-pressed={showWeights}
-            onClick={() => setShowWeights((current) => !current)}
-          />
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto sm:overflow-visible" data-testid="gradebook-display-controls">
+            <SegmentedControl<ScoreMode>
+              ariaLabel="Score display"
+              value={scoreMode}
+              onChange={setScoreMode}
+              options={[
+                { value: 'percent', label: '%' },
+                { value: 'raw', label: 'x/y' },
+              ]}
+            />
+            <SegmentedControl<'average' | 'median'>
+              ariaLabel="Class summary"
+              value={summaryKind}
+              onChange={setSummaryKind}
+              options={[
+                { value: 'average', label: 'AVG' },
+                { value: 'median', label: 'MED' },
+              ]}
+            />
+            <IconButton
+              icon={Dumbbell}
+              label="Show weights"
+              variant={showWeights ? 'subtle' : 'ghost'}
+              aria-pressed={showWeights}
+              onClick={() => setShowWeights((current) => !current)}
+            />
+          </div>
         </TeacherWorkSurfaceActionCluster>}
         actions={<MoreMenu label="Gradebook" items={[
           { id: 'edit-gradebook', label: 'Edit categories', onSelect: () => setGradebookEditorOpen(true) },
@@ -667,7 +679,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       />
       <TeacherWorkSurfaceTableFrame
         data-testid="gradebook-scroll-frame"
-        className={cn(empty || fewAssessments ? 'max-h-80 border border-border' : 'h-80 border border-border')}
+        className={cn('relative', empty || fewAssessments ? 'max-h-80 border border-border' : 'h-80 border border-border')}
       >
         <div
           className={cn((empty || fewAssessments) && 'w-full')}
@@ -737,30 +749,19 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                       align="center"
                       className="!px-1 bg-surface-2"
                     >
-                      <FormField
-                        label={`Category weight for ${assessment.title}`}
-                        hideLabel
-                        collapseHiddenLabel
-                      >
-                        <Input
-                          className="px-1 text-center text-sm tabular-nums"
-                          type="number"
-                          min={1}
-                          max={999}
-                          step={1}
-                          value={Number.isFinite(assessment.weight) ? assessment.weight : ''}
-                          onChange={(event) => {
-                            const weight = event.target.value === '' ? Number.NaN : Number(event.target.value)
-                            setAssessmentDetails((current) => ({
-                              ...current,
-                              [assessment.title]: {
-                                categoryId: assessment.category_id ?? null,
-                                weight,
-                              },
-                            }))
-                          }}
-                        />
-                      </FormField>
+                      <GradebookWeightInputMockup
+                        title={assessment.title}
+                        weight={assessment.weight}
+                        onChange={(weight) => {
+                          setAssessmentDetails((current) => ({
+                            ...current,
+                            [assessment.title]: {
+                              categoryId: assessment.category_id ?? null,
+                              weight,
+                            },
+                          }))
+                        }}
+                      />
                     </DataTableCell>
                   ))}
                   {fewAssessments ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
@@ -915,6 +916,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
         isOpen={Boolean(selectedAssessment)}
         assessment={selectedAssessment}
         assessments={assessmentColumns}
+        otherAssessmentTitles={assessmentTitles.filter((title) => title !== selectedAssessmentTitle)}
         categories={categories}
         onClose={() => setSelectedAssessmentTitle(null)}
         onSave={(title, categoryId, weight) => {
@@ -935,7 +937,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
         ? 'With no assessments, the roster remains visible and the Assessments column spans the remaining table width.'
         : fewAssessments
           ? 'With only a few assessments, each assessment keeps its compact minimum width while the empty assessment area expands and keeps Final at the far edge.'
-          : 'Compact assessment columns show the dense horizontal gradebook. The selected class summary stays pinned to the bottom edge while roster rows scroll underneath; More actions swaps Average and Median or puts Last name first.'}</Description>
+          : 'Compact assessment columns show the dense horizontal gradebook. Center controls set score display, class summary, and weights; More actions owns categories, name order, student IDs, and frozen columns.'}</Description>
     </div>
   )
 }

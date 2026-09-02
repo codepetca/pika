@@ -24,6 +24,47 @@ const assessment: GradebookAssessmentColumn = {
 }
 
 describe('Gradebook editor mockup accessibility', () => {
+  it('allocates a fresh category ID after a delete and reopen', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(<TooltipProvider>
+      <GradebookCategoryEditorMockup
+        isOpen
+        categories={[categories[0], { ...categories[1], id: 'pattern-category-3' }]}
+        onClose={() => undefined}
+        onSave={onSave}
+      />
+    </TooltipProvider>)
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+    await user.type(screen.getByRole('textbox', { name: 'Category name for Category 3' }), 'Participation')
+    await user.click(screen.getByRole('button', { name: 'Save categories' }))
+    const saved = onSave.mock.calls[0][0] as GradebookCategory[]
+    expect(new Set(saved.map((category) => category.id)).size).toBe(3)
+    expect(saved.map((category) => category.name)).toEqual(['Term', 'Final', 'Participation'])
+    expect(saved[2].default_assessment_weight).toBe(10)
+  })
+
+  it('preserves an assessment weight when its category changes and blocks invalid weights', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider>
+      <GradebookAssessmentEditorMockup
+        isOpen
+        assessment={{ ...assessment, weight: 20 }}
+        assessments={[assessment]}
+        categories={categories}
+        onClose={() => undefined}
+        onSave={() => undefined}
+      />
+    </TooltipProvider>)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Category' }), 'final')
+    const weight = screen.getByRole('spinbutton', { name: 'Category weight' })
+    expect(weight).toHaveValue(20)
+    await user.clear(weight)
+    await user.type(weight, '1.5')
+    expect(weight).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Save assessment' })).toBeDisabled()
+  })
+
   it('names assessment fields, exposes calculated weight as read-only, and returns focus on Escape', async () => {
     const user = userEvent.setup()
     function Harness() {
@@ -70,7 +111,7 @@ describe('Gradebook editor mockup accessibility', () => {
       />
     </TooltipProvider>)
 
-    expect(screen.getByRole('dialog', { name: 'Edit gradebook' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Edit categories' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to reorder Term' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Term is the default category' })).toHaveAttribute('aria-pressed', 'true')
     const lock = screen.getByRole('button', { name: 'Lock Term course percentage' })
@@ -82,7 +123,7 @@ describe('Gradebook editor mockup accessibility', () => {
     await user.keyboard('{Enter}')
     expect(screen.getByRole('button', { name: 'Final is the default category' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Make Term the default category' })).toHaveAttribute('aria-pressed', 'false')
-    await user.click(screen.getByRole('button', { name: 'Save gradebook' }))
+    await user.click(screen.getByRole('button', { name: 'Save categories' }))
     expect(onSave).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'term', is_default: false }),
       expect.objectContaining({ id: 'final', is_default: true }),

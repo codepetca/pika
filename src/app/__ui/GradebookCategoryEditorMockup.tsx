@@ -25,6 +25,7 @@ import {
   createGradebookCategoryDrafts,
   deleteGradebookCategory,
   isGradebookPercentageIncrement,
+  nextGradebookCategoryNumber,
   normalizeGradebookCategoryDrafts,
   redistributeGradebookPercentage,
   reorderGradebookCategories,
@@ -76,7 +77,7 @@ function SortableCategoryRow({
   deleteDisabled,
 }: SortableCategoryRowProps) {
   const label = categoryLabel(category, index)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: category.id,
     disabled: totalCategories < 2,
   })
@@ -89,6 +90,7 @@ function SortableCategoryRow({
     <tr ref={setNodeRef} style={style} className={cn(isDragging && 'relative z-floating shadow-elevated')}>
       <td className="rounded-l-card border-y border-l border-border bg-surface-2 px-1 py-2">
         <IconButton
+          ref={setActivatorNodeRef}
           icon={GripVertical}
           label={`Drag to reorder ${label}`}
           variant="ghost"
@@ -179,7 +181,7 @@ export function GradebookCategoryEditorMockup({
   onClose: () => void
   onSave: (categories: GradebookCategory[]) => void
 }) {
-  const nextCategoryNumber = useRef(categories.length + 1)
+  const nextCategoryNumber = useRef(nextGradebookCategoryNumber(categories))
   const [editor, setEditor] = useState<EditorState>(() => {
     const drafts = createGradebookCategoryDrafts(categories)
     return { drafts, percentageInputs: percentageInputsFor(drafts) }
@@ -193,7 +195,7 @@ export function GradebookCategoryEditorMockup({
     if (!isOpen) return
     const drafts = createGradebookCategoryDrafts(categories)
     setEditor({ drafts, percentageInputs: percentageInputsFor(drafts) })
-    nextCategoryNumber.current = categories.length + 1
+    nextCategoryNumber.current = nextGradebookCategoryNumber(categories)
   }, [categories, isOpen])
 
   const names = editor.drafts.map((category) => category.name.trim().toLocaleLowerCase())
@@ -277,10 +279,10 @@ export function GradebookCategoryEditorMockup({
   }
 
   function addCategory() {
+    const id = `pattern-category-${nextCategoryNumber.current}`
+    nextCategoryNumber.current += 1
     setEditor((current) => {
       const firstCategory = current.drafts.length === 0
-      const id = `pattern-category-${nextCategoryNumber.current}`
-      nextCategoryNumber.current += 1
       const drafts = normalizeGradebookCategoryDrafts([
         ...current.drafts,
         {
@@ -317,7 +319,7 @@ export function GradebookCategoryEditorMockup({
     <ContentDialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Edit gradebook"
+      title="Edit categories"
       maxWidth="max-w-5xl"
       showFooterClose={false}
     >
@@ -385,7 +387,7 @@ export function GradebookCategoryEditorMockup({
               disabled={!valid}
               onClick={() => onSave(normalizeGradebookCategoryDrafts(editor.drafts).map(({ percentageLocked: _locked, ...category }) => category))}
             >
-              Save gradebook
+              Save categories
             </Button>
           </div>
         </div>

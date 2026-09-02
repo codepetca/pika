@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { calculateAssessmentCourseWeight } from '@/lib/gradebook'
 import type { GradebookAssessmentColumn, GradebookCategory } from '@/types'
 import { Button, ContentDialog, FormField, Input, Select } from '@/ui'
+import { isValidGradebookMockupWeight } from './gradebook-mockup-state'
 
 export function GradebookAssessmentEditorMockup({
   isOpen,
   assessment,
   assessments,
+  otherAssessmentTitles,
   categories,
   onClose,
   onSave,
@@ -16,6 +18,7 @@ export function GradebookAssessmentEditorMockup({
   isOpen: boolean
   assessment: GradebookAssessmentColumn | null
   assessments: GradebookAssessmentColumn[]
+  otherAssessmentTitles?: string[]
   categories: GradebookCategory[]
   onClose: () => void
   onSave: (title: string, categoryId: string | null, weight: number) => void
@@ -23,6 +26,7 @@ export function GradebookAssessmentEditorMockup({
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [weight, setWeight] = useState(10)
+  const weightIsValid = isValidGradebookMockupWeight(weight)
 
   useEffect(() => {
     if (!isOpen || !assessment) return
@@ -35,6 +39,7 @@ export function GradebookAssessmentEditorMockup({
   const courseWeight = useMemo(() => {
     if (
       !assessment
+      || !weightIsValid
       || !selectedCategory
       || !assessment.include_in_final
       || assessment.is_draft
@@ -57,18 +62,18 @@ export function GradebookAssessmentEditorMockup({
       assessmentWeight: weight,
       categoryAssessmentWeights: [...otherWeights, weight],
     })
-  }, [assessment, assessments, selectedCategory, weight])
+  }, [assessment, assessments, selectedCategory, weight, weightIsValid])
 
   const normalizedTitle = title.trim()
-  const titleIsUnique = !assessments.some((candidate) => (
-    candidate.assessment_id !== assessment?.assessment_id
-    && candidate.title.trim().toLocaleLowerCase() === normalizedTitle.toLocaleLowerCase()
+  const reservedTitles = otherAssessmentTitles ?? assessments
+    .filter((candidate) => candidate.assessment_id !== assessment?.assessment_id)
+    .map((candidate) => candidate.title)
+  const titleIsUnique = !reservedTitles.some((candidate) => (
+    candidate.trim().toLocaleLowerCase() === normalizedTitle.toLocaleLowerCase()
   ))
   const valid = normalizedTitle.length > 0
     && titleIsUnique
-    && Number.isInteger(weight)
-    && weight >= 1
-    && weight <= 999
+    && weightIsValid
 
   return (
     <ContentDialog
@@ -90,12 +95,7 @@ export function GradebookAssessmentEditorMockup({
           <FormField label="Category">
             <Select
               value={categoryId}
-              onChange={(event) => {
-                const nextCategoryId = event.target.value
-                setCategoryId(nextCategoryId)
-                const nextCategory = categories.find((category) => category.id === nextCategoryId)
-                if (nextCategory) setWeight(nextCategory.default_assessment_weight)
-              }}
+              onChange={(event) => setCategoryId(event.target.value)}
               options={[
                 { value: '', label: 'None' },
                 ...categories.map((category) => ({ value: category.id, label: category.name })),
@@ -103,12 +103,13 @@ export function GradebookAssessmentEditorMockup({
             />
           </FormField>
 
-          <FormField label="Category weight">
+          <FormField label="Category weight" error={weightIsValid ? undefined : 'Enter a whole number from 1 to 999.'}>
             <Input
               type="number"
               min={1}
               max={999}
               step={1}
+              aria-invalid={!weightIsValid}
               value={Number.isFinite(weight) ? weight : ''}
               onChange={(event) => setWeight(
                 event.target.value === '' ? Number.NaN : Number(event.target.value),
@@ -118,7 +119,7 @@ export function GradebookAssessmentEditorMockup({
 
           <FormField label="Course weight">
             <Input
-              value={courseWeight == null ? 'Not counted' : `${courseWeight}%`}
+              value={!weightIsValid ? '—' : courseWeight == null ? 'Not counted' : `${courseWeight}%`}
               readOnly
               className="bg-surface-2 font-medium tabular-nums"
             />
