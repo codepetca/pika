@@ -15,7 +15,7 @@ describe('AssessmentStatusIcon', () => {
   it('renders returned as the primary return icon', () => {
     render(<AssessmentStatusIcon state="returned" />)
 
-    expect(screen.getByTestId('assessment-status-icon-returned')).toHaveClass('text-primary')
+    expect(screen.getByTestId('assessment-status-icon-returned')).toHaveClass('text-primary', 'lucide-reply')
   })
 
   it('renders resubmitted as the warning resubmission icon', () => {

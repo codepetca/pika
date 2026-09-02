@@ -615,11 +615,42 @@ function applySearchParamsUpdate(
 }
 
 function openAddClassworkMenu() {
-  fireEvent.click(screen.getByRole('button', { name: 'Create classwork' }))
+  fireEvent.click(screen.getByRole('button', { name: 'New classwork' }))
+}
+
+function openActionMenu(trigger: HTMLElement) {
+  if (trigger.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(trigger)
+  }
+}
+
+function getClassworkOrganizeAction() {
+  const trailingActions = screen.getByTestId('assignment-summary-trailing-actions')
+  openActionMenu(within(trailingActions).getByRole('button', { name: 'More actions' }))
+  return screen.getByRole('menuitemcheckbox', { name: 'Edit classwork' })
 }
 
 function toggleClassworkOrganize() {
-  fireEvent.click(screen.getByRole('button', { name: 'Organize classwork' }))
+  fireEvent.click(getClassworkOrganizeAction())
+}
+
+function getAssignmentUtilityAction(name: 'Edit Assignment' | 'Delete Assignment') {
+  const trailingActions = screen.getByTestId('assignment-workspace-trailing-actions')
+  openActionMenu(within(trailingActions).getByRole('button', { name: 'More actions' }))
+  return screen.getByRole('menuitem', { name })
+}
+
+function getSelectedStudentAction(
+  name:
+    | 'AI Grade'
+    | 'Copy grade to 1 selected'
+    | 'Copy grade to 2 selected'
+    | 'Copy comment to 2 selected'
+    | 'Return',
+) {
+  const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
+  openActionMenu(within(toolbar).getByRole('button', { name: /Student actions/ }))
+  return screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })
 }
 
 describe('TeacherClassroomView', () => {
@@ -1063,7 +1094,7 @@ describe('TeacherClassroomView', () => {
     expect(detailFetchCount).toBe(1)
   })
 
-  it('uses a direct organize toggle and shows Markdown only while organize mode is active', async () => {
+  it('keeps Edit classwork and Markdown actions in the summary More menu', async () => {
     const onEditModeChange = vi.fn()
     const onOpenMarkdownEditor = vi.fn()
 
@@ -1081,30 +1112,33 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: 'Create classwork' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
+    const newClasswork = screen.getByRole('button', { name: 'New classwork' })
+    expect(newClasswork).not.toHaveTextContent('New classwork')
+    expect(newClasswork.querySelector('svg')).not.toBeNull()
+    expect(newClasswork.closest('[data-tooltip="New classwork"]')).not.toBeNull()
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
     expect(screen.getByRole('region', { name: 'Classwork actions' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create classwork' }).closest('.fixed')).toBeNull()
+    expect(newClasswork.closest('.fixed')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
 
-    toggleClassworkOrganize()
-
-    expect(screen.getByRole('button', { name: 'Create classwork' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
-    expect(onEditModeChange).toHaveBeenLastCalledWith(true)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
 
     toggleClassworkOrganize()
+
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
+    expect(onEditModeChange).toHaveBeenLastCalledWith(true)
+
+    toggleClassworkOrganize()
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Create classwork' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
 
@@ -1136,10 +1170,13 @@ describe('TeacherClassroomView', () => {
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {
+    const onOpenMarkdownEditor = vi.fn()
+
     render(
       <TeacherClassroomView
         classroom={{ ...classroom, archived_at: '2026-06-01T12:00:00Z' }}
         selectedAssignmentId={null}
+        onOpenMarkdownEditor={onOpenMarkdownEditor}
         showMarkdownEditorOption
       />,
     )
@@ -1148,14 +1185,29 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    const addClasswork = screen.getByRole('button', { name: 'Create classwork' })
-    const organizeClasswork = screen.getByRole('button', { name: 'Organize classwork' })
+    const addClasswork = screen.getByRole('button', { name: 'New classwork' })
+    const organizeClasswork = getClassworkOrganizeAction()
 
     expect(addClasswork).toBeDisabled()
     expect(organizeClasswork).toBeDisabled()
 
     fireEvent.click(organizeClasswork)
-    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Edit Markdown' })).toBeDisabled()
+  })
+
+  it('hides the Markdown action when its editor callback is unavailable', async () => {
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+        showMarkdownEditorOption
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+
+    expect(getClassworkOrganizeAction()).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
   })
 
   it('keeps the Markdown action hidden in organize mode when markdown editing is not enabled', async () => {
@@ -1172,8 +1224,8 @@ describe('TeacherClassroomView', () => {
 
     toggleClassworkOrganize()
 
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('menuitem', { name: 'Edit Markdown' })).not.toBeInTheDocument()
   })
 
   it('exits classwork organize mode on Escape', async () => {
@@ -1189,13 +1241,13 @@ describe('TeacherClassroomView', () => {
     })
 
     toggleClassworkOrganize()
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
+      expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     })
   })
 
@@ -1420,7 +1472,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('creates a draft survey from the New Classwork menu and opens visual editing', async () => {
+  it('creates a draft survey from the New classwork menu and opens visual editing', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -1502,11 +1554,11 @@ describe('TeacherClassroomView', () => {
 
     toggleClassworkOrganize()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classwork' }))
+    toggleClassworkOrganize()
 
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'false')
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
-    expect(screen.getByRole('button', { name: 'Create classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeInTheDocument()
   })
 
   it('resets organize mode when the selected assignment workspace changes', async () => {
@@ -1548,7 +1600,7 @@ describe('TeacherClassroomView', () => {
     })
 
     toggleClassworkOrganize()
-    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
+    expect(getClassworkOrganizeAction()).toHaveAttribute('aria-checked', 'true')
 
     rerender(
       <TeacherClassroomView
@@ -1559,7 +1611,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
+      expect(screen.queryByTestId('assignment-summary-trailing-actions')).not.toBeInTheDocument()
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1964,17 +2016,15 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('group', { name: 'Right pane view' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Assignment workspace view' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
-    expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     expect(screen.getByRole('region', { name: 'Assignment actions' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
-    expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit classwork' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
-    expect(screen.getAllByRole('button', { name: 'Edit Assignment' })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Delete Assignment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }))
+    fireEvent.click(getAssignmentUtilityAction('Edit Assignment'))
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
   })
@@ -2019,7 +2069,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Assignment' }))
+    fireEvent.click(getAssignmentUtilityAction('Delete Assignment'))
 
     expect(await screen.findByText('Delete assignment?')).toBeInTheDocument()
     expect(screen.getByText(/Assignment One/)).toBeInTheDocument()
@@ -2105,17 +2155,21 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 2 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
     mockClearSelection.mockClear()
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
+    expect(screen.getByText('Copy grade to 2 selected students')).toBeInTheDocument()
+    const gradePreview = screen.getByRole('group', { name: 'Grade to copy' })
+    expect(gradePreview).toHaveTextContent('Completion710')
+    expect(gradePreview).toHaveTextContent('Thinking810')
+    expect(gradePreview).toHaveTextContent('Workflow910')
+    expect(gradePreview).toHaveTextContent('Final grade24/3080%Final')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -2136,7 +2190,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
-        text: 'Applied grade to 2 selected students',
+        text: 'Copied grade to 2 selected students',
         tone: 'info',
       })
     })
@@ -2211,17 +2265,21 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const commentsSelectedOption = screen.getByRole('button', { name: 'Apply Comments to Selected Students' })
+    const commentsSelectedOption = getSelectedStudentAction('Copy comment to 2 selected')
     await waitFor(() => {
       expect(commentsSelectedOption).not.toBeDisabled()
     })
 
     mockClearSelection.mockClear()
     fireEvent.click(commentsSelectedOption)
-    expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
+    expect(screen.getByText('Copy comment to 2 selected students')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
+      'Use this feedback for the selected students.',
+    )
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveClass('break-words')
+    expect(screen.getByRole('textbox', { name: 'Comment to copy' }).parentElement).toHaveClass('min-h-0', 'overflow-y-auto')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -2239,7 +2297,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
-        text: 'Applied comments to 2 selected students',
+        text: 'Copied comment to 2 selected students',
         tone: 'info',
       })
     })
@@ -2281,8 +2339,8 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     const workPanel = await screen.findByTestId('teacher-work-panel')
-    const applyGradeOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
-    const applyCommentsOption = screen.getByRole('button', { name: 'Apply Comments to Selected Students' })
+    const applyGradeOption = getSelectedStudentAction('Copy grade to 2 selected')
+    const applyCommentsOption = screen.getByRole('menuitem', { name: 'Copy comment to 2 selected' })
     await waitFor(() => {
       expect(applyGradeOption).not.toBeDisabled()
       expect(applyCommentsOption).not.toBeDisabled()
@@ -2301,7 +2359,7 @@ describe('TeacherClassroomView', () => {
     expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
   })
 
-  it('keeps checked students selected when Apply Grade to Selected Students fails', async () => {
+  it('keeps checked students selected when copying a grade fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
 
@@ -2337,13 +2395,14 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    const gradeSelectedOption = getSelectedStudentAction('Copy grade to 1 selected')
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
     fireEvent.click(gradeSelectedOption)
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(screen.getByText('Copy grade to 1 selected student')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
     expect(mockClearSelection).not.toHaveBeenCalled()
@@ -2404,7 +2463,7 @@ describe('TeacherClassroomView', () => {
       panes: 'content-grading',
       iconClasses: ['lucide-square-menu', 'lucide-percent'],
     })
-    expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
     expect(screen.getByText('student-1 Student')).toBeInTheDocument()
     await waitFor(() => {
@@ -2894,7 +2953,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /AI Grade/i }))
+    fireEvent.click(getSelectedStudentAction('AI Grade'))
 
     await waitFor(() => {
       expect(autoGradeBodies).toEqual([{ student_ids: ['student-1'] }])
@@ -3253,9 +3312,7 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
-      expect(screen.getByRole('button', { name: /Return/i })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Apply Grade to Selected Students' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Apply Comments to Selected Students' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeDisabled()
     })
   })
 
@@ -3340,7 +3397,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    const returnButton = screen.getByRole('button', { name: /Return/i })
+    const returnButton = getSelectedStudentAction('Return')
     expect(returnButton).toBeDisabled()
 
     fireEvent.click(returnButton)
@@ -3474,7 +3531,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Return/i }))
+    fireEvent.click(getSelectedStudentAction('Return'))
 
     expect(
       screen.getByText(/partial rubric drafts and must be completed or cleared before return/i),
@@ -3597,7 +3654,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Return/i }))
+    fireEvent.click(getSelectedStudentAction('Return'))
     const confirmReturnButton = screen.getAllByRole('button', { name: 'Return' }).at(-1)
     expect(confirmReturnButton).toBeDefined()
     fireEvent.click(confirmReturnButton!)

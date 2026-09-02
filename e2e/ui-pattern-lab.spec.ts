@@ -363,6 +363,8 @@ test.describe('teacher Pattern Lab', () => {
     await page.getByRole('navigation', { name: 'Pattern Lab sections' }).evaluate((navigation) => {
       navigation.style.position = 'static'
     })
+    // Exclude Next.js developer chrome, whose issue badge varies between runs.
+    await page.addStyleTag({ content: 'nextjs-portal { visibility: hidden !important; }' })
     await expect(page.getByTestId('pattern-lab-contracts')).toHaveScreenshot('teacher-pattern-contracts.png')
     await testInfo.attach('teacher-history-preview', {
       body: await page.getByTestId('history-preview-gallery').screenshot({ path: testInfo.outputPath('teacher-history-preview.png'), animations: 'disabled' }),

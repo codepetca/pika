@@ -30163,3 +30163,9 @@ User chose color-only status count chips: retain colored fills and numeric count
 
 - User disliked the success checkmark shifting alert text. Removed the decorative icon from shared AlertDialog; its conditional indentation now disappears too, aligning title, description and action to the same content width. Error alerts, dismissal, focus and auto-dismiss behavior remain unchanged.
 - Forty dialog/gallery tests and UI/design/TypeScript/lint pass. Eight Playwright role/viewport/theme checks passed with inspected screenshots, aligned bounds, accessible description, keyboard/button dismissal and focus return. Evidence: alert-alignment in session visualization folder. Local only; full Lab snapshot-baseline acceptance remains pre-publication work.
+
+<!-- pika-session-log-archive-batch:f4978d708d47cd7cc42b7de04c6bf242367e45e93086718961394a476eb63059 -->
+## 2026-08-31 — Discuss simpler assignment attachments
+
+- Audited teacher requirement fields, validation modes, image formats and student submission flow for the user's proposed single-label rows and missing-attachment warning. Basic/Reachable/Expected site are Link validation settings; supported images are PNG/JPEG/GIF/WebP, 10 MB maximum.
+- No current Assignment submit confirmation exists. Missing required items block Submit in the client, submit API and database guard, so the proposed confirmation requires coordinated behavior changes. Recorded proposed UI, pending URL-save handling, legacy-policy and migration-rollout considerations in submission-area-audit.md. Discussion only; no product behavior or database changes.
