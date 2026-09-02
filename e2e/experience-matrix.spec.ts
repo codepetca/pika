@@ -625,14 +625,10 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Show relative date' }).click()
   await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
-  } else {
-    await expect(primaryControl.getByRole('button', { name: 'Attendance actions' })).toBeVisible()
-  }
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
@@ -643,7 +639,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
-    name: 'Undo manual attendance change for Student 03 Alpha03',
+    name: 'Undo manual change for Student 03 Alpha03',
   })
   await expect(overrideUndo).toBeVisible()
   const overrideCell = overrideUndo.locator('xpath=ancestor::td')
@@ -667,8 +663,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   expect(tableHeadBox).not.toBeNull()
   expect(Math.abs(tableHeadBox!.y - scrollPaneBox!.y)).toBeLessThanOrEqual(1)
 
-  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
-  await expect(primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeVisible()
 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Hide ID column' }).click()
@@ -684,11 +681,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })).toBeEnabled()
-  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
-  await expect(primaryControl.getByRole('button', {
-    name: 'Student actions for 1 selected',
-  })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-closed.png`),
     animations: 'disabled',
@@ -696,18 +690,13 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
 
   attendanceSessionState = 'scheduled'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('group', {
-    name: 'Attendance status for Student 01 Alpha01',
-  })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Open QR check-in' })).toBeVisible()
-  } else {
-    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Open QR check-in' })).toBeVisible()
-    await page.keyboard.press('Escape')
-  }
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Open attendance' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-scheduled.png`),
     animations: 'disabled',
@@ -718,18 +707,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
-  } else {
-    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Set attendance hours' })).toBeVisible()
-  }
+  await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-unconfigured.png`),
     animations: 'disabled',
   })
-  if (viewport === 'mobile') await page.keyboard.press('Escape')
-
   await page.goto('/e2e-fixtures/teacher-daily-attendance?attendance=off', { waitUntil: 'domcontentloaded' })
 
   const dailyOnlyContextBar = page.getByTestId('daily-context-bar')
@@ -741,7 +724,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
 
@@ -802,15 +785,11 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
     await page.screenshot({ path: testInfo.outputPath(`saved-hours-${viewport}-${state}.png`), animations: 'disabled' })
   }
   const openHours = async (name: string) => {
-    if (viewport === 'desktop') await page.getByRole('button', { name }).click()
-    else {
-      await page.getByRole('button', { name: 'Attendance actions' }).click()
-      await page.getByRole('menuitem', { name: /Attendance hours/ }).click()
-    }
+    await page.getByRole('button', { name }).click()
   }
   await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Mon Aug 31')
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
   await capture('today-date')
   await page.getByRole('button', { name: 'Next day' }).click()
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Tue Sep 1')
@@ -825,7 +804,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
   finishSave()
   await expect(page.getByRole('alert').filter({ hasText: 'last save did not confirm schedule delivery' })).toBeVisible()
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
   await capture('saved-delivery-unconfirmed')
   policyReadFails = true
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -838,7 +817,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
   await page.keyboard.press('Escape')
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()
   await expect(page.getByRole('alert').filter({ hasText: 'Attendance hours could not be loaded' })).toHaveCount(0)
 })
 

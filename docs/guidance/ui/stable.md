@@ -79,7 +79,7 @@ Source grounding:
 
 ### 3a. Page structure comes from `@/ui`
 
-- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
 - Use `PageLayout`, `PageHeading`, `PageActionBar`, `PageContent`, and `PageStack` for page framing.
 - Select a named width instead of adding feature-local `max-w-*` values.
 - Use teacher density for scan-heavy operational surfaces and student density for standard content

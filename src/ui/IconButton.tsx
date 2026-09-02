@@ -9,15 +9,16 @@ import { cn } from './utils'
 export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'aria-label'> {
   label: string
   icon: LucideIcon
+  tooltip?: string
 }
 
 /** A named, tooltip-backed icon action with a full-sized touch target. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { label, icon: Icon, loading = false, disabled, className, type = 'button', ...props },
+  { label, tooltip, icon: Icon, loading = false, disabled, className, type = 'button', ...props },
   ref,
 ) {
   return (
-    <Tooltip content={label}>
+    <Tooltip content={tooltip ?? label}>
       <span className="inline-flex shrink-0">
         <Button
           {...props}

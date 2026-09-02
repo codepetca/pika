@@ -148,6 +148,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     render(<Harness />)
 
     const trigger = screen.getByRole('button', { name: 'More actions' })
+    expect(trigger).toHaveClass('border-transparent', 'bg-transparent', 'text-text-muted')
     await user.hover(trigger)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('More actions')
     await user.click(trigger)

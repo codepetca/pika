@@ -342,7 +342,7 @@ export function TeacherWorkSurfaceIconMenuButton({
   items,
   ariaLabel,
   tooltip,
-  variant = 'surface',
+  variant = 'ghost',
   size = 'sm',
   disabled,
   className,

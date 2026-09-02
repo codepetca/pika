@@ -66,7 +66,7 @@ describe('PatternLabPage guard', () => {
     expect(mocks.notFound).toHaveBeenCalledOnce()
   })
 
-  it('uses an explicit deterministic role only in fixture mode', async () => {
+  it('uses an explicit deterministic role in fixture mode', async () => {
     process.env.NODE_ENV = 'test'
     process.env.ENABLE_UI_GALLERY = 'true'
     process.env.PIKA_E2E_FIXTURES = 'true'
@@ -77,6 +77,20 @@ describe('PatternLabPage guard', () => {
 
     expect(page.props.role).toBe('student')
     expect(mocks.getCurrentUser).not.toHaveBeenCalled()
+  })
+
+  it('allows an authenticated reviewer to inspect either role', async () => {
+    process.env.NODE_ENV = 'test'
+    process.env.ENABLE_UI_GALLERY = 'true'
+    delete process.env.PIKA_E2E_FIXTURES
+    mocks.getCurrentUser.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
+
+    const page = (await PatternLabPage({
+      searchParams: Promise.resolve({ role: 'student' }),
+    })) as ReactElement<{ role: string }>
+
+    expect(page.props.role).toBe('student')
+    expect(mocks.getCurrentUser).toHaveBeenCalledOnce()
   })
 
   it('rejects production even when gallery and fixture flags are enabled', async () => {

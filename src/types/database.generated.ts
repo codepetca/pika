@@ -2951,18 +2951,21 @@ export type Database = {
           classroom_id: string
           created_at: string
           id: string
+          manual_attendance_marks: Json
           student_id: string
         }
         Insert: {
           classroom_id: string
           created_at?: string
           id?: string
+          manual_attendance_marks?: Json
           student_id: string
         }
         Update: {
           classroom_id?: string
           created_at?: string
           id?: string
+          manual_attendance_marks?: Json
           student_id?: string
         }
         Relationships: [
@@ -3693,6 +3696,10 @@ export type Database = {
           id: string
           join_policy: string
           lesson_plan_visibility: string
+          manual_attendance_revision: number
+          manual_attendance_session_ends_local: string | null
+          manual_attendance_session_starts_local: string | null
+          manual_attendance_source_mode: string
           position: number
           source_blueprint_id: string | null
           source_blueprint_origin: Json | null
@@ -3720,6 +3727,10 @@ export type Database = {
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string
+          manual_attendance_revision?: number
+          manual_attendance_session_ends_local?: string | null
+          manual_attendance_session_starts_local?: string | null
+          manual_attendance_source_mode?: string
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
@@ -3747,6 +3758,10 @@ export type Database = {
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string
+          manual_attendance_revision?: number
+          manual_attendance_session_ends_local?: string | null
+          manual_attendance_session_starts_local?: string | null
+          manual_attendance_source_mode?: string
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
@@ -9564,6 +9579,10 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_v147: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
       prepare_attendance_snapshot_v1: {
         Args: {
@@ -10097,6 +10116,27 @@ export type Database = {
           p_teacher_id: string
           p_valid_from: string
           p_valid_until: string
+        }
+        Returns: Json
+      }
+      set_pika_manual_attendance_marks: {
+        Args: {
+          p_class_date: string
+          p_classroom_id: string
+          p_status: string
+          p_student_ids: string[]
+          p_teacher_id: string
+        }
+        Returns: number
+      }
+      set_pika_manual_attendance_settings: {
+        Args: {
+          p_classroom_id: string
+          p_expected_revision: number
+          p_session_ends_local: string
+          p_session_starts_local: string
+          p_source_mode: string
+          p_teacher_id: string
         }
         Returns: Json
       }

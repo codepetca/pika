@@ -95,10 +95,56 @@ begin
   ) is null then
     raise exception 'Migration 145 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '150'
+  ) or not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.attendance_window_policies'::regclass
+      and conname = 'attendance_window_policy_duration_check'
+  ) then
+    raise exception 'Migration 150 attendance duration guard is not applied to the local database';
+  end if;
 end;
 $migration$;
 
 begin;
+
+do $manual_attendance_restore_adapter$
+declare
+  v_assignment jsonb;
+  v_test jsonb;
+  v_classroom jsonb;
+  v_enrollment jsonb;
+begin
+  v_assignment := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'assignments', '{}'::jsonb
+  );
+  v_test := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'tests', '{}'::jsonb
+  );
+  v_classroom := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'classrooms', '{}'::jsonb
+  );
+  v_enrollment := public.normalize_classroom_archive_restore_row(
+    gen_random_uuid(), 'classroom_enrollments', '{}'::jsonb
+  );
+
+  if not (v_assignment ? 'gradebook_category_id')
+    or jsonb_typeof(v_assignment->'gradebook_category_id') <> 'null'
+    or not (v_test ? 'gradebook_category_id')
+    or jsonb_typeof(v_test->'gradebook_category_id') <> 'null'
+  then
+    raise exception 'Migration 150 lost the migration 147 gradebook restore defaults';
+  end if;
+  if v_classroom->>'manual_attendance_source_mode' <> 'manual'
+    or (v_classroom->>'manual_attendance_revision')::bigint <> 1
+    or v_enrollment->'manual_attendance_marks' <> '{}'::jsonb
+  then
+    raise exception 'Migration 150 manual attendance restore defaults are incomplete';
+  end if;
+end;
+$manual_attendance_restore_adapter$;
 
 do $privileges$
 declare
@@ -257,6 +303,58 @@ select
   'Attendance guard ' || value,
   'A126' || lpad(value::text, 2, '0')
 from generate_series(10, 20) value;
+
+do $manual_attendance_class_day_guard$
+begin
+  insert into public.classrooms (id, teacher_id, title, class_code) values (
+    'a1260000-0000-4000-8000-000000000021',
+    'a1260000-0000-4000-8000-000000000001',
+    'Manual attendance class-day guard',
+    'A12621'
+  );
+  insert into public.classroom_enrollments (classroom_id, student_id) values (
+    'a1260000-0000-4000-8000-000000000021',
+    'a1260000-0000-4000-8000-000000000002'
+  );
+  insert into public.class_days (classroom_id, date, is_class_day) values (
+    'a1260000-0000-4000-8000-000000000021', '2026-09-21', false
+  );
+
+  begin
+    perform public.set_pika_manual_attendance_marks(
+      'a1260000-0000-4000-8000-000000000001',
+      'a1260000-0000-4000-8000-000000000021',
+      '2026-09-21',
+      array['a1260000-0000-4000-8000-000000000002'::uuid],
+      'present'
+    );
+    raise exception 'Manual attendance accepted a non-class date';
+  exception
+    when check_violation then null;
+  end;
+
+  update public.class_days
+  set is_class_day = true
+  where classroom_id = 'a1260000-0000-4000-8000-000000000021'
+    and date = '2026-09-21';
+  perform public.set_pika_manual_attendance_marks(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000021',
+    '2026-09-21',
+    array['a1260000-0000-4000-8000-000000000002'::uuid],
+    'present'
+  );
+  if not exists (
+    select 1
+    from public.classroom_enrollments
+    where classroom_id = 'a1260000-0000-4000-8000-000000000021'
+      and student_id = 'a1260000-0000-4000-8000-000000000002'
+      and manual_attendance_marks->>'2026-09-21' = 'present'
+  ) then
+    raise exception 'Manual attendance rejected an active class date';
+  end if;
+end;
+$manual_attendance_class_day_guard$;
 
 insert into public.attendance_roster_mappings (classroom_id) values
   ('a1260000-0000-4000-8000-000000000010');
@@ -1475,6 +1573,8 @@ do $pilot_readiness$
 declare
   v_before jsonb;
   v_after jsonb;
+  v_policy jsonb;
+  v_constraint text;
 begin
   insert into public.users (id, email, role, workos_user_id) values (
     'a1330000-0000-4000-8000-000000000001',
@@ -1510,6 +1610,50 @@ begin
   ) values (
     'a1330000-0000-4000-8000-000000000010', '09:00', '10:00'
   );
+
+  select public.upsert_attendance_timing_policy_v1(
+    'a1330000-0000-4000-8000-000000000001'::uuid,
+    'a1330000-0000-4000-8000-000000000010'::uuid,
+    '20:00:00'::time, '08:00:00'::time, 1::smallint,
+    10, 5, 0, 0, true, 1::bigint,
+    '2026-08-25T16:00:00Z'::timestamptz
+  ) into v_policy;
+  if v_policy->>'session_starts_local' <> '20:00'
+    or v_policy->>'session_ends_local' <> '08:00'
+    or (v_policy->>'session_end_day_offset')::integer <> 1
+    or (v_policy->>'revision')::bigint <> 2
+  then
+    raise exception 'Exact 12-hour attendance policy was not accepted: %', v_policy;
+  end if;
+
+  begin
+    perform public.upsert_attendance_timing_policy_v1(
+      'a1330000-0000-4000-8000-000000000001'::uuid,
+      'a1330000-0000-4000-8000-000000000010'::uuid,
+      '19:59:59'::time, '08:00:00'::time, 1::smallint,
+      10, 5, 0, 0, true, 2::bigint,
+      '2026-08-25T16:00:00Z'::timestamptz
+    );
+    raise exception 'Attendance policy accepted a session one second over 12 hours';
+  exception
+    when check_violation then
+      get stacked diagnostics v_constraint = constraint_name;
+      if v_constraint <> 'attendance_window_policy_duration_check' then
+        raise exception 'Unexpected attendance duration constraint: %', v_constraint;
+      end if;
+  end;
+
+  if not exists (
+    select 1
+    from public.attendance_window_policies
+    where classroom_id = 'a1330000-0000-4000-8000-000000000010'
+      and (closes_local - opens_local) + close_day_offset * interval '1 day'
+        = interval '12 hours'
+      and policy_revision = 2
+  ) then
+    raise exception 'Rejected attendance duration changed the stored policy';
+  end if;
+
   insert into public.attendance_roster_mappings (
     classroom_id, source_revision, synced_revision,
     schedule_source_revision, schedule_synced_revision

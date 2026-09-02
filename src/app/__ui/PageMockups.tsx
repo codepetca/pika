@@ -43,7 +43,9 @@ import type {
   LessonPlan,
   TiptapContent,
 } from '@/types'
+import { DailyMockup, type DailyAttendanceMode } from './DailyMockup'
 import { SettingsMockup } from './SettingsMockup'
+import { STUDENT_PAGE_ITEMS, StudentPageMockup, type StudentPageId } from './StudentPageMockups'
 import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import {
   Button,
@@ -69,12 +71,13 @@ import {
   type SortDirection,
 } from '@/ui'
 
-type PageId = 'classrooms' | 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
+type TeacherPageId = 'daily' | 'classrooms' | 'gradebook' | 'calendar' | 'announcements' | 'roster' | 'settings' | 'workspaces'
 type FixtureState = 'populated' | 'few-assessments' | 'loading' | 'empty' | 'error'
 type ScoreMode = 'percent' | 'raw'
 type AnnouncementFilter = 'all' | 'posted' | 'scheduled'
 
-const PAGE_ITEMS = [
+const TEACHER_PAGE_ITEMS = [
+  { value: 'daily', label: 'Daily' },
   { value: 'classrooms', label: 'Classrooms' },
   { value: 'gradebook', label: 'Gradebook' },
   { value: 'calendar', label: 'Calendar' },
@@ -244,9 +247,11 @@ function StateBoundary({ state, page, onRetry, children }: { state: FixtureState
   return <>{children}</>
 }
 
-export function PageMockups() {
-  const [page, setPage] = useState<PageId>('classrooms')
+export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student' }) {
+  const [teacherPage, setTeacherPage] = useState<TeacherPageId>('daily')
+  const [studentPage, setStudentPage] = useState<StudentPageId>('today')
   const [state, setState] = useState<FixtureState>('populated')
+  const [dailyAttendanceMode, setDailyAttendanceMode] = useState<DailyAttendanceMode>('qr')
   const [prototypeMessage, setPrototypeMessage] = useState('Example controls never read or write live data.')
   const explain = (action: string) => setPrototypeMessage(`${action} selected. Example only—nothing was changed.`)
 
@@ -256,37 +261,75 @@ export function PageMockups() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold">Experimental classroom page set</h3>
-            <p className="mt-1 text-sm text-text-muted">Local fixtures only. Use the tabs and state selector to compare behavior before touching live pages.</p>
+            <p className="mt-1 text-sm text-text-muted">{role === 'teacher' ? 'Teacher' : 'Student'} fixtures only. Use the sticky role switch, tabs and state selector to compare behavior before touching live pages.</p>
           </div>
-          <FormField label="Example state" className="w-44">
-            <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
-              { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' }, { value: 'loading', label: 'Loading' },
-              { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
-            ]} />
-          </FormField>
+          <div className="flex flex-wrap items-end gap-3">
+            {role === 'teacher' && teacherPage === 'daily' ? (
+              <FormField label="Attendance mode" className="w-40">
+                <Select
+                  id="page-mockup-attendance-mode"
+                  value={dailyAttendanceMode}
+                  onChange={(event) => setDailyAttendanceMode(event.target.value as DailyAttendanceMode)}
+                  options={[
+                    { value: 'qr', label: 'QR check-in' },
+                    { value: 'manual', label: 'Manual' },
+                  ]}
+                />
+              </FormField>
+            ) : null}
+            <FormField label="Example state" className="w-40">
+              <Select id="page-mockup-state" value={state} onChange={(event) => setState(event.target.value as FixtureState)} options={[
+                { value: 'populated', label: 'Populated' }, { value: 'few-assessments', label: 'Few assessments' }, { value: 'loading', label: 'Loading' },
+                { value: 'empty', label: 'Empty' }, { value: 'error', label: 'Error' },
+              ]} />
+            </FormField>
+          </div>
         </div>
       </Card>
-      <Tabs<PageId>
-        ariaLabel="Classroom page mockups"
-        value={page}
-        onValueChange={setPage}
-        items={PAGE_ITEMS}
-        getTabId={(value) => `mockup-${value}-tab`}
-        getPanelId={(value) => `mockup-${value}-panel`}
-      />
-      {PAGE_ITEMS.map((item) => (
-        <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={page !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
-          <StateBoundary state={item.value === 'gradebook' && state === 'empty' ? 'populated' : state} page={item.label} onRetry={() => setState('populated')}>
-            {item.value === 'classrooms' ? <ClassroomsMockup isActive={page === 'classrooms'} onPrototypeAction={explain} /> : null}
-            {item.value === 'gradebook' ? <GradebookMockup fixtureState={state} onPrototypeAction={explain} /> : null}
-            {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
-            {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
-            {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
-            {item.value === 'settings' ? <SettingsMockup onPrototypeAction={explain} /> : null}
-            {item.value === 'workspaces' ? <WorkSurfaceMockup onPrototypeAction={explain} /> : null}
-          </StateBoundary>
-        </section>
-      ))}
+      {role === 'teacher' ? (
+        <>
+          <Tabs<TeacherPageId>
+            ariaLabel="Teacher classroom page mockups"
+            value={teacherPage}
+            onValueChange={setTeacherPage}
+            items={TEACHER_PAGE_ITEMS}
+            getTabId={(value) => `mockup-${value}-tab`}
+            getPanelId={(value) => `mockup-${value}-panel`}
+          />
+          {TEACHER_PAGE_ITEMS.map((item) => (
+            <section key={item.value} id={`mockup-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-${item.value}-tab`} hidden={teacherPage !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
+              <StateBoundary state={item.value === 'gradebook' && state === 'empty' ? 'populated' : state} page={item.label} onRetry={() => setState('populated')}>
+                {item.value === 'daily' ? <DailyMockup key={dailyAttendanceMode} attendanceMode={dailyAttendanceMode} onPrototypeAction={explain} /> : null}
+                {item.value === 'classrooms' ? <ClassroomsMockup isActive={teacherPage === 'classrooms'} onPrototypeAction={explain} /> : null}
+                {item.value === 'gradebook' ? <GradebookMockup fixtureState={state} onPrototypeAction={explain} /> : null}
+                {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'settings' ? <SettingsMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'workspaces' ? <WorkSurfaceMockup onPrototypeAction={explain} /> : null}
+              </StateBoundary>
+            </section>
+          ))}
+        </>
+      ) : (
+        <>
+          <Tabs<StudentPageId>
+            ariaLabel="Student classroom page mockups"
+            value={studentPage}
+            onValueChange={setStudentPage}
+            items={STUDENT_PAGE_ITEMS}
+            getTabId={(value) => `mockup-student-${value}-tab`}
+            getPanelId={(value) => `mockup-student-${value}-panel`}
+          />
+          {STUDENT_PAGE_ITEMS.map((item) => (
+            <section key={item.value} id={`mockup-student-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-student-${item.value}-tab`} hidden={studentPage !== item.value} className="scroll-mt-28 rounded-card border border-border bg-page p-2 sm:p-4">
+              <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
+                <StudentPageMockup page={item.value} onPrototypeAction={explain} />
+              </StateBoundary>
+            </section>
+          ))}
+        </>
+      )}
       <p role="status" className="text-xs text-text-muted">{prototypeMessage}</p>
       <Description>
         Human review required before adoption. Page-specific statuses and operations stay local; this set proposes hierarchy and component reuse rather than one universal page template.

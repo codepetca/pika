@@ -2,7 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import type { VerificationCheck, VerificationResult, VerificationScript } from './types'
 
-const PAGES = ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
+const TEACHER_PAGES = ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces'] as const
+const STUDENT_PAGES = ['Today', 'Classwork', 'Tests', 'Calendar', 'Announcements', 'Resources'] as const
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -37,6 +38,7 @@ export const patternLabPageMockups: VerificationScript = {
         return bounds.top >= 0 && bounds.top < 24 && bounds.bottom <= window.innerHeight
       }),
     })
+    await navigator.evaluate((element) => { element.style.position = 'static' })
 
     for (const theme of ['light', 'dark'] as const) {
       const wantedButton = theme === 'dark' ? 'Use dark theme' : 'Use light theme'
@@ -45,8 +47,10 @@ export const patternLabPageMockups: VerificationScript = {
 
       for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
         await page.setViewportSize(viewport)
-        for (const pageName of PAGES) {
+        for (const pageName of TEACHER_PAGES) {
           await section.getByRole('tab', { name: pageName }).click()
+          const workspace = pageName === 'Workspaces' ? section.getByTestId('work-surface-mockup') : null
+          if (workspace) await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
           const targetId = await section.getByRole('tab', { name: pageName }).getAttribute('aria-controls')
           checks.push({
             name: `${viewportName} ${theme} ${pageName} tab target exists`,
@@ -59,6 +63,129 @@ export const patternLabPageMockups: VerificationScript = {
           const artifact = path.join(artifactDir, `${viewportName}-${theme}-${pageName.toLowerCase()}.png`)
           await section.screenshot({ path: artifact })
           artifacts.push(artifact)
+          if (pageName === 'Daily') {
+            const daily = section.getByTestId('daily-mockup')
+            await daily.getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' }).click()
+            const timeDialog = page.getByRole('dialog', { name: 'Attendance time' })
+            checks.push({
+              name: `${viewportName} ${theme} Daily timing defaults stay visible and contained`,
+              passed: await timeDialog.getByRole('button', { name: 'Advanced' }).count() === 0
+                && await timeDialog.getByLabel('QR opens before start (min)').inputValue() === '10'
+                && await timeDialog.getByLabel('QR opens before start (min)').getAttribute('max') === '120'
+                && await timeDialog.getByLabel('Grace period before late (min)').inputValue() === '5'
+                && await timeDialog.getByLabel('Grace period before late (min)').getAttribute('max') === '60'
+                && await timeDialog.getByLabel('QR closes before end (min)').inputValue() === '0'
+                && await timeDialog.getByLabel('QR closes before end (min)').getAttribute('max') === '60'
+                && await timeDialog.getByLabel('Absent before end (min)').inputValue() === '0'
+                && await timeDialog.getByLabel('Absent before end (min)').getAttribute('max') === '60'
+                && await timeDialog.getByRole('button', { name: 'Same class day' }).getAttribute('aria-pressed') === 'true'
+                && await timeDialog.getByRole('checkbox', { name: 'Open and close QR attendance automatically' }).isChecked()
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const timingArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-time-rules.png`)
+            await page.screenshot({ path: timingArtifact })
+            artifacts.push(timingArtifact)
+            await timeDialog.getByLabel('Starts').fill('19:59')
+            await timeDialog.getByLabel('Ends').fill('08:00')
+            await timeDialog.getByRole('button', { name: 'Next day' }).click()
+            await page.mouse.move(0, 0)
+            checks.push({
+              name: `${viewportName} ${theme} Daily rejects attendance sessions over 12 hours`,
+              passed: await timeDialog.getByText('Maximum is 12 hours.').isVisible()
+                && await timeDialog.getByRole('button', { name: 'Save time' }).isDisabled()
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const durationErrorArtifact = path.join(
+              artifactDir,
+              `${viewportName}-${theme}-daily-time-duration-error.png`,
+            )
+            await page.screenshot({ path: durationErrorArtifact })
+            artifacts.push(durationErrorArtifact)
+            await timeDialog.getByLabel('Starts').fill('20:00')
+            checks.push({
+              name: `${viewportName} ${theme} Daily accepts an exact 12-hour session`,
+              passed: await timeDialog.getByText('Maximum is 12 hours.').count() === 0
+                && await timeDialog.getByRole('button', { name: 'Save time' }).isEnabled(),
+            })
+            await timeDialog.getByLabel('Starts').fill('09:00')
+            await timeDialog.getByLabel('Ends').fill('10:00')
+            await timeDialog.getByRole('button', { name: 'Same class day' }).click()
+            await page.keyboard.press('Escape')
+          }
+          if (pageName === 'Daily' && theme === 'dark') {
+            const daily = section.getByTestId('daily-mockup')
+            await daily.getByRole('button', { name: 'More actions' }).click()
+            const darkMenuArtifact = path.join(artifactDir, `${viewportName}-dark-daily-more.png`)
+            await daily.screenshot({ path: darkMenuArtifact })
+            artifacts.push(darkMenuArtifact)
+            await daily.getByRole('menuitem', { name: /Edit attendance/ }).click()
+            const darkDialogArtifact = path.join(artifactDir, `${viewportName}-dark-daily-batch-dialog.png`)
+            await page.screenshot({ path: darkDialogArtifact })
+            artifacts.push(darkDialogArtifact)
+            await page.keyboard.press('Escape')
+          }
+          if (pageName === 'Daily') {
+            await section.getByRole('combobox', { name: 'Attendance mode' }).selectOption('manual')
+            const manualDaily = section.getByTestId('daily-mockup')
+            const manualTime = manualDaily.getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })
+            const manualPresentCell = manualDaily.getByRole('button', { name: 'Mark Maya Chen present' }).locator('xpath=ancestor::td')
+            checks.push({
+              name: `${viewportName} ${theme} Manual Daily removes QR evidence and keeps time passive`,
+              passed: await manualDaily.getByRole('button', { name: 'Show QR' }).count() === 0
+                && await manualDaily.getByRole('columnheader', { name: 'Time of scan' }).count() === 0
+                && (await manualTime.getAttribute('class'))?.includes('bg-surface') === true
+                && (await manualTime.getAttribute('class'))?.includes('bg-success-bg') === false
+                && (await manualPresentCell.getAttribute('class'))?.includes('sticky') === true
+                && await manualDaily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible(),
+            })
+            const manualArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-manual.png`)
+            await section.screenshot({ path: manualArtifact })
+            artifacts.push(manualArtifact)
+            await manualTime.click()
+            const manualTimeDialog = page.getByRole('dialog', { name: 'Attendance time' })
+            checks.push({
+              name: `${viewportName} ${theme} Manual Daily keeps the time editor simple`,
+              passed: await manualTimeDialog.getByRole('button', { name: 'Advanced' }).count() === 0
+                && await manualTimeDialog.getByText('Timing rules').count() === 0
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const manualTimeArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-manual-time.png`)
+            await page.screenshot({ path: manualTimeArtifact })
+            artifacts.push(manualTimeArtifact)
+            await manualTimeDialog.getByLabel('Starts').fill('07:00')
+            await manualTimeDialog.getByLabel('Ends').fill('20:00')
+            checks.push({
+              name: `${viewportName} ${theme} Manual Daily rejects attendance sessions over 12 hours`,
+              passed: await manualTimeDialog.getByText('Maximum is 12 hours.').isVisible()
+                && await manualTimeDialog.getByRole('button', { name: 'Save time' }).isDisabled()
+                && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+            })
+            const manualDurationErrorArtifact = path.join(
+              artifactDir,
+              `${viewportName}-${theme}-daily-manual-time-duration-error.png`,
+            )
+            await page.screenshot({ path: manualDurationErrorArtifact })
+            artifacts.push(manualDurationErrorArtifact)
+            await page.keyboard.press('Escape')
+            await section.getByRole('combobox', { name: 'Attendance mode' }).selectOption('qr')
+          }
+          if (workspace) {
+            await workspace.getByRole('button', { name: 'More actions' }).click()
+            const classworkMoreArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-classwork-more.png`)
+            await section.screenshot({ path: classworkMoreArtifact })
+            artifacts.push(classworkMoreArtifact)
+            await page.keyboard.press('Escape')
+
+            await workspace.getByRole('button', { name: 'Tests' }).click()
+            const testsArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-tests.png`)
+            await section.screenshot({ path: testsArtifact })
+            artifacts.push(testsArtifact)
+            await workspace.getByRole('button', { name: 'More actions' }).click()
+            const testsMoreArtifact = path.join(artifactDir, `${viewportName}-${theme}-workspaces-tests-more.png`)
+            await section.screenshot({ path: testsMoreArtifact })
+            artifacts.push(testsMoreArtifact)
+            await page.keyboard.press('Escape')
+          }
         }
       }
     }
@@ -112,6 +239,261 @@ export const patternLabPageMockups: VerificationScript = {
         && await section.getByRole('tabpanel', { name: 'Classrooms' }).isVisible()
         && await page.evaluate(() => window.location.hash === '#mockup-classrooms-panel'),
     })
+    await jumpSelect.selectOption('mockup-daily-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Navigator opens the Daily mockup directly',
+      passed: await section.getByRole('tab', { name: 'Daily' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Daily' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-daily-panel'),
+    })
+    const daily = section.getByTestId('daily-mockup')
+    const dateControlHeight = await daily.getByRole('button', { name: 'Return to reference Daily date' }).evaluate((element) => (
+      element.parentElement?.getBoundingClientRect().height ?? 0
+    ))
+    const attendanceControlHeight = await daily.getByRole('group', { name: 'Attendance time and QR check-in' }).evaluate((element) => (
+      element.getBoundingClientRect().height
+    ))
+    checks.push({
+      name: 'Daily joins attendance time and QR beside the date without row selection',
+      passed: await daily.getByRole('group', { name: 'Attendance time and QR check-in' }).isVisible()
+        && await daily.getByRole('button', { name: 'Show QR' }).isVisible()
+        && Math.abs(dateControlHeight - attendanceControlHeight) <= 1
+        && await daily.getByRole('checkbox').count() === 0
+        && await daily.getByRole('button', { name: /Student actions/ }).count() === 0,
+    })
+    checks.push({
+      name: 'Daily shows undo only for rows with manual attendance changes',
+      passed: await daily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible()
+        && await daily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).count() === 0,
+    })
+    const presentSort = daily.getByRole('button', { name: 'Sort Present first, 2 students' })
+    await presentSort.hover()
+    const presentTooltip = page.getByRole('tooltip').getByText('2 Present', { exact: true })
+    await presentTooltip.waitFor()
+    checks.push({
+      name: 'Daily attendance count tooltip uses the compact status label',
+      passed: await presentTooltip.isVisible(),
+    })
+    await page.mouse.move(0, 0)
+    await presentSort.click()
+    checks.push({
+      name: 'Daily active attendance sort shows a chevron without widening its column',
+      passed: await presentSort.getAttribute('aria-pressed') === 'true'
+        && await presentSort.locator('svg').evaluate((element) => getComputedStyle(element).opacity === '1')
+        && await presentSort.locator('xpath=ancestor::th').evaluate((element) => element.getBoundingClientRect().width <= 45),
+    })
+    const dailyStatusSortArtifact = path.join(artifactDir, 'desktop-light-daily-status-sort.png')
+    await daily.screenshot({ path: dailyStatusSortArtifact })
+    artifacts.push(dailyStatusSortArtifact)
+    const noahUndo = daily.getByRole('button', { name: 'Undo manual change for Noah Williams' })
+    await noahUndo.hover()
+    const undoTooltip = page.getByRole('tooltip').getByText('Undo manual change', { exact: true })
+    await undoTooltip.waitFor()
+    checks.push({
+      name: 'Daily row revert tooltip stays concise',
+      passed: await undoTooltip.isVisible(),
+    })
+    const dailyUndoTooltipArtifact = path.join(artifactDir, 'desktop-light-daily-undo-tooltip.png')
+    await daily.screenshot({ path: dailyUndoTooltipArtifact })
+    artifacts.push(dailyUndoTooltipArtifact)
+    await page.mouse.move(0, 0)
+    await daily.getByRole('button', { name: 'Show QR' }).hover()
+    const qrTooltip = page.getByRole('tooltip').getByText('Show QR', { exact: true })
+    await qrTooltip.waitFor()
+    checks.push({
+      name: 'Daily QR icon explains its action on hover',
+      passed: await qrTooltip.isVisible(),
+    })
+    const dailyQrTooltipArtifact = path.join(artifactDir, 'desktop-light-daily-qr-tooltip.png')
+    await daily.screenshot({ path: dailyQrTooltipArtifact })
+    artifacts.push(dailyQrTooltipArtifact)
+    await page.mouse.move(0, 0)
+    await daily.getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' }).click()
+    const timeDialog = page.getByRole('dialog', { name: 'Attendance time' })
+    checks.push({
+      name: 'Daily time control opens the local attendance-time editor',
+      passed: await timeDialog.getByLabel('Starts').inputValue() === '09:00'
+        && await timeDialog.getByLabel('Ends').inputValue() === '10:00',
+    })
+    const dailyTimeDialogArtifact = path.join(artifactDir, 'desktop-light-daily-time-dialog.png')
+    await page.screenshot({ path: dailyTimeDialogArtifact })
+    artifacts.push(dailyTimeDialogArtifact)
+    checks.push({
+      name: 'Daily time editor exposes automatic timing rules and end-day toggle',
+      passed: await timeDialog.getByText('Timing rules').isVisible()
+        && await timeDialog.getByText(/A scan at the Present cutoff/).count() === 0
+        && await timeDialog.getByRole('button', { name: 'Same class day' }).getAttribute('aria-pressed') === 'true'
+        && await timeDialog.getByRole('button', { name: 'Next day' }).getAttribute('aria-pressed') === 'false'
+        && await timeDialog.getByRole('checkbox', { name: 'Open and close QR attendance automatically' }).isChecked(),
+    })
+    const dailyTimingRulesArtifact = path.join(artifactDir, 'desktop-light-daily-time-rules.png')
+    await page.screenshot({ path: dailyTimingRulesArtifact })
+    artifacts.push(dailyTimingRulesArtifact)
+    await timeDialog.getByRole('button', { name: 'Same class day' }).hover()
+    const sameDayTooltip = page.getByRole('tooltip').getByText('Class end on the same day', { exact: true })
+    await sameDayTooltip.waitFor()
+    checks.push({
+      name: 'Daily same-day option explains its boundary',
+      passed: await sameDayTooltip.isVisible(),
+    })
+    const sameDayTooltipArtifact = path.join(artifactDir, 'desktop-light-daily-same-day-tooltip.png')
+    await page.screenshot({ path: sameDayTooltipArtifact })
+    artifacts.push(sameDayTooltipArtifact)
+    await page.mouse.move(0, 0)
+    await timeDialog.getByRole('button', { name: 'Next day' }).hover()
+    const nextDayTooltip = page.getByRole('tooltip').getByText('Class ends the next day after midnight', { exact: true })
+    await nextDayTooltip.waitFor()
+    checks.push({
+      name: 'Daily next-day option explains its midnight boundary',
+      passed: await nextDayTooltip.isVisible(),
+    })
+    const nextDayTooltipArtifact = path.join(artifactDir, 'desktop-light-daily-next-day-tooltip.png')
+    await page.screenshot({ path: nextDayTooltipArtifact })
+    artifacts.push(nextDayTooltipArtifact)
+    await page.mouse.move(0, 0)
+    await timeDialog.getByLabel('QR opens before start (min)').fill('999')
+    await timeDialog.getByLabel('Grace period before late (min)').fill('999')
+    await timeDialog.getByLabel('QR closes before end (min)').fill('999')
+    await timeDialog.getByLabel('Absent before end (min)').fill('-5')
+    checks.push({
+      name: 'Daily timing rules hard-clamp typed values',
+      passed: await timeDialog.getByLabel('QR opens before start (min)').inputValue() === '120'
+        && await timeDialog.getByLabel('Grace period before late (min)').inputValue() === '60'
+        && await timeDialog.getByLabel('QR closes before end (min)').inputValue() === '60'
+        && await timeDialog.getByLabel('Absent before end (min)').inputValue() === '0',
+    })
+    await timeDialog.getByRole('button', { name: 'Next day' }).click()
+    await timeDialog.getByRole('checkbox', { name: 'Open and close QR attendance automatically' }).click()
+    checks.push({
+      name: 'Daily end-day and automatic-hours controls are interactive',
+      passed: await timeDialog.getByRole('button', { name: 'Next day' }).getAttribute('aria-pressed') === 'true'
+        && !await timeDialog.getByRole('checkbox', { name: 'Open and close QR attendance automatically' }).isChecked(),
+    })
+    await timeDialog.getByRole('button', { name: 'Clear time' }).click()
+    checks.push({
+      name: 'Daily no-time state keeps only the clock action',
+      passed: await daily.getByRole('button', { name: 'Set attendance time, attendance open' }).isVisible()
+        && await daily.getByText('9:00 - 10:00 AM').count() === 0,
+    })
+    const dailyNoTimeArtifact = path.join(artifactDir, 'desktop-light-daily-no-time.png')
+    await daily.screenshot({ path: dailyNoTimeArtifact })
+    artifacts.push(dailyNoTimeArtifact)
+    await daily.getByRole('button', { name: 'Set attendance time, attendance open' }).click()
+    const reopenedTimeDialog = page.getByRole('dialog', { name: 'Attendance time' })
+    checks.push({
+      name: 'Daily prevents saving a stale next-day session over 12 hours',
+      passed: await reopenedTimeDialog.getByText('Maximum is 12 hours.').isVisible()
+        && await reopenedTimeDialog.getByRole('button', { name: 'Save time' }).isDisabled(),
+    })
+    await reopenedTimeDialog.getByRole('button', { name: 'Same class day' }).click()
+    await reopenedTimeDialog.getByRole('button', { name: 'Save time' }).click()
+    await daily.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Daily More actions owns session and class-wide attendance commands',
+      passed: await daily.getByRole('menuitemcheckbox', { name: /Close attendance/ }).isVisible()
+        && await daily.getByRole('menuitem', { name: 'Edit time' }).isVisible()
+        && await daily.getByRole('menuitem', { name: /Edit attendance/ }).isVisible(),
+    })
+    const dailyMenuArtifact = path.join(artifactDir, 'desktop-light-daily-more.png')
+    await daily.screenshot({ path: dailyMenuArtifact })
+    artifacts.push(dailyMenuArtifact)
+    await daily.getByRole('menuitem', { name: 'Edit time' }).click()
+    checks.push({
+      name: 'Daily More actions opens the same attendance-time editor',
+      passed: await page.getByRole('dialog', { name: 'Attendance time' }).isVisible(),
+    })
+    await page.keyboard.press('Escape')
+    await daily.getByRole('button', { name: 'More actions' }).click()
+    await daily.getByRole('menuitemcheckbox', { name: /Close attendance/ }).click()
+    checks.push({
+      name: 'Closing attendance disables QR and updates the time state',
+      passed: await daily.getByRole('button', { name: 'Show QR' }).isDisabled()
+        && await daily.getByRole('button', { name: 'Edit attendance time, attendance closed, 9:00 - 10:00 AM' }).isVisible(),
+    })
+    const dailyClosedArtifact = path.join(artifactDir, 'desktop-light-daily-closed.png')
+    await daily.screenshot({ path: dailyClosedArtifact })
+    artifacts.push(dailyClosedArtifact)
+    await daily.getByRole('button', { name: 'More actions' }).click()
+    await daily.getByRole('menuitem', { name: /Edit attendance/ }).click()
+    const attendanceDialog = page.getByRole('dialog', { name: 'Edit attendance' })
+    checks.push({
+      name: 'Daily batch dialog exposes mark, revert, and QR reset commands',
+      passed: await attendanceDialog.getByRole('button', { name: 'Mark all present' }).isVisible()
+        && await attendanceDialog.getByRole('button', { name: 'Mark all late' }).isVisible()
+        && await attendanceDialog.getByRole('button', { name: 'Mark all absent' }).isVisible()
+        && await attendanceDialog.getByRole('button', { name: 'Revert manual changes' }).isVisible()
+        && await attendanceDialog.getByRole('button', { name: 'Clear QR check-ins' }).isVisible(),
+    })
+    const dailyDialogArtifact = path.join(artifactDir, 'desktop-light-daily-batch-dialog.png')
+    await page.screenshot({ path: dailyDialogArtifact })
+    artifacts.push(dailyDialogArtifact)
+    await attendanceDialog.getByRole('button', { name: 'Mark all present' }).click()
+    checks.push({
+      name: 'Daily batch marking reveals per-row undo controls',
+      passed: await daily.getByRole('button', { name: 'Mark Sana Patel present' }).getAttribute('aria-pressed') === 'true'
+        && await daily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).isVisible(),
+    })
+    const dailyManualArtifact = path.join(artifactDir, 'desktop-light-daily-manual-undo.png')
+    await daily.screenshot({ path: dailyManualArtifact })
+    artifacts.push(dailyManualArtifact)
+    await page.setViewportSize(VIEWPORTS.mobile)
+    await daily.getByRole('button', { name: 'More actions' }).click()
+    const dailyMobileMenuArtifact = path.join(artifactDir, 'mobile-light-daily-more.png')
+    await daily.screenshot({ path: dailyMobileMenuArtifact })
+    artifacts.push(dailyMobileMenuArtifact)
+    checks.push({
+      name: 'Mobile Daily menu stays contained without page overflow',
+      passed: await daily.getByRole('menu', { name: 'Daily more actions' }).isVisible()
+        && await daily.getByRole('button', { name: 'More actions' }).evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return bounds.left >= 0 && bounds.right <= window.innerWidth
+        })
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    await daily.getByRole('menuitem', { name: /Edit attendance/ }).click()
+    const dailyMobileDialogArtifact = path.join(artifactDir, 'mobile-light-daily-batch-dialog.png')
+    await page.screenshot({ path: dailyMobileDialogArtifact })
+    artifacts.push(dailyMobileDialogArtifact)
+    checks.push({
+      name: 'Mobile Daily batch dialog stays contained without page overflow',
+      passed: await page.getByRole('dialog', { name: 'Edit attendance' }).isVisible()
+        && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    await page.keyboard.press('Escape')
+    await page.setViewportSize(VIEWPORTS.desktop)
+    await section.getByRole('combobox', { name: 'Attendance mode' }).selectOption('manual')
+    const manualDaily = section.getByTestId('daily-mockup')
+    await manualDaily.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Manual Daily More actions keeps time and marking but removes QR session commands',
+      passed: await manualDaily.getByRole('menuitem', { name: 'Edit time' }).isVisible()
+        && await manualDaily.getByRole('menuitem', { name: /Edit attendance/ }).isVisible()
+        && await manualDaily.getByRole('menuitemcheckbox', { name: /Attendance from log/ }).getAttribute('aria-checked') === 'false'
+        && await manualDaily.getByText('Manual marking').count() === 0,
+    })
+    const manualModeMenuArtifact = path.join(artifactDir, 'desktop-light-daily-manual-more.png')
+    await manualDaily.screenshot({ path: manualModeMenuArtifact })
+    artifacts.push(manualModeMenuArtifact)
+    await manualDaily.getByRole('menuitemcheckbox', { name: /Attendance from log/ }).click()
+    checks.push({
+      name: 'Attendance from log supplies the completed-log baseline when checked',
+      passed: await manualDaily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible()
+        && await manualDaily.getByRole('button', { name: 'Undo manual change for Sana Patel' }).isVisible(),
+    })
+    await manualDaily.getByRole('button', { name: 'More actions' }).click()
+    await manualDaily.getByRole('menuitemcheckbox', { name: /Attendance from log/ }).click()
+    checks.push({
+      name: 'Unchecked Attendance from log restores the manual baseline',
+      passed: await manualDaily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).isVisible(),
+    })
+    await manualDaily.getByRole('button', { name: 'More actions' }).click()
+    await manualDaily.getByRole('menuitem', { name: /Edit attendance/ }).click()
+    checks.push({
+      name: 'Manual Daily attendance editor omits QR reset',
+      passed: await page.getByRole('dialog', { name: 'Edit attendance' }).getByRole('button', { name: 'Clear QR check-ins' }).count() === 0,
+    })
+    await page.keyboard.press('Escape')
     await jumpSelect.selectOption('mockup-settings-panel')
     await page.waitForTimeout(100)
     checks.push({
@@ -513,9 +895,16 @@ export const patternLabPageMockups: VerificationScript = {
     await workspace.screenshot({ path: workspaceInspectorArtifact })
     artifacts.push(workspaceInspectorArtifact)
     await workspace.getByRole('button', { name: 'Back to item list' }).click()
+    checks.push({ name: 'Classwork summary keeps Organize out of the center cluster', passed: await workspace.getByRole('button', { name: 'Organize classwork' }).count() === 0 })
     await workspace.getByRole('button', { name: 'More actions' }).click()
-    checks.push({ name: 'Work summary More actions includes Markdown editing', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() })
+    checks.push({ name: 'Classwork More actions includes Markdown editing and Organize', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() && await workspace.getByRole('menuitem', { name: 'Organize classwork' }).isVisible() })
     await page.keyboard.press('Escape')
+    await workspace.getByRole('button', { name: 'Tests' }).click()
+    checks.push({ name: 'Tests summary keeps Organize out of the center cluster', passed: await workspace.getByRole('button', { name: 'Organize tests' }).count() === 0 })
+    await workspace.getByRole('button', { name: 'More actions' }).click()
+    checks.push({ name: 'Tests More actions retains Organize', passed: await workspace.getByRole('menuitem', { name: 'Organize tests' }).isVisible() })
+    await page.keyboard.press('Escape')
+    await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
 
     await page.setViewportSize(VIEWPORTS.mobile)
     await workspace.getByRole('button', { name: /^Field observations/ }).click()
@@ -526,8 +915,65 @@ export const patternLabPageMockups: VerificationScript = {
     await workspace.screenshot({ path: mobileWorkspaceArtifact })
     artifacts.push(mobileWorkspaceArtifact)
 
-    await page.goto(`${baseUrl}/pattern-lab?role=student`)
-    checks.push({ name: 'Student gallery excludes teacher page mockups', passed: await page.locator('#page-mockups').count() === 0 })
+    await page.goto(`${baseUrl}/pattern-lab?role=teacher#page-mockups`)
+    await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Student' }).click()
+    await page.waitForURL(`${baseUrl}/pattern-lab?role=student#page-mockups`)
+    checks.push({
+      name: 'Sticky navigator switches from teacher to student page patterns',
+      passed: await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Student', exact: true }).getAttribute('aria-pressed') === 'true'
+        && await section.getByRole('tablist', { name: 'Student classroom page mockups' }).isVisible(),
+    })
+    await navigator.evaluate((element) => { element.style.position = 'static' })
+    await page.setViewportSize(VIEWPORTS.desktop)
+    const studentNavigatorDesktopArtifact = path.join(artifactDir, 'navigator-student-desktop-light.png')
+    await navigator.screenshot({ path: studentNavigatorDesktopArtifact })
+    artifacts.push(studentNavigatorDesktopArtifact)
+
+    for (const theme of ['light', 'dark'] as const) {
+      const wantedButton = theme === 'dark' ? 'Use dark theme' : 'Use light theme'
+      const themeButton = page.getByRole('button', { name: wantedButton })
+      if (await themeButton.isVisible().catch(() => false)) await themeButton.click()
+
+      for (const [viewportName, viewport] of Object.entries(VIEWPORTS)) {
+        await page.setViewportSize(viewport)
+        for (const pageName of STUDENT_PAGES) {
+          await section.getByRole('tab', { name: pageName }).click()
+          const targetId = await section.getByRole('tab', { name: pageName }).getAttribute('aria-controls')
+          checks.push({
+            name: `student ${viewportName} ${theme} ${pageName} tab target exists`,
+            passed: Boolean(targetId && await page.locator(`#${targetId}`).count()),
+          })
+          checks.push({
+            name: `student ${viewportName} ${theme} ${pageName} has no page overflow`,
+            passed: await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+          })
+          const artifact = path.join(artifactDir, `student-${viewportName}-${theme}-${pageName.toLowerCase()}.png`)
+          await section.screenshot({ path: artifact })
+          artifacts.push(artifact)
+        }
+      }
+    }
+
+    const studentNavigatorMobileArtifact = path.join(artifactDir, 'navigator-student-mobile-dark.png')
+    await navigator.screenshot({ path: studentNavigatorMobileArtifact })
+    artifacts.push(studentNavigatorMobileArtifact)
+
+    await page.setViewportSize(VIEWPORTS.desktop)
+    await jumpSelect.selectOption('mockup-student-tests-panel')
+    await page.waitForTimeout(100)
+    checks.push({
+      name: 'Student navigator opens the Tests mockup directly',
+      passed: await section.getByRole('tab', { name: 'Tests' }).getAttribute('aria-selected') === 'true'
+        && await section.getByRole('tabpanel', { name: 'Tests' }).isVisible()
+        && await page.evaluate(() => window.location.hash === '#mockup-student-tests-panel'),
+    })
+    await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Teacher' }).click()
+    await page.waitForURL(`${baseUrl}/pattern-lab?role=teacher#page-mockups`)
+    checks.push({
+      name: 'Sticky navigator switches back to teacher page patterns',
+      passed: await page.getByRole('group', { name: 'Pattern Lab role' }).getByRole('button', { name: 'Teacher', exact: true }).getAttribute('aria-pressed') === 'true'
+        && await section.getByRole('tablist', { name: 'Teacher classroom page mockups' }).isVisible(),
+    })
 
     return {
       scenario: 'pattern-lab-page-mockups',
