@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchJSON } from '@/lib/request-cache'
 import {
   DEFAULT_MANUAL_ATTENDANCE_SETTINGS,
+  MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST,
   type ManualAttendanceMark,
   type ManualAttendanceSettings,
   type ManualAttendanceSourceMode,
@@ -146,20 +147,31 @@ export function useTeacherManualAttendanceController(input: {
     activeCommandRef.current = { id: commandId, scopeKey: commandScope.key }
     requestSequence.current += 1
     setActiveCommand('marks')
+    let completedChunks = 0
     try {
-      await fetchJSON('/api/teacher/manual-attendance', {
-        init: {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classroom_id: commandScope.classroomId,
-            date: commandScope.selectedDate,
-            student_ids: studentIds,
-            status,
-          }),
-        },
-        errorMessage: 'Manual attendance could not be updated',
-      })
+      for (
+        let offset = 0;
+        offset < studentIds.length;
+        offset += MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST
+      ) {
+        await fetchJSON('/api/teacher/manual-attendance', {
+          init: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              classroom_id: commandScope.classroomId,
+              date: commandScope.selectedDate,
+              student_ids: studentIds.slice(
+                offset,
+                offset + MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST,
+              ),
+              status,
+            }),
+          },
+          errorMessage: 'Manual attendance could not be updated',
+        })
+        completedChunks += 1
+      }
       if (
         mountedRef.current
         && activeCommandRef.current?.id === commandId
@@ -193,8 +205,13 @@ export function useTeacherManualAttendanceController(input: {
       }
     } catch (reason) {
       if (mountedRef.current && scopeRef.current.key === commandScope.key) {
+        if (completedChunks > 0) await loadScope(commandScope, true)
         showMessage({
-          text: reason instanceof Error ? reason.message : 'Manual attendance could not be updated',
+          text: completedChunks > 0
+            ? 'Some attendance changes were saved; the current attendance has been refreshed'
+            : reason instanceof Error
+              ? reason.message
+              : 'Manual attendance could not be updated',
           tone: 'warning',
         })
       }
@@ -210,6 +227,7 @@ export function useTeacherManualAttendanceController(input: {
     input.archived,
     input.enabled,
     input.visibleStudentIds,
+    loadScope,
     showMessage,
   ])
 

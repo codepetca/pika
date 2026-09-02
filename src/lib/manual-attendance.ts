@@ -2,6 +2,8 @@ export type ManualAttendanceSourceMode = 'log' | 'manual'
 export type ManualAttendanceStatus = 'present' | 'late' | 'absent'
 export type ManualAttendanceMark = ManualAttendanceStatus | 'automatic'
 
+export const MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST = 200
+
 export interface ManualAttendanceSettings {
   sourceMode: ManualAttendanceSourceMode
   sessionStartsLocal: string | null

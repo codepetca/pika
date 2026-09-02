@@ -4,6 +4,7 @@ import {
   MAX_ATTENDANCE_SESSION_MINUTES,
   attendanceSessionDurationMinutes,
 } from '@/lib/attendance-session-duration'
+import { MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST } from '@/lib/manual-attendance'
 
 const classroomId = z.string().uuid()
 const classDate = z.string().date()
@@ -54,7 +55,7 @@ export const manualAttendanceSettingsSchema = z.object({
 export const manualAttendanceMarksSchema = z.object({
   classroom_id: classroomId,
   date: classDate,
-  student_ids: z.array(z.string().uuid()).min(1),
+  student_ids: z.array(z.string().uuid()).min(1).max(MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST),
   status: z.enum(['automatic', 'present', 'late', 'absent']),
 }).strict().superRefine((value, context) => {
   if (new Set(value.student_ids).size !== value.student_ids.length) {

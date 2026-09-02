@@ -7,11 +7,20 @@
 alter table public.attendance_window_policies
   alter column entry_closes_minutes_before_end set default 0;
 
--- The UI contract narrows the early-open lead to two hours. Normalize policies
--- that were valid under the previous 12-hour bound before tightening storage.
-update public.attendance_window_policies
-set entry_opens_minutes_before = 120
-where entry_opens_minutes_before > 120;
+-- The UI contract narrows the early-open lead to two hours. Do not silently
+-- shorten an existing live QR window; require an explicit policy correction
+-- before this migration is applied.
+do $$
+begin
+  if exists (
+    select 1
+    from public.attendance_window_policies
+    where entry_opens_minutes_before > 120
+  ) then
+    raise exception 'Existing QR early-open lead exceeds the 120-minute maximum';
+  end if;
+end;
+$$;
 
 alter table public.attendance_window_policies
   drop constraint attendance_window_policies_entry_opens_minutes_before_check,

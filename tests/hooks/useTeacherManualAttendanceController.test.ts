@@ -30,6 +30,12 @@ function response(value: unknown) {
   })
 }
 
+function studentIds(count: number) {
+  return Array.from({ length: count }, (_, index) => (
+    `30000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`
+  ))
+}
+
 function view(
   classDate: string,
   settings: ManualAttendanceSettings = {
@@ -176,5 +182,84 @@ describe('useTeacherManualAttendanceController', () => {
       await result.current.submitMarks([studentId], 'absent')
     })
     expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
+  })
+
+  it('chunks class-wide marks into bounded requests', async () => {
+    const roster = studentIds(201)
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      if (init.method === 'POST') return Promise.resolve(response({ ok: true }))
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: roster,
+    }))
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    await act(async () => {
+      await result.current.submitMarks(roster, 'present')
+    })
+
+    const postBodies = fetchMock.mock.calls
+      .filter(([, init]) => init?.method === 'POST')
+      .map(([, init]) => JSON.parse(String(init?.body)))
+    expect(postBodies.map((body) => body.student_ids.length)).toEqual([200, 1])
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Attendance updated',
+      tone: 'success',
+    })
+  })
+
+  it('refreshes and warns when a later class-wide chunk fails', async () => {
+    const roster = studentIds(201)
+    let getCount = 0
+    let postCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        getCount += 1
+        return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      }
+      if (init.method === 'POST') {
+        postCount += 1
+        return Promise.resolve(postCount === 1
+          ? response({ ok: true })
+          : new Response(JSON.stringify({ error: 'Write failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: roster,
+    }))
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    await act(async () => {
+      await result.current.submitMarks(roster, 'present')
+    })
+
+    expect(postCount).toBe(2)
+    expect(getCount).toBe(2)
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Some attendance changes were saved; the current attendance has been refreshed',
+      tone: 'warning',
+    })
   })
 })

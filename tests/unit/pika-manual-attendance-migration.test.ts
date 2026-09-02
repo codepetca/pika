@@ -63,9 +63,12 @@ describe('Pika manual attendance migration', () => {
     )
   })
 
-  it('normalizes legacy early-open values before enforcing the two-hour maximum', () => {
-    expect(migration).toContain('set entry_opens_minutes_before = 120')
+  it('fails safely on legacy early-open values before enforcing the two-hour maximum', () => {
     expect(migration).toContain('where entry_opens_minutes_before > 120')
+    expect(migration).toContain(
+      'Existing QR early-open lead exceeds the 120-minute maximum',
+    )
+    expect(migration).not.toContain('set entry_opens_minutes_before = 120')
     expect(migration).toContain('check (entry_opens_minutes_before between 0 and 120)')
   })
 

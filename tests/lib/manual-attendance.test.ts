@@ -57,7 +57,7 @@ describe('manual attendance', () => {
     }).success).toBe(false)
   })
 
-  it('accepts a complete roster larger than 200 students', () => {
+  it('keeps each manual-mark request bounded at 200 students', () => {
     const studentIds = Array.from({ length: 201 }, (_, index) => (
       `30000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`
     ))
@@ -67,7 +67,7 @@ describe('manual attendance', () => {
       date: '2026-05-06',
       student_ids: studentIds,
       status: 'present',
-    }).success).toBe(true)
+    }).success).toBe(false)
   })
 
   it('accepts an exact 12-hour passive session and rejects longer or inverted times', () => {
