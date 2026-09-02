@@ -877,6 +877,36 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('offers every listed test through the list Markdown picker', async () => {
+    mockTestsResponse([
+      makeTest({ id: 'test-1', title: 'Unit Test' }),
+      makeTest({ id: 'test-2', title: 'Second Test' }),
+    ])
+    fetchMock.mockResolvedValue(makeResultsResponse())
+    renderTab()
+    await screen.findByText('Unit Test')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    const picker = screen.getByRole('dialog', { name: 'Edit test in Markdown' })
+    expect(within(picker).getByRole('button', { name: 'Unit Test' })).toBeEnabled()
+    fireEvent.click(within(picker).getByRole('button', { name: 'Second Test' }))
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Second Test')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
+    expect(screen.queryByRole('dialog', { name: 'Edit test in Markdown' })).not.toBeInTheDocument()
+  })
+
+  it('opens selected test directly in Markdown from More actions', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('closes the edit modal when controlled params return from authoring to grading', async () => {
     const updateSearchParams = vi.fn()
 
@@ -1370,7 +1400,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Close test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reopen test' })).not.toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'Preview Unit Test' })).toHaveTextContent('Preview')
+    expect(screen.getByRole('button', { name: 'Preview Unit Test' })).toHaveTextContent(/^$/)
     fireEvent.click(screen.getByRole('button', { name: 'Preview Unit Test' }))
 
     expect(onRequestTestPreview).toHaveBeenCalledWith({

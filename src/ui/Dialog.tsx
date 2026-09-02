@@ -298,6 +298,7 @@ export interface ContentDialogProps {
   maxWidth?: string
   showHeaderClose?: boolean
   showFooterClose?: boolean
+  panelClassName?: string
 }
 
 /**
@@ -326,6 +327,7 @@ export function ContentDialog({
   maxWidth = 'max-w-2xl',
   showHeaderClose = true,
   showFooterClose = true,
+  panelClassName,
 }: ContentDialogProps) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -336,7 +338,7 @@ export function ContentDialog({
       onClose={onClose}
       ariaLabelledBy={titleId}
       initialFocusRef={showHeaderClose ? closeButtonRef : undefined}
-      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col`}
+      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${panelClassName ?? ''}`}
     >
         <div className="flex items-start justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">

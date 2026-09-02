@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ClockAlert, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
+import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -431,6 +431,8 @@ export function TeacherTestsTab({
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
+  const [testEditorInitialView, setTestEditorInitialView] = useState<'edit' | 'markdown'>('edit')
+  const [showMarkdownTestPicker, setShowMarkdownTestPicker] = useState(false)
   const [isCreatingTest, setIsCreatingTest] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
@@ -737,6 +739,8 @@ export function TeacherTestsTab({
     if (previousClassroomIdRef.current === classroom.id) return
 
     previousClassroomIdRef.current = classroom.id
+    setTestEditorInitialView('edit')
+    setShowMarkdownTestPicker(false)
     latestCreateTestRequestIdRef.current += 1
     latestGradingRequestIdRef.current += 1
     setTestEditMode(false)
@@ -2404,8 +2408,9 @@ export function TeacherTestsTab({
     </div>
   )
 
-  function openSelectedTestEditor() {
-    if (!selectedTestWorkspace) return
+  function openSelectedTestEditor(initialView: 'edit' | 'markdown' = 'edit') {
+    if (!selectedTestWorkspace || isReadOnly) return
+    setTestEditorInitialView(initialView)
     navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
     setHasPendingMarkdownImport(false)
     setShowEditModal(true)
@@ -2431,7 +2436,14 @@ export function TeacherTestsTab({
       id: 'edit-test',
       label: 'Edit Test',
       icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
-      onSelect: openSelectedTestEditor,
+      onSelect: () => openSelectedTestEditor(),
+      disabled: isReadOnly,
+    },
+    {
+      id: 'edit-test-markdown',
+      label: 'Edit Markdown',
+      icon: <Code className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openSelectedTestEditor('markdown'),
       disabled: isReadOnly,
     },
     deleteTestAction,
@@ -2620,6 +2632,23 @@ export function TeacherTestsTab({
   ) : (
     <TeacherWorkSurfaceContextBar
       ariaLabel="Test actions"
+      actions={(
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="More actions"
+          tooltip="More actions"
+          icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+          variant="ghost"
+          menuAriaLabel="Tests list actions"
+          items={[{
+            id: 'edit-tests-markdown',
+            label: 'Edit Markdown',
+            icon: <Code className="h-4 w-4" aria-hidden="true" />,
+            onSelect: () => setShowMarkdownTestPicker(true),
+            disabled: isReadOnly || !hasTestsSnapshot || visibleTests.length === 0,
+          }]}
+        />
+      )}
+      trailingClassName="overflow-visible"
       primary={
         <TeacherWorkSurfaceActionCluster>
           <IconButton
@@ -2740,6 +2769,7 @@ export function TeacherTestsTab({
   const isTestEditorOpen = !!selectedTestWorkspace && (showEditModal || selectedWorkspaceTab === 'authoring')
   const handleCloseTestEditor = useCallback(() => {
     setShowEditModal(false)
+    setTestEditorInitialView('edit')
     setHasPendingMarkdownImport(false)
     if (selectedTestId && selectedWorkspaceTab === 'authoring') {
       navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
@@ -2822,8 +2852,43 @@ export function TeacherTestsTab({
         />
       </div>
 
+      <DialogPanel
+        isOpen={showMarkdownTestPicker && workspaceState === 'list' && !isReadOnly}
+        onClose={() => setShowMarkdownTestPicker(false)}
+        ariaLabelledBy="markdown-test-picker-title"
+        maxWidth="max-w-lg"
+        className="p-4"
+      >
+        <h2 id="markdown-test-picker-title" className="text-base font-semibold text-text-default">
+          Edit test in Markdown
+        </h2>
+        <div className="mt-3 flex flex-col gap-2 overflow-y-auto">
+          {visibleTests.map((test) => (
+            <Button
+              key={test.id}
+              variant="secondary"
+              className="justify-start whitespace-normal text-left"
+              onClick={() => {
+                if (isReadOnly) return
+                setShowMarkdownTestPicker(false)
+                setTestEditorInitialView('markdown')
+                setHasPendingMarkdownImport(false)
+                navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
+                setShowEditModal(true)
+              }}
+            >
+              {test.title}
+            </Button>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button variant="secondary" onClick={() => setShowMarkdownTestPicker(false)}>Cancel</Button>
+        </div>
+      </DialogPanel>
+
       <TeacherTestAuthoringDialog
         isOpen={isTestEditorOpen}
+        initialView={testEditorInitialView}
         test={selectedTestWorkspace}
         classroomId={classroom.id}
         apiBasePath={apiBasePath}

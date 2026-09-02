@@ -70,6 +70,7 @@ import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { AttendanceWindowDialog } from './AttendanceWindowDialog'
+import { TeacherClassroomQrDialog } from './TeacherClassroomQrDialog'
 import { useTeacherAttendancePolicy } from '@/hooks/useTeacherAttendancePolicy'
 import {
   AttendanceMarkButton,
@@ -238,6 +239,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   })
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
+  const [classroomQrOpen, setClassroomQrOpen] = useState(false)
   const hoursActionLabel = hours.label
     ? `Attendance hours, ${hours.label.replace(' - ', ' to ')}`
     : hours.state === 'error'
@@ -822,6 +824,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
       onSelect: () => setShowRelativeDate((visible) => !visible),
     },
+    ...(attendanceEnabled && attendance.attendanceReady && !classroom.archived_at ? [{
+      id: 'classroom-qr-poster',
+      label: 'Classroom QR poster',
+      icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setClassroomQrOpen(true),
+    }] : []),
   ]
   const qrAvailable = attendanceEnabled
     && attendance.attendanceReady
@@ -1449,7 +1457,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         onClose={() => attendance.setQrOpen(false)}
         title="Attendance QR"
         subtitle={selectedDate ? format(parseISO(selectedDate), 'EEEE, MMMM d') : undefined}
-        maxWidth="max-w-md"
+        maxWidth="max-w-none"
+        panelClassName="!h-[96vh] !max-h-[96vh] !max-w-[96vw]"
+        showFooterClose={false}
       >
         {attendance.qrLoading ? (
           <PageState kind="loading" title="Loading QR code" compact />
@@ -1462,8 +1472,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             action={<Button type="button" onClick={() => void attendance.loadQrPresentation()}>Try again</Button>}
           />
         ) : qrEntryUrl && attendance.qrPresentation ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <QrCode value={qrEntryUrl} label="Student attendance check-in QR code" />
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 text-center">
+            <QrCode
+              value={qrEntryUrl}
+              label="Student attendance check-in QR code"
+              className="aspect-square w-[min(80vw,70vh)] shrink-0 max-w-full bg-qr-background p-[min(8vw,7vh)]"
+              codeClassName="max-w-none"
+            />
             <div>
               <p className="font-medium text-text-default">Scan to check in through Pika</p>
               <p className="mt-1 text-sm text-text-muted">
@@ -1476,6 +1491,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           </div>
         ) : null}
       </ContentDialog>
+      <TeacherClassroomQrDialog
+        classroomId={classroom.id}
+        classroomTitle={classroom.title}
+        isOpen={classroomQrOpen}
+        onClose={() => setClassroomQrOpen(false)}
+      />
       {attendanceEnabled ? (
         <AttendanceWindowDialog
           key={classroom.id}

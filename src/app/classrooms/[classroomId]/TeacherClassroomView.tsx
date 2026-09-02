@@ -680,6 +680,7 @@ export function TeacherClassroomView({
     view: getDefaultAssignmentSplitPaneView(),
   })
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
+  const [assignmentInstructionsMode, setAssignmentInstructionsMode] = useState<'visual' | 'markdown'>('visual')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
@@ -796,6 +797,7 @@ export function TeacherClassroomView({
     setMaterials([])
     setSurveys([])
     setClassDays([])
+    setAssignmentInstructionsMode('visual')
     setLoadedClassroomId(null)
     setHasLoadedOnce(false)
     setClassworkLoadError(false)
@@ -1362,6 +1364,7 @@ export function TeacherClassroomView({
   }
 
   const closeAssignmentModal = useCallback(() => {
+    setAssignmentInstructionsMode('visual')
     setEditAssignment(null)
     setIsCreateModalOpen(false)
     setAssignmentEditMode(false)
@@ -2249,8 +2252,9 @@ export function TeacherClassroomView({
 
   const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
 
-  const openSelectedAssignmentEditor = () => {
-    if (activeSelectedAssignmentData) {
+  const openSelectedAssignmentEditor = (mode: 'visual' | 'markdown' = 'visual') => {
+    if (activeSelectedAssignmentData && canEditAssignment) {
+      setAssignmentInstructionsMode(mode)
       setEditAssignment(activeSelectedAssignmentData.assignment)
     }
   }
@@ -2336,10 +2340,17 @@ export function TeacherClassroomView({
 
   const assignmentUtilityActions: TeacherWorkSurfaceActionItem[] = activeSelectedAssignmentData ? [
     {
+      id: 'edit-assignment-markdown',
+      label: 'Edit Markdown',
+      icon: <Code className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openSelectedAssignmentEditor('markdown'),
+      disabled: !canEditAssignment,
+    },
+    {
       id: 'edit-assignment',
       label: 'Edit Assignment',
       icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
-      onSelect: openSelectedAssignmentEditor,
+      onSelect: () => openSelectedAssignmentEditor(),
       disabled: !canEditAssignment,
     },
     {
@@ -2602,7 +2613,7 @@ export function TeacherClassroomView({
     },
     ...(showMarkdownEditorOption && onOpenMarkdownEditor ? [{
       id: 'edit-markdown',
-      label: 'Edit Markdown',
+      label: 'Edit all assignments in Markdown',
       icon: <Code className="h-4 w-4" aria-hidden="true" />,
       onSelect: onOpenMarkdownEditor,
       disabled: isReadOnly,
@@ -2906,6 +2917,7 @@ export function TeacherClassroomView({
         isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
         assignment={editAssignment}
+        instructionsMode={assignmentInstructionsMode}
         classDays={classDays}
         onClose={closeAssignmentModal}
         onSuccess={(assignment, options) => {

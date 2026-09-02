@@ -62,6 +62,16 @@ vi.mock('@/components/editor', async (importOriginal) => ({
 }))
 
 describe('UiGallery history preview fixture', () => {
+  it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
+    renderGallery('teacher')
+    const user = userEvent.setup()
+    const opener = screen.getByRole('button', { name: 'Open QR example' })
+    await user.click(opener)
+    const dialog = screen.getByRole('dialog', { name: 'QR sizing example' })
+    expect(within(dialog).getByLabelText('Nonfunctional example QR')).toBeVisible()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(opener).toHaveFocus())
+  })
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,

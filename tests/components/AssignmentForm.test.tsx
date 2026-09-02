@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AssignmentForm } from '@/components/AssignmentForm'
 
@@ -24,6 +24,18 @@ describe('AssignmentForm', () => {
     const instructionsLabel = document.getElementById(instructions.getAttribute('aria-labelledby')!)
     expect(instructionsLabel).toHaveClass('sr-only')
     expect(instructions.querySelector('[data-placeholder="Instructions"]')).not.toBeNull()
+  })
+
+  it('edits Markdown source without converting it through the visual editor', () => {
+    const onChange = vi.fn()
+    render(<AssignmentForm title="Essay" instructionsMarkdown="Explain **why**."
+      instructionsMode="markdown" dueAt="" onTitleChange={vi.fn()}
+      onInstructionsMarkdownChange={onChange} onDueAtChange={vi.fn()} />)
+    const source = screen.getByRole('textbox', { name: 'Instructions Markdown' })
+    expect(source).toHaveValue('Explain **why**.')
+    fireEvent.change(source, { target: { value: '# New instructions\n\n- First' } })
+    expect(onChange).toHaveBeenCalledWith('# New instructions\n\n- First')
+    expect(screen.queryByRole('toolbar', { name: 'Formatting options' })).not.toBeInTheDocument()
   })
 
   it('keeps authoring actions outside the scrollable fields in fill-height mode', async () => {

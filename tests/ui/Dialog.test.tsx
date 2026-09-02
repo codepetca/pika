@@ -303,6 +303,16 @@ describe('ContentDialog', () => {
     const footer = footerButton.parentElement!
     expect(footer.className).toContain('flex-shrink-0')
   })
+
+  it('keeps focus and Escape behavior with custom panel sizing and no footer', async () => {
+    render(<ContentDialog {...defaultProps} panelClassName="h-full" showFooterClose={false} />)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveClass('h-full')
+    const close = within(dialog).getByRole('button', { name: 'Close' })
+    await waitFor(() => expect(close).toHaveFocus())
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(defaultProps.onClose).toHaveBeenCalledOnce()
+  })
 })
 
 describe('DialogPanel', () => {
