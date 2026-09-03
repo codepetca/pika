@@ -38,6 +38,7 @@ async function newRolePage(
 }
 
 async function mockTeacherArchive(page: Page) {
+  let showAttendanceProgress = false
   await page.route('**/api/teacher/classrooms?archived=true', async (route) => {
     await route.fulfill({
       status: 200,
@@ -51,6 +52,56 @@ async function mockTeacherArchive(page: Page) {
       }),
     })
   })
+  await page.route(`**/api/teacher/classrooms/${CLASSROOM_ID}/purge`, async (route) => {
+    if (route.request().method() !== 'GET') return route.abort('blockedbyclient')
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        impact: {
+          classroom_id: CLASSROOM_ID,
+          classroom_title: archivedClassroom.title,
+          source_revision: 7,
+          storage_inventory_sha256: 'a'.repeat(64),
+          operational_inventory_sha256: 'b'.repeat(64),
+          relational_row_count: 428,
+          student_count: 31,
+          managed_file_count: 18,
+          managed_file_bytes: 6_291_456,
+          missing_file_count: 0,
+          archive_count: 1,
+          gradex_extract_count: 0,
+          interrupted_upload_count: 0,
+          resource_counts: { classrooms: 1 },
+          storage_counts: { 'submission-images': 18 },
+          conflicting_operation: null,
+          deletion_available: true,
+          unavailable_reason: null,
+        },
+        operation: null,
+      }),
+    })
+  })
+  await page.route(
+    `**/api/teacher/classrooms/${CLASSROOM_ID}/attendance-decommission/*`,
+    async (route) => {
+      if (route.request().method() !== 'GET') return route.abort('blockedbyclient')
+      await route.fulfill({
+        status: showAttendanceProgress ? 200 : 404,
+        contentType: 'application/json',
+        body: JSON.stringify(showAttendanceProgress ? {
+          operation: {
+            operation_id: '30000000-0000-5000-8000-000000000001',
+            state: 'fenced',
+            deleted_count: 127,
+            attendance_removed: false,
+            classroom_deleted: false,
+          },
+        } : { error: 'Not found' }),
+      })
+    },
+  )
+  return { showAttendanceProgress: () => { showAttendanceProgress = true } }
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -68,7 +119,7 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       }),
       entry.theme,
     )
-    await mockTeacherArchive(page)
+    const deletionFixture = await mockTeacherArchive(page)
     await page.goto('/classrooms')
     await page.getByRole('button', { name: 'Classroom actions' }).click()
     await page.getByRole('menuitem', { name: 'Show Archived' }).click()
@@ -89,6 +140,31 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       fullPage: true,
       animations: 'disabled',
     })
+
+    await deleteButton.click()
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
+    await expect(deleteDialog.getByText('This cannot be undone.')).toBeVisible()
+    await expect(deleteDialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
+    await page.screenshot({
+      path: `/tmp/pika-coordinated-delete-confirm-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await deleteDialog.getByRole('button', { name: 'Cancel' }).click()
+
+    deletionFixture.showAttendanceProgress()
+    await deleteButton.click()
+    const progressDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
+    await expect(progressDialog.getByText('Removing linked attendance…')).toBeVisible()
+    await expect(progressDialog.getByRole('button', { name: 'Continue deletion' })).toBeEnabled()
+    const closeProgressButton = progressDialog.getByRole('button', { name: 'Close', exact: true }).last()
+    await expect(closeProgressButton).toBeEnabled()
+    await page.screenshot({
+      path: `/tmp/pika-coordinated-delete-progress-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await closeProgressButton.click()
 
     await page.getByRole('link', { name: 'Home' }).click()
     await expect(page.getByRole('heading', { name: 'Active classrooms' })).toBeFocused()
@@ -129,6 +205,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     await expect(page.getByRole('button', { name: 'Unarchive' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Delete permanently' })).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(100)
     await page.screenshot({
       path: `/tmp/pika-archive-actions-student-${entry.name}.png`,
       fullPage: true,
