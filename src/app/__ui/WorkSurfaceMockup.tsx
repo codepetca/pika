@@ -111,7 +111,11 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           menuPlacement="down"
           items={[
             { id: 'markdown', label: `Edit all ${family} in Markdown`, icon: <Code className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction(`Edit all ${family} in Markdown`) },
-            { id: 'organize', label: `Organize ${family}`, onSelect: () => onPrototypeAction(`Organize ${family}`) },
+            {
+              id: 'organize',
+              label: family === 'classwork' ? 'Organize classwork' : 'Edit Tests',
+              onSelect: () => onPrototypeAction(family === 'classwork' ? 'Organize classwork' : 'Edit Tests'),
+            },
           ]}
         />
       )}

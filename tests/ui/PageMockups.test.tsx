@@ -717,9 +717,9 @@ describe('PageMockups', () => {
 
     await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
     expect(within(workspace).getByRole('button', { name: 'Create test' })).toBeVisible()
-    expect(within(workspace).queryByRole('button', { name: 'Organize tests' })).not.toBeInTheDocument()
+    expect(within(workspace).queryByRole('button', { name: 'Edit Tests' })).not.toBeInTheDocument()
     await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
-    expect(within(workspace).getByRole('menuitem', { name: 'Organize tests' })).toBeVisible()
+    expect(within(workspace).getByRole('menuitem', { name: 'Edit Tests' })).toBeVisible()
     await user.keyboard('{Escape}')
 
     await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))

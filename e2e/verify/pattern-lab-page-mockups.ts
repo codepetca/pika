@@ -917,9 +917,9 @@ export const patternLabPageMockups: VerificationScript = {
     checks.push({ name: 'Classwork More actions includes Markdown editing and Organize', passed: await workspace.getByRole('menuitem', { name: 'Edit all classwork in Markdown' }).isVisible() && await workspace.getByRole('menuitem', { name: 'Organize classwork' }).isVisible() })
     await page.keyboard.press('Escape')
     await workspace.getByRole('button', { name: 'Tests' }).click()
-    checks.push({ name: 'Tests summary keeps Organize out of the center cluster', passed: await workspace.getByRole('button', { name: 'Organize tests' }).count() === 0 })
+    checks.push({ name: 'Tests summary keeps editing out of the center cluster', passed: await workspace.getByRole('button', { name: 'Edit Tests' }).count() === 0 })
     await workspace.getByRole('button', { name: 'More actions' }).click()
-    checks.push({ name: 'Tests More actions retains Organize', passed: await workspace.getByRole('menuitem', { name: 'Organize tests' }).isVisible() })
+    checks.push({ name: 'Tests More actions includes Edit Tests', passed: await workspace.getByRole('menuitem', { name: 'Edit Tests' }).isVisible() })
     await page.keyboard.press('Escape')
     await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
 
