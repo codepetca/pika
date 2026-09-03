@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
+import { authorizeClassroomCoreRequest, classroomCoreMemberRecord } from '@/lib/server/classroom-core-access'
 import { assertStudentCanAccessClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -9,8 +9,12 @@ export const revalidate = 0
 
 // GET /api/student/classrooms/[id] - Get classroom details
 export const GET = withErrorHandler('GetStudentClassroom', async (request, context) => {
-  const user = await requireRole('student')
   const { id: classroomId } = await context.params
+  const coreAccess = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'student', permission: 'member' })
+  const { user } = coreAccess
+  if (coreAccess.mode === 'contextual') {
+    return NextResponse.json({ classroom: hydrateClassroomRecord(classroomCoreMemberRecord(coreAccess.classroom)) })
+  }
 
   const supabase = getServiceRoleClient()
 

@@ -25,4 +25,11 @@ import defaultImport from 'elsewhere'
 const x = "user.role requireRole('teacher')"; requireRole('teacher'); user.name
 const node = <div role="button">user.role</div>`)).toEqual([])
   })
+
+  it('keeps migrated contextual route entrypoints visible to the inventory', () => {
+    expect(inventoryClassroomAccess('src/api.ts', `import { authorizeClassroomCoreRequest as access } from '@/lib/server/classroom-core-access'
+await access(id, { permission: 'read' })`)).toEqual([
+      { file: 'src/api.ts', line: 2, signal: 'authorizeClassroomCoreRequest' },
+    ])
+  })
 })

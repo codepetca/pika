@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
+import { authorizeClassroomCoreRequest, assertClassroomCoreWriteResponse } from '@/lib/server/classroom-core-access'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
-import { withErrorHandler } from '@/lib/api-handler'
+import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
 import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
@@ -13,8 +13,12 @@ export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id] - Get classroom details
 export const GET = withErrorHandler('GetClassroomById', async (_request, context) => {
-  const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
+  const access = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'teacher', permission: 'owner' })
+  const { user } = access
+  if (access.mode === 'contextual') {
+    return NextResponse.json({ classroom: hydrateClassroomRecord(access.classroom) })
+  }
 
   const supabase = getServiceRoleClient()
 
@@ -43,8 +47,9 @@ export const GET = withErrorHandler('GetClassroomById', async (_request, context
 
 // PATCH /api/teacher/classrooms/[id] - Update classroom
 export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, context) => {
-  const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
+  const access = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'teacher', permission: 'owner' })
+  const { user } = access
 
   const body = updateClassroomPublishingSchema.parse(await request.json())
   const {
@@ -88,7 +93,9 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
 
   const supabase = getServiceRoleClient()
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+  const ownership = access.mode === 'contextual'
+    ? { ok: true as const, classroom: access.classroom }
+    : await assertTeacherOwnsClassroom(user.id, classroomId)
   if (!ownership.ok) {
     return NextResponse.json(
       { error: ownership.error },
@@ -199,12 +206,20 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     }
   }
 
-  const { data: updatedClassroom, error: updateError } = await supabase
+  let updateQuery = supabase
     .from('classrooms')
     .update(updates)
-    .eq('id', classroomId)
-    .select()
-    .single()
+    .eq('id', access.mode === 'contextual' ? access.context.classroomId : classroomId)
+  if (access.mode === 'contextual') {
+    // Bind the same owner and lifecycle snapshot in the UPDATE itself.
+    updateQuery = updateQuery.eq('teacher_id', access.context.ownerId)
+    updateQuery = access.classroom.archived_at === null
+      ? updateQuery.is('archived_at', null)
+      : updateQuery.eq('archived_at', access.classroom.archived_at)
+  }
+  const selectedUpdate = updateQuery.select()
+  const { data: updatedClassroom, error: updateError } = access.mode === 'contextual'
+    ? await selectedUpdate.maybeSingle() : await selectedUpdate.single()
 
   if (updateError) {
     if (isMissingClassroomFeatureVisibilityColumnError(updateError)) {
@@ -220,5 +235,9 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
+  if (access.mode === 'contextual') {
+    if (updatedClassroom === null) throw new ApiError(409, 'Classroom changed; refresh and try again')
+    assertClassroomCoreWriteResponse(access.context.classroomId, access.context.ownerId, updatedClassroom)
+  }
   return NextResponse.json({ classroom: hydrateClassroomRecord(updatedClassroom as Record<string, any>) })
 })
