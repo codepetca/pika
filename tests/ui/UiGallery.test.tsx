@@ -25,6 +25,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('locates the separate Owned / Joined home for %s reviewers', async (role) => {
+    const user = userEvent.setup()
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
+    renderGallery(role)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Find a pattern' }), 'owned-joined-home')
+    expect(window.location.hash).toBe('#owned-joined-home')
+    expect(scrollIntoView).toHaveBeenCalled()
+    const home = within(screen.getByTestId('pattern-section-owned-joined-home'))
+    expect(home.getByRole('heading', { name: 'Owned / Joined home' })).toBeVisible()
+    expect(home.getByRole('group', { name: 'Classroom relationship' })).toBeVisible()
+    expect(home.getByRole('combobox', { name: 'Creation access' })).toBeVisible()
+  })
+
   it.each(['teacher', 'student'] as const)('includes the student Grades visibility switch for %s reviewers', (role) => {
     renderGallery(role)
 
