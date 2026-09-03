@@ -30231,6 +30231,7 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Follow-up: Close should confirm discarding unapplied Markdown.
 
 <!-- pika-session-log-archive-batch:b8b8147976b683a6746000b478345694125a6634dbd5fd8fd6cc8b52e7d4a9ab -->
+<!-- pika-session-log-archive-batch:9f59f8a0b620d3f66a56ee645cf8ffa4a8a9d4405e4140d3c395d25da03db9d2 -->
 ## 2026-08-31 — Refine the exam document workspace
 
 - Replaced the duplicated teacher Preview and student live-exam document compositions with a shared `ExamDocumentWorkspace`. The persistent pane header now transitions from Documents to Back plus the active document title without a jarring horizontal morph; list/viewer layers and the question form stay mounted.
@@ -30238,6 +30239,7 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Focused verification passes 60 component tests and the repository gate passes 15 files / 184 tests plus architecture, UI/design policy, TypeScript and lint. Pika audit passes. Inspected actual teacher Preview and student attempt at desktop/mobile and light/dark; a compact document-body collapse found during verification was corrected. A live unsaved answer remained mounted while opening docs. Temporary local visual-only records were deleted; no existing data changed.
 - Draft PR #1145 review found one non-blocking P2: inactive eager iframes could remain in the screen-reader tree. They now retain eager mounting while receiving inactive `tabIndex` and `aria-hidden` isolation; two-frame coverage and the full 184-test focused gate pass after the fix. Final cumulative review and exact-head CI remain.
 
+<!-- pika-session-log-archive-batch:74373e1566c0a955c608ed8cf2f5d6b9ad162edd67ae0b3d144e35df862a8e1b -->
 ## 2026-08-31 — Preview simpler Assignment attachments
 
 - In worktree `codex/assignment-attachments-redesign`, Assignment creation now uses a compact 52px single-line Submission Requirement row at every width: 44px drag target, type icon, editable label and 44px trash target. Its tooltip-backed 44px `+` button opens the Link, Repo and Image menu. Removed visible Required, helper-text, image-limit and Link-check rows while keeping image limits as accessible label help and preserving existing hidden values during edits. Teacher work review continues to call submitted artifacts Attachments and shows missing legacy optional rows.
@@ -30249,8 +30251,31 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Pattern Lab has API-free teacher/student examples. Desktop/mobile × light/dark teacher rows, populated/empty label states, the shared fixed-height relative-date subtitle, the open requirement menu, student checklist and confirmation all passed and were inspected; geometry caps the three-row card at 220px and checks same-row centering. Evidence is under session artifacts `assignment-attachments`. Final focused checks pass 185 files / 1,837 tests plus architecture, UI/design policy, TypeScript and lint. Preview remains on localhost:3007; no commit, PR, merge or deployment yet.
 
 <!-- pika-session-log-archive-batch:97d1cbe892c53382bda9725386a4194cbbc28dd54a7fe20f126012a0e3c408a3 -->
+<!-- pika-session-log-archive-batch:05491585286c19a1e9a2567b11bd5eed4660057bf3a5c15038993a1ac8bfae07 -->
 ## 2026-08-31 — Remove Daily corner clipping artifact
 
 - Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
 - Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
 - Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
+
+<!-- pika-session-log-archive-batch:5f2e47d37deafacc8fa590e497b5c69b6a197a4603c68d3c5bc508233da9fb37 -->
+## 2026-08-31 Pattern Lab remaining classroom page mockups
+- Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
+- Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
+- Independent review found missing inactive tabpanel targets, inert retry/prototype commands, and insufficient durable coverage. Fixed all findings in one batch, added explicit local-only feedback and a reusable 35-check browser scenario; focused checks pass 13 files / 101 tests.
+
+## 2026-08-31 Persistent Pattern Lab navigation
+- Replaced the one-time horizontal section strip with a sticky Find a pattern selector and desktop quick links. Added direct destinations for Page actions, status colors, creation dialogs, student tests, history preview, and history graphs while preserving bookmarkable hashes.
+- Reused the shared Select and existing section anchors; no production route or shared component changed. Added reduced-motion-aware jumps and scroll offsets that keep headings below the persistent navigator.
+- Retained the compact overview links in the opening header and added the granular finder as the persistent navigation layer. The legacy tall contracts screenshot temporarily renders the finder statically so screenshot stitching cannot composite it into unrelated component baselines; the dedicated navigator verifier still exercises real sticky behavior.
+- Nine focused gallery tests, eight affected baseline contracts, UI/design policy, TypeScript, and a 40-check browser scenario pass. Independent review identified the nested status-color anchor's old scroll offset; one remediation batch fixed it and added a browser assertion that the heading clears the sticky navigator. Visually inspected desktop light and mobile dark deep-link captures; the navigator remains visible and neither layout overflows.
+
+## 2026-08-31 — Expand Pattern Lab classroom page patterns
+
+- Extended the teacher-only experimental Page mockups with deterministic Settings and Classwork/Tests workspace compositions. Settings covers section navigation, inline save state, access safeguards, feature switches, class days, course reuse, and Advanced markdown preference. Workspaces cover summary lists, selected-item Overview/Students modes, Markdown actions, student selection, and a keyboard-resizable work inspector. All examples use local fixtures and make no API, database, permission, or production-route changes.
+- Reused the production Settings controls and teacher work-surface owners; no new universal page component was introduced. Added direct Find a pattern destinations for all six classroom mockups so hidden Settings or Workspaces panels activate before scrolling.
+- Verification passes 13 focused test files / 105 tests plus architecture, UI policy, design policy, TypeScript, and lint. Targeted semantic tests cover the composite interactions. The durable browser scenario passes 65 checks across teacher desktop/mobile, light/dark, all six tabs, direct navigation, a full September–January Calendar Term selection, Settings selection/confirmation, workspace selection/inspector/Markdown actions, student exclusion, and page overflow. Representative screenshots were visually reviewed. Experimental adoption still requires user review; PR remains unmerged.
+
+## 2026-08-31 — Stabilize invalid Test Markdown coverage
+
+- Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.

@@ -1267,6 +1267,20 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show QR' })).toHaveFocus()
   })
 
+  it.each([false, true])('limits the poster menu to rollout availability %s while keeping occurrence QR', async (available) => {
+    mockCombinedCommandFetch()
+    const user = userEvent.setup()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable={available} />
+    </AppMessageProvider></TooltipProvider>)
+    await screen.findByRole('columnheader', { name: 'Time of scan' })
+    expect(screen.getByRole('button', { name: 'Show QR' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' }) !== null).toBe(available)
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
+  })
+
   it('keeps class-wide Attendance actions in the More actions batch dialog', async () => {
     const fetchMock = mockCombinedCommandFetch()
     const user = userEvent.setup()

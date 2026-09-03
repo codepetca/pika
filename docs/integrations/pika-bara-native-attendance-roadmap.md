@@ -55,7 +55,11 @@ that principal through the installation-scoped adapter.
 
 ### Student
 
-1. The QR opens `/attendance/check-in/<opaque-pika-token>` on Pika.
+1. An occurrence QR opens `/attendance/check-in/<opaque-pika-token>` on Pika.
+   A stable classroom poster opens `/attendance/classroom/<opaque-handle>`;
+   Pika applies its separate rollout gate and resolves an eligible open occurrence
+   server-side after classroom access and enrollment checks. See
+   [stable classroom QR](../guidance/classroom-attendance-qr.md) for canary enablement.
 2. A signed-out student completes Pika's existing login/passcode flow and
    returns to the exact Pika entry path.
 3. Pika validates and decrypts the entry token on its server, requires the
