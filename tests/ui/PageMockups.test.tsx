@@ -422,7 +422,7 @@ describe('PageMockups', () => {
     const assessmentTitle = within(gradebook).getByRole('button', { name: 'Ecosystems' })
     await user.click(assessmentTitle)
     const assessmentDialog = screen.getByRole('dialog')
-    expect(assessmentDialog).toHaveClass('max-w-md')
+    expect(assessmentDialog).toHaveClass('sm:max-w-md')
     expect(screen.getByRole('heading', { name: 'Edit assessment' })).toBeInTheDocument()
     const titleInput = screen.getByRole('textbox', { name: 'Assessment title' })
     expect(titleInput).toHaveValue('Ecosystems')

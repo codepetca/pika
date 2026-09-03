@@ -105,22 +105,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx",
-      "reviewBy": "phase-2-shared-foundation-debt",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 2,
-          "reason": "legacy-form-control"
-        },
-        {
-          "kind": "input:checkbox",
-          "count": 2,
-          "reason": "native-input-capability"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx",
       "reviewBy": "phase-3-calendar-announcements",
       "controls": [

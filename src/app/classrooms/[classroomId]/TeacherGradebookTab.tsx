@@ -1,1241 +1,45 @@
 'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type Ref,
-} from 'react'
-import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'lucide-react'
-import type {
-  GradebookAssessmentCell,
-  GradebookAssessmentColumn,
-  GradebookCategory,
-  Classroom,
-  GradebookStudentSummary,
-} from '@/types'
-import {
-  Button,
-  ColumnResizeHandle,
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  EmptyStateRow,
-  Input,
-  KeyboardNavigableTable,
-  PageState,
-  RefreshingIndicator,
-  TableSelectionCheckbox,
-  Tooltip,
-  useAppMessage,
-} from '@/ui'
-import {
-  AssessmentStatusIndicator,
-  getGradebookAssessmentStatusDisplay,
-} from '@/components/AssessmentStatusIndicator'
-import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
-import {
-  TeacherWorkSurfaceActionCluster,
-  TeacherWorkSurfaceIconMenuButton,
-  type TeacherWorkSurfaceActionItem,
-} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { Classroom, GradebookAssessmentColumn, GradebookCategory, GradebookStudentSummary } from '@/types'
+import { Button, PageState, RefreshingIndicator, useAppMessage } from '@/ui'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
-import {
-  fetchJSONWithCache,
-  invalidateCachedJSONMatching,
-} from '@/lib/request-cache'
+import { GradebookAssessmentDialog, GradebookEditorDialog } from '@/components/gradebook/GradebookDialogs'
+import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
+import { GradebookTable } from '@/components/gradebook/GradebookTable'
+import { GradebookToolbar, type GradebookDisplayPreferences } from '@/components/gradebook/GradebookToolbar'
+import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
+import { getStudentDisplayId, getValidEmailList, getAssessmentColumnKey, type GradebookIdentityColumn } from '@/lib/gradebook-display'
+import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
+import { saveGradebookAssessment } from '@/lib/gradebook-save'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import {
-  GradebookAssessmentDialog,
-  GradebookEditorDialog,
-} from '@/components/gradebook/GradebookDialogs'
 
 type GradebookSection = 'grades' | 'settings'
-type ScoreDisplayMode = 'percent' | 'raw'
-type GradebookSortColumn = 'first_name' | 'last_name' | 'id'
-type GradebookIdentityColumn = 'first_name' | 'last_name' | 'id'
-type GradebookFixedColumn = GradebookIdentityColumn | 'final'
-type GradebookSummaryRow = 'average' | 'median'
-
-interface GradebookPayload {
-  assessment_columns?: GradebookAssessmentColumn[]
-  categories?: GradebookCategory[]
-  category_schema_available?: boolean
-  students: GradebookStudentSummary[]
-}
-
-interface Props {
-  classroom: Classroom
-  sectionParam?: string | null
-  onSectionChange?: (section: GradebookSection) => void
-}
-
-const DEFAULT_VISIBLE_COLUMNS: Record<GradebookFixedColumn, boolean> = {
-  first_name: true,
-  last_name: true,
-  id: false,
-  final: true,
-}
-const DEFAULT_VISIBLE_SUMMARY_ROWS: Record<GradebookSummaryRow, boolean> = {
-  average: true,
-  median: true,
-}
+type GradebookSortColumn = GradebookIdentityColumn
+interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; students: GradebookStudentSummary[] }
+const PREFERENCES_KEY = 'teacher-gradebook:display:v1'
 const ASSESSMENT_WEIGHT_MIN = 1
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
-const SELECT_COLUMN_WIDTH_CLASS = 'w-10 min-w-10 max-w-10'
-const EDIT_LABEL_COLUMN_WIDTH_CLASS = 'w-20 min-w-20 max-w-20'
-const SELECT_COLUMN_WIDTH_PX = 40
-const EDIT_LABEL_COLUMN_WIDTH_PX = 80
-const FINAL_COLUMN_SEPARATOR_CLASS = 'border-l border-border-strong'
-
-const IDENTITY_COLUMN_DEFS: Array<{
-  key: GradebookIdentityColumn
-  label: string
-  defaultWidth: number
-  minWidth: number
-  maxWidth: number
-}> = [
-  { key: 'first_name', label: 'First', defaultWidth: 96, minWidth: 72, maxWidth: 220 },
-  { key: 'last_name', label: 'Last', defaultWidth: 96, minWidth: 72, maxWidth: 220 },
-  { key: 'id', label: 'ID', defaultWidth: 80, minWidth: 64, maxWidth: 180 },
-]
-
-const GRADEBOOK_COLUMN_LIMITS: Record<GradebookFixedColumn, {
-  defaultWidth: number
-  min: number
-  max: number
-}> = {
+const GRADEBOOK_COLUMN_LIMITS = {
   first_name: { defaultWidth: 96, min: 72, max: 220 },
   last_name: { defaultWidth: 96, min: 72, max: 220 },
   id: { defaultWidth: 80, min: 64, max: 180 },
-  final: { defaultWidth: 96, min: 80, max: 220 },
-}
-
-const getGradebookStudentRowId = (studentId: string) => `gradebook-student-row-${studentId}`
-
-function formatPercent(value: number | null): string {
-  if (value == null) return '—'
-  return `${value.toFixed(1)}%`
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100
-}
-
-function formatCompactPercent(value: number | null): string {
-  if (value == null) return '—'
-  const rounded = round2(value)
-  return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)}%`
-}
-
-function getGradePercentTextClass(percent: number | null | undefined): string {
-  if (percent == null || !Number.isFinite(percent)) return 'text-text-muted'
-  if (percent < 50) return 'text-danger'
-  if (percent < 70) return 'text-warning'
-  return 'text-text-default'
-}
-
-function getAssessmentCellPercent(cell: GradebookAssessmentCell | null): number | null {
-  if (!cell?.is_graded) return null
-  if (cell.percent != null) return cell.percent
-  if (cell.earned != null && cell.possible > 0) return (cell.earned / cell.possible) * 100
-  return null
-}
-
-function formatWeightShare(weight: number, total: number): string {
-  if (!Number.isFinite(weight) || !Number.isFinite(total) || total <= 0) return '—'
-  return formatCompactPercent((weight / total) * 100)
-}
-
-function formatPoints(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
-}
-
-function formatTorontoDateShort(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'America/Toronto',
-    }).format(new Date(iso))
-  } catch {
-    return iso
-  }
-}
-
-function getStudentName(student: GradebookStudentSummary): string {
-  return `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim() || student.student_email
-}
-
-function getStudentDisplayId(student: GradebookStudentSummary): string {
-  return student.student_number?.trim() || student.student_email.split('@')[0] || student.student_id
-}
-
-function getValidEmailList(emails: string[]): string[] {
-  return [...new Set(emails.map((email) => email.trim()).filter((email) => email.includes('@')))]
-}
-
-function getStudentIdentityValue(student: GradebookStudentSummary, column: GradebookIdentityColumn): string {
-  if (column === 'first_name') return student.student_first_name || '—'
-  if (column === 'last_name') return student.student_last_name || '—'
-  return getStudentDisplayId(student)
-}
-
-function getLeadingColumnWidthClass(editMode: boolean): string {
-  return editMode ? EDIT_LABEL_COLUMN_WIDTH_CLASS : SELECT_COLUMN_WIDTH_CLASS
-}
-
-function getLeadingColumnWidthPx(editMode: boolean): number {
-  return editMode ? EDIT_LABEL_COLUMN_WIDTH_PX : SELECT_COLUMN_WIDTH_PX
-}
-
-function getIdentityStickyLeftPx(
-  index: number,
-  editMode: boolean,
-  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
-  columnWidths: Record<GradebookIdentityColumn, number>,
-): number {
-  return renderedColumns.slice(0, index).reduce(
-    (left, column) => left + columnWidths[column.key],
-    getLeadingColumnWidthPx(editMode),
-  )
-}
-
-function getIdentityColumnStyle(
-  column: (typeof IDENTITY_COLUMN_DEFS)[number],
-  index: number,
-  editMode: boolean,
-  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
-  columnWidths: Record<GradebookIdentityColumn, number>,
-): CSSProperties {
-  const width = columnWidths[column.key]
-  return {
-    left: `${getIdentityStickyLeftPx(index, editMode, renderedColumns, columnWidths)}px`,
-    width: `${width}px`,
-    minWidth: `${width}px`,
-    maxWidth: `${width}px`,
-  }
-}
-
-function getFinalColumnStyle(width: number): CSSProperties {
-  return {
-    width: `${width}px`,
-    minWidth: `${width}px`,
-    maxWidth: `${width}px`,
-  }
-}
-
-function getIdentityColumnBorderClass(
-  index: number,
-  editMode: boolean,
-  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
-): string {
-  if (index === renderedColumns.length - 1) return 'border-r border-border-strong'
-  return editMode ? 'border-r border-border' : ''
-}
-
-function getAssessmentColumnKey(column: GradebookAssessmentColumn): string {
-  return `${column.assessment_type}:${column.assessment_id}`
-}
-
-function getAssessmentCell(
-  student: GradebookStudentSummary,
-  column: GradebookAssessmentColumn
-): GradebookAssessmentCell | null {
-  return (
-    student.assessment_scores?.find(
-      (cell) =>
-        cell.assessment_id === column.assessment_id &&
-        cell.assessment_type === column.assessment_type
-    ) || null
-  )
-}
-
-function average(values: number[]): number | null {
-  if (!values.length) return null
-  return round2(values.reduce((sum, value) => sum + value, 0) / values.length)
-}
-
-function median(values: number[]): number | null {
-  if (!values.length) return null
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  if (sorted.length % 2 === 1) return round2(sorted[middle])
-  return round2((sorted[middle - 1] + sorted[middle]) / 2)
-}
-
-function formatAssessmentScore(cell: GradebookAssessmentCell | null, displayMode: ScoreDisplayMode): string {
-  if (!cell?.is_graded) return '—'
-  if (displayMode === 'raw') {
-    if (cell.earned == null) return '—'
-    return `${formatPoints(cell.earned)}/${formatPoints(cell.possible)}`
-  }
-  return formatCompactPercent(cell.percent)
-}
-
-function formatAssessmentRawScore(cell: GradebookAssessmentCell | null, possible: number): string {
-  if (!cell?.is_graded || cell.earned == null) return `—/${formatPoints(possible)}`
-  return `${formatPoints(cell.earned)}/${formatPoints(cell.possible || possible)}`
-}
-
-function formatAssessmentTypeLabel(type: GradebookAssessmentColumn['assessment_type']): string {
-  if (type === 'assignment') return 'Assignment'
-  return 'Test'
-}
-
-function getAssessmentMeta(column: GradebookAssessmentColumn): string {
-  const meta = []
-  if (column.due_at) meta.push(`Due ${formatTorontoDateShort(column.due_at)}`)
-  if (column.status) meta.push(column.status.charAt(0).toUpperCase() + column.status.slice(1))
-  if (column.is_draft) meta.push('Draft')
-  if (!column.include_in_final) meta.push('Excluded')
-  if (!meta.length) meta.push(formatAssessmentTypeLabel(column.assessment_type))
-  return meta.join(' | ')
-}
-
-function getColumnStats(
-  students: GradebookStudentSummary[],
-  column: GradebookAssessmentColumn,
-) {
-  const gradedCells = students
-    .map((student) => getAssessmentCell(student, column))
-    .filter((cell): cell is GradebookAssessmentCell => Boolean(cell?.is_graded))
-
-  const percentValues = gradedCells
-    .map((cell) => cell.percent)
-    .filter((value): value is number => value != null)
-  const earnedValues = gradedCells
-    .map((cell) => cell.earned)
-    .filter((value): value is number => value != null)
-
-  return {
-    averagePercent: average(percentValues),
-    medianPercent: median(percentValues),
-    averageEarned: average(earnedValues),
-    medianEarned: median(earnedValues),
-  }
-}
-
-function formatColumnStat(
-  stats: ReturnType<typeof getColumnStats>,
-  column: GradebookAssessmentColumn,
-  stat: 'average' | 'median',
-  displayMode: ScoreDisplayMode,
-): string {
-  if (displayMode === 'raw') {
-    const earned = stat === 'average' ? stats.averageEarned : stats.medianEarned
-    return earned == null ? '—' : `${formatPoints(earned)}/${formatPoints(column.possible)}`
-  }
-
-  return formatCompactPercent(stat === 'average' ? stats.averagePercent : stats.medianPercent)
-}
-
-function ColumnHeaderCheckbox({
-  label,
-  checked,
-  onChange,
-  disabled = false,
-}: {
-  label: string
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-}) {
-  return (
-    <label className="inline-flex items-center justify-center" title={`${checked ? 'Hide' : 'Show'} ${label}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        disabled={disabled}
-        aria-label={label}
-        className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
-      />
-    </label>
-  )
-}
-
-function SummaryRowLabel({
-  label,
-  editMode,
-  checked,
-  onChange,
-}: {
-  label: string
-  editMode: boolean
-  checked: boolean
-  onChange: (checked: boolean) => void
-}) {
-  if (!editMode) {
-    return <span>{label}</span>
-  }
-
-  return (
-    <label
-      className="inline-flex items-center gap-1.5"
-      title={`${checked ? 'Hide' : 'Show'} ${label} row`}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        aria-label={`${label} row`}
-        className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
-      />
-      <span>{label}</span>
-    </label>
-  )
-}
-
-function StudentAssessmentPanel({
-  student,
-  columns,
-  displayMode,
-  onClose,
-}: {
-  student: GradebookStudentSummary
-  columns: GradebookAssessmentColumn[]
-  displayMode: ScoreDisplayMode
-  onClose: () => void
-}) {
-  return (
-    <aside
-      role="region"
-      aria-label={`${getStudentName(student)} assessment details`}
-      className="flex h-full min-h-0 flex-col bg-surface"
-    >
-      <div className="flex min-h-14 items-start justify-between gap-3 border-b border-border px-3 py-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-text-default">
-            {getStudentName(student)}
-          </h2>
-          <div className="mt-0.5 text-xs text-text-muted">
-            {getStudentDisplayId(student)}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-start gap-2">
-          <div className="rounded-md bg-surface-2 px-2 py-1 text-right">
-            <div className="text-[10px] font-semibold uppercase tracking-normal text-text-muted">Final</div>
-            <div className={[
-              'text-sm font-semibold tabular-nums',
-              getGradePercentTextClass(student.final_percent),
-            ].join(' ')}>
-              {formatPercent(student.final_percent)}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close student details"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {columns.length ? (
-          <div className="divide-y divide-border">
-            {columns.map((column) => {
-              const cell = getAssessmentCell(student, column)
-              const percentScore = cell?.is_graded ? formatCompactPercent(cell.percent) : 'Not graded'
-              const rawScore = formatAssessmentRawScore(cell, column.possible)
-              const primaryScore = displayMode === 'raw' ? rawScore : percentScore
-              const secondaryScore = displayMode === 'raw' ? percentScore : rawScore
-              const statusDisplay = getGradebookAssessmentStatusDisplay(cell?.status)
-              const key = getAssessmentColumnKey(column)
-              const scoreTextClass = cell?.is_graded
-                ? getGradePercentTextClass(getAssessmentCellPercent(cell))
-                : 'text-text-muted'
-              return (
-                <div key={key} className="px-3 py-2.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-normal tabular-nums text-text-default">
-                          {column.code}
-                        </span>
-                        <span className="truncate text-sm font-normal text-text-default" title={column.title}>
-                          {column.title}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
-                        {statusDisplay ? (
-                          <>
-                            <AssessmentStatusIndicator
-                              display={statusDisplay}
-                              iconClassName="shrink-0"
-                            />
-                            <span aria-hidden="true">|</span>
-                          </>
-                        ) : null}
-                        <span className="truncate">{getAssessmentMeta(column)}</span>
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className={[
-                        'text-sm font-normal tabular-nums',
-                        scoreTextClass,
-                      ].join(' ')}>
-                        {primaryScore}
-                      </div>
-                      <div className={['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
-                        {secondaryScore}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="px-3 py-6 text-sm text-text-muted">
-            No assessments yet.
-          </div>
-        )}
-      </div>
-    </aside>
-  )
-}
-
-function ResizableIdentityHeaderCell({
-  column,
-  index,
-  renderedColumns,
-  editMode,
-  headerTopClass,
-  hidden,
-  columnWidths,
-  sortColumn,
-  sortDirection,
-  onSort,
-  onColumnWidthChange,
-}: {
-  column: (typeof IDENTITY_COLUMN_DEFS)[number]
-  index: number
-  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>
-  editMode: boolean
-  headerTopClass: string
-  hidden: boolean
-  columnWidths: Record<GradebookIdentityColumn, number>
-  sortColumn: GradebookSortColumn
-  sortDirection: 'asc' | 'desc'
-  onSort: (column: GradebookSortColumn) => void
-  onColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
-}) {
-  const columnWidth = columnWidths[column.key]
-  const columnBounds = GRADEBOOK_COLUMN_LIMITS[column.key]
-  const isActive = sortColumn === column.key
-  const ariaSort = isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
-  const Icon = sortDirection === 'asc' ? ChevronUp : ChevronDown
-
-  return (
-    <DataTableHeaderCell
-      aria-label={column.label}
-      aria-sort={ariaSort}
-      style={getIdentityColumnStyle(column, index, editMode, renderedColumns, columnWidths)}
-      className={[
-        '!p-0 group relative sticky z-30 bg-surface-2',
-        headerTopClass,
-        getIdentityColumnBorderClass(index, editMode, renderedColumns),
-        hidden ? 'text-text-muted' : '',
-      ].join(' ')}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(column.key)}
-        className="flex w-full items-center gap-1 overflow-hidden px-3 py-1 pr-5 text-left transition-colors hover:bg-surface-hover"
-      >
-        <span className="truncate">{column.label}</span>
-        <Icon
-          className={[
-            'h-4 w-4 flex-shrink-0',
-            isActive ? 'text-text-muted' : 'opacity-0',
-          ].join(' ')}
-          aria-hidden="true"
-        />
-      </button>
-      <ColumnResizeHandle
-        label={column.label}
-        value={columnWidth}
-        min={columnBounds.min}
-        max={columnBounds.max}
-        onChange={(width) => onColumnWidthChange(column.key, width)}
-      />
-    </DataTableHeaderCell>
-  )
-}
-
-function ResizableFinalHeaderCell({
-  headerTopClass,
-  hidden,
-  finalColumnWidth,
-  onFinalColumnWidthChange,
-}: {
-  headerTopClass: string
-  hidden: boolean
-  finalColumnWidth: number
-  onFinalColumnWidthChange: (width: number) => void
-}) {
-  return (
-    <DataTableHeaderCell
-      aria-label="Final"
-      align="right"
-      style={getFinalColumnStyle(finalColumnWidth)}
-      className={[
-        'group relative sticky z-20 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-30',
-        FINAL_COLUMN_SEPARATOR_CLASS,
-        headerTopClass,
-        hidden ? 'text-text-muted opacity-60' : '',
-      ].join(' ')}
-    >
-      Final
-      <ColumnResizeHandle
-        label="Final"
-        value={finalColumnWidth}
-        min={GRADEBOOK_COLUMN_LIMITS.final.min}
-        max={GRADEBOOK_COLUMN_LIMITS.final.max}
-        edge="left"
-        onChange={onFinalColumnWidthChange}
-      />
-    </DataTableHeaderCell>
-  )
-}
-
-function AssessmentMatrixTable({
-  students,
-  columns,
-  displayMode,
-  editMode,
-  visibleColumns,
-  identityColumnWidths,
-  finalColumnWidth,
-  visibleSummaryRows,
-  hiddenAssessmentColumnKeys,
-  assessmentWeightDrafts,
-  savingAssessmentKeys,
-  isReadOnly,
-  onFixedColumnVisibleChange,
-  onIdentityColumnWidthChange,
-  onFinalColumnWidthChange,
-  onAssessmentColumnVisibleChange,
-  onSummaryRowVisibleChange,
-  onAssessmentWeightDraftChange,
-  onAssessmentWeightCommit,
-  onAssessmentOpen,
-  selectedIds,
-  allSelected,
-  someSelected,
-  toggleSelect,
-  toggleSelectAll,
-  selectedStudentId,
-  onStudentSelect,
-  onStudentDeselect,
-  sortColumn,
-  sortDirection,
-  handleSort,
-  scrollContainerRef,
-  onScrollContainerScroll,
-}: {
-  students: GradebookStudentSummary[]
-  columns: GradebookAssessmentColumn[]
-  displayMode: ScoreDisplayMode
-  editMode: boolean
-  visibleColumns: Record<GradebookFixedColumn, boolean>
-  identityColumnWidths: Record<GradebookIdentityColumn, number>
-  finalColumnWidth: number
-  visibleSummaryRows: Record<GradebookSummaryRow, boolean>
-  hiddenAssessmentColumnKeys: Set<string>
-  assessmentWeightDrafts: Record<string, string>
-  savingAssessmentKeys: Set<string>
-  isReadOnly: boolean
-  onFixedColumnVisibleChange: (column: GradebookFixedColumn, visible: boolean) => void
-  onIdentityColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
-  onFinalColumnWidthChange: (width: number) => void
-  onAssessmentColumnVisibleChange: (column: GradebookAssessmentColumn, visible: boolean) => void
-  onSummaryRowVisibleChange: (row: GradebookSummaryRow, visible: boolean) => void
-  onAssessmentWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
-  onAssessmentWeightCommit: (column: GradebookAssessmentColumn) => void
-  onAssessmentOpen: (column: GradebookAssessmentColumn) => void
-  selectedIds: Set<string>
-  allSelected: boolean
-  someSelected: boolean
-  toggleSelect: (id: string) => void
-  toggleSelectAll: () => void
-  selectedStudentId: string | null
-  onStudentSelect: (student: GradebookStudentSummary) => void
-  onStudentDeselect: () => void
-  sortColumn: GradebookSortColumn
-  sortDirection: 'asc' | 'desc'
-  handleSort: (column: GradebookSortColumn) => void
-  scrollContainerRef?: Ref<HTMLDivElement>
-  onScrollContainerScroll?: () => void
-}) {
-  const visibleIdentityCount = IDENTITY_COLUMN_DEFS.filter((column) => visibleColumns[column.key]).length
-  const renderedIdentityColumns = editMode
-    ? IDENTITY_COLUMN_DEFS
-    : IDENTITY_COLUMN_DEFS.filter((column) => visibleColumns[column.key])
-  const renderedAssessmentColumns = editMode ? columns : columns.filter(
-    (column) => !hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
-  )
-  const renderFinalColumn = editMode || visibleColumns.final
-  const headerTopClass = editMode ? 'top-24' : 'top-0'
-  const colSpan = renderedAssessmentColumns.length + renderedIdentityColumns.length + (renderFinalColumn ? 2 : 1)
-  const leadingColumnWidthClass = getLeadingColumnWidthClass(editMode)
-  const editColumnBorderClass = editMode ? 'border-r border-border' : ''
-  const assessmentWeightTotal = renderedAssessmentColumns.reduce((sum, column) => {
-    const value = Number(assessmentWeightDrafts[getAssessmentColumnKey(column)] || 0)
-    return sum + (Number.isFinite(value) ? value : 0)
-  }, 0)
-  const finalPercents = students
-    .map((student) => student.final_percent)
-    .filter((value): value is number => value != null)
-  const finalAverage = average(finalPercents)
-  const finalMedian = median(finalPercents)
-  const renderAverageRow = editMode || visibleSummaryRows.average
-  const renderMedianRow = editMode || visibleSummaryRows.median
-
-  return (
-    <KeyboardNavigableTable
-      ref={scrollContainerRef}
-      ariaLabel="Gradebook students"
-      rowKeys={editMode ? [] : students.map((student) => student.student_id)}
-      selectedKey={editMode ? null : selectedStudentId}
-      onSelectKey={(studentId) => {
-        const student = students.find((candidate) => candidate.student_id === studentId)
-        if (student) onStudentSelect(student)
-      }}
-      onDeselect={onStudentDeselect}
-      getRowId={getGradebookStudentRowId}
-      className="h-full min-h-0 min-w-0 overflow-auto"
-      data-testid="gradebook-student-scroll-pane"
-      onScroll={onScrollContainerScroll}
-    >
-      <DataTable density="tight" className="min-w-max">
-          <DataTableHead>
-            {editMode ? (
-              <DataTableRow className="border-b border-border">
-                <DataTableHeaderCell
-                  className={[
-                    'sticky left-0 top-0 z-30 h-8 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
-                    leadingColumnWidthClass,
-                  ].join(' ')}
-                >
-                  Visible
-                </DataTableHeaderCell>
-                {renderedIdentityColumns.map((column, index) => (
-                  <DataTableHeaderCell
-                    key={`toggle:${column.key}`}
-                    align="center"
-                    style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
-                    className={[
-                      'sticky top-0 z-30 h-8 bg-surface-2',
-                      getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
-                    ].join(' ')}
-                  >
-                    <ColumnHeaderCheckbox
-                      label={column.label}
-                      checked={visibleColumns[column.key]}
-                      disabled={visibleColumns[column.key] && visibleIdentityCount === 1}
-                      onChange={(checked) => onFixedColumnVisibleChange(column.key, checked)}
-                    />
-                  </DataTableHeaderCell>
-                ))}
-                {renderedAssessmentColumns.map((column) => {
-                  const key = getAssessmentColumnKey(column)
-                  return (
-                    <DataTableHeaderCell
-                      key={`toggle:${key}`}
-                      align="center"
-                      className="sticky top-0 z-20 h-8 min-w-16 border-r border-border bg-surface-2 px-2"
-                    >
-                      <ColumnHeaderCheckbox
-                        label={column.code}
-                        checked={!hiddenAssessmentColumnKeys.has(key)}
-                        onChange={(checked) => onAssessmentColumnVisibleChange(column, checked)}
-                      />
-                    </DataTableHeaderCell>
-                  )
-                })}
-                {renderFinalColumn ? (
-                  <DataTableHeaderCell
-                    align="right"
-                    style={getFinalColumnStyle(finalColumnWidth)}
-                    className={[
-                      'sticky top-0 z-20 h-8 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-30',
-                      FINAL_COLUMN_SEPARATOR_CLASS,
-                    ].join(' ')}
-                  >
-                    <ColumnHeaderCheckbox
-                      label="Final"
-                      checked={visibleColumns.final}
-                      onChange={(checked) => onFixedColumnVisibleChange('final', checked)}
-                    />
-                  </DataTableHeaderCell>
-                ) : null}
-              </DataTableRow>
-            ) : null}
-            {editMode ? (
-              <DataTableRow className="border-b border-border">
-                <DataTableHeaderCell
-                  className={[
-                    'sticky left-0 top-8 z-30 h-14 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
-                    leadingColumnWidthClass,
-                  ].join(' ')}
-                >
-                  Weight
-                </DataTableHeaderCell>
-                {renderedIdentityColumns.map((column, index) => (
-                  <DataTableHeaderCell
-                    key={`weight-label:${column.key}`}
-                    style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
-                    className={[
-                      'sticky top-8 z-30 h-14 bg-surface-2',
-                      getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
-                      !visibleColumns[column.key] ? 'text-text-muted' : '',
-                    ].join(' ')}
-                  >
-                    {null}
-                  </DataTableHeaderCell>
-                ))}
-                {renderedAssessmentColumns.map((column) => {
-                  const key = getAssessmentColumnKey(column)
-                  const hidden = hiddenAssessmentColumnKeys.has(key)
-                  const weightDraft = assessmentWeightDrafts[key] ?? String(column.weight)
-                  const weightValue = Number(weightDraft)
-                  const weightShare = formatWeightShare(weightValue, assessmentWeightTotal)
-                  const savingWeight = savingAssessmentKeys.has(key)
-                  return (
-                    <DataTableHeaderCell
-                      key={`weight:${key}`}
-                      align="center"
-                      className={[
-                        'sticky top-8 z-20 h-14 min-w-16 border-r border-border bg-surface-2 px-2',
-                        hidden ? 'opacity-60' : '',
-                      ].join(' ')}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <Input
-                          type="number"
-                          min={ASSESSMENT_WEIGHT_MIN}
-                          max={ASSESSMENT_WEIGHT_MAX}
-                          inputMode="numeric"
-                          value={weightDraft}
-                          disabled={isReadOnly || savingWeight}
-                          aria-label={`${column.code} assessment weight`}
-                          title={`${column.code} assessment weight`}
-                          onChange={(event) => onAssessmentWeightDraftChange(column, event.target.value)}
-                          onBlur={() => onAssessmentWeightCommit(column)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.currentTarget.blur()
-                            }
-                          }}
-                          className="h-7 w-12 [appearance:textfield] px-1 text-center text-xs tabular-nums [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <span
-                          className="text-[10px] font-medium leading-none tabular-nums text-text-muted"
-                          aria-label={`${column.code} weight share ${weightShare}`}
-                        >
-                          {weightShare}
-                        </span>
-                      </div>
-                    </DataTableHeaderCell>
-                  )
-                })}
-                {renderFinalColumn ? (
-                  <DataTableHeaderCell
-                    align="right"
-                    style={getFinalColumnStyle(finalColumnWidth)}
-                    className={[
-                      'sticky top-8 z-20 h-14 bg-surface-2 text-xs font-semibold tabular-nums text-text-muted md:right-0 md:z-30',
-                      FINAL_COLUMN_SEPARATOR_CLASS,
-                    ].join(' ')}
-                  >
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span>Total {assessmentWeightTotal}</span>
-                      <span className="text-[10px] font-medium leading-none">
-                        {assessmentWeightTotal > 0 ? '100%' : '—'}
-                      </span>
-                    </div>
-                  </DataTableHeaderCell>
-                ) : null}
-              </DataTableRow>
-            ) : null}
-            {editMode ? (
-              <DataTableRow aria-hidden="true" className="h-2 bg-page">
-                <td colSpan={colSpan} className="p-0" />
-              </DataTableRow>
-            ) : null}
-            <DataTableRow>
-              <DataTableHeaderCell className={['sticky left-0 z-30 border-r border-border bg-surface-2', headerTopClass, leadingColumnWidthClass].join(' ')}>
-                {editMode ? null : (
-                  <TableSelectionCheckbox
-                    checked={allSelected}
-                    indeterminate={someSelected}
-                    onChange={toggleSelectAll}
-                    ariaLabel="Select all students"
-                  />
-                )}
-              </DataTableHeaderCell>
-              {renderedIdentityColumns.map((column, index) => (
-                <ResizableIdentityHeaderCell
-                  key={column.key}
-                  column={column}
-                  index={index}
-                  renderedColumns={renderedIdentityColumns}
-                  editMode={editMode}
-                  headerTopClass={headerTopClass}
-                  hidden={!visibleColumns[column.key]}
-                  columnWidths={identityColumnWidths}
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                  onColumnWidthChange={onIdentityColumnWidthChange}
-                />
-              ))}
-              {renderedAssessmentColumns.map((column) => {
-                const key = getAssessmentColumnKey(column)
-                const hidden = hiddenAssessmentColumnKeys.has(key)
-                return (
-                <DataTableHeaderCell
-                  key={key}
-                  align="center"
-                    className={[
-                      'sticky z-20 min-w-16 bg-surface-2 px-2 text-xs',
-                      headerTopClass,
-                      editColumnBorderClass,
-                      hidden ? 'opacity-60' : '',
-                    ].join(' ')}
-                >
-                  <div className="flex flex-col items-center">
-                    <Tooltip content={`${column.title} · ${column.category_name ?? 'Uncategorized'}`} side="bottom">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => onAssessmentOpen(column)}
-                        disabled={editMode || isReadOnly}
-                        className={[
-                          'flex-col px-1.5 py-0.5 font-normal tabular-nums disabled:cursor-default',
-                          column.is_draft || !column.include_in_final
-                            ? 'text-text-muted'
-                            : 'text-text-default',
-                          hidden ? 'text-text-muted' : '',
-                        ].join(' ')}
-                        aria-label={[
-                          `Edit ${column.code}: ${column.title}`,
-                          `Category ${column.category_name ?? 'Uncategorized'}`,
-                          column.due_at ? `Due ${formatTorontoDateShort(column.due_at)}` : null,
-                        ].filter(Boolean).join(', ')}
-                      >
-                        <span className="max-w-24 truncate font-medium">{column.title}</span>
-                        <span className="mt-0.5 min-h-3 text-[10px] font-normal leading-none text-text-muted">
-                          <span>{column.code}</span>
-                          {!hidden && column.due_at ? (
-                            <>
-                              {' · '}
-                              <span>{formatTorontoDateShort(column.due_at)}</span>
-                            </>
-                          ) : null}
-                        </span>
-                      </Button>
-                    </Tooltip>
-                  </div>
-                </DataTableHeaderCell>
-                )
-              })}
-              {renderFinalColumn ? (
-                <ResizableFinalHeaderCell
-                  headerTopClass={headerTopClass}
-                  hidden={!visibleColumns.final}
-                  finalColumnWidth={finalColumnWidth}
-                  onFinalColumnWidthChange={onFinalColumnWidthChange}
-                />
-              ) : null}
-            </DataTableRow>
-          </DataTableHead>
-          <DataTableBody>
-            {students.map((student) => {
-              const isSelected = selectedStudentId === student.student_id
-              const isSelectable = !editMode
-              return (
-                <DataTableRow
-                  key={student.student_id}
-                  id={getGradebookStudentRowId(student.student_id)}
-                  tabIndex={isSelectable ? -1 : undefined}
-                  aria-selected={isSelectable ? isSelected : undefined}
-                  className={[
-                    'group transition-colors',
-                    isSelectable ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary' : '',
-                    isSelected
-                      ? 'border-l-2 border-l-primary bg-surface-selected hover:bg-surface-selected'
-                      : 'hover:bg-surface-hover',
-                  ].join(' ')}
-                  onClick={(event) => {
-                    if (!isSelectable) return
-                    if ((event.target as HTMLElement).closest('button,input,a,label,select,textarea')) return
-                    onStudentSelect(student)
-                  }}
-                >
-                  <DataTableCell
-                    className={[
-                      'sticky left-0 z-10 border-r border-border',
-                      isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
-                      leadingColumnWidthClass,
-                    ].join(' ')}
-                  >
-                    {editMode ? null : (
-                      <TableSelectionCheckbox
-                        checked={selectedIds.has(student.student_id)}
-                        onChange={() => toggleSelect(student.student_id)}
-                        ariaLabel={`Select ${getStudentName(student)}`}
-                      />
-                    )}
-                  </DataTableCell>
-                  {renderedIdentityColumns.map((column, index) => {
-                    const hidden = !visibleColumns[column.key]
-                    const value = getStudentIdentityValue(student, column.key)
-                    return (
-                      <DataTableCell
-                        key={column.key}
-                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
-                        className={[
-                          'sticky z-10',
-                          getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
-                          isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
-                          column.key === 'id' ? 'text-text-muted' : '',
-                          hidden ? 'bg-surface-2 text-text-muted group-hover:bg-surface-hover' : '',
-                        ].join(' ')}
-                      >
-                        <span
-                          className={[
-                            'block truncate text-sm',
-                            column.key === 'id' || hidden ? '' : 'font-semibold text-text-default',
-                          ].join(' ')}
-                          title={value === '—' ? undefined : value}
-                        >
-                          {value}
-                        </span>
-                      </DataTableCell>
-                    )
-                  })}
-                  {renderedAssessmentColumns.map((column) => {
-                    const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
-                    const cell = getAssessmentCell(student, column)
-                    const scoreTextClass = hidden
-                      ? 'text-text-muted'
-                      : getGradePercentTextClass(getAssessmentCellPercent(cell))
-                    return (
-                      <DataTableCell
-                        key={`${student.student_id}:${column.assessment_type}:${column.assessment_id}`}
-                        align="center"
-                        className={['min-w-16 px-2 text-xs tabular-nums', editColumnBorderClass].join(' ')}
-                      >
-                        <span
-                          className={[
-                            'font-normal',
-                            scoreTextClass,
-                          ].join(' ')}
-                        >
-                          {formatAssessmentScore(cell, displayMode)}
-                        </span>
-                      </DataTableCell>
-                    )
-                  })}
-                  {renderFinalColumn ? (
-                    <DataTableCell
-                      align="right"
-                      style={getFinalColumnStyle(finalColumnWidth)}
-                      className={[
-                        'whitespace-nowrap text-xs font-semibold tabular-nums sm:text-sm md:sticky md:right-0 md:z-10',
-                        FINAL_COLUMN_SEPARATOR_CLASS,
-                        isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
-                        !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
-                      ].join(' ')}
-                    >
-                      <span className={visibleColumns.final ? getGradePercentTextClass(student.final_percent) : 'text-text-muted'}>
-                        {formatPercent(student.final_percent)}
-                      </span>
-                    </DataTableCell>
-                  ) : null}
-                </DataTableRow>
-              )
-            })}
-
-            {students.length === 0 && (
-              <EmptyStateRow colSpan={colSpan} message="No students enrolled yet" />
-            )}
-            {students.length > 0 && (renderAverageRow || renderMedianRow) && (
-              <>
-                <DataTableRow aria-hidden="true" className="h-2 bg-page">
-                  <td colSpan={colSpan} className="p-0" />
-                </DataTableRow>
-                {renderAverageRow ? (
-                  <DataTableRow className={[
-                    renderMedianRow ? 'border-t border-border bg-surface-2' : 'border-y border-border bg-surface-2',
-                    editMode && !visibleSummaryRows.average ? 'opacity-60' : '',
-                  ].join(' ')}>
-                    <DataTableCell
-                      className={[
-                        'sticky left-0 z-10 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
-                        editMode ? '!px-2' : '!px-1 text-center',
-                        leadingColumnWidthClass,
-                      ].join(' ')}
-                    >
-                      <SummaryRowLabel
-                        label="Avg"
-                        editMode={editMode}
-                        checked={visibleSummaryRows.average}
-                        onChange={(checked) => onSummaryRowVisibleChange('average', checked)}
-                      />
-                    </DataTableCell>
-                    {renderedIdentityColumns.map((column, index) => (
-                      <DataTableCell
-                        key={`average:${column.key}`}
-                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
-                        className={[
-                        'sticky z-10 bg-surface-2',
-                        getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
-                        editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
-                      ].join(' ')}
-                      >
-                        {null}
-                      </DataTableCell>
-                    ))}
-                    {renderedAssessmentColumns.map((column) => {
-                      const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
-                      const stats = getColumnStats(students, column)
-                      const scoreTextClass = hidden
-                        ? 'text-text-muted'
-                        : getGradePercentTextClass(stats.averagePercent)
-                      return (
-                        <DataTableCell
-                          key={`average:${column.assessment_type}:${column.assessment_id}`}
-                          align="center"
-                          className={[
-                            'min-w-16 px-2 text-xs font-normal tabular-nums',
-                            editColumnBorderClass,
-                          ].join(' ')}
-                        >
-                          <span className={scoreTextClass}>
-                            {formatColumnStat(stats, column, 'average', displayMode)}
-                          </span>
-                        </DataTableCell>
-                      )
-                    })}
-                    {renderFinalColumn ? (
-                      <DataTableCell
-                        align="right"
-                        style={getFinalColumnStyle(finalColumnWidth)}
-                        className={[
-                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
-                          FINAL_COLUMN_SEPARATOR_CLASS,
-                        ].join(' ')}
-                      >
-                        <span className={visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted'}>
-                          {formatCompactPercent(finalAverage)}
-                        </span>
-                      </DataTableCell>
-                    ) : null}
-                  </DataTableRow>
-                ) : null}
-                {renderMedianRow ? (
-                  <DataTableRow className={[
-                    renderAverageRow ? 'border-b border-border bg-surface-2' : 'border-y border-border bg-surface-2',
-                    editMode && !visibleSummaryRows.median ? 'opacity-60' : '',
-                  ].join(' ')}>
-                    <DataTableCell
-                      className={[
-                        'sticky left-0 z-10 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
-                        editMode ? '!px-2' : '!px-1 text-center',
-                        leadingColumnWidthClass,
-                      ].join(' ')}
-                    >
-                      <SummaryRowLabel
-                        label="Med"
-                        editMode={editMode}
-                        checked={visibleSummaryRows.median}
-                        onChange={(checked) => onSummaryRowVisibleChange('median', checked)}
-                      />
-                    </DataTableCell>
-                    {renderedIdentityColumns.map((column, index) => (
-                      <DataTableCell
-                        key={`median:${column.key}`}
-                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
-                        className={[
-                        'sticky z-10 bg-surface-2',
-                        getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
-                        editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
-                      ].join(' ')}
-                      >
-                        {null}
-                      </DataTableCell>
-                    ))}
-                    {renderedAssessmentColumns.map((column) => {
-                      const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
-                      const stats = getColumnStats(students, column)
-                      const scoreTextClass = hidden
-                        ? 'text-text-muted'
-                        : getGradePercentTextClass(stats.medianPercent)
-                      return (
-                        <DataTableCell
-                          key={`median:${column.assessment_type}:${column.assessment_id}`}
-                          align="center"
-                          className={[
-                            'min-w-16 px-2 text-xs font-normal tabular-nums',
-                            editColumnBorderClass,
-                          ].join(' ')}
-                        >
-                          <span className={scoreTextClass}>
-                            {formatColumnStat(stats, column, 'median', displayMode)}
-                          </span>
-                        </DataTableCell>
-                      )
-                    })}
-                    {renderFinalColumn ? (
-                      <DataTableCell
-                        align="right"
-                        style={getFinalColumnStyle(finalColumnWidth)}
-                        className={[
-                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
-                          FINAL_COLUMN_SEPARATOR_CLASS,
-                        ].join(' ')}
-                      >
-                        <span className={visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted'}>
-                          {formatCompactPercent(finalMedian)}
-                        </span>
-                      </DataTableCell>
-                    ) : null}
-                  </DataTableRow>
-                ) : null}
-              </>
-            )}
-          </DataTableBody>
-      </DataTable>
-    </KeyboardNavigableTable>
-  )
+  final: { defaultWidth: 80, min: 80, max: 220 },
 }
 
 export function TeacherGradebookTab({
   classroom,
+  isActive = true,
   sectionParam,
   onSectionChange = () => {},
 }: Props) {
-  const section: GradebookSection = sectionParam === 'settings' ? 'settings' : 'grades'
   const isReadOnly = !!classroom.archived_at
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
@@ -1243,23 +47,25 @@ export function TeacherGradebookTab({
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
-  const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>('percent')
-  const [columnEditorOpen, setColumnEditorOpen] = useState(section === 'settings')
-  const [visibleColumns, setVisibleColumns] =
-    useState<Record<GradebookFixedColumn, boolean>>(DEFAULT_VISIBLE_COLUMNS)
+  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES)
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
+  const { scoreDisplayMode } = preferences
+  const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
+  useEffect(() => {
+    const saved = safeLocalGetJson<Partial<GradebookDisplayPreferences>>(PREFERENCES_KEY)
+    if (saved) setPreferences(normalizeGradebookPreferences(saved))
+    setPreferencesLoaded(true)
+  }, [])
+  useEffect(() => {
+    if (preferencesLoaded) safeLocalSetJson(PREFERENCES_KEY, preferences)
+  }, [preferences, preferencesLoaded])
+  function updatePreferences(changes: Partial<GradebookDisplayPreferences>) {
+    setPreferences((current) => ({ ...current, ...changes }))
+  }
   const { columnWidths, setColumnWidth } = useTableColumnWidths({
     storageKey: 'teacher-gradebook:v1',
     columns: GRADEBOOK_COLUMN_LIMITS,
   })
-  const identityColumnWidths: Record<GradebookIdentityColumn, number> = {
-    first_name: columnWidths.first_name,
-    last_name: columnWidths.last_name,
-    id: columnWidths.id,
-  }
-  const finalColumnWidth = columnWidths.final
-  const [visibleSummaryRows, setVisibleSummaryRows] =
-    useState<Record<GradebookSummaryRow, boolean>>(DEFAULT_VISIBLE_SUMMARY_ROWS)
-  const [hiddenAssessmentColumnKeys, setHiddenAssessmentColumnKeys] = useState<Set<string>>(() => new Set())
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
@@ -1273,6 +79,9 @@ export function TeacherGradebookTab({
   const [detailPaneWidth, setDetailPaneWidth] = useState(32)
   const loadRequestIdRef = useRef(0)
   const assessmentSaveChainsRef = useRef<Map<string, Promise<void>>>(new Map())
+  const dirtyWeightsRef = useRef(new Map<string, string>())
+  const settingsLinkHandledRef = useRef(false)
+  const wasActiveRef = useRef(isActive)
   const dialogSaveSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
@@ -1343,12 +152,11 @@ export function TeacherGradebookTab({
     preserveScrollPosition: preserveGradebookTableScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: `${classroom.id}:gradebook`,
-    enabled: !columnEditorOpen,
+    enabled: true,
     restoreToken: [
       selectedStudentId ?? 'none',
       sortedStudents.length,
       loading ? 'loading' : 'ready',
-      columnEditorOpen ? 'settings' : 'grades',
     ].join(':'),
   })
 
@@ -1388,11 +196,12 @@ export function TeacherGradebookTab({
       }))
       setAssessmentColumns(columnsWithWeights)
       setCategories(data.categories || [])
+      setCategorySchemaAvailable(data.category_schema_available !== false)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
           const key = getAssessmentColumnKey(column)
-          next[key] = String(column.weight)
+          next[key] = dirtyWeightsRef.current.get(key) ?? String(column.weight)
         }
         return next
       })
@@ -1427,6 +236,8 @@ export function TeacherGradebookTab({
     loadRequestIdRef.current += 1
     dialogSaveSequenceRef.current += 1
     assessmentSaveChainsRef.current = new Map()
+    dirtyWeightsRef.current.clear()
+    settingsLinkHandledRef.current = false
     setAssessmentColumns([])
     setCategories([])
     setAssessmentWeightDrafts({})
@@ -1447,6 +258,13 @@ export function TeacherGradebookTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
 
+  useEffect(() => {
+    if (isActive && !wasActiveRef.current && hasCurrentSnapshot) {
+      void loadGradebook({ preserveSnapshot: true })
+    }
+    wasActiveRef.current = isActive
+  }, [isActive, hasCurrentSnapshot, loadGradebook])
+
   function retryGradebookLoad() {
     if (loading) return
     retryFocusIntentRef.current = true
@@ -1462,35 +280,19 @@ export function TeacherGradebookTab({
   }, [gradebookTableScrollRef, hasCurrentSnapshot, loadError, loading])
 
   useEffect(() => {
-    setColumnEditorOpen(section === 'settings')
-    if (section === 'settings') {
-      setSelectedStudentId(null)
-      clearSelection()
+    if (sectionParam !== 'settings') settingsLinkHandledRef.current = false
+    if (sectionParam === 'settings' && hasCurrentSnapshot && !isReadOnly && categorySchemaAvailable && !settingsLinkHandledRef.current) {
+      settingsLinkHandledRef.current = true
+      setGradebookEditorOpen(true)
+      onSectionChange('grades')
     }
-  }, [clearSelection, section])
+  }, [sectionParam, hasCurrentSnapshot, isReadOnly, categorySchemaAvailable, onSectionChange])
 
   useEffect(() => {
     if (!selectedStudentId) return
     if (students.some((student) => student.student_id === selectedStudentId)) return
     setSelectedStudentId(null)
   }, [selectedStudentId, students])
-
-  function handleSettingsActiveChange(active: boolean) {
-    if (active) {
-      setSelectedStudentId(null)
-      clearSelection()
-    }
-    setColumnEditorOpen(active)
-    onSectionChange(active ? 'settings' : 'grades')
-  }
-
-  function handleScoreDisplayModeChange(nextMode: ScoreDisplayMode) {
-    setScoreDisplayMode(nextMode)
-    if (columnEditorOpen) {
-      setColumnEditorOpen(false)
-    }
-    onSectionChange('grades')
-  }
 
   async function copySelectedEmailsToClipboard() {
     if (selectedStudentEmails.length === 0) {
@@ -1512,30 +314,6 @@ export function TeacherGradebookTab({
     showMessage({ text: 'Student emails copied', tone: 'success' })
   }
 
-  function openDefaultEmail(emails: string[]) {
-    if (emails.length === 0) {
-      showMessage({ text: 'No selected student emails', tone: 'warning' })
-      return
-    }
-    window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}`
-  }
-
-  function openGmail(emails: string[]) {
-    if (emails.length === 0) {
-      showMessage({ text: 'No selected student emails', tone: 'warning' })
-      return
-    }
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(emails.join(','))}`, '_blank')
-  }
-
-  function openOutlook(emails: string[]) {
-    if (emails.length === 0) {
-      showMessage({ text: 'No selected student emails', tone: 'warning' })
-      return
-    }
-    window.open(`https://outlook.office.com/mail/deeplink/compose?bcc=${encodeURIComponent(emails.join(','))}`, '_blank')
-  }
-
   function handleStudentSelect(student: GradebookStudentSummary) {
     preserveGradebookTableScrollPosition()
     setSelectedStudentId((previous) => (
@@ -1543,45 +321,9 @@ export function TeacherGradebookTab({
     ))
   }
 
-  function handleFixedColumnVisibleChange(column: GradebookFixedColumn, visible: boolean) {
-    const next = { ...visibleColumns, [column]: visible }
-    const visibleIdentityColumns = IDENTITY_COLUMN_DEFS.filter((identityColumn) => next[identityColumn.key])
-    if (visibleIdentityColumns.length === 0) return
-
-    setVisibleColumns(next)
-    if (column === sortColumn && !visible) {
-      setSortState({ column: visibleIdentityColumns[0].key, direction: 'asc' })
-    }
-  }
-
-  function handleIdentityColumnWidthChange(column: GradebookIdentityColumn, width: number) {
-    setColumnWidth(column, width)
-  }
-
-  function handleFinalColumnWidthChange(width: number) {
-    setColumnWidth('final', width)
-  }
-
-  function handleAssessmentColumnVisibleChange(column: GradebookAssessmentColumn, visible: boolean) {
-    const key = getAssessmentColumnKey(column)
-    setHiddenAssessmentColumnKeys((previous) => {
-      const next = new Set(previous)
-      if (visible) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }
-
-  function handleSummaryRowVisibleChange(row: GradebookSummaryRow, visible: boolean) {
-    setVisibleSummaryRows((previous) => ({ ...previous, [row]: visible }))
-  }
-
   function handleAssessmentWeightDraftChange(column: GradebookAssessmentColumn, value: string) {
     const key = getAssessmentColumnKey(column)
-    if (!/^\d*$/.test(value)) return
+    dirtyWeightsRef.current.set(key, value)
     setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: value }))
   }
 
@@ -1597,12 +339,16 @@ export function TeacherGradebookTab({
       nextWeight < ASSESSMENT_WEIGHT_MIN ||
       nextWeight > ASSESSMENT_WEIGHT_MAX
     ) {
+      dirtyWeightsRef.current.delete(key)
       setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
       setActionError(`Assessment weight must be an integer ${ASSESSMENT_WEIGHT_MIN}-${ASSESSMENT_WEIGHT_MAX}`)
       return
     }
 
-    if (nextWeight === column.weight) return
+    if (nextWeight === column.weight) {
+      dirtyWeightsRef.current.delete(key)
+      return
+    }
 
     const classroomId = classroom.id
     setSavingAssessmentKeys((previous) => new Set(previous).add(key))
@@ -1632,12 +378,18 @@ export function TeacherGradebookTab({
             ? { ...assessmentColumn, weight: nextWeight }
             : assessmentColumn
         )))
-        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
+        if (dirtyWeightsRef.current.get(key) === rawValue) {
+          dirtyWeightsRef.current.delete(key)
+          setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
+        }
         invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
         await loadGradebook({ preserveSnapshot: true })
       } catch (err: unknown) {
         if (currentClassroomIdRef.current !== classroomId) return
-        setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
+        if (dirtyWeightsRef.current.get(key) === rawValue) {
+          dirtyWeightsRef.current.delete(key)
+          setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
+        }
         setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
       }
     }).finally(() => {
@@ -1706,7 +458,7 @@ export function TeacherGradebookTab({
     }
   }
 
-  async function saveAssessmentDetails(categoryId: string | null, weight: number) {
+  async function saveAssessmentDetails(title: string, categoryId: string | null, weight: number) {
     if (!selectedAssessment || isReadOnly || dialogSaving) return
     const classroomId = classroom.id
     const assessment = selectedAssessment
@@ -1715,19 +467,7 @@ export function TeacherGradebookTab({
     setDialogSaving(true)
     setDialogError('')
     try {
-      const response = await fetch('/api/teacher/gradebook', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroomId,
-          assessment_type: assessment.assessment_type,
-          assessment_id: assessment.assessment_id,
-          gradebook_category_id: categoryId,
-          gradebook_weight: weight,
-        }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to save assessment details')
+      await saveGradebookAssessment({ classroomId, assessment, title, categoryId, weight })
       if (
         dialogSaveSequenceRef.current !== requestId
         || currentClassroomIdRef.current !== classroomId
@@ -1747,6 +487,8 @@ export function TeacherGradebookTab({
         || currentClassroomIdRef.current !== classroomId
       ) return
       setDialogError(error instanceof Error ? error.message : 'Failed to save assessment details')
+      // A title write may have committed before the details write failed.
+      void loadGradebook({ preserveSnapshot: true })
     } finally {
       if (
         dialogSaveSequenceRef.current === requestId
@@ -1755,164 +497,43 @@ export function TeacherGradebookTab({
     }
   }
 
-  const isSettingsActive = columnEditorOpen
-  const scoreDisplayOptions: TeacherWorkSurfaceActionItem[] = [
-    {
-      id: 'score-display-percent',
-      label: 'Show %',
-      checked: scoreDisplayMode === 'percent',
-      checkedRole: 'menuitemradio',
-      onSelect: () => handleScoreDisplayModeChange('percent'),
-    },
-    {
-      id: 'score-display-raw',
-      label: 'Show Raw',
-      checked: scoreDisplayMode === 'raw',
-      checkedRole: 'menuitemradio',
-      onSelect: () => handleScoreDisplayModeChange('raw'),
-    },
-  ]
-  const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
-    {
-      id: 'copy-selected-emails',
-      label: `Copy emails (${selectedStudentEmails.length})`,
-      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => {
-        void copySelectedEmailsToClipboard()
-      },
-    },
-    {
-      id: 'gmail-selected-students',
-      label: 'Gmail',
-      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => openGmail(selectedStudentEmails),
-    },
-    {
-      id: 'outlook-selected-students',
-      label: 'Outlook',
-      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => openOutlook(selectedStudentEmails),
-    },
-  ]
-  const gradebookActionOptions: TeacherWorkSurfaceActionItem[] = [
-    ...scoreDisplayOptions,
-    {
-      id: 'edit-gradebook',
-      label: 'Edit gradebook',
-      icon: <Settings className="h-4 w-4" aria-hidden="true" />,
-      disabled: isReadOnly,
-      onSelect: () => {
-        setDialogError('')
-        setGradebookEditorOpen(true)
-      },
-      dividerBefore: true,
-    },
-    {
-      id: 'column-controls',
-      label: (
-        <span className="inline-flex items-center gap-2 whitespace-nowrap">
-          <Settings className="h-4 w-4" aria-hidden="true" />
-          <span>Column controls</span>
-        </span>
-      ),
-      checked: isSettingsActive,
-      onSelect: () => handleSettingsActiveChange(!isSettingsActive),
-    },
-    ...(selectedStudentEmails.length > 0
-      ? selectedEmailOptions.map((option, index) => ({
-          ...option,
-          dividerBefore: index === 0 ? true : option.dividerBefore,
-        }))
-      : []),
-  ]
-  const nextScoreDisplayMode: ScoreDisplayMode = scoreDisplayMode === 'percent' ? 'raw' : 'percent'
-  const scoreDisplayLabel = scoreDisplayMode === 'percent' ? 'Scores: %' : 'Scores: Raw'
-  const hasSelectedEmailActions = selectedStudentEmails.length > 0
-
   const actionBar = (
-    <TeacherWorkSurfaceContextBar
-      ariaLabel="Gradebook controls"
-      primary={
-        <TeacherWorkSurfaceActionCluster>
-          <Button
-            type="button"
-            variant={hasSelectedEmailActions ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={hasSelectedEmailActions
-              ? () => openDefaultEmail(selectedStudentEmails)
-              : () => handleScoreDisplayModeChange(nextScoreDisplayMode)}
-          >
-            {hasSelectedEmailActions ? (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                <span>Email ({selectedStudentEmails.length})</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <ListFilter className="h-4 w-4" aria-hidden="true" />
-                <span>{scoreDisplayLabel}</span>
-              </span>
-            )}
-          </Button>
-          <TeacherWorkSurfaceIconMenuButton
-            ariaLabel="Gradebook actions"
-            tooltip="Gradebook actions"
-            icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-            items={gradebookActionOptions}
-            menuPlacement="down"
-            menuAlign="center"
-            menuClassName="w-64"
-          />
-        </TeacherWorkSurfaceActionCluster>
-      }
+    <GradebookToolbar
+      preferences={preferences}
+      onChange={updatePreferences}
+      selectedCount={selectedIds.size}
+      isReadOnly={isReadOnly || !hasCurrentSnapshot || !categorySchemaAvailable || savingAssessmentKeys.size > 0}
+      onEditCategories={() => { setDialogError(''); setGradebookEditorOpen(true) }}
+      onCopyEmails={() => { void copySelectedEmailsToClipboard() }}
+      onExport={() => downloadGradebookCsv(students, assessmentColumns, scoreDisplayMode)}
     />
   )
 
   const gradebookTable = (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
-      <AssessmentMatrixTable
-        students={sortedStudents}
-        columns={assessmentColumns}
-        displayMode={scoreDisplayMode}
-        editMode={columnEditorOpen}
-        visibleColumns={visibleColumns}
-        identityColumnWidths={identityColumnWidths}
-        finalColumnWidth={finalColumnWidth}
-        visibleSummaryRows={visibleSummaryRows}
-        hiddenAssessmentColumnKeys={hiddenAssessmentColumnKeys}
-        assessmentWeightDrafts={assessmentWeightDrafts}
-        savingAssessmentKeys={savingAssessmentKeys}
-        isReadOnly={isReadOnly}
-        onFixedColumnVisibleChange={handleFixedColumnVisibleChange}
-        onIdentityColumnWidthChange={handleIdentityColumnWidthChange}
-        onFinalColumnWidthChange={handleFinalColumnWidthChange}
-        onAssessmentColumnVisibleChange={handleAssessmentColumnVisibleChange}
-        onSummaryRowVisibleChange={handleSummaryRowVisibleChange}
-        onAssessmentWeightDraftChange={handleAssessmentWeightDraftChange}
-        onAssessmentWeightCommit={handleAssessmentWeightCommit}
-        onAssessmentOpen={(column) => {
-          setDialogError('')
-          setSelectedAssessment(column)
-        }}
-        selectedIds={selectedIds}
-        allSelected={allSelected}
-        someSelected={someSelected}
-        toggleSelect={toggleSelect}
-        toggleSelectAll={toggleSelectAll}
-        selectedStudentId={columnEditorOpen ? null : selectedStudentId}
-        onStudentSelect={handleStudentSelect}
-        onStudentDeselect={() => setSelectedStudentId(null)}
-        sortColumn={sortColumn}
-        sortDirection={sortDirection}
-        handleSort={handleSort}
-        scrollContainerRef={gradebookTableScrollRef}
-        onScrollContainerScroll={preserveGradebookTableScrollPosition}
-      />
-    </div>
+    <GradebookTable
+      students={sortedStudents} columns={assessmentColumns} displayMode={scoreDisplayMode}
+      summaryKind={preferences.summaryKind} lastNameFirst={preferences.lastNameFirst}
+      showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
+      keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
+      columnWidths={columnWidths} onColumnWidthChange={setColumnWidth}
+      weightDrafts={assessmentWeightDrafts} savingKeys={savingAssessmentKeys}
+      isReadOnly={isReadOnly || !categorySchemaAvailable}
+      onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
+      onAssessmentOpen={(column) => {
+        if (savingAssessmentKeys.size) { showMessage({ text: 'Wait for the weight save to finish', tone: 'info' }); return }
+        setDialogError(''); setSelectedAssessment(column)
+      }}
+      selectedIds={selectedIds} allSelected={allSelected} someSelected={someSelected}
+      toggleSelect={toggleSelect} toggleSelectAll={toggleSelectAll}
+      selectedStudentId={selectedStudentId} onStudentSelect={handleStudentSelect}
+      onStudentDeselect={() => { setSelectedStudentId(null); clearSelection() }}
+      sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort}
+      scrollContainerRef={gradebookTableScrollRef} onScroll={preserveGradebookTableScrollPosition}
+    />
   )
 
-  const studentAssessmentPanel = selectedStudent && !columnEditorOpen ? (
-    <StudentAssessmentPanel
+  const studentAssessmentPanel = selectedStudent ? (
+    <GradebookStudentPanel
       student={selectedStudent}
       columns={assessmentColumns}
       displayMode={scoreDisplayMode}
@@ -1962,7 +583,7 @@ export function TeacherGradebookTab({
         inspectorWidth={detailPaneWidth}
         onInspectorWidthChange={setDetailPaneWidth}
         inspectorCollapsed={false}
-        inspectorClassName="min-h-[280px] rounded-lg border border-border bg-surface"
+        inspectorClassName="min-h-72 rounded-lg border border-border bg-surface"
         dividerLabel="Resize gradebook details"
         defaultInspectorWidth={32}
         minInspectorPx={300}
@@ -1988,7 +609,7 @@ export function TeacherGradebookTab({
         }
         summary={null}
         workspace={gradesWorkspace}
-        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+        workspaceFrameClassName="min-h-80 border-0 bg-page"
       />
       <GradebookEditorDialog
         isOpen={gradebookEditorOpen}
