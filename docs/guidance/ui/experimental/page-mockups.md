@@ -4,10 +4,14 @@ Status: experimental. These development-only proposals need human acceptance
 before any live-page adoption. Risk profile: none (fixture-only UI; no live data writes).
 Independent review risk: standard, covering prototype interaction state.
 
-The Gradebook category editor and assessment-details dialog are Pattern Lab-only
-proposals. They demonstrate table-card category editing with automatic percentage
-balancing and compact assessment details; they require human acceptance before
-production adoption. The surrounding full-page compositions remain experimental.
+The Classrooms list menu/navigation was accepted on 2026-09-03 for
+[scoped live adoption](../classrooms-live-adoption.md). Real classroom cards and
+archive lifecycle operations remain feature-owned; unrelated mockups are not promoted.
+
+The Gradebook composition was accepted by the maintainer on 2026-09-02 for
+[scoped live adoption](../gradebook-live-adoption.md). Its category and assessment
+editors share feature-owned components with the live page; Pattern Lab still uses
+fixture-only save callbacks. The surrounding full-page compositions remain experimental.
 
 ## Brief
 

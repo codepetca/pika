@@ -45,6 +45,7 @@ export function CreateClassroomModal({
   const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
   const importInFlightRef = useRef(false)
   const importOperationRef = useRef<CourseBlueprintImportOperation | null>(null)
@@ -91,6 +92,7 @@ export function CreateClassroomModal({
 
   useEffect(() => {
     if (step === 'review') reviewHeadingRef.current?.focus()
+    if (step === 'name') nameInputRef.current?.focus()
   }, [step])
 
   function getSemesterYears() {
@@ -354,13 +356,14 @@ export function CreateClassroomModal({
           <div>
             <FormField label="Classroom Name" required>
               <Input
+                ref={nameInputRef}
                 type="text"
                 placeholder="Career Studies - Period 1"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 disabled={loading}
-                autoFocus
+                data-modal-initial-focus
               />
             </FormField>
           </div>

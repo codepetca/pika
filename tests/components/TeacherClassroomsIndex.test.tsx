@@ -61,6 +61,11 @@ function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
   )
 }
 
+function selectClassroomAction(name: string, role: 'menuitem' | 'menuitemcheckbox' = 'menuitem') {
+  fireEvent.click(screen.getByRole('button', { name: 'Classroom actions' }))
+  fireEvent.click(screen.getByRole(role, { name }))
+}
+
 describe('TeacherClassroomsIndex', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
@@ -157,11 +162,33 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Sept 2025 - Jan 2026')).toBeInTheDocument()
     expect(screen.queryByText(/OLD101/)).not.toBeInTheDocument()
+  })
+
+  it('distinguishes a failed archive read from an empty list and allows retry', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockRejectedValueOnce(new Error('Archive service unavailable'))
+    renderTeacherClassroomsIndex([])
+    selectClassroomAction('Show Archived')
+    expect(await screen.findByText('Could not load archived classrooms')).toBeInTheDocument()
+    expect(screen.queryByText('No archived classrooms')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading archived classrooms again' }))
+    expect(await screen.findByText('No archived classrooms')).toBeInTheDocument()
+    expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not show a late archive read failure after returning to the active list', async () => {
+    let rejectArchive!: (error: Error) => void
+    vi.mocked(fetchTeacherArchivedClassroomState).mockImplementationOnce(() => new Promise((_, reject) => { rejectArchive = reject }))
+    renderTeacherClassroomsIndex([])
+    selectClassroomAction('Show Archived')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to classrooms' }))
+    await act(async () => { rejectArchive(new Error('Late archive failure')) })
+    expect(screen.getByRole('heading', { name: 'Active classrooms' })).toBeInTheDocument()
+    expect(screen.queryByText('Late archive failure')).not.toBeInTheDocument()
   })
 
   it('never shows the create button in archived view', async () => {
@@ -176,8 +203,7 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
     expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledOnce()
@@ -196,8 +222,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     const unarchiveButton = await screen.findByRole('button', { name: 'Unarchive' })
     const reuseButton = screen.getByRole('button', { name: 'Reuse' })
@@ -259,8 +284,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     const createButton = await screen.findByRole('button', { name: 'Create recovery copy' })
     fireEvent.click(createButton)
@@ -319,8 +343,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Recovery copy verified')).toBeInTheDocument()
     expect(screen.getByText(/2\.4 MB/)).toBeInTheDocument()
@@ -360,8 +383,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Resume recovery copy' }))
     const dialog = await screen.findByRole('dialog', {
       name: 'Create a recovery copy of Archived Chemistry?',
@@ -405,8 +427,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
     let dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
@@ -462,15 +483,14 @@ describe('TeacherClassroomsIndex', () => {
       })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
     let dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
     expect(await screen.findByText('Status refresh failed')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Active' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Active')
+    selectClassroomAction('Show Archived')
     await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(3))
     fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
     dialog = await screen.findByRole('dialog')
@@ -514,8 +534,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Recovery copy out of date')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create recovery copy' })).toBeInTheDocument()
@@ -562,8 +581,7 @@ describe('TeacherClassroomsIndex', () => {
       })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
     let dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
@@ -618,8 +636,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Resume recovery copy' }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
@@ -653,8 +670,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Recovery-copy status is temporarily unavailable.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
@@ -689,8 +705,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -711,7 +726,7 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(screen.getByTestId('create-classroom-modal')).toBeInTheDocument()
     expect(push).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Active' }))
+    selectClassroomAction('Show Active')
     expect(await screen.findByText('Created from blueprint')).toBeInTheDocument()
   })
 
@@ -738,8 +753,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     const dialog = await screen.findByRole('dialog')
@@ -752,37 +766,33 @@ describe('TeacherClassroomsIndex', () => {
     )
   })
 
-  it('hides the create button after the first classroom unless edit mode is enabled', async () => {
+  it('keeps creation in the borderless top menu for populated classrooms', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    const editButton = screen.getByRole('button', { name: 'Organize classrooms' })
-    const bottomControls = screen.getByTestId('classroom-bottom-controls')
+    const editButton = screen.getByRole('button', { name: 'Classroom actions' })
+    const topControls = screen.getByTestId('classroom-top-controls')
     const card = screen.getByTestId('classroom-card')
 
-    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-floating', 'rounded-lg')
-    expect(bottomControls).not.toHaveClass('bg-surface/95')
-    expect(bottomControls).not.toHaveClass('py-2')
-    expect(bottomControls).not.toHaveClass('pl-3')
-    expect(bottomControls).not.toHaveClass('pr-1')
-    expect(bottomControls).not.toHaveClass('shadow-elevated')
-    expect(bottomControls).not.toHaveClass('backdrop-blur')
-    expect(bottomControls.className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom))]')
-    expect(bottomControls.className).toContain('max-w-[40.5rem]')
-    expect(bottomControls).not.toHaveClass('rounded-card')
+    expect(topControls).not.toHaveClass('fixed', 'shadow-elevated')
+    expect(screen.queryByTestId('classroom-bottom-controls')).not.toBeInTheDocument()
     expect(
-      within(bottomControls).getByRole('button', { name: 'Organize classrooms' })
+      within(topControls).getByRole('button', { name: 'Classroom actions' })
     ).toBe(editButton)
-    expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(editButton.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
 
     fireEvent.click(editButton)
 
-    const newButton = screen.getByRole('button', { name: 'Create classroom' })
-    expect(card.compareDocumentPosition(newButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('menu', { name: 'Classroom actions' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('menuitem', { name: 'Show Archived' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Show Active' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'New Classroom' }))
+    expect(screen.getByTestId('create-classroom-modal')).toBeInTheDocument()
   })
 
-  it('shows the classroom view toggle only while classroom edit mode is enabled', async () => {
+  it('toggles edit controls through a checked menu action without duplicate creation controls', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
@@ -791,27 +801,24 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'Drag to reorder Math 101' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
 
-    const activeButton = screen.getByRole('button', { name: 'Active' })
-    const archivedButton = screen.getByRole('button', { name: 'Archived' })
-    const bottomControls = screen.getByTestId('classroom-bottom-controls')
-
-    expect(activeButton).toBeInTheDocument()
-    expect(archivedButton).toBeInTheDocument()
-    expect(bottomControls.firstElementChild).toHaveClass('min-h-[52px]')
-    expect(activeButton).not.toHaveAttribute('title')
-    expect(archivedButton).not.toHaveAttribute('title')
+    expect(screen.getByText('Editing')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to classrooms' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
 
     expect(screen.queryByRole('button', { name: 'Active' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archived' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
   })
 
-  it('returns to active view when edit mode is turned off from archived view', async () => {
+  it('returns to active view and restores heading focus using Back from archived view', async () => {
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
       classrooms: [
         createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
@@ -822,47 +829,95 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to classrooms' }))
 
     expect(screen.queryByRole('group', { name: 'Classroom view' })).not.toBeInTheDocument()
     expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create classroom' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-
-    expect(
-      within(screen.getByRole('group', { name: 'Classroom view' })).getByRole('button', { name: 'Active' })
-    ).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Active classrooms' })).toHaveFocus())
   })
 
   it('turns classroom edit mode off when Escape is pressed', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    const archiveButton = screen.getByRole('button', { name: 'Archive Math 101' })
+    const hiddenAccountMenu = document.createElement('div')
+    hiddenAccountMenu.setAttribute('role', 'menu')
+    hiddenAccountMenu.hidden = true
+    document.body.appendChild(hiddenAccountMenu)
+    archiveButton.focus()
+    fireEvent.keyDown(archiveButton, { key: 'Escape' })
 
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Active classrooms' })).toHaveFocus())
+    hiddenAccountMenu.remove()
+  })
+
+  it('closes the menu with Escape before leaving edit mode', () => {
+    renderTeacherClassroomsIndex([createMockClassroom({ id: 'c1', title: 'Math 101' })])
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    const trigger = screen.getByRole('button', { name: 'Classroom actions' })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'New Classroom' }), { key: 'Escape' })
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
+  })
+
+  it('preserves edit mode while Escape closes an archive confirmation', async () => {
+    renderTeacherClassroomsIndex([createMockClassroom({ id: 'c1', title: 'Math 101' })])
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Math 101' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Archive Math 101?' })
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not reset the list for Escape outside the classroom surface', () => {
+    renderTeacherClassroomsIndex([createMockClassroom({ id: 'c1', title: 'Math 101' })])
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    outside.focus()
+    fireEvent.keyDown(outside, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
+    outside.remove()
+  })
+
+  it('clears edit mode when showing archives and exposes only the contextual return action', async () => {
+    renderTeacherClassroomsIndex([createMockClassroom({ id: 'c1', title: 'Math 101' })])
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    selectClassroomAction('Show Archived')
+    expect(await screen.findByText('No archived classrooms')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.queryByRole('menuitem', { name: 'Show Archived' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Show Active' }))
+    expect(screen.getByRole('heading', { name: 'Active classrooms' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
   })
 
   it('turns classroom edit mode off when the page is restored', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
     fireEvent(window, new Event('pageshow'))
 
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: 'Back to classrooms' })).not.toBeInTheDocument()
   })
 
   it('returns the archived classroom view to active when the Pika logo selects home', async () => {
@@ -880,23 +935,15 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([activeClassroom])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     expect(await screen.findByRole('button', { name: /^Archived classroom/ })).toBeInTheDocument()
 
     fireEvent(window, new Event(APP_HOME_SELECTED_EVENT))
 
-    const classroomView = screen.getByRole('group', { name: 'Classroom view' })
-    expect(within(classroomView).getByRole('button', { name: 'Active' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    expect(screen.getByRole('heading', { name: 'Active classrooms' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Active classroom/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Archived classroom/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    )
+    expect(screen.queryByRole('button', { name: 'Back to classrooms' })).not.toBeInTheDocument()
   })
 
   it('does not show a Blueprints button in the classroom action bar', async () => {
@@ -938,8 +985,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Stored history classroom')).toBeInTheDocument()
     expect(screen.getByText('Stored archive')).toBeInTheDocument()
@@ -986,8 +1032,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
 
     expect(await screen.findByRole('dialog', {
@@ -1020,8 +1065,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
 
@@ -1055,8 +1099,7 @@ describe('TeacherClassroomsIndex', () => {
       })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
     expect(await screen.findByText('Temporary restore failure')).toBeInTheDocument()
@@ -1101,8 +1144,7 @@ describe('TeacherClassroomsIndex', () => {
     })
 
     renderTeacherClassroomsIndex([])
-    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    selectClassroomAction('Show Archived')
     fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
     expect(await screen.findByText('Failed to refresh archived classrooms')).toBeInTheDocument()

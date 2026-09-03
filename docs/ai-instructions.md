@@ -22,7 +22,7 @@ After startup, load only task-specific docs:
 | UI/UX | Use [`.codex/skills/pika-ui-change`](../.codex/skills/pika-ui-change/SKILL.md), then `DESIGN.md`, `docs/guidance/ui/README.md`, and `docs/guidance/ui/stable.md` |
 | Teacher work surfaces | [canon](./guidance/ui/teacher-work-surfaces.md), [operational tables](./guidance/ui/teacher-operational-tables.md), [assignment language](./guidance/assignment-ux-language.md), [audit](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
-| Classroom roles or entitlements | [Roadmap](./guidance/classroom-access-and-entitlements-roadmap.md) (phase 0 dormant) |
+| Classroom roles or entitlements | [Roadmap](./guidance/classroom-access-and-entitlements-roadmap.md) (phased rollout) |
 | Legacy quiz/tests contract cleanup | [Cleanup](./guidance/legacy-quiz-contract-cleanup.md), [Schema](./guidance/schema-rollout-checklist.md) |
 | Large TSX/shared shell refactors | [Refactor checklist](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [Tests](./core/tests.md) |

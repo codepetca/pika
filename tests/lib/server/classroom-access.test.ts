@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { resolveClassroomAccess } from '@/lib/server/classroom-access'
+import { resolveClassroomAccess, resolveClassroomAccessFromRecord } from '@/lib/server/classroom-access'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 
@@ -102,5 +102,19 @@ describe('read-only dormant classroom relationship resolver', () => {
     client()
     await expect(resolveClassroomAccess(userId, id)).rejects.toMatchObject({ statusCode: 400 })
     expect(getServiceRoleClient).not.toHaveBeenCalled()
+  })
+
+  it.each([['', classroomId], [ownerId, '']])('validates identifiers on the trusted-row entrypoint too', async (userId, id) => {
+    client()
+    await expect(resolveClassroomAccessFromRecord(userId, id, classroom)).rejects.toMatchObject({ statusCode: 400 })
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+  })
+
+  it('reuses an already-fetched classroom and acquires a client only for a necessary membership read', async () => {
+    const { supabase } = client()
+    expect((await resolveClassroomAccessFromRecord(ownerId, classroomId, classroom)).relationship).toBe('owner')
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+    expect((await resolveClassroomAccessFromRecord(memberId, classroomId, classroom)).relationship).toBe('none')
+    expect(supabase.from.mock.calls).toEqual([['classroom_enrollments']])
   })
 })

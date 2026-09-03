@@ -152,30 +152,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx",
-      "reviewBy": "phase-3-gradebook",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 8,
-          "fingerprint": "9e89a74e2b597265",
-          "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-color-class",
-          "count": 6,
-          "fingerprint": "35a7eb0a9d297773",
-          "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 24,
-          "fingerprint": "3150cf1feac4d768",
-          "reason": "special-layer"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/TeacherRosterTab.tsx",
       "reviewBy": "phase-3-roster",
       "values": [
@@ -223,8 +199,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "44b0b528d57e5c28",
+          "count": 1,
+          "fingerprint": "b21402e17fb76e72",
           "reason": "layout-geometry"
         }
       ]

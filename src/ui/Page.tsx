@@ -1,6 +1,6 @@
 'use client'
 
-import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode, Ref } from 'react'
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { MoreVertical, type LucideIcon } from 'lucide-react'
 import { buttonVariants } from './Button'
@@ -162,6 +162,8 @@ export interface PageHeadingProps {
   level?: 'h1' | 'h2' | 'h3'
   size?: 'page' | 'section'
   className?: string
+  headingRef?: Ref<HTMLHeadingElement>
+  tabIndex?: number
 }
 
 export function PageHeading({
@@ -170,12 +172,16 @@ export function PageHeading({
   level = 'h1',
   size = 'page',
   className,
+  headingRef,
+  tabIndex,
 }: PageHeadingProps) {
   const Heading = level as ElementType
 
   return (
     <div className={cn('min-w-0', className)}>
       <Heading
+        ref={headingRef}
+        tabIndex={tabIndex}
         className={cn(
           'truncate text-text-default',
           size === 'page'

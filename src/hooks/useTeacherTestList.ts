@@ -52,7 +52,7 @@ export function useTeacherTestList({
     [hasCurrentTests, tests],
   )
 
-  const loadTests = useCallback(async () => {
+  const loadTests = useCallback(async (canonicalTitleTestId?: string) => {
     const requestId = latestRequestIdRef.current + 1
     latestRequestIdRef.current = requestId
     const requestedClassroomId = classroomId
@@ -77,11 +77,13 @@ export function useTeacherTestList({
       const currentDraftSummary = selectedTestDraftSummaryRef.current
       setTests(
         currentSelectedTestId && currentDraftSummary
-          ? loadedTests.map((test) =>
-              test.id === currentSelectedTestId
-                ? applyTestSummaryPatchToTest(test, currentDraftSummary)
-                : test
-            )
+          ? loadedTests.map((test) => {
+              if (test.id !== currentSelectedTestId) return test
+              const patched = applyTestSummaryPatchToTest(test, currentDraftSummary)
+              // A canonical rename elsewhere supersedes only the retained
+              // editor's title, not its other in-progress summary fields.
+              return test.id === canonicalTitleTestId ? { ...patched, title: test.title } : patched
+            })
           : loadedTests,
       )
       setLoadedTestsClassroomId(requestedClassroomId)
@@ -119,9 +121,9 @@ export function useTeacherTestList({
 
   useEffect(() => {
     function handleTestsUpdated(event: Event) {
-      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      const detail = (event as CustomEvent<{ classroomId?: string; canonicalTitleTestId?: string }>).detail
       if (!detail || detail.classroomId !== classroomId) return
-      void loadTests()
+      void loadTests(detail.canonicalTitleTestId)
     }
 
     window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
