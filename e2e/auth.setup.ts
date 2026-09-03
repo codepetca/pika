@@ -20,7 +20,7 @@ async function authenticate(page: any, email: string, storagePath: string) {
   await page.goto('/login')
 
   // Fill login form
-  await page.getByLabel('School Email').fill(email)
+  await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Password').fill(PASSWORD)
 
   // Submit and wait for redirect

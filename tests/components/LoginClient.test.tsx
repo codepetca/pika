@@ -21,7 +21,7 @@ vi.mock('@/lib/client-navigation', () => ({
 }))
 
 async function submitLogin(user: ReturnType<typeof userEvent.setup>, email = 'test@example.com', password = 'password123') {
-  await user.type(screen.getByLabelText(/school email/i), email)
+  await user.type(screen.getByLabelText(/email address/i), email)
   await user.type(screen.getByLabelText(/password/i), password)
   await user.click(screen.getByRole('button', { name: /login/i }))
 }
@@ -47,10 +47,10 @@ describe('LoginClient', () => {
 
     expect(screen.getByRole('heading', { name: 'Pika Classroom' })).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Pika' })).not.toBeInTheDocument()
-    expect(screen.getByText('School days, simplified.')).toBeInTheDocument()
-    expect(screen.queryByText(/enter your school email/i)).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/school email/i)).toBeRequired()
-    expect(screen.getByText('School Email')).not.toHaveTextContent('*')
+    expect(screen.getByText('Your school-day sidekick.')).toBeInTheDocument()
+    expect(screen.queryByText(/enter your.*email/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/email address/i)).toBeRequired()
+    expect(screen.getByText('Email address')).not.toHaveTextContent('*')
     expect(screen.getByRole('button', { name: /email me a sign-in code/i })).toBeInTheDocument()
   })
 
@@ -140,7 +140,7 @@ describe('LoginClient', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(SESSION_CHANGED_MESSAGE)
     expect(screen.queryByText(SESSION_EXPIRED_MESSAGE)).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/school email/i)).toHaveFocus()
+    expect(screen.getByLabelText(/email address/i)).toHaveFocus()
   })
 
   it('ignores unknown recovery reasons', () => {
@@ -151,7 +151,7 @@ describe('LoginClient', () => {
     render(<LoginClient />)
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/school email/i)).not.toHaveAttribute('aria-describedby')
+    expect(screen.getByLabelText(/email address/i)).not.toHaveAttribute('aria-describedby')
   })
 
   it('uses the server redirect when no safe next path is available', async () => {
@@ -178,7 +178,7 @@ describe('LoginClient', () => {
     render(<LoginClient />)
 
     const message = screen.getByRole('status')
-    const email = screen.getByLabelText(/school email/i)
+    const email = screen.getByLabelText(/email address/i)
     expect(message).toHaveTextContent(SESSION_EXPIRED_MESSAGE)
     expect(email).toHaveFocus()
     expect(email).toHaveAttribute('aria-describedby', message.id)
@@ -197,6 +197,7 @@ describe('LoginClient', () => {
     render(<LoginClient magicAuthEnabled hasActiveWorkOSSession />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Restoring your session')
+    expect(screen.getByText('Your school-day sidekick.')).toBeInTheDocument()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/workos/session/restore',
       expect.objectContaining({

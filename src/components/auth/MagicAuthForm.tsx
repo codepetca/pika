@@ -116,11 +116,11 @@ export function MagicAuthForm({
   if (phase === 'email') {
     return (
       <form onSubmit={handleEmailSubmit}>
-        <FormField label="School Email" error={error}>
+        <FormField label="Email address" error={error}>
           <Input
             type="email"
             autoComplete="email"
-            placeholder="email@gapps.yrdsb.ca"
+            placeholder="you@example.com"
             value={email}
             onChange={event => setEmail(event.target.value)}
             required

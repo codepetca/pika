@@ -59,10 +59,10 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <FormField label="School Email" error={error} required>
+            <FormField label="Email address" error={error} required>
               <Input
                 type="email"
-                placeholder="number@gapps.yrdsb.ca"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

@@ -1598,11 +1598,11 @@ test.describe('teacher experience matrix', () => {
       url.searchParams.get('reason') === 'session-expired'
     ))
     await expect(page.getByRole('status')).toContainText('Your session expired')
-    await expect(page.getByLabel('School Email')).toBeFocused()
+    await expect(page.getByLabel('Email address')).toBeFocused()
 
     await page.unroute('**/api/auth/me')
     await detachSharedAuthFixture(page)
-    await page.getByLabel('School Email').fill('teacher@example.com')
+    await page.getByLabel('Email address').fill('teacher@example.com')
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
 
@@ -1631,7 +1631,7 @@ test.describe('teacher experience matrix', () => {
       url.searchParams.get('reason') === 'session-changed'
     ))
     await expect(page.getByRole('status')).toContainText('signed-in account changed')
-    await expect(page.getByLabel('School Email')).toBeFocused()
+    await expect(page.getByLabel('Email address')).toBeFocused()
   })
 
   test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
@@ -1640,7 +1640,7 @@ test.describe('teacher experience matrix', () => {
     await detachSharedAuthFixture(page)
     for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
       await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
-      await page.getByLabel('School Email').fill('teacher@example.com')
+      await page.getByLabel('Email address').fill('teacher@example.com')
       await page.getByLabel('Password').fill('test1234')
       await page.getByRole('button', { name: 'Login' }).click()
       await expect(page).toHaveURL('/classrooms')

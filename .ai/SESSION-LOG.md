@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 — Stabilize invalid Test Markdown coverage
-
-- Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.
-
-## 2026-08-31 — Add the Classrooms list to Pattern Lab
-
-- Extended the experimental teacher Page mockups with the main Classrooms list. Its borderless bottom three-dot menu offers New Classroom, Edit classrooms, and one contextual Show Archived/Show Active toggle; edit and archived states expose a visible Back to classrooms control, and both that control and Escape restore the active non-editing list. The production Classrooms route remains unchanged.
-- Added a direct Find a pattern destination plus semantic and durable browser coverage. Visual verification covers desktop/mobile, light/dark, menu-open, editing, and archived states. The focused gate passes 14 files / 149 tests plus architecture, UI policy, design policy, TypeScript, and lint.
-- Independent review found that the first Escape listener also reacted while the mounted Classrooms panel was hidden. The listener now exists only while Classrooms is active, and a semantic regression test proves Escape in another mockup preserves the Classrooms edit state.
-
-## 2026-08-31 — Define and visualize minimal student Grades
-
-- Approved product contract: a classroom-level `Show grades to students` control defaults off. When enabled, students see one current grade calculated only from returned, fully graded, included work plus a returned-work list; excluded returned work is labelled `Not counted`. When disabled, aggregate Grades navigation is hidden while returned feedback remains in Classwork and Tests. Reporting, trends, rank, projections, category analytics, attendance and per-assessment publication controls remain out of scope.
-- Added the product guidance and an experimental paired teacher/student Pattern Lab reference. Extracted the existing Settings switch row as a shared owner and preserved current Teacher Settings behavior while ensuring a 44px target. No student API, schema, persistence, permission or production Grades page was added.
-- Verification after integrating current main: focused gate passes 18 test files / 185 tests plus architecture, UI/design policy, TypeScript and lint. Full Pattern Lab browser suite passes 49 checks with three intentional skips across teacher/student, desktop/mobile and light/dark. Published, hidden and feedback-link focus screenshots were inspected; keyboard behavior, 44px targets and no horizontal overflow pass. Pika audit passes; composite-widget checklist reviewed with keyboard and semantic state covered and no remaining manual accessibility follow-up.
-- Risk profile: low, localized non-functional Pattern Lab UI and documentation. Review plan: one GPT-5.6 Terra/medium fixed-commit review under the default budget (zero launches, waves and fix batches at start). Production implementation remains a separate future change requiring human review of the experimental reference.
-- The first completed fixed-commit review found one blocking contract mismatch: returned rows were static despite the approved feedback-link requirement. Remediation batch one makes every fixture row an accessible Classwork/Test link and adds component/browser coverage. Targeted re-review and a cumulative integration review found the blocker resolved with no new findings.
-- Exact-head CI run `33467038586` failed one unrelated `TestDetailPanel` timing assertion after 5,516 tests passed; the unchanged 43-test file passed locally under coverage. The PR returned to draft and the remaining browser/database lanes were canceled. Current main then advanced through assignment-attachment work, so the branch integrated it while preserving both Pattern Lab concepts. One final integration review and fresh exact-head CI remain; no merge is authorized.
-
-## 2026-08-31 — Standardize Preview on the shared Eye pattern
-
-- Tests list, authoring dialog and supported standalone detail toolbar now reuse Eye-only IconButton controls, preserving names/tooltips, 44px targets, callbacks, loading and pending-import guards. Promoted the user-approved convention in Pattern Lab and shared UI guidance; external navigation remains ExternalLink. No student-taking, persistence or permission changes.
-- Focused checks: 19 files / 260 tests plus architecture, UI/design policy, TypeScript and lint pass. Four actual Tests/authoring visual variants pass, with keyboard preview, contextual tooltips and zero API writes. Teacher/student Pattern Lab verified at desktop/mobile and light/dark; macOS suite 37 passed / 3 intentional skips; Linux snapshot contracts 8 passed. Reviewed eight changed teacher catalog baselines; student references unchanged.
-- Evidence: session visualization folder preview-icons. Separate follow-up to merged PR #1135; local server stays on port 3004. Draft-first independent review pending; no merge/deployment authorized for this follow-up.
-
-## 2026-09-01 — Subtle saved attendance-hours action
-
-Updated the teacher Daily attendance-hours action so configured hours reuse the neutral PageActionBar background unless the current attendance session is confirmed open, when the existing success-green state remains. Added component coverage for confirmed-open, scheduled, and stale-open states. Focused tests, lint, UI/design policy checks, and teacher/student desktop/mobile visual verification passed in light and dark themes; no API, schema, attendance data, or student UI behavior changed. Draft-first PR review follows; merge is not yet authorized.
-
-## 2026-09-01 — Record AI PR lifecycle evidence
-
-- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
-- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
-- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
-- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
-
 ## 2026-09-01 — Cache immutable CI setup inputs
 
 - Added lockfile-keyed pnpm-store caches to the database and browser CI lanes plus a lockfile-keyed Playwright browser cache to the browser lane. Cache hit labels and setup evidence appear in each job summary for before/after comparison.
@@ -353,3 +317,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - The additional completion review cleared `4293e61d` with no actionable blockers and 113 targeted tests. The owner then explicitly approved syncing main and one integration-only review. Rebased all five feature commits onto `f1f07b6c`; only the shared journal conflicted, and main's complete archived entries were preserved without duplicate archive markers. Application changes applied automatically, including the empty-category schema guard and independent QR canary plumbing.
 - No migration files changed, were renamed or applied. The checkout was clean, so no stash was created or restored; pre-existing shared stashes were left untouched. Saved the original head as local branch `backup/gradebook-live-before-main-20260903-0147`.
 - This is the fourth authorized correction/sync batch and seventh reviewer launch overall: one Sol/high integration-only pass, bounded to 20 minutes, with no further launch authorized. Focused checks, exact-head browser smoke and the fixed-SHA review precede ready-state CI. Evidence and the final reviewed SHA will be recorded in #1173; no merge or deployment is authorized.
+
+## 2026-09-02 — Refresh sign-in slogan and neutral email wording
+
+- Changed the login and session-restoration slogan to “Your school-day sidekick.” Auth forms now use “Email address” and replace board-specific placeholders with “you@example.com”; signup instructions are neutral too. No authentication, eligibility, layout, or styling behavior changed.
+- Reused existing auth framing and FormField/Input owners; Pattern Lab form controls are the reference. Risk profile: none. Model recommendation: GPT-5.6 Terra — low-risk copy and test-selector update. No experimental pattern, composite interaction change, or component extraction required.
+- Focused gate passed 113 tests, architecture/UI/design policy, TypeScript and lint; Pika audit passed. Playwright checked the shared unauthenticated teacher/student entry surfaces at 1440×900 and 390×844 in light/dark; local evidence is in output/playwright. Draft-first independent review follows; merge/deployment not authorized.

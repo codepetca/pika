@@ -124,7 +124,7 @@ export function LoginClient({
             </span>
             <div className="min-w-0">
               <h1 className="text-2xl font-bold text-text-default">Pika Classroom</h1>
-              <p className="mt-1 text-sm text-text-muted">School days, simplified.</p>
+              <p className="mt-1 text-sm text-text-muted">Your school-day sidekick.</p>
             </div>
           </div>
           <p role="status" aria-live="polite" className="text-text-muted">
@@ -144,7 +144,7 @@ export function LoginClient({
           </span>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-text-default">Pika Classroom</h1>
-            <p className="mt-1 text-sm text-text-muted">School days, simplified.</p>
+            <p className="mt-1 text-sm text-text-muted">Your school-day sidekick.</p>
           </div>
         </div>
 
@@ -198,7 +198,7 @@ export function LoginClient({
           />
         ) : (
           <form onSubmit={handleSubmit}>
-            <FormField label="School Email" className="mb-4">
+            <FormField label="Email address" className="mb-4">
               <Input
                 ref={emailInputRef}
                 type="email"
