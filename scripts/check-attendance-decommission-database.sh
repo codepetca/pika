@@ -5,7 +5,7 @@ set -euo pipefail
 DECOMMISSION_DB_CONTAINER="supabase_db_pika"
 PROJECT_LABEL="$(docker inspect "$DECOMMISSION_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$DECOMMISSION_DB_CONTAINER" 5432/tcp)"
-if [[ "$PROJECT_LABEL" != "pika" ]] || ! rg -q ':54322$' <<<"$DB_BINDING"; then
+if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; then
   echo 'Refusing unexpected database target.' >&2
   exit 2
 fi
