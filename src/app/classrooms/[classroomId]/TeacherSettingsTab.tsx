@@ -697,7 +697,7 @@ export function TeacherSettingsTab({
               <div className="divide-y divide-border">
                 {(
                   [
-                    ['attendance', 'Attendance', 'Teacher only · Live attendance check-in'],
+                    ['attendance', 'QR Attendance', 'Turn off to use manual or log-based attendance'],
                     ['classwork', 'Classwork', 'Teacher and students · Assignments, materials, and surveys'],
                     ['tests', 'Tests', 'Teacher and students · Assessments and responses'],
                     ['gradebook', 'Gradebook', 'Teacher only · Requires Classwork or Tests'],

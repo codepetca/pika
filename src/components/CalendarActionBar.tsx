@@ -2,9 +2,14 @@
 
 import type { ReactNode } from 'react'
 import { format, parseISO } from 'date-fns'
+import { MoreVertical } from 'lucide-react'
 import { SegmentedControl, cn } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import { DateNavigator } from '@/components/DateNavigator'
+import {
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
@@ -18,6 +23,8 @@ interface CalendarActionBarProps {
   onToday: () => void
   onViewModeChange: (mode: CalendarViewMode) => void
   trailing?: ReactNode
+  context?: ReactNode
+  moreActions?: TeacherWorkSurfaceActionItem[]
   className?: string
 }
 
@@ -48,9 +55,56 @@ export function CalendarActionBar({
   onToday,
   onViewModeChange,
   trailing,
+  context,
+  moreActions,
   className = '',
 }: CalendarActionBarProps) {
   const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, rangeStart, rangeEnd)
+
+  if (moreActions) {
+    return (
+      <PageActionBar
+        className={cn('pt-density-compact-content-top', className)}
+        primary={context}
+        center={
+          <>
+            <DateNavigator
+              label={headerLabel}
+              onPrev={onPrev}
+              onNext={onNext}
+              onLabelClick={viewMode === 'all' ? undefined : onToday}
+              showNavigation={viewMode !== 'all'}
+              className="max-w-full"
+              joined
+            />
+            <SegmentedControl<CalendarViewMode>
+              ariaLabel="Calendar view"
+              value={viewMode}
+              onChange={onViewModeChange}
+              options={[
+                { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
+                { value: 'all', label: 'Term' },
+              ]}
+            />
+          </>
+        }
+        trailing={moreActions.length > 0 ? (
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="More actions"
+            menuAriaLabel="Calendar actions"
+            tooltip="More actions"
+            icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+            items={moreActions}
+            menuPlacement="down"
+            menuAlign="end"
+            menuClassName="w-64"
+            className="h-11 w-11"
+          />
+        ) : null}
+      />
+    )
+  }
 
   return (
     <PageActionBar

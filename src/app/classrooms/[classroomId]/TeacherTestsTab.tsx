@@ -46,6 +46,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
+import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import {
@@ -435,6 +436,7 @@ export function TeacherTestsTab({
   const [showMarkdownTestPicker, setShowMarkdownTestPicker] = useState(false)
   const [isCreatingTest, setIsCreatingTest] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [newlyCreatedTestId, setNewlyCreatedTestId] = useState<string | null>(null)
   const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
 
@@ -747,6 +749,7 @@ export function TeacherTestsTab({
     setIsReorderingTests(false)
     setIsCreatingTest(false)
     setShowEditModal(false)
+    setNewlyCreatedTestId(null)
     setHasPendingMarkdownImport(false)
     setPendingDeleteTest(null)
     setIsDeletingTest(false)
@@ -1444,6 +1447,7 @@ export function TeacherTestsTab({
     )
 
     setIsCreatingTest(true)
+    setStatusActionError('')
     try {
       const response = await fetch(apiBasePath, {
         method: 'POST',
@@ -1476,6 +1480,7 @@ export function TeacherTestsTab({
     setTestEditMode(false)
     setHasPendingMarkdownImport(false)
     setSelectedTestDraftSummary(null)
+    setNewlyCreatedTestId(createdTest.id)
     setTests((prev) => {
       const next = prev.filter((existing) => existing.id !== createdTest.id)
       return [createdTest, ...next]
@@ -1499,6 +1504,7 @@ export function TeacherTestsTab({
       }
 
       setTests((prev) => prev.filter((test) => test.id !== pendingDeleteTest.id))
+      setNewlyCreatedTestId((current) => current === pendingDeleteTest.id ? null : current)
       if (selectedTestId === pendingDeleteTest.id) {
         clearTestWorkspace({ replace: true })
       }
@@ -1882,7 +1888,10 @@ export function TeacherTestsTab({
   async function handleRequestSelectedTestPublish(): Promise<boolean> {
     if (!selectedTest || !selectedTestWorkspace || isReadOnly || statusUpdating || checkingPublication) return false
 
-    const publication = validateSelectedTestPublication(selectedTestWorkspace.stats.questions_count || 0)
+    const publication = validateSelectedTestPublication(
+      selectedTestWorkspace.title,
+      selectedTestWorkspace.stats.questions_count || 0,
+    )
     if (!publication.valid) {
       setStatusActionError(publication.error || 'Test cannot be published yet')
       return false
@@ -1904,6 +1913,7 @@ export function TeacherTestsTab({
       }
 
       const questions = Array.isArray(data.questions) ? data.questions : []
+      const testTitle = readTestFromPayload<TestAssessment>(data)?.title || ''
       const draftVersion = Number(data.draft_version)
       if (!Number.isInteger(draftVersion) || draftVersion < 1) {
         setStatusActionError('Test draft version is unavailable. Reload and try again.')
@@ -1911,6 +1921,10 @@ export function TeacherTestsTab({
       }
       if (questions.length < 1) {
         setStatusActionError('Test must have at least 1 question')
+        return false
+      }
+      if (!testTitle.trim() || isGeneratedAssessmentTitle(testTitle)) {
+        setStatusActionError('Add a title before publishing this Test')
         return false
       }
 
@@ -1933,7 +1947,10 @@ export function TeacherTestsTab({
     }
   }
 
-  function validateSelectedTestPublication(questionCount: number): { valid: boolean; error?: string } {
+  function validateSelectedTestPublication(title: string, questionCount: number): { valid: boolean; error?: string } {
+    if (!title.trim() || isGeneratedAssessmentTitle(title)) {
+      return { valid: false, error: 'Add a title before publishing this Test' }
+    }
     if (questionCount < 1) {
       return { valid: false, error: 'Test must have at least 1 question' }
     }
@@ -2410,6 +2427,7 @@ export function TeacherTestsTab({
 
   function openSelectedTestEditor(initialView: 'edit' | 'markdown' = 'edit') {
     if (!selectedTestWorkspace || isReadOnly) return
+    setStatusActionError('')
     setTestEditorInitialView(initialView)
     navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
     setHasPendingMarkdownImport(false)
@@ -2674,7 +2692,10 @@ export function TeacherTestsTab({
 
   const feedback = (
     <>
-      {statusActionError && workspaceState === 'selected' ? (
+      {statusActionError
+      && workspaceState === 'selected'
+      && !showEditModal
+      && selectedWorkspaceTab !== 'authoring' ? (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {statusActionError}
         </div>
@@ -2768,6 +2789,8 @@ export function TeacherTestsTab({
   ) : null
   const isTestEditorOpen = !!selectedTestWorkspace && (showEditModal || selectedWorkspaceTab === 'authoring')
   const handleCloseTestEditor = useCallback(() => {
+    setNewlyCreatedTestId(null)
+    setStatusActionError('')
     setShowEditModal(false)
     setTestEditorInitialView('edit')
     setHasPendingMarkdownImport(false)
@@ -2775,6 +2798,55 @@ export function TeacherTestsTab({
       navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
     }
   }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
+  const handleDiscardPristineTest = useCallback(async (
+    draftVersion: number,
+    testUpdatedAt: string,
+  ): Promise<boolean> => {
+    if (!selectedTestWorkspace || newlyCreatedTestId !== selectedTestWorkspace.id) return false
+
+    try {
+      const response = await fetch(`${apiBasePath}/${selectedTestWorkspace.id}/discard-pristine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expected_draft_version: draftVersion,
+          expected_test_updated_at: testUpdatedAt,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to discard empty Test')
+      }
+
+      setTests((prev) => data.discarded
+        ? prev.filter((test) => test.id !== selectedTestWorkspace.id)
+        : prev.map((test) => (
+            test.id === selectedTestWorkspace.id && data.test
+              ? withDefaultTestStats({ ...test, ...data.test })
+              : test
+          )))
+      setNewlyCreatedTestId(null)
+      setSelectedTestDraftSummary(null)
+      setShowEditModal(false)
+      setTestEditorInitialView('edit')
+      setHasPendingMarkdownImport(false)
+      clearTestWorkspace({ replace: true })
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+      )
+      return true
+    } catch (error: any) {
+      setStatusActionError(error?.message || 'Failed to discard empty Test')
+      return false
+    }
+  }, [
+    apiBasePath,
+    classroom.id,
+    clearTestWorkspace,
+    newlyCreatedTestId,
+    selectedTestWorkspace,
+    setTests,
+  ])
 
   const workspaceContent = !hasTestsSnapshot ? (
     testsLoadError ? (
@@ -2893,7 +2965,10 @@ export function TeacherTestsTab({
         classroomId={classroom.id}
         apiBasePath={apiBasePath}
         hasPendingMarkdownImport={hasPendingMarkdownImport}
+        publicationError={statusActionError}
         onClose={handleCloseTestEditor}
+        discardPristineOnClose={newlyCreatedTestId === selectedTestWorkspace?.id}
+        onDiscardPristine={handleDiscardPristineTest}
         onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
         onTestUpdate={(update) => {
           if (update) {

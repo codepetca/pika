@@ -1295,6 +1295,19 @@ test('shows publication language only at the publish transition', async ({ page 
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
+          test: {
+            id: TEST_GRADING_FIXTURE_TEST_ID,
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Functions and Graphs Test',
+            description: null,
+            instructions: null,
+            status: 'draft',
+            show_results: false,
+            position: 0,
+            documents: [],
+            created_at: '2026-08-27T12:00:00.000Z',
+            updated_at: '2026-08-27T12:00:00.000Z',
+          },
           draft_version: 1,
           questions: [{
             id: 'question-1',

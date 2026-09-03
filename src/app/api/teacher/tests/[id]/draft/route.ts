@@ -142,5 +142,9 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     return NextResponse.json({ error: saveResult.error }, { status: saveResult.status })
   }
 
-  return NextResponse.json({ draft: saveResult.draft, editingPolicy: await getTestEditingPolicy(testId) })
+  return NextResponse.json({
+    draft: saveResult.draft,
+    test: saveResult.test,
+    editingPolicy: await getTestEditingPolicy(testId),
+  })
 })
