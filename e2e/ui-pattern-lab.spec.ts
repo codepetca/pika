@@ -23,6 +23,9 @@ for (const role of ['teacher', 'student'] as const) {
     await jump.selectOption('owned-joined-home')
     const prototype = page.getByTestId('owned-joined-home-prototype')
     const home = page.getByTestId('owned-joined-home-screen')
+    const actionTarget = await home.getByRole('button', { name: 'Classroom actions' }).boundingBox()
+    expect(actionTarget!.width).toBeGreaterThanOrEqual(44)
+    expect(actionTarget!.height).toBeGreaterThanOrEqual(44)
     const writes: string[] = []
     page.on('request', (request) => {
       if (new URL(request.url()).pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())

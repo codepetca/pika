@@ -1,3 +1,13 @@
+---
+status: experimental
+scope: classroom-account-home
+source_files:
+  - src/app/__ui/OwnedJoinedHomeMockup.tsx
+  - src/app/__ui/owned-joined-home-fixtures.ts
+  - src/app/__ui/UiGallery.tsx
+human_review_required: true
+---
+
 # Owned / Joined home prototype
 
 Status: experimental; fixture-only, not approved for live adoption.
@@ -71,3 +81,6 @@ Human promotion and separately reviewed server discovery/routing are required be
   evidence. A development-only Next issue badge appears in some edit captures; this is not
   part of the proposed home. Shared Sass deprecation warnings remain outside this change.
 - Human acceptance and live adoption remain pending. The current author owns any follow-up.
+- Independent review noted the menu's `h-9 w-9` style, but a browser measurement regression
+  passes the 44px minimum because the shared Button also enforces `min-h-control` and
+  `min-w-control`. No geometry override is needed; the assertion now protects this contract.
