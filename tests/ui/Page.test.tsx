@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { createRef, type ReactNode } from 'react'
 import { TooltipProvider } from '@/ui'
 import { fireEvent, render as renderRTL, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -16,6 +16,13 @@ import {
 function render(ui: ReactNode) { return renderRTL(<TooltipProvider>{ui}</TooltipProvider>) }
 
 describe('Page primitives', () => {
+  it('supports intentional heading focus without adding it to the Tab order', () => {
+    const headingRef = createRef<HTMLHeadingElement>()
+    render(<PageHeading title="Active classrooms" size="section" headingRef={headingRef} tabIndex={-1} />)
+    headingRef.current?.focus()
+    expect(screen.getByRole('heading', { name: 'Active classrooms' })).toHaveFocus()
+    expect(headingRef.current).toHaveAttribute('tabindex', '-1')
+  })
   it('applies canonical content widths without feature-local max-width classes', () => {
     const { rerender } = render(<PageLayout width="reading">Content</PageLayout>)
 

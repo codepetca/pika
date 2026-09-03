@@ -30344,3 +30344,15 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 
 - Renamed the student classroom navigation label from `Today` to `Daily` while preserving the internal `today` route identifier, notification behavior, and shared `ClipboardCheck` icon.
 - Pattern Lab continues to consume the production catalog directly. Teacher/student desktop/mobile light/dark verification passed, including open mobile navigation and active-page semantics; Darwin baselines were regenerated and the stable Linux baselines were updated only at the student label pixels, then reviewed.
+
+<!-- pika-session-log-archive-batch:4b41930212cad5e850d0bc0f82f8889cc26713ec3918c21c11baa3afbd8babeb -->
+## 2026-09-01 — Refine student Today mobile order
+
+- Moved the mobile Today/Last class lesson-plan panel directly after the student daily-plan editor and before Past logs while preserving the desktop split inspector.
+- Reduced the mobile editor minimum from 200px to 100px; desktop remains 200px. Browser measurement confirmed the empty editor is 100px and expands to 168px for longer content without internal overflow.
+- Focused checks pass 13 files / 150 tests plus architecture, UI/design policy, TypeScript, lint, and Pika audit. Student mobile light/dark and expanded-entry states plus the unchanged student desktop split were visually reviewed. Composite checklist reviewed: keyboard and semantic behavior are unchanged; focused role/order coverage passes; no manual follow-up remains.
+- Independent review found that the relocated mobile plan disappeared during an initial daily-log or schedule failure. The blocking-state composition now keeps Today/Last class below the retry state; focused failure coverage and a dark mobile intercepted-error capture confirm the plan remains available.
+- Follow-up copy refinement renames the editor heading to “Daily Log” and replaces the generic empty-state copy with “What is your plan today?”. Focused tests pass, and student mobile light/dark plus desktop dark were visually checked in empty and typed states; the placeholder clears on input and the test entry was restored to empty.
+- Follow-up review found the visible title did not programmatically label the production rich-text editor because the test mock derived its accessible name from the placeholder. “Daily Log” is now an `h2` linked with `aria-labelledby`; the mock forwards the real accessibility contract, and a browser accessibility snapshot confirms both the heading and textbox are named “Daily Log”.
+- Renamed the student classroom navigation label from “Today” to “Daily” through the shared nav catalog while keeping the stable internal `?tab=today` route and the lesson-plan “Today” date heading. Updated current feature-visibility guidance, teacher Settings explanatory copy, and focused navigation/catalog coverage. Student mobile light/dark open-drawer and desktop dark expanded-sidebar captures show the new label without layout drift.
+- Model recommendation: GPT-5.6 Terra — localized responsive UI composition with bounded component and browser verification.
