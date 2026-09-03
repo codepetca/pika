@@ -90,7 +90,7 @@ export async function joinClassroomByCodeAtomic(args: {
 }): Promise<ContextualClassroomJoinResult> {
   const classCode = normalizeClassroomJoinCode(args.classCode)
   const keys = buildClassroomJoinRateLimitKeys(args.actorId, classCode)
-  // Migration 155 is intentionally not represented in generated types until
+  // Migration 157 is intentionally not represented in generated types until
   // its separately authorized application and regeneration step.
   const supabase = args.supabase ?? (
     getServiceRoleClient() as unknown as ContextualClassroomJoinRpcClient

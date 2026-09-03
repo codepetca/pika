@@ -118,7 +118,7 @@ try {
   assert.equal(
     await admin.run("SELECT to_regprocedure('public.join_classroom_by_code_atomic_v1(uuid,uuid,text,text,text,text,text,text,jsonb)') IS NOT NULL;"),
     't',
-    'Migration 155 must already be applied; this harness never applies it'
+    'Migration 157 must already be applied; this harness never applies it'
   )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
