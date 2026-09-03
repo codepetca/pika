@@ -5,6 +5,7 @@ import {
   joinClassroomByCodeAtomic,
   normalizeClassroomJoinCode,
 } from '@/lib/server/contextual-classroom-enrollment'
+import { v1 } from '@/vendor/pal-contract'
 
 function createClient(result: { data: unknown; error: unknown }) {
   return { rpc: vi.fn().mockResolvedValue(result) }
@@ -51,7 +52,6 @@ describe('contextual classroom enrollment server adapter', () => {
       firstName: 'Ada',
       lastName: 'Lovelace',
       studentNumber: null,
-      palEvent: null,
       supabase: client,
     })
 
@@ -80,12 +80,50 @@ describe('contextual classroom enrollment server adapter', () => {
       firstName: null,
       lastName: null,
       studentNumber: null,
-      palEvent: null,
     }
 
     await expect(joinClassroomByCodeAtomic({ ...base, supabase: unavailable }))
       .rejects.toBeInstanceOf(ApiError)
     await expect(joinClassroomByCodeAtomic({ ...base, supabase: malformed }))
       .rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it('builds the closed, pseudonymous Pal event only when Pal is enabled', async () => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'http://localhost:4321')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-that-is-at-least-32-characters')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-that-is-at-least-32-characters')
+    const client = createClient({
+      data: {
+        ok: false,
+        status: 403,
+        error_code: 'enrollment_closed',
+      },
+      error: null,
+    })
+    const occurredAt = new Date('2026-09-03T12:00:00.000Z')
+
+    await joinClassroomByCodeAtomic({
+      actorId: '11111111-1111-4111-8111-111111111111',
+      expectedClassroomId: '33333333-3333-4333-8333-333333333333',
+      classCode: 'BIO-101',
+      firstName: null,
+      lastName: null,
+      studentNumber: null,
+      occurredAt,
+      supabase: client,
+    })
+
+    const event = client.rpc.mock.calls[0][1].p_pal_event
+    expect(v1.validateV1Event(event)).toMatchObject({ ok: true })
+    expect(event).toMatchObject({
+      schema_version: 1,
+      event_type: 'classroom.joined',
+      occurred_at: occurredAt.toISOString(),
+      metadata: { classroom_token: expect.stringMatching(/^pika-classroom-/) },
+    })
+    expect(JSON.stringify(event)).not.toContain('33333333-3333-4333-8333-333333333333')
+    expect(JSON.stringify(event)).not.toContain('11111111-1111-4111-8111-111111111111')
   })
 })
