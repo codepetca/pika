@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-01 — Add Daily and role-aware classroom page mockups
-
-- Added an API-free teacher Daily page mockup using the production date navigator, work-surface action hierarchy, operational table, selection menu, attendance status controls, and log-summary composition.
-- Added a sticky Pattern Lab Teacher/Student switch. Both fixture mode and authenticated development review accept the explicit reference role; production remains unavailable. The classroom page set now remains visible in both modes, with student Today, Classwork, Tests, Calendar, Announcements, and Resources fixtures composed from existing feature owners.
-- Focused checks pass 141 files / 1,397 tests plus architecture, UI policy, design policy, TypeScript, and lint. Pika audit passes with composite-widget coverage present. The durable 142-check browser scenario verifies role switching, direct destinations, desktop/mobile light/dark page sets, and no page overflow; representative Daily, student-page, and sticky-navigator screenshots were visually inspected.
-
 ## 2026-09-01 — Prototype streamlined Daily attendance controls
 
 - Refined only the API-free teacher Daily Pattern Lab fixture. Joined an icon-only, tooltip-backed QR action with the attendance time to its right; the control matches the date selector height. QR remains available when attendance is closed; the clickable time area uses a subtle semantic green open state and a neutral closed state. It opens a local time editor, collapses to the clock icon when cleared, and is also reachable through Edit time in More actions. Moved open/close attendance and the renamed Edit attendance dialog into More actions, and removed row checkboxes plus the selected-student action menu.
@@ -289,3 +283,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Extended the experimental Owned/Joined home: Edit classrooms offers Archive for owned rows and Hide for joined rows; the shared Archived page lists Archived first and Hidden below, with distinct Restore/Unhide actions. Joined-only users retain access to Show Archived even after hiding their last row. Personal hidden IDs never change membership or classroom archival state.
 - Added red-first component coverage for role-scoped actions, last-row recovery, focus, membership retention and owner-archived exclusion. Eight browser scenarios pass across both roles, desktop/mobile and light/dark, including measured section order and zero API mutations; screenshots inspected. Current evidence is in the experimental home guidance.
 - Same prototype branch/PR #1178; risk profile none, standard-risk Terra/high independent review and final focused/CI evidence follow on the PR. No shared component, production route, database, deployment or merge changes are authorized. Live adoption remains separate.
+
+## 2026-09-03 — Refine the classroom Calendar action bar
+
+- Applied the maintainer-approved Calendar hierarchy to the live teacher tab and Pattern Lab: date plus Week/Month/Term remain in the centered cluster, while the rightmost More actions menu owns Markdown editing. Flattened the nested page/context bars, moved compact spacing above the controls, and reduced the gap to the calendar. Student controls and all calendar data/editor behavior remain unchanged.
+- Focused coverage passes 241 tests plus architecture, UI/design policy, TypeScript and lint; the Pika pre-commit audit is clean. Playwright verification covers teacher/student, desktop/mobile and light/dark with no page-level overflow; the teacher Markdown menu was also inspected open. Composite-widget checklist reviewed with semantic pressed/expanded state, shared keyboard behavior, focus return and 44px targets covered; no manual accessibility follow-up remains.
+- Branch `codex/fix-calendar-actionbar`; standard-risk Terra/high independent review and exact-head CI follow on the draft PR. No schema, migration, hosted data, deployment or new dependency changes. No feature inventory status change.
