@@ -1,7 +1,13 @@
 # Classroom access and entitlements
 
-Status: approved direction; **phase 0 foundation only** in this change. This is a roadmap,
-not a statement that neutral accounts, subscriptions or new permissions are live.
+Status: approved direction; phase 0 merged in PR #1170. The owner approved main-only
+landing of observation #1172, [classroom-core #1174](classroom-core-contextual-access.md)
+and [calendar writes #1175](contextual-calendar-writes.md), in that order after
+synchronization, integration review and fresh CI. Their PR records contain the exact
+landing SHAs and checks. These implemented backend slices remain off by default;
+hosted parity is unmeasured and the reachable mixed-role domain is incomplete.
+See the [compatibility inventory and runbook](classroom-access-compatibility.md).
+This is not approval for production rollout, neutral onboarding or monetization enforcement.
 
 ## Product direction
 
@@ -78,7 +84,7 @@ it does not resolve competing grants or trust a request's asserted plan/source.
 
 | Phase | Bounded work | Exit gate / relative complexity |
 | --- | --- | --- |
-| 0 — Dormant contracts (this PR) | Roadmap; read-only relationship resolver; pure permission and effective-entitlement decisions; legacy creation policy; tests. No live consumers. | Existing behavior unchanged, no schema changes, static/test gates and independent review. Small implementation, security-sensitive contracts. |
+| 0 — Dormant contracts (merged #1170) | Roadmap; read-only relationship resolver; pure permission and effective-entitlement decisions; legacy creation policy; tests. No live consumers at phase 0. | Existing behavior unchanged, no schema changes, static/test gates and independent review. Small implementation, security-sensitive contracts. |
 | 1 — Compatibility adapters | Inventory live role checks by domain; define trusted entitlement loading and failure policy; add legacy grants/administrative override only as needed. Run sampled shadow decisions while legacy authorization remains authoritative. | No new grants to users, no changed denials, measured parity and explained differences. Moderate. |
 | 2 — Contextual backend and UI readiness | Migrate one complete vertical domain at a time, beginning with classroom read/manage. Then enrollments, work/submissions, grading, attendance, files, exports, archive/restore and non-classroom teacher features. Build a combined Owned/Joined home and classroom-context navigation behind an off-by-default rollout. | Cross-role and cross-tenant tests; all routes/jobs/resources reachable by the pilot support mixed relationships. No public neutral onboarding yet. High: broad existing assumptions. |
 | 3 — Create/join onboarding pilot | Enable neutral onboarding for a controlled cohort only after phase 2 coverage. Keep current authentication. Separately approve creation eligibility; implement server policy/limits. Join by code/link respects roster/open-join/closed state. | Teacher and student production canaries plus mixed-role account; no owner/member escalation; rollback-compatible release floor. Moderate UI, high rollout sensitivity. |
@@ -105,8 +111,12 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   feature, enabled state, validity interval and requested quota units. Exact expiry denies.
   The grading composition requires active-owner management permission AND the owner's
   entitlement. Its legacy creation adapter preserves teacher-only creation.
-- These modules have **no live imports**. No endpoint, UI, session, database policy,
-  attendance entitlement, dependency, signup flow or payment provider changes here.
+- Phase 0 added no live imports. Phase 1 adds off-by-default, non-authoritative
+  observers to existing classroom helpers and ordinary creation. The phase 2 core
+  slices separately gate six classroom-core handlers plus four calendar-write handlers.
+  Migration 152 adds two service-only calendar RPCs, verified locally with separate exact
+  permission; hosted application remains unapproved. Other guards stay legacy. UI,
+  sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
@@ -132,7 +142,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
 6. Gradually expand only after canaries and metrics pass. Do not delete/reclassify current
    user or classroom data as part of the rollout. Destructive cleanup is a separate decision.
 
-This PR adds no migration and does not approve promoting current main to production.
+Phases 0 and the phase 1 observation slice add no migration and do not approve promoting main to production.
 Other migration and release work retains its own rollout requirements and approval.
 Check current rollout evidence and the full release diff before any deployment; do not
 treat a migration status copied into this roadmap as authority.

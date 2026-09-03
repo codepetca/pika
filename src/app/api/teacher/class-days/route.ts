@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, requireRole } from '@/lib/auth'
+import { NextResponse } from 'next/server'
+import { authorizeClassroomCoreRequest } from '@/lib/server/classroom-core-access'
+import { createContextualClassroomCalendar, setContextualClassroomCalendarDay } from '@/lib/server/contextual-classroom-calendar'
+import { calendarClassroomIdentitySchema, createClassroomCalendarSchema, setClassroomCalendarDaySchema } from '@/lib/validations/classroom-calendar'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { Semester } from '@/types'
 import {
@@ -25,11 +27,10 @@ export const revalidate = 0
  * Legacy route: prefer GET /api/classrooms/:classroomId/class-days
  */
 export const GET = withErrorHandler('GetTeacherClassDays', async (request, context) => {
-  // Allow both teachers and students to read class days
-  const user = await requireAuth()
-
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')
+  const access = await authorizeClassroomCoreRequest(classroomId ?? '', { permission: 'read' })
+  const { user } = access
 
   if (!classroomId) {
     return NextResponse.json(
@@ -38,7 +39,9 @@ export const GET = withErrorHandler('GetTeacherClassDays', async (request, conte
     )
   }
 
-  if (user.role === 'teacher') {
+  if (access.mode === 'contextual') {
+    // Already authorized from the classroom relationship, not the global role.
+  } else if (user.role === 'teacher') {
     const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
     if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   } else if (user.role === 'student') {
@@ -70,9 +73,18 @@ export const GET = withErrorHandler('GetTeacherClassDays', async (request, conte
  * Legacy route: prefer POST /api/classrooms/:classroomId/class-days
  */
 export const POST = withErrorHandler('PostTeacherClassDays', async (request, context) => {
-  const user = await requireRole('teacher')
-
-  const body = await request.json()
+  let bodyPromise: Promise<unknown> | undefined
+  const access = await authorizeClassroomCoreRequest(async () => {
+    bodyPromise = request.json()
+    return calendarClassroomIdentitySchema.parse(await bodyPromise).classroom_id
+  }, { permission: 'owner', legacyRole: 'teacher' })
+  if (access.mode === 'contextual') {
+    const input = createClassroomCalendarSchema.parse(await bodyPromise)
+    return NextResponse.json(await createContextualClassroomCalendar(access.context, input))
+  }
+  const { user } = access
+  // Keep the nonpilot contract/writer unchanged; reuse the one JSON read, if any.
+  const body = await (bodyPromise ?? request.json())
   const { classroom_id, semester, year, start_date, end_date } = body
 
   // Validate input - either semester/year OR start_date/end_date
@@ -117,9 +129,17 @@ export const POST = withErrorHandler('PostTeacherClassDays', async (request, con
  * Legacy route: prefer PATCH /api/classrooms/:classroomId/class-days
  */
 export const PATCH = withErrorHandler('PatchTeacherClassDays', async (request, context) => {
-  const user = await requireRole('teacher')
-
-  const body = await request.json()
+  let bodyPromise: Promise<unknown> | undefined
+  const access = await authorizeClassroomCoreRequest(async () => {
+    bodyPromise = request.json()
+    return calendarClassroomIdentitySchema.parse(await bodyPromise).classroom_id
+  }, { permission: 'owner', legacyRole: 'teacher' })
+  if (access.mode === 'contextual') {
+    const input = setClassroomCalendarDaySchema.parse(await bodyPromise)
+    return NextResponse.json(await setContextualClassroomCalendarDay(access.context, input))
+  }
+  const { user } = access
+  const body = await (bodyPromise ?? request.json())
   const { classroom_id, date, is_class_day } = body
 
   if (!classroom_id || !date || typeof is_class_day !== 'boolean') {

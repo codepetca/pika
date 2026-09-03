@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
-import { requireAuth } from '@/lib/auth'
+import { authorizeClassroomCoreRequest } from '@/lib/server/classroom-core-access'
+import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import {
   assertStudentCanAccessClassroom,
   assertTeacherOwnsClassroom,
@@ -11,14 +12,20 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetClassroomCourseGuide', async (_request, context) => {
-  const user = await requireAuth()
   const { classroomId } = await context.params
+  const coreAccess = await authorizeClassroomCoreRequest(classroomId, { permission: 'read' })
+  const { user } = coreAccess
 
   if (!classroomId) {
     return NextResponse.json({ error: 'classroomId is required' }, { status: 400 })
   }
 
-  if (user.role === 'teacher') {
+  if (coreAccess.mode === 'contextual') {
+    if (coreAccess.context.relationship === 'member' &&
+        !normalizeClassroomFeatureVisibility(coreAccess.classroom.feature_visibility).syllabus) {
+      return NextResponse.json({ error: 'Course guide is not available' }, { status: 403 })
+    }
+  } else if (user.role === 'teacher') {
     const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
     if (!ownership.ok) {
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })

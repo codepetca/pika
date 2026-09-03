@@ -13,6 +13,7 @@ import {
   listHotClassroomPurgeEnabledIds,
 } from '@/lib/server/classroom-purge-availability'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
+import { observeClassroomCreationShadow } from '@/lib/server/classroom-access-shadow'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -91,6 +92,7 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
 // POST /api/teacher/classrooms - Create classroom
 export const POST = withErrorHandler('CreateClassroom', async (request: NextRequest) => {
   const user = await requireRole('teacher')
+  observeClassroomCreationShadow(user)
   const { title, classCode, termLabel, themeColor } = createClassroomSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

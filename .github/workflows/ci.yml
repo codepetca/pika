@@ -157,6 +157,12 @@ jobs:
       - name: Verify Gradebook category contracts
         run: bash scripts/check-gradebook-categories-database.sh
 
+      - name: Verify contextual calendar atomicity and privileges
+        run: bash scripts/check-contextual-calendar-database.sh
+
+      - name: Verify contextual calendar concurrent writers
+        run: node scripts/check-contextual-calendar-concurrency.mjs
+
       - name: Verify atomic assignment draft and submission integrity
         run: bash scripts/check-atomic-assignment-submissions.sh
 

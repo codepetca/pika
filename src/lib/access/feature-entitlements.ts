@@ -79,13 +79,30 @@ export function evaluateClassroomFeatureAccess(
 
 /**
  * Compatibility policy ONLY. Caller must supply the authenticated server user.
- * No routes use this yet. It preserves the current teacher-only create guard;
+ * It preserves the current teacher-only create guard;
  * open creation, paid creation and production enforcement are separate releases.
  */
 export function evaluateLegacyClassroomCreation(user: unknown): FeatureDecision {
+  const grant = getLegacyClassroomCreationEntitlement(user)
+  if (!grant) return { allowed: false, reason: 'invalid_context' }
+  return grant.enabled ? { allowed: true } : { allowed: false, reason: 'legacy_role_required' }
+}
+
+/**
+ * In-memory compatibility snapshot from a trusted server-authenticated user.
+ * Not a persisted grant, billing resolver, or fallback for an unavailable paid plan.
+ * No client-supplied role/plan may be passed here as authority.
+ */
+export function getLegacyClassroomCreationEntitlement(user: unknown): FeatureEntitlement | null {
   const parsed = z.object({ id: z.string().uuid(), role: z.enum(['teacher', 'student']) }).safeParse(user)
-  if (!parsed.success) return { allowed: false, reason: 'invalid_context' }
-  return parsed.data.role === 'teacher'
-    ? { allowed: true }
-    : { allowed: false, reason: 'legacy_role_required' }
+  if (!parsed.success) return null
+  return {
+    subjectUserId: parsed.data.id,
+    feature: 'classrooms.create',
+    source: 'legacy',
+    enabled: parsed.data.role === 'teacher',
+    startsAt: '1970-01-01T00:00:00Z',
+    expiresAt: null,
+    quota: null,
+  }
 }
