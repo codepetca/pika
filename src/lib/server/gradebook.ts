@@ -831,7 +831,7 @@ export async function loadTeacherGradebook(opts: {
     const category = categoryId ? categoryMap.get(categoryId) : null
     return {
       category_id: category?.id ?? null,
-      category_name: category?.name ?? 'Uncategorized',
+      category_name: category?.name ?? 'None',
       category_percentage: category?.percentage ?? null,
       exact_course_weight: category && isIncluded
         ? calculateAssessmentCourseWeight({

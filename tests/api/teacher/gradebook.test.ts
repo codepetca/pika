@@ -333,7 +333,7 @@ describe('GET /api/teacher/gradebook', () => {
         possible: 30,
         weight: 10,
         category_id: null,
-        category_name: 'Uncategorized',
+        category_name: 'None',
         category_percentage: null,
         exact_course_weight: null,
         due_at: '2025-01-01T12:00:00.000Z',
@@ -560,6 +560,20 @@ describe('GET /api/teacher/gradebook', () => {
       category_id: termId,
       exact_course_weight: null,
     })
+  })
+
+  it('does not fall back to legacy grades when scored assessments have no category', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{ id: 'a1', title: 'No category', due_at: null, position: 0, is_draft: false, points_possible: 30, include_in_final: true, gradebook_weight: 10, gradebook_category_id: null }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.students[0].final_percent).toBeNull()
+    expect(body.assessment_columns[0].exact_course_weight).toBeNull()
+    expect(body.students[0].assessment_scores[0].percent).toBe(80)
   })
 
   it('ignores legacy category weights and uses assessment weights for final calculations', async () => {

@@ -186,7 +186,7 @@ describe('UiGallery accessibility contracts', () => {
     expect(mockups.getByRole('table')).toBeInTheDocument()
     await user.click(mockups.getByRole('checkbox', { name: 'Select Maya Chen' }))
     await user.click(mockups.getByRole('button', { name: '1 selected' }))
-    expect(mockups.getByRole('menuitem', { name: 'Copy secondary emails' })).toBeInTheDocument()
+    expect(mockups.getByRole('menuitem', { name: 'Copy email 2' })).toBeInTheDocument()
     await user.click(mockups.getByRole('menuitem', { name: 'Copy emails' }))
     expect(mockups.getByRole('status')).toHaveTextContent('Copy emails selected. Example only')
     await user.click(mockups.getByRole('tab', { name: 'Announcements' }))

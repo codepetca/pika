@@ -1315,6 +1315,7 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'gradebook'}>
                       <TeacherGradebookTab
                         classroom={classroom}
+                        isActive={activeTab === 'gradebook'}
                         sectionParam={gradebookSectionParam}
                         onSectionChange={(section) =>
                           navigateInClassroom((params) => {
