@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-01 — Simplify teacher work-surface actions
-
-- Removed the duplicate centered Organize action from the experimental Classwork and Tests summaries; Create remains centered and each Organize command remains available once in the trailing More menu.
-- Changed shared Page action-bar More triggers and default teacher work-surface icon-menu triggers to the ghost treatment so they blend into their background at rest. Explicit primary menu triggers remain unchanged.
-- Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
-
 ## 2026-09-01 — Add Daily and role-aware classroom page mockups
 
 - Added an API-free teacher Daily page mockup using the production date navigator, work-surface action hierarchy, operational table, selection menu, attendance status controls, and log-summary composition.
@@ -289,3 +283,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Synced the existing #1178 prototype branch with merged #1179 and moved its menu into the shared top-right action bar. Preserved independent create/join access and owned-only lifecycle controls; matched checked edit state, archive divider, active/archived headings and Back/list Escape focus. Relationship filters use a separate row. Current Classrooms reference and live routes are unchanged.
 - Focused gate passes 14 files / 123 tests plus architecture, UI/design policy, TypeScript and lint. Eight browser scenarios pass across both roles, desktop/mobile and light/dark; current screenshots were inspected against #1179. Geometry, nested Escape ownership and zero API mutations are covered; evidence is in the experimental guidance.
 - PR #1178 is draft during this user-requested revision; standard-risk Terra/high fixed-SHA review and exact-head CI follow. No merge, deployment, migration or access-epic completion is authorized by this prototype update.
+
+## 2026-09-03 — Separate hidden memberships from owned archives
+
+- Extended the experimental Owned/Joined home: Edit classrooms offers Archive for owned rows and Hide for joined rows; the shared Archived page lists Archived first and Hidden below, with distinct Restore/Unhide actions. Joined-only users retain access to Show Archived even after hiding their last row. Personal hidden IDs never change membership or classroom archival state.
+- Added red-first component coverage for role-scoped actions, last-row recovery, focus, membership retention and owner-archived exclusion. Eight browser scenarios pass across both roles, desktop/mobile and light/dark, including measured section order and zero API mutations; screenshots inspected. Current evidence is in the experimental home guidance.
+- Same prototype branch/PR #1178; risk profile none, standard-risk Terra/high independent review and final focused/CI evidence follow on the PR. No shared component, production route, database, deployment or merge changes are authorized. Live adoption remains separate.

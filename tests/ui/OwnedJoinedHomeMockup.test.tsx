@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { OwnedJoinedHomeMockup } from '@/app/__ui/OwnedJoinedHomeMockup'
+import { activeClassroomsForExample, classroomsForExample } from '@/app/__ui/owned-joined-home-fixtures'
 import { TooltipProvider } from '@/ui'
 
 function setup(role: 'teacher' | 'student' = 'teacher') {
@@ -10,6 +11,15 @@ function setup(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('OwnedJoinedHomeMockup', () => {
+  it('keeps personal hiding separate from classroom archival and membership', () => {
+    const joined = classroomsForExample('joined')
+    const classroom = joined[0]
+    expect(activeClassroomsForExample(joined, new Set([classroom.id]))).toEqual([])
+    expect(joined).toHaveLength(1)
+    expect(classroom.archived).toBe(false)
+    expect(activeClassroomsForExample(joined, new Set())).toEqual(joined)
+    expect(activeClassroomsForExample([{ ...classroom, archived: true }], new Set())).toEqual([])
+  })
   it('shows both relationships and filters without changing account type', async () => {
     const { user, home } = setup()
     expect(home.getByRole('button', { name: 'Open Grade 10 Science' })).toBeVisible()
@@ -26,7 +36,8 @@ describe('OwnedJoinedHomeMockup', () => {
     await user.click(home.getByRole('button', { name: 'Classroom actions' }))
     expect(screen.queryByRole('menuitem', { name: 'New Classroom' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Join classroom' })).toBeVisible()
-    expect(screen.queryByRole('menuitemcheckbox', { name: 'Edit classrooms' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: 'Show Archived' })).toBeVisible()
     await user.keyboard('{Escape}')
     expect(home.getByRole('button', { name: 'Classroom actions' })).toHaveFocus()
     await user.selectOptions(screen.getByRole('combobox', { name: 'Creation access' }), 'allowed')
@@ -49,6 +60,53 @@ describe('OwnedJoinedHomeMockup', () => {
     await user.click(screen.getByRole('button', { name: 'Join example classroom' }))
     expect(home.getByRole('button', { name: 'Open Creative Computing' })).toBeVisible()
     expect(home.getByRole('status')).toHaveTextContent('example only')
+  })
+
+  it('hides joined classrooms below owned archives without ending membership', async () => {
+    const { user, home } = setup()
+    const actions = home.getByRole('button', { name: 'Classroom actions' })
+    await user.click(actions)
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
+    expect(home.queryByRole('button', { name: 'Archive Learning Design' })).not.toBeInTheDocument()
+    expect(home.queryByRole('button', { name: 'Hide Grade 10 Science' })).not.toBeInTheDocument()
+    await user.click(home.getByRole('button', { name: 'Hide Learning Design' }))
+    expect(home.queryByRole('button', { name: 'Open Learning Design' })).not.toBeInTheDocument()
+    expect(home.getByRole('button', { name: 'Back to classrooms' })).toHaveFocus()
+    await user.click(actions)
+    await user.click(screen.getByRole('menuitem', { name: 'Show Archived' }))
+    const archived = home.getByRole('region', { name: 'Archived classrooms' })
+    const hidden = home.getByRole('region', { name: 'Hidden classrooms' })
+    expect(archived.compareDocumentPosition(hidden) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(archived).getByRole('button', { name: 'Restore Earth and Space Science' })).toBeVisible()
+    expect(within(hidden).getByRole('button', { name: 'Unhide Learning Design' })).toBeVisible()
+    expect(within(hidden).queryByRole('button', { name: /^Restore / })).not.toBeInTheDocument()
+    await user.click(within(hidden).getByRole('button', { name: 'Open Learning Design' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Your student workspace')
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('participation is unavailable')
+    await user.keyboard('{Escape}')
+    await user.click(within(hidden).getByRole('button', { name: 'Unhide Learning Design' }))
+    expect(home.getByText('No hidden classrooms')).toBeVisible()
+    expect(home.getByRole('button', { name: 'Back to classrooms' })).toHaveFocus()
+    await user.click(home.getByRole('button', { name: 'Back to classrooms' }))
+    expect(home.getByRole('button', { name: 'Open Learning Design' })).toBeVisible()
+  })
+
+  it('lets a joined-only account hide its last class and find it again', async () => {
+    const { user, home } = setup('student')
+    const actions = home.getByRole('button', { name: 'Classroom actions' })
+    await user.click(home.getByRole('button', { name: 'Joined', exact: true }))
+    await user.click(actions)
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
+    await user.click(home.getByRole('button', { name: 'Hide Learning Design' }))
+    expect(home.getByText('No joined classrooms')).toBeVisible()
+    await user.click(actions)
+    await user.click(screen.getByRole('menuitem', { name: 'Show Archived' }))
+    expect(home.getByText('No archived classrooms')).toBeVisible()
+    expect(home.getByRole('button', { name: 'Unhide Learning Design' })).toBeVisible()
+    await user.click(home.getByRole('button', { name: 'Unhide Learning Design' }))
+    await user.click(actions)
+    await user.click(screen.getByRole('menuitem', { name: 'Show Active' }))
+    expect(home.getByRole('button', { name: 'Open Learning Design' })).toBeVisible()
   })
 
   it('previews only relationship-appropriate classroom destinations', async () => {

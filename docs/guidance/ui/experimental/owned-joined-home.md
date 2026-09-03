@@ -42,8 +42,11 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 
 Teaching means owner; Joined means member. All groups both relationships. Creation availability
 is a separate fixture control, not inferred from a plan label or the selected relationship.
-Join remains available in every account example. Only owned classes expose editing, archiving
-and restore controls. Archived membership is not presented as active participation.
+Join remains available in every account example. Only owned classes expose reordering,
+archiving and restore controls. Joined classes expose Hide in edit mode and Unhide in
+the Hidden section, below Archived on the same page. Hidden state is a separate personal
+list preference; it never changes membership or the classroom's archived state.
+Archived membership is not presented as active participation.
 
 All form results explicitly say they affect this example only. A demo code confirms a named
 synthetic classroom before adding its local member row; invalid input cannot create a row.
@@ -53,6 +56,36 @@ No fake live-save success, network writes or persisted settings are introduced.
 Nearby refactor candidate: PR #1139 and this prototype share classroom-row structure. Keep the
 proposal local until human acceptance establishes a durable contract for a live adopter.
 Human promotion and separately reviewed server discovery/routing are required before adoption.
+
+## Hidden joined classrooms — approved prototype revision
+
+- Reference: this experimental home's accepted PR #1179 action bar and grouped list.
+- Primary signal: Archived owned classrooms first, Hidden joined classrooms underneath,
+  with Restore and Unhide respectively. Show Archived is available even without ownership.
+- Reuse existing row IconButtons, PageActionBar and menu; extend fixture-local grouping
+  and independent hidden-ID state. Edit classrooms preserves the relationship filter and
+  offers Archive for owned rows and Hide for joined rows. No new shared component.
+- Matrix: both roles, 1440×900 and 390×844, light/dark; mixed groups, hidden-only,
+  last joined row removed, empty Archived/Hidden, unhide, Back/Escape and focus return.
+- Hiding keeps membership and navigation preview available. Unhide never restores an
+  owner-archived classroom. No live access, reminders, persistence, API or schema changes.
+- Shared composite owners remain; test semantics and keyboard focus after row removal.
+  A shared classroom-list extraction remains deferred until live adoption is approved.
+
+### Hidden-section verification — 2026-09-03
+
+- Captured the revision on base `6e08cd44`; the PR records the final reviewed SHA.
+  Eight browser scenarios pass across both roles, desktop/mobile and light/dark.
+  Current artifacts: `test-results/home-hidden/`, with `archived.png`, `hidden-only.png`,
+  `archived-hidden-empty.png` and `edit-owned-and-joined.png` in each role/project directory.
+- Inspected the affected matrix and compared desktop/mobile cards and top-right menu
+  alignment with `reference-pr1179-classrooms.png`. Hidden is visibly below Archived;
+  the browser also measures the section order. No page overflow or clipped controls.
+- Component tests cover joined-only discovery after hiding the last row, Unhide/Back
+  focus, continued member navigation, Archive/Restore exclusion for joined classrooms,
+  and separate hidden/archived state. The browser repeats these interactions without
+  API mutations. Composite keyboard/semantic checks pass; no manual follow-up remains
+  for this local-only scope. Production behavior and persistence remain untested/unchanged.
 
 ## Historical verification — original bottom-menu prototype, 2026-09-03
 

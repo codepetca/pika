@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, CircleDot, GripVertical, LogIn, MoreVertical, Plus, RotateCw } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, CircleDot, Eye, EyeOff, GripVertical, LogIn, MoreVertical, Plus, RotateCw } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs, cn } from '@/ui'
-import { classroomsForExample, JOIN_EXAMPLE, type HomeClassroomExample, type HomeExampleAccount, type HomeRelationship } from './owned-joined-home-fixtures'
+import { activeClassroomsForExample, classroomsForExample, JOIN_EXAMPLE, type HomeClassroomExample, type HomeExampleAccount, type HomeRelationship } from './owned-joined-home-fixtures'
 
 type HomeFilter = 'all' | HomeRelationship
 type HomeState = 'populated' | 'loading' | 'error'
@@ -51,6 +51,7 @@ export function OwnedJoinedHomeMockup({ role }: { role: 'teacher' | 'student' })
 
 function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExampleAccount; canCreate: boolean; state: HomeState; onRetry: () => void }) {
   const [classrooms, setClassrooms] = useState(() => classroomsForExample(account))
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
   const [filter, setFilter] = useState<HomeFilter>('all')
   const [archived, setArchived] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -70,8 +71,12 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   const pendingFocus = useRef<'back' | 'filters' | 'heading' | null>(null)
   const previewId = useId()
   const owned = classrooms.filter((classroom) => classroom.relationship === 'teaching')
-  const visible = classrooms.filter((classroom) => classroom.archived === archived && (filter === 'all' || classroom.relationship === filter))
-  const groups: HomeRelationship[] = filter === 'all' ? ['teaching', 'joined'] : [filter]
+  const visible = activeClassroomsForExample(classrooms, hiddenIds).filter((classroom) => filter === 'all' || classroom.relationship === filter)
+  const relationships: HomeRelationship[] = filter === 'all' ? ['teaching', 'joined'] : [filter]
+  const groups = archived ? [
+    { label: 'Archived', description: 'Classrooms you own.', rows: owned.filter((classroom) => classroom.archived) },
+    { label: 'Hidden', description: 'Joined classrooms hidden from your active list. You’re still a member.', rows: classrooms.filter((classroom) => classroom.relationship === 'joined' && hiddenIds.has(classroom.id)) },
+  ] : relationships.map((relationship) => ({ label: relationship === 'teaching' ? 'Teaching' : 'Joined', description: '', rows: visible.filter((classroom) => classroom.relationship === relationship) }))
 
   // A removed row/empty-state opener cannot receive the shared dialog's return focus.
   useEffect(() => {
@@ -87,6 +92,17 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   }
   function resetView() { setArchived(false); setEditing(false); setFilter('all') }
   function returnToActiveList() { pendingFocus.current = 'heading'; resetView() }
+  function setHidden(classroom: HomeClassroomExample, hidden: boolean) {
+    if (classroom.relationship !== 'joined') return
+    pendingFocus.current = 'back'
+    setHiddenIds((current) => {
+      const next = new Set(current)
+      if (hidden) next.add(classroom.id)
+      else next.delete(classroom.id)
+      return next
+    })
+    setMessage(`${classroom.title} ${hidden ? 'hidden' : 'unhidden'} in this example only. You’re still a member.`)
+  }
   function reorder(id: string, direction: -1 | 1) {
     const teaching = classrooms.filter((classroom) => classroom.relationship === 'teaching' && !classroom.archived)
     const index = teaching.findIndex((classroom) => classroom.id === id)
@@ -105,10 +121,10 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     ...(canCreate ? [{ id: 'create', label: 'New Classroom', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('create') }] : []),
     { id: 'join', label: 'Join classroom', icon: <LogIn className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('join') },
-    ...(owned.length ? [
-      { id: 'edit', label: 'Edit classrooms', icon: <GripVertical className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, onSelect: () => { setArchived(false); setFilter('teaching'); setEditing((value) => !value) } },
-      { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => { setArchived((value) => !value); setFilter('teaching'); setEditing(false) } },
+    ...(classrooms.length ? [
+      { id: 'edit', label: 'Edit classrooms', icon: <GripVertical className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, onSelect: () => { if (archived) setFilter('all'); setArchived(false); setEditing((value) => !value) } },
     ] : []),
+    { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => { setArchived((value) => !value); setFilter('all'); setEditing(false) } },
   ]
 
   return (
@@ -134,8 +150,8 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
 
         {state === 'loading' ? <PageState compact kind="loading" title="Loading classrooms" /> : state === 'error' ? (
           <PageState compact kind="error" title="Classrooms couldn’t load" description="Try again to see your classrooms." action={<IconButton icon={RotateCw} label="Try again" onClick={onRetry} />} />
-        ) : visible.length === 0 ? (
-          <PageState compact kind="empty" title={archived ? 'No archived classrooms' : filter === 'teaching' ? 'No classrooms you’re teaching' : filter === 'joined' ? 'No joined classrooms' : 'No classrooms yet'} action={archived ? undefined : (
+        ) : !archived && visible.length === 0 ? (
+          <PageState compact kind="empty" title={filter === 'teaching' ? 'No classrooms you’re teaching' : filter === 'joined' ? 'No joined classrooms' : classrooms.length ? 'No active classrooms' : 'No classrooms yet'} description={hiddenIds.size ? 'Find hidden classrooms under Show Archived in the classroom actions menu.' : undefined} action={(
             <div className="flex flex-wrap justify-center gap-2">
               <Button variant="primary" onClick={() => openForm('join')}>Join classroom</Button>
               {canCreate && <Button variant="secondary" onClick={() => openForm('create')}>New Classroom</Button>}
@@ -143,13 +159,14 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
           )} />
         ) : (
           <div className="space-y-5" data-testid="home-classroom-list">
-            {groups.map((relationship) => {
-              const rows = visible.filter((classroom) => classroom.relationship === relationship)
-              if (!rows.length) return null
-              return <section key={relationship} aria-label={relationship === 'teaching' ? 'Teaching classrooms' : 'Joined classrooms'}>
+            {groups.map(({ label, description, rows }) => {
+              if (!rows.length && !archived) return null
+              return <section key={label} aria-label={`${label} classrooms`}>
                 <div className="mb-2 flex items-center gap-2 text-xs text-text-muted">
-                  <h4 className="font-medium">{relationship === 'teaching' ? 'Teaching' : 'Joined'}</h4><span>{rows.length}</span>
+                  <h4 className="font-medium">{label}</h4><span>{rows.length}</span>
                 </div>
+                {description && <p className="mb-3 text-xs text-text-muted">{description}</p>}
+                {!rows.length && <p className="text-sm text-text-muted">No {label.toLowerCase()} classrooms</p>}
                 <div className="space-y-2">
                   {rows.map((classroom, index) => (
                     <Card key={classroom.id} tone="panel" padding="none" interactive>
@@ -159,16 +176,18 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
                           <span className="min-w-0">
                             <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="break-words font-semibold text-text-default">{classroom.title}</span><span className="text-sm font-normal text-text-muted">{classroom.term}</span></span>
                             <span className="mt-1 block text-sm font-normal text-text-muted">{classroom.dates}</span>
-                            <span className="mt-1 block text-xs font-normal text-text-muted sm:hidden">{classroom.detail}</span>
+                            <span className={cn('mt-1 block text-xs font-normal text-text-muted', !archived && 'sm:hidden')}>{archived ? `${classroom.relationship === 'joined' ? 'Joined' : 'Teaching'} · ` : ''}{classroom.detail}</span>
                           </span>
                         </Button>
                         {!editing && !archived && <span className="hidden shrink-0 text-xs text-text-muted sm:block">{classroom.detail}</span>}
-                        {editing && relationship === 'teaching' && <div className="flex shrink-0 flex-col sm:flex-row">
+                        {editing && classroom.relationship === 'teaching' && <div className="flex shrink-0 flex-col sm:flex-row">
                           <IconButton icon={ArrowUp} label={`Move ${classroom.title} up`} disabled={index === 0} variant="ghost" onClick={() => reorder(classroom.id, -1)} />
                           <IconButton icon={ArrowDown} label={`Move ${classroom.title} down`} disabled={index === rows.length - 1} variant="ghost" onClick={() => reorder(classroom.id, 1)} />
                           <IconButton icon={Archive} label={`Archive ${classroom.title}`} variant="ghost" onClick={() => setArchiveTarget(classroom)} />
                         </div>}
-                        {archived && relationship === 'teaching' && <IconButton icon={ArchiveRestore} label={`Restore ${classroom.title}`} variant="ghost" onClick={() => { pendingFocus.current = 'back'; setClassrooms((current) => current.map((row) => row.id === classroom.id ? { ...row, archived: false } : row)); setMessage(`${classroom.title} restored in this example only.`) }} />}
+                        {editing && classroom.relationship === 'joined' && <IconButton icon={EyeOff} label={`Hide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, true)} />}
+                        {archived && classroom.relationship === 'teaching' && <IconButton icon={ArchiveRestore} label={`Restore ${classroom.title}`} variant="ghost" onClick={() => { pendingFocus.current = 'back'; setClassrooms((current) => current.map((row) => row.id === classroom.id ? { ...row, archived: false } : row)); setMessage(`${classroom.title} restored in this example only.`) }} />}
+                        {archived && classroom.relationship === 'joined' && <IconButton icon={Eye} label={`Unhide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, false)} />}
                       </div>
                     </Card>
                   ))}

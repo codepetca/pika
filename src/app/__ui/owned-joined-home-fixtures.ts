@@ -30,3 +30,7 @@ export function classroomsForExample(account: HomeExampleAccount) {
   return HOME_CLASSROOM_EXAMPLES.filter((classroom) => account === 'mixed' || classroom.relationship === account)
     .map((classroom) => ({ ...classroom }))
 }
+
+export function activeClassroomsForExample(classrooms: HomeClassroomExample[], hiddenIds: ReadonlySet<string>) {
+  return classrooms.filter((classroom) => !classroom.archived && !(classroom.relationship === 'joined' && hiddenIds.has(classroom.id)))
+}

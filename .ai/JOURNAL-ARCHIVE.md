@@ -30540,3 +30540,10 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
 - Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
 - Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
+
+<!-- pika-session-log-archive-batch:7978ebefd131de28abaca9da60df6227c908bcf7e6a172b73b802c324085d50c -->
+## 2026-09-01 — Simplify teacher work-surface actions
+
+- Removed the duplicate centered Organize action from the experimental Classwork and Tests summaries; Create remains centered and each Organize command remains available once in the trailing More menu.
+- Changed shared Page action-bar More triggers and default teacher work-surface icon-menu triggers to the ghost treatment so they blend into their background at rest. Explicit primary menu triggers remain unchanged.
+- Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
