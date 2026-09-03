@@ -270,7 +270,9 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     expect(screen.getByText(
       'Daily, Roster, and Settings are always available. Hiding a feature does not delete its content.',
     )).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Show Attendance' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('QR Attendance')).toBeInTheDocument()
+    expect(screen.getByText('Turn off to use manual or log-based attendance')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Show QR Attendance' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Show Classwork' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('switch', { name: 'Show Achievements' })).toHaveAttribute('aria-checked', 'true')
   })
@@ -305,6 +307,37 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       expect(onClassroomUpdated).toHaveBeenCalledWith(
         expect.objectContaining({ feature_visibility: savedVisibility }),
       )
+    })
+  })
+
+  it.each([true, false])('toggles QR attendance from %s without changing other features', async (enabled) => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const savedVisibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, attendance: !enabled }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        classroom: { ...mockClassroom, feature_visibility: savedVisibility },
+      }),
+    })
+
+    render(
+      <TeacherSettingsTab
+        classroom={{
+          ...mockClassroom,
+          feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, attendance: enabled },
+        }}
+        sectionParam="features"
+      />,
+      { wrapper: Wrapper },
+    )
+    const toggle = screen.getByRole('switch', { name: 'Show QR Attendance' })
+    expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', String(!enabled)))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      featureVisibility: savedVisibility,
     })
   })
 
@@ -392,7 +425,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     )
 
     expect(screen.getByRole('switch', { name: 'Show Tests' })).toBeDisabled()
-    expect(screen.getByRole('switch', { name: 'Show Attendance' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'Show QR Attendance' })).toBeDisabled()
   })
 
   it('saves on blur when value has changed', async () => {
