@@ -289,3 +289,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Replaced the teacher Course Guide floating edit cluster with the shared right-aligned PageActionBar More menu. Edit opens the visual document editor directly; Edit with Markdown opens a paste-friendly source editor for the same saved field; Guide options remains available from the menu.
 - Removed the separate Resources section and Resources visibility control from the Course Guide surface while preserving compatibility data. Teacher, student and public views retain the single guide document plus compact Assignment/Test title lists.
 - Focused gate passes 21 test files / 186 tests plus architecture, UI/design policy, TypeScript and lint. The Course Guide Playwright scenario passes 19 checks across teacher/student/public, desktop/mobile, light/dark, menu, visual editor, Markdown editor and import states; screenshots were inspected with no horizontal overflow. Risk profile none; no schema, hosted data or deployment action.
+
+## 2026-09-03 — Align Course Guide browser contracts
+
+- PR #1189's first exact-head CI run passed Test & Build and all database contracts, then failed the browser matrix because two existing Course Guide scenarios still asserted the retired Edit guide flow and Curriculum overview section heading across four viewports. Returned the PR to draft before correction; the unrelated student API timeout was flaky and passed on retry.
+- Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
+- One correction batch is in use. A targeted independent review and fresh focused/exact-head CI are required before readiness or merge; no production or database action was taken.
