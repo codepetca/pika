@@ -516,7 +516,7 @@ export const patternLabPageMockups: VerificationScript = {
     const classrooms = section.getByTestId('classrooms-mockup')
     await classrooms.getByRole('button', { name: 'Classroom actions' }).click()
     checks.push({
-      name: 'Classroom bottom menu contains New Classroom, edit, and Show Archived actions',
+      name: 'Classroom top-right menu contains New Classroom, edit, and Show Archived actions',
       passed: await classrooms.getByRole('menuitem', { name: 'New Classroom' }).isVisible()
         && await classrooms.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }).isVisible()
         && await classrooms.getByRole('menuitem', { name: 'Show Archived' }).isVisible(),

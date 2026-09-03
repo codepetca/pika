@@ -22,11 +22,15 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Archive,
   ArchiveRestore,
+  ArrowLeft,
   CircleDot,
   CopyPlus,
   DatabaseBackup,
   LoaderCircle,
+  GripVertical,
+  MoreVertical,
   Plus,
+  RotateCw,
   ShieldCheck,
   Trash2,
   TriangleAlert,
@@ -35,9 +39,8 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
-import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { Button, IconButton, ConfirmDialog, PageContent, PageLayout, SegmentedControl, Tooltip } from '@/ui'
+import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
@@ -114,6 +117,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
+  const classroomsRef = useRef<HTMLDivElement>(null)
+  const listHeadingRef = useRef<HTMLHeadingElement>(null)
   const coldRestoreOperationIdsRef = useRef(new Map<string, string>())
   const hotArchiveOperationIdsRef = useRef(new Map<
     string,
@@ -143,6 +148,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [coldPurgeArchive, setColdPurgeArchive] = useState<ClassroomColdArchiveSummary | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
+  const [archiveLoadError, setArchiveLoadError] = useState('')
   const [isReordering, setIsReordering] = useState(false)
   const [draggingClassroomId, setDraggingClassroomId] = useState<string | null>(null)
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
@@ -168,6 +174,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const visibleClassrooms = view === 'active' ? activeClassrooms : sortedArchived
   const hasArchivedItems = sortedArchived.length > 0 || coldArchives.length > 0
+  const visibleError = error || (view === 'archived' ? archiveLoadError : '')
   const hotArchiveRecoveryByClassroom = useMemo(
     () => new Map(hotArchiveRecovery.map((recovery) => [recovery.classroom_id, recovery])),
     [hotArchiveRecovery],
@@ -179,6 +186,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const loadArchived = useCallback(async () => {
     setIsLoadingArchived(true)
+    setArchiveLoadError('')
     setError('')
     try {
       const state = await fetchTeacherArchivedClassroomState()
@@ -202,7 +210,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setColdClassroomPurgeEnabledIds(new Set(state.coldClassroomPurgeEnabledIds ?? []))
       return state
     } catch (err: any) {
-      setError(err.message || 'Failed to load archived classrooms')
+      setArchiveLoadError(err.message || 'Failed to load archived classrooms')
       return null
     } finally {
       setIsLoadingArchived(false)
@@ -285,33 +293,41 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     loadArchived()
   }, [loadArchived, view])
 
+  const resetClassroomView = useCallback(() => {
+    setDraggingClassroomId(null)
+    setView('active')
+    setIsEditingClassrooms(false)
+    setError('')
+  }, [])
+
+  const returnToActiveList = useCallback(() => {
+    resetClassroomView()
+    window.requestAnimationFrame(() => listHeadingRef.current?.focus())
+  }, [resetClassroomView])
+
   useEffect(() => {
-    function showActiveClassrooms() {
-      setDraggingClassroomId(null)
-      setView('active')
-    }
-
-    function clearEditMode() {
-      setIsEditingClassrooms(false)
-      showActiveClassrooms()
-    }
-
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        clearEditMode()
-      }
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (view === 'active' && !isEditingClassrooms) return
+      // Nested menus, dialogs, and active drag gestures own their Escape key.
+      if (draggingClassroomId || document.querySelector('[aria-modal="true"]')) return
+      if (classroomsRef.current?.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return
+      if (!classroomsRef.current?.contains(document.activeElement)) return
+      returnToActiveList()
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('pageshow', clearEditMode)
-    window.addEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [draggingClassroomId, isEditingClassrooms, returnToActiveList, view])
 
+  useEffect(() => {
+    window.addEventListener('pageshow', resetClassroomView)
+    window.addEventListener(APP_HOME_SELECTED_EVENT, returnToActiveList)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('pageshow', clearEditMode)
-      window.removeEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
+      window.removeEventListener('pageshow', resetClassroomView)
+      window.removeEventListener(APP_HOME_SELECTED_EVENT, returnToActiveList)
     }
-  }, [])
+  }, [resetClassroomView, returnToActiveList])
 
   async function archiveClassroom(classroom: Classroom) {
     setIsProcessing(true)
@@ -591,7 +607,41 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         : 'Restore'
     : 'Confirm'
 
-  const showCreateClassroomButton = view === 'active' && (activeClassrooms.length === 0 || isEditingClassrooms)
+  const classroomActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'create',
+      label: 'New Classroom',
+      icon: <Plus className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setShowCreate(true),
+    },
+    {
+      id: 'edit',
+      label: 'Edit classrooms',
+      icon: <GripVertical className="h-4 w-4" aria-hidden="true" />,
+      checked: isEditingClassrooms,
+      checkedRole: 'menuitemcheckbox',
+      onSelect: () => {
+        setDraggingClassroomId(null)
+        setView('active')
+        setError('')
+        setIsEditingClassrooms((current) => !current)
+      },
+    },
+    {
+      id: 'toggle-archive-view',
+      label: view === 'active' ? 'Show Archived' : 'Show Active',
+      icon: view === 'active'
+        ? <Archive className="h-4 w-4" aria-hidden="true" />
+        : <CircleDot className="h-4 w-4" aria-hidden="true" />,
+      dividerBefore: true,
+      onSelect: () => {
+        setDraggingClassroomId(null)
+        setView((current) => current === 'active' ? 'archived' : 'active')
+        setError('')
+        setIsEditingClassrooms(false)
+      },
+    },
+  ]
 
   const openClassroom = useCallback((classroom: Classroom) => {
     setOpeningClassroomId(classroom.id)
@@ -600,43 +650,71 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   return (
     <PageLayout density="teacher" width="reading">
-      <PageContent className="pb-24">
-        {error && (
-          <div role="alert" className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-
-        {view === 'active' && visibleClassrooms.length > 1 && isReordering && (
-          <p className="mb-3 text-sm text-text-muted">Saving…</p>
-        )}
-
-        {view === 'archived' && isLoadingArchived ? (
-          <div className="flex justify-center py-12">
-            <Spinner size="lg" />
-          </div>
-        ) : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
-          view === 'active' ? (
-            /* Empty active: center the CTA on screen */
-            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
-              <p className="text-sm text-text-muted">Create your first classroom</p>
-              <IconButton
-                type="button"
-                variant="primary"
-                size="sm"
-                className="mt-4"
-                onClick={() => setShowCreate(true)}
-                icon={Plus}
-                label="Create classroom"
-              />
+      <div ref={classroomsRef}>
+        <div className="pt-density-compact-content-top" data-testid="classroom-top-controls">
+          {isEditingClassrooms || view === 'archived' ? (
+            <div className="px-density-compact-gutter">
+              <Button type="button" variant="ghost" size="xs" className="-ml-2 mb-1 px-2 text-text-muted" onClick={returnToActiveList} disabled={openingClassroomId !== null}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to classrooms
+              </Button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-sm font-medium text-text-default">No archived classrooms</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Archived classrooms will appear here so you can unarchive them later.
-              </p>
-              {showCreateClassroomButton ? (
+          ) : null}
+          <PageActionBar
+            primary={
+              <PageHeading
+                title={view === 'active' ? 'Active classrooms' : 'Archived classrooms'}
+                size="section"
+                headingRef={listHeadingRef}
+                tabIndex={-1}
+              />
+            }
+            trailing={
+              <>
+                {isEditingClassrooms ? <span className="text-xs font-medium text-primary">Editing</span> : null}
+                <TeacherWorkSurfaceIconMenuButton
+                  ariaLabel="Classroom actions"
+                  menuAriaLabel="Classroom actions"
+                  tooltip="Classroom actions"
+                  icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+                  items={classroomActions}
+                  variant="ghost"
+                  menuPlacement="down"
+                  menuAlign="end"
+                  menuClassName="w-64"
+                  disabled={openingClassroomId !== null}
+                />
+              </>
+            }
+          />
+        </div>
+        <PageContent>
+          {visibleError && !(view === 'archived' && archiveLoadError && !hasArchivedItems) && (
+            <div role="alert" className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {visibleError}
+            </div>
+          )}
+
+          {view === 'active' && visibleClassrooms.length > 1 && isReordering && (
+            <p className="mb-3 text-sm text-text-muted">Saving…</p>
+          )}
+
+          {view === 'archived' && isLoadingArchived ? (
+            <div className="flex justify-center py-12">
+              <Spinner size="lg" />
+            </div>
+          ) : view === 'archived' && archiveLoadError && !hasArchivedItems ? (
+            <PageState
+              kind="error"
+              title="Could not load archived classrooms"
+              description={archiveLoadError}
+              action={<IconButton icon={RotateCw} label="Try loading archived classrooms again" variant="secondary" onClick={() => void loadArchived()} />}
+            />
+          ) : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
+            view === 'active' ? (
+              /* Empty active: center the CTA on screen */
+              <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
+                <p className="text-sm text-text-muted">Create your first classroom</p>
                 <IconButton
                   type="button"
                   variant="primary"
@@ -646,295 +724,245 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                   icon={Plus}
                   label="Create classroom"
                 />
-              ) : null}
-            </div>
-          )
-        ) : (
-          <div className="flex flex-col gap-2">
-            {view === 'active' ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragCancel={handleDragCancel}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={activeClassrooms.map((classroom) => classroom.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {activeClassrooms.map((classroom) => (
-                    <SortableClassroomRow
-                      key={classroom.id}
-                      classroom={classroom}
-                      showEditControls={isEditingClassrooms}
-                      isDragDisabled={isReordering || openingClassroomId !== null}
-                      isDisabled={openingClassroomId !== null}
-                      isOpening={openingClassroomId === classroom.id}
-                      onOpen={() => openClassroom(classroom)}
-                      onArchive={() => setPendingAction({ mode: 'archive', classroom })}
-                    />
-                  ))}
-                </SortableContext>
-                <DragOverlay>
-                  {draggingClassroom ? (
-                    <ClassroomRowGhost classroom={draggingClassroom} />
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+              </div>
             ) : (
-              <>
-                {!hotArchiveRecoveryStatusAvailable ? (
-                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
-                    <span>Recovery-copy status is temporarily unavailable.</span>
-                    <Button
-                      type="button"
-                      variant="surface"
-                      size="xs"
-                      onClick={() => void loadArchived()}
-                      disabled={isLoadingArchived}
-                    >
-                      Retry status
-                    </Button>
-                  </div>
-                ) : null}
-                {sortedArchived.map((c) => {
-                  const theme = getClassroomThemeDefinition(c.theme_color)
-                  const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
-                  const recovery = hotArchiveRecoveryByClassroom.get(c.id)
-                  const latestArchive = recovery?.latest_archive
-                  const verifiedArchive = latestArchive?.source_revision === recovery?.current_revision
-                    ? latestArchive
-                    : null
-                  const staleArchive = latestArchive && !verifiedArchive ? latestArchive : null
-                  const latestOperation = recovery?.latest_operation
-                  const hasRetryableOperation = isResumableHotArchiveOperation(recovery)
-                  const exportCanStart = recovery?.export_available
-                    && !(latestOperation?.status === 'failed' && latestOperation.retryable === false)
-                  return (
-                    <div
-                      key={c.id}
-                      data-classroom-theme-color={theme.value}
-                      style={getClassroomThemeStyle(theme.value)}
-                      className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
-                    >
-                      <button
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-sm font-medium text-text-default">No archived classrooms</p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Archived classrooms will appear here so you can unarchive them later.
+                </p>
+              </div>
+            )
+          ) : (
+            <div className="flex flex-col gap-2">
+              {view === 'active' ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragCancel={handleDragCancel}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={activeClassrooms.map((classroom) => classroom.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {activeClassrooms.map((classroom) => (
+                      <SortableClassroomRow
+                        key={classroom.id}
+                        classroom={classroom}
+                        showEditControls={isEditingClassrooms}
+                        isDragDisabled={isReordering || openingClassroomId !== null}
+                        isDisabled={openingClassroomId !== null}
+                        isOpening={openingClassroomId === classroom.id}
+                        onOpen={() => openClassroom(classroom)}
+                        onArchive={() => setPendingAction({ mode: 'archive', classroom })}
+                      />
+                    ))}
+                  </SortableContext>
+                  <DragOverlay>
+                    {draggingClassroom ? (
+                      <ClassroomRowGhost classroom={draggingClassroom} />
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              ) : (
+                <>
+                  {!hotArchiveRecoveryStatusAvailable ? (
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
+                      <span>Recovery-copy status is temporarily unavailable.</span>
+                      <Button
                         type="button"
-                        data-testid="classroom-card"
-                        onClick={() => openClassroom(c)}
-                        disabled={openingClassroomId !== null}
-                        aria-busy={openingClassroomId === c.id}
-                        className={[
-                          '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
-                          openingClassroomId === c.id ? 'cursor-wait' : '',
-                        ].join(' ')}
+                        variant="surface"
+                        size="xs"
+                        onClick={() => void loadArchived()}
+                        disabled={isLoadingArchived}
                       >
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
-                          {c.term_label && (
-                            <div className="text-sm text-text-muted">{c.term_label}</div>
+                        Retry status
+                      </Button>
+                    </div>
+                  ) : null}
+                  {sortedArchived.map((c) => {
+                    const theme = getClassroomThemeDefinition(c.theme_color)
+                    const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
+                    const recovery = hotArchiveRecoveryByClassroom.get(c.id)
+                    const latestArchive = recovery?.latest_archive
+                    const verifiedArchive = latestArchive?.source_revision === recovery?.current_revision
+                      ? latestArchive
+                      : null
+                    const staleArchive = latestArchive && !verifiedArchive ? latestArchive : null
+                    const latestOperation = recovery?.latest_operation
+                    const hasRetryableOperation = isResumableHotArchiveOperation(recovery)
+                    const exportCanStart = recovery?.export_available
+                      && !(latestOperation?.status === 'failed' && latestOperation.retryable === false)
+                    return (
+                      <div
+                        key={c.id}
+                        data-classroom-theme-color={theme.value}
+                        style={getClassroomThemeStyle(theme.value)}
+                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                      >
+                        <button
+                          type="button"
+                          data-testid="classroom-card"
+                          onClick={() => openClassroom(c)}
+                          disabled={openingClassroomId !== null}
+                          aria-busy={openingClassroomId === c.id}
+                          className={[
+                            '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
+                            openingClassroomId === c.id ? 'cursor-wait' : '',
+                          ].join(' ')}
+                        >
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
+                            {c.term_label && (
+                              <div className="text-sm text-text-muted">{c.term_label}</div>
+                            )}
+                          </div>
+                          <div className="mt-1 text-sm text-text-muted">
+                            {dateRange ?? 'Semester dates not set'}
+                          </div>
+                          {verifiedArchive ? (
+                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+                              <span className="inline-flex items-center gap-1 font-medium text-success">
+                                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                Recovery copy verified
+                              </span>
+                              <span aria-hidden="true">&middot;</span>
+                              <span>{formatArchiveSize(verifiedArchive.compressed_byte_size)}</span>
+                              <span aria-hidden="true">&middot;</span>
+                              <span>
+                                {verifiedArchive.retention.mode === 'teacher_managed'
+                                  ? 'Kept until you delete it'
+                                  : `Retention date ${new Intl.DateTimeFormat('en-CA', {
+                                      timeZone: 'America/Toronto',
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    }).format(new Date(verifiedArchive.retention.delete_after))}`}
+                              </span>
+                            </div>
+                          ) : staleArchive ? (
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                              Recovery copy out of date
+                            </div>
+                          ) : latestOperation?.status === 'failed' ? (
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
+                              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                              Recovery copy needs attention
+                            </div>
+                          ) : (
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs text-text-muted">
+                              <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
+                              {latestOperation?.status === 'snapshot_ready'
+                                ? 'Recovery copy interrupted'
+                                : recovery && !recovery.export_available
+                                  ? 'Database archive only · Recovery copy unavailable'
+                                  : 'Database archive only'}
+                            </div>
                           )}
-                        </div>
-                        <div className="mt-1 text-sm text-text-muted">
-                          {dateRange ?? 'Semester dates not set'}
-                        </div>
-                        {verifiedArchive ? (
-                          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
-                            <span className="inline-flex items-center gap-1 font-medium text-success">
-                              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                              Recovery copy verified
+                          {openingClassroomId === c.id && (
+                            <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                              Opening classroom...
+                            </div>
+                          )}
+                        </button>
+                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                          <Tooltip content="Reuse">
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="xs"
+                                className="p-0"
+                                aria-label="Reuse"
+                                aria-busy={reusingClassroomId === c.id || undefined}
+                                onClick={() => prepareArchivedClassroomAgain(c)}
+                                disabled={
+                                  openingClassroomId !== null
+                                  || reusingClassroomId !== null
+                                }
+                              >
+                                {reusingClassroomId === c.id ? (
+                                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                ) : (
+                                  <CopyPlus className="h-4 w-4" aria-hidden="true" />
+                                )}
+                              </Button>
                             </span>
-                            <span aria-hidden="true">&middot;</span>
-                            <span>{formatArchiveSize(verifiedArchive.compressed_byte_size)}</span>
-                            <span aria-hidden="true">&middot;</span>
-                            <span>
-                              {verifiedArchive.retention.mode === 'teacher_managed'
-                                ? 'Kept until you delete it'
-                                : `Retention date ${new Intl.DateTimeFormat('en-CA', {
-                                    timeZone: 'America/Toronto',
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  }).format(new Date(verifiedArchive.retention.delete_after))}`}
+                          </Tooltip>
+                          <Tooltip content="Unarchive">
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="surface"
+                                size="xs"
+                                className="p-0"
+                                aria-label="Unarchive"
+                                onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
+                                disabled={openingClassroomId !== null || reusingClassroomId !== null}
+                              >
+                                <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
+                              </Button>
                             </span>
-                          </div>
-                        ) : staleArchive ? (
-                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
-                            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                            Recovery copy out of date
-                          </div>
-                        ) : latestOperation?.status === 'failed' ? (
-                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
-                            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                            Recovery copy needs attention
-                          </div>
-                        ) : (
-                          <div className="mt-2 inline-flex items-center gap-1 text-xs text-text-muted">
-                            <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
-                            {latestOperation?.status === 'snapshot_ready'
-                              ? 'Recovery copy interrupted'
-                              : recovery && !recovery.export_available
-                                ? 'Database archive only · Recovery copy unavailable'
-                                : 'Database archive only'}
-                          </div>
-                        )}
-                        {openingClassroomId === c.id && (
-                          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                            Opening classroom...
-                          </div>
-                        )}
-                      </button>
-                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                        <Tooltip content="Reuse">
-                          <span className="inline-flex">
-                            <Button
-                              type="button"
-                              variant="primary"
-                              size="xs"
-                              className="p-0"
-                              aria-label="Reuse"
-                              aria-busy={reusingClassroomId === c.id || undefined}
-                              onClick={() => prepareArchivedClassroomAgain(c)}
-                              disabled={
-                                openingClassroomId !== null
-                                || reusingClassroomId !== null
-                              }
-                            >
-                              {reusingClassroomId === c.id ? (
-                                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                              ) : (
-                                <CopyPlus className="h-4 w-4" aria-hidden="true" />
-                              )}
-                            </Button>
-                          </span>
-                        </Tooltip>
-                        <Tooltip content="Unarchive">
-                          <span className="inline-flex">
+                          </Tooltip>
+                          {!verifiedArchive && recovery && exportCanStart ? (
                             <Button
                               type="button"
                               variant="surface"
                               size="xs"
-                              className="p-0"
-                              aria-label="Unarchive"
-                              onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
+                              onClick={() => void openHotArchiveExport(c, recovery)}
+                              disabled={openingClassroomId !== null || reusingClassroomId !== null || isProcessing}
+                            >
+                              <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
+                              {hasRetryableOperation
+                                ? hotArchiveRecoveryActionLabel(recovery)
+                                : 'Create recovery copy'}
+                            </Button>
+                          ) : null}
+                          {hotClassroomPurgeEnabledIds.has(c.id) ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              className="text-danger hover:text-danger"
+                              aria-label="Delete permanently"
+                              title="Delete permanently"
+                              onClick={() => setPurgeClassroom(c)}
                               disabled={openingClassroomId !== null || reusingClassroomId !== null}
                             >
-                              <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </Button>
-                          </span>
-                        </Tooltip>
-                        {!verifiedArchive && recovery && exportCanStart ? (
-                          <Button
-                            type="button"
-                            variant="surface"
-                            size="xs"
-                            onClick={() => void openHotArchiveExport(c, recovery)}
-                            disabled={openingClassroomId !== null || reusingClassroomId !== null || isProcessing}
-                          >
-                            <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
-                            {hasRetryableOperation
-                              ? hotArchiveRecoveryActionLabel(recovery)
-                              : 'Create recovery copy'}
-                          </Button>
-                        ) : null}
-                        {hotClassroomPurgeEnabledIds.has(c.id) ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            className="text-danger hover:text-danger"
-                            aria-label="Delete permanently"
-                            title="Delete permanently"
-                            onClick={() => setPurgeClassroom(c)}
-                            disabled={openingClassroomId !== null || reusingClassroomId !== null}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        ) : null}
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-                {coldArchives.map((archive) => (
-                  <ColdClassroomArchiveRow
-                    key={archive.archive_id}
-                    archive={archive}
-                    restoreEnabled={coldArchiveRestoreEnabled}
-                    purgeEnabled={coldClassroomPurgeEnabledIds.has(archive.classroom_id)}
-                    disabled={
-                      isProcessing
-                      || openingClassroomId !== null
-                      || coldPurgeArchive !== null
-                    }
-                    onRestore={() => openColdRestore(archive)}
-                    onDelete={() => setColdPurgeArchive(archive)}
-                  />
-                ))}
-              </>
-            )}
-          </div>
-        )}
-
-        {visibleClassrooms.length > 0 && showCreateClassroomButton ? (
-          <div className="flex justify-center pt-3">
-            <IconButton
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => setShowCreate(true)}
-              icon={Plus}
-              label="Create classroom"
-            />
-          </div>
-        ) : null}
-      </PageContent>
-
-      <FloatingActionCluster
-        placement="bottom"
-        chrome="none"
-        data-testid="classroom-bottom-controls"
-      >
-        <div className="relative min-h-[52px]">
-          {isEditingClassrooms ? (
-            <div className="absolute left-1/2 -translate-x-1/2">
-              <SegmentedControl<ViewMode>
-                ariaLabel="Classroom view"
-                value={view}
-                onChange={setView}
-                className="border border-border shadow-sm"
-                options={[
-                  {
-                    value: 'active',
-                    label: 'Active',
-                    icon: <CircleDot className="h-3.5 w-3.5" />,
-                  },
-                  {
-                    value: 'archived',
-                    label: 'Archived',
-                    icon: <Archive className="h-3.5 w-3.5" />,
-                  },
-                ]}
-              />
+                    )
+                  })}
+                  {coldArchives.map((archive) => (
+                    <ColdClassroomArchiveRow
+                      key={archive.archive_id}
+                      archive={archive}
+                      restoreEnabled={coldArchiveRestoreEnabled}
+                      purgeEnabled={coldClassroomPurgeEnabledIds.has(archive.classroom_id)}
+                      disabled={
+                        isProcessing
+                        || openingClassroomId !== null
+                        || coldPurgeArchive !== null
+                      }
+                      onRestore={() => openColdRestore(archive)}
+                      onDelete={() => setColdPurgeArchive(archive)}
+                    />
+                  ))}
+                </>
+              )}
             </div>
-          ) : null}
-          <TeacherEditModeControls
-            active={isEditingClassrooms}
-            onActiveChange={(active) => {
-              setIsEditingClassrooms(active)
-              if (!active) {
-                setDraggingClassroomId(null)
-                setView('active')
-              }
-            }}
-            disabled={openingClassroomId !== null}
-            editLabel="Organize classrooms"
-            activeTooltip="Hide organize actions"
-            inactiveTooltip="Organize classrooms"
-            className="absolute right-0 top-1/2 -translate-y-1/2"
-          />
-        </div>
-      </FloatingActionCluster>
+          )}
+
+        </PageContent>
+
+      </div>
 
       <CreateClassroomModal
         isOpen={showCreate}

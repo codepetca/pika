@@ -4,6 +4,10 @@ Status: experimental. These development-only proposals need human acceptance
 before any live-page adoption. Risk profile: none (fixture-only UI; no live data writes).
 Independent review risk: standard, covering prototype interaction state.
 
+The Classrooms list menu/navigation was accepted on 2026-09-03 for
+[scoped live adoption](../classrooms-live-adoption.md). Real classroom cards and
+archive lifecycle operations remain feature-owned; unrelated mockups are not promoted.
+
 The Gradebook composition was accepted by the maintainer on 2026-09-02 for
 [scoped live adoption](../gradebook-live-adoption.md). Its category and assessment
 editors share feature-owned components with the live page; Pattern Lab still uses
