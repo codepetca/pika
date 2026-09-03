@@ -30550,19 +30550,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
 
 <!-- pika-session-log-archive-batch:03ebbd9990c8196ee9881751598ce291276a07ffe6148440643a62aebe46ceba -->
-## 2026-09-01 — Record AI PR lifecycle evidence
-
-- Added `pnpm record:ai-pr-lifecycle`, an append-only local recorder for AI PR stages, attributable active work/token metrics, CI queue/run timing, correction/sync counts, and final quality. It keeps unavailable fields unknown and never records prompts, source content, secrets, identities, or environment values.
-- Updated the canonical development workflow plus Codex and Claude PR prompts so agents record start, draft, review, remediation, CI, merge, and summary evidence automatically. No application, schema, CI-policy, dependency, or production behavior changed.
-- Verification: recorder and guidance tests (47), focused checks (89), architecture/UI/design policy, TypeScript, lint, and Pika audit passed. Model recommendation: GPT-5.6 Terra — bounded local tooling and workflow-contract change.
-- Independent review corrections: added recorder tests to the canonical PR Gate workflow and renamed the post-PR timestamp to `trackingStartedAt`, so it cannot be mistaken for active development time.
-
-## 2026-09-01 — Simplify teacher work-surface actions
-
-- Removed the duplicate centered Organize action from the experimental Classwork and Tests summaries; Create remains centered and each Organize command remains available once in the trailing More menu.
-- Changed shared Page action-bar More triggers and default teacher work-surface icon-menu triggers to the ghost treatment so they blend into their background at rest. Explicit primary menu triggers remain unchanged.
-- Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
-
+<!-- pika-session-log-archive-batch:742e74269b819e96365e02895945db0bc34e11b219f06fb24adb725e6da9648d -->
 ## 2026-09-01 — Add Daily and role-aware classroom page mockups
 
 - Added an API-free teacher Daily page mockup using the production date navigator, work-surface action hierarchy, operational table, selection menu, attendance status controls, and log-summary composition.

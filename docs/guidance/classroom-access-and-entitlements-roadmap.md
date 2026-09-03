@@ -6,6 +6,9 @@ and [calendar writes #1175](contextual-calendar-writes.md), in that order after
 synchronization, integration review and fresh CI. Their PR records contain the exact
 landing SHAs and checks. These implemented backend slices remain off by default;
 hosted parity is unmeasured and the reachable mixed-role domain is incomplete.
+The [enrollment foundation](contextual-enrollment-access.md) begins batch C with dormant
+identity/cohort and pure admission contracts; it has no live route imports and does not
+make enrollment or the Owned/Joined home available.
 See the [compatibility inventory and runbook](classroom-access-compatibility.md).
 This is not approval for production rollout, neutral onboarding or monetization enforcement.
 
@@ -117,6 +120,10 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   Migration 152 adds two service-only calendar RPCs, verified locally with separate exact
   permission; hosted application remains unapproved. Other guards stay legacy. UI,
   sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
+- The first enrollment foundation slice is also dormant: it preserves the legacy student
+  guard when disabled and defines fail-closed exact-pair/admission decisions. The live join
+  route cannot adopt it until atomic writes, invitation guess limits and database race
+  evidence exist. It adds no migration, cohort or production configuration.
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
