@@ -386,6 +386,14 @@ begin
     raise exception 'Linked Classroom purge did not order Blueprint deletion: %',
       v_impact;
   end if;
+  perform set_config('pika.course_blueprint_purge_finalize', 'on', true);
+  begin
+    perform public.guard_classroom_purge_lifecycle('c1200000-0000-4000-8000-000000000030');
+    raise exception 'Blueprint finalization crossed a live classroom purge fence';
+  exception when sqlstate '40001' then
+    if sqlerrm <> 'course_blueprint_purge_waiting_for_classroom_purge' then raise; end if;
+  end;
+  perform set_config('pika.course_blueprint_purge_finalize', 'off', true);
   delete from public.classroom_purge_operations
   where id = 'c1200000-0000-4000-8000-000000000090';
 

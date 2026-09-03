@@ -1,4 +1,8 @@
 import { createV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
+import {
+  DECOMMISSION_PATH, parseDecommissionRequest, parseDecommissionReceipt,
+  type DecommissionRequest, type DecommissionReceipt,
+} from '@/vendor/attendance-contract/decommission'
 import type {
   V1CheckInInvalidate,
   V1CheckInPresentationRequest,
@@ -94,8 +98,8 @@ export class BaraAttendanceClientError extends Error {
   }
 }
 
-function configuration() {
-  if (process.env.PIKA_BARA_ATTENDANCE_ENABLED !== 'true') {
+function configuration(allowDisabled = false) {
+  if (!allowDisabled && process.env.PIKA_BARA_ATTENDANCE_ENABLED !== 'true') {
     throw new BaraAttendanceClientError('Bara attendance integration is disabled', 'disabled', false)
   }
 
@@ -751,4 +755,27 @@ export async function getBaraSessionSnapshot(
     )
   }
   return result
+}
+
+// Dormant transport only: the database coordinator must fence Pika first.
+// Disabling ordinary attendance must not prevent an authorized deletion retry.
+export async function postBaraDecommission(
+  payload: DecommissionRequest,
+  options: ClientOptions = {},
+): Promise<DecommissionReceipt> {
+  const validated = parseDecommissionRequest(payload)
+  if (!validated) throw new BaraAttendanceClientError('Invalid deletion request', 'invalid_payload', false)
+  const mode = process.env.PIKA_BARA_DECOMMISSION_MODE
+  if (mode !== 'enabled' && !(mode === 'canary' &&
+    process.env.PIKA_BARA_DECOMMISSION_CANARY_ROSTER_REF === validated.roster_ref)) {
+    throw new BaraAttendanceClientError('Attendance deletion is disabled', 'disabled', false)
+  }
+  const config = configuration(true)
+  if (validated.installation_ref !== config.installationRef) {
+    throw new BaraAttendanceClientError('Invalid deletion scope', 'resource_mismatch', false)
+  }
+  const { parsed, status } = await signedRequest(config, 'POST', DECOMMISSION_PATH, JSON.stringify(validated), options)
+  const receipt = parseDecommissionReceipt(parsed, validated)
+  if (!receipt) throw new BaraAttendanceClientError('Unverified deletion response', 'invalid_response', true, status)
+  return receipt
 }
