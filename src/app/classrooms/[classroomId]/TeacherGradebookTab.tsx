@@ -260,10 +260,11 @@ export function TeacherGradebookTab({
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasCurrentSnapshot) {
+      invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
       void loadGradebook({ preserveSnapshot: true })
     }
     wasActiveRef.current = isActive
-  }, [isActive, hasCurrentSnapshot, loadGradebook])
+  }, [classroom.id, isActive, hasCurrentSnapshot, loadGradebook])
 
   function retryGradebookLoad() {
     if (loading) return

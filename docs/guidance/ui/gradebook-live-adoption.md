@@ -39,6 +39,8 @@ other page compositions remain experimental.
 - Title saves use the original assignment/Test records. Test titles use the
   versioned draft API, preserving question content. Title and Gradebook details
   are separate saves; partial success is reported explicitly and caches invalidated.
+  Live titles may duplicate other assessment titles, matching those writers.
+  Only Pattern Lab's title-keyed score fixtures require unique titles.
 - Gradebook totals do not fall back to legacy totals when configured categories
   contain no counted grades. None is excluded, while legacy classrooms without
   categories retain their existing calculations.
@@ -46,6 +48,10 @@ other page compositions remain experimental.
   request fences are preserved. Archived classrooms cannot edit.
 - Score mode, summary, names/IDs, weights, and frozen-column preferences persist
   locally. Export quotes CSV fields and neutralizes formula-like text.
+  Frozen columns intentionally match the approved prototype: selection, the first
+  displayed name, and Final. Freezing both names and IDs would crowd assessments
+  off the mobile viewport. Returning from Classwork invalidates the Gradebook
+  cache before refreshing, even within its normal cache lifetime.
 - Secondary email remains a disabled action pending the maintainer's choice of
   source. The only existing alternate roster field is counselor_email; no new
   personal data or guessed address convention is introduced.

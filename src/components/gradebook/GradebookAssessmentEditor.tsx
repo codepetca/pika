@@ -14,6 +14,7 @@ export function GradebookAssessmentEditor({
   onSave,
   isSaving = false,
   error,
+  validateTitle,
 }: {
   isOpen: boolean
   assessment: GradebookAssessmentColumn | null
@@ -23,6 +24,7 @@ export function GradebookAssessmentEditor({
   onSave: (title: string, categoryId: string | null, weight: number) => void | Promise<void>
   isSaving?: boolean
   error?: string
+  validateTitle?: (title: string) => string | undefined
 }) {
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -42,14 +44,9 @@ export function GradebookAssessmentEditor({
   ) : null
 
   const normalizedTitle = title.trim()
-  const reservedTitles = assessments
-    .filter((candidate) => candidate.assessment_id !== assessment?.assessment_id || candidate.assessment_type !== assessment?.assessment_type)
-    .map((candidate) => candidate.title)
-  const titleIsUnique = normalizedTitle === assessment?.title.trim() || !reservedTitles.some((candidate) => (
-    candidate.trim().toLocaleLowerCase() === normalizedTitle.toLocaleLowerCase()
-  ))
+  const titleError = validateTitle?.(normalizedTitle)
   const valid = normalizedTitle.length > 0
-    && titleIsUnique
+    && !titleError
     && weightIsValid
 
   return (
@@ -102,8 +99,8 @@ export function GradebookAssessmentEditor({
             />
           </FormField>
 
-          {!titleIsUnique ? (
-            <p role="alert" className="text-sm text-danger">Assessment titles must be unique.</p>
+          {titleError ? (
+            <p role="alert" className="text-sm text-danger">{titleError}</p>
           ) : null}
 
           {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
