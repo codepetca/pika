@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-31 Pattern Lab remaining classroom page mockups
-- Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
-- Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
-- Independent review found missing inactive tabpanel targets, inert retry/prototype commands, and insufficient durable coverage. Fixed all findings in one batch, added explicit local-only feedback and a reusable 35-check browser scenario; focused checks pass 13 files / 101 tests.
-
-## 2026-08-31 Persistent Pattern Lab navigation
-- Replaced the one-time horizontal section strip with a sticky Find a pattern selector and desktop quick links. Added direct destinations for Page actions, status colors, creation dialogs, student tests, history preview, and history graphs while preserving bookmarkable hashes.
-- Reused the shared Select and existing section anchors; no production route or shared component changed. Added reduced-motion-aware jumps and scroll offsets that keep headings below the persistent navigator.
-- Retained the compact overview links in the opening header and added the granular finder as the persistent navigation layer. The legacy tall contracts screenshot temporarily renders the finder statically so screenshot stitching cannot composite it into unrelated component baselines; the dedicated navigator verifier still exercises real sticky behavior.
-- Nine focused gallery tests, eight affected baseline contracts, UI/design policy, TypeScript, and a 40-check browser scenario pass. Independent review identified the nested status-color anchor's old scroll offset; one remediation batch fixed it and added a browser assertion that the heading clears the sticky navigator. Visually inspected desktop light and mobile dark deep-link captures; the navigator remains visible and neither layout overflows.
-
-## 2026-08-31 — Expand Pattern Lab classroom page patterns
-
-- Extended the teacher-only experimental Page mockups with deterministic Settings and Classwork/Tests workspace compositions. Settings covers section navigation, inline save state, access safeguards, feature switches, class days, course reuse, and Advanced markdown preference. Workspaces cover summary lists, selected-item Overview/Students modes, Markdown actions, student selection, and a keyboard-resizable work inspector. All examples use local fixtures and make no API, database, permission, or production-route changes.
-- Reused the production Settings controls and teacher work-surface owners; no new universal page component was introduced. Added direct Find a pattern destinations for all six classroom mockups so hidden Settings or Workspaces panels activate before scrolling.
-- Verification passes 13 focused test files / 105 tests plus architecture, UI policy, design policy, TypeScript, and lint. Targeted semantic tests cover the composite interactions. The durable browser scenario passes 65 checks across teacher desktop/mobile, light/dark, all six tabs, direct navigation, a full September–January Calendar Term selection, Settings selection/confirmation, workspace selection/inspector/Markdown actions, student exclusion, and page overflow. Representative screenshots were visually reviewed. Experimental adoption still requires user review; PR remains unmerged.
-
-## 2026-08-31 — Stabilize invalid Test Markdown coverage
-
-- Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.
-
 ## 2026-08-31 — Add the Classrooms list to Pattern Lab
 
 - Extended the experimental teacher Page mockups with the main Classrooms list. Its borderless bottom three-dot menu offers New Classroom, Edit classrooms, and one contextual Show Archived/Show Active toggle; edit and archived states expose a visible Back to classrooms control, and both that control and Escape restore the active non-editing list. The production Classrooms route remains unchanged.
@@ -317,6 +296,7 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Post-rebase verification: 17 files / 149 tests and all static gates pass. Both browser verifiers pass (212 full-page checks plus the dedicated Gradebook flows); refreshed teacher/student, desktop/mobile, light/dark and dialog/scrolling captures inspected. Shared-history trimming preserves the two newly archived entries and avoids re-adding seven entries already archived on main. Independent review/CI results will be recorded on the PR to keep its reviewed commit stable.
 - Independent review identified a fixture consistency bug: Few assessments hid nine retained items from the course-weight denominator. Remediation batch 1 builds calculation/editor inputs from all assessments while displaying only the three preview columns, and adds row/dialog/weight-edit regressions. The example description now makes the full-course calculation explicit. PR remains draft for targeted re-review and final cumulative integration review; no live behavior changed.
 - Targeted and final integration reviews cleared `8aef0260`; exact-head CI `33692785109` passed Test & Build, browser contracts and PR Gate. While CI ran, #1170 landed and conflicted only in shared archive history. Returned #1167 to draft and rebased onto `a9dcf20f`; Gradebook source/tests/browser verifiers are byte-for-byte unchanged from the passing candidate. A final bounded targeted rebase review and new exact-head CI are required; prior CI success is not represented as approval of the new commit. No merge authority inferred.
+
 ## 2026-09-02 — Fix release grade aggregation and gate stable QR canary
 
 - Owner approved the release-review correction: preserve an intentionally empty categorized final grade instead of falling back to legacy totals, including empty-category schemas. Three API regressions reproduced the wrong 100% before the fix. Legacy fallback remains only for an unavailable schema.
@@ -334,3 +314,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Owner approved rebasing #1171 and one additional targeted Sol/high integration review (launch 6 total). Rebased onto `a9dcf20f`, preserving both archive markers and restoring local checkpoint notes/artifacts from safety stash `a4095b73`. Application edits merged without conflict; no migration filenames or contents changed.
 - Fresh focused verification and the targeted review precede ready-state CI. Reuse the existing production promotion #1169 after merge; production remains unchanged and stable posters must remain disabled until synthetic live canaries pass.
+
+## 2026-09-02 — Preserve release after Pattern Lab merge
+
+- Exact candidate `e6dc3eb6` passed all CI lanes and PR Gate in run `33697221926`; additional Sol/high integration review found no issues. While CI ran, #1167 landed at `18ffeebe`, adding only development Gradebook prototypes/tests and history. Returned #1171 to draft, rebased again and preserved both archive histories. Release patches remain identical by range-diff; migrations unchanged. Restored screenshot artifacts from retained safety stash `5ec088a3`.
+- Owner approved the sequence: finish release, verify real teacher/student access and synthetic QR, enable only after success and soft-archive the canary, then separately implement complete Pika–Bara deletion. Current Bara unlink/ordinary roster delete is not coordinated integration erasure; do not bypass Pika deletion guards or delete shared accounts.
+- Fresh focused checks and a requested seventh narrowly scoped review precede new exact-head CI. Six reviewer launches have been used; do not launch another without the separately requested budget approval. Production remains unchanged; Phase 1 access PR #1172 is isolated from this release.

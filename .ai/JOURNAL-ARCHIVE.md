@@ -30258,7 +30258,24 @@ Fresh exact-head CI run `33449809343` on `f72cc6cd` passed the complete database
 - Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
 - Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
 
+<!-- pika-session-log-archive-batch:5f2e47d37deafacc8fa590e497b5c69b6a197a4603c68d3c5bc508233da9fb37 -->
 ## 2026-08-31 Pattern Lab remaining classroom page mockups
 - Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
 - Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
 - Independent review found missing inactive tabpanel targets, inert retry/prototype commands, and insufficient durable coverage. Fixed all findings in one batch, added explicit local-only feedback and a reusable 35-check browser scenario; focused checks pass 13 files / 101 tests.
+
+## 2026-08-31 Persistent Pattern Lab navigation
+- Replaced the one-time horizontal section strip with a sticky Find a pattern selector and desktop quick links. Added direct destinations for Page actions, status colors, creation dialogs, student tests, history preview, and history graphs while preserving bookmarkable hashes.
+- Reused the shared Select and existing section anchors; no production route or shared component changed. Added reduced-motion-aware jumps and scroll offsets that keep headings below the persistent navigator.
+- Retained the compact overview links in the opening header and added the granular finder as the persistent navigation layer. The legacy tall contracts screenshot temporarily renders the finder statically so screenshot stitching cannot composite it into unrelated component baselines; the dedicated navigator verifier still exercises real sticky behavior.
+- Nine focused gallery tests, eight affected baseline contracts, UI/design policy, TypeScript, and a 40-check browser scenario pass. Independent review identified the nested status-color anchor's old scroll offset; one remediation batch fixed it and added a browser assertion that the heading clears the sticky navigator. Visually inspected desktop light and mobile dark deep-link captures; the navigator remains visible and neither layout overflows.
+
+## 2026-08-31 — Expand Pattern Lab classroom page patterns
+
+- Extended the teacher-only experimental Page mockups with deterministic Settings and Classwork/Tests workspace compositions. Settings covers section navigation, inline save state, access safeguards, feature switches, class days, course reuse, and Advanced markdown preference. Workspaces cover summary lists, selected-item Overview/Students modes, Markdown actions, student selection, and a keyboard-resizable work inspector. All examples use local fixtures and make no API, database, permission, or production-route changes.
+- Reused the production Settings controls and teacher work-surface owners; no new universal page component was introduced. Added direct Find a pattern destinations for all six classroom mockups so hidden Settings or Workspaces panels activate before scrolling.
+- Verification passes 13 focused test files / 105 tests plus architecture, UI policy, design policy, TypeScript, and lint. Targeted semantic tests cover the composite interactions. The durable browser scenario passes 65 checks across teacher desktop/mobile, light/dark, all six tabs, direct navigation, a full September–January Calendar Term selection, Settings selection/confirmation, workspace selection/inspector/Markdown actions, student exclusion, and page overflow. Representative screenshots were visually reviewed. Experimental adoption still requires user review; PR remains unmerged.
+
+## 2026-08-31 — Stabilize invalid Test Markdown coverage
+
+- Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.
