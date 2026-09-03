@@ -4,6 +4,7 @@ import {
   evaluateFeatureEntitlement,
   evaluateClassroomFeatureAccess,
   evaluateLegacyClassroomCreation,
+  getLegacyClassroomCreationEntitlement,
 } from '@/lib/access/feature-entitlements'
 
 const ownerId = '11111111-1111-4111-8111-111111111111'
@@ -111,6 +112,13 @@ describe('relationship AND owner-sponsored feature access', () => {
 })
 
 describe('legacy creation compatibility policy', () => {
+  it.each(['teacher', 'student'])('adapts trusted %s identity to an effective legacy snapshot', (role) => {
+    const grant = getLegacyClassroomCreationEntitlement({ id: ownerId, role, email: 'private@example.com', plan: 'pro' })
+    expect(grant).toEqual({ subjectUserId: ownerId, feature: 'classrooms.create', source: 'legacy',
+      enabled: role === 'teacher', startsAt: '1970-01-01T00:00:00Z', expiresAt: null, quota: null })
+    expect(evaluateFeatureEntitlement(ownerId, 'classrooms.create', grant, at).allowed).toBe(role === 'teacher')
+  })
+
   it('preserves teacher-only creation without applying hypothetical plan limits', () => {
     expect(evaluateLegacyClassroomCreation({ id: ownerId, role: 'teacher' })).toEqual({ allowed: true })
     expect(evaluateLegacyClassroomCreation({ id: memberId, role: 'student' }).allowed).toBe(false)

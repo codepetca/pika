@@ -11,6 +11,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-31 — Remove Daily corner clipping artifact
+
+- Removed the redundant radius from Daily's invisible standalone workspace frame while preserving the table, warning-card, and summary-card radii. This prevents nested anti-aliased clipping from reading as a translucent page-colour overlay at the top corners.
+- Added focused ownership coverage. The Daily component suite passes 37/37; the repository focused gate passes 12 files / 159 tests plus architecture, UI/design policy, TypeScript, and lint.
+- Playwright screenshots were inspected for the plain table and warning-first composition at teacher desktop/mobile in light/dark. The student mobile capture confirmed no regression on the teacher-only route. Local only on `codex/fix-daily-table-corners`; no PR or publish action taken.
+
+## 2026-08-31 Pattern Lab remaining classroom page mockups
+- Added experimental Gradebook, Calendar, Announcements, and Roster compositions using production owners and local fixtures only.
+- Verified teacher desktop/mobile light/dark, populated/loading/empty/error, sorting, selection, menus, focus return, student exclusion, and no page overflow; tests and UI/design policy passed.
+- Independent review found missing inactive tabpanel targets, inert retry/prototype commands, and insufficient durable coverage. Fixed all findings in one batch, added explicit local-only feedback and a reusable 35-check browser scenario; focused checks pass 13 files / 101 tests.
+
+## 2026-08-31 Persistent Pattern Lab navigation
+- Replaced the one-time horizontal section strip with a sticky Find a pattern selector and desktop quick links. Added direct destinations for Page actions, status colors, creation dialogs, student tests, history preview, and history graphs while preserving bookmarkable hashes.
+- Reused the shared Select and existing section anchors; no production route or shared component changed. Added reduced-motion-aware jumps and scroll offsets that keep headings below the persistent navigator.
+- Retained the compact overview links in the opening header and added the granular finder as the persistent navigation layer. The legacy tall contracts screenshot temporarily renders the finder statically so screenshot stitching cannot composite it into unrelated component baselines; the dedicated navigator verifier still exercises real sticky behavior.
+- Nine focused gallery tests, eight affected baseline contracts, UI/design policy, TypeScript, and a 40-check browser scenario pass. Independent review identified the nested status-color anchor's old scroll offset; one remediation batch fixed it and added a browser assertion that the heading clears the sticky navigator. Visually inspected desktop light and mobile dark deep-link captures; the navigator remains visible and neither layout overflows.
+
+## 2026-08-31 — Expand Pattern Lab classroom page patterns
+
+- Extended the teacher-only experimental Page mockups with deterministic Settings and Classwork/Tests workspace compositions. Settings covers section navigation, inline save state, access safeguards, feature switches, class days, course reuse, and Advanced markdown preference. Workspaces cover summary lists, selected-item Overview/Students modes, Markdown actions, student selection, and a keyboard-resizable work inspector. All examples use local fixtures and make no API, database, permission, or production-route changes.
+- Reused the production Settings controls and teacher work-surface owners; no new universal page component was introduced. Added direct Find a pattern destinations for all six classroom mockups so hidden Settings or Workspaces panels activate before scrolling.
+- Verification passes 13 focused test files / 105 tests plus architecture, UI policy, design policy, TypeScript, and lint. Targeted semantic tests cover the composite interactions. The durable browser scenario passes 65 checks across teacher desktop/mobile, light/dark, all six tabs, direct navigation, a full September–January Calendar Term selection, Settings selection/confirmation, workspace selection/inspector/Markdown actions, student exclusion, and page overflow. Representative screenshots were visually reviewed. Experimental adoption still requires user review; PR remains unmerged.
+
 ## 2026-08-31 — Stabilize invalid Test Markdown coverage
 
 - Exact-head CI for the fixture-only Pattern Lab PR passed 5,510 tests and failed one unrelated TestDetailPanel timing assertion: the invalid-Markdown test assumed no background autosave could occur anywhere before its final assertion. It now compares PATCH count immediately before and after the synchronous invalid Apply action, preserving the actual contract that invalid Markdown cannot issue a save while removing dependence on hosted wall-clock contention. No production source or behavior changed.
@@ -353,3 +376,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - The additional completion review cleared `4293e61d` with no actionable blockers and 113 targeted tests. The owner then explicitly approved syncing main and one integration-only review. Rebased all five feature commits onto `f1f07b6c`; only the shared journal conflicted, and main's complete archived entries were preserved without duplicate archive markers. Application changes applied automatically, including the empty-category schema guard and independent QR canary plumbing.
 - No migration files changed, were renamed or applied. The checkout was clean, so no stash was created or restored; pre-existing shared stashes were left untouched. Saved the original head as local branch `backup/gradebook-live-before-main-20260903-0147`.
 - This is the fourth authorized correction/sync batch and seventh reviewer launch overall: one Sol/high integration-only pass, bounded to 20 minutes, with no further launch authorized. Focused checks, exact-head browser smoke and the fixed-SHA review precede ready-state CI. Evidence and the final reviewed SHA will be recorded in #1173; no merge or deployment is authorized.
+## 2026-09-02 — Classroom access compatibility observations
+
+- Sole writer: this task on `codex/access-compatibility-shadow`, based on merged #1170 (`a9dcf20f`). Coordinated with the security/release session; keep isolated from its pinned #1171 release candidate. No main merge, hosted configuration changes, migrations or permission widening authorized.
+- Added a reproducible source-signal inventory and domain migration/runbook document. Shadow hooks reuse existing query evidence in owner/manage/member helpers and the legacy teacher-only creation route. Off by default, exact cohorts, sampling and process-local cap; closed-label logs only. Legacy decisions, query sequences and responses remain unchanged even on observer failure.
+- Legacy creation now exposes an in-memory effective-entitlement snapshot, not a stored grant or billing fallback. Contract/shadow tests pass 127 with 100% coverage across four access modules; on/off/helper-failure and API regressions cover integration. Inventory baseline: 205 files with syntactic signals, not 205 proven guards. Hosted parity and rollback canaries remain unexecuted.
+- Specialized dev-flow profile: none; review risk: high. Pika audit, focused gate, draft-first Sol/high security and Terra/high compatibility review, and exact-head CI are required before readiness. Full roadmap remains incomplete; next domain is contextual classroom read/manage.
