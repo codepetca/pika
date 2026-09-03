@@ -188,6 +188,42 @@ try {
   assert.equal(parsedLimiterResults.filter((result) => result.error_code === 'rate_limited').length, 1)
   console.log('Passed: concurrent invitation guesses admit exactly the fixed budget')
 
+  const actorCapSessions = await Promise.all(
+    Array.from({ length: 13 }, (_, index) => newSession(`actor_cap_${index}`))
+  )
+  const actorCapHash = hash('actor-cap')
+  const actorCapInvitationHashes = actorCapSessions.map((_, index) => hash(`actor-cap-${index}`))
+  const actorCapResults = await Promise.all(actorCapSessions.map((session, index) => session.run(joinSql(
+    randomUUID(),
+    `${tag}_actor_cap_${index}`,
+    actorCapHash,
+    actorCapInvitationHashes[index]
+  ))))
+  const parsedActorCapResults = actorCapResults.map((result) => JSON.parse(result))
+  assert.equal(parsedActorCapResults.filter((result) => result.error_code === 'classroom_not_found').length, 12)
+  assert.equal(parsedActorCapResults.filter((result) => result.error_code === 'rate_limited').length, 1)
+  assert.equal(
+    await admin.run(`SELECT count(*) FROM public.classroom_join_rate_limits WHERE scope = 'invitation' AND key_hash IN (${actorCapInvitationHashes.map((value) => `'${value}'`).join(',')});`),
+    '12'
+  )
+  console.log('Passed: concurrent unique invitations admit exactly the actor budget')
+
+  const amplificationSession = await newSession('blocked_actor_amplification')
+  const rotatedInvitationHashes = Array.from({ length: 100 }, (_, index) => hash(`blocked-rotation-${index}`))
+  const blockedResults = (await amplificationSession.run(rotatedInvitationHashes.map((invitationHash, index) => joinSql(
+    randomUUID(),
+    `${tag}_blocked_rotation_${index}`,
+    actorCapHash,
+    invitationHash
+  )).join('\n'))).split('\n').filter(Boolean).map((result) => JSON.parse(result))
+  assert.equal(blockedResults.length, 100)
+  assert(blockedResults.every((result) => result.error_code === 'rate_limited'))
+  assert.equal(
+    await admin.run(`SELECT count(*) FROM public.classroom_join_rate_limits WHERE scope = 'invitation' AND key_hash IN (${rotatedInvitationHashes.map((value) => `'${value}'`).join(',')});`),
+    '0'
+  )
+  console.log('Passed: blocked actor cannot amplify invitation limiter rows')
+
   console.log('All contextual enrollment concurrency contracts passed.')
 } finally {
   try {

@@ -36,7 +36,8 @@ This slice adds two contracts with no production adopters:
   can execute the RPC or read limiter state.
 - `contextual-classroom-enrollment.ts` is a dormant server adapter. It normalizes the code,
   HMACs an actor budget and an actor-plus-invitation budget with `SESSION_SECRET`, calls
-  only the service RPC and fails unavailable on schema or response drift. Scoping the
+  only the service RPC, builds a validated pseudonymous classroom-joined event when Pal is
+  enabled, and fails unavailable on schema or response drift. Scoping the
   invitation budget to the actor prevents one attacker from exhausting a valid classroom's
   budget for everyone else.
 
@@ -85,7 +86,13 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 
 - The provisional fixed window is 10 minutes: 12 attempts per actor and 3 attempts for
   the same actor plus normalized invitation. These values are database-owned so a caller
-  cannot weaken them. Revisit them with production telemetry before a pilot.
+  cannot weaken them. The actor budget is consumed before an invitation row is created;
+  blocked actors therefore cannot grow the table by rotating guesses. Downstream join
+  failures roll back membership effects but preserve the charged attempt. Revisit limits
+  with production telemetry before a pilot.
+- A classroom roster may seed a missing global student profile, but cannot overwrite an
+  established profile from another classroom. Any future profile-editing authority or
+  classroom-scoped identity model is a separate product and data-contract decision.
 - `check-contextual-enrollment-database.sh` is local-only and rollback-only. It proves
   service/browser privileges, mixed-role admission, owner/archive/closed/code denials,
   idempotency, least-data output, complete lineage/profile/Pal writes and forced-failure

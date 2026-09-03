@@ -11,6 +11,15 @@ function readMigration(): string {
   return readFileSync(migrationPath, 'utf8').toLowerCase()
 }
 
+function readPublicJoinFunction(): string {
+  const sql = readMigration()
+  const start = sql.indexOf('create function public.join_classroom_by_code_atomic_v1(')
+  const end = sql.indexOf('\n$$;', start)
+  expect(start).toBeGreaterThan(-1)
+  expect(end).toBeGreaterThan(start)
+  return sql.slice(start, end + 4)
+}
+
 describe('atomic contextual classroom enrollment migration', () => {
   it('keeps invitation-guess state private and schema-backed', () => {
     const sql = readMigration()
@@ -25,16 +34,21 @@ describe('atomic contextual classroom enrollment migration', () => {
     expect(sql).toContain("p_invitation_key_hash !~ '^[0-9a-f]{64}$'")
     expect(sql).toContain("v_actor_max_attempts constant integer := 12")
     expect(sql).toContain("v_invitation_max_attempts constant integer := 3")
+    expect(sql).toContain('create index classroom_join_rate_limits_updated_at_idx')
+    expect(sql.indexOf("values ('actor', p_actor_key_hash, v_now)")).toBeLessThan(
+      sql.indexOf("values ('invitation', p_invitation_key_hash, v_now)")
+    )
   })
 
   it('exposes only a fixed-search-path service-role transaction', () => {
     const sql = readMigration()
+    const publicFunction = readPublicJoinFunction()
     const signature =
       'public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)'
 
     expect(sql).toContain('create function public.join_classroom_by_code_atomic_v1')
-    expect(sql).toContain('security definer')
-    expect(sql).toContain("set search_path = ''")
+    expect(publicFunction).toContain('security definer')
+    expect(publicFunction).toContain("set search_path = ''")
     expect(sql.replace(/\s+/g, ' ')).toContain(
       `revoke all on function ${signature} from public, anon, authenticated, service_role`
     )
@@ -42,8 +56,8 @@ describe('atomic contextual classroom enrollment migration', () => {
   })
 
   it('limits guesses before resolving the actor or classroom', () => {
-    const sql = readMigration()
-    const limiter = sql.indexOf('private.consume_classroom_join_rate_limits_v1(')
+    const sql = readPublicJoinFunction()
+    const limiter = sql.indexOf('v_rate_limit := private.consume_classroom_join_rate_limits_v1(')
     const actorLookup = sql.indexOf('from public.users actor')
     const classroomLookup = sql.indexOf('from public.classrooms classroom')
 
@@ -69,7 +83,9 @@ describe('atomic contextual classroom enrollment migration', () => {
     expect(sql).toContain('private.enqueue_pal_event(')
     expect(sql).toContain("v_outbox.source_kind is distinct from 'classroom_enrollment'")
     expect(sql).toContain('v_outbox.payload is distinct from p_pal_event')
-    expect(sql).not.toContain('exception when others')
+    expect(sql).toContain('exception when others')
+    expect(sql).toContain("'error_code', 'join_failed'")
+    expect(sql).toContain('on conflict (user_id) do nothing')
   })
 
   it('returns a least-data projection without invitation or owner details', () => {

@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { isPalEnabled } from '@/lib/server/pal-config'
+import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
 
 const successSchema = z.object({
   ok: z.literal(true),
@@ -21,7 +23,7 @@ const successSchema = z.object({
 
 const failureSchema = z.object({
   ok: z.literal(false),
-  status: z.number().int().min(400).max(499),
+  status: z.number().int().min(400).max(500),
   error_code: z.enum([
     'rate_limited',
     'actor_not_found',
@@ -32,6 +34,7 @@ const failureSchema = z.object({
     'enrollment_closed',
     'not_on_roster',
     'profile_required',
+    'join_failed',
   ]),
   retry_after_seconds: z.number().int().positive().optional(),
   required_fields: z.array(z.enum(['firstName', 'lastName'])).optional(),
@@ -85,11 +88,18 @@ export async function joinClassroomByCodeAtomic(args: {
   firstName: string | null
   lastName: string | null
   studentNumber: string | null
-  palEvent: unknown
+  occurredAt?: Date
   supabase?: ContextualClassroomJoinRpcClient
 }): Promise<ContextualClassroomJoinResult> {
   const classCode = normalizeClassroomJoinCode(args.classCode)
   const keys = buildClassroomJoinRateLimitKeys(args.actorId, classCode)
+  const palEvent = isPalEnabled()
+    ? buildClassroomJoinedEvent({
+        learnerId: args.actorId,
+        classroomId: args.expectedClassroomId,
+        occurredAt: args.occurredAt ?? new Date(),
+      })
+    : null
   // Migration 157 is intentionally not represented in generated types until
   // its separately authorized application and regeneration step.
   const supabase = args.supabase ?? (
@@ -104,7 +114,7 @@ export async function joinClassroomByCodeAtomic(args: {
     p_first_name: args.firstName,
     p_last_name: args.lastName,
     p_student_number: args.studentNumber,
-    p_pal_event: args.palEvent,
+    p_pal_event: palEvent,
   })
 
   const parsed = resultSchema.safeParse(data)

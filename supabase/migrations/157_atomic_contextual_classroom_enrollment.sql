@@ -12,6 +12,9 @@ create table public.classroom_join_rate_limits (
   check (cardinality(attempt_timestamps) between 0 and 30)
 );
 
+create index classroom_join_rate_limits_updated_at_idx
+  on public.classroom_join_rate_limits (updated_at);
+
 alter table public.classroom_join_rate_limits enable row level security;
 revoke all on table public.classroom_join_rate_limits from public, anon, authenticated, service_role;
 
@@ -55,20 +58,11 @@ begin
     for update skip locked
   );
 
+  -- Consume the actor budget first. A blocked actor must not be able to create
+  -- an unbounded number of invitation rows by rotating guessed codes.
   insert into public.classroom_join_rate_limits (scope, key_hash, updated_at)
-  values
-    ('actor', p_actor_key_hash, v_now),
-    ('invitation', p_invitation_key_hash, v_now)
+  values ('actor', p_actor_key_hash, v_now)
   on conflict (scope, key_hash) do nothing;
-
-  -- Every caller locks the pair in the same order so overlapping requests do
-  -- not deadlock and cannot exceed either budget under concurrency.
-  perform 1
-  from public.classroom_join_rate_limits
-  where (scope = 'actor' and key_hash = p_actor_key_hash)
-     or (scope = 'invitation' and key_hash = p_invitation_key_hash)
-  order by scope, key_hash
-  for update;
 
   select array(
     select attempted_at
@@ -77,7 +71,32 @@ begin
     order by attempted_at
   ) into v_actor_attempts
   from public.classroom_join_rate_limits
+  where scope = 'actor' and key_hash = p_actor_key_hash
+  for update;
+
+  if cardinality(v_actor_attempts) >= v_actor_max_attempts then
+    v_retry_after_seconds := greatest(
+      1,
+      ceil(extract(epoch from (v_actor_attempts[1] + v_window - v_now)))::integer
+    );
+    update public.classroom_join_rate_limits
+    set attempt_timestamps = v_actor_attempts,
+        updated_at = v_now
+    where scope = 'actor' and key_hash = p_actor_key_hash;
+    return jsonb_build_object(
+      'ok', false,
+      'retry_after_seconds', v_retry_after_seconds
+    );
+  end if;
+
+  update public.classroom_join_rate_limits
+  set attempt_timestamps = array_append(v_actor_attempts, v_now),
+      updated_at = v_now
   where scope = 'actor' and key_hash = p_actor_key_hash;
+
+  insert into public.classroom_join_rate_limits (scope, key_hash, updated_at)
+  values ('invitation', p_invitation_key_hash, v_now)
+  on conflict (scope, key_hash) do nothing;
 
   select array(
     select attempted_at
@@ -86,31 +105,18 @@ begin
     order by attempted_at
   ) into v_invitation_attempts
   from public.classroom_join_rate_limits
-  where scope = 'invitation' and key_hash = p_invitation_key_hash;
+  where scope = 'invitation' and key_hash = p_invitation_key_hash
+  for update;
 
-  if cardinality(v_actor_attempts) >= v_actor_max_attempts
-    or cardinality(v_invitation_attempts) >= v_invitation_max_attempts then
-    if cardinality(v_actor_attempts) >= v_actor_max_attempts then
-      v_retry_after_seconds := greatest(
-        v_retry_after_seconds,
-        ceil(extract(epoch from (v_actor_attempts[1] + v_window - v_now)))::integer
-      );
-    end if;
-    if cardinality(v_invitation_attempts) >= v_invitation_max_attempts then
-      v_retry_after_seconds := greatest(
-        v_retry_after_seconds,
-        ceil(extract(epoch from (v_invitation_attempts[1] + v_window - v_now)))::integer
-      );
-    end if;
-
+  if cardinality(v_invitation_attempts) >= v_invitation_max_attempts then
+    v_retry_after_seconds := greatest(
+      1,
+      ceil(extract(epoch from (v_invitation_attempts[1] + v_window - v_now)))::integer
+    );
     update public.classroom_join_rate_limits
-    set attempt_timestamps = case scope
-          when 'actor' then v_actor_attempts
-          else v_invitation_attempts
-        end,
+    set attempt_timestamps = v_invitation_attempts,
         updated_at = v_now
-    where (scope = 'actor' and key_hash = p_actor_key_hash)
-       or (scope = 'invitation' and key_hash = p_invitation_key_hash);
+    where scope = 'invitation' and key_hash = p_invitation_key_hash;
 
     return jsonb_build_object(
       'ok', false,
@@ -119,16 +125,9 @@ begin
   end if;
 
   update public.classroom_join_rate_limits
-  set attempt_timestamps = array_append(
-        case scope
-          when 'actor' then v_actor_attempts
-          else v_invitation_attempts
-        end,
-        v_now
-      ),
+  set attempt_timestamps = array_append(v_invitation_attempts, v_now),
       updated_at = v_now
-  where (scope = 'actor' and key_hash = p_actor_key_hash)
-     or (scope = 'invitation' and key_hash = p_invitation_key_hash);
+  where scope = 'invitation' and key_hash = p_invitation_key_hash;
 
   return jsonb_build_object('ok', true);
 end;
@@ -176,7 +175,22 @@ begin
     or (v_student_number is not null and length(v_student_number) > 100)
     or (p_pal_event is not null and (
       jsonb_typeof(p_pal_event) <> 'object'
+      or jsonb_object_length(p_pal_event) <> 6
+      or not p_pal_event ?& array[
+        'schema_version', 'idempotency_key', 'learner_id',
+        'event_type', 'occurred_at', 'metadata'
+      ]
+      or p_pal_event->'schema_version' is distinct from '1'::jsonb
       or p_pal_event->>'event_type' <> 'classroom.joined'
+      or p_pal_event->>'idempotency_key' !~ '^pika:v1:pika-fact-[A-Za-z0-9_-]{43}$'
+      or p_pal_event->>'learner_id' !~ '^pika-learner-[A-Za-z0-9_-]{43}$'
+      or p_pal_event->>'occurred_at' !~
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$'
+      or jsonb_typeof(p_pal_event->'metadata') <> 'object'
+      or jsonb_object_length(p_pal_event->'metadata') <> 1
+      or jsonb_typeof(p_pal_event->'metadata'->'classroom_token') <> 'string'
+      or p_pal_event->'metadata'->>'classroom_token' !~
+        '^pika-classroom-[A-Za-z0-9_-]{43}$'
       or pg_column_size(p_pal_event) > 32768
     )) then
     raise exception using
@@ -199,6 +213,11 @@ begin
       'retry_after_seconds', (v_rate_limit->>'retry_after_seconds')::integer
     );
   end if;
+
+  -- The limiter lives outside this subtransaction. Any later database failure
+  -- rolls back every membership side effect while preserving the charged
+  -- attempt, so repeated failing requests still reach the abuse ceiling.
+  begin
 
   select actor.* into v_actor
   from public.users actor
@@ -361,10 +380,7 @@ begin
         v_roster.first_name,
         v_roster.last_name
       )
-      on conflict (user_id) do update
-      set student_number = excluded.student_number,
-          first_name = excluded.first_name,
-          last_name = excluded.last_name;
+      on conflict (user_id) do nothing;
     end if;
   end if;
 
@@ -400,6 +416,13 @@ begin
       'created_at', v_enrollment.created_at
     )
   );
+  exception when others then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 500,
+      'error_code', 'join_failed'
+    );
+  end;
 end;
 $$;
 
