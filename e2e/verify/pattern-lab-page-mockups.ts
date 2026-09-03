@@ -860,7 +860,7 @@ export const patternLabPageMockups: VerificationScript = {
     const selectedActionsArtifact = path.join(artifactDir, 'desktop-light-gradebook-student-actions.png')
     await section.screenshot({ path: selectedActionsArtifact })
     artifacts.push(selectedActionsArtifact)
-    checks.push({ name: 'Student actions exposes both email-copy commands', passed: await section.getByRole('menuitem', { name: 'Copy secondary emails' }).isVisible() })
+    checks.push({ name: 'Student actions exposes both email-copy commands', passed: await section.getByRole('menuitem', { name: 'Copy email 2' }).isVisible() })
     await section.getByRole('menuitem', { name: 'Copy emails', exact: true }).click()
     checks.push({ name: 'Prototype command gives explicit feedback', passed: await section.getByRole('status').getByText(/Example only/).isVisible() })
 

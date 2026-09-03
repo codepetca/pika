@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Dumbbell, MoreHorizontal, Users } from 'lucide-react'
+import { ChevronDown, Dumbbell, MoreVertical, Users } from 'lucide-react'
 import { IconButton, SegmentedControl } from '@/ui'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceActionCluster, TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
@@ -30,7 +30,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         </span>}
         items={[
           { id: 'copy-emails', label: 'Copy emails', onSelect: onCopyEmails },
-          { id: 'copy-secondary-emails', label: 'Copy secondary emails', disabled: !onCopySecondaryEmails, onSelect: () => onCopySecondaryEmails?.() },
+          { id: 'copy-secondary-emails', label: 'Copy email 2', disabled: !onCopySecondaryEmails, onSelect: () => onCopySecondaryEmails?.() },
         ]}
         disabled={!selectedCount} variant={selectedCount ? 'primary' : 'secondary'}
         menuAriaLabel="Student actions" menuAlign="start"
@@ -41,7 +41,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         <IconButton icon={Dumbbell} label="Show weights" variant={preferences.showWeights ? 'subtle' : 'ghost'} aria-pressed={preferences.showWeights} onClick={() => onChange({ showWeights: !preferences.showWeights })} />
       </div>
     </TeacherWorkSurfaceActionCluster>}
-    actions={<TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
+    actions={<TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
       { id: 'edit-categories', label: 'Edit categories', disabled: isReadOnly, onSelect: onEditCategories },
       { id: 'name-order', label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },

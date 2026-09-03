@@ -296,7 +296,7 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('table')).toBeInTheDocument()
     await user.click(within(mockups).getByRole('checkbox', { name: 'Select Maya Chen' }))
     await user.click(within(mockups).getByRole('button', { name: '1 selected' }))
-    expect(within(mockups).getByRole('menuitem', { name: 'Copy secondary emails' })).toBeInTheDocument()
+    expect(within(mockups).getByRole('menuitem', { name: 'Copy email 2' })).toBeInTheDocument()
     await user.click(within(mockups).getByRole('menuitem', { name: 'Copy emails' }))
     expect(within(mockups).getByRole('status')).toHaveTextContent('Copy emails selected. Example only')
     await user.click(within(mockups).getByRole('tab', { name: 'Roster' }))

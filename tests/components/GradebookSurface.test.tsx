@@ -29,8 +29,12 @@ describe('Gradebook surface owners', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: '%' }), { key: 'ArrowRight' })
     expect(onChange).toHaveBeenCalledWith({ scoreDisplayMode: 'raw' })
     expect(screen.getByRole('button', { name: 'x/y' })).toHaveFocus()
+    const dots = [...screen.getByRole('button', { name: 'Gradebook more actions' }).querySelectorAll('circle')]
+    expect(dots).toHaveLength(3)
+    expect(new Set(dots.map((dot) => dot.getAttribute('cx'))).size).toBe(1)
+    expect(new Set(dots.map((dot) => dot.getAttribute('cy'))).size).toBe(3)
     fireEvent.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy secondary emails' })).toBeDisabled()
+    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy email 2' })).toBeDisabled()
   })
 
   it('keeps empty assessment space and keyboard student selection in the matrix', () => {

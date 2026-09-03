@@ -52,9 +52,22 @@ other page compositions remain experimental.
   displayed name, and Final. Freezing both names and IDs would crowd assessments
   off the mobile viewport. Returning from Classwork invalidates the Gradebook
   cache before refreshing, even within its normal cache lifetime.
-- Secondary email remains a disabled action pending the maintainer's choice of
-  source. The only existing alternate roster field is counselor_email; no new
-  personal data or guessed address convention is introduced.
+- The maintainer chose the display label Email 2 for the existing counselor_email
+  address. The Gradebook command is Copy email 2; it remains disabled until its
+  roster-data wiring is completed in a subsequent reviewed pass. No new personal
+  data field or guessed address convention is introduced.
+
+## Follow-up menu refinement
+
+- Surface/reference: teacher Gradebook toolbar and approved Pattern Lab Gradebook.
+- Reuse the shared icon menu and Lucide MoreVertical, matching the prototype's
+  existing vertical-dot trigger; retain its accessible name, tooltip and 44px target.
+- Extend only Gradebook's menu copy to Copy email 2. Roster-wide terminology is a
+  separate scope question; storage and import contracts remain unchanged.
+- Verify teacher desktop/mobile, light/dark, menu closed/open/focused and selected
+  email menu. Student UI is n/a (teacher-only controls); confirm role isolation.
+- Risk profile: none for this icon/label refinement. No new shared owner, layout,
+  title-save changes or copy-data wiring. Composite keyboard/focus checks apply.
 
 ## Accessibility and verification
 
