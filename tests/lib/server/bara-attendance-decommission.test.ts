@@ -1,5 +1,9 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { beginAttendanceDecommission, tickAttendanceDecommission } from '@/lib/server/bara-attendance-decommission'
+import {
+  beginAttendanceDecommission,
+  getAttendanceDecommission,
+  tickAttendanceDecommission,
+} from '@/lib/server/bara-attendance-decommission'
 const mock = vi.hoisted(() => ({ rpc: vi.fn(), remote: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ rpc: mock.rpc }) }))
 vi.mock('@/lib/server/bara-attendance-client', () => ({ postBaraDecommission: mock.remote }))
@@ -19,6 +23,23 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllEnvs())
 describe('coordinated attendance deletion ordering', () => {
+  it('keeps status inspectable while the rollout is paused without permitting progress', async () => {
+    vi.stubEnv('PIKA_BARA_DECOMMISSION_MODE', 'disabled')
+
+    await expect(getAttendanceDecommission(scope)).resolves.toMatchObject({
+      state: 'fenced', attendance_removed: false, classroom_deleted: false,
+    })
+    await expect(beginAttendanceDecommission({ ...scope, confirmation: 'DELETE' }))
+      .rejects.toThrow('Attendance deletion is disabled')
+    await expect(tickAttendanceDecommission(scope)).rejects.toThrow('Attendance deletion is disabled')
+    expect(mock.rpc).toHaveBeenCalledTimes(1)
+    expect(mock.rpc).toHaveBeenCalledWith('get_attendance_decommission', {
+      p_teacher_id: scope.teacherId, p_classroom_id: scope.classroomId,
+      p_operation_id: scope.operationId,
+    })
+    expect(mock.remote).not.toHaveBeenCalled()
+  })
+
   it('commits only the local fence at begin, before any remote mutation', async () => {
     expect(await beginAttendanceDecommission({ ...scope, confirmation: 'DELETE' }))
       .toMatchObject({ state: 'fenced', attendance_removed: false, classroom_deleted: false })

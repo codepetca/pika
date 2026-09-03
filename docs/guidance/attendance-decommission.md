@@ -61,8 +61,10 @@ by live-table verification.
 - Disabling a rollout gate pauses further deletion but never removes an existing
   fence. Each remote request requires fresh database authorization, including
   the installation binding; pausing cannot recall an already-authorized request
-  in flight. Retry the same operation. There is no unfence/undo operation after
-  destructive intent begins; do not clear tombstones manually.
+  in flight. The owning teacher can still read the operation's status while the
+  application gate is disabled, but cannot begin or advance an operation. Retry
+  the same operation after the gate is restored. There is no unfence/undo
+  operation after destructive intent begins; do not clear tombstones manually.
 - There is no new schedule. Each explicit tick does bounded work. Deletion adds
   no network round trip to ordinary attendance; active fences add indexed reads
   at write boundaries. Legacy cleanup scans cost work proportional to the
