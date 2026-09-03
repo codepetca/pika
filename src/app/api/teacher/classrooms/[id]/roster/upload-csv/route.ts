@@ -48,7 +48,7 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     )
   }
 
-  // Expected format: Student Number,First Name,Last Name,Email[,Alt email]
+  // Expected format: Student Number,First Name,Last Name,Email[,Secondary email]
   const students: ParsedStudent[] = []
 
   for (let i = 1; i < lines.length; i++) {

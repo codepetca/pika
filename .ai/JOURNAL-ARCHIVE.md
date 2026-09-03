@@ -30585,3 +30585,11 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Removed the duplicate centered Organize action from the experimental Classwork and Tests summaries; Create remains centered and each Organize command remains available once in the trailing More menu.
 - Changed shared Page action-bar More triggers and default teacher work-surface icon-menu triggers to the ghost treatment so they blend into their background at rest. Explicit primary menu triggers remain unchanged.
 - Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
+
+<!-- pika-session-log-archive-batch:e97eae55d45849f2dc60c1c5bd3346996214b2bfabc6dd3ef6b462439df2084d -->
+<!-- pika-session-log-archive-batch:742e74269b819e96365e02895945db0bc34e11b219f06fb24adb725e6da9648d -->
+## 2026-09-01 — Add Daily and role-aware classroom page mockups
+
+- Added an API-free teacher Daily page mockup using the production date navigator, work-surface action hierarchy, operational table, selection menu, attendance status controls, and log-summary composition.
+- Added a sticky Pattern Lab Teacher/Student switch. Both fixture mode and authenticated development review accept the explicit reference role; production remains unavailable. The classroom page set now remains visible in both modes, with student Today, Classwork, Tests, Calendar, Announcements, and Resources fixtures composed from existing feature owners.
+- Focused checks pass 141 files / 1,397 tests plus architecture, UI policy, design policy, TypeScript, and lint. Pika audit passes with composite-widget coverage present. The durable 142-check browser scenario verifies role switching, direct destinations, desktop/mobile light/dark page sets, and no page overflow; representative Daily, student-page, and sticky-navigator screenshots were visually inspected.

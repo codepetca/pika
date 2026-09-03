@@ -1,7 +1,6 @@
 'use client'
 
 import { CourseGuidePanel } from '@/components/CourseGuidePanel'
-import { TeacherClassResourcesSidebar } from './TeacherClassResourcesSidebar'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -15,9 +14,6 @@ export function TeacherResourcesTab({ classroom, onClassroomUpdated }: Props) {
       classroom={classroom}
       role="teacher"
       onClassroomUpdated={onClassroomUpdated}
-      renderResourcesEditor={(onSaved) => (
-        <TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />
-      )}
     />
   )
 }
