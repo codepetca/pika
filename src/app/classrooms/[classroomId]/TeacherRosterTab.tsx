@@ -968,7 +968,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                                 }
                               }}
                               className="px-2 py-1 text-sm"
-                              placeholder="alt@example.com"
+                              placeholder="secondary@example.com"
                               aria-describedby={currentCounselorError ? counselorErrorId : undefined}
                               aria-invalid={!!currentCounselorError}
                               readOnly={isSavingCurrentCounselor}

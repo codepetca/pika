@@ -313,6 +313,7 @@ describe('TeacherRosterTab', () => {
       name: 'Edit secondary email for Ada Lovelace',
     }))
     const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    expect(input).toHaveAttribute('placeholder', 'secondary@example.com')
     await user.clear(input)
     await user.type(input, 'updated@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
