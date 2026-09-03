@@ -7,8 +7,7 @@ import type { ActualCourseSiteConfig } from '@/types'
 import { Button, ContentDialog, FormField, Input, cn } from '@/ui'
 
 const VISIBILITY_OPTIONS: Array<[keyof ActualCourseSiteConfig, string]> = [
-  ['overview', 'Curriculum overview'],
-  ['resources', 'Resources'],
+  ['overview', 'Course guide'],
   ['assignments', 'Assignments'],
   ['tests', 'Tests'],
 ]

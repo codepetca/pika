@@ -6,7 +6,7 @@ import { UploadRosterModal } from '@/components/UploadRosterModal'
 describe('UploadRosterModal', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('describes the optional roster contact as an alt email', () => {
+  it('describes the roster email fields as main and secondary', () => {
     render(
       <UploadRosterModal
         isOpen
@@ -16,7 +16,8 @@ describe('UploadRosterModal', () => {
       />,
     )
 
-    expect(screen.getByText('Alt email')).toBeInTheDocument()
+    expect(screen.getByText('Email (main)')).toBeInTheDocument()
+    expect(screen.getByText('Email (secondary)')).toBeInTheDocument()
     expect(screen.queryByText(/Counselor Email/i)).not.toBeInTheDocument()
   })
 

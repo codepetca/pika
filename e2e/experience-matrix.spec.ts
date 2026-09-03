@@ -1675,40 +1675,32 @@ test.describe('teacher experience matrix', () => {
     const classroomId = await enterSeededClassroom(page, 'teacher')
     await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
 
-    const editGuide = page.getByRole('button', { name: 'Edit guide' })
-    await expect(editGuide).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Course Guide' })).toHaveCount(0)
+    const moreActions = page.getByRole('button', { name: 'More actions' })
+    await expect(moreActions).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Course guide', exact: true })).toBeVisible()
     await captureCourseGuideState(page, testInfo, 'teacher-read')
 
-    await editGuide.click()
-    await expect(page.getByRole('button', {
-      name: 'Edit curriculum overview and expectations',
-    })).toHaveAttribute('aria-pressed', 'false')
-    await captureCourseGuideState(page, testInfo, 'teacher-edit')
+    await moreActions.click()
+    await expect(page.getByRole('menuitem', { name: 'Edit', exact: true })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Edit with Markdown' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Guide options' })).toBeVisible()
+    await captureCourseGuideState(page, testInfo, 'teacher-actions')
 
-    await page.getByRole('button', { name: 'Edit resources' }).click()
-    const resourcesEditor = page.getByRole('textbox', {
-      name: 'Rules, links, and reference material',
-    })
-    await expect(resourcesEditor).toBeVisible()
-    await page.waitForTimeout(350)
-    await expect(resourcesEditor).toBeVisible()
-    await captureCourseGuideState(page, testInfo, 'teacher-resources-editor')
+    await page.getByRole('menuitem', { name: 'Edit with Markdown' }).click()
+    const markdownEditor = page.getByRole('textbox', { name: 'Course guide Markdown' })
+    await expect(markdownEditor).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toHaveCount(0)
+    await captureCourseGuideState(page, testInfo, 'teacher-markdown-editor')
+    await page.getByRole('button', { name: 'Cancel' }).click()
 
-    const editOverview = page.getByRole('button', {
-      name: 'Edit curriculum overview and expectations',
-    })
-    await editOverview.focus()
-    await expect(editOverview).toBeFocused()
-    await page.keyboard.press('Enter')
-    const overviewEditor = page.getByRole('textbox', {
-      name: 'Curriculum overview and expectations',
-    })
+    await moreActions.click()
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click()
+    const overviewEditor = page.getByRole('textbox', { name: 'Course guide' })
     await expect(overviewEditor).toBeVisible()
-    await captureCourseGuideState(page, testInfo, 'teacher-overview-editor')
+    await captureCourseGuideState(page, testInfo, 'teacher-visual-editor')
 
-    const optionsButton = page.getByRole('button', { name: 'Guide options' })
-    await optionsButton.click()
+    await moreActions.click()
+    await page.getByRole('menuitem', { name: 'Guide options' }).click()
     await expect(page.getByRole('dialog', { name: 'Guide options' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
     await captureCourseGuideState(page, testInfo, 'teacher-options')
@@ -1719,7 +1711,7 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('Public page address')).toBeVisible()
     await captureCourseGuideState(page, testInfo, 'teacher-options-public')
     await page.keyboard.press('Escape')
-    await expect(optionsButton).toBeFocused()
+    await expect(moreActions).toBeFocused()
 
     if (testInfo.project.name === 'chromium-desktop') {
       let releaseSave: (() => void) | undefined
@@ -1736,7 +1728,7 @@ test.describe('teacher experience matrix', () => {
         })
       })
       await overviewEditor.fill(`${await overviewEditor.textContent()} Temporary visual check`)
-      await page.getByRole('button', { name: 'Save overview' }).click()
+      await page.getByRole('button', { name: 'Save', exact: true }).click()
       await expect(page.getByRole('button', { name: 'Saving...' })).toBeDisabled()
       await captureCourseGuideState(page, testInfo, 'teacher-saving')
       releaseSave?.()
@@ -1818,8 +1810,8 @@ test.describe('student experience matrix', () => {
 
     await expect(page.getByRole('heading', { name: 'Assignments' })).toBeVisible()
     await expect(page.getByText('Add curriculum context and classroom expectations.')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'More actions' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toHaveCount(0)
     await expect(page.locator('iframe')).toHaveCount(0)
     await captureCourseGuideState(page, testInfo, 'student-read')
     await verifyProjectContract(page, testInfo)
@@ -2049,9 +2041,9 @@ test.describe('public Course Guide experience matrix', () => {
     expect(response?.status()).toBe(200)
 
     await expect(page.getByRole('heading', { level: 1, name: 'Test Classroom' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Curriculum overview and expectations' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Course guide', exact: true })).toBeVisible()
     await expect(page.getByText(/practical problem-solving/)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'More actions' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Course outline' })).toHaveCount(0)
     await expect(page.locator('iframe')).toHaveCount(0)

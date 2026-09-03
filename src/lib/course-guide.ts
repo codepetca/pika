@@ -45,7 +45,6 @@ export function getCourseGuidePublicSharingReadiness(args: {
 export function hasCourseGuideContent(guide: CourseGuideData): boolean {
   return Boolean(
     (guide.visibility.overview && guide.overviewMarkdown.trim())
-    || (guide.visibility.resources && guide.resourcesContent)
     || (guide.visibility.assignments && guide.assignments.length > 0)
     || (guide.visibility.tests && guide.tests.length > 0),
   )
