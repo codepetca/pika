@@ -20,28 +20,15 @@ vi.mock('@/components/CourseGuideView', () => ({
   CourseGuideView: ({
     guide,
     editMode,
-    activeEditor,
-    onEditSection,
     overviewEditor,
-    resourcesEditor,
   }: {
     guide: { classroom: { title: string } }
     editMode?: boolean
-    activeEditor?: 'overview' | 'resources' | null
-    onEditSection?: (section: 'overview' | 'resources') => void
     overviewEditor?: ReactNode
-    resourcesEditor?: ReactNode
   }) => (
     <div data-testid="course-guide-view">
       Guide for {guide.classroom.title}
-      {editMode ? (
-        <>
-          <button type="button" onClick={() => onEditSection?.('overview')}>Edit curriculum overview and expectations</button>
-          <button type="button" onClick={() => onEditSection?.('resources')}>Edit resources</button>
-        </>
-      ) : null}
-      {activeEditor === 'overview' ? overviewEditor : null}
-      {activeEditor === 'resources' ? resourcesEditor : null}
+      {editMode ? overviewEditor : null}
     </div>
   ),
 }))
@@ -149,6 +136,11 @@ function render(ui: ReactNode) {
   )
 }
 
+function selectCourseGuideAction(name: 'Edit' | 'Edit with Markdown' | 'Guide options') {
+  fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+  fireEvent.click(screen.getByRole('menuitem', { name }))
+}
+
 beforeEach(() => {
   mockPush.mockClear()
   invalidateCachedJSONMatching('public-course-guide:')
@@ -170,11 +162,13 @@ describe('Course Guide classroom tabs', () => {
     expect(screen.getByTestId('course-guide-view').closest('.overflow-y-auto')).not.toBeNull()
     expect(screen.queryByRole('heading', { name: 'Course Guide' })).toBeNull()
     if (_role === 'teacher') {
-      const editGuide = screen.getByRole('button', { name: 'Edit guide' })
-      expect(editGuide).toBeInTheDocument()
-      fireEvent.click(editGuide)
-      expect(screen.getByRole('button', { name: 'Guide options' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+      expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Edit with Markdown' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Guide options' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+      expect(screen.getByLabelText('Course guide')).toBeInTheDocument()
       expect(mockPush).not.toHaveBeenCalled()
     } else {
       expect(screen.getByRole('link', { name: 'Open public guide' })).toHaveAttribute(
@@ -217,13 +211,13 @@ describe('Course Guide classroom tabs', () => {
     expect(screen.queryByRole('button', { name: 'Open public guide' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Course Guide' })).toBeNull()
     if (_role === 'teacher') {
-      fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-      expect(screen.getByRole('button', { name: 'Guide options' })).toBeInTheDocument()
+      selectCourseGuideAction('Edit')
+      expect(screen.getByLabelText('Course guide')).toBeInTheDocument()
       expect(mockPush).not.toHaveBeenCalled()
     }
   })
 
-  it('edits and saves the curriculum overview within the guide pane', async () => {
+  it('edits and saves the course guide directly within the page', async () => {
     const onClassroomUpdated = vi.fn()
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockReturnValueOnce(fetchResult({ guide }))
@@ -233,12 +227,11 @@ describe('Course Guide classroom tabs', () => {
 
     render(<TeacherResourcesTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />)
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
-    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+    selectCourseGuideAction('Edit')
+    fireEvent.change(screen.getByLabelText('Course guide'), {
       target: { value: 'Updated overview' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save overview' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/teacher/classrooms/classroom-1',
@@ -252,6 +245,19 @@ describe('Course Guide classroom tabs', () => {
     }))
   })
 
+  it('opens a paste-friendly Markdown source editor from More actions', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
+
+    render(<TeacherResourcesTab classroom={classroom} />)
+    await screen.findByTestId('course-guide-view')
+    selectCourseGuideAction('Edit with Markdown')
+
+    const markdownEditor = screen.getByRole('textbox', { name: 'Course guide Markdown' })
+    expect(markdownEditor).toHaveValue(classroom.course_overview_markdown)
+    fireEvent.change(markdownEditor, { target: { value: '# Pasted course guide' } })
+    expect(markdownEditor).toHaveValue('# Pasted course guide')
+  })
+
   it('owns visibility and public sharing in the accessible Guide options dialog', async () => {
     const updatedClassroom = {
       ...classroom,
@@ -263,8 +269,7 @@ describe('Course Guide classroom tabs', () => {
 
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    selectCourseGuideAction('Guide options')
 
     expect(screen.getByRole('dialog', { name: 'Guide options' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Import curriculum' })).toBeInTheDocument()
@@ -289,38 +294,36 @@ describe('Course Guide classroom tabs', () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    const optionsButton = screen.getByRole('button', { name: 'Guide options' })
-    optionsButton.focus()
-    fireEvent.click(optionsButton)
+    const moreButton = screen.getByRole('button', { name: 'More actions' })
+    moreButton.focus()
+    selectCourseGuideAction('Guide options')
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus())
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Guide options' })).toBeNull())
-    expect(optionsButton).toHaveFocus()
+    expect(moreButton).toHaveFocus()
   })
 
   it('opens curriculum import from Guide options only when overview edits are saved', async () => {
     vi.spyOn(globalThis, 'fetch').mockReturnValue(fetchResult({ guide }))
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    selectCourseGuideAction('Guide options')
     fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
 
     expect(screen.getByRole('dialog', { name: 'Import curriculum' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
-    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+    selectCourseGuideAction('Edit')
+    fireEvent.change(screen.getByLabelText('Course guide'), {
       target: { value: 'Unsaved overview' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    selectCourseGuideAction('Guide options')
     fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Save or cancel your overview edits before importing curriculum.',
+      'Save or cancel your course guide edits before importing curriculum.',
     )
     expect(screen.queryByRole('dialog', { name: 'Import curriculum' })).toBeNull()
   })
@@ -364,8 +367,7 @@ describe('Course Guide classroom tabs', () => {
       />,
     )
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Guide options' }))
+    selectCourseGuideAction('Guide options')
     fireEvent.click(screen.getByRole('button', { name: 'Import curriculum' }))
     fireEvent.click(screen.getByRole('button', { name: 'Public URL' }))
     fireEvent.change(screen.getByLabelText('Public document URL'), {
@@ -391,15 +393,14 @@ describe('Course Guide classroom tabs', () => {
 
     render(<TeacherResourcesTab classroom={classroom} />)
     await screen.findByTestId('course-guide-view')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit guide' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Edit curriculum overview and expectations' }))
-    fireEvent.change(screen.getByLabelText('Curriculum overview and expectations'), {
+    selectCourseGuideAction('Edit')
+    fireEvent.change(screen.getByLabelText('Course guide'), {
       target: { value: 'Unsaved overview' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save overview' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not save overview')
-    expect(screen.getByLabelText('Curriculum overview and expectations')).toHaveValue('Unsaved overview')
+    expect(screen.getByLabelText('Course guide')).toHaveValue('Unsaved overview')
   })
 
   it('keeps archived classroom guides read-only', async () => {
@@ -408,7 +409,7 @@ describe('Course Guide classroom tabs', () => {
 
     await screen.findByTestId('course-guide-view')
     expect(screen.getByText('Archived classroom · Course Guide is read-only.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Edit guide' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull()
   })
 
   it('keeps announcements in their dedicated teacher and student tabs', () => {
