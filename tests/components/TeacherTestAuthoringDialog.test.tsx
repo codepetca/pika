@@ -9,6 +9,7 @@ const draftFlush = vi.hoisted(() => vi.fn(async () => true))
 const draftPristineCheck = vi.hoisted(() => vi.fn(() => ({
   isPristine: false,
   draftVersion: 1,
+  testUpdatedAt: '2024-10-10T10:00:00Z',
 })))
 
 vi.mock('@/components/TestDetailPanel', () => ({
@@ -20,7 +21,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     testQuestionLayout?: string
     onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
     onDraftPristineCheckReady?: (
-      check: (() => { isPristine: boolean; draftVersion: number }) | null
+      check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
     ) => void
   }) => {
     onDraftFlushReady?.(draftFlush)
@@ -54,7 +55,7 @@ function renderDialog({
   testOverride = test,
   initialView = 'edit',
   discardPristineOnClose = false,
-  onDiscardPristine = vi.fn(async (_draftVersion: number) => true),
+  onDiscardPristine = vi.fn(async (_draftVersion: number, _testUpdatedAt: string) => true),
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
@@ -63,7 +64,7 @@ function renderDialog({
   testOverride?: TestAssessmentWithStats
   initialView?: 'edit' | 'markdown'
   discardPristineOnClose?: boolean
-  onDiscardPristine?: (draftVersion: number) => Promise<boolean>
+  onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
 } = {}) {
   render(
     <TooltipProvider>
@@ -214,7 +215,11 @@ describe('TeacherTestAuthoringDialog', () => {
 
   it('discards a newly created pristine Test after flushing instead of keeping it', async () => {
     draftFlush.mockClear()
-    draftPristineCheck.mockReturnValueOnce({ isPristine: true, draftVersion: 7 })
+    draftPristineCheck.mockReturnValueOnce({
+      isPristine: true,
+      draftVersion: 7,
+      testUpdatedAt: '2024-10-10T10:00:00Z',
+    })
     const onClose = vi.fn()
     const onDiscardPristine = vi.fn(async () => true)
     renderDialog({
@@ -226,13 +231,17 @@ describe('TeacherTestAuthoringDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     await waitFor(() => expect(onDiscardPristine).toHaveBeenCalledTimes(1))
-    expect(onDiscardPristine).toHaveBeenCalledWith(7)
+    expect(onDiscardPristine).toHaveBeenCalledWith(7, '2024-10-10T10:00:00Z')
     expect(draftFlush).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
   })
 
   it('keeps an edited newly created Test on close', async () => {
-    draftPristineCheck.mockReturnValueOnce({ isPristine: false, draftVersion: 7 })
+    draftPristineCheck.mockReturnValueOnce({
+      isPristine: false,
+      draftVersion: 7,
+      testUpdatedAt: '2024-10-10T10:00:00Z',
+    })
     const onClose = vi.fn()
     const onDiscardPristine = vi.fn(async () => true)
     renderDialog({

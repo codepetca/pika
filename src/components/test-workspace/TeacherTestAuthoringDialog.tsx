@@ -22,7 +22,7 @@ interface TeacherTestAuthoringDialogProps {
   publicationError?: string
   onClose: () => void
   discardPristineOnClose?: boolean
-  onDiscardPristine?: (draftVersion: number) => Promise<boolean>
+  onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
   onDraftSummaryChange: (update: AssessmentEditorSummaryUpdate) => void
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onPendingMarkdownImportChange: (pending: boolean) => void
@@ -53,7 +53,7 @@ export function TeacherTestAuthoringDialog({
   const [isPreparingPublish, setIsPreparingPublish] = useState(false)
   const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
   const draftPristineCheckRef = useRef<(
-    () => { isPristine: boolean; draftVersion: number }
+    () => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }
   ) | null>(null)
 
   useEffect(() => {
@@ -69,7 +69,10 @@ export function TeacherTestAuthoringDialog({
     if (saved) {
       const pristineState = draftPristineCheckRef.current?.()
       if (discardPristineOnClose && pristineState?.isPristine && onDiscardPristine) {
-        const discarded = await onDiscardPristine(pristineState.draftVersion)
+        const discarded = await onDiscardPristine(
+          pristineState.draftVersion,
+          pristineState.testUpdatedAt,
+        )
         if (discarded) {
           setAuthoringView('edit')
           setIsClosing(false)

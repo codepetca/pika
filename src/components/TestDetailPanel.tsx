@@ -65,7 +65,7 @@ interface Props {
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
   onDraftPristineCheckReady?: (
-    check: (() => { isPristine: boolean; draftVersion: number }) | null
+    check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
   ) => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
@@ -226,6 +226,7 @@ export function TestDetailPanel({
   const [structureLocked, setStructureLocked] = useState(true)
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
+  const testUpdatedAtRef = useRef(testAssessment.updated_at)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
@@ -478,6 +479,7 @@ export function TestDetailPanel({
     pendingDraftRef.current = null
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
+    testUpdatedAtRef.current = testAssessment.updated_at
     loadedDraftTestIdRef.current = null
     setStructureLocked(true)
     setEditTitle(testDefaults.title)
@@ -780,6 +782,10 @@ export function TestDetailPanel({
               content?: { title?: string; show_results?: boolean; questions?: unknown[] }
             }
           | undefined
+        const savedTest = data?.test as { updated_at?: unknown } | undefined
+        if (typeof savedTest?.updated_at === 'string') {
+          testUpdatedAtRef.current = savedTest.updated_at
+        }
         if (serverDraft?.content) {
           draftVersionRef.current = serverDraft.version
           lastSavedDraftRef.current = nextSerialized
@@ -887,6 +893,7 @@ export function TestDetailPanel({
         && !markdownDirtyRef.current
       ),
       draftVersion: draftVersionRef.current,
+      testUpdatedAt: testUpdatedAtRef.current,
     }
   }, [draftShowResults, editTitle, questions])
 
@@ -1859,6 +1866,7 @@ export function TestDetailPanel({
       onDraftChange={handleTitleDraftChange}
       onSave={handleTitleSave}
       onCancel={handleTitleCancel}
+      saveOnEscape
       generatedTitleLabel={titleGeneratedLabel}
       className={className}
       rowClassName={rowClassName}

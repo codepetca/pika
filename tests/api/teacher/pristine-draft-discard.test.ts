@@ -60,11 +60,17 @@ describe('pristine draft discard routes', () => {
     })
   })
 
-  it('passes the Test draft version to the atomic discard boundary', async () => {
+  it('passes both Test concurrency fences to the atomic discard boundary', async () => {
     vi.mocked(discardPristineTestDraftAtomic).mockResolvedValueOnce({ discarded: true })
     const response = await discardTest(new NextRequest(
       'http://localhost:3000/api/teacher/tests/test-1/discard-pristine',
-      { method: 'POST', body: JSON.stringify({ expected_draft_version: 7 }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          expected_draft_version: 7,
+          expected_test_updated_at: '2026-05-14T10:45:00.000Z',
+        }),
+      },
     ), { params: Promise.resolve({ id: 'test-1' }) })
 
     expect(response.status).toBe(200)
@@ -73,6 +79,7 @@ describe('pristine draft discard routes', () => {
       testId: 'test-1',
       teacherId: 'teacher-1',
       expectedDraftVersion: 7,
+      expectedTestUpdatedAt: '2026-05-14T10:45:00.000Z',
     })
   })
 
@@ -83,7 +90,13 @@ describe('pristine draft discard routes', () => {
     })
     const response = await discardTest(new NextRequest(
       'http://localhost:3000/api/teacher/tests/test-1/discard-pristine',
-      { method: 'POST', body: JSON.stringify({ expected_draft_version: 7 }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          expected_draft_version: 7,
+          expected_test_updated_at: '2026-05-14T10:45:00.000Z',
+        }),
+      },
     ), { params: Promise.resolve({ id: 'test-1' }) })
 
     expect(response.status).toBe(200)

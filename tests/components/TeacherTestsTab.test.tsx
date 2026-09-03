@@ -62,7 +62,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
       questions_count: number
     }) => void
     onDraftPristineCheckReady?: (
-      check: (() => { isPristine: boolean; draftVersion: number }) | null
+      check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
     ) => void
     titlePortalTarget?: HTMLElement | null
     generatedTitleLabel?: string
@@ -80,6 +80,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
         && test.show_results === false
       ),
       draftVersion: 4,
+      testUpdatedAt: test.updated_at,
     }))
 
     return (
@@ -1188,7 +1189,10 @@ describe('TeacherTestsTab', () => {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expected_draft_version: 4 }),
+          body: JSON.stringify({
+            expected_draft_version: 4,
+            expected_test_updated_at: createdTest.updated_at,
+          }),
         },
       )
     })

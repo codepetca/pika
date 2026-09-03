@@ -9086,6 +9086,7 @@ export type Database = {
       discard_pristine_test_draft_atomic: {
         Args: {
           p_expected_draft_version: number
+          p_expected_test_updated_at: string
           p_teacher_id: string
           p_test_id: string
         }

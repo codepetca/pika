@@ -6,6 +6,7 @@ import { discardPristineTestDraftAtomic } from '@/lib/server/pristine-draft-disc
 
 const discardRequestSchema = z.object({
   expected_draft_version: z.number().int().positive(),
+  expected_test_updated_at: z.string().datetime({ offset: true }),
 }).strict()
 
 export const POST = withErrorHandler('DiscardPristineTestDraft', async (request, context) => {
@@ -17,6 +18,7 @@ export const POST = withErrorHandler('DiscardPristineTestDraft', async (request,
     testId: id,
     teacherId: user.id,
     expectedDraftVersion: body.expected_draft_version,
+    expectedTestUpdatedAt: body.expected_test_updated_at,
   })
   return NextResponse.json(result)
 })

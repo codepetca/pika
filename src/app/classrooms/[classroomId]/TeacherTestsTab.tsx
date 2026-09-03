@@ -2798,14 +2798,20 @@ export function TeacherTestsTab({
       navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
     }
   }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
-  const handleDiscardPristineTest = useCallback(async (draftVersion: number): Promise<boolean> => {
+  const handleDiscardPristineTest = useCallback(async (
+    draftVersion: number,
+    testUpdatedAt: string,
+  ): Promise<boolean> => {
     if (!selectedTestWorkspace || newlyCreatedTestId !== selectedTestWorkspace.id) return false
 
     try {
       const response = await fetch(`${apiBasePath}/${selectedTestWorkspace.id}/discard-pristine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expected_draft_version: draftVersion }),
+        body: JSON.stringify({
+          expected_draft_version: draftVersion,
+          expected_test_updated_at: testUpdatedAt,
+        }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {

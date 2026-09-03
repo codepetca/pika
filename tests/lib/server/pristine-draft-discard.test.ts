@@ -43,16 +43,18 @@ describe('pristine draft discard database boundary', () => {
     })).resolves.toMatchObject({ discarded: false, assignment: { title: 'Changed' } })
   })
 
-  it('fences Test cleanup with the observed draft version', async () => {
+  it('fences Test cleanup with the observed draft and Test row versions', async () => {
     rpc.mockResolvedValueOnce({ data: { discarded: true }, error: null })
 
     await expect(discardPristineTestDraftAtomic({
       testId: 'test-1',
       teacherId: 'teacher-1',
       expectedDraftVersion: 7,
+      expectedTestUpdatedAt: '2026-05-14T10:45:00.000Z',
     })).resolves.toEqual({ discarded: true })
     expect(rpc).toHaveBeenCalledWith('discard_pristine_test_draft_atomic', {
       p_expected_draft_version: 7,
+      p_expected_test_updated_at: '2026-05-14T10:45:00.000Z',
       p_teacher_id: 'teacher-1',
       p_test_id: 'test-1',
     })
@@ -68,6 +70,7 @@ describe('pristine draft discard database boundary', () => {
       testId: 'test-1',
       teacherId: 'teacher-1',
       expectedDraftVersion: 7,
+      expectedTestUpdatedAt: '2026-05-14T10:45:00.000Z',
     })).resolves.toMatchObject({ discarded: false, test: { title: 'Changed' } })
   })
 })

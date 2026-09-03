@@ -62,6 +62,7 @@ export async function discardPristineTestDraftAtomic(input: {
   testId: string
   teacherId: string
   expectedDraftVersion: number
+  expectedTestUpdatedAt: string
 }): Promise<
   | { discarded: true }
   | { discarded: false; test: TableRow<'tests'> }
@@ -69,6 +70,7 @@ export async function discardPristineTestDraftAtomic(input: {
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase.rpc('discard_pristine_test_draft_atomic', {
     p_expected_draft_version: input.expectedDraftVersion,
+    p_expected_test_updated_at: input.expectedTestUpdatedAt,
     p_teacher_id: input.teacherId,
     p_test_id: input.testId,
   })
