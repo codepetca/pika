@@ -6,6 +6,28 @@ teachers must print and replace it. The live display remains occurrence-specific
 
 ## Security and rollout
 
+- Stable classroom posters have a separate server-only rollout gate:
+  `PIKA_CLASSROOM_QR_MODE=disabled|canary|enabled`. Unset or invalid means disabled.
+  In `canary` mode, both `PIKA_CLASSROOM_QR_CANARY_TEACHER_ID` and
+  `PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID` must be valid UUIDs matching the exact
+  authorized synthetic classroom and its teacher. These are separate from the
+  existing Bara integration canary pair. The gate grants no ownership, enrollment,
+  WorkOS identity, or attendance entitlement; all existing authorization remains.
+- The server controls menu visibility and rechecks the gate for poster creation,
+  rotation, and every student scan (including previously printed posters).
+  Existing occurrence QR, attendance hours, schedules, and teacher entitlements
+  are unaffected by this switch. Stale page visibility cannot bypass the API gate.
+- Release with the new poster gate disabled. Create only the explicitly authorized
+  dedicated synthetic fixture, set its exact teacher/classroom pair and canary
+  mode, then redeploy. Verify real teacher poster issuance/rotation and an
+  authenticated enrolled student scan through Bara, plus out-of-scope denial.
+  Only after that evidence passes may an authorized rollout set `enabled` and
+  redeploy for wider use. If blocked, leave the poster gate disabled or canary;
+  do not disable or narrow existing attendance to work around the gate.
+- Preview must not use production Supabase. Fixture screenshots are not live
+  integration evidence. Production fixture and configuration changes still require
+  the named owner-approved scope. Clean up synthetic Pika/Bara data through the
+  existing authorized lifecycle after recording privacy-safe verification.
 - The public URL contains a random handle authenticated with a domain-separated
   MAC using `BARA_ATTENDANCE_ENTRY_TOKEN_SECRET`. It is a locator, not authorization.
   Rotating that environment secret also invalidates existing posters.

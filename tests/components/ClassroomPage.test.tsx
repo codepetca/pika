@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClassroomPage from '@/app/classrooms/[classroomId]/page'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
+  getAttendanceAccess: vi.fn(),
   getPalApiUrl: vi.fn(),
   getUserDisplayInfo: vi.fn(),
   listActiveTeacherClassrooms: vi.fn(),
@@ -24,6 +25,10 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/server/pal-config', () => ({
   getPalApiUrl: () => mocks.getPalApiUrl(),
+}))
+
+vi.mock('@/lib/server/bara-attendance-scope', () => ({
+  getBaraAttendanceClassroomAccess: (...args: unknown[]) => mocks.getAttendanceAccess(...args),
 }))
 
 vi.mock('@/lib/user-profile', () => ({
@@ -48,8 +53,8 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ user, initialTab }: { user: { role: string }; initialTab?: string }) => (
-    <div data-testid="classroom-page" data-role={user.role} data-tab={initialTab || ''} />
+  ClassroomPageClient: ({ user, initialTab, classroomQrAvailable }: { user: { role: string }; initialTab?: string; classroomQrAvailable?: boolean }) => (
+    <div data-testid="classroom-page" data-role={user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
   ),
 }))
 
@@ -70,8 +75,10 @@ async function renderPage(tab: string) {
 }
 
 describe('ClassroomPage feature visibility redirects', () => {
+  afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
     mocks.getCurrentUser.mockReset()
+    mocks.getAttendanceAccess.mockResolvedValue({ state: 'disabled', scheduleThrough: null })
     mocks.getPalApiUrl.mockReset()
     mocks.getUserDisplayInfo.mockReset()
     mocks.listActiveTeacherClassrooms.mockReset()
@@ -88,6 +95,19 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.notFound.mockImplementation(() => {
       throw new Error('not-found')
     })
+  })
+
+  it.each([false, true])('supplies server-checked poster availability for an entitled teacher: %s', async (allowed) => {
+    const classroomId = '11111111-1111-4111-8111-111111111111'
+    const teacherId = '22222222-2222-4222-8222-222222222222'
+    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'canary')
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', allowed ? classroomId : teacherId)
+    mocks.getCurrentUser.mockResolvedValue({ id: teacherId, email: 'teacher@example.test', role: 'teacher' })
+    mocks.getAttendanceAccess.mockResolvedValue({ state: 'ready', scheduleThrough: null })
+    mocks.singleResults.push({ data: { ...classroom(), id: classroomId, teacher_id: teacherId }, error: null })
+    render(await ClassroomPage({ params: Promise.resolve({ classroomId }), searchParams: Promise.resolve({ tab: 'daily' }) }))
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-qr', String(allowed))
   })
 
   it.each([

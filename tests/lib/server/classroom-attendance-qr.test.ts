@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/server/bara-attendance-scope', () => ({
   getBaraAttendanceClassroomIdAccess: vi.fn().mockResolvedValue({
@@ -109,9 +109,27 @@ function fakeSupabase({
 }
 
 describe('stable classroom attendance QR', () => {
+  afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
+    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'enabled')
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', secret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_test')
+  })
+
+  it.each(['disabled', 'wrong-classroom', 'wrong-teacher'])('rejects existing signed posters outside the rollout gate: %s', async (scenario) => {
+    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', scenario === 'disabled' ? 'disabled' : 'canary')
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', scenario === 'wrong-teacher' ? studentId : teacherId)
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', scenario === 'wrong-classroom' ? teacherId : classroomId)
+    const loadPresentation = vi.fn()
+    const executeCheckIn = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase(), pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'), loadPresentation, executeCheckIn,
+    })).rejects.toMatchObject({ code: 'not_open' })
+    expect(loadPresentation).not.toHaveBeenCalled()
+    expect(executeCheckIn).not.toHaveBeenCalled()
   })
 
   it('round-trips an opaque handle without embedding a classroom identifier', () => {
@@ -125,6 +143,9 @@ describe('stable classroom attendance QR', () => {
   })
 
   it('resolves one currently open occurrence and keeps the Bara entry token server-side', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'canary')
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
+    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', classroomId)
     const loadPresentation = vi.fn().mockResolvedValue({
       entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
       expiresAt: '2026-09-01T13:00:00.000Z',

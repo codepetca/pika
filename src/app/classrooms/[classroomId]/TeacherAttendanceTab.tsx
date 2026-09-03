@@ -150,6 +150,7 @@ interface LogRow {
 interface Props {
   classroom: Classroom
   attendanceEnabled?: boolean
+  classroomQrAvailable?: boolean
   manualAttendanceEnabled?: boolean
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
   onDateChange?: (date: string) => void
@@ -163,6 +164,7 @@ export interface TeacherAttendanceTabHandle {
 export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({
   classroom,
   attendanceEnabled = false,
+  classroomQrAvailable = false,
   manualAttendanceEnabled = false,
   onSelectEntry,
   onDateChange,
@@ -240,6 +242,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
   const [classroomQrOpen, setClassroomQrOpen] = useState(false)
+  useEffect(() => { setClassroomQrOpen(false) }, [classroom.id, classroomQrAvailable])
   const hoursActionLabel = hours.label
     ? `Attendance hours, ${hours.label.replace(' - ', ' to ')}`
     : hours.state === 'error'
@@ -824,7 +827,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
       onSelect: () => setShowRelativeDate((visible) => !visible),
     },
-    ...(attendanceEnabled && attendance.attendanceReady && !classroom.archived_at ? [{
+    ...(classroomQrAvailable && attendanceEnabled && attendance.attendanceReady && !classroom.archived_at ? [{
       id: 'classroom-qr-poster',
       label: 'Classroom QR poster',
       icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
@@ -1492,9 +1495,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         ) : null}
       </ContentDialog>
       <TeacherClassroomQrDialog
+        key={classroom.id}
         classroomId={classroom.id}
         classroomTitle={classroom.title}
-        isOpen={classroomQrOpen}
+        isOpen={classroomQrOpen && classroomQrAvailable && attendanceEnabled && !classroom.archived_at}
         onClose={() => setClassroomQrOpen(false)}
       />
       {attendanceEnabled ? (

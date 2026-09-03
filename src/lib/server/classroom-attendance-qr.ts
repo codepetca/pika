@@ -14,6 +14,7 @@ import {
   type StudentAttendanceCheckInView,
 } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
+import { isClassroomQrRolloutAllowed } from '@/lib/server/classroom-qr-rollout'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -128,9 +129,12 @@ async function loadQrRowByClassroom(supabase: any, classroomId: string) {
 
 export async function loadTeacherClassroomQrPresentation(input: {
   supabase: any
+  teacherId: string
   classroomId: string
   createHandleId?: () => string
 }) : Promise<TeacherClassroomQrPresentation> {
+  if (!isClassroomQrRolloutAllowed(input)) throw new ClassroomAttendanceQrError('not_open')
+  qrSecret()
   let row = await loadQrRowByClassroom(input.supabase, input.classroomId)
   if (!row) {
     const handleId = (input.createHandleId ?? randomUUID)()
@@ -158,11 +162,14 @@ export async function loadTeacherClassroomQrPresentation(input: {
 
 export async function rotateTeacherClassroomQrPresentation(input: {
   supabase: any
+  teacherId: string
   classroomId: string
   expectedGeneration: number
   createHandleId?: () => string
   now?: () => string
 }) : Promise<TeacherClassroomQrPresentation> {
+  if (!isClassroomQrRolloutAllowed(input)) throw new ClassroomAttendanceQrError('not_open')
+  qrSecret()
   const nextHandleId = (input.createHandleId ?? randomUUID)()
   const rotatedAt = (input.now ?? (() => new Date().toISOString()))()
   const { data, error } = await input.supabase
@@ -312,6 +319,10 @@ export async function executeClassroomQrStudentCheckIn(input: {
     now: input.now,
   })
   if (access.state !== 'ready') throw new ClassroomAttendanceQrError('not_open')
+  const { teacherId, actor } = await loadClassroomActor({ supabase: input.supabase, classroomId })
+  if (!isClassroomQrRolloutAllowed({ teacherId, classroomId })) {
+    throw new ClassroomAttendanceQrError('not_open')
+  }
   await assertStudentRosterBoundary({
     supabase: input.supabase,
     classroomId,
@@ -322,7 +333,6 @@ export async function executeClassroomQrStudentCheckIn(input: {
     classroomId,
     now: input.now ?? new Date(),
   })
-  const { teacherId, actor } = await loadClassroomActor({ supabase: input.supabase, classroomId })
   let presentation
   try {
     presentation = await (input.loadPresentation ?? loadTeacherAttendanceQrPresentation)({

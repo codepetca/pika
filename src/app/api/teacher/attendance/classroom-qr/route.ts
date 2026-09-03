@@ -5,6 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
+import { isClassroomQrRolloutAllowed } from '@/lib/server/classroom-qr-rollout'
 import {
   ClassroomAttendanceQrError,
   loadTeacherClassroomQrPresentation,
@@ -39,6 +40,9 @@ function mapError(error: unknown): never {
 async function authorize(userId: string, classroomId: string, supabase: any) {
   const ownership = await assertTeacherCanMutateClassroom(userId, classroomId, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
+  if (!isClassroomQrRolloutAllowed({ teacherId: userId, classroomId })) {
+    throw new ApiError(404, 'Classroom QR is not enabled for this classroom')
+  }
   await assertBaraAttendanceClassroomAccess({
     supabase,
     teacherId: userId,
@@ -54,7 +58,7 @@ export const GET = withErrorHandler('GetTeacherClassroomAttendanceQr', async (re
   const supabase = getServiceRoleClient()
   try {
     await authorize(user.id, classroomId, supabase)
-    const presentation = await loadTeacherClassroomQrPresentation({ supabase, classroomId })
+    const presentation = await loadTeacherClassroomQrPresentation({ supabase, teacherId: user.id, classroomId })
     return NextResponse.json(presentation, {
       headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
     })
@@ -71,6 +75,7 @@ export const POST = withErrorHandler('RotateTeacherClassroomAttendanceQr', async
     await authorize(user.id, input.classroom_id, supabase)
     const presentation = await rotateTeacherClassroomQrPresentation({
       supabase,
+      teacherId: user.id,
       classroomId: input.classroom_id,
       expectedGeneration: input.expected_generation,
     })
