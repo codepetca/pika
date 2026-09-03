@@ -3,6 +3,12 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('ClassroomPageClient titlebar navigation', () => {
+  it('passes Gradebook activation so its retained table refreshes after Classwork edits', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+    expect(source).toMatch(/<TeacherGradebookTab\s+classroom=\{classroom\}\s+isActive=\{activeTab === 'gradebook'\}/)
+    // The request/refresh transition is exercised in TeacherGradebookTab.test.tsx.
+  })
+
   it('keeps Home navigation without wiring classroom switching into AppShell', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'),

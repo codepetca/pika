@@ -68,7 +68,7 @@ export const patternLabGradebook: VerificationScript = {
         await trigger.click()
         const menu = section.getByRole('menu', { name: 'Student actions' })
         await expect(menu.getByRole('menuitem', { name: 'Copy emails', exact: true })).toBeVisible()
-        await expect(menu.getByRole('menuitem', { name: 'Copy secondary emails' })).toBeVisible()
+        await expect(menu.getByRole('menuitem', { name: 'Copy email 2' })).toBeVisible()
         const menuIsUnclipped = await menu.evaluate((element) => {
           const rect = element.getBoundingClientRect()
           const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
