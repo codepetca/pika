@@ -30560,6 +30560,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Focused checks pass 141 files / 1,397 tests plus architecture, UI policy, design policy, TypeScript, and lint. Pika audit passes with composite-widget coverage present. The durable 142-check browser scenario verifies role switching, direct destinations, desktop/mobile light/dark page sets, and no page overflow; representative Daily, student-page, and sticky-navigator screenshots were visually inspected.
 
 <!-- pika-session-log-archive-batch:ac8b4b080889b0263038e1df4b33838b6733f03f1d9ae698a4f3bf8e5477e058 -->
+<!-- pika-session-log-archive-batch:e055a2f8e412a4e9de294fe72ef78e5bd5746337e365a972d4c9441b0512f4d9 -->
 ## 2026-09-01 — Prototype streamlined Daily attendance controls
 
 - Refined only the API-free teacher Daily Pattern Lab fixture. Joined an icon-only, tooltip-backed QR action with the attendance time to its right; the control matches the date selector height. QR remains available when attendance is closed; the clickable time area uses a subtle semantic green open state and a neutral closed state. It opens a local time editor, collapses to the clock icon when cleared, and is also reachable through Edit time in More actions. Moved open/close attendance and the renamed Edit attendance dialog into More actions, and removed row checkboxes plus the selected-student action menu.

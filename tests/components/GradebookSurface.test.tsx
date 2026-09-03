@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
 import { GradebookTable, type GradebookTableProps } from '@/components/gradebook/GradebookTable'
@@ -12,6 +13,18 @@ const student: GradebookStudentSummary = {
   student_first_name: 'Demo', student_last_name: 'Student', final_percent: null,
   assignments_earned: null, assignments_possible: null, assignments_percent: null,
   tests_earned: null, tests_possible: null, tests_percent: null,
+}
+
+function makeTableProps(overrides: Partial<GradebookTableProps> = {}): GradebookTableProps {
+  return {
+    students: [student], columns: [], displayMode: 'percent', summaryKind: 'average',
+    lastNameFirst: false, showStudentIds: false, showWeights: false, keepKeyColumnsVisible: true,
+    columnWidths: { first_name: 96, last_name: 96, id: 80, final: 80 }, onColumnWidthChange: vi.fn(),
+    weightDrafts: {}, savingKeys: new Set(), isReadOnly: false, onWeightDraftChange: vi.fn(), onWeightCommit: vi.fn(), onAssessmentOpen: vi.fn(),
+    selectedIds: new Set(), allSelected: false, someSelected: false, toggleSelect: vi.fn(), toggleSelectAll: vi.fn(),
+    selectedStudentId: null, onStudentSelect: vi.fn(), onStudentDeselect: vi.fn(), sortColumn: 'last_name', sortDirection: 'asc', onSort: vi.fn(),
+    ...overrides,
+  }
 }
 
 describe('Gradebook surface owners', () => {
@@ -39,17 +52,23 @@ describe('Gradebook surface owners', () => {
 
   it('keeps empty assessment space and keyboard student selection in the matrix', () => {
     const onStudentSelect = vi.fn()
-    const props: GradebookTableProps = {
-      students: [student], columns: [], displayMode: 'percent', summaryKind: 'average',
-      lastNameFirst: false, showStudentIds: false, showWeights: false, keepKeyColumnsVisible: true,
-      columnWidths: { first_name: 96, last_name: 96, id: 80, final: 80 }, onColumnWidthChange: vi.fn(),
-      weightDrafts: {}, savingKeys: new Set(), isReadOnly: false, onWeightDraftChange: vi.fn(), onWeightCommit: vi.fn(), onAssessmentOpen: vi.fn(),
-      selectedIds: new Set(), allSelected: false, someSelected: false, toggleSelect: vi.fn(), toggleSelectAll: vi.fn(),
-      selectedStudentId: null, onStudentSelect, onStudentDeselect: vi.fn(), sortColumn: 'last_name', sortDirection: 'asc', onSort: vi.fn(),
-    }
+    const props = makeTableProps({ onStudentSelect })
     render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
     expect(screen.getByRole('columnheader', { name: 'Assessments' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('region', { name: 'Gradebook students' }), { key: 'Home' })
     expect(onStudentSelect).toHaveBeenCalledWith(student)
+  })
+
+  it('shows only the assessment title in header tooltips', async () => {
+    const user = userEvent.setup()
+    const props = makeTableProps({
+      columns: [{
+        assessment_id: 'a1', assessment_type: 'assignment', code: 'A1', title: 'Essay',
+        possible: 10, weight: 10, include_in_final: true, category_name: 'Term',
+      }],
+    })
+    render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    await user.hover(screen.getByRole('button', { name: 'Edit A1: Essay' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Essay$/)
   })
 })
