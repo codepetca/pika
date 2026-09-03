@@ -1,10 +1,12 @@
 # Contextual calendar write boundary
 
 Next phase 2 slice after [classroom-core APIs](classroom-core-contextual-access.md).
-Branch: `codex/contextual-calendar-writes`, based on reviewed #1174 at `6e5a4ffc`.
+Branch: `codex/contextual-calendar-writes`, originally stacked on reviewed #1174 at `6e5a4ffc`.
 Migration 152 is applied and behaviorally verified on local Supabase only after the
 user's exact one-time authorization. Runtime wiring is implemented, disabled by default;
-independent review and exact-head CI remain prerequisites. No hosted rollout is approved.
+the initial independent reviews and CI passed at `45687915`. Main-only landing is
+owner-approved after dependency synchronization, integration review and fresh CI;
+the PR records the final SHA/evidence. No hosted rollout is approved.
 
 ## Why the database boundary comes first
 
@@ -118,8 +120,9 @@ access remains blocked on the other phase-2 surfaces and recovery controls.
    flag/removing pairs can strand an admitted mixed-role user and is not a safe rollback.
    Retain additive functions when rolling back code; do not drop them while callers exist.
 
-Release hold remains in effect during #1169 production verification. Neither this draft
-nor #1172/#1174 may be merged without separate owner approval and release clearance.
+The release coordinator cleared the #1169 window after production canaries. The owner
+then explicitly approved #1172, #1174 and #1175 landing in main after synchronization
+and fresh checks. Each child must target main, not merge into its feature dependency.
 Local migration approval never authorizes hosted application, enabling the pilot,
 production deployment or broadening classroom creation eligibility. Neutral onboarding
 still requires the rest of the [roadmap](classroom-access-and-entitlements-roadmap.md).
