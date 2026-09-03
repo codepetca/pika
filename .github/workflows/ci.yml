@@ -136,6 +136,9 @@ jobs:
       - name: Verify authentication session revocation and rate limits
         run: bash scripts/check-auth-session-security-database.sh
 
+      - name: Verify coordinated attendance decommission database contracts
+        run: bash scripts/check-attendance-decommission-database.sh
+
       - name: Require warning-free database functions
         run: supabase db lint --local --level warning --fail-on warning
 
