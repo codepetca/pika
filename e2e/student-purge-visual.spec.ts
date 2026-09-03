@@ -126,7 +126,7 @@ for (const entry of matrix) {
     await mockTeacherStudentPurge(page, classroomId!)
     await page.goto(`/classrooms/${classroomId}?tab=roster`)
     await page.getByText('Student1', { exact: true }).click()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('button', { name: 'More actions' }).click()
     await page.getByRole('menuitem', { name: 'Purge classroom data' }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Purge this student’s classroom data?' })
@@ -162,7 +162,7 @@ for (const entry of matrix) {
     })
     await studentPage.goto(`/classrooms/${classroomId}?tab=roster`)
     await studentPage.waitForURL((url) => url.searchParams.get('tab') === 'today')
-    await expect(studentPage.getByRole('button', { name: 'Roster actions' })).toHaveCount(0)
+    await expect(studentPage.getByRole('button', { name: 'More actions' })).toHaveCount(0)
     await expect(studentPage.getByText('Purge classroom data')).toHaveCount(0)
     expect(studentPurgeRequestCount).toBe(0)
     await expectNoHorizontalOverflow(studentPage)
