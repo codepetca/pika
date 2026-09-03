@@ -23,7 +23,7 @@ function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): Te
 function holdAutosaveDebounce() {
   const nativeSetTimeout = globalThis.setTimeout
   vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback, delay, ...args) => (
-    nativeSetTimeout(callback, delay === 3_000 ? 60_000 : delay, ...args)
+    nativeSetTimeout(callback, delay === 3_000 ? 3_600_000 : delay, ...args)
   )) as typeof setTimeout)
 }
 
@@ -740,6 +740,90 @@ describe('TestDetailPanel', () => {
       const titleTarget = screen.getByTestId('test-modal-title-target')
       expect(within(titleTarget).getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Untitled Test')
       expect(within(editorLayout).queryByRole('button', { name: 'Edit test title' })).not.toBeInTheDocument()
+    })
+
+    it('exposes whether a newly created Test draft is still pristine', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            editingPolicy: { structureLocked: false },
+            draft: {
+              version: 1,
+              content: {
+                title: 'Untitled 2026-05-14 10:45:00',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ test: { documents: [] } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            editingPolicy: { structureLocked: false },
+            draft: {
+              version: 2,
+              content: {
+                title: 'A real title',
+                show_results: false,
+                questions: [],
+              },
+            },
+            test: { updated_at: '2026-05-14T10:46:00.000Z' },
+          }),
+        })
+
+      let checkPristine: (() => {
+        isPristine: boolean
+        draftVersion: number
+        testUpdatedAt: string
+      }) | null = null
+      render(
+        <TestDetailPanel
+          test={makeTestWithStats({
+            title: 'Untitled 2026-05-14 10:45:00',
+            show_results: false,
+            stats: { total_students: 0, responded: 0, questions_count: 0 },
+          })}
+          classroomId="classroom-1"
+          onTestUpdate={vi.fn()}
+          onDraftPristineCheckReady={(check) => {
+            checkPristine = check
+          }}
+        />,
+        { wrapper: Wrapper },
+      )
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        expect(checkPristine).not.toBeNull()
+        expect(checkPristine?.()).toEqual({
+          isPristine: true,
+          draftVersion: 1,
+          testUpdatedAt: '2024-10-10T10:00:00Z',
+        })
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit test title' }))
+      fireEvent.change(screen.getByRole('textbox', { name: 'Test title' }), {
+        target: { value: 'A real title' },
+      })
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'Test title' }), { key: 'Escape' })
+
+      await waitFor(() => {
+        expect(checkPristine?.()).toEqual({
+          isPristine: false,
+          draftVersion: 2,
+          testUpdatedAt: '2026-05-14T10:46:00.000Z',
+        })
+      })
+      expect(screen.getByRole('button', { name: 'Edit test title' })).toHaveTextContent('A real title')
     })
 
     it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {
@@ -1754,6 +1838,7 @@ Current Test reference material.
     })
 
     it('updates the markdown mirror immediately after structured edits in summary-detail mode', async () => {
+      holdAutosaveDebounce()
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -3367,8 +3452,8 @@ Prompt:
       })
     })
 
-    it('cancels edit on Escape key', async () => {
-      mockFetchForTest(sampleQuestions)
+    it('saves title on Escape key', async () => {
+      const fetchMock = mockFetchForTest(sampleQuestions)
       const testAssessment = makeTestWithStats({ title: 'Original' })
 
       render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
@@ -3380,11 +3465,22 @@ Prompt:
       fireEvent.click(screen.getByText('Original'))
       const input = screen.getByDisplayValue('Original')
       fireEvent.change(input, { target: { value: 'Changed' } })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 2,
+            content: { title: 'Changed', show_results: false, questions: sampleQuestions },
+          },
+          test: { updated_at: '2026-05-14T10:46:00.000Z' },
+        }),
+      })
       fireEvent.keyDown(input, { key: 'Escape' })
 
-      // Should revert to original title (non-edit mode)
-      expect(screen.getByText('Original')).toBeInTheDocument()
-      expect(screen.queryByDisplayValue('Changed')).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Changed')
+      })
+      expect(fetchMock.mock.calls.some((call: any[]) => call[1]?.method === 'PATCH')).toBe(true)
     })
   })
 })

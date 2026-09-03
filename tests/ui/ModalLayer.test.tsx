@@ -83,6 +83,19 @@ describe('ModalLayer', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('leaves Escape for an explicitly marked inline editor', () => {
+    const onClose = vi.fn()
+    render(
+      <ModalLayer isOpen onClose={onClose} ariaLabel="Editor dialog">
+        <input aria-label="Title" data-handle-escape />
+      </ModalLayer>,
+    )
+
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Title' }), { key: 'Escape' })
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('wraps reverse Tab from a panel-focused custom dialog', async () => {
     render(
       <ModalLayer isOpen onClose={vi.fn()} ariaLabel="Custom dialog">

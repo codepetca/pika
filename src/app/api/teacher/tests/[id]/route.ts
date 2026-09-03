@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateTest } from '@/lib/tests'
+import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
@@ -256,6 +257,12 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     }
 
     const questionList = validatedDraft.value.questions
+    if (isGeneratedAssessmentTitle(validatedDraft.value.title)) {
+      return NextResponse.json(
+        { error: 'Add a title before publishing this Test' },
+        { status: 400 },
+      )
+    }
     const activation = canActivateTest(existing, questionList.length)
     if (!activation.valid) {
       return NextResponse.json({ error: activation.error }, { status: 400 })

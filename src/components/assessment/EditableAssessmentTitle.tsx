@@ -21,6 +21,7 @@ interface EditableAssessmentTitleProps {
   errorClassName?: string
   generatedTitleLabel?: string
   autoEdit?: boolean
+  saveOnEscape?: boolean
   onDraftChange?: (title: string) => void
   onSave: (title: string) => void | Promise<void>
   onCancel?: () => void
@@ -42,6 +43,7 @@ export function EditableAssessmentTitle({
   errorClassName,
   generatedTitleLabel = 'Untitled',
   autoEdit = false,
+  saveOnEscape = false,
   onDraftChange,
   onSave,
   onCancel,
@@ -105,6 +107,7 @@ export function EditableAssessmentTitle({
         {editing ? (
           <Input
             ref={inputRef}
+            data-handle-escape
             aria-label={inputLabel}
             value={draftTitle}
             onChange={(event) => {
@@ -122,7 +125,11 @@ export function EditableAssessmentTitle({
               }
               if (event.key === 'Escape') {
                 event.preventDefault()
-                cancelEditing()
+                if (saveOnEscape) {
+                  void saveDraft()
+                } else {
+                  cancelEditing()
+                }
               }
             }}
             disabled={disabled || saving}
