@@ -78,8 +78,9 @@ retrying an archive toggle. Existing genuine database errors keep their current 
 
 ## Release prerequisites and rollback floor
 
-1. Complete independent review and required CI; resolve the separate #1172 dependency
-   and release hold with owner authority. Merging code does not authorize enabling it.
+1. Verify the #1172 dependency and exact-head review/CI landing records. The owner
+   approved main-only landing of #1172/#1174/#1175 after synchronization and fresh checks;
+   the prior #1169 release-window hold is cleared. Merging does not authorize enabling it.
 2. Finish all routes, SSR pages, navigation, jobs and resources reachable by a chosen
    mixed-role pilot before admitting real classes. This partial slice alone is insufficient.
 3. Obtain explicit permission-widening approval for the exact cohort and environment;
@@ -96,8 +97,9 @@ approved by this document. Production canaries and rollback rehearsal remain une
 
 ## Deferred work
 
-Calendar POST/PATCH remain legacy: a read-only access check is not sufficient to protect
-their multi-row mutations. Home Owned/Joined lists, SSR/classroom navigation, signup,
+The next [calendar-write slice](contextual-calendar-writes.md) adds pilot-only atomic
+POST/PATCH operations with migration 152; those writes remain legacy outside the pilot.
+Home Owned/Joined lists, SSR/classroom navigation, signup,
 creation, joining and roster flows are unchanged. Assignments/tests/submissions, grading,
 attendance, files, exports, jobs, deletion, blueprints and other teacher-only surfaces need
 their own migration and resource/lifecycle audits. The [inventory](classroom-access-compatibility.md)

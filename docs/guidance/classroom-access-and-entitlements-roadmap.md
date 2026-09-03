@@ -1,12 +1,13 @@
 # Classroom access and entitlements
 
-Status: approved direction; phase 0 merged in PR #1170; phase 1 observation PR #1172
-reviewed and CI-green but unmerged, with hosted parity still unmeasured. The first
-[phase 2 classroom-core API slice](classroom-core-contextual-access.md) is implemented
-behind an off-by-default gate, pending independent review. It is not a complete domain
-or neutral-onboarding pilot. See the [compatibility inventory and runbook](classroom-access-compatibility.md).
-This is a roadmap,
-not a statement that neutral accounts, subscriptions or new permissions are live.
+Status: approved direction; phase 0 merged in PR #1170. The owner approved main-only
+landing of observation #1172, [classroom-core #1174](classroom-core-contextual-access.md)
+and [calendar writes #1175](contextual-calendar-writes.md), in that order after
+synchronization, integration review and fresh CI. Their PR records contain the exact
+landing SHAs and checks. These implemented backend slices remain off by default;
+hosted parity is unmeasured and the reachable mixed-role domain is incomplete.
+See the [compatibility inventory and runbook](classroom-access-compatibility.md).
+This is not approval for production rollout, neutral onboarding or monetization enforcement.
 
 ## Product direction
 
@@ -112,9 +113,10 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   entitlement. Its legacy creation adapter preserves teacher-only creation.
 - Phase 0 added no live imports. Phase 1 adds off-by-default, non-authoritative
   observers to existing classroom helpers and ordinary creation. The phase 2 core
-  slice separately gates contextual enforcement on six handlers in five route files;
-  all other guards remain legacy. UI, session, database policy, attendance entitlement,
-  dependencies, signup and payment providers remain unchanged.
+  slices separately gate six classroom-core handlers plus four calendar-write handlers.
+  Migration 152 adds two service-only calendar RPCs, verified locally with separate exact
+  permission; hosted application remains unapproved. Other guards stay legacy. UI,
+  sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

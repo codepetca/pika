@@ -1,6 +1,5 @@
 [
   "src/app/api/account/github-identity/route.ts",
-  "src/app/api/classrooms/[classroomId]/class-days/route.ts",
   "src/app/api/feedback/route.ts",
   "src/app/api/student/classrooms/join/route.ts",
   "src/app/api/student/entries/route.ts",
@@ -10,7 +9,6 @@
   "src/app/api/teacher/assignments/bulk/route.ts",
   "src/app/api/teacher/assignments/reorder/route.ts",
   "src/app/api/teacher/assignments/route.ts",
-  "src/app/api/teacher/class-days/route.ts",
   "src/app/api/teacher/classrooms/[id]/announcements/[announcementId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/announcements/route.ts",
   "src/app/api/teacher/classrooms/[id]/classwork/reorder/route.ts",
