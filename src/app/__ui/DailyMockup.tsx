@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Clock3, MoreVertical, QrCode, RotateCcw } from 'lucide-react'
 import {
+  ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
@@ -58,12 +59,6 @@ type AttendanceMark = (typeof SORTABLE_ATTENDANCE_STATUSES)[number]
 type AttendanceTime = { startsAt: string; endsAt: string }
 export type DailyAttendanceMode = 'qr' | 'manual'
 type ManualAttendanceMode = 'log' | 'manual'
-
-const STATUS_DOT_CLASSES: Record<AttendanceMark, string> = {
-  present: 'bg-attendance-present',
-  late: 'bg-attendance-late',
-  absent: 'bg-attendance-absent',
-}
 
 const STICKY_ATTENDANCE_OFFSETS: Record<AttendanceMark, string> = {
   present: 'right-attendance-three',
@@ -126,7 +121,7 @@ function AttendanceMarkButton({
         aria-hidden="true"
         className={cn(
           'h-5 w-5 rounded-full transition-opacity',
-          STATUS_DOT_CLASSES[mark],
+          ATTENDANCE_STATUS_DOT_CLASSES[mark],
           active
             ? 'opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-surface-2 shadow-sm'
             : 'opacity-[0.12] hover:opacity-40',
@@ -543,7 +538,7 @@ export function DailyMockup({
         <div className="space-y-2">
           {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
             <Button key={status} type="button" variant="secondary" className="w-full justify-start" onClick={() => markAll(status)}>
-              <span className={cn('h-3 w-3 rounded-full', STATUS_DOT_CLASSES[status])} aria-hidden="true" />
+              <span className={cn('h-3 w-3 shrink-0 rounded-full', ATTENDANCE_STATUS_DOT_CLASSES[status])} aria-hidden="true" />
               Mark all {status}
             </Button>
           ))}

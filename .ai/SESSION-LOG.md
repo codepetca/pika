@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Refresh QR Pattern Lab acceptance references
-
-- Final Sol/high integration review on `445f6a46` passed 85 targeted tests and found no new security/correctness defects, but reproduced a merge-blocking P2: teacher Pattern Lab references omitted the new QR example button (2/2 checked cases failed). Updated all eight teacher contract baselines after inspecting the intended button/mobile-row delta; no source, test assertions or screenshot tolerances changed. Capture source `445f6a46`, Playwright 1.58.0, Darwin and Noble Linux with fonts-dejavu-core; student baselines unchanged.
-- Exact candidate production build passes. One targeted snapshot-only re-review follows this correction (fifth reviewer launch overall); no additional broad review wave. Live authenticated Bara smoke gating remains an explicit owner decision, and required exact-head CI/replay has not run yet. PR stays draft.
-
 ## 2026-09-02 — Dormant classroom-access and entitlement foundation
 
 - Recorded the approved neutral-account/classroom-relationship direction and teacher-first monetization roadmap in `docs/guidance/classroom-access-and-entitlements-roadmap.md`. Phased rollout preserves production classes; billing, pricing, general grants, UI and neutral signup remain future work. The new epic stays incomplete.
@@ -279,3 +274,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Used an isolated synthetic teacher/student fixture for the exact signed deletion canary. Bara removed 12 remote entities and verified absence, Pika removed 9 local attendance records, and the final Classroom purge completed. Both user accounts, five unrelated student enrollments, and the retained QR attendance canary remained.
 - Enabled coordinated deletion broadly only after the canary passed, removed the temporary canary environment bindings, and verified the replacement deployment was ready before enabling Pika's database gate. The teacher browser smoke test and final database checks passed; no student browser session was available, so student preservation was verified at the database boundary.
 - Removed the temporary environment directories used during production verification. No student names, emails, opaque roster references, or production credentials were recorded here.
+
+## 2026-09-04 — Rebase attendance option colors for merge
+
+- Rebased PR #1182 onto current main after explicit merge authorization. The live and Pattern Lab Edit attendance cards retain the reviewed green Present, yellow Late, and red Absent circles; shared attendance color tokens and existing interaction semantics remain unchanged.
+- Resolved only rolling session-history conflicts by retaining current main history and recording this rebase once. Application source changes match the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
