@@ -17,11 +17,12 @@ describe('MagicAuthForm', () => {
     vi.unstubAllGlobals()
   })
 
-  it('requires a school email without showing a required marker', () => {
+  it('requires an email address with a generic placeholder and no required marker', () => {
     render(<MagicAuthForm intent="sign-in" />)
 
-    expect(screen.getByLabelText(/school email/i)).toBeRequired()
-    expect(screen.getByText('School Email')).not.toHaveTextContent('*')
+    expect(screen.getByLabelText(/email address/i)).toBeRequired()
+    expect(screen.getByLabelText(/email address/i)).toHaveAttribute('placeholder', 'you@example.com')
+    expect(screen.getByText('Email address')).not.toHaveTextContent('*')
   })
 
   it('stays on Pika while moving from email to six-digit code', async () => {
@@ -33,7 +34,7 @@ describe('MagicAuthForm', () => {
     const user = userEvent.setup()
     render(<MagicAuthForm intent="sign-in" nextPath="/attendance/check-in/token-123" />)
 
-    await user.type(screen.getByLabelText(/school email/i), 'Student@Example.com')
+    await user.type(screen.getByLabelText(/email address/i), 'Student@Example.com')
     await user.click(screen.getByRole('button', { name: /email me a sign-in code/i }))
 
     await waitFor(() => expect(screen.getByLabelText(/six-digit code/i)).toBeInTheDocument())
@@ -106,6 +107,6 @@ describe('MagicAuthForm', () => {
       '/api/auth/workos/magic/pending',
       { method: 'DELETE' },
     ))
-    expect(screen.getByLabelText(/school email/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument()
   })
 })

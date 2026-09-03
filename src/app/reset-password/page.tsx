@@ -101,10 +101,10 @@ function ResetPasswordForm() {
             </p>
 
             <form onSubmit={handleVerifyCode}>
-              <FormField label="School Email" required className="mb-4">
+              <FormField label="Email address" required className="mb-4">
                 <Input
                   type="email"
-                  placeholder="number@gapps.yrdsb.ca"
+                  placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

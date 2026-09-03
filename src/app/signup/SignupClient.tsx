@@ -56,7 +56,7 @@ export function SignupClient({
         </h1>
         <p className="text-text-muted mb-6">
           {magicAuthEnabled
-            ? 'Enter your school email. We’ll send a six-digit code to verify and create your account.'
+            ? 'Enter your email. We’ll send a six-digit code to verify and create your account.'
             : 'Enter your email to create an account. We’ll send you a verification code.'}
         </p>
 
@@ -72,10 +72,10 @@ export function SignupClient({
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <FormField label="School Email" error={error} required>
+            <FormField label="Email address" error={error} required>
               <Input
                 type="email"
-                placeholder="email@gapps.yrdsb.ca"
+                placeholder="you@example.com"
                 value={email}
                 onChange={event => setEmail(event.target.value)}
                 disabled={loading}
