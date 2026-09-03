@@ -554,7 +554,7 @@ export function UiGallery({ role }: Props) {
           id="owned-joined-home"
           eyebrow="Experimental · account home"
           title="Owned / Joined home"
-          description="The PR 1139 classroom list, extended for one account that teaches and joins classes. Local examples only; production access is unchanged."
+          description="The current top-right classroom actions from PR 1179, extended for one account that teaches and joins classes. Local examples only; production access is unchanged."
         >
           <OwnedJoinedHomeMockup key={role} role={role} />
         </PatternSection>

@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, CircleDot, LogIn, MoreVertical, Pencil, Plus, RotateCw } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, CircleDot, GripVertical, LogIn, MoreVertical, Plus, RotateCw } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs, cn } from '@/ui'
+import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs, cn } from '@/ui'
 import { classroomsForExample, JOIN_EXAMPLE, type HomeClassroomExample, type HomeExampleAccount, type HomeRelationship } from './owned-joined-home-fixtures'
 
 type HomeFilter = 'all' | HomeRelationship
@@ -65,8 +65,9 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   const [message, setMessage] = useState('Example only. Nothing is saved to your account.')
   const nextId = useRef(1)
   const backRef = useRef<HTMLButtonElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const filtersRef = useRef<HTMLDivElement>(null)
-  const pendingFocus = useRef<'back' | 'filters' | null>(null)
+  const pendingFocus = useRef<'back' | 'filters' | 'heading' | null>(null)
   const previewId = useId()
   const owned = classrooms.filter((classroom) => classroom.relationship === 'teaching')
   const visible = classrooms.filter((classroom) => classroom.archived === archived && (filter === 'all' || classroom.relationship === filter))
@@ -77,6 +78,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     const target = pendingFocus.current
     pendingFocus.current = null
     if (target === 'back') backRef.current?.focus()
+    if (target === 'heading') headingRef.current?.focus()
     if (target === 'filters') filtersRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus()
   })
 
@@ -84,6 +86,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     setName(''); setCode(''); setError(''); setJoinConfirmed(false); setDialog(next)
   }
   function resetView() { setArchived(false); setEditing(false); setFilter('all') }
+  function returnToActiveList() { pendingFocus.current = 'heading'; resetView() }
   function reorder(id: string, direction: -1 | 1) {
     const teaching = classrooms.filter((classroom) => classroom.relationship === 'teaching' && !classroom.archived)
     const index = teaching.findIndex((classroom) => classroom.id === id)
@@ -103,19 +106,30 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     ...(canCreate ? [{ id: 'create', label: 'New Classroom', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('create') }] : []),
     { id: 'join', label: 'Join classroom', icon: <LogIn className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('join') },
     ...(owned.length ? [
-      { id: 'edit', label: 'Edit classrooms', icon: <Pencil className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, dividerBefore: true, onSelect: () => { setArchived(false); setFilter('teaching'); setEditing((value) => !value) } },
-      { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, onSelect: () => { setArchived((value) => !value); setFilter('teaching'); setEditing(false) } },
+      { id: 'edit', label: 'Edit classrooms', icon: <GripVertical className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, onSelect: () => { setArchived(false); setFilter('teaching'); setEditing((value) => !value) } },
+      { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => { setArchived((value) => !value); setFilter('teaching'); setEditing(false) } },
     ] : []),
   ]
 
   return (
-    <div className="rounded-card border border-border bg-page p-3 sm:p-4" data-testid="owned-joined-home-screen">
-      <div className="relative min-h-96 pb-16">
-        {(archived || editing) && <Button ref={backRef} variant="ghost" size="sm" className="mb-2" onClick={() => { pendingFocus.current = 'filters'; resetView() }}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to classrooms</Button>}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <PageHeading level="h3" size="section" title={archived ? 'Archived classrooms' : 'Classrooms'} />
-          {!archived && <div ref={filtersRef}><SegmentedControl<HomeFilter> ariaLabel="Classroom relationship" value={filter} onChange={(value) => { setFilter(value); setEditing(false) }} options={[...FILTERS]} /></div>}
-          {archived && <span className="text-xs text-text-muted">Teaching</span>}
+    <div className="rounded-card border border-border bg-page p-3 sm:p-4" data-testid="owned-joined-home-screen" onKeyDown={(event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || (!archived && !editing)) return
+      // Portalled dialogs and the shared menu own their Escape before the list does.
+      if (dialog || preview || archiveTarget || !event.currentTarget.contains(document.activeElement)) return
+      if (event.currentTarget.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return
+      event.preventDefault()
+      returnToActiveList()
+    }}>
+      <div className="min-h-96">
+        {!archived && <div ref={filtersRef} className="mb-3 flex justify-center"><SegmentedControl<HomeFilter> ariaLabel="Classroom relationship" value={filter} onChange={(value) => { setFilter(value); setEditing(false) }} options={[...FILTERS]} /></div>}
+        <div className="mb-3">
+          {(archived || editing) && <Button ref={backRef} variant="ghost" size="xs" className="-ml-2 mb-1 px-2 text-text-muted" onClick={returnToActiveList}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to classrooms</Button>}
+          <PageActionBar className="px-0" primary={
+            <PageHeading level="h3" size="section" title={archived ? 'Archived classrooms' : 'Active classrooms'} headingRef={headingRef} tabIndex={-1} />
+          } trailing={<>
+            {editing && <span className="text-xs font-medium text-primary">Editing</span>}
+            <TeacherWorkSurfaceIconMenuButton ariaLabel="Classroom actions" menuAriaLabel="Home classroom actions" tooltip="Classroom actions" icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />} items={menuItems} variant="ghost" menuPlacement="down" menuAlign="end" menuClassName="w-64" />
+          </>} />
         </div>
 
         {state === 'loading' ? <PageState compact kind="loading" title="Loading classrooms" /> : state === 'error' ? (
@@ -128,14 +142,13 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
             </div>
           )} />
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-5" data-testid="home-classroom-list">
             {groups.map((relationship) => {
               const rows = visible.filter((classroom) => classroom.relationship === relationship)
               if (!rows.length) return null
               return <section key={relationship} aria-label={relationship === 'teaching' ? 'Teaching classrooms' : 'Joined classrooms'}>
                 <div className="mb-2 flex items-center gap-2 text-xs text-text-muted">
                   <h4 className="font-medium">{relationship === 'teaching' ? 'Teaching' : 'Joined'}</h4><span>{rows.length}</span>
-                  {editing && <span className="ml-auto font-medium text-primary">Editing</span>}
                 </div>
                 <div className="space-y-2">
                   {rows.map((classroom, index) => (
@@ -164,9 +177,6 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
             })}
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 flex justify-end">
-          <TeacherWorkSurfaceIconMenuButton ariaLabel="Classroom actions" menuAriaLabel="Home classroom actions" tooltip="Classroom actions" icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />} items={menuItems} variant="ghost" menuPlacement="up" menuAlign="end" menuClassName="w-64" />
-        </div>
       </div>
       <p role="status" className="mt-3 text-xs text-text-muted">{message}</p>
 

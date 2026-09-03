@@ -35,6 +35,8 @@ describe('UiGallery accessibility contracts', () => {
     expect(scrollIntoView).toHaveBeenCalled()
     const home = within(screen.getByTestId('pattern-section-owned-joined-home'))
     expect(home.getByRole('heading', { name: 'Owned / Joined home' })).toBeVisible()
+    expect(home.getByRole('heading', { name: 'Active classrooms' })).toHaveAttribute('tabindex', '-1')
+    expect(home.getByText(/current top-right classroom actions from PR 1179/)).toBeVisible()
     expect(home.getByRole('group', { name: 'Classroom relationship' })).toBeVisible()
     expect(home.getByRole('combobox', { name: 'Creation access' })).toBeVisible()
   })

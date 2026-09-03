@@ -17,13 +17,15 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 ## Brief
 
 - Surface: `/pattern-lab#owned-joined-home`, available in both reference roles.
-- Reference: PR #1139's Classrooms mockup, retained unchanged beside this proposal.
+- Reference: PR #1179's accepted top-right classroom actions, extending the PR #1139
+  Classrooms mockup. The current reference is retained unchanged beside this proposal.
 - Outcome: one account discovers classrooms it teaches and joins without changing account type.
 - Roles: teacher, student, and a mixed-relationship fixture; these are examples, not authorization.
 - Viewports: 1440×900 desktop and 390×844 mobile; light and dark.
 - States: All/Teaching/Joined, populated, new account, loading, error/retry, filtered empty,
   creation unavailable, join validation/confirmation, create, edit, archive/restore and classroom preview.
-- Primary signal: familiar classroom identity accents and quiet Teaching/Joined grouping.
+- Primary signal: one top-right menu above the list, familiar classroom identity accents
+  and quiet Teaching/Joined grouping. Filters have their own row above list actions.
 - Exclusions: production routes, auth, API calls, persistence, schema, eligibility changes,
   subscription labels, payment UI, destructive deletion, broad visual redesign.
 - Composite accessibility: shared selection/menu/dialog owners; test keyboard, semantic state,
@@ -33,7 +35,8 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 |---|---|---|---|
 | Classroom rows | PR #1139 Card/Button composition | reuse | Preserve compact title, term, dates and identity accent |
 | Home filters | SegmentedControl | reuse | Filter one list with shared pressed/keyboard semantics |
-| Bottom menu | TeacherWorkSurfaceIconMenuButton | reuse | Retain reference placement and keyboard contract |
+| Top-right menu | PageActionBar + TeacherWorkSurfaceIconMenuButton | reuse | Match PR #1179 placement, downward opening, checked edit state and archive divider |
+| Back and list Escape | PageHeading | reuse | Return to Active/non-editing and focus the heading; nested menus/dialogs retain Escape |
 | Forms and previews | ContentDialog, FormField, Input, ConfirmDialog, PageState | reuse | Keep validation and focus in existing owners |
 | Review surface | Pattern Lab catalog | extend | Add a fixture-owned experiment; leave original Classrooms example intact |
 
@@ -51,7 +54,9 @@ Nearby refactor candidate: PR #1139 and this prototype share classroom-row struc
 proposal local until human acceptance establishes a durable contract for a live adopter.
 Human promotion and separately reviewed server discovery/routing are required before adoption.
 
-## Verification evidence — 2026-09-03
+## Historical verification — original bottom-menu prototype, 2026-09-03
+
+This evidence predates the PR #1179 alignment below; it is not current placement evidence.
 
 - Captured the uncommitted implementation based on `c29de2d0`; the PR records the final
   committed source and independent review. No UI source changed between captures and this record.
@@ -84,3 +89,36 @@ Human promotion and separately reviewed server discovery/routing are required be
 - Independent review noted the menu's `h-9 w-9` style, but a browser measurement regression
   passes the 44px minimum because the shared Button also enforces `min-h-control` and
   `min-w-control`. No geometry override is needed; the assertion now protects this contract.
+
+## PR #1179 alignment
+
+The current change moves the same local-only actions into a shared PageActionBar, with a
+borderless downward-opening menu aligned to the list's top-right edge. New Classroom and
+Join classroom remain independent of the Teaching/Joined filter; owned-only edit/archive
+controls retain their permission scope. Edit classrooms uses the current grip icon and
+checked state; Show Archived/Show Active is separated as in the accepted menu. Back and
+list-level Escape reset Active/non-editing/All and focus the list heading. Menu, form and
+confirmation Escape cannot reset the underlying list. The separate filter row prevents
+mobile controls crowding out the title or menu. No live list or lifecycle logic is changed.
+
+### Current verification — top-right menu, 2026-09-03
+
+- Verified the revision based on main `1cff4138` (PR #1179). No UI source changed
+  between this capture run and the verification record; the PR identifies the final SHA.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes: 14 files,
+  123 tests, architecture, UI/design policy, TypeScript and lint.
+- Eight `Owned Joined home` browser scenarios pass on port 3016: both roles ×
+  desktop/mobile × light/dark. Current captures live under `test-results/home-top-right/`
+  in the corresponding role/project directories. Compared `reference-pr1179-classrooms.png`
+  with the proposed list at matching desktop/mobile sizes; inspected both roles/themes,
+  full-menu placement, editing and archived states. No page overflow or crowded header.
+- Geometry assertions place the menu above the list and within 1px of its right edge
+  in active, editing and archived states. The open menu extends downward and its trigger
+  retains the shared 44px minimum target.
+- Checked edit semantics, Back/list Escape heading focus, and nested menu/confirmation
+  Escape ownership pass alongside local reorder/archive/restore/create/join coverage.
+  Composite checklist: keyboard and semantic states verified; no manual follow-up for
+  this fixture scope. Browser interactions still produce zero API mutations.
+- A development-only Next issue badge remains visible in some captures, outside the
+  proposed home. This revision does not validate or change live lifecycle persistence,
+  permissions or routing. Human acceptance and live adoption remain separate.
