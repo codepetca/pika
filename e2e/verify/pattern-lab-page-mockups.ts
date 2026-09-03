@@ -566,24 +566,32 @@ export const patternLabPageMockups: VerificationScript = {
     await page.setViewportSize(VIEWPORTS.desktop)
     await section.getByRole('tab', { name: 'Calendar' }).click()
     const calendar = section.getByRole('tabpanel', { name: 'Calendar' })
-    await calendar.getByRole('button', { name: 'More actions' }).click()
-    const termView = calendar.getByRole('menuitemradio', { name: 'Term' })
+    const weekView = calendar.getByRole('button', { name: 'Week', exact: true })
+    const monthView = calendar.getByRole('button', { name: 'Month', exact: true })
+    const termView = calendar.getByRole('button', { name: 'Term', exact: true })
     checks.push({
-      name: 'Calendar More actions offers Week, Month, and Term without All or Year',
-      passed: await termView.isVisible()
-        && await calendar.getByRole('menuitemradio', { name: 'Week' }).isVisible()
-        && await calendar.getByRole('menuitemradio', { name: 'Month' }).isVisible()
-        && await calendar.getByRole('menuitemradio', { name: 'All' }).count() === 0
-        && await calendar.getByRole('menuitemradio', { name: 'Year' }).count() === 0,
+      name: 'Calendar center cluster offers Week, Month, and Term without All or Year',
+      passed: await weekView.getAttribute('aria-pressed') === 'true'
+        && await monthView.getAttribute('aria-pressed') === 'false'
+        && await termView.getAttribute('aria-pressed') === 'false'
+        && await calendar.getByRole('button', { name: 'All', exact: true }).count() === 0
+        && await calendar.getByRole('button', { name: 'Year', exact: true }).count() === 0,
     })
     await termView.click()
     checks.push({
       name: 'Calendar Term renders the full Semester 1 fixture through January',
-      passed: await calendar.getByText('Semester 1', { exact: true }).isVisible()
+      passed: await termView.getAttribute('aria-pressed') === 'true'
+        && await calendar.getByText('Semester 1', { exact: true }).isVisible()
         && await calendar.getByText('January', { exact: true }).isVisible()
         && await calendar.getByText('Semester ecosystem reflection.').isVisible(),
     })
     await calendar.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Calendar More actions owns Markdown editing without view choices',
+      passed: await calendar.getByRole('menuitem', { name: 'Edit calendar in Markdown' }).isVisible()
+        && await calendar.getByRole('menuitem').count() === 1
+        && await calendar.getByRole('menuitemradio').count() === 0,
+    })
     const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')
     await section.screenshot({ path: calendarMenuArtifact })
     artifacts.push(calendarMenuArtifact)

@@ -62,7 +62,8 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 function getCalendarViewButtons(name: 'week' | 'month' | 'all') {
-  return screen.getAllByRole('button', { name: new RegExp(`^${name}$`, 'i') })
+  const label = name === 'all' ? '(all|term)' : name
+  return screen.getAllByRole('button', { name: new RegExp(`^${label}$`, 'i') })
 }
 
 function expectCalendarViewSelected(name: 'week' | 'month' | 'all') {
@@ -138,7 +139,7 @@ describe('Calendar view mode persistence', () => {
         expect(getCalendarViewButtons('week').length).toBeGreaterThan(0)
       })
 
-      fireEvent.click(getCalendarViewButtons('all')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Term' }))
 
       expect(writeCookieSpy).toHaveBeenCalledWith('calendarViewMode:cls-123', 'all')
     })
@@ -163,14 +164,16 @@ describe('Calendar view mode persistence', () => {
       })
     })
 
-    it('renders the teacher edit control in the calendar action cluster', async () => {
+    it('renders the teacher Markdown control in More actions', async () => {
       readCookieSpy.mockReturnValue(null)
 
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument()
       })
+      fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+      expect(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' })).toBeInTheDocument()
     })
   })
 
