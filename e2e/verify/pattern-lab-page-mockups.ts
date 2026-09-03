@@ -924,7 +924,11 @@ export const patternLabPageMockups: VerificationScript = {
     await editTests.click()
     await workspace.getByRole('button', { name: 'More actions' }).click()
     checks.push({ name: 'Tests More actions shows active edit mode', passed: await workspace.getByRole('menuitemcheckbox', { name: 'Edit Tests' }).getAttribute('aria-checked') === 'true' })
-    await workspace.getByRole('menuitemcheckbox', { name: 'Edit Tests' }).click()
+    await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
+    await workspace.getByRole('button', { name: 'Tests' }).click()
+    await workspace.getByRole('button', { name: 'More actions' }).click()
+    checks.push({ name: 'Tests edit mode resets after switching workspace family', passed: await workspace.getByRole('menuitemcheckbox', { name: 'Edit Tests' }).getAttribute('aria-checked') === 'false' })
+    await page.keyboard.press('Escape')
     await workspace.getByRole('button', { name: 'Classwork', exact: true }).click()
 
     await page.setViewportSize(VIEWPORTS.mobile)

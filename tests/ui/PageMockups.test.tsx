@@ -724,8 +724,11 @@ describe('PageMockups', () => {
     await user.click(editTests)
     await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
     expect(within(workspace).getByRole('menuitemcheckbox', { name: 'Edit Tests' })).toHaveAttribute('aria-checked', 'true')
-    await user.click(within(workspace).getByRole('menuitemcheckbox', { name: 'Edit Tests' }))
-
+    await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
+    await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
+    await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
+    expect(within(workspace).getByRole('menuitemcheckbox', { name: 'Edit Tests' })).toHaveAttribute('aria-checked', 'false')
+    await user.keyboard('{Escape}')
     await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     await user.click(within(workspace).getByRole('button', { name: /^Field observations/ }))
     expect(within(workspace).getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
