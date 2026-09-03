@@ -21,8 +21,10 @@ import { createClassroomWizard } from './create-classroom-wizard'
 import { courseGuideCurriculumImport } from './course-guide-curriculum-import'
 import { patternLabPageMockups } from './pattern-lab-page-mockups'
 import { patternLabGradebook } from './pattern-lab-gradebook'
+import { classroomsLivePattern } from './classrooms-live-pattern'
 
 const scenarios: Record<string, VerificationScript> = {
+  'classrooms-live-pattern': classroomsLivePattern,
   'add-students-modal': addStudentsModal,
   'assessment-ux-parity': assessmentUxParity,
   'blueprint-rollover': blueprintRollover,

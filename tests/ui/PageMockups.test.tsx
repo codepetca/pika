@@ -588,7 +588,7 @@ describe('PageMockups', () => {
     expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('uses a bottom classroom menu and Escape returns to the active non-editing list', async () => {
+  it('uses a top-right classroom menu and Escape returns to the active non-editing list', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')

@@ -120,8 +120,8 @@ test('captures cold Classroom deletion and the student boundary matrix', async (
     )
     await mockTeacherColdArchive(page)
     await page.goto('/classrooms')
-    await page.getByRole('button', { name: 'Organize classrooms' }).click()
-    await page.getByRole('button', { name: 'Archived' }).click()
+    await page.getByRole('button', { name: 'Classroom actions' }).click()
+    await page.getByRole('menuitem', { name: 'Show Archived' }).click()
     await expect(page.getByText(coldArchive.title)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Delete permanently' })).toBeVisible()
     await page.screenshot({
