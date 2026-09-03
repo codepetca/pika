@@ -90,6 +90,9 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
   blocked actors therefore cannot grow the table by rotating guesses. Downstream join
   failures roll back membership effects but preserve the charged attempt. Revisit limits
   with production telemetry before a pilot.
+- Stale limiter cleanup is a separate bounded, service-only function with an indexed age
+  scan and `SKIP LOCKED`; it is deliberately off the join request path. A scheduled cleanup
+  owner and health signal are required before live adoption.
 - A classroom roster may seed a missing global student profile, but cannot overwrite an
   established profile from another classroom. Any future profile-editing authority or
   classroom-scoped identity model is a separate product and data-contract decision.

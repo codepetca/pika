@@ -22,7 +22,8 @@ declare
   v_owner text;
 begin
   if to_regclass('public.classroom_join_rate_limits') is null
-    or to_regprocedure(v_signature) is null then
+    or to_regprocedure(v_signature) is null
+    or to_regprocedure('public.cleanup_classroom_join_rate_limits_v1(integer)') is null then
     raise exception 'Migration 157 is required; this harness never applies it';
   end if;
   if has_table_privilege('anon', 'public.classroom_join_rate_limits', 'select')
@@ -30,7 +31,10 @@ begin
     or has_table_privilege('service_role', 'public.classroom_join_rate_limits', 'select')
     or has_function_privilege('anon', v_signature, 'execute')
     or has_function_privilege('authenticated', v_signature, 'execute')
-    or not has_function_privilege('service_role', v_signature, 'execute') then
+    or not has_function_privilege('service_role', v_signature, 'execute')
+    or has_function_privilege('anon', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
+    or has_function_privilege('authenticated', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
+    or not has_function_privilege('service_role', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute') then
     raise exception 'Contextual enrollment privileges are incorrect';
   end if;
   select procedure.prosecdef, procedure.proconfig, owner.rolname
@@ -75,6 +79,10 @@ insert into public.classroom_roster (
   'manual'
 );
 
+insert into public.classroom_join_rate_limits (scope, key_hash, updated_at) values
+  ('actor', repeat('6', 64), clock_timestamp() - interval '2 days'),
+  ('invitation', repeat('7', 64), clock_timestamp() - interval '2 days');
+
 set local role service_role;
 do $behavior$
 declare
@@ -95,6 +103,9 @@ declare
     )
   );
 begin
+  if public.cleanup_classroom_join_rate_limits_v1(10) <> 2 then
+    raise exception 'Bounded stale limiter cleanup did not remove the synthetic rows';
+  end if;
   v_result := public.join_classroom_by_code_atomic_v1(
     v_actor, v_open, ' c155open ', repeat('a', 64), repeat('b', 64),
     ' Mixed ', ' Actor ', ' S-155 ', v_event
@@ -135,6 +146,21 @@ begin
     or (select count(*) from public.classroom_enrollments where classroom_id = v_open and student_id = v_actor) <> 1
     or (select count(*) from public.pal_event_outbox where idempotency_key = 'pika:v1:pika-fact-' || repeat('a', 43)) <> 1 then
     raise exception 'Duplicate join was not idempotent: %', v_result;
+  end if;
+
+  delete from public.classroom_enrollments
+  where classroom_id = v_open and student_id = v_actor;
+  delete from public.classroom_roster
+  where classroom_id = v_open and email = 'mixed-actor@example.invalid';
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_open, 'C155OPEN', repeat('a', 64), repeat('b', 64),
+    'Mixed', 'Actor', 'S-155',
+    jsonb_set(v_event, '{occurred_at}', to_jsonb('2026-09-03T12:01:00.000Z'::text))
+  );
+  if not (v_result->>'ok')::boolean or not (v_result->>'created')::boolean
+    or (select count(*) from public.classroom_enrollments where classroom_id = v_open and student_id = v_actor) <> 1
+    or (select count(*) from public.pal_event_outbox where idempotency_key = 'pika:v1:pika-fact-' || repeat('a', 43)) <> 1 then
+    raise exception 'Legitimate Pal rejoin did not reuse same-source evidence: %', v_result;
   end if;
 
   -- A teacher-valued account can join a different classroom through roster evidence.
