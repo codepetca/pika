@@ -43,21 +43,6 @@ begin
       message = 'invalid_classroom_join_rate_limit_input';
   end if;
 
-  -- Bound metadata growth without touching either active request key.
-  delete from public.classroom_join_rate_limits stale
-  where (stale.scope, stale.key_hash) in (
-    select candidate.scope, candidate.key_hash
-    from public.classroom_join_rate_limits candidate
-    where candidate.updated_at < v_now - interval '1 day'
-      and (candidate.scope, candidate.key_hash) not in (
-        ('actor', p_actor_key_hash),
-        ('invitation', p_invitation_key_hash)
-      )
-    order by candidate.scope, candidate.key_hash
-    limit 100
-    for update skip locked
-  );
-
   -- Consume the actor budget first. A blocked actor must not be able to create
   -- an unbounded number of invitation rows by rotating guessed codes.
   insert into public.classroom_join_rate_limits (scope, key_hash, updated_at)
@@ -133,6 +118,39 @@ begin
 end;
 $$;
 
+create function public.cleanup_classroom_join_rate_limits_v1(
+  p_batch_size integer default 1000
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_deleted integer;
+begin
+  if p_batch_size not between 1 and 10000 then
+    raise exception using
+      errcode = '22023',
+      message = 'invalid_classroom_join_rate_limit_cleanup_input';
+  end if;
+
+  -- Cleanup stays off the request path. SKIP LOCKED makes a maintenance run
+  -- harmless alongside active joins and bounds each invocation.
+  delete from public.classroom_join_rate_limits stale
+  where (stale.scope, stale.key_hash) in (
+    select candidate.scope, candidate.key_hash
+    from public.classroom_join_rate_limits candidate
+    where candidate.updated_at < clock_timestamp() - interval '1 day'
+    order by candidate.scope, candidate.key_hash
+    limit p_batch_size
+    for update skip locked
+  );
+  get diagnostics v_deleted = row_count;
+  return v_deleted;
+end;
+$$;
+
 create function public.join_classroom_by_code_atomic_v1(
   p_actor_id uuid,
   p_expected_classroom_id uuid,
@@ -174,28 +192,42 @@ begin
     or (v_last_name is not null and length(v_last_name) > 100)
     or (v_student_number is not null and length(v_student_number) > 100)
     or (p_pal_event is not null and (
-      jsonb_typeof(p_pal_event) <> 'object'
-      or jsonb_object_length(p_pal_event) <> 6
-      or not p_pal_event ?& array[
-        'schema_version', 'idempotency_key', 'learner_id',
-        'event_type', 'occurred_at', 'metadata'
-      ]
-      or p_pal_event->'schema_version' is distinct from '1'::jsonb
-      or p_pal_event->>'event_type' <> 'classroom.joined'
-      or p_pal_event->>'idempotency_key' !~ '^pika:v1:pika-fact-[A-Za-z0-9_-]{43}$'
-      or p_pal_event->>'learner_id' !~ '^pika-learner-[A-Za-z0-9_-]{43}$'
-      or p_pal_event->>'occurred_at' !~
-        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$'
-      or jsonb_typeof(p_pal_event->'metadata') <> 'object'
-      or jsonb_object_length(p_pal_event->'metadata') <> 1
-      or jsonb_typeof(p_pal_event->'metadata'->'classroom_token') <> 'string'
-      or p_pal_event->'metadata'->>'classroom_token' !~
-        '^pika-classroom-[A-Za-z0-9_-]{43}$'
-      or pg_column_size(p_pal_event) > 32768
+      jsonb_typeof(p_pal_event) <> 'object' or pg_column_size(p_pal_event) > 32768
     )) then
     raise exception using
       errcode = '22023',
       message = 'invalid_classroom_join_input';
+  end if;
+
+  if p_pal_event is not null and (
+    p_pal_event <> jsonb_build_object(
+      'schema_version', p_pal_event->'schema_version',
+      'idempotency_key', p_pal_event->'idempotency_key',
+      'learner_id', p_pal_event->'learner_id',
+      'event_type', p_pal_event->'event_type',
+      'occurred_at', p_pal_event->'occurred_at',
+      'metadata', p_pal_event->'metadata'
+    )
+    or p_pal_event->'schema_version' is distinct from '1'::jsonb
+    or p_pal_event->>'event_type' <> 'classroom.joined'
+    or p_pal_event->>'idempotency_key' !~ '^pika:v1:pika-fact-[A-Za-z0-9_-]{43}$'
+    or p_pal_event->>'learner_id' !~ '^pika-learner-[A-Za-z0-9_-]{43}$'
+    or p_pal_event->>'occurred_at' !~
+      '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$'
+    or jsonb_typeof(p_pal_event->'metadata') <> 'object'
+  ) then
+    raise exception using errcode = '22023', message = 'invalid_classroom_join_pal_event';
+  end if;
+
+  if p_pal_event is not null and (
+    p_pal_event->'metadata' <> jsonb_build_object(
+      'classroom_token', p_pal_event->'metadata'->'classroom_token'
+    )
+    or jsonb_typeof(p_pal_event->'metadata'->'classroom_token') <> 'string'
+    or p_pal_event->'metadata'->>'classroom_token' !~
+      '^pika-classroom-[A-Za-z0-9_-]{43}$'
+  ) then
+    raise exception using errcode = '22023', message = 'invalid_classroom_join_pal_metadata';
   end if;
 
   -- Consume both budgets before looking up an actor or invitation. The trusted
@@ -396,7 +428,10 @@ begin
       or v_outbox.event_type is distinct from 'classroom.joined'
       or v_outbox.source_kind is distinct from 'classroom_enrollment'
       or v_outbox.source_id is distinct from v_classroom.id::text
-      or v_outbox.payload is distinct from p_pal_event then
+      or v_outbox.payload->>'idempotency_key' is distinct from p_pal_event->>'idempotency_key'
+      or v_outbox.payload->>'learner_id' is distinct from p_pal_event->>'learner_id'
+      or v_outbox.payload->'metadata'->>'classroom_token'
+        is distinct from p_pal_event->'metadata'->>'classroom_token' then
       raise exception using errcode = '23505', message = 'classroom_join_pal_evidence_conflict';
     end if;
   end if;
@@ -428,8 +463,12 @@ $$;
 
 revoke all on function private.consume_classroom_join_rate_limits_v1(text, text)
   from public, anon, authenticated, service_role;
+revoke all on function public.cleanup_classroom_join_rate_limits_v1(integer)
+  from public, anon, authenticated, service_role;
 revoke all on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)
   from public, anon, authenticated, service_role;
+grant execute on function public.cleanup_classroom_join_rate_limits_v1(integer)
+  to service_role;
 grant execute on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)
   to service_role;
 
