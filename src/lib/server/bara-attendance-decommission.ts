@@ -61,7 +61,6 @@ export async function beginAttendanceDecommission(scope: Scope & { confirmation:
 }
 
 export async function getAttendanceDecommission(scope: Scope) {
-  gate()
   return status(await call(scope, 'get_attendance_decommission'))
 }
 
