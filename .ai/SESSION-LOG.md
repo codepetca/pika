@@ -11,69 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-01 — Cache immutable CI setup inputs
-
-- Added lockfile-keyed pnpm-store caches to the database and browser CI lanes plus a lockfile-keyed Playwright browser cache to the browser lane. Cache hit labels and setup evidence appear in each job summary for before/after comparison.
-- Preserved fresh safety state: every run installs from the lockfile, verifies Chromium system dependencies, and starts a new ephemeral Supabase stack with complete migration replay. No classifier, required gate, browser spec, artifact, production, or dependency behavior changed.
-- Verification pending final draft lifecycle. Model recommendation: GPT-5.6 Terra — bounded CI workflow and evidence-contract change.
-- Independent review correction: distinguish exact cache-key hits from useful pnpm prefix restores, and run the normal Chromium installer on every run so cached downloads do not weaken browser setup integrity.
-
-## 2026-09-01 — Align classroom feature icons
-
-- Replaced the classroom Tests icon with Lucide `SquarePen`, changed Course Guide to `Compass`, and aligned student Today with teacher Daily on `ClipboardCheck`, eliminating the legacy `PenSquare` alias.
-- Centralized teacher/student classroom navigation metadata so Pattern Lab renders the exact production feature icons, Lucide names, and role availability without a second mapping.
-- Focused checks pass 21 files / 220 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab desktop/mobile light/dark contracts were updated and visually reviewed; the local gallery remains open on port 3001 for user review.
-- Ready-PR CI exposed that only the Darwin Pattern Lab baselines had been refreshed. Replaced all four Linux contract baselines with CI's stable captures (identical across three attempts), visually inspected representative desktop-light and mobile-dark renders, and reran the focused gate successfully.
-
-## 2026-09-01 — Default teacher Daily to today
-
-- Diagnosed the fresh-mount initializer: Daily deliberately chose the most recent class day before Toronto today, falling back to yesterday, so every browser reload reset to a previous date.
-- Fresh Daily mounts now initialize to Toronto today. Explicit previous/next navigation remains mounted state and is not overwritten by rerenders, focus refreshes, or Toronto date rollover; a true remount returns to today.
-- Daily component coverage passes 42/42. The focused gate passes 13 files / 170 tests plus architecture, UI/design policy, TypeScript, and lint. Ten deterministic browser contracts pass across teacher desktop/mobile and light/dark, including previous-day navigation and the existing Attendance states; screenshots were inspected with no visual drift. Student is not affected.
-- Draft review identified a rollover-coverage gap; component and browser contracts now advance Toronto today, preserve the chosen prior date through focus, and prove a reload selects the new today. The corrected cumulative diff reviewed clean. PR #1154 was rebased after #1153 advanced `main`; exact-head review and CI repeat on the synchronized SHA.
-
-## 2026-09-01 — Hide unavailable Daily log summaries
-
-- The teacher Daily summary card now stays hidden while the summary read is loading and whenever no generated summary is ready (`pending`, `no_entries`, `unavailable`, or error). Generated summaries retain the existing expanded/collapsible card and resize behavior.
-- Added availability signaling and focused component coverage for ready versus unavailable summaries. Composite-widget checklist reviewed: keyboard behavior remains covered, semantic hidden state is tested, and no manual follow-up remains.
-- Verification: 45 focused component tests pass; the repository focused gate passes 14 files / 173 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passes. Playwright screenshots were inspected for teacher desktop/mobile, light/dark, generated and pending states. Student navigation is unchanged and was checked on mobile. Risk profile none. Model recommendation: GPT-5.6 Terra — localized UI state and regression-test change.
-
-## 2026-09-01 — Align student Daily label
-
-- Renamed the student classroom navigation label from `Today` to `Daily` while preserving the internal `today` route identifier, notification behavior, and shared `ClipboardCheck` icon.
-- Pattern Lab continues to consume the production catalog directly. Teacher/student desktop/mobile light/dark verification passed, including open mobile navigation and active-page semantics; Darwin baselines were regenerated and the stable Linux baselines were updated only at the student label pixels, then reviewed.
-
-## 2026-09-01 — Refine student Today mobile order
-
-- Moved the mobile Today/Last class lesson-plan panel directly after the student daily-plan editor and before Past logs while preserving the desktop split inspector.
-- Reduced the mobile editor minimum from 200px to 100px; desktop remains 200px. Browser measurement confirmed the empty editor is 100px and expands to 168px for longer content without internal overflow.
-- Focused checks pass 13 files / 150 tests plus architecture, UI/design policy, TypeScript, lint, and Pika audit. Student mobile light/dark and expanded-entry states plus the unchanged student desktop split were visually reviewed. Composite checklist reviewed: keyboard and semantic behavior are unchanged; focused role/order coverage passes; no manual follow-up remains.
-- Independent review found that the relocated mobile plan disappeared during an initial daily-log or schedule failure. The blocking-state composition now keeps Today/Last class below the retry state; focused failure coverage and a dark mobile intercepted-error capture confirm the plan remains available.
-- Follow-up copy refinement renames the editor heading to “Daily Log” and replaces the generic empty-state copy with “What is your plan today?”. Focused tests pass, and student mobile light/dark plus desktop dark were visually checked in empty and typed states; the placeholder clears on input and the test entry was restored to empty.
-- Follow-up review found the visible title did not programmatically label the production rich-text editor because the test mock derived its accessible name from the placeholder. “Daily Log” is now an `h2` linked with `aria-labelledby`; the mock forwards the real accessibility contract, and a browser accessibility snapshot confirms both the heading and textbox are named “Daily Log”.
-- Renamed the student classroom navigation label from “Today” to “Daily” through the shared nav catalog while keeping the stable internal `?tab=today` route and the lesson-plan “Today” date heading. Updated current feature-visibility guidance, teacher Settings explanatory copy, and focused navigation/catalog coverage. Student mobile light/dark open-drawer and desktop dark expanded-sidebar captures show the new label without layout drift.
-- Model recommendation: GPT-5.6 Terra — localized responsive UI composition with bounded component and browser verification.
-
-## 2026-09-01 — Privatize student submission and Test storage
-
-- Replaced direct public Supabase Storage delivery for `submission-images` and `test-documents` with authenticated same-origin authorization routes that issue 60-second signed redirects. Student images require submission ownership; teachers require classroom ownership. Uploaded Test documents require contextual Test access for students or Test ownership for teachers, plus a ready managed-storage record and exact Test reference.
-- Large file bodies bypass Vercel functions: Pika reserves an immutable managed object, the browser uploads directly with a signed Supabase token, and Pika verifies exact stored size/MIME before finalization. New uploads persist managed object identity and bucket/path metadata without public URLs. Legacy stored public URLs normalize to private paths; Blueprint copy and classroom archive/restore preserve private identities.
-- Added migration `146_private_student_and_test_storage.sql` to make both buckets private and remove anonymous-read policies. It was not applied: rollout requires deploying the compatible application first, followed by one-time authorization naming the Supabase target and this exact migration.
-- Verification: focused gate passes 128 files / 1,586 tests plus architecture, UI/design policy, TypeScript, and lint; the production build, Pika audit, and diff checks pass. Database replay and browser lanes remain selected for final CI.
-- Independent architecture/security review found rollout continuity, obsolete-policy defense, and API-debt baseline blockers. One remediation batch now preserves unregistered legacy delivery only while the bucket is still public, makes migration 146 refuse existing objects until managed-storage enforcement and settled identities are proven, re-drops all obsolete direct Storage policies, and removes the stale upload-route debt entry. The focused gate now passes 128 files / 1,592 tests; build and Pika audit pass. Migration 146 remains unapplied and separately authorized.
-- First ready-PR CI replay reached migration 146 but both database-backed lanes rejected its nonessential `COMMENT ON storage.buckets` because the migration role does not own Supabase's Storage table. Removed only that comment; the privacy update, rollout guard, and policy drops are unchanged.
-
-## 2026-09-01 — Refine the experimental Gradebook controls
-
-- Simplified the teacher Gradebook mockup: removed the term/student-count context and per-row Preview column, centered a persistent `Student Actions` dropdown with an explicit chevron and Email for selected students, and moved score display into More actions. Its visible label changes to `x selected` when rows are selected.
-- More actions now provides one dynamic score-display command (`Show raw scores` or `Show %`) plus a concrete `Show student IDs` checkbox. All assessment columns respond to score mode, and the optional Student ID column is local fixture data only. Production Gradebook remains unchanged.
-- More actions also provides a `Keep key columns visible` checkbox. When enabled, selection and First stay pinned left while Final stays pinned right during horizontal table scrolling; the assessment region remains the only moving content.
-- The populated fixture now shows twelve compact 88px assessment columns at their minimum display width, preserving the dense horizontal Gradebook and making horizontal scrolling inspectable even on a wide Pattern Lab surface.
-- Added a `Few assessments` example state with three 88px assessment columns. A flexible empty assessment-space column absorbs the remaining table width so Final stays anchored at the far-right edge without stretching populated assessments.
-- The Empty fixture now means a roster with no assessments: checkbox, First, Last, and narrow Final retain their fixed defaults while Assessments spans the remaining table width. The table retains a 96px minimum for that flexible region so narrow screens scroll inside the table frame.
-- First and Last cells now stay on one line and ellipsize at narrow resized widths, retain the full value as native hover text, and include a deliberately long fixture name so the behavior is inspectable at the 72px minimum.
-- Focused component and policy tests pass, lint passes, and the durable Pattern Lab verifier passes across desktop/mobile and light/dark with populated/empty, open More actions, selected Student Actions, internal mobile scrolling, no page overflow, and student exclusion. Representative captures were inspected. The work is included in draft PR #1146; merge is not authorized.
-
 ## 2026-09-01 — Mock a sticky Gradebook class summary
 
 - Moved the experimental Gradebook class summary into a semantic single-row table footer that stays pinned to the bottom edge of the internal Gradebook viewport while roster rows scroll underneath. Average is the default; one dynamic More actions command swaps it with Median and reverses to Show average. The production Gradebook remains unchanged.
@@ -359,9 +296,22 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Rebased the stack over current main, preserving Gradebook/QR code and reconciling only continuity-history conflicts. Application changes remain range-diff identical to the original reviewed candidates; migration 152 retains SHA-256 `c4ffb599692a2862dabae0331dd545c64ce2ace9f9fa445db0a57a5db5d332f0`. Backup refs retain the original reviewed heads.
 - Initial calendar reviews had no blockers; full CI passed 6,084 tests and 146 browser checks (17 skips). One nonblocking file-level Zod debt-accounting limitation remains documented in #1175. Each main landing uses a bounded integration-only review and fresh exact-head CI; final candidate/merge SHAs and gate evidence are recorded in the individual PRs to keep reviewed source stable.
 - The full classroom-access/entitlement epic remains incomplete. Hosted observation, Owned/Joined home and contextual navigation, other reachable domains, neutral onboarding, monetization decisions and a compatible recovery floor remain future work. Current teacher/student authentication and production teaching behavior are not changed by this main-only landing.
+
 ## 2026-09-02 — Begin coordinated Pika–Bara classroom deletion
 
 - Owner approved the next security steps. Sole writer: Audit Pika security and privacy, branch `codex/coordinated-classroom-deletion` in fresh Pika/Bara worktrees. Added a disabled signed decommission protocol, provider replay/native/automation fences and bounded cleanup, Pika receipt validation and teacher-only resumable endpoints, and migration 153 for the required database fence. Attendance completion explicitly does not claim classroom/file purge completion; the existing purge remains independently gated.
 - Bara: 205 tests, type checks, build pass. Pika's initial focused check passed 309 tests; later continuity growth exceeded the startup-document budget, now compacted for recheck. Dedicated transport/coordinator/routes pass. Added rollback-only local DB harness and CI wiring, not executed yet. Migration 153 is not applied and generated types are pending approval/replay. Local DB already has 152 contextual calendar writes; dry-run correctly rejects missing source until access PRs land and this branch rebases. No history repair/reset, hosted deployment, gate enablement, or production data deletion.
 - Drafts Pika #1177 and Bara #57. The initial Sol/high and Terra/high wave found two P1s, deduplicated: preserve migration 137's cold/Blueprint lifecycle guards, and authorize remote advancement against the current DB gate/installation before each request. Batch 1 fixes both and adds gate-change/Blueprint regressions; existing cold-purge fixture is retained. Two launches used; bounded review began 2026-09-03 03:08 UTC. Targeted Sol review follows checks, then final integration review only after source/dependency synchronization.
 - Next: synchronize landed 152, obtain exact local migration-153 approval, then DB tests/generated types and cross-service/final-purge canaries. Do not promote unrelated main-only access changes to production or continue review beyond its budget without a human checkpoint.
+
+## 2026-09-02 — Approve local decommission migration, await source dependency
+
+- Owner approved local-only migration `153_coordinated_attendance_decommission.sql` once source152 lands. Permission remains unused: target verified as `supabase_db_pika`/54322, latest dry-run safely stops because local history contains152 but this branch lacks its source. No application/reset/history repair or production action.
+- Access #1172/#1174 are on main; #1175 is ready with CI queued. Its owner will notify when152 lands. Then rebase, require a153-only preview, apply once, and run DB/generated-type checks. Targeted Sol review cleared both P1 fixes at `1b97bd88`; Pika313 tests/static gates and Bara205 tests/type/build passed. Final integration/cross-service/final-purge verification remains pending; see `/tmp/pika-decommission-checkpoint-20260903.md` for the bounded review ledger and next gates.
+
+## 2026-09-02 — Apply local153 and verify deletion database contracts
+
+- Rebased onto main `c29de2d0` after #1175 landed; migration152 checksum matches the owning task and153 is byte-identical to the reviewed version. Resolved only history conflicts, preserving every entry from both main and the prior branch. Restored the three continuity edits; safety stash `cdacc3c7` and backup branch remain, unrelated stashes untouched. No migrations renamed.
+- Used the owner's one-time permission to apply only153 to local `supabase_db_pika`/54322 after a clean153-only preview and313 focused tests/static checks. History now001–153; settings remain disabled, operations and synthetic fixture users count0 after tests. New decommission and existing hot/cold/Blueprint rollback-only DB harnesses all pass. Generated types/check pass at153; removed the compatibility adapter in favor of generated RPC argument contracts.
+- Database checker reports an unused begin variable and a dynamic FOREACH constant-array analysis error, despite the runtime fixture completing absence verification. Prepared unapplied154 as exact fail-closed function-fragment cleanup; signatures, ownership scope, gates and batch limits are unchanged. It requires its own local approval, review, and lint/DB rerun;153 permission is consumed and must not be reused. Post-type-integration focused checks pass313 tests/static gates. No production changes or real-data erasure.
+- Draft #1177 remains unready. Three reviewer launches and two fix batches used since03:08UTC; no new reviewer launched at this checkpoint. Final review/CI, cross-service failure/retry canaries and integration with the existing classroom/file purge remain outstanding. Explicit approval is required before extending the original45-minute review window.

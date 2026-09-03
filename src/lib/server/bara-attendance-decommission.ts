@@ -3,6 +3,7 @@ import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { postBaraDecommission } from '@/lib/server/bara-attendance-client'
 import { parseDecommissionReceipt } from '@/vendor/attendance-contract/decommission'
+import type { Database } from '@/types/database'
 
 const operationSchema = z.object({
   operation_id: z.string().uuid(),
@@ -19,15 +20,14 @@ type RpcName = 'begin_attendance_decommission' | 'get_attendance_decommission' |
   'authorize_attendance_decommission_advance' |
   'record_attendance_decommission_receipt' | 'tick_attendance_decommission'
 
-// Explicit schema-153 compatibility boundary. A missing RPC fails closed;
-// replace this narrow adapter with generated contracts after authorized replay.
-interface DecommissionDatabase {
-  rpc(name: RpcName, args: Record<string, unknown>): PromiseLike<{
-    data: unknown; error: { code?: string; message?: string } | null
-  }>
-}
-async function call(scope: Scope, name: RpcName, extra: Record<string, unknown> = {}): Promise<Operation> {
-  const db = getServiceRoleClient() as unknown as DecommissionDatabase
+type ExtraArgs<Name extends RpcName> = Omit<Database['public']['Functions'][Name]['Args'],
+  'p_teacher_id' | 'p_classroom_id' | 'p_operation_id'>
+type RpcCall = { [Name in RpcName]: keyof ExtraArgs<Name> extends never
+  ? [name: Name] : [name: Name, extra: ExtraArgs<Name>]
+}[RpcName]
+
+async function call(scope: Scope, ...[name, extra]: RpcCall): Promise<Operation> {
+  const db = getServiceRoleClient()
   const { data, error } = await db.rpc(name, {
     p_teacher_id: scope.teacherId, p_classroom_id: scope.classroomId,
     p_operation_id: scope.operationId, ...extra,
@@ -82,7 +82,7 @@ export async function tickAttendanceDecommission(scope: Scope) {
     }
     if (!parseDecommissionReceipt(receipt, request)) throw new ApiError(503, 'Unverified remote deletion')
     if (receipt.state !== 'deleted') return status(op)
-    op = await call(scope, 'record_attendance_decommission_receipt', { p_receipt: receipt })
+    op = await call(scope, 'record_attendance_decommission_receipt', { p_receipt: { ...receipt } })
   }
   if (op.state === 'remote_deleted') op = await call(scope, 'tick_attendance_decommission')
   // This is attendance completion, never a claim that files/classroom are gone.

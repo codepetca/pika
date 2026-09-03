@@ -51,6 +51,10 @@ describe('coordinated attendance deletion ordering', () => {
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'authorize_attendance_decommission_advance', 'record_attendance_decommission_receipt', 'tick_attendance_decommission',
     ])
+    expect(mock.rpc).toHaveBeenCalledWith('record_attendance_decommission_receipt', {
+      p_teacher_id: scope.teacherId, p_classroom_id: scope.classroomId,
+      p_operation_id: scope.operationId, p_receipt: receipt,
+    })
   })
   it('rejects a wrong operation receipt before local deletion', async () => {
     mock.remote.mockResolvedValue({ ...receipt, operation_ref: 'other' })

@@ -1250,6 +1250,75 @@ export type Database = {
           },
         ]
       }
+      attendance_decommission_operations: {
+        Row: {
+          actor_principal_ref: string
+          classroom_id: string
+          deleted_count: number
+          id: string
+          installation_ref: string
+          phase: number
+          remote_deleted_count: number | null
+          roster_ref: string
+          started_at: string
+          state: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          actor_principal_ref: string
+          classroom_id: string
+          deleted_count?: number
+          id: string
+          installation_ref: string
+          phase?: number
+          remote_deleted_count?: number | null
+          roster_ref: string
+          started_at?: string
+          state?: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          actor_principal_ref?: string
+          classroom_id?: string
+          deleted_count?: number
+          id?: string
+          installation_ref?: string
+          phase?: number
+          remote_deleted_count?: number | null
+          roster_ref?: string
+          started_at?: string
+          state?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      attendance_decommission_settings: {
+        Row: {
+          canary_classroom_id: string | null
+          canary_teacher_id: string | null
+          installation_ref: string | null
+          mode: string
+          singleton: boolean
+        }
+        Insert: {
+          canary_classroom_id?: string | null
+          canary_teacher_id?: string | null
+          installation_ref?: string | null
+          mode?: string
+          singleton?: boolean
+        }
+        Update: {
+          canary_classroom_id?: string | null
+          canary_teacher_id?: string | null
+          installation_ref?: string | null
+          mode?: string
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       attendance_integration_inbox: {
         Row: {
           classroom_id: string
@@ -7492,6 +7561,10 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: boolean
       }
+      attendance_decommission_allowed: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: boolean
+      }
       attendance_event_v1_valid: { Args: { p_event: Json }; Returns: boolean }
       attendance_outbox_claim_allowed_v1: {
         Args: {
@@ -7536,6 +7609,23 @@ export type Database = {
       attendance_teacher_entitled_v1: {
         Args: { p_at?: string; p_teacher_id: string }
         Returns: boolean
+      }
+      authorize_attendance_decommission_advance: {
+        Args: {
+          p_classroom_id: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_attendance_decommission: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       begin_attendance_integration_smoke_v1: {
         Args: {
@@ -9342,6 +9432,14 @@ export type Database = {
         Args: { p_at?: string; p_classroom_id: string }
         Returns: Json
       }
+      get_attendance_decommission: {
+        Args: {
+          p_classroom_id: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       get_attendance_entitlement_transition_health_v1: {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -9679,6 +9777,15 @@ export type Database = {
       reconcile_managed_storage_relational_references: {
         Args: never
         Returns: number
+      }
+      record_attendance_decommission_receipt: {
+        Args: {
+          p_classroom_id: string
+          p_operation_id: string
+          p_receipt: Json
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       record_pal_daily_log_week_configuration_atomic: {
         Args: {
@@ -10464,6 +10571,14 @@ export type Database = {
       test_document_snapshot_path_is_referenced: {
         Args: { p_storage_path: string }
         Returns: boolean
+      }
+      tick_attendance_decommission: {
+        Args: {
+          p_classroom_id: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
