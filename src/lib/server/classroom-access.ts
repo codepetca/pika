@@ -7,7 +7,7 @@ import type { TableRow } from '@/types/database'
 type ClassroomRow = Pick<TableRow<'classrooms'>, 'id' | 'teacher_id' | 'archived_at'>
 type EnrollmentRow = Pick<TableRow<'classroom_enrollments'>, 'classroom_id' | 'student_id'>
 const uuid = z.string().uuid()
-const classroomSchema: z.ZodType<ClassroomRow> = z.object({
+export const classroomAccessRowSchema: z.ZodType<ClassroomRow> = z.object({
   id: uuid, teacher_id: uuid, archived_at: z.string().datetime({ offset: true }).nullable(),
 })
 const enrollmentSchema: z.ZodType<EnrollmentRow> = z.object({ classroom_id: uuid, student_id: uuid })
@@ -32,7 +32,7 @@ export async function resolveClassroomAccess(
     .select('id, teacher_id, archived_at').eq('id', classroomId).maybeSingle()
   if (error) throw new ApiError(503, 'Unable to resolve classroom access')
   if (data === null) return null
-  const classroom = classroomSchema.safeParse(data)
+  const classroom = classroomAccessRowSchema.safeParse(data)
   if (!classroom.success || classroom.data.id !== classroomId) {
     throw new ApiError(503, 'Unable to resolve classroom access')
   }

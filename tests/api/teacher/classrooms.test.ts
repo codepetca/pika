@@ -2,7 +2,8 @@
  * API tests for GET/POST /api/teacher/classrooms
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { requireRole } from '@/lib/auth'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
@@ -212,10 +213,44 @@ describe('GET /api/teacher/classrooms', () => {
 })
 
 describe('POST /api/teacher/classrooms', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
   beforeEach(() => {
     vi.clearAllMocks()
     ;(getNextTeacherClassroomPosition as any).mockResolvedValue(-1)
     ;(listActiveTeacherClassrooms as any).mockResolvedValue({ data: [], error: null })
+  })
+
+  it('keeps creation teacher-gated even with shadow sampling enabled and a paid client claim', async () => {
+    vi.stubEnv('PIKA_ACCESS_SHADOW_ENABLED', 'true')
+    vi.stubEnv('PIKA_ACCESS_SHADOW_SAMPLE_RATE', '1')
+    vi.stubEnv('PIKA_ACCESS_SHADOW_USER_IDS', '11111111-1111-4111-8111-111111111111')
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.mocked(requireRole).mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
+      method: 'POST', body: JSON.stringify({ title: 'Math', role: 'teacher', plan: 'pro' }),
+    }))
+    expect(response.status).toBe(403)
+    expect(requireRole).toHaveBeenCalledWith('teacher')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('observes a trusted teacher without affecting creation when the logger throws=%s', async (throws) => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    vi.stubEnv('PIKA_ACCESS_SHADOW_ENABLED', 'true')
+    vi.stubEnv('PIKA_ACCESS_SHADOW_SAMPLE_RATE', '1')
+    vi.stubEnv('PIKA_ACCESS_SHADOW_USER_IDS', id)
+    const info = vi.spyOn(console, 'info').mockImplementation(() => { if (throws) throw new Error('logger down') })
+    vi.mocked(requireRole).mockResolvedValueOnce({ id, email: 'private@example.com', role: 'teacher' } as Awaited<ReturnType<typeof requireRole>>)
+    const insert = vi.fn(() => ({ select: () => ({ single: async () => ({ data: { id: 'classroom-1' }, error: null }) }) }))
+    mockSupabaseClient.from.mockReturnValue({ insert })
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
+      method: 'POST', body: JSON.stringify({ title: 'Math', classCode: 'ABCDEF', themeColor: 'blue' }),
+    }))
+    expect(response.status).toBe(201)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ teacher_id: id }))
+    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+    expect(info).toHaveBeenCalledWith('PikaAccessShadow', expect.objectContaining({ check: 'create', comparison: 'match' }))
   })
 
   it('should return 400 when title is missing', async () => {

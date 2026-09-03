@@ -11,6 +11,7 @@ import {
 import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { ClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { Classroom } from '@/types'
+import { observeClassroomAccessShadow } from './classroom-access-shadow'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -74,14 +75,21 @@ export async function assertTeacherOwnsClassroom(
     .eq('id', classroomId)
     .single()
 
+  const observe = (legacyAllowed: boolean) => observeClassroomAccessShadow({
+    check: 'owner', userId: teacherId, classroomId, legacyAllowed,
+    evidence: () => ({ classroom, classroomError: error }),
+  })
   if (error || !classroom) {
+    observe(false)
     return { ok: false, status: 404, error: 'Classroom not found' }
   }
 
   if (classroom.teacher_id !== teacherId) {
+    observe(false)
     return { ok: false, status: 403, error: 'Forbidden' }
   }
 
+  observe(true)
   return { ok: true, classroom }
 }
 
@@ -95,6 +103,11 @@ export async function assertTeacherCanMutateClassroom(
     return ownership
   }
 
+  // Owner denials are already observed above. Manage observations use verified ownership.
+  observeClassroomAccessShadow({
+    check: 'manage', userId: teacherId, classroomId, legacyAllowed: !ownership.classroom.archived_at,
+    evidence: () => ({ classroom: ownership.classroom }),
+  })
   if (ownership.classroom.archived_at) {
     return { ok: false, status: 403, error: 'Classroom is archived' }
   }
@@ -119,11 +132,18 @@ export async function assertStudentCanAccessClassroom(
     .eq('id', classroomId)
     .single()
 
+  const observe = (legacyAllowed: boolean, enrollment?: { data: unknown; error: unknown }) =>
+    observeClassroomAccessShadow({
+      check: 'participate', userId: studentId, classroomId, legacyAllowed,
+      evidence: () => ({ classroom, classroomError, enrollment }),
+    })
   if (classroomError || !classroom) {
+    observe(false)
     return { ok: false, status: 404, error: 'Classroom not found' }
   }
 
   if (classroom.archived_at) {
+    observe(false)
     return { ok: false, status: 403, error: 'Classroom is archived' }
   }
 
@@ -135,9 +155,11 @@ export async function assertStudentCanAccessClassroom(
     .single()
 
   if (enrollError || !enrollment) {
+    observe(false, { data: enrollment, error: enrollError })
     return { ok: false, status: 403, error: 'Not enrolled in this classroom' }
   }
 
+  observe(true, { data: enrollment, error: enrollError })
   return {
     ok: true,
     classroom: {
