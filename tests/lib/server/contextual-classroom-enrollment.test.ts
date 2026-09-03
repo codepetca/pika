@@ -52,7 +52,7 @@ describe('contextual classroom enrollment server adapter', () => {
       firstName: 'Ada',
       lastName: 'Lovelace',
       studentNumber: null,
-      supabase: client,
+      supabase: client as never,
     })
 
     expect(result.ok).toBe(true)
@@ -64,7 +64,7 @@ describe('contextual classroom enrollment server adapter', () => {
       p_invitation_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
       p_first_name: 'Ada',
       p_last_name: 'Lovelace',
-      p_student_number: null,
+      p_student_number: undefined,
       p_pal_event: null,
     })
   })
@@ -82,9 +82,9 @@ describe('contextual classroom enrollment server adapter', () => {
       studentNumber: null,
     }
 
-    await expect(joinClassroomByCodeAtomic({ ...base, supabase: unavailable }))
+    await expect(joinClassroomByCodeAtomic({ ...base, supabase: unavailable as never }))
       .rejects.toBeInstanceOf(ApiError)
-    await expect(joinClassroomByCodeAtomic({ ...base, supabase: malformed }))
+    await expect(joinClassroomByCodeAtomic({ ...base, supabase: malformed as never }))
       .rejects.toMatchObject({ statusCode: 503 })
   })
 
@@ -112,7 +112,7 @@ describe('contextual classroom enrollment server adapter', () => {
       lastName: null,
       studentNumber: null,
       occurredAt,
-      supabase: client,
+      supabase: client as never,
     })
 
     const event = client.rpc.mock.calls[0][1].p_pal_event

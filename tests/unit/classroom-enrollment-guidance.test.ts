@@ -13,7 +13,7 @@ describe('contextual enrollment foundation guidance', () => {
     expect(guidance).toContain("query scoped\n   to the authenticated result's `allowedClassroomIds`")
     expect(guidance).toContain('valid code outside that exact\n   scope must be indistinguishable from an invalid code')
     expect(guidance).toContain('use the migration 157 transaction')
-    expect(guidance).toContain('Authoring migration 157 does not authorize applying it')
+    expect(guidance).toContain('Local verification does not authorize hosted application')
     expect(joinRoute).not.toContain('classroom-enrollment-access')
     expect(joinRoute).not.toContain('classroom-enrollment-policy')
     expect(joinRoute).not.toContain('contextual-classroom-enrollment')

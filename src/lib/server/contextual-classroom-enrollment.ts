@@ -44,12 +44,10 @@ const resultSchema = z.discriminatedUnion('ok', [successSchema, failureSchema])
 
 export type ContextualClassroomJoinResult = z.infer<typeof resultSchema>
 
-export type ContextualClassroomJoinRpcClient = {
-  rpc: (
-    functionName: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: unknown; error: unknown }>
-}
+export type ContextualClassroomJoinRpcClient = Pick<
+  ReturnType<typeof getServiceRoleClient>,
+  'rpc'
+>
 
 function getJoinRateLimitSecret(): string {
   const secret = process.env.SESSION_SECRET
@@ -100,20 +98,16 @@ export async function joinClassroomByCodeAtomic(args: {
         occurredAt: args.occurredAt ?? new Date(),
       })
     : null
-  // Migration 157 is intentionally not represented in generated types until
-  // its separately authorized application and regeneration step.
-  const supabase = args.supabase ?? (
-    getServiceRoleClient() as unknown as ContextualClassroomJoinRpcClient
-  )
+  const supabase = args.supabase ?? getServiceRoleClient()
   const { data, error } = await supabase.rpc('join_classroom_by_code_atomic_v1', {
     p_actor_id: args.actorId,
     p_expected_classroom_id: args.expectedClassroomId,
     p_class_code: classCode,
     p_actor_key_hash: keys.actorKeyHash,
     p_invitation_key_hash: keys.invitationKeyHash,
-    p_first_name: args.firstName,
-    p_last_name: args.lastName,
-    p_student_number: args.studentNumber,
+    p_first_name: args.firstName ?? undefined,
+    p_last_name: args.lastName ?? undefined,
+    p_student_number: args.studentNumber ?? undefined,
     p_pal_event: palEvent,
   })
 

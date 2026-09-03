@@ -1,8 +1,8 @@
 # Contextual enrollment access foundation
 
-Status: dormant foundation; no live imports, rollout or new access. Migration 157 is
-authored but must not be applied to any database without the repository's separate,
-exact-target migration authorization.
+Status: dormant foundation; no live imports, rollout or new access. Migration 157 was
+applied to local Pika only on 2026-09-03 under one-time exact permission and passed its
+database contracts. Hosted application remains unapproved.
 This is the first bounded part of compatibility batch C in the
 [classroom access roadmap](classroom-access-and-entitlements-roadmap.md).
 It does not complete phase 2 or authorize the Owned/Joined home.
@@ -104,9 +104,8 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
   proves duplicate serialization, archive/ownership/enrollment-toggle ordering, join-first
   linearization and the exact concurrent guess budget, then removes its fixtures. It never
   applies the migration or reads hosted credentials.
-- Applying migration 157, regenerating database types, enabling a cohort, adopting a route
-  and deploying remain distinct approvals. Until generated types are refreshed after an
-  authorized application, the dormant adapter contains one localized RPC-client cast.
+- Local migration application and generated-type verification do not authorize a cohort,
+  route adoption, hosted application or deployment; each remains a distinct gate.
 
 ## Verification
 
@@ -118,4 +117,4 @@ malformed, cross-class invitation or internally inconsistent relationship eviden
 
 No API route imports the adapter or calls the RPC. Production login, signup, join, roster,
 classroom lists, navigation, entitlements, Pal delivery and the development-only home
-reference remain unchanged. Authoring migration 157 does not authorize applying it.
+reference remain unchanged. Local verification does not authorize hosted application.
