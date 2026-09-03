@@ -718,14 +718,22 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     ) {
       setDiscarding(true)
       try {
-        const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}`, {
-          method: 'DELETE',
+        const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}/discard-pristine`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_updated_at: currentAssignment.updated_at }),
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) {
           throw new Error(data.error || 'Failed to discard empty assignment')
         }
-        onClose()
+        if (data.discarded) {
+          onClose()
+        } else {
+          const preservedAssignment = data.assignment ?? currentAssignment
+          onSuccess(preservedAssignment)
+          onClose()
+        }
       } catch (closeError: any) {
         setError(closeError?.message || 'Failed to discard empty assignment')
       } finally {

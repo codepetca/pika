@@ -695,6 +695,44 @@ describe('AssignmentModal', () => {
       expect(onSuccess).not.toHaveBeenCalled()
     })
 
+    it('keeps an untouched local draft when another tab changed the backing Assignment', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      const concurrentlyEditedAssignment = {
+        ...newAssignment,
+        title: 'Edited in another tab',
+        updated_at: '2026-05-15T10:45:00.000Z',
+      }
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ assignment: newAssignment }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ discarded: false, assignment: concurrentlyEditedAssignment }),
+        })
+      const onClose = vi.fn()
+      const onSuccess = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      await screen.findByRole('dialog', { name: 'Edit Draft' })
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith(concurrentlyEditedAssignment)
+      })
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
     it('blocks moving the due date before an existing scheduled release without autosaving', async () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2026-03-01T13:00:00.000Z'))
@@ -913,7 +951,7 @@ describe('AssignmentModal', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ success: true }),
+          json: async () => ({ discarded: true }),
         })
       const onClose = vi.fn()
       const onSuccess = vi.fn()
@@ -932,8 +970,12 @@ describe('AssignmentModal', () => {
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
-          '/api/teacher/assignments/new-draft-1',
-          { method: 'DELETE' },
+          '/api/teacher/assignments/new-draft-1/discard-pristine',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expected_updated_at: newAssignment.updated_at }),
+          },
         )
       })
       expect(onClose).toHaveBeenCalledTimes(1)

@@ -2798,17 +2798,27 @@ export function TeacherTestsTab({
       navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
     }
   }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
-  const handleDiscardPristineTest = useCallback(async (): Promise<boolean> => {
+  const handleDiscardPristineTest = useCallback(async (draftVersion: number): Promise<boolean> => {
     if (!selectedTestWorkspace || newlyCreatedTestId !== selectedTestWorkspace.id) return false
 
     try {
-      const response = await fetch(`${apiBasePath}/${selectedTestWorkspace.id}`, { method: 'DELETE' })
+      const response = await fetch(`${apiBasePath}/${selectedTestWorkspace.id}/discard-pristine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expected_draft_version: draftVersion }),
+      })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(data.error || 'Failed to discard empty Test')
       }
 
-      setTests((prev) => prev.filter((test) => test.id !== selectedTestWorkspace.id))
+      setTests((prev) => data.discarded
+        ? prev.filter((test) => test.id !== selectedTestWorkspace.id)
+        : prev.map((test) => (
+            test.id === selectedTestWorkspace.id && data.test
+              ? withDefaultTestStats({ ...test, ...data.test })
+              : test
+          )))
       setNewlyCreatedTestId(null)
       setSelectedTestDraftSummary(null)
       setShowEditModal(false)

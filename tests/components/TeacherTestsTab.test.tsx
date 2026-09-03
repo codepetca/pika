@@ -61,7 +61,9 @@ vi.mock('@/components/TestDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
-    onDraftPristineCheckReady?: (check: (() => boolean) | null) => void
+    onDraftPristineCheckReady?: (
+      check: (() => { isPristine: boolean; draftVersion: number }) | null
+    ) => void
     titlePortalTarget?: HTMLElement | null
     generatedTitleLabel?: string
   }) => {
@@ -70,12 +72,15 @@ vi.mock('@/components/TestDetailPanel', () => ({
     const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(test.title)
       ? generatedTitleLabel || 'Untitled'
       : test.title
-    onDraftPristineCheckReady?.(() => (
-      displayedTitle === (generatedTitleLabel || 'Untitled')
-      && (test.stats.questions_count || 0) === 0
-      && (test.documents || []).length === 0
-      && test.show_results === false
-    ))
+    onDraftPristineCheckReady?.(() => ({
+      isPristine: (
+        displayedTitle === (generatedTitleLabel || 'Untitled')
+        && (test.stats.questions_count || 0) === 0
+        && (test.documents || []).length === 0
+        && test.show_results === false
+      ),
+      draftVersion: 4,
+    }))
 
     return (
       <>
@@ -1157,11 +1162,11 @@ describe('TeacherTestsTab', () => {
           json: async () => ({ test: createdTest }),
         })
       }
-      if (url === '/api/teacher/tests/created-test-id' && init?.method === 'DELETE') {
+      if (url === '/api/teacher/tests/created-test-id/discard-pristine' && init?.method === 'POST') {
         deleted = true
         return Promise.resolve({
           ok: true,
-          json: async () => ({ success: true }),
+          json: async () => ({ discarded: true }),
         })
       }
       if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
@@ -1179,12 +1184,58 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/tests/created-test-id',
-        { method: 'DELETE' },
+        '/api/teacher/tests/created-test-id/discard-pristine',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_draft_version: 4 }),
+        },
       )
     })
     expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
     expect(screen.getByText('No tests yet')).toBeInTheDocument()
+  })
+
+  it('keeps a newly created Test when another tab edits it before pristine cleanup', async () => {
+    mockTestsResponse([])
+    renderTab()
+
+    expect(await screen.findByText('No tests yet')).toBeInTheDocument()
+
+    const createdTest = makeTest({
+      id: 'created-test-id',
+      title: 'Untitled 2026-05-14 10:45:00',
+      stats: { total_students: 0, responded: 0, questions_count: 0 },
+    })
+    const concurrentlyEditedTest = { ...createdTest, title: 'Edited in another tab' }
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/teacher/tests' && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => ({ test: createdTest }) })
+      }
+      if (url === '/api/teacher/tests/created-test-id/discard-pristine' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ discarded: false, test: concurrentlyEditedTest }),
+        })
+      }
+      if (url === '/api/teacher/tests/created-test-id/results') {
+        return Promise.resolve(makeResultsResponse())
+      }
+      if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
+        return Promise.resolve({ ok: true, json: async () => ({ tests: [concurrentlyEditedTest] }) })
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${String(url)}`))
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit test' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    })
+    expect(screen.queryByText('No tests yet')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Unexpected fetch/)).not.toBeInTheDocument()
   })
 
   it('updates the tests list from edit modal draft title changes', async () => {

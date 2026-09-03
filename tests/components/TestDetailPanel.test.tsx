@@ -23,7 +23,7 @@ function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): Te
 function holdAutosaveDebounce() {
   const nativeSetTimeout = globalThis.setTimeout
   vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback, delay, ...args) => (
-    nativeSetTimeout(callback, delay === 3_000 ? 60_000 : delay, ...args)
+    nativeSetTimeout(callback, delay === 3_000 ? 3_600_000 : delay, ...args)
   )) as typeof setTimeout)
 }
 
@@ -764,7 +764,7 @@ describe('TestDetailPanel', () => {
           json: async () => ({ test: { documents: [] } }),
         })
 
-      let checkPristine: (() => boolean) | null = null
+      let checkPristine: (() => { isPristine: boolean; draftVersion: number }) | null = null
       render(
         <TestDetailPanel
           test={makeTestWithStats({
@@ -784,8 +784,15 @@ describe('TestDetailPanel', () => {
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(2)
         expect(checkPristine).not.toBeNull()
-        expect(checkPristine?.()).toBe(true)
+        expect(checkPristine?.()).toEqual({ isPristine: true, draftVersion: 1 })
       })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit test title' }))
+      fireEvent.change(screen.getByRole('textbox', { name: 'Test title' }), {
+        target: { value: 'A real title' },
+      })
+
+      expect(checkPristine?.()).toEqual({ isPristine: false, draftVersion: 1 })
     })
 
     it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {
@@ -1800,6 +1807,7 @@ Current Test reference material.
     })
 
     it('updates the markdown mirror immediately after structured edits in summary-detail mode', async () => {
+      holdAutosaveDebounce()
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,

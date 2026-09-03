@@ -105,6 +105,7 @@ export function EditableAssessmentTitle({
         {editing ? (
           <Input
             ref={inputRef}
+            data-handle-escape
             aria-label={inputLabel}
             value={draftTitle}
             onChange={(event) => {
