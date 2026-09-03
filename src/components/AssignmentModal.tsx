@@ -137,6 +137,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
@@ -150,6 +151,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const lastSaveAtRef = useRef<number>(0)
   const lastSavedValuesRef = useRef<AssignmentEditorValues | null>(null)
   const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
+  const initialCreateValuesRef = useRef<AssignmentEditorValues | null>(null)
+  const activeSaveRef = useRef<{
+    values: AssignmentEditorValues
+    promise: Promise<Assignment | null>
+  } | null>(null)
 
   const isCreateMode = !assignment
 
@@ -235,6 +241,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         dueAt: nextDueAt,
         submissionRequirements: nextRequirements,
       }
+      initialCreateValuesRef.current = null
       setSaveStatus('saved')
     } else {
       // Create mode: immediately create a draft
@@ -247,6 +254,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
       setPrimaryAction('post')
+      const initialValues = {
+        title: '',
+        instructionsMarkdown: '',
+        dueAt: defaultDueAt,
+        submissionRequirements: [],
+      }
+      initialCreateValuesRef.current = initialValues
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
       setCreating(true)
@@ -366,6 +380,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           dueAt: assignmentDueAt,
           submissionRequirements: nextRequirements,
         }
+        initialCreateValuesRef.current = {
+          title: nextTitle,
+          instructionsMarkdown: resolvedInstructions.markdown,
+          dueAt: assignmentDueAt,
+          submissionRequirements: nextRequirements,
+        }
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -386,12 +406,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const saveChanges = useCallback(async (
     values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
-  ) => {
+  ): Promise<Assignment | null> => {
     const validationError = validateAssignmentEditorValues(values, currentAssignment)
     if (validationError) {
       setError(validationError)
       setSaveStatus('unsaved')
-      return
+      return null
     }
 
     setSaveStatus('saving')
@@ -405,7 +425,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         savedAssignment = await createAssignment(values)
         if (!savedAssignment) {
           setSaveStatus('unsaved')
-          return
+          return null
         }
         setCurrentAssignment(savedAssignment)
         lastSavedValuesRef.current = { ...values }
@@ -418,7 +438,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
             onSuccess(currentAssignment)
             onClose()
           }
-          return
+          return currentAssignment
         }
 
         const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}`, {
@@ -439,7 +459,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         savedAssignment = updatedAssignment
         const latestPendingValues = pendingValuesRef.current
         if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, values)) {
-          return
+          return savedAssignment
         }
 
         const resolvedInstructions = getAssignmentInstructionsMarkdown(updatedAssignment)
@@ -468,11 +488,28 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         onSuccess(savedAssignment!)
         onClose()
       }
+      return savedAssignment
     } catch (err: any) {
       setError(err.message || 'Failed to save assignment')
       setSaveStatus('unsaved')
+      return null
     }
   }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, setError])
+
+  const startSaveChanges = useCallback((
+    values: AssignmentEditorValues,
+    options?: { closeAfter?: boolean }
+  ) => {
+    const promise = saveChanges(values, options)
+    const activeSave = { values, promise }
+    activeSaveRef.current = activeSave
+    void promise.finally(() => {
+      if (activeSaveRef.current === activeSave) {
+        activeSaveRef.current = null
+      }
+    })
+    return promise
+  }, [saveChanges])
 
   const scheduleSave = useCallback((
     values: AssignmentEditorValues,
@@ -489,7 +526,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     const msSinceLastSave = now - lastSaveAtRef.current
 
     if (options?.force || msSinceLastSave >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void saveChanges(values)
+      void startSaveChanges(values)
       return
     }
 
@@ -498,10 +535,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       throttledSaveTimeoutRef.current = null
       const latest = pendingValuesRef.current
       if (latest) {
-        void saveChanges(latest)
+        void startSaveChanges(latest)
       }
     }, waitMs)
-  }, [saveChanges])
+  }, [startSaveChanges])
 
   const scheduleAutosave = useCallback((values: AssignmentEditorValues) => {
     pendingValuesRef.current = values
@@ -605,9 +642,26 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       clearTimeout(throttledSaveTimeoutRef.current)
       throttledSaveTimeoutRef.current = null
     }
-    pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges(buildEditorValues(), { closeAfter: true })
+    const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    const activeSave = activeSaveRef.current
+    if (activeSave) {
+      const savedAssignment = await activeSave.promise
+      const latestValues = pendingValuesRef.current ?? buildEditorValues()
+      if (
+        savedAssignment
+        && areAssignmentEditorValuesEqual(activeSave.values, latestValues)
+      ) {
+        pendingValuesRef.current = null
+        onSuccess(savedAssignment)
+        onClose()
+        setSaving(false)
+        return
+      }
+    }
+
+    pendingValuesRef.current = null
+    await startSaveChanges(valuesToSave, { closeAfter: true })
     setSaving(false)
   }
 
@@ -641,6 +695,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }
 
   async function handleClose() {
+    if (creating || saving || releasing || discarding) return
+
     setShowInstructionsPreview(false)
 
     if (saveTimeoutRef.current) {
@@ -652,10 +708,43 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       throttledSaveTimeoutRef.current = null
     }
 
+    const valuesToClose = pendingValuesRef.current ?? buildEditorValues()
+    const initialCreateValues = initialCreateValuesRef.current
+    if (
+      isCreateMode
+      && currentAssignment
+      && initialCreateValues
+      && areAssignmentEditorValuesEqual(valuesToClose, initialCreateValues)
+    ) {
+      setDiscarding(true)
+      try {
+        const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}/discard-pristine`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_updated_at: currentAssignment.updated_at }),
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to discard empty assignment')
+        }
+        if (data.discarded) {
+          onClose()
+        } else {
+          const preservedAssignment = data.assignment ?? currentAssignment
+          onSuccess(preservedAssignment)
+          onClose()
+        }
+      } catch (closeError: any) {
+        setError(closeError?.message || 'Failed to discard empty assignment')
+      } finally {
+        setDiscarding(false)
+      }
+      return
+    }
+
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
-      await saveChanges(valuesToSave, { closeAfter: true })
+      await saveChanges(valuesToClose, { closeAfter: true })
     } else {
       if (currentAssignment) {
         onSuccess(currentAssignment)
@@ -698,7 +787,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         title={modalTitle}
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
-        closeDisabled={saving || releasing}
+        closeDisabled={creating || saving || releasing || discarding}
         tall
         showTitle
         contentClassName="!pt-1"

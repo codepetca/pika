@@ -7,7 +7,6 @@ import { CalendarSourceErrors, type CalendarSourceFailure } from '@/components/C
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
-import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
@@ -1082,22 +1081,20 @@ export function TeacherLessonCalendarTab({
         onNext={handleNextDate}
         onToday={handleToday}
         onViewModeChange={handleViewModeChange}
-        trailing={saving || showMarkdown ? (
-          <div className="flex items-center gap-1.5">
-            {saving && <span className="hidden text-sm text-text-muted sm:inline">Saving...</span>}
-            {showMarkdown ? (
-              <TeacherEditModeControls
-                active={isSidebarOpen}
-                onActiveChange={handleMarkdownToggle}
-                disabled={Boolean(classroom.archived_at)}
-                variant="secondary"
-                className="[&>button>span]:sr-only sm:[&>button>span]:not-sr-only"
-              />
-            ) : null}
-          </div>
-        ) : null}
+        context={saving ? <span className="hidden text-sm text-text-muted sm:inline">Saving...</span> : null}
+        moreActions={showMarkdown ? [
+          {
+            id: 'edit-calendar-markdown',
+            label: 'Edit calendar in Markdown',
+            checked: isSidebarOpen,
+            checkedRole: 'menuitemcheckbox',
+            dividerBefore: true,
+            disabled: Boolean(classroom.archived_at),
+            onSelect: handleMarkdownToggle,
+          },
+        ] : []}
       />
-      <PageContent className="pb-24 pt-2">
+      <PageContent className="pb-24 pt-1">
         <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />

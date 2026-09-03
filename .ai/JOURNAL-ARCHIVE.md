@@ -30472,6 +30472,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Follow-up brand refinement reuses the production Pika logo beside the title, adds the approved subtitle “School days, simplified.”, and removes the visible School Email asterisk while retaining native required semantics in both login modes. The shared pre-role email state was visually inspected at desktop/mobile in light/dark. Per explicit user direction, tests and CI were not run for this follow-up before its draft push; focused assertions were updated for the final copy and semantics.
 - Final independent review found the title-adjacent logo duplicated “Pika” for assistive technology. The login treatment now hides that decorative instance from the accessibility tree while retaining the visible mark; a matching semantic assertion covers the correction.
 
+<!-- pika-session-log-archive-batch:dd81fa895085b3c4be35a7300d6f313a0be17b4f6e1c36aaa4b74a227ce51651 -->
 <!-- pika-session-log-archive-batch:b32463171ce5b57152fa3d83ecc65803263cecce26cae9fccdc5d5b776bea532 -->
 ## 2026-09-01 — Mock a sticky Gradebook class summary
 
@@ -30548,6 +30549,8 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Changed shared Page action-bar More triggers and default teacher work-surface icon-menu triggers to the ghost treatment so they blend into their background at rest. Explicit primary menu triggers remain unchanged.
 - Focused checks pass 141 files / 1,393 tests plus architecture, UI policy, design policy, TypeScript, and lint. The Pika audit passes with composite-widget coverage present. The durable browser verifier passes 83 checks, including teacher desktop/mobile light/dark Classwork and Tests summaries and open More menus, student exclusion, and overflow checks; representative screenshots were visually inspected.
 
+<!-- pika-session-log-archive-batch:03ebbd9990c8196ee9881751598ce291276a07ffe6148440643a62aebe46ceba -->
+<!-- pika-session-log-archive-batch:cc27a32e9e890b914fd266d7e288b2b07bd6e4f6151da5df4e7595315da14ab7 -->
 <!-- pika-session-log-archive-batch:e97eae55d45849f2dc60c1c5bd3346996214b2bfabc6dd3ef6b462439df2084d -->
 <!-- pika-session-log-archive-batch:742e74269b819e96365e02895945db0bc34e11b219f06fb24adb725e6da9648d -->
 ## 2026-09-01 — Add Daily and role-aware classroom page mockups

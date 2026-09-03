@@ -174,6 +174,7 @@ export function ModalLayer({
 
       if (event.key === 'Escape' && closeOnEscapeRef.current) {
         if (event.target instanceof Element && event.target.closest('[role="menu"]')) return
+        if (event.target instanceof Element && event.target.closest('[data-handle-escape]')) return
         event.preventDefault()
         event.stopPropagation()
         onCloseRef.current()
