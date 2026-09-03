@@ -129,7 +129,7 @@ as $$
 declare
   v_deleted integer;
 begin
-  if p_batch_size not between 1 and 10000 then
+  if p_batch_size is null or p_batch_size not between 1 and 10000 then
     raise exception using
       errcode = '22023',
       message = 'invalid_classroom_join_rate_limit_cleanup_input';

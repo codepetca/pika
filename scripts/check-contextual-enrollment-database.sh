@@ -81,7 +81,8 @@ insert into public.classroom_roster (
 
 insert into public.classroom_join_rate_limits (scope, key_hash, updated_at) values
   ('actor', repeat('6', 64), clock_timestamp() - interval '2 days'),
-  ('invitation', repeat('7', 64), clock_timestamp() - interval '2 days');
+  ('invitation', repeat('7', 64), clock_timestamp() - interval '2 days'),
+  ('invitation', repeat('8', 64), clock_timestamp() - interval '2 days');
 
 set local role service_role;
 do $behavior$
@@ -103,8 +104,24 @@ declare
     )
   );
 begin
-  if public.cleanup_classroom_join_rate_limits_v1(10) <> 2 then
-    raise exception 'Bounded stale limiter cleanup did not remove the synthetic rows';
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(null);
+    raise exception 'Expected null cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(0);
+    raise exception 'Expected zero cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(10001);
+    raise exception 'Expected oversized cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  if public.cleanup_classroom_join_rate_limits_v1(1) <> 1
+    or public.cleanup_classroom_join_rate_limits_v1(10) <> 2 then
+    raise exception 'Bounded stale limiter cleanup exceeded or missed its requested batch';
   end if;
   v_result := public.join_classroom_by_code_atomic_v1(
     v_actor, v_open, ' c155open ', repeat('a', 64), repeat('b', 64),
