@@ -80,7 +80,7 @@ state only. Any unavailable live workflow opens an explicitly labeled explanatio
 never a fake success message. Announcement filters are proposed, not existing
 production behavior.
 
-Nearby refactor candidates: CalendarActionBar's nested bars; Gradebook/Roster
-selection menus and settings icons. Do not refactor those owners in this change.
+Remaining nearby refactor candidates: Gradebook/Roster selection menus and
+settings icons. Leave those unrelated owners unchanged in this Calendar adoption.
 Adopt a page only after its proposal is accepted and live data/state handling is
 verified independently.
