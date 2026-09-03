@@ -30,8 +30,10 @@ attendance-decommission requirement activates the linked-attendance stage.
 That stage uses a deterministic per-Classroom operation UUID, resumes saved
 status after reload, removes remote and local attendance, refreshes the purge
 inventory, and then invokes the unchanged managed-file/Classroom purge. There
-is no separate unlink action. The controls remain hidden until their existing
-rollout gates authorize the Classroom.
+is no separate unlink action. If attendance finishes after a reload or other
+lost UI state, the dialog requires fresh typed confirmation before it starts
+the final Classroom/file purge. The controls remain hidden until their
+existing rollout gates authorize the Classroom.
 
 ## Ownership and retention
 

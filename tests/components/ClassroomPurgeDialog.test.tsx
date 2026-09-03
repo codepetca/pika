@@ -358,6 +358,110 @@ describe('ClassroomPurgeDialog', () => {
     )).toBe(false)
   })
 
+  it('requires fresh confirmation after resumed attendance removal before starting the classroom purge', async () => {
+    const attendanceOperation = {
+      operation_id: '30000000-0000-5000-8000-000000000001',
+      state: 'fenced',
+      deleted_count: 7,
+      attendance_removed: false,
+      classroom_deleted: false,
+    } as const
+    const completedAttendance = {
+      ...attendanceOperation,
+      state: 'local_deleted',
+      deleted_count: 24,
+      attendance_removed: true,
+    } as const
+    const completedPurge = {
+      operation_id: '20000000-0000-4000-8000-000000000001',
+      classroom_id: CLASSROOM_ID,
+      status: 'completed',
+      retryable: null,
+      error_code: null,
+      attempt_count: 1,
+      resource_counts: { classrooms: 1 },
+      storage_object_counts: { deleted: 2 },
+      completed_at: '2026-09-03T12:00:00.000Z',
+    } as const
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url.endsWith('/purge') && method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            impact: {
+              classroom_id: CLASSROOM_ID,
+              classroom_title: 'Archived Biology',
+              source_revision: 7,
+              storage_inventory_sha256: 'a'.repeat(64),
+              operational_inventory_sha256: 'b'.repeat(64),
+              relational_row_count: 10,
+              student_count: 2,
+              managed_file_count: 2,
+              managed_file_bytes: 2048,
+              missing_file_count: 0,
+              archive_count: 0,
+              gradex_extract_count: 0,
+              interrupted_upload_count: 0,
+              resource_counts: { classrooms: 1 },
+              storage_counts: { 'submission-images': 2 },
+              conflicting_operation: null,
+              deletion_available: true,
+              unavailable_reason: null,
+            },
+            operation: null,
+          }),
+        }
+      }
+      if (url.includes('/attendance-decommission/') && method === 'GET') {
+        return { ok: true, status: 200, json: async () => ({ operation: attendanceOperation }) }
+      }
+      if (url.includes('/attendance-decommission/') && method === 'POST') {
+        return { ok: true, status: 200, json: async () => ({ operation: completedAttendance }) }
+      }
+      if (url.endsWith('/purge') && method === 'POST') {
+        return { ok: true, status: 200, json: async () => ({ operation: completedPurge }) }
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(completedPurge.operation_id)
+    const onCompleted = vi.fn()
+    render(
+      <ClassroomPurgeDialog
+        classroomId={CLASSROOM_ID}
+        classroomTitle="Archived Biology"
+        isOpen
+        onClose={vi.fn()}
+        onCompleted={onCompleted}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue deletion' }))
+
+    expect(await screen.findByText('Linked attendance removed')).toBeInTheDocument()
+    const confirmation = screen.getByRole('textbox')
+    const continueButton = screen.getByRole('button', { name: 'Continue deletion' })
+    expect(continueButton).toBeDisabled()
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).endsWith('/purge') && (init as RequestInit | undefined)?.method === 'POST',
+    )).toBe(false)
+
+    fireEvent.change(confirmation, { target: { value: 'DELETE' } })
+    expect(continueButton).toBeEnabled()
+    fireEvent.click(continueButton)
+
+    await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce())
+    const purgeStart = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).endsWith('/purge') && (init as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(JSON.parse((purgeStart?.[1] as RequestInit).body as string)).toMatchObject({
+      confirmation: 'DELETE',
+    })
+  })
+
   it('ignores a late impact response after the dialog changes classrooms', async () => {
     const nextClassroomId = '10000000-0000-4000-8000-000000000002'
     type MockResponse = { ok: boolean; status: number; json: () => Promise<unknown> }

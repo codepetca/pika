@@ -38,7 +38,7 @@ async function newRolePage(
 }
 
 async function mockTeacherArchive(page: Page) {
-  let showAttendanceProgress = false
+  let attendanceState: 'none' | 'fenced' | 'completed' = 'none'
   await page.route('**/api/teacher/classrooms?archived=true', async (route) => {
     await route.fulfill({
       status: 200,
@@ -87,21 +87,21 @@ async function mockTeacherArchive(page: Page) {
     async (route) => {
       if (route.request().method() !== 'GET') return route.abort('blockedbyclient')
       await route.fulfill({
-        status: showAttendanceProgress ? 200 : 404,
+        status: attendanceState === 'none' ? 404 : 200,
         contentType: 'application/json',
-        body: JSON.stringify(showAttendanceProgress ? {
+        body: JSON.stringify(attendanceState !== 'none' ? {
           operation: {
             operation_id: '30000000-0000-5000-8000-000000000001',
-            state: 'fenced',
+            state: attendanceState === 'completed' ? 'local_deleted' : 'fenced',
             deleted_count: 127,
-            attendance_removed: false,
+            attendance_removed: attendanceState === 'completed',
             classroom_deleted: false,
           },
         } : { error: 'Not found' }),
       })
     },
   )
-  return { showAttendanceProgress: () => { showAttendanceProgress = true } }
+  return { setAttendanceState: (state: 'fenced' | 'completed') => { attendanceState = state } }
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -152,7 +152,7 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     })
     await deleteDialog.getByRole('button', { name: 'Cancel' }).click()
 
-    deletionFixture.showAttendanceProgress()
+    deletionFixture.setAttendanceState('fenced')
     await deleteButton.click()
     const progressDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
     await expect(progressDialog.getByText('Removing linked attendance…')).toBeVisible()
@@ -165,6 +165,27 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       animations: 'disabled',
     })
     await closeProgressButton.click()
+
+    deletionFixture.setAttendanceState('completed')
+    await deleteButton.click()
+    const finalConfirmationDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
+    await expect(finalConfirmationDialog.getByText('Linked attendance removed')).toBeVisible()
+    await expect(finalConfirmationDialog.getByRole('textbox')).toBeVisible()
+    const finalContinueButton = finalConfirmationDialog.getByRole('button', { name: 'Continue deletion' })
+    await expect(finalContinueButton).toBeDisabled()
+    await page.screenshot({
+      path: `/tmp/pika-coordinated-delete-final-confirm-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await finalContinueButton.scrollIntoViewIfNeeded()
+    await expect(finalContinueButton).toBeVisible()
+    await page.screenshot({
+      path: `/tmp/pika-coordinated-delete-final-actions-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await finalConfirmationDialog.getByRole('button', { name: 'Close', exact: true }).last().click()
 
     await page.getByRole('link', { name: 'Home' }).click()
     await expect(page.getByRole('heading', { name: 'Active classrooms' })).toBeFocused()

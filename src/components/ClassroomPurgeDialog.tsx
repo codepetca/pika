@@ -62,6 +62,8 @@ export function ClassroomPurgeDialog({
 
   const isConfirmed = confirmation === 'DELETE' || confirmation === classroomTitle
   const deletionStarted = Boolean(attendanceOperation || operation)
+  const requiresPurgeConfirmation = !operation
+    && (!attendanceOperation || attendanceOperation.attendance_removed)
   const totalFiles = useMemo(
     () => operation
       ? Object.values(operation.storage_object_counts).reduce((total, count) => total + count, 0)
@@ -253,6 +255,7 @@ export function ClassroomPurgeDialog({
 
       if (attendanceOperation) {
         await runAttendanceUntilSettled(attendanceOperation)
+        if (!isConfirmed) return
         const refreshed = await fetchPurgeSnapshot()
         if (!refreshed.impact) throw new Error('Could not refresh permanent deletion impact')
         setImpact(refreshed.impact)
@@ -377,20 +380,36 @@ export function ClassroomPurgeDialog({
               </p>
             </div>
           ) : attendanceOperation ? (
-            <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
-              <p className="text-sm font-medium text-text-default">
-                {attendanceOperation.attendance_removed
-                  ? 'Linked attendance removed'
-                  : attendanceOperation.state === 'remote_deleted'
-                    ? 'Removing local attendance records…'
-                    : 'Removing linked attendance…'}
-              </p>
-              <p className="mt-1 text-xs text-text-muted">
-                {attendanceOperation.deleted_count > 0
-                  ? `${attendanceOperation.deleted_count} attendance record${attendanceOperation.deleted_count === 1 ? '' : 's'} removed. Progress is saved.`
-                  : 'Attendance writes are safely stopped. Progress is saved if you close this window.'}
-              </p>
-            </div>
+            <>
+              <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
+                <p className="text-sm font-medium text-text-default">
+                  {attendanceOperation.attendance_removed
+                    ? 'Linked attendance removed'
+                    : attendanceOperation.state === 'remote_deleted'
+                      ? 'Removing local attendance records…'
+                      : 'Removing linked attendance…'}
+                </p>
+                <p className="mt-1 text-xs text-text-muted">
+                  {attendanceOperation.deleted_count > 0
+                    ? `${attendanceOperation.deleted_count} attendance record${attendanceOperation.deleted_count === 1 ? '' : 's'} removed. Progress is saved.`
+                    : 'Attendance writes are safely stopped. Progress is saved if you close this window.'}
+                </p>
+              </div>
+              {attendanceOperation.attendance_removed ? (
+                <FormField
+                  label={`Type “${classroomTitle}” or DELETE to confirm`}
+                  htmlFor="classroom-purge-confirmation"
+                  hint="Confirm again to finish removing the classroom and its files."
+                >
+                  <Input
+                    id="classroom-purge-confirmation"
+                    value={confirmation}
+                    onChange={(event) => setConfirmation(event.target.value)}
+                    autoComplete="off"
+                  />
+                </FormField>
+              ) : null}
+            </>
           ) : (
             <FormField
               label={`Type “${classroomTitle}” or DELETE to confirm`}
@@ -434,7 +453,7 @@ export function ClassroomPurgeDialog({
                 isLoading
                 || (impact?.deletion_available === false && !deletionStarted)
                 || Boolean(impact?.conflicting_operation)
-                || (!deletionStarted && !isConfirmed)
+                || (requiresPurgeConfirmation && !isConfirmed)
                 || operation?.status === 'completed'
               }
             >
