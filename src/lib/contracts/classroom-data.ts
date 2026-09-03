@@ -183,6 +183,14 @@ export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
 // its own documented contract.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
   ...ATTENDANCE_PROVIDER_OWNED_REFERENCES,
+  // Pika locator state, not portable teaching/student data. Soft archive retains
+  // it but resolution rejects archived classrooms. Authorized classroom deletion
+  // cascades the handle; restore/import must create a fresh poster, never revive it.
+  {
+    child_table: 'attendance_classroom_qr_handles',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
   {
     child_table: 'course_blueprint_change_proposals',
     parent_table: 'classrooms',
@@ -380,7 +388,8 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('announcements', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('announcement_reads', 'announcements', 'announcement_id', ['student_identity', 'operations']),
   resource('assessment_drafts', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
-  resource('assignments', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured'),
+  resource('gradebook_categories', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback']),
+  resource('assignments', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured', ['gradebook_categories']),
   resource('assignment_ai_grading_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_structured'),
   resource('assignment_ai_grading_run_items', 'assignment_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['assignment_docs', 'assignments']),
   resource('assignment_docs', 'assignments', 'assignment_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured'),
@@ -405,7 +414,7 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('surveys', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('survey_questions', 'surveys', 'survey_id', ['teacher_content']),
   resource('survey_responses', 'surveys', 'survey_id', ['student_identity', 'student_work'], 'exclude', ['survey_questions']),
-  resource('tests', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured'),
+  resource('tests', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured', ['gradebook_categories']),
   resource('test_ai_grading_runs', 'tests', 'test_id', ['grades_and_feedback', 'operations'], 'include_structured'),
   resource('test_ai_grading_run_items', 'test_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['test_questions', 'test_responses', 'tests']),
   resource('test_attempts', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback', 'operations']),

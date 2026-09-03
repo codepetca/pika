@@ -2,7 +2,7 @@
 
 import type { ReactNode, RefObject } from 'react'
 import { Eye } from 'lucide-react'
-import { IconButton } from '@/ui'
+import { FormField, IconButton } from '@/ui'
 import { ContentField, MarkdownContentEditor } from '@/components/editor'
 import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
@@ -12,6 +12,7 @@ import type { ClassDay } from '@/types'
 interface AssignmentFormProps {
   title: string
   instructionsMarkdown: string
+  instructionsMode?: 'visual' | 'markdown'
   dueAt: string
   classDays?: ClassDay[]
   extraFields?: ReactNode
@@ -33,6 +34,7 @@ interface AssignmentFormProps {
 export function AssignmentForm({
   title,
   instructionsMarkdown,
+  instructionsMode = 'visual',
   dueAt,
   classDays,
   extraFields,
@@ -101,7 +103,19 @@ export function AssignmentForm({
                 {markdownWarning}
               </div>
             )}
-            <ContentField
+            {instructionsMode === 'markdown' ? (
+              <FormField label="Instructions Markdown" className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}>
+                <textarea
+                  value={instructionsMarkdown}
+                  onChange={(event) => onInstructionsMarkdownChange(event.target.value)}
+                  onBlur={onBlur}
+                  disabled={disabled}
+                  spellCheck={false}
+                  rows={14}
+                  className="min-h-64 w-full flex-1 resize-y rounded-control border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2"
+                />
+              </FormField>
+            ) : <ContentField
               label="Instructions"
               hideLabel
               collapseHiddenLabel
@@ -121,7 +135,7 @@ export function AssignmentForm({
                   fillHeight ? 'simple-editor-wrapper--fill-height min-h-0 flex-1' : '',
                 ].join(' ')}
               />
-            </ContentField>
+            </ContentField>}
           </div>
         </div>
       </div>

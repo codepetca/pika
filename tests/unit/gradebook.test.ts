@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { calculateFinalPercent } from '@/lib/gradebook'
+import {
+  calculateAssessmentCourseWeight,
+  calculateCategorizedFinalPercent,
+  calculateFinalPercent,
+} from '@/lib/gradebook'
 
 describe('gradebook final percent', () => {
   it('returns nulls when no scores exist', () => {
@@ -77,5 +81,42 @@ describe('gradebook final percent', () => {
     expect(result.assignmentsPercent).toBe(90)
     expect(result.testsPercent).toBeNull()
     expect(result.finalPercent).toBe(90)
+  })
+})
+
+describe('categorized gradebook final percent', () => {
+  it('weights category percentages and ignores uncategorized work', () => {
+    const result = calculateCategorizedFinalPercent({
+      categories: [
+        { id: 'term', percentage: 65 },
+        { id: 'final', percentage: 25 },
+        { id: 'attendance', percentage: 10 },
+      ],
+      items: [
+        { categoryId: 'term', earned: 80, possible: 100, weight: 10 },
+        { categoryId: 'final', earned: 90, possible: 100, weight: 10 },
+        { categoryId: null, earned: 0, possible: 100, weight: 999 },
+      ],
+    })
+
+    expect(result.categoryPercents).toEqual({ term: 80, final: 90, attendance: null })
+    expect(result.finalPercent).toBe(82.78)
+  })
+
+  it('uses relative assessment weights within a category', () => {
+    const result = calculateCategorizedFinalPercent({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [
+        { categoryId: 'term', earned: 100, possible: 100, weight: 1 },
+        { categoryId: 'term', earned: 0, possible: 100, weight: 3 },
+      ],
+    })
+
+    expect(result.finalPercent).toBe(25)
+    expect(calculateAssessmentCourseWeight({
+      categoryPercentage: 65,
+      assessmentWeight: 1,
+      categoryAssessmentWeights: [1, 3],
+    })).toBe(16.25)
   })
 })

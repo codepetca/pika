@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { gradebookPatchSchema, gradebookQuerySchema } from '@/lib/validations/gradebook'
+import {
+  gradebookCategoriesPutSchema,
+  gradebookPatchSchema,
+  gradebookQuerySchema,
+} from '@/lib/validations/gradebook'
 
 describe('gradebookQuerySchema', () => {
   it('normalizes an optional selected student while preserving the classroom id', () => {
@@ -27,6 +31,23 @@ describe('gradebookPatchSchema', () => {
       classroomId: 'classroom-1',
       assessmentType: 'assignment',
       assessmentId: 'assignment-1',
+      gradebookWeight: 25,
+    })
+  })
+
+  it('parses an assessment category and weight update', () => {
+    expect(gradebookPatchSchema.parse({
+      classroom_id: 'classroom-1',
+      assessment_type: 'test',
+      assessment_id: 'test-1',
+      gradebook_category_id: '10000000-0000-4000-8000-000000000002',
+      gradebook_weight: 25,
+    })).toEqual({
+      kind: 'assessment_details',
+      classroomId: 'classroom-1',
+      assessmentType: 'test',
+      assessmentId: 'test-1',
+      gradebookCategoryId: '10000000-0000-4000-8000-000000000002',
       gradebookWeight: 25,
     })
   })
@@ -73,4 +94,58 @@ describe('gradebookPatchSchema', () => {
       expect(result.success).toBe(false)
     },
   )
+})
+
+describe('gradebookCategoriesPutSchema', () => {
+  const category = (overrides: Record<string, unknown>) => ({
+    id: '10000000-0000-4000-8000-000000000001',
+    name: 'Term',
+    percentage: 100,
+    default_assessment_weight: 10,
+    is_default: true,
+    ...overrides,
+  })
+
+  it('accepts categories totaling 100 and assigns their array order', () => {
+    const result = gradebookCategoriesPutSchema.parse({
+      classroom_id: 'classroom-1',
+      categories: [
+        category({ percentage: 65 }),
+        category({
+          id: '10000000-0000-4000-8000-000000000002',
+          name: 'Final',
+          percentage: 35,
+          is_default: false,
+        }),
+      ],
+    })
+
+    expect(result.categories.map((item) => item.position)).toEqual([0, 1])
+  })
+
+  it('rejects totals other than 100', () => {
+    expect(() => gradebookCategoriesPutSchema.parse({
+      classroom_id: 'classroom-1',
+      categories: [category({ percentage: 65 })],
+    })).toThrow('Category percentages must total 100')
+  })
+
+  it('rejects duplicate ids and percentages beyond two decimal places', () => {
+    const result = gradebookCategoriesPutSchema.safeParse({
+      classroom_id: 'classroom-1',
+      categories: [
+        category({ percentage: 65.001 }),
+        category({ name: 'Final', percentage: 34.999, is_default: false }),
+      ],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('reserves the collision-free replacement namespace', () => {
+    expect(() => gradebookCategoriesPutSchema.parse({
+      classroom_id: 'classroom-1',
+      categories: [category({ name: '__pika_replacing__custom' })],
+    })).toThrow('Category name is reserved')
+  })
 })

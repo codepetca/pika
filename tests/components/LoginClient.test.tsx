@@ -42,6 +42,18 @@ describe('LoginClient', () => {
     cleanup()
   })
 
+  it('presents the magic-code login as Pika Classroom without redundant instructions', () => {
+    render(<LoginClient magicAuthEnabled />)
+
+    expect(screen.getByRole('heading', { name: 'Pika Classroom' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Pika' })).not.toBeInTheDocument()
+    expect(screen.getByText('School days, simplified.')).toBeInTheDocument()
+    expect(screen.queryByText(/enter your school email/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/school email/i)).toBeRequired()
+    expect(screen.getByText('School Email')).not.toHaveTextContent('*')
+    expect(screen.getByRole('button', { name: /email me a sign-in code/i })).toBeInTheDocument()
+  })
+
   it('uses a full document navigation after successful login', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

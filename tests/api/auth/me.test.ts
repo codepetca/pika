@@ -31,6 +31,7 @@ describe('GET /api/auth/me', () => {
       const data = await response.json()
 
       expect(response.status).toBe(401)
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store')
       expect(data.error).toBe('Not authenticated')
     })
   })
@@ -51,6 +52,7 @@ describe('GET /api/auth/me', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
+      expect(response.headers.get('Cache-Control')).toBe('private, no-store')
       expect(data).toEqual({
         user: {
           id: 'user-1',

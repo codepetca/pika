@@ -79,6 +79,11 @@ describe('Page primitives', () => {
     expect(
       screen.getByRole('button', { name: 'More actions' }).parentElement?.parentElement?.parentElement,
     ).toHaveClass('flex', 'items-center', 'gap-3')
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass(
+      'border-transparent',
+      'bg-transparent',
+      'text-text-muted',
+    )
   })
 
   it('preserves 44px targets and focus treatment for action buttons and menu items', () => {

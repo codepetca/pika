@@ -6,6 +6,8 @@ import {
   AlertDialog,
   Button,
   Card,
+  ContentDialog,
+  QrCode,
   FormField,
   Input,
   IconButton,
@@ -39,6 +41,7 @@ import {
   CircleAlert,
   Clock3,
   ExternalLink,
+  Eye,
   Inbox,
   Info,
   LoaderCircle,
@@ -63,8 +66,21 @@ import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { PageMockups } from './PageMockups'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
+import { StudentGradesPattern } from './StudentGradesPattern'
 
 type Role = 'teacher' | 'student'
+
+function QrSizingExample() {
+  const [open, setOpen] = useState(false)
+  return <>
+    <Button type="button" variant="surface" size="sm" onClick={() => setOpen(true)}>Open QR example</Button>
+    <ContentDialog isOpen={open} onClose={() => setOpen(false)} title="QR sizing example" panelClassName="h-full" showFooterClose={false}>
+      <div className="mx-auto w-full max-w-lg">
+        <QrCode value="https://example.invalid/attendance/classroom/example" label="Nonfunctional example QR" className="aspect-square w-full bg-qr-background p-12" codeClassName="max-w-none" />
+      </div>
+    </ContentDialog>
+  </>
+}
 
 interface PatternLabDestination {
   value: string
@@ -94,7 +110,7 @@ export function UiGallery({ role }: Props) {
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
     ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-creation']
-    : ['controls', 'status-colors', 'student-tests', 'history-preview']
+    : ['page-mockups', 'controls', 'student-tests', 'history-preview']
   const quickLinks = quickLinkIds
     .map((id) => navigationDestinations.find((destination) => destination.value === id))
     .filter((destination): destination is PatternLabDestination => Boolean(destination))
@@ -113,6 +129,14 @@ export function UiGallery({ role }: Props) {
       return
     }
     scroll()
+  }
+
+  function switchRole(nextRole: Role) {
+    if (nextRole === role) return
+    const nextUrl = new URL(window.location.href)
+    nextUrl.searchParams.set('role', nextRole)
+    if (nextUrl.hash.startsWith('#mockup-')) nextUrl.hash = '#page-mockups'
+    window.location.assign(nextUrl)
   }
 
   return (
@@ -145,7 +169,7 @@ export function UiGallery({ role }: Props) {
               ['statuses', 'Statuses'],
               ['page-states', 'Page states'],
               ...(role === 'teacher' ? [['teacher-patterns', 'Teacher patterns']] : []),
-              ...(role === 'teacher' ? [['page-mockups', 'Page mockups']] : []),
+              ['page-mockups', 'Page mockups'],
               ['feature-patterns', 'Feature patterns'],
             ].map(([href, label]) => (
               <a
@@ -185,7 +209,7 @@ export function UiGallery({ role }: Props) {
           aria-label="Pattern Lab sections"
           className="sticky top-2 z-app-chrome -mx-1 rounded-card border border-border bg-surface p-2 shadow-sm"
         >
-          <div className="flex items-end gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1 sm:max-w-sm">
               <label htmlFor="pattern-lab-jump" className="mb-1 block text-xs font-semibold text-text-muted">
                 Find a pattern
@@ -199,6 +223,15 @@ export function UiGallery({ role }: Props) {
                   jumpToPattern(event.currentTarget.value)
                   event.currentTarget.value = ''
                 }}
+              />
+            </div>
+            <div className="shrink-0">
+              <span className="mb-1 block text-xs font-semibold text-text-muted">View as</span>
+              <SegmentedControl<Role>
+                ariaLabel="Pattern Lab role"
+                value={role}
+                options={[{ value: 'teacher', label: 'Teacher' }, { value: 'student', label: 'Student' }]}
+                onChange={switchRole}
               />
             </div>
             <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto lg:flex">
@@ -392,6 +425,7 @@ export function UiGallery({ role }: Props) {
                   Open alert dialog
                 </Button>
                 <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+                <QrSizingExample />
               </div>
             </Card>
           </div>
@@ -515,16 +549,16 @@ export function UiGallery({ role }: Props) {
           </PatternSection>
         )}
 
-        {role === 'teacher' && (
-          <PatternSection
-            id="page-mockups"
-            eyebrow="Experimental · page compositions"
-            title="Classroom page patterns"
-            description="Interactive controls and representative content for Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces. These local-only fixtures support comparison before live-page implementation."
-          >
-            <PageMockups />
-          </PatternSection>
-        )}
+        <PatternSection
+          id="page-mockups"
+          eyebrow="Experimental · page compositions"
+          title="Classroom page patterns"
+          description={role === 'teacher'
+            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
+            : 'Interactive student fixtures for Today, Classwork, Tests, Calendar, Announcements, and Resources.'}
+        >
+          <PageMockups role={role} />
+        </PatternSection>
 
         <PatternSection
           id="feature-patterns"
@@ -536,14 +570,15 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
-          <PatternSection
-            id="student-tests"
-            eyebrow="Experimental · student workflow"
-            title="Student Tests: progress and access"
-            description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
-          >
-            <StudentTestExamples />
-          </PatternSection>
+            <StudentGradesPattern />
+            <PatternSection
+              id="student-tests"
+              eyebrow="Experimental · student workflow"
+              title="Student Tests: progress and access"
+              description="Real list actions with fixed examples. Submitted and Returned describe progress; Closed describes access. This refinement awaits human review and is not a cross-product default."
+            >
+              <StudentTestExamples />
+            </PatternSection>
 
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
@@ -564,6 +599,7 @@ export function UiGallery({ role }: Props) {
 }
 
 const ICON_COMPONENTS: Record<ApprovedIconName, LucideIcon> = {
+  eye: Eye,
   'check-circle': CheckCircle2,
   clock: Clock3,
   'alert-circle': CircleAlert,
@@ -606,7 +642,8 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
-      { value: 'page-mockups', label: 'Page mockups — Classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },
+      { value: 'page-mockups', label: 'Page mockups — Daily, classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },
+      { value: 'mockup-daily-panel', label: 'Page mockups — Daily' },
       { value: 'mockup-classrooms-panel', label: 'Page mockups — Classrooms' },
       { value: 'mockup-gradebook-panel', label: 'Page mockups — Gradebook' },
       { value: 'mockup-calendar-panel', label: 'Page mockups — Calendar' },
@@ -616,7 +653,15 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'mockup-workspaces-panel', label: 'Page mockups — Classwork and Tests workspaces' },
       { value: 'material-creation', label: 'Creation dialogs — Material' },
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
-    ] : []),
+    ] : [
+      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, calendar, announcements, and resources' },
+      { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },
+      { value: 'mockup-student-classwork-panel', label: 'Page mockups — Classwork' },
+      { value: 'mockup-student-tests-panel', label: 'Page mockups — Tests' },
+      { value: 'mockup-student-calendar-panel', label: 'Page mockups — Calendar' },
+      { value: 'mockup-student-announcements-panel', label: 'Page mockups — Announcements' },
+      { value: 'mockup-student-resources-panel', label: 'Page mockups — Resources' },
+    ]),
     { value: 'student-tests', label: 'Student tests — Progress and access' },
     { value: 'history-preview', label: 'History — Document preview' },
     { value: 'history-graph', label: 'History — Activity graph scenarios' },

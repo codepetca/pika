@@ -16,7 +16,7 @@ export default async function ClassroomsIndexPage() {
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
 
   const supabase = getServiceRoleClient()

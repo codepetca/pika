@@ -120,7 +120,9 @@ const legacyQuizTables = new Set<string>(LEGACY_QUIZ_ARCHIVE_V1_RESOURCES)
 // This graph is inactive until the separately authorized archive-v2 migration
 // installs matching tables and database contracts.
 export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
-  ...CLASSROOM_ARCHIVE_V1_RESOURCES.filter((resource) =>
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(0, 4),
+  archiveResource('gradebook_categories'),
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4).filter((resource) =>
     !legacyQuizTables.has(resource.table),
   ),
   archiveResource('classroom_retired_assessment_records'),
@@ -128,7 +130,9 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
 ] as const satisfies readonly ClassroomArchiveResourceDefinition[]
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
-  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.filter((table) =>
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(0, 3),
+  'gradebook_categories',
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(3).filter((table) =>
     !legacyQuizTables.has(table),
   ),
   'classroom_retired_assessment_records',

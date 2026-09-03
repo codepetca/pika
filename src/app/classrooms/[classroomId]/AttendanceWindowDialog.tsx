@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
-import { CircleHelp } from 'lucide-react'
 import { fetchJSON } from '@/lib/request-cache'
 import {
   invalidateTeacherAttendancePolicy,
@@ -13,14 +12,18 @@ import {
 } from '@/lib/teacher-attendance-policy'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
+  ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
+  MAX_ATTENDANCE_SESSION_MINUTES,
+  attendanceSessionDurationMinutes,
+} from '@/lib/attendance-session-duration'
+import {
   Button,
   ContentDialog,
   FormField,
   Input,
   PageState,
-  Select,
+  SegmentedControl,
   TableSelectionCheckbox,
-  Tooltip,
   useAppMessage,
 } from '@/ui'
 
@@ -31,8 +34,10 @@ interface AttendanceWindowDialogProps {
   onSaved: (policy: TeacherAttendancePolicy, scheduleSynced: boolean) => void
 }
 
-const CLOSING_DAY_HELP = 'Use next day only for classes that continue past midnight.'
-const AUTOMATIC_HOURS_HELP = 'Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.'
+function clampMinutes(value: number, maximum: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(Math.max(value, 0), maximum)
+}
 
 export function AttendanceWindowDialog(props: AttendanceWindowDialogProps) {
   return <AttendanceWindowDialogContent key={props.classroomId} {...props} />
@@ -54,10 +59,9 @@ function AttendanceWindowDialogContent({
   const [sessionEndDayOffset, setSessionEndDayOffset] = useState<0 | 1>(0)
   const [entryOpensMinutesBefore, setEntryOpensMinutesBefore] = useState(10)
   const [presentGraceMinutes, setPresentGraceMinutes] = useState(5)
-  const [entryClosesMinutesBeforeEnd, setEntryClosesMinutesBeforeEnd] = useState(10)
+  const [entryClosesMinutesBeforeEnd, setEntryClosesMinutesBeforeEnd] = useState(0)
   const [absentMinutesBeforeEnd, setAbsentMinutesBeforeEnd] = useState(0)
   const [enabled, setEnabled] = useState(true)
-  const [expandedHelp, setExpandedHelp] = useState<'closing-day' | 'automatic' | null>(null)
   const mounted = useRef(true)
   const requestSequence = useRef(0)
   const openRef = useRef(isOpen)
@@ -86,7 +90,7 @@ function AttendanceWindowDialogContent({
       setSessionEndDayOffset(policy?.sessionEndDayOffset ?? 0)
       setEntryOpensMinutesBefore(policy?.entryOpensMinutesBefore ?? 10)
       setPresentGraceMinutes(policy?.presentGraceMinutes ?? 5)
-      setEntryClosesMinutesBeforeEnd(policy?.entryClosesMinutesBeforeEnd ?? 10)
+      setEntryClosesMinutesBeforeEnd(policy?.entryClosesMinutesBeforeEnd ?? 0)
       setAbsentMinutesBeforeEnd(policy?.absentMinutesBeforeEnd ?? 0)
       setEnabled(policy?.enabled ?? true)
     } catch (reason) {
@@ -98,23 +102,37 @@ function AttendanceWindowDialogContent({
 
   useEffect(() => {
     if (isOpen) {
-      setExpandedHelp(null)
       void loadPolicy()
     }
   }, [isOpen, loadPolicy])
 
-  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
-  const duration = minutes(sessionEndsLocal) - minutes(sessionStartsLocal)
-    + sessionEndDayOffset * 1440
-  const validationError = !sessionStartsLocal || !sessionEndsLocal
+  const duration = attendanceSessionDurationMinutes(
+    sessionStartsLocal,
+    sessionEndsLocal,
+    sessionEndDayOffset,
+  ) ?? 0
+  const timingRuleMaximum = Math.min(MAX_ATTENDANCE_SESSION_MINUTES, Math.max(0, duration))
+
+  useEffect(() => {
+    setPresentGraceMinutes((current) => clampMinutes(current, timingRuleMaximum))
+    setEntryClosesMinutesBeforeEnd((current) => clampMinutes(current, timingRuleMaximum))
+    setAbsentMinutesBeforeEnd((current) => clampMinutes(current, timingRuleMaximum))
+  }, [timingRuleMaximum])
+  const sessionDurationError = !sessionStartsLocal || !sessionEndsLocal
     ? 'Choose both session times.'
     : duration <= 0
       ? 'Session end must be after session start.'
-      : presentGraceMinutes >= duration - entryClosesMinutesBeforeEnd
+      : duration > MAX_ATTENDANCE_SESSION_MINUTES
+        ? ATTENDANCE_SESSION_TOO_LONG_MESSAGE
+        : ''
+  const timingValidationError = sessionDurationError
+    ? ''
+    : presentGraceMinutes >= duration - entryClosesMinutesBeforeEnd
         ? 'The Present window must end before QR check-in closes.'
         : entryClosesMinutesBeforeEnd < absentMinutesBeforeEnd
           ? 'Students cannot become absent before QR check-in closes.'
           : ''
+  const validationError = sessionDurationError || timingValidationError
 
   async function savePolicy() {
     if (saving || validationError) return
@@ -220,7 +238,7 @@ function AttendanceWindowDialogContent({
                 onChange={(event) => setSessionStartsLocal(event.target.value)}
               />
             </FormField>
-            <FormField label="Session ends" required>
+            <FormField label="Session ends" required error={sessionDurationError || undefined}>
               <Input
                 type="time"
                 value={sessionEndsLocal}
@@ -237,121 +255,74 @@ function AttendanceWindowDialogContent({
                 <Input
                   type="number"
                   min={0}
-                  max={720}
+                  max={120}
                   value={entryOpensMinutesBefore}
                   disabled={saving}
-                  onChange={(event) => setEntryOpensMinutesBefore(Number(event.target.value))}
+                  onChange={(event) => setEntryOpensMinutesBefore(clampMinutes(Number(event.target.value), 120))}
                 />
               </FormField>
-              <FormField label="Present grace after start (min)">
+              <FormField label="Grace period before late (min)">
                 <Input
                   type="number"
                   min={0}
-                  max={720}
+                  max={timingRuleMaximum}
                   value={presentGraceMinutes}
                   disabled={saving}
-                  onChange={(event) => setPresentGraceMinutes(Number(event.target.value))}
+                  onChange={(event) => setPresentGraceMinutes(clampMinutes(Number(event.target.value), timingRuleMaximum))}
                 />
               </FormField>
               <FormField label="QR closes before end (min)">
                 <Input
                   type="number"
                   min={0}
-                  max={720}
+                  max={timingRuleMaximum}
                   value={entryClosesMinutesBeforeEnd}
                   disabled={saving}
-                  onChange={(event) => setEntryClosesMinutesBeforeEnd(Number(event.target.value))}
+                  onChange={(event) => setEntryClosesMinutesBeforeEnd(clampMinutes(Number(event.target.value), timingRuleMaximum))}
                 />
               </FormField>
               <FormField label="Absent before end (min)">
                 <Input
                   type="number"
                   min={0}
-                  max={720}
+                  max={timingRuleMaximum}
                   value={absentMinutesBeforeEnd}
                   disabled={saving}
-                  onChange={(event) => setAbsentMinutesBeforeEnd(Number(event.target.value))}
+                  onChange={(event) => setAbsentMinutesBeforeEnd(clampMinutes(Number(event.target.value), timingRuleMaximum))}
                 />
               </FormField>
             </div>
-            <p className="mt-3 text-xs text-text-muted">
-              A scan at the Present cutoff is Present. Later accepted scans are Late. Students
-              without a scan become Absent at the Absent cutoff.
-            </p>
           </div>
 
-          <div>
-            <FormField
-              label="Session end day"
-              labelAccessory={
-                <Tooltip content={CLOSING_DAY_HELP}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    aria-label="About closing day"
-                    aria-expanded={expandedHelp === 'closing-day'}
-                    aria-controls={expandedHelp === 'closing-day' ? 'closing-day-help' : undefined}
-                    disabled={saving}
-                    onClick={() => setExpandedHelp((current) => current === 'closing-day' ? null : 'closing-day')}
-                  >
-                    <CircleHelp className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </Tooltip>
-              }
-            >
-              <Select
-                value={String(sessionEndDayOffset)}
-                disabled={saving}
-                options={[
-                  { value: '0', label: 'Same class day' },
-                  { value: '1', label: 'Next day' },
-                ]}
-                onChange={(event) => setSessionEndDayOffset(event.target.value === '1' ? 1 : 0)}
-              />
-            </FormField>
-            {expandedHelp === 'closing-day' ? (
-              <p id="closing-day-help" className="mt-1 text-sm text-text-muted">{CLOSING_DAY_HELP}</p>
-            ) : null}
-          </div>
+          <FormField label="Session end day">
+            <SegmentedControl
+              ariaLabel="Session end day"
+              value={String(sessionEndDayOffset) as '0' | '1'}
+              className="grid w-full grid-cols-2"
+              options={[
+                { value: '0', label: 'Same class day', tooltip: 'Class end on the same day', className: 'w-full', disabled: saving },
+                { value: '1', label: 'Next day', tooltip: 'Class ends the next day after midnight', className: 'w-full', disabled: saving },
+              ]}
+              onChange={(value) => setSessionEndDayOffset(value === '1' ? 1 : 0)}
+            />
+          </FormField>
 
-          <div>
-            <div className="flex items-center gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-default">
-              <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3 font-medium">
-                <TableSelectionCheckbox
-                  checked={enabled}
-                  disabled={saving}
-                  ariaLabel="Open and close automatically"
-                  onChange={setEnabled}
-                />
-                <span>Open and close automatically</span>
-              </label>
-              <Tooltip content={AUTOMATIC_HOURS_HELP}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  aria-label="About automatic attendance hours"
-                  aria-expanded={expandedHelp === 'automatic'}
-                  aria-controls={expandedHelp === 'automatic' ? 'automatic-hours-help' : undefined}
-                  disabled={saving}
-                  onClick={() => setExpandedHelp((current) => current === 'automatic' ? null : 'automatic')}
-                >
-                  <CircleHelp className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </Tooltip>
-            </div>
-            {expandedHelp === 'automatic' ? (
-              <p id="automatic-hours-help" className="mt-1 text-sm text-text-muted">{AUTOMATIC_HOURS_HELP}</p>
-            ) : null}
-          </div>
+          <label className="flex min-h-control cursor-pointer items-center gap-3 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text-default">
+            <TableSelectionCheckbox
+              checked={enabled}
+              disabled={saving}
+              ariaLabel="Open and close QR attendance automatically"
+              onChange={setEnabled}
+            />
+            <span>Open and close QR attendance automatically</span>
+          </label>
 
           <p className="text-xs text-text-muted">
             Timezone: America/Toronto. Changes apply to future sessions; a session keeps its rules
             once QR entry opens.
           </p>
-          {validationError && (sessionStartsLocal || sessionEndsLocal) ? (
-            <p role="alert" className="text-sm text-danger">{validationError}</p>
+          {timingValidationError ? (
+            <p role="alert" className="text-sm text-danger">{timingValidationError}</p>
           ) : null}
           {error ? (
             <p role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

@@ -40,6 +40,10 @@ const config: Config = {
       colors: {
         // Semantic background colors
         page: 'var(--color-page)',
+        qr: {
+          background: 'var(--color-qr-background)',
+          foreground: 'var(--color-qr-foreground)',
+        },
         surface: {
           DEFAULT: 'var(--color-surface)',
           2: 'var(--color-surface-2)',
@@ -145,6 +149,11 @@ const config: Config = {
       },
       minWidth: {
         control: 'var(--size-control-min)',
+      },
+      inset: {
+        'attendance-one': 'var(--size-attendance-trailing-one)',
+        'attendance-two': 'var(--size-attendance-trailing-two)',
+        'attendance-three': 'var(--size-attendance-trailing-three)',
       },
       maxWidth: {
         reading: 'var(--page-width-reading)',

@@ -20,6 +20,7 @@ import { blueprintRollover } from './blueprint-rollover'
 import { createClassroomWizard } from './create-classroom-wizard'
 import { courseGuideCurriculumImport } from './course-guide-curriculum-import'
 import { patternLabPageMockups } from './pattern-lab-page-mockups'
+import { patternLabGradebook } from './pattern-lab-gradebook'
 
 const scenarios: Record<string, VerificationScript> = {
   'add-students-modal': addStudentsModal,
@@ -28,6 +29,7 @@ const scenarios: Record<string, VerificationScript> = {
   'create-classroom-wizard': createClassroomWizard,
   'course-guide-curriculum-import': courseGuideCurriculumImport,
   'pattern-lab-page-mockups': patternLabPageMockups,
+  'pattern-lab-gradebook': patternLabGradebook,
 }
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'

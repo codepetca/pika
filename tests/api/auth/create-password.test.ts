@@ -5,8 +5,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/create-password/route'
 import { NextRequest } from 'next/server'
+import { ApiError } from '@/lib/api-handler'
 
 const VALID_HANDOFF_TOKEN = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -21,6 +23,9 @@ vi.mock('@/lib/crypto', () => ({
 vi.mock('@/lib/auth', () => ({
   createSession: vi.fn(async () => {}),
 }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
+
+import { createSession } from '@/lib/auth'
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -55,6 +60,7 @@ function chainableUpdate(result: { data?: unknown; error: unknown }) {
 describe('POST /api/auth/create-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
   })
 
   it('should return 400 when passwords do not match', async () => {
@@ -77,7 +83,27 @@ describe('POST /api/auth/create-password', () => {
     expect(data.error).toContain('Verification session is required')
   })
 
-  it('should return 400 when user already has password', async () => {
+  it('applies signup confirmation limits before any database lookup', async () => {
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValueOnce(
+      new ApiError(429, 'Too many attempts. Please try again later.'),
+    )
+
+    const response = await POST(createRequest(validBody()))
+
+    expect(response.status).toBe(429)
+    expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith({
+      action: 'signup_confirm',
+      request: expect.any(NextRequest),
+      identifier: 'test@example.com',
+      identifierMaxAttempts: 5,
+      clientMaxAttempts: 30,
+      windowSeconds: 600,
+      supabase: mockSupabaseClient,
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('returns a generic 401 when the account already has a password', async () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -87,6 +113,7 @@ describe('POST /api/auth/create-password', () => {
               email: 'test@example.com',
               password_hash: 'existing_hash',
               email_verified_at: new Date().toISOString(),
+              auth_credential_version: 1,
             },
             error: null,
           }),
@@ -97,10 +124,10 @@ describe('POST /api/auth/create-password', () => {
 
     const response = await POST(createRequest(validBody()))
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(401)
   })
 
-  it('should return 400 when email is not verified', async () => {
+  it('returns a generic 401 when the email is not verified', async () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -110,6 +137,7 @@ describe('POST /api/auth/create-password', () => {
               email: 'test@example.com',
               password_hash: null,
               email_verified_at: null,
+              auth_credential_version: 1,
             },
             error: null,
           }),
@@ -120,7 +148,7 @@ describe('POST /api/auth/create-password', () => {
 
     const response = await POST(createRequest(validBody()))
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(401)
   })
 
   it('should reject an invalid, expired, or reused handoff token', async () => {
@@ -140,6 +168,7 @@ describe('POST /api/auth/create-password', () => {
                   role: 'student',
                   password_hash: null,
                   email_verified_at: new Date().toISOString(),
+                  auth_credential_version: 1,
                 },
                 error: null,
               }),
@@ -187,6 +216,7 @@ describe('POST /api/auth/create-password', () => {
                   role: 'student',
                   password_hash: null,
                   email_verified_at: new Date().toISOString(),
+                  auth_credential_version: 1,
                 },
                 error: null,
               }),
@@ -213,5 +243,11 @@ describe('POST /api/auth/create-password', () => {
     expect(consumeBuilder.eq).toHaveBeenCalledWith('purpose', 'signup')
     expect(consumeBuilder.eq).toHaveBeenCalledWith('handoff_token_hash', `hashed_${VALID_HANDOFF_TOKEN}`)
     expect(userUpdate).toHaveBeenCalledWith({ password_hash: 'hashed_Password123' })
+    expect(createSession).toHaveBeenCalledWith(
+      'user-1',
+      'test@example.com',
+      'student',
+      { expectedCredentialVersion: 1 },
+    )
   })
 })

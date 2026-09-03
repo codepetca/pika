@@ -116,13 +116,14 @@ export function MagicAuthForm({
   if (phase === 'email') {
     return (
       <form onSubmit={handleEmailSubmit}>
-        <FormField label="School Email" error={error} required>
+        <FormField label="School Email" error={error}>
           <Input
             type="email"
             autoComplete="email"
             placeholder="email@gapps.yrdsb.ca"
             value={email}
             onChange={event => setEmail(event.target.value)}
+            required
             disabled={loading}
           />
         </FormField>
@@ -143,7 +144,7 @@ export function MagicAuthForm({
       <FormField
         label="Six-digit code"
         error={error}
-        hint="The code expires in 10 minutes. You can enter it here without opening an email link."
+        hint="The code expires in 10 minutes."
         required
       >
         <Input

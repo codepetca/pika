@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
+import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
@@ -10,11 +11,90 @@ function renderMockups() {
 }
 
 describe('PageMockups', () => {
+  it('keeps full-course weight calculations when only a few assessment columns are shown', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    await user.click(mockups.getByRole('button', { name: 'Show weights' }))
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'few-assessments')
+    expect(mockups.getAllByRole('spinbutton')).toHaveLength(3)
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+    await user.click(mockups.getByRole('button', { name: 'Ecosystems', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('5.42%')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Category weight' }), { target: { value: '20' } })
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('10%')
+    await user.click(screen.getByRole('button', { name: 'Save assessment' }))
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+    expect(mockups.getByLabelText('Course weight for Cells')).toHaveTextContent('5%')
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'populated')
+    expect(mockups.getByLabelText('Course weight for Motion')).toHaveTextContent('5%')
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+  })
+
+  it('limits the no-category state to teacher Gradebook and clears it on leaving', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    expect(mockups.queryByRole('option', { name: 'No gradebook categories' })).not.toBeInTheDocument()
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'empty-categories')
+    await user.keyboard('{Escape}')
+    await user.click(mockups.getByRole('tab', { name: 'Daily' }))
+    expect(mockups.getByRole('combobox', { name: 'Example state' })).toHaveValue('populated')
+    expect(mockups.queryByRole('option', { name: 'No gradebook categories' })).not.toBeInTheDocument()
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('prevents assessment renames from colliding with hidden assessments in the few-assessments example', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(mockups.getByRole('combobox', { name: 'Example state' }), 'few-assessments')
+    await user.click(mockups.getByRole('button', { name: 'Ecosystems', exact: true }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Motion' } })
+    expect(screen.getByRole('button', { name: 'Save assessment' })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Assessment titles must be unique.')
+  })
+
+  it('keeps invalid inline weights out of course-weight calculations and restores them on blur', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    await user.click(mockups.getByRole('button', { name: 'Show weights' }))
+    const weight = mockups.getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
+    for (const invalid of ['0', '-3', '1000', '2.5', '']) {
+      fireEvent.change(weight, { target: { value: invalid } })
+      expect(weight).toHaveAttribute('aria-invalid', 'true')
+      expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+      fireEvent.blur(weight)
+      expect(weight).toHaveValue(10)
+    }
+  })
+
+  it('gives the Daily attendance composite controls explicit accessible names', () => {
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DailyMockup attendanceMode="manual" />
+        </TooltipProvider>
+      </ThemeProvider>,
+    )
+
+    const daily = screen.getByTestId('daily-mockup')
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'More actions' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' })).toBeVisible()
+  })
+
   it('keeps every named tab target mounted and supports keyboard tab changes', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
-    for (const name of ['Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
+    for (const name of ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = within(mockups).getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
     }
@@ -23,6 +103,187 @@ describe('PageMockups', () => {
     await user.keyboard('{ArrowRight}')
     expect(within(mockups).getByRole('tab', { name: 'Gradebook' })).toHaveAttribute('aria-selected', 'true')
     expect(within(mockups).getByRole('tabpanel', { name: 'Gradebook' })).toBeVisible()
+  })
+
+  it('renders the production-shaped Daily controls with deterministic attendance interactions', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    const daily = within(mockups).getByTestId('daily-mockup')
+
+    expect(within(daily).getByRole('button', { name: 'Return to reference Daily date' })).toHaveAccessibleDescription('Today')
+    expect(within(daily).getByRole('group', { name: 'Attendance time and QR check-in' })).toHaveTextContent('9:00 - 10:00 AM')
+    const scanHeader = within(daily).getByRole('columnheader', { name: 'Time of scan' })
+    expect(scanHeader).not.toHaveTextContent('Check-in')
+    expect(scanHeader.querySelector('svg')).toBeInTheDocument()
+    const openQr = within(daily).getByRole('button', { name: 'Show QR' })
+    expect(openQr).toBeEnabled()
+    const editTime = within(daily).getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' })
+    await user.click(editTime)
+    let timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    expect(within(timeDialog).getByLabelText('Starts')).toHaveValue('09:00')
+    expect(within(timeDialog).getByLabelText('Ends')).toHaveValue('10:00')
+    expect(within(timeDialog).queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument()
+    expect(within(timeDialog).getByText('Timing rules')).toBeVisible()
+    const opensBefore = within(timeDialog).getByLabelText('QR opens before start (min)')
+    const graceBeforeLate = within(timeDialog).getByLabelText('Grace period before late (min)')
+    const closesBeforeEnd = within(timeDialog).getByLabelText('QR closes before end (min)')
+    const absentBeforeEnd = within(timeDialog).getByLabelText('Absent before end (min)')
+    expect(opensBefore).toHaveValue(10)
+    expect(opensBefore).toHaveAttribute('max', '120')
+    expect(graceBeforeLate).toHaveValue(5)
+    expect(graceBeforeLate).toHaveAttribute('max', '60')
+    expect(closesBeforeEnd).toHaveValue(0)
+    expect(closesBeforeEnd).toHaveAttribute('max', '60')
+    expect(absentBeforeEnd).toHaveValue(0)
+    expect(absentBeforeEnd).toHaveAttribute('max', '60')
+    fireEvent.change(opensBefore, { target: { value: '999' } })
+    fireEvent.change(graceBeforeLate, { target: { value: '999' } })
+    fireEvent.change(closesBeforeEnd, { target: { value: '999' } })
+    fireEvent.change(absentBeforeEnd, { target: { value: '-5' } })
+    expect(opensBefore).toHaveValue(120)
+    expect(graceBeforeLate).toHaveValue(60)
+    expect(closesBeforeEnd).toHaveValue(60)
+    expect(absentBeforeEnd).toHaveValue(0)
+    expect(within(timeDialog).queryByText(/A scan at the Present cutoff/)).not.toBeInTheDocument()
+    expect(within(timeDialog).getByRole('button', { name: 'Same class day' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(timeDialog).getByRole('button', { name: 'Next day' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(timeDialog).getByRole('checkbox', { name: 'Open and close QR attendance automatically' })).toBeChecked()
+    await user.hover(within(timeDialog).getByRole('button', { name: 'Same class day' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class end on the same day')
+    await user.unhover(within(timeDialog).getByRole('button', { name: 'Same class day' }))
+    await user.hover(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Class ends the next day after midnight')
+    await user.unhover(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    await user.click(within(timeDialog).getByRole('button', { name: 'Next day' }))
+    expect(within(timeDialog).getByRole('button', { name: 'Next day' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(timeDialog).getByRole('button', { name: 'Clear time' }))
+    expect(within(daily).getByRole('button', { name: 'Set attendance time, attendance open' })).toBeVisible()
+    expect(within(daily).getByRole('group', { name: 'Attendance time and QR check-in' })).not.toHaveTextContent('9:00')
+    await user.click(within(daily).getByRole('button', { name: 'Set attendance time, attendance open' }))
+    timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    expect(within(timeDialog).getByText('Maximum is 12 hours.')).toBeVisible()
+    expect(within(timeDialog).getByRole('button', { name: 'Save time' })).toBeDisabled()
+    await user.click(within(timeDialog).getByRole('button', { name: 'Same class day' }))
+    await user.click(within(timeDialog).getByRole('button', { name: 'Save time' }))
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' })).toBeVisible()
+    await user.hover(openQr)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show QR')
+    await user.unhover(openQr)
+    expect(within(daily).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(daily).queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
+    expect(within(daily).queryByLabelText('Complete')).not.toBeInTheDocument()
+
+    expect(within(daily).queryByRole('button', { name: 'Undo manual change for Maya Chen' })).not.toBeInTheDocument()
+    const noahUndo = within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })
+    const noahAbsent = within(daily).getByRole('button', { name: 'Mark Noah Williams absent' })
+    const presentSort = within(daily).getByRole('button', { name: 'Sort Present first, 2 students' })
+    expect(noahUndo).toBeVisible()
+    expect(noahAbsent.closest('td')).toHaveClass('sticky')
+    expect(noahUndo.closest('td')?.cellIndex).toBe((noahAbsent.closest('td')?.cellIndex ?? 0) + 1)
+    await user.hover(noahUndo)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Undo manual change$/)
+    await user.unhover(noahUndo)
+    await user.hover(presentSort)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^2 Present$/)
+    await user.unhover(presentSort)
+    expect(presentSort.querySelector('svg')).toHaveClass('opacity-0')
+    await user.click(presentSort)
+    expect(presentSort).toHaveAttribute('aria-pressed', 'true')
+    expect(presentSort.querySelector('svg')).not.toHaveClass('opacity-0')
+    await user.click(within(daily).getByRole('button', { name: 'Mark Maya Chen late' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen late' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).queryByRole('button', { name: 'Undo manual change for Maya Chen' })).not.toBeInTheDocument()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    expect(within(daily).getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeChecked()
+    expect(within(daily).getByRole('menuitem', { name: 'Edit time' })).toBeVisible()
+    expect(within(daily).getByRole('menuitem', { name: /Edit attendance/ })).toBeVisible()
+    expect(within(daily).getByRole('menuitemcheckbox', { name: 'Hide relative date' })).toBeChecked()
+    await user.click(within(daily).getByRole('menuitemcheckbox', { name: /Close attendance/ }))
+    expect(within(daily).getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(within(daily).getByRole('button', { name: 'Edit attendance time, attendance closed, 9:00 - 10:00 AM' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit attendance' })
+    expect(within(dialog).getByRole('button', { name: 'Mark all present' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Revert manual changes' })).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Clear QR check-ins' })).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Mark all present' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Sana Patel present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Edit attendance' })).getByRole('button', { name: 'Revert manual changes' }))
+    expect(within(daily).getByRole('button', { name: 'Mark Noah Williams present' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(daily).queryByRole('button', { name: /Undo manual change/ })).not.toBeInTheDocument()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Edit attendance' })).getByRole('button', { name: 'Clear QR check-ins' }))
+    expect(within(daily).queryByText('8:52 AM')).not.toBeInTheDocument()
+    expect(within(daily).getAllByLabelText('No QR check-in')).toHaveLength(4)
+  })
+
+  it('switches Daily to passive manual attendance without QR check-in evidence', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Attendance mode' }), 'manual')
+    const daily = within(mockups).getByTestId('daily-mockup')
+
+    expect(within(daily).queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
+    expect(within(daily).queryByRole('columnheader', { name: 'Time of scan' })).not.toBeInTheDocument()
+    const manualTime = within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })
+    expect(manualTime).toHaveClass('bg-surface')
+    expect(manualTime).toHaveTextContent('9:00 - 10:00 AM')
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Sana Patel' })).toBeVisible()
+
+    await user.click(manualTime)
+    const timeDialog = screen.getByRole('dialog', { name: 'Attendance time' })
+    expect(within(timeDialog).queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument()
+    expect(within(timeDialog).queryByText('Timing rules')).not.toBeInTheDocument()
+    await user.click(within(timeDialog).getByRole('button', { name: 'Cancel' }))
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    expect(within(daily).getByRole('menuitem', { name: 'Edit time' })).toBeVisible()
+    const attendanceFromLog = within(daily).getByRole('menuitemcheckbox', { name: /Attendance from log/ })
+    expect(attendanceFromLog).not.toBeChecked()
+    expect(within(daily).queryByText('Manual marking')).not.toBeInTheDocument()
+    await user.click(attendanceFromLog)
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Noah Williams' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+    expect(within(daily).getByRole('button', { name: 'Undo manual change for Maya Chen' })).toBeVisible()
+
+    await user.click(within(daily).getByRole('button', { name: 'More actions' }))
+    await user.click(within(daily).getByRole('menuitem', { name: /Edit attendance/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit attendance' })
+    expect(within(dialog).queryByText(/Apply one status/)).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Clear QR check-ins' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Mark all present' })).toBeVisible()
+  })
+
+  it('renders the student classroom page set with its own mounted tab targets', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><PageMockups role="student" /></TooltipProvider></ThemeProvider>)
+    const mockups = screen.getByTestId('page-mockups')
+
+    expect(within(mockups).getByRole('tablist', { name: 'Student classroom page mockups' })).toBeInTheDocument()
+    for (const name of ['Today', 'Classwork', 'Tests', 'Calendar', 'Announcements', 'Resources']) {
+      const tab = within(mockups).getByRole('tab', { name })
+      expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()
+    }
+    await user.click(within(mockups).getByRole('tab', { name: 'Tests' }))
+    expect(within(mockups).getByTestId('student-tests-mockup')).toBeVisible()
+    expect(within(mockups).getByRole('button', { name: /Ecosystems test/ })).toBeVisible()
   })
 
   it('retries local error state and explains prototype-only actions', async () => {
@@ -34,18 +295,304 @@ describe('PageMockups', () => {
     await user.click(within(mockups).getByRole('button', { name: 'Try loading gradebook again' }))
     expect(within(mockups).getByRole('table')).toBeInTheDocument()
     await user.click(within(mockups).getByRole('checkbox', { name: 'Select Maya Chen' }))
-    await user.click(within(mockups).getByRole('button', { name: 'Selected students (1)' }))
-    await user.click(within(mockups).getByRole('menuitem', { name: 'Email 1 selected' }))
-    expect(within(mockups).getByRole('status')).toHaveTextContent('Email students selected. Example only')
+    await user.click(within(mockups).getByRole('button', { name: '1 selected' }))
+    expect(within(mockups).getByRole('menuitem', { name: 'Copy secondary emails' })).toBeInTheDocument()
+    await user.click(within(mockups).getByRole('menuitem', { name: 'Copy emails' }))
+    expect(within(mockups).getByRole('status')).toHaveTextContent('Copy emails selected. Example only')
     await user.click(within(mockups).getByRole('tab', { name: 'Roster' }))
     await user.click(within(mockups).getByRole('button', { name: 'Add students' }))
     expect(within(mockups).getByRole('status')).toHaveTextContent('Add students selected. Example only')
+  })
+
+  it('keeps compact identity columns and lets Assessments fill the empty table', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
+
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const table = within(gradebook).getByRole('table')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveStyle({ width: '96px' })
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveStyle({ width: '96px' })
+    expect(within(gradebook).getByRole('columnheader', { name: 'Assessments' })).toBeInTheDocument()
+    expect(within(gradebook).getByRole('columnheader', { name: 'Final' })).toBeInTheDocument()
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Ecosystems' })).not.toBeInTheDocument()
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Cells' })).not.toBeInTheDocument()
+    expect(table.querySelectorAll('col')).toHaveLength(5)
+    expect(table.parentElement).toHaveClass('w-full')
+    expect(table.parentElement).toHaveStyle({ minWidth: '408px' })
+    expect(table.querySelectorAll('col')[0]).toHaveStyle({ width: '40px' })
+    expect(table.querySelectorAll('col')[3]).not.toHaveAttribute('style')
+    expect(table.querySelectorAll('col')[4]).toHaveStyle({ width: '80px' })
+
+    const firstResizeHandle = within(gradebook).getByRole('separator', { name: 'Resize First column' })
+    firstResizeHandle.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveStyle({ width: '104px' })
+
+    const lastResizeHandle = within(gradebook).getByRole('separator', { name: 'Resize Last column' })
+    lastResizeHandle.focus()
+    await user.keyboard('{Home}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveStyle({ width: '72px' })
+    const longLastName = within(gradebook).getByRole('cell', { name: 'Williams-Montgomery' })
+    expect(longLastName).toHaveClass('truncate', 'whitespace-nowrap')
+    expect(longLastName).toHaveAttribute('title', 'Williams-Montgomery')
+
+    const mayaRow = within(gradebook).getByRole('row', { name: /Maya Chen/ })
+    expect(within(mayaRow).getByRole('cell', { name: 'No assessments' })).toBeEmptyDOMElement()
+    expect(within(mayaRow).getByRole('cell', { name: '—' })).toBeInTheDocument()
+  })
+
+  it('keeps each assessment at minimum width in the few-assessments state', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'few-assessments')
+
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const table = within(gradebook).getByRole('table')
+    expect(table.querySelectorAll('col')).toHaveLength(8)
+    expect(table.parentElement).toHaveClass('w-full')
+    expect(table.parentElement).toHaveStyle({ minWidth: '672px' })
+    for (const columnIndex of [3, 4, 5]) {
+      expect(table.querySelectorAll('col')[columnIndex]).toHaveStyle({ width: '88px' })
+    }
+    expect(table.querySelectorAll('col')[6]).not.toHaveAttribute('style')
+    expect(table.querySelectorAll('col')[7]).toHaveStyle({ width: '80px' })
+    for (const assessment of ['Ecosystems', 'Cells', 'Genetics']) {
+      expect(within(gradebook).getByRole('columnheader', { name: assessment })).toBeInTheDocument()
+    }
+    expect(within(gradebook).queryByRole('columnheader', { name: 'Reactions' })).not.toBeInTheDocument()
+    expect(within(gradebook).getByRole('columnheader', { name: 'Unused assessment space' })).toBeInTheDocument()
+    expect(within(gradebook).getByText(/empty assessment area expands and keeps Final at the far edge/)).toBeInTheDocument()
+  })
+
+  it('demonstrates gradebook category and assessment editing dialogs', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    const moreActions = within(gradebook).getByRole('button', { name: 'More actions' })
+    await user.click(moreActions)
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
+    expect(screen.getByRole('heading', { name: 'Edit categories' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Category name' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Course %' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Default item weight' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Default' })).toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: /Category name for/ })[0]).toHaveValue('Term')
+    expect(screen.getByRole('button', { name: 'Term is the default category' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText(/Total:/)).not.toBeInTheDocument()
+
+    const termPercentage = screen.getByRole('spinbutton', { name: 'Course percentage for Term' })
+    expect(termPercentage).toHaveAttribute('step', '0.5')
+    await user.clear(termPercentage)
+    await user.type(termPercentage, '65.25')
+    expect(screen.getByRole('button', { name: 'Save categories' })).toBeDisabled()
+    await user.tab()
+    expect(termPercentage).toHaveValue(65)
+
+    const attendancePercentage = screen.getByRole('spinbutton', { name: 'Course percentage for Attendance' })
+    await user.click(screen.getByRole('button', { name: 'Lock Attendance course percentage' }))
+    expect(attendancePercentage).toBeDisabled()
+    expect(attendancePercentage).toHaveClass('border-warning', 'bg-warning-bg', 'text-warning')
+    expect(screen.getByRole('button', { name: 'Unlock Attendance course percentage' })).toHaveClass(
+      'border-warning',
+      'bg-warning-bg',
+      'text-warning',
+    )
+
+    await user.clear(termPercentage)
+    await user.type(termPercentage, '75.5')
+    expect(attendancePercentage).toHaveValue(10)
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Final' })).toHaveValue(14.5)
+    await user.click(screen.getByRole('button', { name: 'Save categories' }))
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
+    expect(screen.getAllByRole('textbox', { name: /Category name for/ })[0]).toHaveValue('Term')
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Term' })).toHaveValue(75.5)
+    await user.keyboard('{Escape}')
+    expect(moreActions).toHaveFocus()
+
+    const assessmentTitle = within(gradebook).getByRole('button', { name: 'Ecosystems' })
+    await user.click(assessmentTitle)
+    const assessmentDialog = screen.getByRole('dialog')
+    expect(assessmentDialog).toHaveClass('max-w-md')
+    expect(screen.getByRole('heading', { name: 'Edit assessment' })).toBeInTheDocument()
+    const titleInput = screen.getByRole('textbox', { name: 'Assessment title' })
+    expect(titleInput).toHaveValue('Ecosystems')
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('Term')
+    expect(screen.getByRole('spinbutton', { name: 'Category weight' })).toHaveValue(10)
+    expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('6.29%')
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Ecosystems Lab')
+    await user.click(screen.getByRole('button', { name: 'Save assessment' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'Ecosystems Lab' })).toBeInTheDocument()
+  })
+
+  it('moves fixture assessments to None when their category is deleted', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit categories' }))
+    await user.click(screen.getByRole('button', { name: 'Delete Term' }))
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Attendance' })).toHaveValue(75)
+    await user.click(screen.getByRole('button', { name: 'Save categories' }))
+
+    await user.click(within(gradebook).getByRole('button', { name: 'Ecosystems' }))
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveDisplayValue('None')
+  })
+
+  it('starts the no-category example with a blank editor', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    await user.selectOptions(
+      within(mockups).getByRole('combobox', { name: 'Example state' }),
+      'empty-categories',
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Edit categories' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /Category name for/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save categories' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+    expect(screen.getByRole('textbox', { name: 'Category name for Category 1' })).toHaveValue('')
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Category 1' })).toHaveValue(100)
+    expect(screen.getByRole('button', { name: 'Category 1 is the default category' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('pins one class summary row and swaps average with median from the center controls', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+    const scrollFrame = within(gradebook).getByTestId('gradebook-scroll-frame')
+    const summaryFooter = within(gradebook).getByTestId('gradebook-summary-footer')
+
+    expect(scrollFrame).toHaveClass('h-80', 'overflow-auto')
+    expect(summaryFooter).toHaveClass('sticky', 'bottom-0', 'bg-surface-2')
+    const averageRow = within(summaryFooter).getByRole('row', { name: 'Class average' })
+    expect(within(averageRow).getAllByRole('cell')[3]).toHaveTextContent('85%')
+    expect(within(summaryFooter).queryByRole('row', { name: 'Class median' })).not.toBeInTheDocument()
+    expect(within(gradebook).getByText(/Center controls set score display/)).toBeInTheDocument()
+
+    const summaryControl = within(gradebook).getByRole('group', { name: 'Class summary' })
+    await user.click(within(summaryControl).getByRole('button', { name: 'MED' }))
+    const medianRow = within(summaryFooter).getByRole('row', { name: 'Class median' })
+    expect(within(medianRow).getAllByRole('cell')[3]).toHaveTextContent('90%')
+    expect(within(summaryFooter).queryByRole('row', { name: 'Class average' })).not.toBeInTheDocument()
+
+    await user.click(within(summaryControl).getByRole('button', { name: 'AVG' }))
+    const scoreControl = within(gradebook).getByRole('group', { name: 'Score display' })
+    await user.click(within(scoreControl).getByRole('button', { name: 'x/y' }))
+    expect(within(summaryFooter).getByRole('row', { name: 'Class average' }).querySelectorAll('td')[3]).toHaveTextContent('17/20')
+
+    await user.selectOptions(within(mockups).getByRole('combobox', { name: 'Example state' }), 'empty')
+    expect(within(gradebook).queryByTestId('gradebook-summary-footer')).not.toBeInTheDocument()
+  })
+
+  it('shows editable category weights and calculated course weights below the headers', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    const showWeights = within(gradebook).getByRole('button', { name: 'Show weights' })
+    expect(showWeights).toHaveAttribute('aria-pressed', 'false')
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitem', { name: 'Show last name in column 1' })).toBeInTheDocument()
+    expect(within(gradebook).queryByRole('menuitemcheckbox', { name: 'Show weights' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(showWeights)
+    expect(showWeights).toHaveAttribute('aria-pressed', 'true')
+
+    const categoryWeightRow = within(gradebook).getByRole('row', { name: 'Category weight' })
+    const courseWeightRow = within(gradebook).getByRole('row', { name: 'Course weight' })
+    const ecosystemWeight = within(categoryWeightRow).getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
+    expect(ecosystemWeight).toHaveValue(10)
+    expect(within(courseWeightRow).getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+
+    await user.clear(ecosystemWeight)
+    await user.type(ecosystemWeight, '20')
+    expect(within(courseWeightRow).getByLabelText('Course weight for Ecosystems')).toHaveTextContent('10%')
+
+    await user.click(showWeights)
+    expect(showWeights).toHaveAttribute('aria-pressed', 'false')
+    expect(within(gradebook).queryByRole('row', { name: 'Category weight' })).not.toBeInTheDocument()
+    expect(within(gradebook).queryByRole('row', { name: 'Course weight' })).not.toBeInTheDocument()
+  })
+
+  it('swaps First and Last while keeping the leading name column pinnable', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 2)
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show last name in column 1' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveProperty('cellIndex', 1)
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 2)
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitem', { name: 'Show first name in column 1' })).toBeInTheDocument()
+    expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Escape}')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveClass('sticky', 'left-10', 'top-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).not.toHaveClass('left-10')
+    expect(within(gradebook).getByRole('cell', { name: 'Chen', exact: true })).toHaveClass('sticky', 'left-10')
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).not.toHaveClass('sticky')
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    await user.click(within(gradebook).getByRole('menuitem', { name: 'Show first name in column 1' }))
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveProperty('cellIndex', 1)
+  })
+
+  it('keeps selection, First, and Final visible when key columns are frozen', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups).getByRole('tabpanel', { name: 'Gradebook' })
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    const keepVisible = within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
+    expect(keepVisible).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{Escape}')
+
+    expect(within(gradebook).getByRole('checkbox', { name: 'Select all gradebook students' }).closest('th')).toHaveClass('sticky', 'left-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'First' })).toHaveClass('sticky', 'left-10', 'top-0')
+    expect(within(gradebook).getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'right-0')
+    expect(within(gradebook).getByRole('checkbox', { name: 'Select Maya Chen' }).closest('td')).toHaveClass('sticky', 'left-0')
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).toHaveClass('sticky', 'left-10')
+
+    await user.click(within(gradebook).getByRole('checkbox', { name: 'Select Maya Chen' }))
+    expect(within(gradebook).getByRole('cell', { name: 'Maya', exact: true })).toHaveClass('bg-surface-3')
+
+    await user.click(within(gradebook).getByRole('button', { name: 'More actions' }))
+    expect(within(gradebook).getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('uses a bottom classroom menu and Escape returns to the active non-editing list', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
+    await user.click(within(mockups).getByRole('tab', { name: 'Classrooms' }))
     const classrooms = within(mockups).getByTestId('classrooms-mockup')
 
     await user.click(within(classrooms).getByRole('button', { name: 'Classroom actions' }))
@@ -149,6 +696,20 @@ describe('PageMockups', () => {
     const workspace = within(mockups).getByTestId('work-surface-mockup')
 
     expect(within(workspace).queryByText('Student work')).not.toBeInTheDocument()
+    expect(within(workspace).getByRole('button', { name: 'Create classwork' })).toBeVisible()
+    expect(within(workspace).queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
+    expect(within(workspace).getByRole('menuitem', { name: 'Organize classwork' })).toBeVisible()
+    await user.keyboard('{Escape}')
+
+    await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
+    expect(within(workspace).getByRole('button', { name: 'Create test' })).toBeVisible()
+    expect(within(workspace).queryByRole('button', { name: 'Organize tests' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'More actions' }))
+    expect(within(workspace).getByRole('menuitem', { name: 'Organize tests' })).toBeVisible()
+    await user.keyboard('{Escape}')
+
+    await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     await user.click(within(workspace).getByRole('button', { name: /^Field observations/ }))
     expect(within(workspace).getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
     expect(document.getElementById('work-pattern-students-panel')).toBeInTheDocument()

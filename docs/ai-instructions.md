@@ -1,14 +1,14 @@
 # AI Instructions for Pika
 
 Routing after `.ai/START-HERE.md`.
-Worktree creation, cleanup, and shared `.env.local` setup live in [`docs/dev-workflow.md`](./dev-workflow.md).
+Worktrees, cleanup and shared `.env.local`: [Dev workflow](./dev-workflow.md).
 
 ## Default Startup Context
 
-1. [`.ai/START-HERE.md`](../.ai/START-HERE.md)
-2. [`.ai/CURRENT.md`](../.ai/CURRENT.md)
-3. [`.ai/features.json`](../.ai/features.json)
-4. [`docs/ai-instructions.md`](./ai-instructions.md)
+1. [Start](../.ai/START-HERE.md)
+2. [Current](../.ai/CURRENT.md)
+3. [Features](../.ai/features.json)
+4. [Routing](./ai-instructions.md)
 
 Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff; after each append, run `node scripts/trim-session-log.mjs`.
 
@@ -18,20 +18,22 @@ After startup, load only task-specific docs:
 
 | Task | Read next |
 |---|---|
-| Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
+| Any non-trivial code change | [Architecture](./core/architecture.md) |
 | UI/UX | Use [`.codex/skills/pika-ui-change`](../.codex/skills/pika-ui-change/SKILL.md), then `DESIGN.md`, `docs/guidance/ui/README.md`, and `docs/guidance/ui/stable.md` |
 | Teacher work surfaces | [canon](./guidance/ui/teacher-work-surfaces.md), [operational tables](./guidance/ui/teacher-operational-tables.md), [assignment language](./guidance/assignment-ux-language.md), [audit](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
-| Legacy quiz/tests contract cleanup | [`docs/guidance/legacy-quiz-contract-cleanup.md`](./guidance/legacy-quiz-contract-cleanup.md), [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
-| Large TSX/shared shell refactors | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
-| TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
-| Grading behavior, profiles, providers, provenance, or evals | [`docs/guidance/grading-architecture.md`](./guidance/grading-architecture.md), [`docs/guidance/ai-grading-egress.md`](./guidance/ai-grading-egress.md), [`docs/guidance/teacher-grading-evals.md`](./guidance/teacher-grading-evals.md) |
-| Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
-| Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
-| Multi-agent delegation | [`docs/core/agents.md`](./core/agents.md) |
-| Product status or phase questions | [`docs/core/roadmap.md`](./core/roadmap.md) |
-| GitHub issue work | [`docs/workflow/handle-issue.md`](./workflow/handle-issue.md) |
-| Course blueprint package import/export | [`docs/guidance/course-blueprint-packages.md`](./guidance/course-blueprint-packages.md) |
+| Classroom roles or entitlements | [Roadmap](./guidance/classroom-access-and-entitlements-roadmap.md) (phase 0 dormant) |
+| Legacy quiz/tests contract cleanup | [Cleanup](./guidance/legacy-quiz-contract-cleanup.md), [Schema](./guidance/schema-rollout-checklist.md) |
+| Large TSX/shared shell refactors | [Refactor checklist](./guidance/component-refactor-checklist.md) |
+| TDD, coverage, or test design | [Tests](./core/tests.md) |
+| Grading behavior, profiles, providers, provenance, or evals | [Architecture](./guidance/grading-architecture.md), [Egress](./guidance/ai-grading-egress.md), [Evals](./guidance/teacher-grading-evals.md) |
+| Student Grades visibility, disclosure, or calculation | [Student Grades](./guidance/student-grades.md) |
+| Setup, runtime, or deployment questions | [Project context](./core/project-context.md) |
+| Workspace state, grading runs, exam mode, or runtime platform risk | [Risk checklists](./guidance/dev-flow-risk-checklists.md) |
+| Multi-agent delegation | [Agents](./core/agents.md) |
+| Product status or phase questions | [Roadmap](./core/roadmap.md) |
+| GitHub issue work | [Issue workflow](./workflow/handle-issue.md) |
+| Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
 Inspect or edit source only after startup and routed docs.

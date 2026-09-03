@@ -50,10 +50,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
 the label supplies the accessible name and tooltip. Targets remain 44px, including
 loading/disabled states. Creation entry points use `Plus`; classroom read retries
-use `RotateCw`. Menu choices and final form confirmations retain explicit text.
+use `RotateCw`. Preview actions use `Eye`, without visible button text, with a
+contextual label such as `Preview` or `Preview Unit Test`. Use Eye even when the
+preview opens a separate window; ExternalLink describes an external destination.
+Menu choices and final form confirmations retain explicit text.
 
 ```tsx
 <IconButton icon={Plus} label="Create assignment" onClick={openCreate} />
+<IconButton icon={Eye} label="Preview" variant="secondary" onClick={openPreview} />
 ```
 
 ### Input (bare - no label/error)
@@ -130,7 +134,10 @@ interface ConfirmDialogProps {
 
 `QrCode` renders a machine-readable dark-on-light code in both themes. Pass the
 absolute public URL as `value` and a concise accessible `label`; do not style a
-feature-local QR with theme-dependent foreground/background colors.
+feature-local QR with theme-dependent foreground/background colors. Use
+`className` to size the square outer quiet-zone surface and `codeClassName` only
+to let the SVG fill that surface; retain a clear light quiet zone around every
+code.
 
 The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
 
@@ -168,7 +175,7 @@ wrappers:
   standard content rhythm. The default remains compact for compatibility while callers migrate.
 - `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
   sizes.
-- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
+- Page action bars keep context on the left, primary actions (such as `+` or a date selector) horizontally centered, and More actions at the far right. The More trigger uses the ghost treatment so it blends into the surrounding surface until hover or focus. `PageActionBar.center` accepts custom controls; its primary action items share that center slot. Equal side columns keep the controls centered when the left and right content differ.
 - `PageActionBar` keeps primary context and actions on one row. Actions marked `primary` stay
   visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
   use the keyboard-accessible More actions menu at the far right, after any trailing content.

@@ -1,8 +1,6 @@
 'use client'
 
-import { Plus } from 'lucide-react'
-
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useState, useEffect, useId, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -21,12 +19,13 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
   Code,
   Copy,
+  EllipsisVertical,
   GripVertical,
   LoaderCircle,
   Lock,
@@ -35,7 +34,9 @@ import {
   Paperclip,
   Percent,
   Pencil,
-  Send,
+  Plus,
+  Reply,
+  Sparkles,
   SquareMenu,
   Trash2,
   Unlock,
@@ -62,8 +63,8 @@ import {
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
-  TeacherWorkSurfaceIconButton,
   TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
@@ -486,6 +487,63 @@ function isGradeSelectedTemplateValid(template: TeacherAssignmentGradeTemplate |
   ].every((value) => isGradeSelectedScoreValueValid(value, allowBlank))
 }
 
+function formatGradeSelectedScorePreview(value: string): string {
+  const trimmed = value.trim()
+  return trimmed || '—'
+}
+
+function CopyCommentPreview({ comment }: { comment: string }) {
+  return (
+    <div
+      role="textbox"
+      aria-label="Comment to copy"
+      aria-readonly="true"
+      className="min-h-24 whitespace-pre-wrap break-words rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default"
+    >
+      {comment || <span className="text-text-muted">No comment</span>}
+    </div>
+  )
+}
+
+function CopyGradePreview({ template }: { template: TeacherAssignmentGradeTemplate }) {
+  const scores = [
+    { label: 'Completion', value: formatGradeSelectedScorePreview(template.scoreCompletion) },
+    { label: 'Thinking', value: formatGradeSelectedScorePreview(template.scoreThinking) },
+    { label: 'Workflow', value: formatGradeSelectedScorePreview(template.scoreWorkflow) },
+  ]
+  const totalScore = [template.scoreCompletion, template.scoreThinking, template.scoreWorkflow]
+    .reduce((total, value) => total + (Number(value) || 0), 0)
+  const totalPercent = Math.round((totalScore / 30) * 100)
+
+  return (
+    <div role="group" aria-label="Grade to copy" className="space-y-2 rounded-md border border-border bg-surface-2 p-3">
+      {scores.map((score) => (
+        <div key={score.label} className="grid grid-cols-[1fr_auto] items-center gap-3">
+          <span className="text-xs font-medium text-text-muted">{score.label}</span>
+          <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded border border-border bg-surface">
+            <span className="flex min-w-11 items-center justify-center px-2 text-sm font-semibold tabular-nums text-text-default">
+              {score.value}
+            </span>
+            <span className="flex min-w-8 items-center justify-center border-l border-border bg-surface-hover px-1.5 text-xs font-medium tabular-nums text-text-muted">
+              10
+            </span>
+          </div>
+        </div>
+      ))}
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-border pt-2">
+        <span className="text-xs font-semibold text-text-default">Final grade</span>
+        <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-text-default">
+          <span>{totalScore}/30</span>
+          <span className="text-text-muted">{totalPercent}%</span>
+          <span className="rounded-full bg-surface-hover px-2 py-0.5 text-xs font-medium text-text-muted">
+            {template.gradeMode === 'graded' ? 'Final' : 'Draft'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
   const uniqueMessages: string[] = []
   const seen = new Set<string>()
@@ -622,6 +680,7 @@ export function TeacherClassroomView({
     view: getDefaultAssignmentSplitPaneView(),
   })
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
+  const [assignmentInstructionsMode, setAssignmentInstructionsMode] = useState<'visual' | 'markdown'>('visual')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
@@ -638,6 +697,7 @@ export function TeacherClassroomView({
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
     useState<GradeSelectedApplyTarget | null>(null)
+  const gradeSelectedConfirmTitleId = useId()
   const [highlightedApplyTarget, setHighlightedApplyTarget] = useState<GradeSelectedApplyTarget | null>(null)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
@@ -737,6 +797,7 @@ export function TeacherClassroomView({
     setMaterials([])
     setSurveys([])
     setClassDays([])
+    setAssignmentInstructionsMode('visual')
     setLoadedClassroomId(null)
     setHasLoadedOnce(false)
     setClassworkLoadError(false)
@@ -1303,6 +1364,7 @@ export function TeacherClassroomView({
   }
 
   const closeAssignmentModal = useCallback(() => {
+    setAssignmentInstructionsMode('visual')
     setEditAssignment(null)
     setIsCreateModalOpen(false)
     setAssignmentEditMode(false)
@@ -1683,6 +1745,7 @@ export function TeacherClassroomView({
     }
 
     const studentIds = Array.from(batchSelectedIds)
+    const copyTargetLabel = applyTarget === 'comments' ? 'comment' : 'grade'
     const expectedDocUpdatedAtByStudent = Object.fromEntries(
       studentIds.map((studentId) => {
         const student = selectedAssignmentData.students.find((row) => row.student_id === studentId)
@@ -1714,7 +1777,7 @@ export function TeacherClassroomView({
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `Failed to apply ${applyTarget}`)
+      if (!res.ok) throw new Error(data.error || `Failed to copy ${copyTargetLabel}`)
 
       const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
         ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
@@ -1749,7 +1812,7 @@ export function TeacherClassroomView({
       }
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
-      setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setInfo(`Copied ${copyTargetLabel} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
       setGradeSelectedConfirmTarget(null)
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
@@ -2087,8 +2150,14 @@ export function TeacherClassroomView({
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
-  const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
   const workspaceGradeBusy = workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving
+  const selectedStudentActionsBusy =
+    isAutoGrading ||
+    isGradeSelectedSaving ||
+    hasActiveAssignmentAiRun ||
+    isReturning ||
+    workspaceGradeBusy ||
+    isReadOnly
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
@@ -2129,7 +2198,7 @@ export function TeacherClassroomView({
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
   const gradeSelectedSavingLabel =
-    gradeSelectedConfirmTarget === 'comments' ? 'Applying comments' : 'Applying grade'
+    gradeSelectedConfirmTarget === 'comments' ? 'Copying comment' : 'Copying grade'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
     : isReturning
@@ -2183,8 +2252,9 @@ export function TeacherClassroomView({
 
   const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
 
-  const openSelectedAssignmentEditor = () => {
-    if (activeSelectedAssignmentData) {
+  const openSelectedAssignmentEditor = (mode: 'visual' | 'markdown' = 'visual') => {
+    if (activeSelectedAssignmentData && canEditAssignment) {
+      setAssignmentInstructionsMode(mode)
       setEditAssignment(activeSelectedAssignmentData.assignment)
     }
   }
@@ -2227,94 +2297,76 @@ export function TeacherClassroomView({
     </Tooltip>
   )
 
-  const classPaneActions = (
-    <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-      <span className="inline-flex">
-        <SplitButton
-          label={
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>AI Grade</span>
-            </span>
-          }
-          onPrimaryClick={() => {
-            void handleBatchAutoGrade()
-          }}
-          options={[
-            {
-              id: 'delete-assignment',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Delete Assignment</span>
-                </span>
-              ),
-              onSelect: () => {
-                if (activeSelectedAssignmentData) {
-                  setPendingDelete({
-                    id: activeSelectedAssignmentData.assignment.id,
-                    title: activeSelectedAssignmentData.assignment.title,
-                  })
-                }
-              },
-              disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
-              destructive: true,
-            },
-            {
-              id: 'grade-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Grade to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('grade')
-              },
-              disabled: isApplyGradeSelectedDisabled,
-            },
-            {
-              id: 'comments-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Comments to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('comments')
-              },
-              disabled: isApplyCommentsSelectedDisabled,
-            },
-            {
-              id: 'return',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <Send className="h-4 w-4" aria-hidden="true" />
-                  <span>Return</span>
-                </span>
-              ),
-              onSelect: () => {
-                setShowReturnConfirm(true)
-              },
-              disabled: isReturnDisabled,
-            },
-          ]}
-          className="inline-flex"
-          toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
-          menuPlacement="down"
-          primaryButtonProps={{
-            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-            disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-          }}
-        />
-      </span>
-    </Tooltip>
-  )
+  const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'ai-grade-selected',
+      label: 'AI Grade',
+      icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        void handleBatchAutoGrade()
+      },
+      disabled: selectedStudentActionsBusy,
+    },
+    {
+      id: 'grade-selected',
+      label: `Copy grade to ${batchSelectedCount} selected`,
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+      onSelect: () => {
+        setHighlightedApplyTarget(null)
+        setGradeSelectedConfirmTarget('grade')
+      },
+      disabled: isApplyGradeSelectedDisabled,
+    },
+    {
+      id: 'comments-selected',
+      label: `Copy comment to ${batchSelectedCount} selected`,
+      icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
+      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+      onSelect: () => {
+        setHighlightedApplyTarget(null)
+        setGradeSelectedConfirmTarget('comments')
+      },
+      disabled: isApplyCommentsSelectedDisabled,
+    },
+    {
+      id: 'return-selected',
+      label: 'Return',
+      icon: <Reply className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setShowReturnConfirm(true),
+      disabled: isReturnDisabled,
+    },
+  ]
+
+  const assignmentUtilityActions: TeacherWorkSurfaceActionItem[] = activeSelectedAssignmentData ? [
+    {
+      id: 'edit-assignment-markdown',
+      label: 'Edit Markdown',
+      icon: <Code className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openSelectedAssignmentEditor('markdown'),
+      disabled: !canEditAssignment,
+    },
+    {
+      id: 'edit-assignment',
+      label: 'Edit Assignment',
+      icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openSelectedAssignmentEditor(),
+      disabled: !canEditAssignment,
+    },
+    {
+      id: 'delete-assignment',
+      label: 'Delete Assignment',
+      icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        setPendingDelete({
+          id: activeSelectedAssignmentData.assignment.id,
+          title: activeSelectedAssignmentData.assignment.title,
+        })
+      },
+      disabled: selectedAssignmentLoading || isReadOnly || isDeleting,
+      destructive: true,
+    },
+  ] : []
 
   const selectedStudentControls = (
     <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
@@ -2353,10 +2405,7 @@ export function TeacherClassroomView({
   )
 
   const workspaceStatus = workspaceLoading ? (
-    <div
-      aria-live="polite"
-      className="pointer-events-none absolute -right-7 top-1/2 inline-flex -translate-y-1/2 items-center text-text-muted"
-    >
+    <div aria-live="polite" className="inline-flex items-center text-text-muted">
       <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
@@ -2365,20 +2414,46 @@ export function TeacherClassroomView({
   const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
     <div
       data-testid="assignment-workspace-actionbar-center"
-      className="relative flex min-w-0 items-center justify-center gap-2"
+      className="flex min-w-0 items-center justify-center gap-2"
     >
-      <TeacherWorkSurfaceActionCluster>
-        {assignmentLayoutToggle}
-        {classPaneActions}
-        <TeacherWorkSurfaceIconButton
-          ariaLabel="Edit Assignment"
-          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-          onClick={openSelectedAssignmentEditor}
-          disabled={!canEditAssignment}
-          tooltip="Edit Assignment"
+      <div role="toolbar" aria-label="Assignment grading actions" className="flex max-w-full items-center justify-center gap-2">
+        <TeacherWorkSurfaceActionCluster>
+          {assignmentLayoutToggle}
+        </TeacherWorkSurfaceActionCluster>
+        <TeacherWorkSurfaceMenuButton
+          label={(
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </span>
+          )}
+          items={selectedStudentActions}
+          disabled={batchSelectedCount === 0 || selectedStudentActionsBusy}
+          variant="secondary"
+          size="sm"
+          menuPlacement="down"
+          menuAlign="center"
+          menuAriaLabel="Selected student assignment actions"
+          buttonProps={{
+            'aria-label': batchSelectedCount > 0
+              ? `Student actions for ${batchSelectedCount} selected`
+              : 'Student actions (select students to enable)',
+          }}
         />
-      </TeacherWorkSurfaceActionCluster>
-      {workspaceStatus}
+      </div>
+    </div>
+  ) : null
+
+  const assignmentWorkspaceUtilities = assignmentUtilityActions.length > 0 ? (
+    <div className="flex items-center" data-testid="assignment-workspace-trailing-actions">
+      <TeacherWorkSurfaceIconMenuButton
+        ariaLabel="More actions"
+        tooltip="More actions"
+        variant="ghost"
+        icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+        items={assignmentUtilityActions}
+        menuAriaLabel="Assignment actions"
+      />
     </div>
   ) : null
 
@@ -2527,6 +2602,37 @@ export function TeacherClassroomView({
     },
   ]
 
+  const classworkUtilityActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'organize-classwork',
+      label: 'Edit classwork',
+      icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+      checked: assignmentEditMode,
+      onSelect: () => setAssignmentEditMode(!assignmentEditMode),
+      disabled: isReadOnly,
+    },
+    ...(showMarkdownEditorOption && onOpenMarkdownEditor ? [{
+      id: 'edit-markdown',
+      label: 'Edit all assignments in Markdown',
+      icon: <Code className="h-4 w-4" aria-hidden="true" />,
+      onSelect: onOpenMarkdownEditor,
+      disabled: isReadOnly,
+    }] : []),
+  ]
+
+  const classworkSummaryUtilities = (
+    <div className="flex items-center" data-testid="assignment-summary-trailing-actions">
+      <TeacherWorkSurfaceIconMenuButton
+        ariaLabel="More actions"
+        tooltip="More actions"
+        variant="ghost"
+        icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
+        items={classworkUtilityActions}
+        menuAriaLabel="Classwork actions"
+      />
+    </div>
+  )
+
   const primaryButtons =
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceContextBar
@@ -2536,8 +2642,8 @@ export function TeacherClassroomView({
           <TeacherWorkSurfaceActionCluster>
             <TeacherWorkSurfaceIconMenuButton
               icon={<Plus className="h-4 w-4" aria-hidden="true" />}
-              ariaLabel="Create classwork"
-              tooltip="Create assignment, material, or survey"
+              ariaLabel="New classwork"
+              tooltip="New classwork"
               variant="primary"
               items={classworkCreateActions}
               disabled={isReadOnly}
@@ -2546,30 +2652,18 @@ export function TeacherClassroomView({
               menuAlign="center"
               menuClassName="w-64"
             />
-            <TeacherWorkSurfaceIconButton
-              ariaLabel="Organize classwork"
-              icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-              onClick={() => setAssignmentEditMode(!assignmentEditMode)}
-              disabled={isReadOnly}
-              pressed={assignmentEditMode}
-              tooltip={assignmentEditMode ? 'Done organizing classwork' : 'Organize classwork'}
-            />
-            {assignmentEditMode && showMarkdownEditorOption ? (
-              <TeacherWorkSurfaceIconButton
-                ariaLabel="Edit Markdown"
-                icon={<Code className="h-4 w-4" aria-hidden="true" />}
-                onClick={() => onOpenMarkdownEditor?.()}
-                disabled={!onOpenMarkdownEditor || isReadOnly}
-                tooltip="Edit Markdown"
-              />
-            ) : null}
           </TeacherWorkSurfaceActionCluster>
         }
+        actions={classworkSummaryUtilities}
+        trailingClassName="overflow-visible"
       />
     ) : (
       <TeacherWorkSurfaceContextBar
         ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
+        context={selection.mode === 'assignment' ? workspaceStatus : null}
         primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
+        actions={selection.mode === 'assignment' ? assignmentWorkspaceUtilities : null}
+        trailingClassName="overflow-visible"
       />
     )
 
@@ -2763,32 +2857,49 @@ export function TeacherClassroomView({
       />
 
 
-      <ConfirmDialog
+      <DialogPanel
         isOpen={!!gradeSelectedConfirmTarget}
-        title={
-          gradeSelectedConfirmTarget === 'comments'
-            ? `Apply comments to ${batchSelectedCount} selected student(s)?`
-            : `Apply grade to ${batchSelectedCount} selected student(s)?`
-        }
-        description={
-          gradeSelectedConfirmTarget === 'comments'
-            ? `The current student's comments will be applied to the selected students.`
-            : `The current student's grading will be applied to the selected students.`
-        }
-        confirmLabel={
-          isGradeSelectedSaving
-            ? 'Applying...'
-            : 'Apply'
-        }
-        cancelLabel="Cancel"
-        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
-        isCancelDisabled={isGradeSelectedSaving}
-        onCancel={() => (isGradeSelectedSaving ? null : setGradeSelectedConfirmTarget(null))}
-        onConfirm={() => {
-          if (!gradeSelectedConfirmTarget) return
-          void handleGradeSelected(gradeSelectedConfirmTarget)
+        onClose={() => {
+          if (!isGradeSelectedSaving) setGradeSelectedConfirmTarget(null)
         }}
-      />
+        maxWidth="max-w-sm"
+        ariaLabelledBy={gradeSelectedConfirmTitleId}
+      >
+        <h2 id={gradeSelectedConfirmTitleId} className="shrink-0 text-base font-semibold text-text-default">
+          {gradeSelectedConfirmTarget === 'comments'
+            ? `Copy comment to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`
+            : `Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
+        </h2>
+        <div className="mt-3 min-h-0 overflow-y-auto">
+          {activeGradeSelectedTemplate
+            ? gradeSelectedConfirmTarget === 'comments'
+              ? <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />
+              : <CopyGradePreview template={activeGradeSelectedTemplate} />
+            : null}
+        </div>
+        <div className="mt-4 flex shrink-0 gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            disabled={isGradeSelectedSaving}
+            onClick={() => setGradeSelectedConfirmTarget(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="flex-1"
+            disabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
+            onClick={() => {
+              if (!gradeSelectedConfirmTarget) return
+              void handleGradeSelected(gradeSelectedConfirmTarget)
+            }}
+          >
+            {isGradeSelectedSaving ? 'Copying...' : 'Confirm'}
+          </Button>
+        </div>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
@@ -2806,6 +2917,7 @@ export function TeacherClassroomView({
         isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
         assignment={editAssignment}
+        instructionsMode={assignmentInstructionsMode}
         classDays={classDays}
         onClose={closeAssignmentModal}
         onSuccess={(assignment, options) => {

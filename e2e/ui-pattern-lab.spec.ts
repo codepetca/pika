@@ -13,6 +13,57 @@ async function openPatternLab(page: Page, testInfo: TestInfo, role: 'teacher' | 
 }
 
 for (const role of ['teacher', 'student'] as const) {
+  test(`${role} visualizes the minimal student Grades visibility contract`, async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, role)
+    const example = page.getByTestId('student-grades-pattern')
+    await example.scrollIntoViewIfNeeded()
+
+    const visibility = example.getByRole('switch', { name: 'Show grades to students' })
+    const target = (await visibility.boundingBox())!
+    expect(target.width).toBeGreaterThanOrEqual(44)
+    expect(target.height).toBeGreaterThanOrEqual(44)
+    await expect(visibility).toHaveAttribute('aria-checked', 'true')
+    await expect(
+      example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
+    ).toBeVisible()
+    await expect(example.getByText('84%')).toBeVisible()
+    await expect(example.getByText('Not counted')).toBeVisible()
+    const feedbackLinks = example.getByRole('link')
+    await expect(feedbackLinks).toHaveCount(3)
+    await testInfo.attach('student-grades-visible', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-visible.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await feedbackLinks.first().focus()
+    await expect(feedbackLinks.first()).toBeFocused()
+    await testInfo.attach('student-grades-feedback-focus', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-feedback-focus.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await visibility.focus()
+    await expect(visibility).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(visibility).toHaveAttribute('aria-checked', 'false')
+    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
+    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
+    await testInfo.attach('student-grades-hidden', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-hidden.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
+  })
+
   test(`${role} demonstrates colored number-only attendance chips`, async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, role)
     const examples = page.getByTestId('status-pattern-examples')
@@ -312,6 +363,8 @@ test.describe('teacher Pattern Lab', () => {
     await page.getByRole('navigation', { name: 'Pattern Lab sections' }).evaluate((navigation) => {
       navigation.style.position = 'static'
     })
+    // Exclude Next.js developer chrome, whose issue badge varies between runs.
+    await page.addStyleTag({ content: 'nextjs-portal { visibility: hidden !important; }' })
     await expect(page.getByTestId('pattern-lab-contracts')).toHaveScreenshot('teacher-pattern-contracts.png')
     await testInfo.attach('teacher-history-preview', {
       body: await page.getByTestId('history-preview-gallery').screenshot({ path: testInfo.outputPath('teacher-history-preview.png'), animations: 'disabled' }),

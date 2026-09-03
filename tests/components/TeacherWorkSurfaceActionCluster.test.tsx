@@ -70,6 +70,8 @@ describe('TeacherWorkSurfaceActionCluster', () => {
   })
 
   it('supports radio-style checked menu items for mutually exclusive options', () => {
+    const onHoverChange = vi.fn()
+
     render(
       <TeacherWorkSurfaceMenuButton
         label="Display"
@@ -94,6 +96,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
             label: 'Column controls',
             checked: false,
             onSelect: vi.fn(),
+            onHoverChange,
           },
         ]}
       />,
@@ -104,6 +107,13 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
+
+    const columnControls = screen.getByRole('menuitemcheckbox', { name: 'Column controls' })
+    fireEvent.mouseEnter(columnControls)
+    fireEvent.mouseLeave(columnControls)
+    fireEvent.focus(columnControls)
+    fireEvent.blur(columnControls)
+    expect(onHoverChange.mock.calls).toEqual([[true], [false], [true], [false]])
 
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
     fireEvent.keyDown(window, { key: 'ArrowDown' })
@@ -119,6 +129,25 @@ describe('TeacherWorkSurfaceActionCluster', () => {
 
     expect(outerEscapeHandler).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Display' })).toHaveFocus()
+  })
+
+  it.each(['keyboard', 'pointer'] as const)('clears the %s preview when the menu is dismissed', (input) => {
+    const onHoverChange = vi.fn()
+    render(
+      <TeacherWorkSurfaceMenuButton
+        label="Student actions"
+        items={[{ id: 'copy', label: 'Copy grade', onSelect: vi.fn(), onHoverChange }]}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: 'Student actions' })
+    fireEvent.click(trigger)
+    const item = screen.getByRole('menuitem', { name: 'Copy grade' })
+    if (input === 'pointer') fireEvent.mouseEnter(item)
+    expect(onHoverChange).toHaveBeenLastCalledWith(true)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onHoverChange).toHaveBeenLastCalledWith(false)
   })
 
   it('keeps a tooltip-wrapped icon menu trigger mounted through a modal focus round trip', async () => {
@@ -148,6 +177,7 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     render(<Harness />)
 
     const trigger = screen.getByRole('button', { name: 'More actions' })
+    expect(trigger).toHaveClass('border-transparent', 'bg-transparent', 'text-text-muted')
     await user.hover(trigger)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('More actions')
     await user.click(trigger)

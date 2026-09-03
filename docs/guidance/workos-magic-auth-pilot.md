@@ -17,8 +17,9 @@ six-digit passcode flow.
   the rest of the application can continue to use `requireAuth()` during the
   pilot. When the pilot is enabled, every Pika authorization check also
   requires a verified WorkOS session with the same normalized email and exact
-  WorkOS user id; the Pika cookie is a 180-day internal UUID/role mapping, not
-  an independent credential.
+  WorkOS user id; the Pika cookie is a 180-day opaque session token, not an
+  independent credential. Its hashed token and internal identity mapping stay
+  in Pika's server-only `auth_sessions` table.
 - The pilot is disabled by default and does not change the password flow unless
   `WORKOS_MAGIC_AUTH_PILOT=true`.
 - This slice does not configure Pika/Bara attendance integration, SSO, or a
@@ -68,9 +69,12 @@ into an indefinitely rolling session.
 The two cookies have different authority:
 
 - The encrypted WorkOS cookie is the credential and refresh authority.
-- `pika_session` contains only Pika's internal UUID, role, normalized email,
-  explicit authentication source, exact WorkOS user ID when applicable, and
-  session-format version.
+- `pika_session` contains only a versioned opaque token. Pika stores only its
+  SHA-256 hash alongside the internal UUID, explicit authentication source,
+  exact WorkOS user ID when applicable, credential version, and expiry. Current
+  email, role, and credential version are resolved from `public.users` on every
+  authorization check. Session issuance locks the current user and atomically
+  rejects a stale credential version.
 - Every protected request fails closed unless the two identities match while
   the pilot is enabled.
 - If the pilot is disabled, only a current-version Pika session explicitly
@@ -83,7 +87,7 @@ The two cookies have different authority:
 - Server and client reauthentication redirects preserve only a validated
   same-origin path. Middleware replaces any inbound path-header spoof before a
   protected server route builds its `/login?next=...` destination.
-- Browser logout uses a same-origin POST, destroys the Pika session, clears
+- Browser logout uses a same-origin POST, revokes the server-side Pika session, destroys its cookie, clears
   pending Magic Auth state, and uses AuthKit logout to invalidate the WorkOS
   session. The legacy JSON logout endpoint explicitly revokes the WorkOS session
   before reporting success. Configure the WorkOS application's default Logout

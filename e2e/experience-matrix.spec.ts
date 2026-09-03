@@ -64,6 +64,13 @@ async function applyProjectTheme(page: Page, testInfo: TestInfo) {
   }, theme)
 }
 
+async function detachSharedAuthFixture(page: Page) {
+  // Saved Playwright auth state is reused across projects. A real login rotates
+  // the current server-side session, so mutation scenarios must first detach
+  // from the shared token or they invalidate unrelated browser contexts.
+  await page.context().clearCookies()
+}
+
 async function verifyProjectContract(page: Page, testInfo: TestInfo) {
   const { theme, viewport } = getExperienceMetadata(testInfo)
   const expectedWidth = viewport === 'mobile' ? 390 : 1440
@@ -468,6 +475,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
   let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
+  let classroomQrGeneration = 1
+  let classroomQrToken = 'a'.repeat(43)
+  let loseNextRotationResponse = false
 
   const students = Array.from({ length: 18 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
@@ -590,6 +600,37 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
       }),
     })
   })
+  await page.route('**/api/teacher/attendance/qr?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
+        expiresAt: '2026-08-29T16:00:00.000Z',
+        revision: 2,
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/classroom-qr**', async (route) => {
+    if (route.request().method() === 'POST') {
+      classroomQrGeneration += 1
+      classroomQrToken = String.fromCharCode(96 + classroomQrGeneration).repeat(43)
+      if (loseNextRotationResponse) {
+        loseNextRotationResponse = false
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Response unavailable' }) })
+        return
+      }
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        entryPath: `/attendance/classroom/${classroomQrToken}`,
+        generation: classroomQrGeneration,
+        rotatedAt: '2026-08-29T15:00:00.000Z',
+      }),
+    })
+  })
 
   await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
 
@@ -618,14 +659,81 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Show relative date' }).click()
   await expect(dateButton.getByText('Today', { exact: true })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(viewport === 'desktop' ? 1 : 0)
   await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
-  } else {
-    await expect(primaryControl.getByRole('button', { name: 'Attendance actions' })).toBeVisible()
-  }
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveText('2:00 PM - 3:00 PM')
+  await page.getByRole('button', { name: 'Show QR' }).click()
+  const liveQrDialog = page.getByRole('dialog', { name: 'Attendance QR' })
+  const liveQr = liveQrDialog.getByLabel('Student attendance check-in QR code')
+  await expect(liveQr).toBeVisible()
+  const [liveQrBox, viewportSize] = await Promise.all([liveQr.boundingBox(), page.viewportSize()])
+  expect(liveQrBox).not.toBeNull()
+  expect(Math.abs(liveQrBox!.width - liveQrBox!.height)).toBeLessThanOrEqual(1)
+  expect(liveQrBox!.width).toBeGreaterThanOrEqual(Math.min(viewportSize!.width, viewportSize!.height) * 0.7)
+  const dialogBox = await liveQrDialog.boundingBox()
+  expect(liveQrBox!.x).toBeGreaterThan(dialogBox!.x)
+  expect(liveQrBox!.x + liveQrBox!.width).toBeLessThan(dialogBox!.x + dialogBox!.width)
+  const svgBox = await liveQr.locator('svg').boundingBox()
+  expect(Math.abs(svgBox!.width - svgBox!.height)).toBeLessThanOrEqual(1)
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-live-qr.png`),
+    animations: 'disabled',
+  })
+  await liveQrDialog.getByRole('button', { name: 'Close' }).click()
+
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Classroom QR poster' }).click()
+  const posterDialog = page.getByRole('dialog', { name: 'Classroom QR poster' })
+  await expect(posterDialog.getByLabel('Daily and Attendance Fixture permanent attendance QR code')).toBeVisible()
+  const posterPaths = posterDialog.getByRole('img').locator('svg path')
+  await expect(posterPaths).toHaveCount(2)
+  await expect(posterPaths.nth(0)).toHaveCSS('fill', 'rgb(255, 255, 255)')
+  await expect(posterPaths.nth(1)).toHaveCSS('fill', 'rgb(17, 24, 39)')
+  await expect(posterDialog.getByText('Print once and use for every class')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-permanent-poster.png`),
+    animations: 'disabled',
+  })
+  await posterDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  const rotateDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
+  await expect(rotateDialog).toContainText('current poster will stop working immediately')
+  await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await expect(rotateDialog).toBeHidden()
+  expect(classroomQrGeneration).toBe(2)
+  loseNextRotationResponse = true
+  await posterDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
+  await expect(posterDialog.getByText(/Reload the current QR before printing/)).toBeVisible()
+  await expect(posterDialog.getByRole('button', { name: 'Print' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('img')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-rotation-recovery.png`) })
+  await posterDialog.getByRole('button', { name: 'Try again' }).click()
+  await expect(posterDialog.getByRole('button', { name: 'Print' })).toBeVisible()
+  expect(classroomQrGeneration).toBe(3)
+  await page.evaluate(() => {
+    window.print = () => window.dispatchEvent(new Event('afterprint'))
+  })
+  await posterDialog.getByRole('button', { name: 'Print' }).click()
+  await expect.poll(() => page.evaluate(() => document.body.dataset.printClassroomQr ?? null))
+    .toBeNull()
+  const download = page.waitForEvent('download')
+  await posterDialog.getByRole('button', { name: 'Download SVG' }).click()
+  expect((await download).suggestedFilename()).toBe('daily-and-attendance-fixture-attendance-qr.svg')
+  await page.emulateMedia({ media: 'print' })
+  await page.evaluate(() => { document.body.dataset.printClassroomQr = 'true' })
+  await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-print.png`) })
+  await page.emulateMedia({ media: 'screen' })
+  await page.evaluate(() => { delete document.body.dataset.printClassroomQr })
+  await posterDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
+  await page.goto('/e2e-fixtures/teacher-daily-attendance?classroomQr=off')
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Classroom QR poster' })).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-poster-gated.png`), animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await expect(contextBar.getByRole('button', { name: 'More actions' })).toBeFocused()
+  await page.goto('/e2e-fixtures/teacher-daily-attendance')
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
@@ -636,7 +744,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
-    name: 'Undo manual attendance change for Student 03 Alpha03',
+    name: 'Undo manual change for Student 03 Alpha03',
   })
   await expect(overrideUndo).toBeVisible()
   const overrideCell = overrideUndo.locator('xpath=ancestor::td')
@@ -660,8 +768,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   expect(tableHeadBox).not.toBeNull()
   expect(Math.abs(tableHeadBox!.y - scrollPaneBox!.y)).toBeLessThanOrEqual(1)
 
-  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
-  await expect(primaryControl.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+  await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeVisible()
 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Hide ID column' }).click()
@@ -677,11 +786,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' })).toBeEnabled()
-  await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
-  await expect(primaryControl.getByRole('button', {
-    name: 'Student actions for 1 selected',
-  })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-closed.png`),
     animations: 'disabled',
@@ -689,18 +795,13 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
 
   attendanceSessionState = 'scheduled'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('group', {
-    name: 'Attendance status for Student 01 Alpha01',
-  })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Open QR check-in' })).toBeVisible()
-  } else {
-    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Open QR check-in' })).toBeVisible()
-    await page.keyboard.press('Escape')
-  }
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Open attendance' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-scheduled.png`),
     animations: 'disabled',
@@ -711,18 +812,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
-  if (viewport === 'desktop') {
-    await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
-  } else {
-    await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Set attendance hours' })).toBeVisible()
-  }
+  await expect(page.getByRole('button', { name: 'Set attendance hours' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Show QR' })).toBeDisabled()
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-unconfigured.png`),
     animations: 'disabled',
   })
-  if (viewport === 'mobile') await page.keyboard.press('Escape')
-
   await page.goto('/e2e-fixtures/teacher-daily-attendance?attendance=off', { waitUntil: 'domcontentloaded' })
 
   const dailyOnlyContextBar = page.getByTestId('daily-context-bar')
@@ -734,7 +829,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
-  await expect(page.getByRole('columnheader', { name: 'Check-in' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
 
@@ -795,15 +890,11 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
     await page.screenshot({ path: testInfo.outputPath(`saved-hours-${viewport}-${state}.png`), animations: 'disabled' })
   }
   const openHours = async (name: string) => {
-    if (viewport === 'desktop') await page.getByRole('button', { name }).click()
-    else {
-      await page.getByRole('button', { name: 'Attendance actions' }).click()
-      await page.getByRole('menuitem', { name: /Attendance hours/ }).click()
-    }
+    await page.getByRole('button', { name }).click()
   }
   await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Mon Aug 31')
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
   await capture('today-date')
   await page.getByRole('button', { name: 'Next day' }).click()
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Tue Sep 1')
@@ -818,7 +909,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
   finishSave()
   await expect(page.getByRole('alert').filter({ hasText: 'last save did not confirm schedule delivery' })).toBeVisible()
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
   await capture('saved-delivery-unconfirmed')
   policyReadFails = true
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -831,7 +922,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
   await page.keyboard.press('Escape')
-  if (viewport === 'desktop') await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()
   await expect(page.getByRole('alert').filter({ hasText: 'Attendance hours could not be loaded' })).toHaveCount(0)
 })
 
@@ -848,6 +939,66 @@ test('shows student attendance states without exposing derived status labels', a
     fullPage: true,
     animations: 'disabled',
   })
+})
+
+test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  let state: 'open' | 'closed' | 'revoked' | 'cross_classroom' | 'error' = 'open'
+  await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    const bodies = {
+      open: {
+        state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
+        attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        studentId: '40000000-0000-4000-8000-000000000001',
+        occurrenceBinding: 'a'.repeat(32),
+      },
+      closed: {
+        state: 'closed', title: 'Attendance is not open',
+        description: 'This classroom poster works when your teacher opens attendance.',
+      },
+      revoked: {
+        state: 'invalid', title: 'This classroom QR is no longer valid',
+        description: 'Ask your teacher for the current classroom attendance poster.',
+      },
+      cross_classroom: {
+        state: 'needs_staff', title: 'Your teacher needs to help',
+        description: 'This signed-in account is not on the attendance roster for this classroom.',
+      },
+      error: { error: 'Attendance is temporarily unavailable' },
+    }
+    await route.fulfill({
+      status: state === 'error' ? 503 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(bodies[state]),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/student-classroom-attendance', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
+
+  state = 'closed'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Attendance is not open' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-closed.png`),
+    animations: 'disabled',
+  })
+
+  state = 'revoked'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'This classroom QR is no longer valid' })).toBeVisible()
+
+  state = 'cross_classroom'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('not on the attendance roster for this classroom')).toBeVisible()
+
+  state = 'error'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
 })
 
 test('keeps the selected Test grading roster compact and selection-driven', async ({ page }, testInfo) => {
@@ -1450,6 +1601,7 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('School Email')).toBeFocused()
 
     await page.unroute('**/api/auth/me')
+    await detachSharedAuthFixture(page)
     await page.getByLabel('School Email').fill('teacher@example.com')
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
@@ -1485,6 +1637,7 @@ test.describe('teacher experience matrix', () => {
   test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One redirect-safety pass is sufficient')
 
+    await detachSharedAuthFixture(page)
     for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
       await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
       await page.getByLabel('School Email').fill('teacher@example.com')
@@ -1814,7 +1967,7 @@ test.describe('public planned course experience matrix', () => {
     }
     await expect(page.getByRole('heading', { level: 3, name: 'Algorithm Design Brief' })).toBeVisible()
     await expect(page.getByRole('heading', { level: 3, name: 'Programming Foundations Test' })).toBeVisible()
-    await expect(page.getByText('1 question', { exact: true })).toBeVisible()
+    await expect(page.getByText(/questions?/i)).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 3, name: 'Tracing and Debugging' })).toBeVisible()
 
     const pageSource = `${await response!.text()}\n${await page.content()}`

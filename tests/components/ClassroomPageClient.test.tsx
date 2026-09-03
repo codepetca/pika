@@ -14,4 +14,15 @@ describe('ClassroomPageClient titlebar navigation', () => {
     expect(source).not.toContain('handleClassroomNavigationAttempt')
     expect(source).not.toContain("source: 'classroom_switch'")
   })
+
+  it('hands Daily a manual attendance fallback when QR attendance is unavailable', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('attendanceEnabled={featureVisibility.attendance}')
+    expect(source).toContain('manualAttendanceEnabled={!featureVisibility.attendance}')
+    expect(source.match(/classroomQrAvailable=\{classroomQrAvailable\}/g)).toHaveLength(2)
+  })
 })

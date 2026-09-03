@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
+import { PikaLogo } from '@/components/PikaLogo'
 import {
   getSafeInternalPath,
   SESSION_CHANGED_MESSAGE,
@@ -117,7 +118,15 @@ export function LoginClient({
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-page">
         <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-text-default mb-6">Login to Pika</h1>
+          <div className="mb-6 flex items-start gap-3">
+            <span className="flex-shrink-0" aria-hidden="true">
+              <PikaLogo className="h-8 w-8" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-text-default">Pika Classroom</h1>
+              <p className="mt-1 text-sm text-text-muted">School days, simplified.</p>
+            </div>
+          </div>
           <p role="status" aria-live="polite" className="text-text-muted">
             Restoring your session...
           </p>
@@ -129,9 +138,15 @@ export function LoginClient({
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-page">
       <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-text-default mb-6">
-          Login to Pika
-        </h1>
+        <div className="mb-6 flex items-start gap-3">
+          <span className="flex-shrink-0" aria-hidden="true">
+            <PikaLogo className="h-8 w-8" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-text-default">Pika Classroom</h1>
+            <p className="mt-1 text-sm text-text-muted">School days, simplified.</p>
+          </div>
+        </div>
 
         {sessionMessage ? (
           <div
@@ -143,12 +158,6 @@ export function LoginClient({
             {sessionMessage}
           </div>
         ) : null}
-
-        {magicAuthEnabled && (
-          <p className="-mt-4 mb-6 text-text-muted">
-            Enter your school email. We&apos;ll send a six-digit sign-in code.
-          </p>
-        )}
 
         {!magicAuthEnabled && isDev && (
           <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
@@ -189,7 +198,7 @@ export function LoginClient({
           />
         ) : (
           <form onSubmit={handleSubmit}>
-            <FormField label="School Email" required className="mb-4">
+            <FormField label="School Email" className="mb-4">
               <Input
                 ref={emailInputRef}
                 type="email"

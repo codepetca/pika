@@ -93,6 +93,9 @@
 
   /* Focus and control geometry */
   --size-control-min: 2.75rem;
+  --size-attendance-trailing-one: var(--size-control-min);
+  --size-attendance-trailing-two: calc(var(--size-control-min) * 2);
+  --size-attendance-trailing-three: calc(var(--size-control-min) * 3);
   --focus-ring-color: var(--color-primary);
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;

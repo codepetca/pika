@@ -91,6 +91,7 @@ interface ClassroomPageClientProps {
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
   attendanceAvailable?: boolean
+  classroomQrAvailable?: boolean
 }
 
 type UpdateSearchOptions = {
@@ -140,6 +141,7 @@ export function ClassroomPageClient({
   initialSearchParams,
   palEnabled = false,
   attendanceAvailable = true,
+  classroomQrAvailable = false,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
@@ -281,6 +283,7 @@ export function ClassroomPageClient({
           palEnabled={palAvailable}
           availableTabs={validTabs}
           featureVisibility={featureVisibility}
+          classroomQrAvailable={classroomQrAvailable}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -447,6 +450,7 @@ function ClassroomPageContent({
   palEnabled,
   availableTabs,
   featureVisibility,
+  classroomQrAvailable,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -459,6 +463,7 @@ function ClassroomPageContent({
   palEnabled: boolean
   availableTabs: readonly string[]
   featureVisibility: ClassroomFeatureVisibility
+  classroomQrAvailable: boolean
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1301,6 +1306,8 @@ function ClassroomPageContent({
                         classroom={classroom}
                         isActive={activeTab === 'daily'}
                         attendanceEnabled={featureVisibility.attendance}
+                        classroomQrAvailable={classroomQrAvailable}
+                        manualAttendanceEnabled={!featureVisibility.attendance}
                       />
                     </TabContentTransition>
                   )}

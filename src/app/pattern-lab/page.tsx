@@ -9,21 +9,29 @@ export const revalidate = 0
 export default async function PatternLabPage({
   searchParams,
 }: {
-  searchParams?: { role?: string }
+  searchParams?: Promise<{ role?: string }>
 }) {
   if (process.env.NODE_ENV === 'production' || process.env.ENABLE_UI_GALLERY !== 'true') {
     notFound()
   }
 
+  const resolvedSearchParams = await searchParams
+
   if (process.env.PIKA_E2E_FIXTURES === 'true') {
-    const fixtureRole = searchParams?.role === 'student' ? 'student' : 'teacher'
+    const fixtureRole = resolvedSearchParams?.role === 'student' ? 'student' : 'teacher'
     return <UiGallery role={fixtureRole} />
   }
 
   const user = await getCurrentUser()
   if (!user) {
-    redirect(getServerLoginRedirectPath())
+    redirect(await getServerLoginRedirectPath())
   }
 
-  return <UiGallery role={user.role} />
+  const referenceRole = resolvedSearchParams?.role === 'student'
+    ? 'student'
+    : resolvedSearchParams?.role === 'teacher'
+      ? 'teacher'
+      : user.role
+
+  return <UiGallery role={referenceRole} />
 }

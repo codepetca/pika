@@ -41,6 +41,11 @@ describe('Status catalog examples', () => {
     renderPatterns()
     expect(screen.getByText('Graded but not yet returned.')).toBeInTheDocument()
     expect(screen.getByText('Results released to the student.')).toBeInTheDocument()
+    const returnedStatuses = screen.getAllByText('Returned', { exact: true })
+    expect(returnedStatuses).toHaveLength(2)
+    for (const label of returnedStatuses) {
+      expect(label.parentElement?.querySelector('svg')).toHaveClass('lucide-reply', 'text-primary')
+    }
     expect(screen.getByText('Closed for grading')).toBeInTheDocument()
     expect(screen.getByText(/Checked in confirmation is separate/)).toBeInTheDocument()
   })

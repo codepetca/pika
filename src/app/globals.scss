@@ -106,3 +106,12 @@
     animation: none;
   }
 }
+@media print {
+  body[data-print-classroom-qr='true'] > *:not([data-classroom-qr-print]) {
+    display: none !important;
+  }
+
+  body[data-print-classroom-qr='true'] > [data-classroom-qr-print] {
+    display: flex !important;
+  }
+}

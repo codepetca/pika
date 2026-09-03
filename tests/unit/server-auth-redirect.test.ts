@@ -15,20 +15,20 @@ describe('getServerLoginRedirectPath', () => {
     mocks.headers.mockReset()
   })
 
-  it('preserves the middleware-provided path and query', () => {
+  it('preserves the middleware-provided path and query', async () => {
     mocks.headers.mockReturnValue(
       new Headers({ 'x-pika-request-path': '/teacher/calendar?week=next' }),
     )
 
-    expect(getServerLoginRedirectPath()).toBe(
+    await expect(getServerLoginRedirectPath()).resolves.toBe(
       '/login?next=%2Fteacher%2Fcalendar%3Fweek%3Dnext',
     )
   })
 
-  it('falls back to classrooms when middleware did not provide a path', () => {
+  it('falls back to classrooms when middleware did not provide a path', async () => {
     mocks.headers.mockReturnValue(new Headers())
 
-    expect(getServerLoginRedirectPath()).toBe(
+    await expect(getServerLoginRedirectPath()).resolves.toBe(
       '/login?next=%2Fclassrooms',
     )
   })
