@@ -9,7 +9,7 @@ const joinRoute = read('src/app/api/student/classrooms/join/route.ts')
 describe('contextual enrollment foundation guidance', () => {
   it('keeps the foundation dormant until atomic and abuse-control gates exist', () => {
     expect(guidance).toContain('no live imports')
-    expect(guidance).toContain('rate-limit both the authenticated actor and invitation guesses')
+    expect(guidance).toMatch(/rate-limit both the\s+authenticated actor and invitation guesses/)
     expect(guidance).toContain("query scoped\n   to the authenticated result's `allowedClassroomIds`")
     expect(guidance).toContain('valid code outside that exact\n   scope must be indistinguishable from an invalid code')
     expect(guidance).toContain('use one database transaction')

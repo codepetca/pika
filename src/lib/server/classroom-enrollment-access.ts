@@ -16,12 +16,13 @@ type AuthenticatedEnrollmentRequest =
   | {
     mode: 'contextual_lookup'
     user: AuthenticatedUser
-    allowedClassroomIds: string[]
+    readonly allowedClassroomIds: readonly string[]
     [authenticatedEnrollmentEvidence]: true
   }
 
 function trustedAuthentication<T extends object>(value: T): T & { [authenticatedEnrollmentEvidence]: true } {
-  return Object.defineProperty(value, authenticatedEnrollmentEvidence, { value: true }) as T & {
+  Object.defineProperty(value, authenticatedEnrollmentEvidence, { value: true })
+  return Object.freeze(value) as T & {
     [authenticatedEnrollmentEvidence]: true
   }
 }
@@ -56,10 +57,14 @@ export async function authenticateClassroomEnrollmentRequest(): Promise<Authenti
   const allowedClassroomIds = pairs
     .filter((pair) => pair.userId === identity.data)
     .map((pair) => pair.classroomId)
-  if (allowedClassroomIds.length > 0) {
-    return trustedAuthentication({ mode: 'contextual_lookup', user, allowedClassroomIds })
-  }
   if (user.role === 'student') return trustedAuthentication({ mode: 'legacy', user })
+  if (allowedClassroomIds.length > 0) {
+    return trustedAuthentication({
+      mode: 'contextual_lookup',
+      user,
+      allowedClassroomIds: Object.freeze(allowedClassroomIds),
+    })
+  }
   throw new AuthorizationError('Forbidden: student role required')
 }
 

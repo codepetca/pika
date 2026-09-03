@@ -57,6 +57,13 @@ describe('dormant contextual enrollment access', () => {
     expect(selectAuthenticatedClassroomEnrollmentMode(authenticated, classroomId).mode).toBe('legacy')
   })
 
+  it('keeps a paired student on the legacy path for every classroom', async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user(userId, 'student'))
+    const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated).toMatchObject({ mode: 'legacy' })
+    expect(selectAuthenticatedClassroomEnrollmentMode(authenticated, otherClassroomId).mode).toBe('legacy')
+  })
+
   it('denies a wrong-role noncohort user before classroom resolution', async () => {
     vi.mocked(requireAuth).mockResolvedValue(user(otherUserId))
     await expect(authenticateClassroomEnrollmentRequest())
@@ -79,6 +86,18 @@ describe('dormant contextual enrollment access', () => {
       user: user(otherUserId),
       allowedClassroomIds: [classroomId],
     } as never, classroomId)).toThrow(expect.objectContaining({ statusCode: 503 }))
+  })
+
+  it('freezes authentic contextual evidence so its lookup scope cannot be widened', async () => {
+    const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated.mode).toBe('contextual_lookup')
+    if (authenticated.mode !== 'contextual_lookup') throw new Error('Expected contextual lookup evidence')
+
+    expect(Object.isFrozen(authenticated)).toBe(true)
+    expect(Object.isFrozen(authenticated.allowedClassroomIds)).toBe(true)
+    expect(() => (authenticated.allowedClassroomIds as string[]).push(otherClassroomId)).toThrow()
+    expect(() => selectAuthenticatedClassroomEnrollmentMode(authenticated, otherClassroomId))
+      .toThrow(expect.objectContaining({ name: 'AuthorizationError' }))
   })
 
   it('matches canonical UUID casing and rejects invalid target IDs without fallback', async () => {
