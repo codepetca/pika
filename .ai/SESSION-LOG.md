@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Dormant classroom-access and entitlement foundation
-
-- Recorded the approved neutral-account/classroom-relationship direction and teacher-first monetization roadmap in `docs/guidance/classroom-access-and-entitlements-roadmap.md`. Phased rollout preserves production classes; billing, pricing, general grants, UI and neutral signup remain future work. The new epic stays incomplete.
-- Added unused read-only ownership/enrollment resolution, pure coarse classroom permissions, effective feature entitlement eligibility, explicit owner-sponsored grading composition and teacher-only legacy creation compatibility. No existing routes, global roles, signup, server-session contract, attendance entitlement rules, dependencies or schemas changed; no migration applied or production deployment performed.
-- New contracts pass 81 tests with 100% statement/branch/function/line coverage; existing auth/create/join/access/attendance-entitlement regressions pass 153 tests. Pika audit and TypeScript pass. Shortened routing link labels without removing destinations to keep startup guidance within its enforced size budget after adding the epic.
-- Dev-flow risk profile: none (no live consumer); independent review risk: high (future authorization contracts). Required focused gate, draft PR, independent reviews and exact-head CI tracked in the PR lifecycle; no merge authorization assumed.
-- PR #1170 initial Sol/high review found no issues; Terra/high found a non-blocking malformed archive-timestamp contract mismatch. Added a red-first regression and offset-datetime validation. Synced main `ebf86178` after #1168; preserved shared history without duplicate archive entries, and removed a copied migration-status assertion from the roadmap. Live access code remains untouched. Targeted/final review and exact-head CI follow this single correction batch.
-
 ## 2026-09-02 — Refine Pattern Lab Gradebook category and weight controls
 
 - Prototyped table-card category editing with Term default, drag handles, half-point course percentages, read-only amber locks, and top-to-bottom automatic balancing. Removed the default item weight input (new categories use 10) and added a blank no-categories example.
@@ -279,3 +271,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1182 onto current main after explicit merge authorization. The live and Pattern Lab Edit attendance cards retain the reviewed green Present, yellow Late, and red Absent circles; shared attendance color tokens and existing interaction semantics remain unchanged.
 - Resolved only rolling session-history conflicts by retaining current main history and recording this rebase once. Application source changes match the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase archived classroom actions for merge
+
+- Rebased PR #1183 after #1182 merged. Archived classroom cards retain the reviewed right-side Settings menu with Reuse, Unarchive, and availability-gated Delete, while missed clicks in the card's right padding remain inert.
+- Retained current rolling history and updated the browser flow to reopen the new Settings menu before each coordinated-deletion state. Runtime source is unchanged from the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
