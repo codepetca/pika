@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, requireRole } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
+import { authorizeClassroomCoreRequest } from '@/lib/server/classroom-core-access'
 import type { Semester } from '@/types'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
@@ -19,14 +20,16 @@ export const revalidate = 0
 
 // GET /api/classrooms/:classroomId/class-days (auth required; teacher or student)
 export const GET = withErrorHandler('GetClassDays', async (_request, context) => {
-  const user = await requireAuth()
-
   const { classroomId } = await context.params
+  const access = await authorizeClassroomCoreRequest(classroomId, { permission: 'read' })
+  const { user } = access
   if (!classroomId) {
     return NextResponse.json({ error: 'classroomId is required' }, { status: 400 })
   }
 
-  if (user.role === 'teacher') {
+  if (access.mode === 'contextual') {
+    // Already authorized from the classroom relationship, not the global role.
+  } else if (user.role === 'teacher') {
     const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
     if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   } else if (user.role === 'student') {

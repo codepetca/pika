@@ -126,15 +126,17 @@ tests/                             # Vitest unit + API suites
 - **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production. The sealed cookie contains only a versioned opaque token; its SHA-256 hash, current user binding, authentication source, credential version, and expiry live in the server-only `auth_sessions` table. Authorization resolves current email/role and credential version from `users`. Session issuance atomically locks and checks the version observed before password verification, so a concurrent reset cannot mint a post-reset session from the old password. Logout revokes the current row. Expired sessions are swept during issuance; HMAC-keyed authentication throttle metadata is removed one day after its last update.
 - **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
 
-### Classroom Access and Entitlements (Dormant Foundation)
+### Classroom Access and Entitlements (Controlled Migration)
 
 The [phased roadmap](../guidance/classroom-access-and-entitlements-roadmap.md) separates
 authenticated identity, classroom ownership/membership, feature entitlements and
 resource/operational rules. `src/lib/access/*` and `src/lib/server/classroom-access.ts`
-provide unused phase 0 contracts only; existing role-based guards and signup behavior
-remain authoritative. No general subscription store or billing integration exists in
-this foundation. Do not wire these helpers into live access without the roadmap's
-domain-specific checks, rollout gates and quota/transaction safeguards.
+provide the policy/resolver foundation. Off-by-default compatibility observers do not
+authorize requests. The separate [classroom-core gate](../guidance/classroom-core-contextual-access.md)
+enforces contextual access only for exact server-configured account/classroom pairs
+on its listed APIs; other requests retain legacy guards. Signup and UI routing remain
+unchanged. No general subscription store or billing integration exists. Further domains
+require their own resource checks, rollout gates and quota/transaction safeguards.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
@@ -148,6 +150,8 @@ domain-specific checks, rollout gates and quota/transaction safeguards.
 
 ### Route Protection
 - Role check via `requireRole('student' | 'teacher')` in API routes.
+- Explicitly migrated classroom-core pilot routes use `authorizeClassroomCoreRequest`;
+  its legacy result authenticates only and still requires the original route guards.
 - Classroom ownership/enrollment enforced in route logic using the local Pika user id.
 - Server routes use the Supabase service-role client and iron-session identity. Browser-side Supabase table/RPC access is not a supported app data path.
 

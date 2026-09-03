@@ -3,6 +3,7 @@ import ts from 'typescript'
 const guardedCalls = new Set([
   'requireRole', 'requireAuth', 'isTeacherEmail',
   'assertTeacherOwnsClassroom', 'assertTeacherCanMutateClassroom', 'assertStudentCanAccessClassroom',
+  'authorizeClassroomCoreRequest',
 ])
 export type AccessSignal = { file: string; line: number; signal: string }
 

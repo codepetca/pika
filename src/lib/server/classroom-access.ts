@@ -13,10 +13,10 @@ export const classroomAccessRowSchema: z.ZodType<ClassroomRow> = z.object({
 const enrollmentSchema: z.ZodType<EnrollmentRow> = z.object({ classroom_id: uuid, student_id: uuid })
 
 /**
- * Dormant, read-only relationship resolver. Does not authenticate or authorize.
+ * Read-only relationship resolver. Does not authenticate or authorize.
  * userId MUST come from the server session, never a request body or query string.
  * Callers must evaluate permission before returning even this context to a client.
- * Existing live guards are deliberately unchanged during the compatibility phase.
+ * Legacy guards remain authoritative outside explicitly migrated pilot routes.
  * A missing classroom is null; database failures reject and must never be allowed.
  */
 export async function resolveClassroomAccess(
@@ -32,7 +32,24 @@ export async function resolveClassroomAccess(
     .select('id, teacher_id, archived_at').eq('id', classroomId).maybeSingle()
   if (error) throw new ApiError(503, 'Unable to resolve classroom access')
   if (data === null) return null
-  const classroom = classroomAccessRowSchema.safeParse(data)
+  return resolveClassroomAccessFromRecord(userId, classroomId, data, { supabase })
+}
+
+/**
+ * Same relationship resolution for a row already fetched by trusted server code.
+ * Never pass a client-supplied classroom record. Validation checks shape/binding,
+ * not provenance. This avoids a second classroom read in contextual core routes.
+ */
+export async function resolveClassroomAccessFromRecord(
+  userId: string,
+  classroomId: string,
+  record: unknown,
+  options: { supabase?: ReturnType<typeof getServiceRoleClient> } = {},
+): Promise<ClassroomAccessContext> {
+  if (!uuid.safeParse(userId).success || !uuid.safeParse(classroomId).success) {
+    throw new ApiError(400, 'Invalid classroom access identifiers')
+  }
+  const classroom = classroomAccessRowSchema.safeParse(record)
   if (!classroom.success || classroom.data.id !== classroomId) {
     throw new ApiError(503, 'Unable to resolve classroom access')
   }
@@ -43,6 +60,7 @@ export async function resolveClassroomAccess(
   }
   if (base.ownerId === userId) return { ...base, relationship: 'owner' }
 
+  const supabase = options.supabase ?? getServiceRoleClient()
   const { data: enrollmentData, error: enrollmentError } = await supabase.from('classroom_enrollments')
     .select('classroom_id, student_id').eq('classroom_id', classroomId).eq('student_id', userId).maybeSingle()
   if (enrollmentError) throw new ApiError(503, 'Unable to resolve classroom access')
