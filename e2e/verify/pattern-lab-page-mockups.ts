@@ -589,6 +589,7 @@ export const patternLabPageMockups: VerificationScript = {
     checks.push({
       name: 'Calendar More actions owns Markdown editing without view choices',
       passed: await calendar.getByRole('menuitem', { name: 'Edit calendar in Markdown' }).isVisible()
+        && await calendar.getByRole('menuitem').count() === 1
         && await calendar.getByRole('menuitemradio').count() === 0,
     })
     const calendarMenuArtifact = path.join(artifactDir, 'desktop-light-calendar-view-menu.png')
