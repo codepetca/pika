@@ -10,9 +10,21 @@ const enrollmentPairsSchema = z.array(z.object({
 }).strict()).max(100)
 
 type EnrollmentPair = z.infer<typeof enrollmentPairsSchema>[number]
+const authenticatedEnrollmentEvidence = Symbol('authenticatedEnrollmentEvidence')
 type AuthenticatedEnrollmentRequest =
-  | { mode: 'legacy'; user: AuthenticatedUser }
-  | { mode: 'candidate'; user: AuthenticatedUser; identity: string; pairs: EnrollmentPair[] }
+  | { mode: 'legacy'; user: AuthenticatedUser; [authenticatedEnrollmentEvidence]: true }
+  | {
+    mode: 'contextual_lookup'
+    user: AuthenticatedUser
+    allowedClassroomIds: string[]
+    [authenticatedEnrollmentEvidence]: true
+  }
+
+function trustedAuthentication<T extends object>(value: T): T & { [authenticatedEnrollmentEvidence]: true } {
+  return Object.defineProperty(value, authenticatedEnrollmentEvidence, { value: true }) as T & {
+    [authenticatedEnrollmentEvidence]: true
+  }
+}
 
 function configuredPairs(): EnrollmentPair[] | null {
   const raw = process.env.PIKA_CLASSROOM_ENROLLMENT_ACCESS_PAIRS
@@ -31,7 +43,7 @@ function configuredPairs(): EnrollmentPair[] | null {
  */
 export async function authenticateClassroomEnrollmentRequest(): Promise<AuthenticatedEnrollmentRequest> {
   if (process.env.PIKA_CLASSROOM_ENROLLMENT_ACCESS_ENABLED !== 'true') {
-    return { mode: 'legacy', user: await requireRole('student') }
+    return trustedAuthentication({ mode: 'legacy', user: await requireRole('student') })
   }
 
   const user = await requireAuth()
@@ -40,22 +52,33 @@ export async function authenticateClassroomEnrollmentRequest(): Promise<Authenti
   if (pairs === null || !identity.success) {
     throw new ApiError(503, 'Classroom enrollment access configuration is unavailable')
   }
-  return { mode: 'candidate', user, identity: identity.data, pairs }
+
+  const allowedClassroomIds = pairs
+    .filter((pair) => pair.userId === identity.data)
+    .map((pair) => pair.classroomId)
+  if (allowedClassroomIds.length > 0) {
+    return trustedAuthentication({ mode: 'contextual_lookup', user, allowedClassroomIds })
+  }
+  if (user.role === 'student') return trustedAuthentication({ mode: 'legacy', user })
+  throw new AuthorizationError('Forbidden: student role required')
 }
 
-/** Select exact user/classroom authority only after authenticated invitation resolution. */
+/**
+ * Confirm a classroom returned by a pair-scoped invitation lookup. Contextual
+ * callers must restrict that lookup to `allowedClassroomIds` before resolving it.
+ */
 export function selectAuthenticatedClassroomEnrollmentMode(
   authenticated: AuthenticatedEnrollmentRequest,
   classroomId: string,
 ): { mode: 'legacy' | 'contextual_candidate'; user: AuthenticatedUser } {
+  if (authenticated[authenticatedEnrollmentEvidence] !== true) {
+    throw new ApiError(503, 'Classroom enrollment authentication evidence is unavailable')
+  }
   if (authenticated.mode === 'legacy') return authenticated
   const requestedId = canonicalUuid.safeParse(classroomId)
   if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')
 
-  const admitted = authenticated.pairs.some((pair) => (
-    pair.userId === authenticated.identity && pair.classroomId === requestedId.data
-  ))
+  const admitted = authenticated.allowedClassroomIds.includes(requestedId.data)
   if (admitted) return { mode: 'contextual_candidate', user: authenticated.user }
-  if (authenticated.user.role === 'student') return { mode: 'legacy', user: authenticated.user }
   throw new AuthorizationError('Forbidden: student role required')
 }

@@ -1,14 +1,22 @@
 import { z } from 'zod'
 import { classroomAccessContextSchema } from './classroom-policy'
 
+const invitationEvidenceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('verified_code'), classroomId: z.string().uuid() }).strict(),
+  z.object({ kind: z.literal('classroom_id'), classroomId: z.string().uuid() }).strict(),
+])
+
 const classroomJoinEvidenceSchema = z.object({
   context: classroomAccessContextSchema,
-  invitation: z.enum(['code', 'classroom_id']),
+  invitation: invitationEvidenceSchema,
   enrollmentOpen: z.boolean(),
   joinPolicy: z.enum(['roster', 'open_join']),
   rosterMatch: z.boolean(),
   profileComplete: z.boolean(),
-}).strict()
+}).strict().refine(
+  ({ context, invitation }) => context.classroomId.toLowerCase() === invitation.classroomId.toLowerCase(),
+  { path: ['invitation'], message: 'Invitation must be bound to the target classroom' },
+)
 
 export type ClassroomJoinDecision =
   | { allowed: true; action: 'join' | 'already_enrolled' }
@@ -26,7 +34,7 @@ export function decideClassroomJoin(input: unknown): ClassroomJoinDecision {
   if (context.archived) return { allowed: false, reason: 'archived' }
   if (context.relationship === 'owner') return { allowed: false, reason: 'own_classroom' }
   if (context.relationship === 'member') return { allowed: true, action: 'already_enrolled' }
-  if (invitation !== 'code') return { allowed: false, reason: 'code_required' }
+  if (invitation.kind !== 'verified_code') return { allowed: false, reason: 'code_required' }
   if (!enrollmentOpen) return { allowed: false, reason: 'enrollment_closed' }
   if (joinPolicy === 'roster') {
     return rosterMatch ? { allowed: true, action: 'join' } : { allowed: false, reason: 'not_on_roster' }

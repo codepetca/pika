@@ -46,6 +46,7 @@ describe('dormant contextual enrollment access', () => {
 
   it('admits an exact teacher-valued pair without mutating the global role', async () => {
     const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated).toMatchObject({ mode: 'contextual_lookup', allowedClassroomIds: [classroomId] })
     expect(selectAuthenticatedClassroomEnrollmentMode(authenticated, classroomId))
       .toEqual({ mode: 'contextual_candidate', user: user() })
   })
@@ -56,13 +57,28 @@ describe('dormant contextual enrollment access', () => {
     expect(selectAuthenticatedClassroomEnrollmentMode(authenticated, classroomId).mode).toBe('legacy')
   })
 
-  it('denies a wrong-role noncohort user and never cross-products pair entries', async () => {
+  it('denies a wrong-role noncohort user before classroom resolution', async () => {
+    vi.mocked(requireAuth).mockResolvedValue(user(otherUserId))
+    await expect(authenticateClassroomEnrollmentRequest())
+      .rejects.toThrow(expect.objectContaining({ name: 'AuthorizationError' }))
+  })
+
+  it('never cross-products pair entries or admits a mismatched resolved classroom', async () => {
     vi.stubEnv('PIKA_CLASSROOM_ENROLLMENT_ACCESS_PAIRS', JSON.stringify([
       { userId, classroomId }, { userId: otherUserId, classroomId: otherClassroomId },
     ]))
     const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated).toMatchObject({ mode: 'contextual_lookup', allowedClassroomIds: [classroomId] })
     expect(() => selectAuthenticatedClassroomEnrollmentMode(authenticated, otherClassroomId))
       .toThrow(expect.objectContaining({ name: 'AuthorizationError' }))
+  })
+
+  it('rejects structurally fabricated authentication evidence', () => {
+    expect(() => selectAuthenticatedClassroomEnrollmentMode({
+      mode: 'contextual_lookup',
+      user: user(otherUserId),
+      allowedClassroomIds: [classroomId],
+    } as never, classroomId)).toThrow(expect.objectContaining({ statusCode: 503 }))
   })
 
   it('matches canonical UUID casing and rejects invalid target IDs without fallback', async () => {

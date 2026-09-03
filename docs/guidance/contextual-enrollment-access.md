@@ -15,9 +15,12 @@ authoritative until the whole reachable mixed-role foundation and recovery floor
 This slice adds two contracts with no production adopters:
 
 - `classroom-enrollment-access.ts` preserves `requireRole('student')` while disabled.
-  When explicitly called in a future pilot, it authenticates before invitation lookup,
-  validates a bounded list of exact user/classroom pairs and marks only the exact pair
-  as a contextual candidate—not as authorized to join.
+  When explicitly called in a future pilot, it authenticates before reading the request
+  body or looking up an invitation, validates a bounded list of exact user/classroom
+  pairs, rejects wrong-role users with no matching pair immediately and returns only
+  that authenticated user's classroom IDs as the permitted lookup scope. After a query
+  restricted to that scope, it marks only the exact resolved pair as a contextual
+  candidate—not as authorized to join.
   Invalid enabled configuration fails unavailable; it cannot fall back to legacy access.
 - `classroom-enrollment-policy.ts` makes the post-lookup admission decision from
   server-trusted evidence. It rejects malformed evidence, archived classrooms, owner
@@ -33,9 +36,13 @@ spellings and separately admitted users/classes from becoming a cross-product.
 A future adopter must preserve this sequence; these contracts alone are insufficient:
 
 1. Authenticate the server session before reading a code or classroom.
-2. Rate-limit both the authenticated actor and invitation guesses before lookup.
-3. Resolve only a normalized verified code. A classroom ID may recognize an existing
-   membership for compatibility, but can never create a membership.
+2. Reject a wrong-role user with no configured pair before reading the request body or
+   looking up a code, then rate-limit both the authenticated actor and invitation guesses.
+3. For a contextual candidate, resolve a normalized verified code only in a query scoped
+   to the authenticated result's `allowedClassroomIds`; a valid code outside that exact
+   scope must be indistinguishable from an invalid code. Carry the server-resolved
+   classroom ID into policy evidence. A classroom ID may recognize an existing membership
+   for compatibility, but can never create a membership.
 4. Load exact classroom, relationship and roster/profile evidence on the server.
 5. Evaluate the pure policy. Never accept request-asserted relationship, owner, roster,
    profile, lifecycle or plan data.
@@ -63,9 +70,10 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 ## Verification
 
 Focused unit coverage validates disabled legacy identity, authentication failure, malformed
-configuration, exact pair matching, canonical UUIDs, empty/noncohort behavior and no pair
-cross-product. Policy coverage validates every admission/denial state and fails closed on
-malformed or internally inconsistent relationship evidence.
+configuration, pre-lookup wrong-role rejection, exact pair-scoped lookup, canonical UUIDs,
+empty/noncohort behavior and no pair cross-product. Policy coverage validates every
+admission/denial state and fails closed on malformed, cross-class invitation or internally
+inconsistent relationship evidence.
 
 No database migration is introduced or applied by this slice. No API route imports either
 module. Production login, signup, join, roster, classroom lists, navigation, entitlements,
