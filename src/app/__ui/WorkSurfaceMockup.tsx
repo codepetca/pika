@@ -63,6 +63,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
   const [inspectorStudentId, setInspectorStudentId] = useState<string | null>(null)
   const [inspectorWidth, setInspectorWidth] = useState(40)
+  const [testEditMode, setTestEditMode] = useState(false)
   const items = WORK_ITEMS[family]
   const selectedItem = useMemo(() => items.find((item) => item.id === selectedItemId) ?? null, [items, selectedItemId])
   const inspectorStudent = STUDENTS.find((student) => student.id === inspectorStudentId) ?? null
@@ -73,6 +74,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
     setMode('overview')
     setSelectedStudentIds([])
     setInspectorStudentId(null)
+    setTestEditMode(false)
   }
 
   function openItem(id: string) {
@@ -111,11 +113,18 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           menuPlacement="down"
           items={[
             { id: 'markdown', label: `Edit all ${family} in Markdown`, icon: <Code className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction(`Edit all ${family} in Markdown`) },
-            {
-              id: 'organize',
-              label: family === 'classwork' ? 'Organize classwork' : 'Edit Tests',
-              onSelect: () => onPrototypeAction(family === 'classwork' ? 'Organize classwork' : 'Edit Tests'),
-            },
+            family === 'classwork'
+              ? { id: 'organize', label: 'Organize classwork', onSelect: () => onPrototypeAction('Organize classwork') }
+              : {
+                  id: 'edit-tests',
+                  label: 'Edit Tests',
+                  checked: testEditMode,
+                  checkedRole: 'menuitemcheckbox' as const,
+                  onSelect: () => {
+                    setTestEditMode((current) => !current)
+                    onPrototypeAction('Edit Tests')
+                  },
+                },
           ]}
         />
       )}
