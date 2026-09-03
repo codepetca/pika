@@ -11,6 +11,38 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-01 — Cache immutable CI setup inputs
+
+- Added lockfile-keyed pnpm-store caches to the database and browser CI lanes plus a lockfile-keyed Playwright browser cache to the browser lane. Cache hit labels and setup evidence appear in each job summary for before/after comparison.
+- Preserved fresh safety state: every run installs from the lockfile, verifies Chromium system dependencies, and starts a new ephemeral Supabase stack with complete migration replay. No classifier, required gate, browser spec, artifact, production, or dependency behavior changed.
+- Verification pending final draft lifecycle. Model recommendation: GPT-5.6 Terra — bounded CI workflow and evidence-contract change.
+- Independent review correction: distinguish exact cache-key hits from useful pnpm prefix restores, and run the normal Chromium installer on every run so cached downloads do not weaken browser setup integrity.
+
+## 2026-09-01 — Align classroom feature icons
+
+- Replaced the classroom Tests icon with Lucide `SquarePen`, changed Course Guide to `Compass`, and aligned student Today with teacher Daily on `ClipboardCheck`, eliminating the legacy `PenSquare` alias.
+- Centralized teacher/student classroom navigation metadata so Pattern Lab renders the exact production feature icons, Lucide names, and role availability without a second mapping.
+- Focused checks pass 21 files / 220 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab desktop/mobile light/dark contracts were updated and visually reviewed; the local gallery remains open on port 3001 for user review.
+- Ready-PR CI exposed that only the Darwin Pattern Lab baselines had been refreshed. Replaced all four Linux contract baselines with CI's stable captures (identical across three attempts), visually inspected representative desktop-light and mobile-dark renders, and reran the focused gate successfully.
+
+## 2026-09-01 — Default teacher Daily to today
+
+- Diagnosed the fresh-mount initializer: Daily deliberately chose the most recent class day before Toronto today, falling back to yesterday, so every browser reload reset to a previous date.
+- Fresh Daily mounts now initialize to Toronto today. Explicit previous/next navigation remains mounted state and is not overwritten by rerenders, focus refreshes, or Toronto date rollover; a true remount returns to today.
+- Daily component coverage passes 42/42. The focused gate passes 13 files / 170 tests plus architecture, UI/design policy, TypeScript, and lint. Ten deterministic browser contracts pass across teacher desktop/mobile and light/dark, including previous-day navigation and the existing Attendance states; screenshots were inspected with no visual drift. Student is not affected.
+- Draft review identified a rollover-coverage gap; component and browser contracts now advance Toronto today, preserve the chosen prior date through focus, and prove a reload selects the new today. The corrected cumulative diff reviewed clean. PR #1154 was rebased after #1153 advanced `main`; exact-head review and CI repeat on the synchronized SHA.
+
+## 2026-09-01 — Hide unavailable Daily log summaries
+
+- The teacher Daily summary card now stays hidden while the summary read is loading and whenever no generated summary is ready (`pending`, `no_entries`, `unavailable`, or error). Generated summaries retain the existing expanded/collapsible card and resize behavior.
+- Added availability signaling and focused component coverage for ready versus unavailable summaries. Composite-widget checklist reviewed: keyboard behavior remains covered, semantic hidden state is tested, and no manual follow-up remains.
+- Verification: 45 focused component tests pass; the repository focused gate passes 14 files / 173 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passes. Playwright screenshots were inspected for teacher desktop/mobile, light/dark, generated and pending states. Student navigation is unchanged and was checked on mobile. Risk profile none. Model recommendation: GPT-5.6 Terra — localized UI state and regression-test change.
+
+## 2026-09-01 — Align student Daily label
+
+- Renamed the student classroom navigation label from `Today` to `Daily` while preserving the internal `today` route identifier, notification behavior, and shared `ClipboardCheck` icon.
+- Pattern Lab continues to consume the production catalog directly. Teacher/student desktop/mobile light/dark verification passed, including open mobile navigation and active-page semantics; Darwin baselines were regenerated and the stable Linux baselines were updated only at the student label pixels, then reviewed.
+
 ## 2026-09-01 — Refine student Today mobile order
 
 - Moved the mobile Today/Last class lesson-plan panel directly after the student daily-plan editor and before Past logs while preserving the desktop split inspector.
@@ -327,3 +359,8 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Rebased the stack over current main, preserving Gradebook/QR code and reconciling only continuity-history conflicts. Application changes remain range-diff identical to the original reviewed candidates; migration 152 retains SHA-256 `c4ffb599692a2862dabae0331dd545c64ce2ace9f9fa445db0a57a5db5d332f0`. Backup refs retain the original reviewed heads.
 - Initial calendar reviews had no blockers; full CI passed 6,084 tests and 146 browser checks (17 skips). One nonblocking file-level Zod debt-accounting limitation remains documented in #1175. Each main landing uses a bounded integration-only review and fresh exact-head CI; final candidate/merge SHAs and gate evidence are recorded in the individual PRs to keep reviewed source stable.
 - The full classroom-access/entitlement epic remains incomplete. Hosted observation, Owned/Joined home and contextual navigation, other reachable domains, neutral onboarding, monetization decisions and a compatible recovery floor remain future work. Current teacher/student authentication and production teaching behavior are not changed by this main-only landing.
+## 2026-09-02 — Begin coordinated Pika–Bara classroom deletion
+
+- Owner approved the next security steps. Sole writer: Audit Pika security and privacy, branch `codex/coordinated-classroom-deletion` in fresh Pika/Bara worktrees. Added a disabled signed decommission protocol, provider replay/native/automation fences and bounded cleanup, Pika receipt validation and teacher-only resumable endpoints, and migration 153 for the required database fence. Attendance completion explicitly does not claim classroom/file purge completion; the existing purge remains independently gated.
+- Bara: 205 tests, type checks, build pass. Pika: focused checks pass (309 tests plus architecture, UI/design policy, types, lint); dedicated transport/coordinator/routes pass. Added rollback-only local DB harness and CI wiring, not executed yet. Migration 153 is not applied and generated types are pending approval/replay. Local DB already has 152 contextual calendar writes; dry-run correctly rejects missing source until access PRs land and this branch rebases. No history repair/reset, hosted deployment, gate enablement, or production data deletion.
+- Next: fixed-SHA independent security/architecture review, batch fixes, synchronize landed 152, obtain exact local migration approval, then DB tests/generated types and cross-service/final-purge canaries. Do not promote unrelated main-only access changes to production.

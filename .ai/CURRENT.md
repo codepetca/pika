@@ -1,3 +1,3 @@
-Prod DB 001–151 verified 2026-09-02; lint 0. Pika production 28d42faa; main ebf86178. Private storage verified. Auth 148 applied; app release #1169 pending gradebook fix and stable-QR canary.
+Prod DB 001–151 verified 2026-09-02; lint 0. Release #1169 rolled out and verified at ab042d05; private storage/auth/access/logout/QR checks passed. Coordinated Pika–Bara deletion is in development, disabled: migration 153 NOT applied; local DB already has access migration 152, whose source must land before rebase/replay. See docs/guidance/attendance-decommission.md. No production erasure authorized.
 Attendance timing released; Bara automation healthy; teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority. Sole Class isolation pending. Student purge on; other cleanup off.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.
