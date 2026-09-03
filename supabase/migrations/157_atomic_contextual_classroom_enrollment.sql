@@ -413,4 +413,4 @@ grant execute on function public.join_classroom_by_code_atomic_v1(uuid, uuid, te
 comment on table public.classroom_join_rate_limits is
   'Private rolling windows for contextual classroom join actor and actor-invitation guesses.';
 comment on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb) is
-  'Dormant service-only atomic classroom join primitive; no live route adopts it in migration 155.';
+  'Dormant service-only atomic classroom join primitive; no live route adopts it in migration 157.';

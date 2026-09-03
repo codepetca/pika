@@ -122,7 +122,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
 - The first enrollment foundation slice is also dormant: it preserves the legacy student
   guard when disabled and defines fail-closed exact-pair/admission decisions. The follow-up
-  authors migration 155 with a service-only atomic write, private actor/actor-invitation
+  authors migration 157 with a service-only atomic write, private actor/actor-invitation
   guess limits and rollback/concurrency harnesses. It remains unapplied and uncalled pending
   exact migration authorization and generated types. Neither slice adds a cohort or changes
   production configuration; the live join route remains legacy-only.

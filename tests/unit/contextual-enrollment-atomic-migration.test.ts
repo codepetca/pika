@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const migrationPath = join(
   process.cwd(),
-  'supabase/migrations/155_atomic_contextual_classroom_enrollment.sql'
+  'supabase/migrations/157_atomic_contextual_classroom_enrollment.sql'
 )
 
 function readMigration(): string {
