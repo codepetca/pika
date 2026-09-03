@@ -959,19 +959,32 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
   const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : CLASSROOM.term_label || 'Term'
-  const viewItems: TeacherWorkSurfaceActionItem[] = (['week', 'month', 'all'] as const).map((mode) => ({ id: mode, label: mode === 'all' ? 'Term' : mode[0].toUpperCase() + mode.slice(1), checked: view === mode, checkedRole: 'menuitemradio', onSelect: () => setView(mode) }))
-  viewItems.push({ id: 'markdown', label: 'Edit calendar in Markdown', dividerBefore: true, onSelect: () => onPrototypeAction('Edit calendar in Markdown') })
+  const menuItems: TeacherWorkSurfaceActionItem[] = [
+    { id: 'markdown', label: 'Edit calendar in Markdown', onSelect: () => onPrototypeAction('Edit calendar in Markdown') },
+  ]
   return <div className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
       context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
-      primary={<DateNavigator joined label={label} showNavigation={view !== 'all'} onPrev={() => advance(-1)} onNext={() => advance(1)} onLabelClick={view === 'all' ? undefined : () => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel={view === 'week' ? 'Return to reference week' : 'Return to reference month'} />}
-      actions={<MoreMenu label="Calendar" items={viewItems} />}
+      primary={<TeacherWorkSurfaceActionCluster>
+        <DateNavigator joined label={label} showNavigation={view !== 'all'} onPrev={() => advance(-1)} onNext={() => advance(1)} onLabelClick={view === 'all' ? undefined : () => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel={view === 'week' ? 'Return to reference week' : 'Return to reference month'} />
+        <SegmentedControl<CalendarViewMode>
+          ariaLabel="Calendar view"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+            { value: 'all', label: 'Term' },
+          ]}
+        />
+      </TeacherWorkSurfaceActionCluster>}
+      actions={<MoreMenu label="Calendar" items={menuItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <LessonCalendar classroom={CLASSROOM} lessonPlans={LESSON_PLANS} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>The date owns the center. Week, Month, Term, and Markdown editing move to More actions so the bar does not wrap into competing controls.</Description>
+    <Description>The date and Week, Month, Term toggle share the center cluster. More actions owns Markdown editing.</Description>
   </div>
 }
 

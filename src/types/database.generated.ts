@@ -9075,6 +9075,23 @@ export type Database = {
         Args: { p_teacher_id: string; p_test_id: string }
         Returns: Json
       }
+      discard_pristine_assignment_draft_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_expected_updated_at: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      discard_pristine_test_draft_atomic: {
+        Args: {
+          p_expected_draft_version: number
+          p_expected_test_updated_at: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       enqueue_assignment_artifact_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean

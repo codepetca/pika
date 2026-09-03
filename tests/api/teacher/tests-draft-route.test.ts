@@ -220,6 +220,7 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       })
     )
     expect(data.draft.content.title).toBe('Updated Test')
+    expect(data.test).toEqual({ id: 'test-1', status: 'draft' })
     expect(ensureAssessmentDraft).toHaveBeenCalledWith(
       mockSupabaseClient,
       expect.objectContaining({

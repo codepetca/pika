@@ -4,6 +4,7 @@ import { CalendarActionBar, getCalendarHeaderLabel } from '@/components/Calendar
 import { DateActionBar } from '@/components/DateActionBar'
 import { DateLabelButton } from '@/components/DateLabelButton'
 import { DateNavigator } from '@/components/DateNavigator'
+import { TooltipProvider } from '@/ui'
 
 describe('CalendarActionBar', () => {
   it('keeps the shared date label and subtitle tightly stacked', () => {
@@ -158,6 +159,48 @@ describe('CalendarActionBar', () => {
     expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }))
+    expect(onViewModeChange).toHaveBeenCalledWith('month')
+  })
+
+  it('keeps teacher calendar views centered and places secondary commands in More actions', () => {
+    const onViewModeChange = vi.fn()
+    const onMarkdownToggle = vi.fn()
+
+    render(
+      <TooltipProvider>
+        <CalendarActionBar
+          viewMode="week"
+          currentDate={new Date(2026, 6, 21)}
+          onPrev={vi.fn()}
+          onNext={vi.fn()}
+          onToday={vi.fn()}
+          onViewModeChange={onViewModeChange}
+          moreActions={[
+            {
+              id: 'markdown',
+              label: 'Edit calendar in Markdown',
+              checked: false,
+              checkedRole: 'menuitemcheckbox',
+              dividerBefore: true,
+              onSelect: onMarkdownToggle,
+            },
+          ]}
+        />
+      </TooltipProvider>,
+    )
+
+    const viewControl = screen.getByRole('group', { name: 'Calendar view' })
+    expect(viewControl).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Term' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass('h-11', 'w-11')
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+
+    expect(screen.queryByRole('menuitemradio')).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' })).toHaveAttribute('aria-checked', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: 'Month' }))
     expect(onViewModeChange).toHaveBeenCalledWith('month')

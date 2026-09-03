@@ -1,25 +1,18 @@
-import { Pencil } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
-import { RichTextViewer } from '@/components/editor/RichTextViewer'
 import {
   hasCourseGuideContent,
   type CourseGuideAssignment,
   type CourseGuideData,
   type CourseGuideTest,
 } from '@/lib/course-guide'
-import { Button, PageContent, PageHeading, PageLayout, PageState, cn } from '@/ui'
-
-export type CourseGuideEditableSection = 'overview' | 'resources'
+import { PageContent, PageHeading, PageLayout, PageState, cn } from '@/ui'
 
 type CourseGuideViewProps = {
   guide: CourseGuideData
   embedded?: boolean
   editMode?: boolean
-  activeEditor?: CourseGuideEditableSection | null
-  onEditSection?: (section: CourseGuideEditableSection) => void
   overviewEditor?: ReactNode
-  resourcesEditor?: ReactNode
 }
 
 function CourseGuideSection({
@@ -27,17 +20,11 @@ function CourseGuideSection({
   title,
   children,
   className,
-  editAction,
 }: {
   id: string
   title: string
   children: ReactNode
   className?: string
-  editAction?: {
-    label: string
-    active: boolean
-    onSelect: () => void
-  }
 }) {
   return (
     <section
@@ -47,20 +34,7 @@ function CourseGuideSection({
     >
       <div className="grid gap-3 md:grid-cols-4 md:gap-6">
         <h2 id={`${id}-heading`} className="text-base font-semibold text-text-default md:col-span-1">
-          {editAction ? (
-            <Button
-              type="button"
-              variant={editAction.active ? 'secondary' : 'ghost'}
-              size="sm"
-              aria-label={editAction.label}
-              aria-pressed={editAction.active}
-              onClick={editAction.onSelect}
-              className="-ml-3 h-auto min-h-control justify-start whitespace-normal py-2 text-left"
-            >
-              <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{title}</span>
-            </Button>
-          ) : title}
+          {title}
         </h2>
         <div className="min-w-0 md:col-span-3">{children}</div>
       </div>
@@ -88,14 +62,10 @@ export function CourseGuideView({
   guide,
   embedded = false,
   editMode = false,
-  activeEditor = null,
-  onEditSection,
   overviewEditor,
-  resourcesEditor,
 }: CourseGuideViewProps) {
   const hasContent = hasCourseGuideContent(guide)
-  const overviewVisible = guide.visibility.overview && (editMode || guide.overviewMarkdown.trim())
-  const resourcesVisible = guide.visibility.resources && (editMode || guide.resourcesContent)
+  const overviewVisible = editMode || (guide.visibility.overview && guide.overviewMarkdown.trim())
 
   return (
     <main className={cn('min-h-full bg-page', !embedded && 'min-h-screen')}>
@@ -127,40 +97,14 @@ export function CourseGuideView({
           {overviewVisible ? (
             <CourseGuideSection
               id="overview"
-              title="Curriculum overview and expectations"
+              title="Course guide"
               className="border-t-0"
-              editAction={editMode && onEditSection ? {
-                label: 'Edit curriculum overview and expectations',
-                active: activeEditor === 'overview',
-                onSelect: () => onEditSection('overview'),
-              } : undefined}
             >
-              {activeEditor === 'overview' && overviewEditor ? overviewEditor : (
+              {editMode && overviewEditor ? overviewEditor : (
                 guide.overviewMarkdown.trim() ? (
                   <LimitedMarkdown content={guide.overviewMarkdown} className="space-y-3 [&_p]:leading-6" />
                 ) : (
-                  <p className="text-sm text-text-muted">Add curriculum context and classroom expectations.</p>
-                )
-              )}
-            </CourseGuideSection>
-          ) : null}
-
-          {resourcesVisible ? (
-            <CourseGuideSection
-              id="resources"
-              title="Resources"
-              className={!overviewVisible ? 'border-t-0' : undefined}
-              editAction={editMode && onEditSection ? {
-                label: 'Edit resources',
-                active: activeEditor === 'resources',
-                onSelect: () => onEditSection('resources'),
-              } : undefined}
-            >
-              {activeEditor === 'resources' && resourcesEditor ? resourcesEditor : (
-                guide.resourcesContent ? (
-                  <RichTextViewer content={guide.resourcesContent} chrome="flush" />
-                ) : (
-                  <p className="text-sm text-text-muted">Add rules, links, and reference material.</p>
+                  <p className="text-sm text-text-muted">Add your course guide.</p>
                 )
               )}
             </CourseGuideSection>

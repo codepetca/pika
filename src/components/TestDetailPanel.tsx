@@ -64,6 +64,9 @@ interface Props {
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
+  onDraftPristineCheckReady?: (
+    check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
+  ) => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
@@ -166,6 +169,7 @@ export function TestDetailPanel({
   onPendingMarkdownImportChange,
   onSaveStatusChange,
   onDraftFlushReady,
+  onDraftPristineCheckReady,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -222,6 +226,7 @@ export function TestDetailPanel({
   const [structureLocked, setStructureLocked] = useState(true)
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
+  const testUpdatedAtRef = useRef(testAssessment.updated_at)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
@@ -474,6 +479,7 @@ export function TestDetailPanel({
     pendingDraftRef.current = null
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
+    testUpdatedAtRef.current = testAssessment.updated_at
     loadedDraftTestIdRef.current = null
     setStructureLocked(true)
     setEditTitle(testDefaults.title)
@@ -776,6 +782,10 @@ export function TestDetailPanel({
               content?: { title?: string; show_results?: boolean; questions?: unknown[] }
             }
           | undefined
+        const savedTest = data?.test as { updated_at?: unknown } | undefined
+        if (typeof savedTest?.updated_at === 'string') {
+          testUpdatedAtRef.current = savedTest.updated_at
+        }
         if (serverDraft?.content) {
           draftVersionRef.current = serverDraft.version
           lastSavedDraftRef.current = nextSerialized
@@ -866,6 +876,31 @@ export function TestDetailPanel({
     onDraftFlushReady?.(flushPendingDraft)
     return () => onDraftFlushReady?.(null)
   }, [flushPendingDraft, onDraftFlushReady])
+
+  const getDraftPristineState = useCallback(() => {
+    const pendingDraft = pendingDraftRef.current
+    const currentTitle = editTitle
+    const currentShowResults = draftShowResults
+    const currentQuestions = questions
+
+    return {
+      isPristine: (
+        isGeneratedAssessmentTitle(currentTitle)
+        && currentShowResults === false
+        && currentQuestions.length === 0
+        && (pendingDraft?.questions.length ?? 0) === 0
+        && documentsRef.current.length === 0
+        && !markdownDirtyRef.current
+      ),
+      draftVersion: draftVersionRef.current,
+      testUpdatedAt: testUpdatedAtRef.current,
+    }
+  }, [draftShowResults, editTitle, questions])
+
+  useEffect(() => {
+    onDraftPristineCheckReady?.(getDraftPristineState)
+    return () => onDraftPristineCheckReady?.(null)
+  }, [getDraftPristineState, onDraftPristineCheckReady])
 
   const scheduleSave = useCallback(
     (
@@ -1831,6 +1866,7 @@ export function TestDetailPanel({
       onDraftChange={handleTitleDraftChange}
       onSave={handleTitleSave}
       onCancel={handleTitleCancel}
+      saveOnEscape
       generatedTitleLabel={titleGeneratedLabel}
       className={className}
       rowClassName={rowClassName}

@@ -24,9 +24,10 @@ describe('AddStudentsModal', () => {
 
     const table = screen.getByRole('table')
     expect(within(table).getByRole('columnheader', { name: 'First Name' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'Alt email' })).toBeInTheDocument()
-    expect(screen.getByText(/alt email are optional/i)).toBeInTheDocument()
-    expect(screen.getByText(/\[AltEmail\]/)).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Email (main)' })).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Email (secondary)' })).toBeInTheDocument()
+    expect(screen.getByText(/secondary email are optional/i)).toBeInTheDocument()
+    expect(screen.getByText(/\[SecondaryEmail\]/)).toBeInTheDocument()
     expect(within(table).getByRole('row', { name: /Ada Lovelace ada@example\.com 1001 counselor@example\.com/ }))
       .toBeInTheDocument()
     expect(within(table).queryByRole('checkbox')).not.toBeInTheDocument()
