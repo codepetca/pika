@@ -13,6 +13,7 @@ import {
   FormField,
   KeyboardNavigableTable,
   Input,
+  IconButton,
   PageState,
   SortableHeaderCell,
   TableCard,
@@ -31,7 +32,7 @@ import {
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import type { Classroom, RosterJoinSource } from '@/types'
-import { Check, Copy, Mail, Pencil, Plus, Settings, X } from 'lucide-react'
+import { Check, Copy, Mail, MoreVertical, Pencil, Plus, Upload, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { useTableSelection } from '@/hooks/useTableSelection'
@@ -497,7 +498,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           invalidateCachedJSON(`teacher-roster:${classroomId}`)
           await loadRoster({ preserveRoster: true })
         }
-        throw new Error(data.error || 'Failed to update alt email')
+        throw new Error(data.error || 'Failed to update secondary email')
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
       if (
@@ -530,7 +531,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       ) return
       setCounselorError({
         rosterId,
-        message: err.message || 'Failed to update alt email',
+        message: err.message || 'Failed to update secondary email',
       })
     } finally {
       if (
@@ -624,7 +625,8 @@ export function TeacherRosterTab({ classroom }: Props) {
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'upload-csv',
-      label: '+ CSV',
+      label: 'Add from CSV',
+      icon: <Upload className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => setUploadModalOpen(true),
       disabled: isReadOnly || isRosterLoading,
     },
@@ -660,9 +662,9 @@ export function TeacherRosterTab({ classroom }: Props) {
   const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-student-emails',
-      label: `Copy emails (${selectedStudentEmails.length})`,
+      label: `Copy main emails (${selectedStudentEmails.length})`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => copyToClipboard(selectedStudentEmails, 'Student emails'),
+      onSelect: () => copyToClipboard(selectedStudentEmails, 'Main emails'),
       disabled: selectedStudentEmails.length === 0,
     },
     {
@@ -686,9 +688,9 @@ export function TeacherRosterTab({ classroom }: Props) {
     selectedEmailOptions.push(
       {
         id: 'copy-counselor-emails',
-        label: `Copy alt emails (${selectedCounselorEmails.length})`,
+        label: `Copy secondary emails (${selectedCounselorEmails.length})`,
         icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Alt emails'),
+        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Secondary emails'),
         dividerBefore: true,
       },
       {
@@ -726,33 +728,31 @@ export function TeacherRosterTab({ classroom }: Props) {
       ariaLabel="Roster controls"
       primary={
         <TeacherWorkSurfaceActionCluster>
-          <Button
-            type="button"
+          <IconButton
+            icon={Plus}
+            label="Add students"
             variant="primary"
-            size="sm"
             onClick={() => {
               if (isReadOnly || isRosterLoading) return
               setAddModalOpen(true)
             }}
             disabled={isReadOnly || isRosterLoading}
-            aria-label="Add students"
-          >
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>Students</span>
-            </span>
-          </Button>
-          <TeacherWorkSurfaceIconMenuButton
-            ariaLabel="Roster actions"
-            tooltip="Roster actions"
-            icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-            items={combinedRosterActionOptions}
-            disabled={isRosterLoading || combinedRosterActionOptions.every((option) => option.disabled)}
-            menuPlacement="down"
-            menuAlign="center"
-            menuClassName="w-64"
           />
         </TeacherWorkSurfaceActionCluster>
+      }
+      actions={
+        <TeacherWorkSurfaceIconMenuButton
+          ariaLabel="More actions"
+          menuAriaLabel="Roster actions"
+          tooltip="More actions"
+          variant="ghost"
+          icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />}
+          items={combinedRosterActionOptions}
+          disabled={isRosterLoading || combinedRosterActionOptions.every((option) => option.disabled)}
+          menuPlacement="down"
+          menuAlign="end"
+          menuClassName="w-64"
+        />
       }
     />
   )
@@ -805,7 +805,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               role="alert"
               className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
             >
-              Could not save alt email for {formatRosterRowName(counselorErrorRow)}: {counselorError.message}
+              Could not save secondary email for {formatRosterRowName(counselorErrorRow)}: {counselorError.message}
             </div>
           </div>
         ) : null}
@@ -864,7 +864,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   }}
                 />
                 <SortableHeaderCell
-                  label="Email"
+                  label="Email (main)"
                   isActive={sortColumn === 'email'}
                   direction={sortDirection}
                   onClick={() => onSort('email')}
@@ -878,7 +878,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   }}
                 />
                 <SortableHeaderCell
-                  label="Alt email"
+                  label="Email (secondary)"
                   isActive={sortColumn === 'counselor_email'}
                   direction={sortDirection}
                   onClick={() => onSort('counselor_email')}
@@ -946,7 +946,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                       {editingCounselorId === row.id ? (
                         <div className="flex items-center gap-1">
                           <FormField
-                            label={`Alt email for ${rowName}`}
+                            label={`Email (secondary) for ${rowName}`}
                             hideLabel
                             className="w-32 [&>div:first-child]:sr-only"
                           >
@@ -980,7 +980,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={isSavingCurrentCounselor ? undefined : () => saveCounselorEmail(row.id)}
-                              aria-label={`Save alt email for ${rowName}`}
+                              aria-label={`Save secondary email for ${rowName}`}
                               aria-disabled={isSavingCurrentCounselor || undefined}
                               className={`h-8 w-8 p-0 text-success ${
                                 isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
@@ -993,7 +993,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={isSavingCurrentCounselor ? undefined : () => cancelEditingCounselor(row.id)}
-                              aria-label={`Cancel alt email for ${rowName}`}
+                              aria-label={`Cancel secondary email for ${rowName}`}
                               aria-disabled={isSavingCurrentCounselor || undefined}
                               className={`h-8 w-8 p-0 text-text-muted ${
                                 isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
@@ -1010,7 +1010,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                           size="sm"
                           onClick={() => startEditingCounselor(row)}
                           disabled={isReadOnly || isCounselorSavePending}
-                          aria-label={`Edit alt email for ${rowName}`}
+                          aria-label={`Edit secondary email for ${rowName}`}
                           className={`h-auto min-h-8 max-w-full justify-start gap-1 px-1 py-1 text-left ${
                             isReadOnly || isCounselorSavePending
                               ? 'cursor-not-allowed opacity-50'
