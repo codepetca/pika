@@ -354,6 +354,47 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(publishTestFromDraftAtomic).not.toHaveBeenCalled()
   })
 
+  it('returns 400 when publishing with a generated placeholder title', async () => {
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        version: 3,
+        content: {
+          title: 'Untitled 2026-05-14 10:45:00',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [{
+            id: '20000000-0000-4000-8000-000000000001',
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            correct_option: 1,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+      } as any,
+      error: null,
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'closed', draft_version: 3 }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Add a title before publishing this Test',
+    })
+    expect(publishTestFromDraftAtomic).not.toHaveBeenCalled()
+  })
+
   it('publishes a draft test closed when all questions are complete', async () => {
     vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
       draft: {

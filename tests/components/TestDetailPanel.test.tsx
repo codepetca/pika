@@ -742,6 +742,52 @@ describe('TestDetailPanel', () => {
       expect(within(editorLayout).queryByRole('button', { name: 'Edit test title' })).not.toBeInTheDocument()
     })
 
+    it('exposes whether a newly created Test draft is still pristine', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            editingPolicy: { structureLocked: false },
+            draft: {
+              version: 1,
+              content: {
+                title: 'Untitled 2026-05-14 10:45:00',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ test: { documents: [] } }),
+        })
+
+      let checkPristine: (() => boolean) | null = null
+      render(
+        <TestDetailPanel
+          test={makeTestWithStats({
+            title: 'Untitled 2026-05-14 10:45:00',
+            show_results: false,
+            stats: { total_students: 0, responded: 0, questions_count: 0 },
+          })}
+          classroomId="classroom-1"
+          onTestUpdate={vi.fn()}
+          onDraftPristineCheckReady={(check) => {
+            checkPristine = check
+          }}
+        />,
+        { wrapper: Wrapper },
+      )
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        expect(checkPristine).not.toBeNull()
+        expect(checkPristine?.()).toBe(true)
+      })
+    })
+
     it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({

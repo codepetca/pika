@@ -871,6 +871,75 @@ describe('AssignmentModal', () => {
   })
 
   describe('create mode', () => {
+    it('keeps close disabled until the backing draft exists', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      let resolveCreate: ((value: unknown) => void) | null = null
+      fetchMock.mockImplementationOnce(() => new Promise((resolve) => {
+        resolveCreate = resolve
+      }))
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeDisabled()
+
+      await act(async () => {
+        resolveCreate?.({
+          ok: true,
+          json: async () => ({
+            assignment: { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' },
+          }),
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeEnabled()
+      })
+    })
+
+    it('discards an untouched backing draft when closed', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ assignment: newAssignment }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      const onClose = vi.fn()
+      const onSuccess = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      await screen.findByRole('dialog', { name: 'Edit Draft' })
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/teacher/assignments/new-draft-1',
+          { method: 'DELETE' },
+        )
+      })
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+
     it('automatically creates draft on open', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }

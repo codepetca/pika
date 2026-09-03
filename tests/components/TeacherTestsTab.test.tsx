@@ -40,6 +40,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onRequestTestPreview,
     onDraftSummaryChange,
     onTestUpdate,
+    onDraftPristineCheckReady,
     titlePortalTarget,
     generatedTitleLabel,
   }: {
@@ -60,6 +61,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
+    onDraftPristineCheckReady?: (check: (() => boolean) | null) => void
     titlePortalTarget?: HTMLElement | null
     generatedTitleLabel?: string
   }) => {
@@ -68,6 +70,12 @@ vi.mock('@/components/TestDetailPanel', () => ({
     const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(test.title)
       ? generatedTitleLabel || 'Untitled'
       : test.title
+    onDraftPristineCheckReady?.(() => (
+      displayedTitle === (generatedTitleLabel || 'Untitled')
+      && (test.stats.questions_count || 0) === 0
+      && (test.documents || []).length === 0
+      && test.show_results === false
+    ))
 
     return (
       <>
@@ -1130,6 +1138,55 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
 
+  it('discards a newly created untouched Test when the authoring dialog closes', async () => {
+    mockTestsResponse([])
+    renderTab()
+
+    expect(await screen.findByText('No tests yet')).toBeInTheDocument()
+
+    const createdTest = makeTest({
+      id: 'created-test-id',
+      title: 'Untitled 2026-05-14 10:45:00',
+      stats: { total_students: 0, responded: 0, questions_count: 0 },
+    })
+    let deleted = false
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/teacher/tests' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ test: createdTest }),
+        })
+      }
+      if (url === '/api/teacher/tests/created-test-id' && init?.method === 'DELETE') {
+        deleted = true
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      }
+      if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ tests: deleted ? [] : [createdTest] }),
+        })
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${String(url)}`))
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create test' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit test' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/created-test-id',
+        { method: 'DELETE' },
+      )
+    })
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    expect(screen.getByText('No tests yet')).toBeInTheDocument()
+  })
+
   it('updates the tests list from edit modal draft title changes', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
     fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
@@ -1163,6 +1220,7 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          test: { id: 'test-1', title: 'Unit Test' },
           draft_version: 7,
           questions: [
             {
@@ -1210,6 +1268,28 @@ describe('TeacherTestsTab', () => {
       expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('requires a real title before publishing a Test', async () => {
+    mockTestsResponse([
+      makeTest({ id: 'test-1', title: 'Untitled 2026-05-14 10:45:00', status: 'draft' }),
+    ])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({
+      testTitle: 'Untitled 2026-05-14 10:45:00',
+      testStatus: 'draft',
+    }))
+    renderTab()
+
+    await openEditModalFromSelectedTest('Untitled 2026-05-14 10:45:00')
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', {
+        name: 'Publish',
+      }),
+    )
+
+    expect(await screen.findByText('Add a title before publishing this Test')).toBeInTheDocument()
+    expect(screen.queryByText('Publish test?')).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.anything())
   })
 
   it('confirms and opens access for all students from the selected test split button', async () => {

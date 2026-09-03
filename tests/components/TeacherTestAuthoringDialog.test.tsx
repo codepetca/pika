@@ -6,16 +6,20 @@ import { createMockTest } from '../helpers/mocks'
 import type { TestAssessmentWithStats } from '@/types'
 
 const draftFlush = vi.hoisted(() => vi.fn(async () => true))
+const draftPristineCheck = vi.hoisted(() => vi.fn(() => false))
 
 vi.mock('@/components/TestDetailPanel', () => ({
   TestDetailPanel: ({
     testQuestionLayout,
     onDraftFlushReady,
+    onDraftPristineCheckReady,
   }: {
     testQuestionLayout?: string
     onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
+    onDraftPristineCheckReady?: (check: (() => boolean) | null) => void
   }) => {
     onDraftFlushReady?.(draftFlush)
+    onDraftPristineCheckReady?.(draftPristineCheck)
     return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} />
   },
 }))
@@ -44,6 +48,8 @@ function renderDialog({
   onClose = vi.fn(),
   testOverride = test,
   initialView = 'edit',
+  discardPristineOnClose = false,
+  onDiscardPristine = vi.fn(async () => true),
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
@@ -51,6 +57,8 @@ function renderDialog({
   onClose?: () => void
   testOverride?: TestAssessmentWithStats
   initialView?: 'edit' | 'markdown'
+  discardPristineOnClose?: boolean
+  onDiscardPristine?: () => Promise<boolean>
 } = {}) {
   render(
     <TooltipProvider>
@@ -62,6 +70,8 @@ function renderDialog({
         apiBasePath="/api/teacher/tests"
         hasPendingMarkdownImport={hasPendingMarkdownImport}
         onClose={onClose}
+        discardPristineOnClose={discardPristineOnClose}
+        onDiscardPristine={onDiscardPristine}
         onDraftSummaryChange={vi.fn()}
         onTestUpdate={vi.fn()}
         onPendingMarkdownImportChange={vi.fn()}
@@ -71,7 +81,7 @@ function renderDialog({
     </TooltipProvider>,
   )
 
-  return { onClose, onRequestPreview, onRequestPublish }
+  return { onClose, onRequestPreview, onRequestPublish, onDiscardPristine }
 }
 
 describe('TeacherTestAuthoringDialog', () => {
@@ -147,6 +157,31 @@ describe('TeacherTestAuthoringDialog', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows publication errors inside the authoring dialog', () => {
+    render(
+      <TooltipProvider>
+        <TeacherTestAuthoringDialog
+          isOpen
+          test={test}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          hasPendingMarkdownImport={false}
+          publicationError="Add a title before publishing this Test"
+          onClose={vi.fn()}
+          onDraftSummaryChange={vi.fn()}
+          onTestUpdate={vi.fn()}
+          onPendingMarkdownImportChange={vi.fn()}
+          onRequestPreview={vi.fn()}
+          onRequestPublish={vi.fn(async () => false)}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('alert'),
+    ).toHaveTextContent('Add a title before publishing this Test')
+  })
+
   it('waits for the latest draft save before closing', async () => {
     draftFlush.mockClear()
     let resolveFlush: ((saved: boolean) => void) | null = null
@@ -170,5 +205,39 @@ describe('TeacherTestAuthoringDialog', () => {
     })
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards a newly created pristine Test after flushing instead of keeping it', async () => {
+    draftFlush.mockClear()
+    draftPristineCheck.mockReturnValueOnce(true)
+    const onClose = vi.fn()
+    const onDiscardPristine = vi.fn(async () => true)
+    renderDialog({
+      onClose,
+      discardPristineOnClose: true,
+      onDiscardPristine,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(onDiscardPristine).toHaveBeenCalledTimes(1))
+    expect(draftFlush).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps an edited newly created Test on close', async () => {
+    draftPristineCheck.mockReturnValueOnce(false)
+    const onClose = vi.fn()
+    const onDiscardPristine = vi.fn(async () => true)
+    renderDialog({
+      onClose,
+      discardPristineOnClose: true,
+      onDiscardPristine,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(onDiscardPristine).not.toHaveBeenCalled()
   })
 })

@@ -19,7 +19,10 @@ interface TeacherTestAuthoringDialogProps {
   classroomId: string
   apiBasePath: string
   hasPendingMarkdownImport: boolean
+  publicationError?: string
   onClose: () => void
+  discardPristineOnClose?: boolean
+  onDiscardPristine?: () => Promise<boolean>
   onDraftSummaryChange: (update: AssessmentEditorSummaryUpdate) => void
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onPendingMarkdownImportChange: (pending: boolean) => void
@@ -34,7 +37,10 @@ export function TeacherTestAuthoringDialog({
   classroomId,
   apiBasePath,
   hasPendingMarkdownImport,
+  publicationError = '',
   onClose,
+  discardPristineOnClose = false,
+  onDiscardPristine,
   onDraftSummaryChange,
   onTestUpdate,
   onPendingMarkdownImportChange,
@@ -46,6 +52,7 @@ export function TeacherTestAuthoringDialog({
   const [isClosing, setIsClosing] = useState(false)
   const [isPreparingPublish, setIsPreparingPublish] = useState(false)
   const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
+  const draftPristineCheckRef = useRef<(() => boolean) | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -58,6 +65,20 @@ export function TeacherTestAuthoringDialog({
     setIsClosing(true)
     const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
     if (saved) {
+      if (
+        discardPristineOnClose
+        && draftPristineCheckRef.current?.()
+        && onDiscardPristine
+      ) {
+        const discarded = await onDiscardPristine()
+        if (discarded) {
+          setAuthoringView('edit')
+          setIsClosing(false)
+          return
+        }
+        setIsClosing(false)
+        return
+      }
       setAuthoringView('edit')
       onClose()
     }
@@ -156,6 +177,14 @@ export function TeacherTestAuthoringDialog({
           {isClosing ? 'Saving...' : 'Close'}
         </Button>
       </div>
+      {publicationError ? (
+        <div
+          role="alert"
+          className="mx-4 mt-3 shrink-0 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+        >
+          {publicationError}
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         {test ? (
           <TestDetailPanel
@@ -167,6 +196,9 @@ export function TeacherTestAuthoringDialog({
             onPendingMarkdownImportChange={onPendingMarkdownImportChange}
             onDraftFlushReady={(flush) => {
               draftFlushRef.current = flush
+            }}
+            onDraftPristineCheckReady={(check) => {
+              draftPristineCheckRef.current = check
             }}
             onRequestTestPreview={onRequestPreview}
             showInlineDeleteAction={false}

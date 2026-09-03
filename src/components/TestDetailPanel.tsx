@@ -64,6 +64,7 @@ interface Props {
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
+  onDraftPristineCheckReady?: (check: (() => boolean) | null) => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
@@ -166,6 +167,7 @@ export function TestDetailPanel({
   onPendingMarkdownImportChange,
   onSaveStatusChange,
   onDraftFlushReady,
+  onDraftPristineCheckReady,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -866,6 +868,26 @@ export function TestDetailPanel({
     onDraftFlushReady?.(flushPendingDraft)
     return () => onDraftFlushReady?.(null)
   }, [flushPendingDraft, onDraftFlushReady])
+
+  const isDraftPristine = useCallback(() => {
+    const pendingDraft = pendingDraftRef.current
+    const currentTitle = pendingDraft?.title ?? editTitle
+    const currentShowResults = pendingDraft?.show_results ?? draftShowResults
+    const currentQuestions = pendingDraft?.questions ?? questions
+
+    return (
+      isGeneratedAssessmentTitle(currentTitle)
+      && currentShowResults === false
+      && currentQuestions.length === 0
+      && documentsRef.current.length === 0
+      && !markdownDirtyRef.current
+    )
+  }, [draftShowResults, editTitle, questions])
+
+  useEffect(() => {
+    onDraftPristineCheckReady?.(isDraftPristine)
+    return () => onDraftPristineCheckReady?.(null)
+  }, [isDraftPristine, onDraftPristineCheckReady])
 
   const scheduleSave = useCallback(
     (
