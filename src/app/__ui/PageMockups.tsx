@@ -53,6 +53,8 @@ import {
   Button,
   Card,
   ContentDialog,
+  PageActionBar,
+  PageHeading,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -423,33 +425,57 @@ function ClassroomsMockup({
   ]
 
   return (
-    <div ref={classroomsRef} className="relative min-h-96 pb-20" data-testid="classrooms-mockup">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          {isEditing || view === 'archived' ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="-ml-2 mb-1 px-2 text-text-muted"
-              onClick={returnToActiveList}
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back to classrooms
-            </Button>
-          ) : null}
-          <h4 ref={activeListHeadingRef} tabIndex={-1} className="font-semibold text-text-default focus:outline-none">
-            {view === 'active' ? 'Active classrooms' : 'Archived classrooms'}
-          </h4>
-          <p className="mt-0.5 text-xs text-text-muted">
-            {isEditing && view === 'active'
-              ? 'Drag to reorder or archive a classroom.'
-              : view === 'archived'
-                ? 'Open or restore a previous classroom.'
-                : `${classrooms.length} classrooms`}
-          </p>
-        </div>
-        {isEditing ? <span className="text-xs font-medium text-primary">Editing</span> : null}
+    <div ref={classroomsRef} className="min-h-96" data-testid="classrooms-mockup">
+      <div className="mb-3">
+        {isEditing || view === 'archived' ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="-ml-2 mb-1 px-2 text-text-muted"
+            onClick={returnToActiveList}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to classrooms
+          </Button>
+        ) : null}
+        <PageActionBar
+          className="px-0"
+          primary={
+            <div>
+              <PageHeading
+                title={view === 'active' ? 'Active classrooms' : 'Archived classrooms'}
+                level="h3"
+                size="section"
+                headingRef={activeListHeadingRef}
+                tabIndex={-1}
+              />
+              <p className="mt-0.5 text-xs text-text-muted">
+                {isEditing && view === 'active'
+                  ? 'Drag to reorder or archive a classroom.'
+                  : view === 'archived'
+                    ? 'Open or restore a previous classroom.'
+                    : `${classrooms.length} classrooms`}
+              </p>
+            </div>
+          }
+          trailing={
+            <>
+              {isEditing ? <span className="text-xs font-medium text-primary">Editing</span> : null}
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Classroom actions"
+                menuAriaLabel="Classroom actions"
+                tooltip="Classroom actions"
+                icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+                items={menuItems}
+                variant="ghost"
+                menuPlacement="down"
+                menuAlign="end"
+                menuClassName="w-64"
+              />
+            </>
+          }
+        />
       </div>
 
       <div className="space-y-2">
@@ -505,22 +531,8 @@ function ClassroomsMockup({
         ))}
       </div>
 
-      <div className="absolute inset-x-0 bottom-2 flex justify-end px-2 sm:px-4">
-        <TeacherWorkSurfaceIconMenuButton
-          ariaLabel="Classroom actions"
-          menuAriaLabel="Classroom actions"
-          tooltip="Classroom actions"
-          icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
-          items={menuItems}
-          variant="ghost"
-          menuPlacement="up"
-          menuAlign="end"
-          menuClassName="w-64"
-        />
-      </div>
-
       <Description>
-        The borderless bottom three-dot menu owns New Classroom, edit mode, and the Show Archived/Show Active toggle. Back to classrooms and Escape both return to the main Active list and clear edit mode.
+        The borderless top-right three-dot menu owns New Classroom, edit mode, and the Show Archived/Show Active toggle. Back to classrooms and Escape both return to the main Active list and clear edit mode.
       </Description>
     </div>
   )

@@ -29,8 +29,8 @@ export const createClassroomWizard: VerificationScript = {
       passed: true,
     })
 
-    // Look for New Classroom button (aria-label is "New classroom")
-    const createButton = page.getByRole('button', { name: /new.*classroom/i })
+    await page.getByRole('button', { name: 'Classroom actions' }).click()
+    const createButton = page.getByRole('menuitem', { name: 'New Classroom' })
     const hasCreateButton = await createButton.isVisible().catch(() => false)
 
     checks.push({

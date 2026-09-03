@@ -70,8 +70,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     )
     await mockTeacherArchive(page)
     await page.goto('/classrooms')
-    await page.getByRole('button', { name: 'Organize classrooms' }).click()
-    await page.getByRole('button', { name: 'Archived' }).click()
+    await page.getByRole('button', { name: 'Classroom actions' }).click()
+    await page.getByRole('menuitem', { name: 'Show Archived' }).click()
 
     await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
     await expect(page.getByText('Sept 2025 - Jan 2026')).toBeVisible()
@@ -91,7 +91,7 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     })
 
     await page.getByRole('link', { name: 'Home' }).click()
-    await expect(page.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('heading', { name: 'Active classrooms' })).toBeFocused()
     await expect(page.getByRole('button', { name: 'Archived Biology' })).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
@@ -100,7 +100,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       animations: 'disabled',
     })
 
-    await page.getByRole('button', { name: 'Archived' }).click()
+    await page.getByRole('button', { name: 'Classroom actions' }).click()
+    await page.getByRole('menuitem', { name: 'Show Archived' }).click()
     await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
 
     await unarchiveButton.click()

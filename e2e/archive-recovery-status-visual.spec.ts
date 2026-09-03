@@ -77,8 +77,8 @@ async function mockArchiveState(
 
 async function openArchivedView(page: Page) {
   await page.goto('/classrooms')
-  await page.getByRole('button', { name: 'Organize classrooms' }).click()
-  await page.getByRole('button', { name: 'Archived' }).click()
+  await page.getByRole('button', { name: 'Classroom actions' }).click()
+  await page.getByRole('menuitem', { name: 'Show Archived' }).click()
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

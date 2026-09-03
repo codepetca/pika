@@ -91,6 +91,19 @@ describe('CreateClassroomModal', () => {
     return screen.getByRole('textbox', { name: /classroom name/i })
   }
 
+  it('focuses the name field through the modal owner and restores the opener on close', async () => {
+    const opener = document.createElement('button')
+    opener.textContent = 'New Classroom'
+    document.body.appendChild(opener)
+    opener.focus()
+    const props = { isOpen: true, onClose: vi.fn(), onSuccess: vi.fn() }
+    const { rerender } = render(<CreateClassroomModal {...props} />)
+    await waitFor(() => expect(getClassroomNameInput()).toHaveFocus())
+    rerender(<CreateClassroomModal {...props} isOpen={false} />)
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
+
   function getBlueprintSelect() {
     return screen.getByRole('combobox', { name: /course blueprint/i })
   }
