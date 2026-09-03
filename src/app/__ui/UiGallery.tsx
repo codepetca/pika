@@ -65,6 +65,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { PageMockups } from './PageMockups'
+import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { StudentGradesPattern } from './StudentGradesPattern'
 
@@ -550,6 +551,15 @@ export function UiGallery({ role }: Props) {
         )}
 
         <PatternSection
+          id="owned-joined-home"
+          eyebrow="Experimental · account home"
+          title="Owned / Joined home"
+          description="The current top-right classroom actions from PR 1179, extended for one account that teaches and joins classes. Local examples only; production access is unchanged."
+        >
+          <OwnedJoinedHomeMockup key={role} role={role} />
+        </PatternSection>
+
+        <PatternSection
           id="page-mockups"
           eyebrow="Experimental · page compositions"
           title="Classroom page patterns"
@@ -640,6 +650,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'statuses', label: 'Statuses — Labels and meanings' },
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
+    { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
       { value: 'page-mockups', label: 'Page mockups — Daily, classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },
