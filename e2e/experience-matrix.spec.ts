@@ -1810,8 +1810,8 @@ test.describe('student experience matrix', () => {
 
     await expect(page.getByRole('heading', { name: 'Assignments' })).toBeVisible()
     await expect(page.getByText('Add curriculum context and classroom expectations.')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'More actions' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Resources', exact: true })).toHaveCount(0)
     await expect(page.locator('iframe')).toHaveCount(0)
     await captureCourseGuideState(page, testInfo, 'student-read')
     await verifyProjectContract(page, testInfo)
