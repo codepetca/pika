@@ -58,8 +58,10 @@ async function configureThemeAndViewport(
 
 async function openOptions(page: Page, baseUrl: string) {
   await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: 'Edit guide' }).click()
-  await page.getByRole('button', { name: 'Guide options' }).click()
+  await page.getByRole('heading', { name: 'Course guide', exact: true }).waitFor()
+  const moreButton = page.getByRole('button', { name: 'More actions' })
+  if (await moreButton.getAttribute('aria-expanded') !== 'true') await moreButton.click()
+  await page.getByRole('menuitem', { name: 'Guide options' }).click()
 }
 
 async function openImport(page: Page) {
@@ -101,11 +103,36 @@ export const courseGuideCurriculumImport: VerificationScript = {
       })
     })
 
+    await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import`, { waitUntil: 'domcontentloaded' })
+    await configureThemeAndViewport(page, 'light', 'desktop')
+    await page.getByRole('heading', { name: 'Course guide', exact: true }).waitFor()
+    checks.push({
+      name: 'Teacher Course Guide uses a right-aligned More actions trigger',
+      passed: await page.getByRole('button', { name: 'More actions' }).isVisible(),
+    })
+    artifacts.push(await capture(page, 'teacher-desktop-light-guide.png'))
+    await page.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Teacher More menu exposes Edit, Markdown, and guide options',
+      passed: await page.getByRole('menuitem', { name: 'Edit', exact: true }).isVisible()
+        && await page.getByRole('menuitem', { name: 'Edit with Markdown' }).isVisible()
+        && await page.getByRole('menuitem', { name: 'Guide options' }).isVisible(),
+    })
+    artifacts.push(await capture(page, 'teacher-desktop-light-actions.png'))
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click()
+    checks.push({
+      name: 'Teacher Edit opens the visual document editor directly in the page',
+      passed: await page.getByRole('textbox', { name: 'Course guide' }).isVisible()
+        && await page.getByRole('heading', { name: 'Resources' }).count() === 0,
+    })
+    artifacts.push(await capture(page, 'teacher-desktop-light-visual-editor.png'))
+
     await openOptions(page, baseUrl)
     await configureThemeAndViewport(page, 'light', 'desktop')
     checks.push({
       name: 'Teacher options keep the guide focused on orientation sections',
       passed: await page.getByText(/compact title lists/i).isVisible()
+        && await page.getByRole('button', { name: /Resources/ }).count() === 0
         && await page.getByRole('button', { name: /Lesson sequence/ }).count() === 0
         && await page.getByRole('button', { name: /Announcements/ }).count() === 0,
     })
@@ -161,6 +188,28 @@ export const courseGuideCurriculumImport: VerificationScript = {
     })
     artifacts.push(await capture(page, 'teacher-mobile-dark-error.png'))
 
+    await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import`, { waitUntil: 'domcontentloaded' })
+    await configureThemeAndViewport(page, 'dark', 'mobile')
+    await page.getByRole('heading', { name: 'Course guide', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'More actions' }).click()
+    checks.push({
+      name: 'Teacher mobile More menu exposes both direct editing modes',
+      passed: await page.getByRole('menuitem', { name: 'Edit', exact: true }).isVisible()
+        && await page.getByRole('menuitem', { name: 'Edit with Markdown' }).isVisible(),
+    })
+    artifacts.push(await capture(page, 'teacher-mobile-dark-actions.png'))
+    await page.getByRole('menuitem', { name: 'Edit with Markdown' }).click()
+    checks.push({
+      name: 'Teacher Markdown action opens the source editor directly in the page',
+      passed: await page.getByRole('textbox', { name: 'Course guide Markdown' }).isVisible()
+        && await page.getByRole('heading', { name: 'Resources' }).count() === 0,
+    })
+    checks.push({
+      name: 'No horizontal overflow in the mobile Course Guide editor',
+      passed: await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    })
+    artifacts.push(await capture(page, 'teacher-mobile-dark-markdown-editor.png'))
+
     await page.goto(`${baseUrl}/e2e-fixtures/course-guide-import?role=student`, {
       waitUntil: 'domcontentloaded',
     })
@@ -169,7 +218,7 @@ export const courseGuideCurriculumImport: VerificationScript = {
     checks.push({
       name: 'Student guide has no teacher import controls',
       passed: await page.getByRole('button', { name: 'Import curriculum' }).count() === 0
-        && await page.getByRole('button', { name: 'Edit guide' }).count() === 0,
+        && await page.getByRole('button', { name: 'More actions' }).count() === 0,
     })
     checks.push({
       name: 'Student guide shows the compact assignment title',
@@ -182,7 +231,8 @@ export const courseGuideCurriculumImport: VerificationScript = {
     checks.push({
       name: 'Student guide omits Lesson sequence and Announcements',
       passed: await page.getByRole('heading', { name: 'Lesson sequence', exact: true }).count() === 0
-        && await page.getByRole('heading', { name: 'Announcements', exact: true }).count() === 0,
+        && await page.getByRole('heading', { name: 'Announcements', exact: true }).count() === 0
+        && await page.getByRole('heading', { name: 'Resources', exact: true }).count() === 0,
     })
     artifacts.push(await capture(page, 'student-desktop-light-guide.png'))
 

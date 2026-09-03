@@ -380,6 +380,17 @@
       ]
     },
     {
+      "file": "src/components/CourseGuidePanel.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
       "file": "src/components/AssignmentArtifactsCell.tsx",
       "reviewBy": "phase-3-assignments",
       "controls": [
