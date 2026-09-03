@@ -294,6 +294,17 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Added red-first component coverage for role-scoped actions, last-row recovery, focus, membership retention and owner-archived exclusion. Eight browser scenarios pass across both roles, desktop/mobile and light/dark, including measured section order and zero API mutations; screenshots inspected. Current evidence is in the experimental home guidance.
 - Same prototype branch/PR #1178; risk profile none, standard-risk Terra/high independent review and final focused/CI evidence follow on the PR. No shared component, production route, database, deployment or merge changes are authorized. Live adoption remains separate.
 
+## 2026-09-03 — Simplify Course Guide editing
+
+- Replaced the teacher Course Guide floating edit cluster with the shared right-aligned PageActionBar More menu. Edit opens the visual document editor directly; Edit with Markdown opens a paste-friendly source editor for the same saved field; Guide options remains available from the menu.
+- Removed the separate Resources section and Resources visibility control from the Course Guide surface while preserving compatibility data. Teacher, student and public views retain the single guide document plus compact Assignment/Test title lists.
+- Focused gate passes 21 test files / 186 tests plus architecture, UI/design policy, TypeScript and lint. The Course Guide Playwright scenario passes 19 checks across teacher/student/public, desktop/mobile, light/dark, menu, visual editor, Markdown editor and import states; screenshots were inspected with no horizontal overflow. Risk profile none; no schema, hosted data or deployment action.
+
+## 2026-09-03 — Align Course Guide browser contracts
+
+- PR #1189's first exact-head CI run passed Test & Build and all database contracts, then failed the browser matrix because two existing Course Guide scenarios still asserted the retired Edit guide flow and Curriculum overview section heading across four viewports. Returned the PR to draft before correction; the unrelated student API timeout was flaky and passed on retry.
+- Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
+- Targeted independent review found one non-blocking role-boundary gap in the student matrix: it still excluded the retired direct buttons instead of the new More trigger. The corrected assertion excludes More actions and the removed Resources heading for students. One correction batch is in use; a final integration check and fresh focused/exact-head CI are required before readiness or merge. No production or database action was taken.
 ## 2026-09-03 — Begin the dormant contextual enrollment foundation
 
 - After user-authorized merge of dev-only prototype PR #1178 at `f4f6ba32`, started compatibility batch C on `codex/contextual-enrollment-access`. Added dormant exact-pair identity selection and a pure join policy covering owner self-join, existing membership, verified-code-only admission, archive/enrollment/roster/open-join rules and malformed evidence. Contextual pair selection is explicitly a candidate, never final authorization.

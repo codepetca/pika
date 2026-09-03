@@ -1,15 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ExternalLink, Pencil, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ExternalLink } from 'lucide-react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
 import { CourseGuideImportDialog } from '@/components/CourseGuideImportDialog'
-import {
-  CourseGuideView,
-  type CourseGuideEditableSection,
-} from '@/components/CourseGuideView'
+import { CourseGuideView } from '@/components/CourseGuideView'
 import { MarkdownContentEditor } from '@/components/editor'
-import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { toCourseGuideVisibility, type CourseGuideData } from '@/lib/course-guide'
 import {
   normalizeActualCourseSiteConfig,
@@ -19,21 +15,21 @@ import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import {
   ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
   Button,
-  ConfirmDialog,
+  FormField,
   PageActionBar,
   PageContent,
   PageLayout,
   PageState,
+  type ActionBarItem,
   cn,
   useAppMessage,
 } from '@/ui'
-import type { ActualCourseSiteConfig, Classroom, TiptapContent } from '@/types'
+import type { ActualCourseSiteConfig, Classroom } from '@/types'
 
 type CourseGuidePanelProps = {
   classroom: Classroom
   role: 'teacher' | 'student'
   onClassroomUpdated?: (classroom: Classroom) => void
-  renderResourcesEditor?: (onSaved: (content: TiptapContent) => void) => ReactNode
 }
 
 type CourseGuideResponse = {
@@ -46,7 +42,7 @@ type SavedGuideOptions = {
   config: ActualCourseSiteConfig
 }
 
-type DiscardTarget = CourseGuideEditableSection | 'exit' | null
+type EditorMode = 'visual' | 'markdown'
 
 function getCacheKey(classroomId: string) {
   return `classroom-course-guide:${classroomId}`
@@ -64,7 +60,6 @@ export function CourseGuidePanel({
   classroom,
   role,
   onClassroomUpdated,
-  renderResourcesEditor,
 }: CourseGuidePanelProps) {
   const { showMessage } = useAppMessage()
   const currentClassroomIdRef = useRef(classroom.id)
@@ -76,15 +71,13 @@ export function CourseGuidePanel({
     | { status: 'ready'; guide: CourseGuideData }
     | { status: 'error' }
   >({ status: 'loading' })
-  const [editMode, setEditMode] = useState(false)
-  const [activeEditor, setActiveEditor] = useState<CourseGuideEditableSection | null>(null)
-  const activeEditorRef = useRef<CourseGuideEditableSection | null>(null)
-  activeEditorRef.current = activeEditor
+  const [editorMode, setEditorMode] = useState<EditorMode | null>(null)
+  const editorModeRef = useRef<EditorMode | null>(null)
+  editorModeRef.current = editorMode
   const [overviewDraft, setOverviewDraft] = useState(classroom.course_overview_markdown || '')
   const [overviewSavedValue, setOverviewSavedValue] = useState(classroom.course_overview_markdown || '')
   const [overviewSaving, setOverviewSaving] = useState(false)
   const [overviewError, setOverviewError] = useState('')
-  const [discardTarget, setDiscardTarget] = useState<DiscardTarget>(null)
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [savedOptions, setSavedOptions] = useState<SavedGuideOptions>(() => optionsFromClassroom(classroom))
   const [draftOptions, setDraftOptions] = useState<SavedGuideOptions>(() => optionsFromClassroom(classroom))
@@ -118,13 +111,11 @@ export function CourseGuidePanel({
     if (resetClassroomIdRef.current === classroom.id) return
     resetClassroomIdRef.current = classroom.id
     const nextOptions = optionsFromClassroom(classroom)
-    setEditMode(false)
-    setActiveEditor(null)
+    setEditorMode(null)
     setOverviewDraft(classroom.course_overview_markdown || '')
     setOverviewSavedValue(classroom.course_overview_markdown || '')
     setOverviewSaving(false)
     setOverviewError('')
-    setDiscardTarget(null)
     setOptionsOpen(false)
     setSavedOptions(nextOptions)
     setDraftOptions(nextOptions)
@@ -136,7 +127,7 @@ export function CourseGuidePanel({
   useEffect(() => {
     const nextOverview = classroom.course_overview_markdown || ''
     setOverviewSavedValue(nextOverview)
-    if (activeEditorRef.current !== 'overview') {
+    if (editorModeRef.current === null) {
       setOverviewDraft(nextOverview)
     }
   }, [classroom.course_overview_markdown])
@@ -165,36 +156,10 @@ export function CourseGuidePanel({
     setOptionsOpen(true)
   }
 
-  function requestSection(section: CourseGuideEditableSection) {
-    if (activeEditor === section) return
-    if (activeEditor === 'overview' && overviewDirty) {
-      setDiscardTarget(section)
-      return
-    }
+  function openEditor(mode: EditorMode) {
+    if (editorMode === null) setOverviewDraft(overviewSavedValue)
     setOverviewError('')
-    setActiveEditor(section)
-  }
-
-  function requestExitEditMode() {
-    if (activeEditor === 'overview' && overviewDirty) {
-      setDiscardTarget('exit')
-      return
-    }
-    setActiveEditor(null)
-    setEditMode(false)
-  }
-
-  function discardOverviewChanges() {
-    const target = discardTarget
-    setOverviewDraft(overviewSavedValue)
-    setOverviewError('')
-    setDiscardTarget(null)
-    if (target === 'exit') {
-      setActiveEditor(null)
-      setEditMode(false)
-      return
-    }
-    setActiveEditor(target)
+    setEditorMode(mode)
   }
 
   async function saveOverview() {
@@ -210,7 +175,7 @@ export function CourseGuidePanel({
         body: JSON.stringify({ courseOverviewMarkdown: nextOverview }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to save the curriculum overview')
+      if (!response.ok) throw new Error(data.error || 'Failed to save the course guide')
       if (currentClassroomIdRef.current !== classroomId) return
 
       invalidateCachedJSON(getCacheKey(classroomId))
@@ -218,11 +183,11 @@ export function CourseGuidePanel({
       updateReadyGuide((guide) => ({ ...guide, overviewMarkdown: nextOverview }))
       setOverviewSavedValue(nextOverview)
       if (data.classroom) onClassroomUpdated?.(data.classroom)
-      setActiveEditor(null)
-      showMessage({ text: 'Curriculum overview saved', tone: 'success' })
+      setEditorMode(null)
+      showMessage({ text: 'Course guide saved', tone: 'success' })
     } catch (error) {
       if (currentClassroomIdRef.current !== classroomId) return
-      setOverviewError(error instanceof Error ? error.message : 'Failed to save the curriculum overview')
+      setOverviewError(error instanceof Error ? error.message : 'Failed to save the course guide')
     } finally {
       if (currentClassroomIdRef.current === classroomId) setOverviewSaving(false)
     }
@@ -262,8 +227,6 @@ export function CourseGuidePanel({
         ...guide,
         visibility: toCourseGuideVisibility(persisted.config),
       }))
-      if (!persisted.config.overview && activeEditor === 'overview') setActiveEditor(null)
-      if (!persisted.config.resources && activeEditor === 'resources') setActiveEditor(null)
       if (data.classroom) onClassroomUpdated?.(data.classroom)
       setOptionsOpen(false)
       showMessage({ text: 'Guide options saved', tone: 'success' })
@@ -275,17 +238,30 @@ export function CourseGuidePanel({
     }
   }
 
-  const overviewEditor = (
+  const guideEditor = (
     <div className="space-y-3">
-      <MarkdownContentEditor
-        markdown={overviewDraft}
-        onMarkdownChange={setOverviewDraft}
-        placeholder="Add curriculum context, course purpose, expectations, and rules..."
-        editable={!overviewSaving && !isArchived}
-        toolbarPreset="document"
-        aria-label="Curriculum overview and expectations"
-        className="min-h-28 sm:min-h-32"
-      />
+      {editorMode === 'markdown' ? (
+        <FormField label="Course guide Markdown">
+          <textarea
+            value={overviewDraft}
+            onChange={(event) => setOverviewDraft(event.target.value)}
+            disabled={overviewSaving || isArchived}
+            spellCheck={false}
+            rows={18}
+            className="min-h-80 w-full resize-y rounded-control border border-border bg-surface px-3 py-3 font-mono text-sm text-text-default focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2"
+          />
+        </FormField>
+      ) : (
+        <MarkdownContentEditor
+          markdown={overviewDraft}
+          onMarkdownChange={setOverviewDraft}
+          placeholder="Paste or write your course guide..."
+          editable={!overviewSaving && !isArchived}
+          toolbarPreset="document"
+          aria-label="Course guide"
+          className="min-h-80"
+        />
+      )}
       {overviewError ? (
         <div role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {overviewError}
@@ -299,21 +275,38 @@ export function CourseGuidePanel({
           onClick={() => {
             setOverviewDraft(overviewSavedValue)
             setOverviewError('')
-            setActiveEditor(null)
+            setEditorMode(null)
           }}
         >
           Cancel
         </Button>
         <Button type="button" disabled={overviewSaving || !overviewDirty} onClick={saveOverview}>
-          {overviewSaving ? 'Saving...' : 'Save overview'}
+          {overviewSaving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </div>
   )
 
-  const resourcesEditor = renderResourcesEditor?.((content) => {
-    updateReadyGuide((guide) => ({ ...guide, resourcesContent: content }))
-  })
+  const teacherActions: ActionBarItem[] = [
+    {
+      id: 'edit-course-guide',
+      label: 'Edit',
+      disabled: state.status !== 'ready' || overviewSaving || editorMode === 'visual',
+      onSelect: () => openEditor('visual'),
+    },
+    {
+      id: 'edit-course-guide-markdown',
+      label: 'Edit with Markdown',
+      disabled: state.status !== 'ready' || overviewSaving || editorMode === 'markdown',
+      onSelect: () => openEditor('markdown'),
+    },
+    {
+      id: 'course-guide-options',
+      label: 'Guide options',
+      disabled: optionsSaving || overviewSaving,
+      onSelect: openOptions,
+    },
+  ]
 
   return (
     <PageLayout
@@ -337,6 +330,10 @@ export function CourseGuidePanel({
             </a>
           )}
         />
+      ) : null}
+
+      {role === 'teacher' && !isArchived ? (
+        <PageActionBar primary={null} actions={teacherActions} />
       ) : null}
 
       {role === 'teacher' && isArchived ? (
@@ -384,48 +381,10 @@ export function CourseGuidePanel({
           <CourseGuideView
             guide={state.guide}
             embedded
-            editMode={role === 'teacher' && editMode && !isArchived}
-            activeEditor={activeEditor}
-            onEditSection={role === 'teacher' && editMode && !isArchived ? requestSection : undefined}
-            overviewEditor={overviewEditor}
-            resourcesEditor={resourcesEditor}
+            editMode={role === 'teacher' && editorMode !== null && !isArchived}
+            overviewEditor={guideEditor}
           />
         </div>
-      ) : null}
-
-      {state.status === 'ready' && role === 'teacher' && !isArchived ? (
-        <FloatingActionCluster
-          placement="top"
-          role="group"
-          aria-label="Course Guide actions"
-          className="top-24 p-0 sm:top-14"
-        >
-          <div className="flex items-center justify-center gap-1">
-            {editMode ? (
-              <>
-                <Button type="button" size="sm" variant="secondary" onClick={openOptions}>
-                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                  Guide options
-                </Button>
-                <Button type="button" size="sm" onClick={requestExitEditMode} disabled={overviewSaving}>
-                  Done
-                </Button>
-              </>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setOverviewDraft(overviewSavedValue)
-                  setEditMode(true)
-                }}
-              >
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                Edit guide
-              </Button>
-            )}
-          </div>
-        </FloatingActionCluster>
       ) : null}
 
       <CourseGuideOptionsDialog
@@ -454,8 +413,8 @@ export function CourseGuidePanel({
           if (draftHref) window.open(draftHref, '_blank', 'noopener,noreferrer')
         }}
         onImportCurriculum={() => {
-          if (activeEditor === 'overview' && overviewDirty) {
-            setOptionsError('Save or cancel your overview edits before importing curriculum.')
+          if (editorMode !== null && overviewDirty) {
+            setOptionsError('Save or cancel your course guide edits before importing curriculum.')
             return
           }
           setDraftOptions(savedOptions)
@@ -487,16 +446,6 @@ export function CourseGuidePanel({
           showMessage({ text: 'Reviewed curriculum draft added', tone: 'success' })
         }}
         onClose={() => setImportOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={discardTarget !== null}
-        title="Discard overview changes?"
-        description="Your unsaved curriculum overview changes will be lost."
-        confirmLabel="Discard"
-        confirmVariant="danger"
-        onCancel={() => setDiscardTarget(null)}
-        onConfirm={discardOverviewChanges}
       />
     </PageLayout>
   )
