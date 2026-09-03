@@ -36,12 +36,18 @@ describe('Gradebook surface owners', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('keeps segmented keyboard controls and menu semantics in the toolbar', () => {
+  it('keeps single-button keyboard toggles and menu semantics in the toolbar', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
     render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={onChange} selectedCount={1} isReadOnly={false} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} /></TooltipProvider>)
-    fireEvent.keyDown(screen.getByRole('button', { name: '%' }), { key: 'ArrowRight' })
+    const scoreDisplay = screen.getByRole('group', { name: 'Score display' })
+    const scoreToggle = within(scoreDisplay).getByRole('button', { name: 'Score display: %. Switch to x/y' })
+    expect(within(scoreDisplay).getAllByRole('button')).toHaveLength(1)
+    scoreToggle.focus()
+    await user.keyboard('{Enter}')
     expect(onChange).toHaveBeenCalledWith({ scoreDisplayMode: 'raw' })
-    expect(screen.getByRole('button', { name: 'x/y' })).toHaveFocus()
+    expect(scoreToggle).toHaveFocus()
+    expect(screen.getByRole('group', { name: 'Class summary' }).querySelectorAll('button')).toHaveLength(1)
     const dots = [...screen.getByRole('button', { name: 'Gradebook more actions' }).querySelectorAll('circle')]
     expect(dots).toHaveLength(3)
     expect(new Set(dots.map((dot) => dot.getAttribute('cx'))).size).toBe(1)
