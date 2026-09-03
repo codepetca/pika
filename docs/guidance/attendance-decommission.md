@@ -47,12 +47,11 @@ by live-table verification.
 ## Rollout and recovery
 
 - Migration 153 creates disabled settings and installs fences; applying it does
-  not delete rows. Missing migration fails closed. Local153 replay, generated
-  types and rollback-only decommission/hot/cold/Blueprint tests passed. The
-  database checker reported an unused variable and a constant-array loop
-  analysis error despite successful runtime absence checks; follow-up154 makes
-  those constructs explicit without changing deletion behavior. Migration 154 still needs
-  review, separate local application approval and a clean checker run.
+  not delete rows. Missing migration fails closed. Migrations 153–154 are applied
+  locally only; generated types, a clean database checker, and rollback-only
+  decommission/hot/cold/Blueprint tests passed. Migration 154 makes the unused
+  lookup result and array-element loop explicit for the checker without changing
+  deletion behavior. Both migrations still need separate production approval.
 - Pika transport: `PIKA_BARA_DECOMMISSION_MODE=canary` plus
   `PIKA_BARA_DECOMMISSION_CANARY_ROSTER_REF`; database settings independently
   bind the installation, teacher, and classroom. All are disabled by default.
