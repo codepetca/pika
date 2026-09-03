@@ -636,16 +636,17 @@ export const patternLabPageMockups: VerificationScript = {
     await section.screenshot({ path: stickySummaryDesktopLightArtifact })
     artifacts.push(stickySummaryDesktopLightArtifact)
     await section.getByRole('button', { name: 'More actions' }).click()
-    const scoreModeToggle = section.getByRole('menuitem', { name: 'Show raw scores' })
-    const summaryKindToggle = section.getByRole('menuitem', { name: 'Show median' })
-    const nameOrderToggle = section.getByRole('menuitem', { name: 'Show last name first' })
+    const scoreModeToggle = section.getByRole('group', { name: 'Score display' }).getByRole('button', { name: 'x/y' })
+    const summaryKindToggle = section.getByRole('group', { name: 'Class summary' }).getByRole('button', { name: 'MED' })
+    const nameOrderToggle = section.getByRole('menuitem', { name: 'Show last name in column 1' })
     const studentIds = section.getByRole('menuitemcheckbox', { name: 'Show student IDs' })
     const keepKeyColumnsVisible = section.getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
     checks.push({
-      name: 'Gradebook More actions owns one score display toggle',
+      name: 'Gradebook centers display controls and keeps utility commands in More actions',
       passed: await scoreModeToggle.isVisible()
         && await summaryKindToggle.isVisible()
         && await nameOrderToggle.isVisible()
+        && await section.getByRole('menuitem', { name: 'Edit categories' }).isVisible()
         && await section.getByRole('menuitemradio').count() === 0
         && await studentIds.getAttribute('aria-checked') === 'false'
         && await keepKeyColumnsVisible.getAttribute('aria-checked') === 'true',
@@ -653,15 +654,15 @@ export const patternLabPageMockups: VerificationScript = {
     const gradebookMenuArtifact = path.join(artifactDir, 'desktop-light-gradebook-more-actions.png')
     await section.screenshot({ path: gradebookMenuArtifact })
     artifacts.push(gradebookMenuArtifact)
+    await page.keyboard.press('Escape')
     await summaryKindToggle.click()
     checks.push({
       name: 'Gradebook shows only the selected Average or Median summary',
       passed: await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).isVisible()
         && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).count() === 0,
     })
-    await section.getByRole('button', { name: 'More actions' }).click()
-    const showAverage = section.getByRole('menuitem', { name: 'Show average' })
-    checks.push({ name: 'Gradebook summary command reverses to Show average', passed: await showAverage.isVisible() })
+    const showAverage = section.getByRole('group', { name: 'Class summary' }).getByRole('button', { name: 'AVG' })
+    checks.push({ name: 'Gradebook summary buttons expose the active mode', passed: await summaryKindToggle.getAttribute('aria-pressed') === 'true' && await showAverage.getAttribute('aria-pressed') === 'false' })
     await showAverage.click()
     await section.getByRole('button', { name: 'More actions' }).click()
     await nameOrderToggle.click()
@@ -672,8 +673,8 @@ export const patternLabPageMockups: VerificationScript = {
     })
     await section.getByRole('button', { name: 'More actions' }).click()
     checks.push({
-      name: 'Gradebook name-order command reverses to Show first name first',
-      passed: await section.getByRole('menuitem', { name: 'Show first name first' }).isVisible(),
+      name: 'Gradebook name-order command reverses to Show first name in column 1',
+      passed: await section.getByRole('menuitem', { name: 'Show first name in column 1' }).isVisible(),
     })
     await page.keyboard.press('Escape')
     const gradebookTable = section.getByRole('table')
@@ -731,14 +732,12 @@ export const patternLabPageMockups: VerificationScript = {
       passed: await section.getByRole('columnheader', { name: 'ID' }).isVisible()
         && await section.getByRole('cell', { name: '1004832' }).isVisible(),
     })
-    await section.getByRole('button', { name: 'More actions' }).click()
     await scoreModeToggle.click()
-    await section.getByRole('button', { name: 'More actions' }).click()
     checks.push({
       name: 'Raw score mode updates visible assignment columns',
       passed: await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '18/20' }).isVisible()
         && await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '42/50' }).isVisible()
-        && await section.getByRole('menuitem', { name: 'Show %' }).isVisible(),
+        && await scoreModeToggle.getAttribute('aria-pressed') === 'true',
     })
     await page.keyboard.press('Escape')
     await section.getByRole('button', { name: 'More actions' }).click()
@@ -861,7 +860,8 @@ export const patternLabPageMockups: VerificationScript = {
     const selectedActionsArtifact = path.join(artifactDir, 'desktop-light-gradebook-student-actions.png')
     await section.screenshot({ path: selectedActionsArtifact })
     artifacts.push(selectedActionsArtifact)
-    await section.getByRole('menuitem', { name: 'Email selected students' }).click()
+    checks.push({ name: 'Student actions exposes both email-copy commands', passed: await section.getByRole('menuitem', { name: 'Copy secondary emails' }).isVisible() })
+    await section.getByRole('menuitem', { name: 'Copy emails', exact: true }).click()
     checks.push({ name: 'Prototype command gives explicit feedback', passed: await section.getByRole('status').getByText(/Example only/).isVisible() })
 
     await section.getByRole('tab', { name: 'Settings' }).click()
