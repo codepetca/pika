@@ -123,6 +123,15 @@ describe('non-authoritative access shadow observer', () => {
     expect(event()).toMatchObject({ candidate: 'deny', comparison: 'match' })
   })
 
+  it.each([
+    [{ data: null, error: { code: '08006' } }, 'enrollment_read_failed'],
+    [{ data: {}, error: null }, 'invalid_evidence'],
+  ])('does not claim owner-participation parity with unreliable supplied enrollment evidence', (enrollment, reason) => {
+    observeClassroomAccessShadow({ ...input, check: 'participate', legacyAllowed: false,
+      evidence: () => ({ classroom, enrollment }) })
+    expect(event()).toMatchObject({ candidate: 'unavailable', comparison: 'unavailable', reason })
+  })
+
   it('emits only closed labels, without identifiers, raw rows, or arbitrary user fields', () => {
     observeClassroomAccessShadow({ ...input, evidence: () => ({
       classroom: { ...classroom, title: 'Private classwork', class_code: 'SECRET', email: 'private@example.com' },

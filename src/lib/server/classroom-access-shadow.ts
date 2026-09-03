@@ -66,7 +66,7 @@ function compare(input: Observation): Candidate {
     return { allowed: context.relationship === 'owner' && canAccessClassroom(context, 'read'), reason: 'policy' }
   }
   if (input.check === 'manage') return { allowed: canAccessClassroom(context, 'manage'), reason: 'policy' }
-  if (context.archived || context.relationship === 'owner') return { allowed: false, reason: 'policy' }
+  if (context.archived) return { allowed: false, reason: 'policy' }
   if (!evidence.enrollment) return { allowed: null, reason: 'enrollment_not_observed' }
   // In particular, single() PGRST116 is NOT trusted evidence of absence.
   if (evidence.enrollment.error) return { allowed: null, reason: 'enrollment_read_failed' }
@@ -74,6 +74,8 @@ function compare(input: Observation): Candidate {
   if (enrollment !== null && !enrollmentIdSchema.safeParse(enrollment).success) {
     return { allowed: null, reason: 'invalid_evidence' }
   }
+  // Supplied read failures remain unavailable even when ownership implies denial.
+  if (context.relationship === 'owner') return { allowed: false, reason: 'policy' }
   return { allowed: canAccessClassroom({ ...context, relationship: enrollment === null ? 'none' : 'member' }, 'participate'),
     reason: 'policy' }
 }
