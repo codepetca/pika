@@ -8791,6 +8791,28 @@ export type Database = {
         }
         Returns: Json
       }
+      create_classroom_calendar_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_dates: string[]
+          p_end_date: string
+          p_start_date: string
+        }
+        Returns: {
+          classroom_id: string
+          date: string
+          id: string
+          is_class_day: boolean
+          prompt_text: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "class_days"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_classroom_enrollment_with_pal_event_atomic: {
         Args: {
           p_classroom_id: string
@@ -10153,6 +10175,27 @@ export type Database = {
           p_valid_until: string
         }
         Returns: Json
+      }
+      set_classroom_calendar_day_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_date: string
+          p_is_class_day: boolean
+        }
+        Returns: {
+          classroom_id: string
+          date: string
+          id: string
+          is_class_day: boolean
+          prompt_text: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "class_days"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       set_pika_manual_attendance_marks: {
         Args: {

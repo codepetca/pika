@@ -37,7 +37,7 @@ function pilotPairs(): z.infer<typeof pilotPairsSchema> | null {
  * lifecycle rules and bind owner/archive state in the write itself.
  */
 export async function authorizeClassroomCoreRequest(
-  classroomId: string,
+  classroomId: string | (() => Promise<string>),
   options: { legacyRole?: UserRole; permission: CorePermission },
 ): Promise<CoreAccess> {
   if (process.env.PIKA_CLASSROOM_CORE_ACCESS_ENABLED !== 'true') {
@@ -47,7 +47,14 @@ export async function authorizeClassroomCoreRequest(
   const pairs = pilotPairs()
   const identity = canonicalUuid.safeParse(user.id)
   if (pairs === null || !identity.success) throw new ApiError(503, 'Classroom access configuration is unavailable')
-  const requestedId = canonicalUuid.safeParse(classroomId)
+  // Body-addressed endpoints may defer reading identity until authentication.
+  // A wrong-role actor absent from every pilot pair is denied before body parsing,
+  // preserving the legacy Forbidden response even for malformed JSON.
+  if (typeof classroomId === 'function' && options.legacyRole && user.role !== options.legacyRole
+    && !pairs.some((pair) => pair.userId === identity.data)) {
+    throw new AuthorizationError(`Forbidden: ${options.legacyRole} role required`)
+  }
+  const requestedId = canonicalUuid.safeParse(typeof classroomId === 'function' ? await classroomId() : classroomId)
   // PostgreSQL also accepts dashless/braced UUIDs. Never let an unrecognized
   // spelling of an admitted class escape to the legacy authorization path.
   if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')

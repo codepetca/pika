@@ -96,8 +96,9 @@ approved by this document. Production canaries and rollback rehearsal remain une
 
 ## Deferred work
 
-Calendar POST/PATCH remain legacy: a read-only access check is not sufficient to protect
-their multi-row mutations. Home Owned/Joined lists, SSR/classroom navigation, signup,
+The next [calendar-write slice](contextual-calendar-writes.md) adds pilot-only atomic
+POST/PATCH operations with migration 152; those writes remain legacy outside the pilot.
+Home Owned/Joined lists, SSR/classroom navigation, signup,
 creation, joining and roster flows are unchanged. Assignments/tests/submissions, grading,
 attendance, files, exports, jobs, deletion, blueprints and other teacher-only surfaces need
 their own migration and resource/lifecycle audits. The [inventory](classroom-access-compatibility.md)
