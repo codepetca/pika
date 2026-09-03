@@ -50,6 +50,12 @@ begin
     raise exception using errcode = '40001', message = 'classroom_operation_busy';
   end if;
   if exists (select 1 from public.classroom_purge_fences where classroom_id = p_classroom_id) then
+    if coalesce(current_setting('pika.course_blueprint_purge_finalize', true), 'off') = 'on' then
+      raise exception using errcode = '40001', message = 'course_blueprint_purge_waiting_for_classroom_purge';
+    end if;
+    raise exception using errcode = '55000', message = 'classroom_purge_active';
+  end if;
+  if exists (select 1 from public.cold_classroom_purge_fences where classroom_id = p_classroom_id) then
     raise exception using errcode = '55000', message = 'classroom_purge_active';
   end if;
   if exists (select 1 from public.attendance_decommission_operations
@@ -119,6 +125,28 @@ begin
 end;
 $$;
 
+-- Separate read-only status from permission to advance. Every remote request
+-- must be preceded by this check; local mutations reuse it inside their transaction.
+-- An already-dispatched remote request cannot be recalled by a later pause.
+create function public.authorize_attendance_decommission_advance(
+  p_teacher_id uuid, p_classroom_id uuid, p_operation_id uuid
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_op jsonb; v_installation text;
+begin
+  select installation_ref into v_installation from public.attendance_decommission_settings
+    where singleton for share;
+  if not public.attendance_decommission_allowed(p_teacher_id, p_classroom_id) then
+    raise exception using errcode = '55000', message = 'attendance_decommission_disabled';
+  end if;
+  v_op := public.get_attendance_decommission(p_teacher_id, p_classroom_id, p_operation_id);
+  if v_op->>'installation_ref' is distinct from v_installation then
+    raise exception using errcode = '55000', message = 'attendance_decommission_installation_mismatch';
+  end if;
+  return v_op;
+end;
+$$;
+
 create function public.begin_attendance_decommission(
   p_teacher_id uuid, p_classroom_id uuid, p_operation_id uuid, p_confirmation text
 )
@@ -138,7 +166,7 @@ begin
   perform public.classroom_purge_lock(p_classroom_id);
   select * into v_op from public.attendance_decommission_operations where id = p_operation_id;
   if found then
-    return public.get_attendance_decommission(p_teacher_id, p_classroom_id, p_operation_id);
+    return public.authorize_attendance_decommission_advance(p_teacher_id, p_classroom_id, p_operation_id);
   end if;
   select * into v_class from public.classrooms where id = p_classroom_id for update;
   if not found or v_class.teacher_id <> p_teacher_id then
@@ -174,13 +202,11 @@ create function public.record_attendance_decommission_receipt(
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_op public.attendance_decommission_operations;
 begin
+  perform public.authorize_attendance_decommission_advance(p_teacher_id, p_classroom_id, p_operation_id);
   perform public.classroom_purge_lock(p_classroom_id);
   select * into v_op from public.attendance_decommission_operations where id = p_operation_id
     and teacher_id = p_teacher_id and classroom_id = p_classroom_id for update;
   if not found then raise exception using errcode = 'P0002', message = 'decommission_not_found'; end if;
-  if not public.attendance_decommission_allowed(p_teacher_id, p_classroom_id) then
-    raise exception using errcode = '55000', message = 'attendance_decommission_disabled';
-  end if;
   if p_receipt is null or jsonb_typeof(p_receipt) <> 'object'
     or (select count(*) from jsonb_object_keys(p_receipt)) <> 8
     or p_receipt->'schema_version' is distinct from '1'::jsonb
@@ -217,9 +243,7 @@ declare
     'attendance_window_policies', 'attendance_roster_mappings'
   ];
 begin
-  if not public.attendance_decommission_allowed(p_teacher_id, p_classroom_id) then
-    raise exception using errcode = '55000', message = 'attendance_decommission_disabled';
-  end if;
+  perform public.authorize_attendance_decommission_advance(p_teacher_id, p_classroom_id, p_operation_id);
   perform public.classroom_purge_lock(p_classroom_id);
   select * into v_op from public.attendance_decommission_operations where id = p_operation_id
     and teacher_id = p_teacher_id and classroom_id = p_classroom_id for update;
@@ -254,11 +278,13 @@ $$;
 revoke all on function public.attendance_decommission_allowed(uuid, uuid),
   public.reject_attendance_write_during_decommission(), public.reject_decommissioned_classroom_reactivation(),
   public.get_attendance_decommission(uuid, uuid, uuid),
+  public.authorize_attendance_decommission_advance(uuid, uuid, uuid),
   public.begin_attendance_decommission(uuid, uuid, uuid, text),
   public.record_attendance_decommission_receipt(uuid, uuid, uuid, jsonb),
   public.tick_attendance_decommission(uuid, uuid, uuid)
 from public, anon, authenticated, service_role;
 grant execute on function public.get_attendance_decommission(uuid, uuid, uuid),
+  public.authorize_attendance_decommission_advance(uuid, uuid, uuid),
   public.begin_attendance_decommission(uuid, uuid, uuid, text),
   public.record_attendance_decommission_receipt(uuid, uuid, uuid, jsonb),
   public.tick_attendance_decommission(uuid, uuid, uuid) to service_role;

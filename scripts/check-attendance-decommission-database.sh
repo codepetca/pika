@@ -48,7 +48,8 @@ do $$ declare v_signature text; begin
     'public.begin_attendance_decommission(uuid,uuid,uuid,text)',
     'public.record_attendance_decommission_receipt(uuid,uuid,uuid,jsonb)',
     'public.tick_attendance_decommission(uuid,uuid,uuid)',
-    'public.get_attendance_decommission(uuid,uuid,uuid)'
+    'public.get_attendance_decommission(uuid,uuid,uuid)',
+    'public.authorize_attendance_decommission_advance(uuid,uuid,uuid)'
   ] loop
     if has_function_privilege('anon', v_signature, 'execute') or
        has_function_privilege('authenticated', v_signature, 'execute') or
@@ -69,6 +70,35 @@ select pg_temp.expect_error($q$select public.begin_attendance_decommission(
 select public.begin_attendance_decommission(
  'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
  'd1530000-0000-4000-8000-000000000020','DELETE');
+-- A durable fence is not permission to keep deleting after any gate change.
+do $$ declare v_before jsonb; v_after jsonb; v_mode text; begin
+  v_before := public.get_attendance_decommission('d1530000-0000-4000-8000-000000000001',
+    'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000020');
+  foreach v_mode in array array['disabled', 'teacher', 'classroom', 'installation'] loop
+    update public.attendance_decommission_settings set
+      mode = case when v_mode = 'disabled' then 'disabled' else 'canary' end,
+      canary_teacher_id = case when v_mode = 'teacher' then 'd1530000-0000-4000-8000-000000000002'::uuid
+        else 'd1530000-0000-4000-8000-000000000001'::uuid end,
+      canary_classroom_id = case when v_mode = 'classroom' then 'd1530000-0000-4000-8000-000000000011'::uuid
+        else 'd1530000-0000-4000-8000-000000000010'::uuid end,
+      installation_ref = case when v_mode = 'installation' then 'installation_other' else 'installation_synthetic' end;
+    perform pg_temp.expect_error($q$select public.authorize_attendance_decommission_advance(
+      'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
+      'd1530000-0000-4000-8000-000000000020')$q$,
+      case when v_mode = 'installation' then 'attendance_decommission_installation_mismatch'
+        else 'attendance_decommission_disabled' end);
+    v_after := public.get_attendance_decommission('d1530000-0000-4000-8000-000000000001',
+      'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000020');
+    if v_before is distinct from v_after then raise exception 'Pause changed the durable fence'; end if;
+  end loop;
+end $$;
+update public.attendance_decommission_settings set mode = 'canary', installation_ref = 'installation_synthetic',
+ canary_teacher_id = 'd1530000-0000-4000-8000-000000000001', canary_classroom_id = 'd1530000-0000-4000-8000-000000000010';
+select public.authorize_attendance_decommission_advance(
+ 'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
+ 'd1530000-0000-4000-8000-000000000020');
+select pg_temp.expect_error($q$select public.guard_classroom_purge_lifecycle(
+ 'd1530000-0000-4000-8000-000000000010')$q$, 'attendance_decommission_active');
 select pg_temp.expect_error($q$update public.attendance_roster_mappings set source_revision = source_revision + 1
  where classroom_id = 'd1530000-0000-4000-8000-000000000010'$q$, 'attendance_decommission_active');
 select pg_temp.expect_error($q$select public.tick_attendance_decommission(

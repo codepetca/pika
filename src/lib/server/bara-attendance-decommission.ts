@@ -16,6 +16,7 @@ const operationSchema = z.object({
 type Operation = z.infer<typeof operationSchema>
 type Scope = { teacherId: string; classroomId: string; operationId: string }
 type RpcName = 'begin_attendance_decommission' | 'get_attendance_decommission' |
+  'authorize_attendance_decommission_advance' |
   'record_attendance_decommission_receipt' | 'tick_attendance_decommission'
 
 // Explicit schema-153 compatibility boundary. A missing RPC fails closed;
@@ -66,7 +67,7 @@ export async function getAttendanceDecommission(scope: Scope) {
 
 export async function tickAttendanceDecommission(scope: Scope) {
   gate()
-  let op = await call(scope, 'get_attendance_decommission')
+  let op = await call(scope, 'authorize_attendance_decommission_advance')
   if (op.state === 'local_deleted') return status(op)
   if (op.state === 'fenced') {
     const request = { schema_version: 1 as const, message_type: 'roster.decommission' as const,
@@ -74,7 +75,11 @@ export async function tickAttendanceDecommission(scope: Scope) {
       operation_ref: op.operation_ref, actor_principal_ref: op.actor_principal_ref }
     // A lost begin response is reconciled by the same operation reference.
     let receipt = await postBaraDecommission({ ...request, action: 'begin' })
-    if (receipt.state === 'deleting') receipt = await postBaraDecommission({ ...request, action: 'tick' })
+    if (receipt.state === 'deleting') {
+      // The DB gate may have been paused or re-scoped during the begin request.
+      await call(scope, 'authorize_attendance_decommission_advance')
+      receipt = await postBaraDecommission({ ...request, action: 'tick' })
+    }
     if (!parseDecommissionReceipt(receipt, request)) throw new ApiError(503, 'Unverified remote deletion')
     if (receipt.state !== 'deleted') return status(op)
     op = await call(scope, 'record_attendance_decommission_receipt', { p_receipt: receipt })

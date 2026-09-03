@@ -56,7 +56,9 @@ by live-table verification.
   `PIKA_DECOMMISSION_CANARY_ROSTER_REF`. Only enable after Pika's DB fence is
   installed and verified. `enabled` means all otherwise-authorized rosters.
 - Disabling a rollout gate pauses further deletion but never removes an existing
-  fence. Retry the same operation. There is no unfence/undo operation after
+  fence. Each remote request requires fresh database authorization, including
+  the installation binding; pausing cannot recall an already-authorized request
+  in flight. Retry the same operation. There is no unfence/undo operation after
   destructive intent begins; do not clear tombstones manually.
 - There is no new schedule. Each explicit tick does bounded work. Deletion adds
   no network round trip to ordinary attendance; active fences add indexed reads

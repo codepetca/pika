@@ -39,7 +39,7 @@ describe('coordinated attendance deletion ordering', () => {
     expect(mock.rpc).toHaveBeenCalledTimes(1)
     mock.remote.mockResolvedValue({ ...receipt, state: 'deleting', absence_verified: false })
     expect(await tickAttendanceDecommission(scope)).toMatchObject({ state: 'fenced' })
-    expect(mock.rpc.mock.calls.every(([name]) => name === 'get_attendance_decommission')).toBe(true)
+    expect(mock.rpc.mock.calls.every(([name]) => name === 'authorize_attendance_decommission_advance')).toBe(true)
     expect(mock.remote.mock.calls.at(-1)?.[0]).toMatchObject({ action: 'tick', operation_ref: operation.operation_ref })
   })
   it('records a bound verified receipt before any local deletion', async () => {
@@ -49,7 +49,7 @@ describe('coordinated attendance deletion ordering', () => {
       .mockResolvedValueOnce({ data: { ...operation, state: 'local_deleted' }, error: null })
     expect(await tickAttendanceDecommission(scope)).toMatchObject({ attendance_removed: true, classroom_deleted: false })
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'get_attendance_decommission', 'record_attendance_decommission_receipt', 'tick_attendance_decommission',
+      'authorize_attendance_decommission_advance', 'record_attendance_decommission_receipt', 'tick_attendance_decommission',
     ])
   })
   it('rejects a wrong operation receipt before local deletion', async () => {
@@ -61,12 +61,35 @@ describe('coordinated attendance deletion ordering', () => {
     mock.rpc.mockResolvedValue({ data: { ...operation, state: 'remote_deleted' }, error: null })
     await tickAttendanceDecommission(scope)
     expect(mock.remote).not.toHaveBeenCalled()
-    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual(['get_attendance_decommission', 'tick_attendance_decommission'])
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual(['authorize_attendance_decommission_advance', 'tick_attendance_decommission'])
   })
   it('does not repeat deletion after local completion', async () => {
     mock.rpc.mockResolvedValue({ data: { ...operation, state: 'local_deleted' }, error: null })
     await tickAttendanceDecommission(scope)
     expect(mock.rpc).toHaveBeenCalledTimes(1)
     expect(mock.remote).not.toHaveBeenCalled()
+  })
+  it.each(['disabled', 'canary scope changed', 'installation changed'])(
+    'does not contact Bara when the DB gate is %s after begin', async () => {
+      await beginAttendanceDecommission({ ...scope, confirmation: 'DELETE' })
+      mock.rpc.mockResolvedValue({ data: null, error: { code: '55000' } })
+      await expect(tickAttendanceDecommission(scope)).rejects.toThrow('safety fence is preserved')
+      expect(mock.remote).not.toHaveBeenCalled()
+      expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+        'begin_attendance_decommission', 'authorize_attendance_decommission_advance',
+      ])
+    },
+  )
+  it('rechecks DB authorization between the remote begin and tick', async () => {
+    mock.remote.mockImplementationOnce(async () => {
+      mock.rpc.mockResolvedValue({ data: null, error: { code: '55000' } })
+      return { ...receipt, state: 'deleting', absence_verified: false }
+    })
+    await expect(tickAttendanceDecommission(scope)).rejects.toThrow('safety fence is preserved')
+    expect(mock.remote).toHaveBeenCalledTimes(1)
+    expect(mock.remote).toHaveBeenCalledWith(expect.objectContaining({ action: 'begin' }))
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'authorize_attendance_decommission_advance', 'authorize_attendance_decommission_advance',
+    ])
   })
 })
