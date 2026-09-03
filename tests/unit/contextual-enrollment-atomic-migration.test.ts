@@ -36,6 +36,7 @@ describe('atomic contextual classroom enrollment migration', () => {
     expect(sql).toContain("v_invitation_max_attempts constant integer := 3")
     expect(sql).toContain('create index classroom_join_rate_limits_updated_at_idx')
     expect(sql).toContain('create function public.cleanup_classroom_join_rate_limits_v1')
+    expect(sql).toContain('p_batch_size is null or p_batch_size not between 1 and 10000')
     expect(sql).toContain('for update skip locked')
     expect(sql).not.toContain('jsonb_object_length')
     expect(sql.indexOf("values ('actor', p_actor_key_hash, v_now)")).toBeLessThan(
