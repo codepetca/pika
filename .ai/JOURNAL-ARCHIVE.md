@@ -30561,6 +30561,7 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 
 <!-- pika-session-log-archive-batch:ac8b4b080889b0263038e1df4b33838b6733f03f1d9ae698a4f3bf8e5477e058 -->
 <!-- pika-session-log-archive-batch:e055a2f8e412a4e9de294fe72ef78e5bd5746337e365a972d4c9441b0512f4d9 -->
+<!-- pika-session-log-archive-batch:aa249ea39cef3cb2df0721f103f55f8ec2cf794c1adfa084301d922fc4e50c68 -->
 ## 2026-09-01 — Prototype streamlined Daily attendance controls
 
 - Refined only the API-free teacher Daily Pattern Lab fixture. Joined an icon-only, tooltip-backed QR action with the attendance time to its right; the control matches the date selector height. QR remains available when attendance is closed; the clickable time area uses a subtle semantic green open state and a neutral closed state. It opens a local time editor, collapses to the clock icon when cleared, and is also reachable through Edit time in More actions. Moved open/close attendance and the renamed Edit attendance dialog into More actions, and removed row checkboxes plus the selected-student action menu.
@@ -30571,7 +30572,6 @@ Updated the teacher Daily attendance-hours action so configured hours reuse the 
 - Extended the QR check-in Attendance time dialog with a collapsed Advanced disclosure that reuses the production timing-rule labels and cutoff explanation. Defaults are QR open 10 minutes before, Present grace 5 minutes, QR close 0 minutes before end, Absent 0 minutes before end, Same class day, and automatic open/close enabled. Session end day is a two-option segmented toggle. Manual attendance keeps the simple time-only dialog. Browser coverage verifies expanded and simple dialogs at teacher desktop/mobile in light/dark; student is unchanged.
 - Superseded the disclosure treatment: QR timing rules are always visible, the cutoff paragraph is removed, and the grace label is `Grace period before late (min)`. Same class day and Next day expose `Class end on the same day` and `Class ends the next day after midnight` tooltips, respectively. The checkbox now reads `Open and close QR attendance automatically`. Manual attendance remains time-only.
 - Hard-clamped timing inputs: QR opens before start accepts 0–120 minutes; grace before late, QR closes before end, and Absent before end accept 0–the calculated session duration. That duration updates from the draft start/end time and Same class day / Next day choice, and existing values are clamped again whenever the duration shrinks.
-
 ## 2026-09-01 — Adopted the approved Daily attendance design in production Pika
 
 - Replaced the real teacher Daily selection/bulk-action layout with the approved compact far-right Present/Late/Absent columns and conditional `Undo manual change` action. Open/close attendance, Edit time, and class-wide Edit attendance now live in More actions; the centered QR/time control matches the date selector, QR is disabled unless the authoritative session is confirmed open, and log completion circles are gone.
