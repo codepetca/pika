@@ -1,6 +1,8 @@
 # Contextual enrollment access foundation
 
-Status: dormant foundation; no live imports, schema changes, rollout or new access.
+Status: dormant foundation; no live imports, rollout or new access. Migration 157 was
+applied to local Pika only on 2026-09-03 under one-time exact permission and passed its
+database contracts. Hosted application remains unapproved.
 This is the first bounded part of compatibility batch C in the
 [classroom access roadmap](classroom-access-and-entitlements-roadmap.md).
 It does not complete phase 2 or authorize the Owned/Joined home.
@@ -27,6 +29,17 @@ This slice adds two contracts with no production adopters:
   server-trusted evidence. It rejects malformed evidence, archived classrooms, owner
   self-join, direct-ID admission, closed enrollment, roster mismatch and incomplete
   open-join profiles. Existing active membership is idempotent and grants no new access.
+- Migration 157 adds a service-only atomic join RPC and a private schema-backed guess
+  limiter. The transaction locks and revalidates the exact expected classroom plus code,
+  rejects owner self-join and archive/policy changes, and commits roster, stable roster
+  binding, enrollment, profile and optional Pal outbox evidence together. No browser role
+  can execute the RPC or read limiter state.
+- `contextual-classroom-enrollment.ts` is a dormant server adapter. It normalizes the code,
+  HMACs an actor budget and an actor-plus-invitation budget with `SESSION_SECRET`, calls
+  only the service RPC, builds a validated pseudonymous classroom-joined event when Pal is
+  enabled, and fails unavailable on schema or response drift. Scoping the
+  invitation budget to the actor prevents one attacker from exhausting a valid classroom's
+  budget for everyone else.
 
 The cohort contains UUIDs only. Never put emails, class codes, titles or other personal
 or classroom content in configuration or logs. Canonical UUID matching prevents alias
@@ -38,8 +51,8 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 
 1. Authenticate the server session before reading a code or classroom.
 2. Keep student-role users on the legacy path. Reject a wrong-role user with no configured
-   pair before reading the request body or looking up a code, then rate-limit both the
-   authenticated actor and invitation guesses.
+   pair before reading the request body or looking up a code, then use the migration 157
+   transaction to rate-limit both the authenticated actor and actor-invitation guesses.
 3. For a contextual candidate, resolve a normalized verified code only in a query scoped
    to the authenticated result's `allowedClassroomIds`; a valid code outside that exact
    scope must be indistinguishable from an invalid code. Carry the server-resolved
@@ -48,7 +61,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 4. Load exact classroom, relationship and roster/profile evidence on the server.
 5. Evaluate the pure policy. Never accept request-asserted relationship, owner, roster,
    profile, lifecycle or plan data.
-6. For a new membership, use one database transaction that locks and revalidates the
+6. For a new membership, use the migration 157 transaction that locks and revalidates the
    classroom, owner, archive state, enrollment toggle, join policy, invitation, roster
    and existing enrollment; then writes roster/binding, enrollment, profile and any
    transactional outbox fact together. Duplicate concurrent joins must return one
@@ -69,6 +82,31 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 - Guess-limit availability, disable procedure, compatible application floor and mixed-role
   canaries are rehearsed before a real cohort. The controlling flag remains unset.
 
+## Migration 157 operational boundary
+
+- The provisional fixed window is 10 minutes: 12 attempts per actor and 3 attempts for
+  the same actor plus normalized invitation. These values are database-owned so a caller
+  cannot weaken them. The actor budget is consumed before an invitation row is created;
+  blocked actors therefore cannot grow the table by rotating guesses. Downstream join
+  failures roll back membership effects but preserve the charged attempt. Revisit limits
+  with production telemetry before a pilot.
+- Stale limiter cleanup is a separate bounded, service-only function with an indexed age
+  scan and `SKIP LOCKED`; it is deliberately off the join request path. A scheduled cleanup
+  owner and health signal are required before live adoption.
+- A classroom roster may seed a missing global student profile, but cannot overwrite an
+  established profile from another classroom. Any future profile-editing authority or
+  classroom-scoped identity model is a separate product and data-contract decision.
+- `check-contextual-enrollment-database.sh` is local-only and rollback-only. It proves
+  service/browser privileges, mixed-role admission, owner/archive/closed/code denials,
+  idempotency, least-data output, complete lineage/profile/Pal writes and forced-failure
+  rollback. It never applies the migration.
+- `check-contextual-enrollment-concurrency.mjs` creates randomized synthetic fixtures,
+  proves duplicate serialization, archive/ownership/enrollment-toggle ordering, join-first
+  linearization and the exact concurrent guess budget, then removes its fixtures. It never
+  applies the migration or reads hosted credentials.
+- Local migration application and generated-type verification do not authorize a cohort,
+  route adoption, hosted application or deployment; each remains a distinct gate.
+
 ## Verification
 
 Focused unit coverage validates disabled legacy identity, authentication failure, malformed
@@ -77,6 +115,6 @@ immutable exact pair-scoped lookup, canonical UUIDs, empty/noncohort behavior an
 cross-product. Policy coverage validates every admission/denial state and fails closed on
 malformed, cross-class invitation or internally inconsistent relationship evidence.
 
-No database migration is introduced or applied by this slice. No API route imports either
-module. Production login, signup, join, roster, classroom lists, navigation, entitlements,
-Pal delivery and the development-only home reference remain unchanged.
+No API route imports the adapter or calls the RPC. Production login, signup, join, roster,
+classroom lists, navigation, entitlements, Pal delivery and the development-only home
+reference remain unchanged. Local verification does not authorize hosted application.

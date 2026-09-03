@@ -3283,6 +3283,27 @@ export type Database = {
           },
         ]
       }
+      classroom_join_rate_limits: {
+        Row: {
+          attempt_timestamps: string[]
+          key_hash: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_timestamps?: string[]
+          key_hash: string
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_timestamps?: string[]
+          key_hash?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       classroom_purge_fences: {
         Row: {
           classroom_id: string
@@ -8529,6 +8550,10 @@ export type Database = {
         Args: { p_completed_before: string }
         Returns: number
       }
+      cleanup_classroom_join_rate_limits_v1: {
+        Args: { p_batch_size?: number }
+        Returns: number
+      }
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
         Returns: number
@@ -9598,6 +9623,20 @@ export type Database = {
           p_workos_user_id: string
         }
         Returns: boolean
+      }
+      join_classroom_by_code_atomic_v1: {
+        Args: {
+          p_actor_id: string
+          p_actor_key_hash: string
+          p_class_code: string
+          p_expected_classroom_id: string
+          p_first_name?: string
+          p_invitation_key_hash: string
+          p_last_name?: string
+          p_pal_event?: Json
+          p_student_number?: string
+        }
+        Returns: Json
       }
       list_attendance_reconciliation_targets_v1: {
         Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }

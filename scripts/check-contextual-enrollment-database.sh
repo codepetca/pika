@@ -1,0 +1,321 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Local-only, rollback-only behavioral fixture. It never applies migrations and
+# leaves no durable rows. Run only after separately authorized migration 157.
+JOIN_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
+if [[ "$JOIN_DB_CONTAINER" != 'supabase_db_pika' ]]; then
+  echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
+  exit 1
+fi
+
+docker exec -i "$JOIN_DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 <<'SQL'
+begin;
+set local lock_timeout = '3s';
+set local statement_timeout = '20s';
+
+do $check$
+declare
+  v_signature text := 'public.join_classroom_by_code_atomic_v1(uuid,uuid,text,text,text,text,text,text,jsonb)';
+  v_security_definer boolean;
+  v_config text[];
+  v_owner text;
+begin
+  if to_regclass('public.classroom_join_rate_limits') is null
+    or to_regprocedure(v_signature) is null
+    or to_regprocedure('public.cleanup_classroom_join_rate_limits_v1(integer)') is null then
+    raise exception 'Migration 157 is required; this harness never applies it';
+  end if;
+  if has_table_privilege('anon', 'public.classroom_join_rate_limits', 'select')
+    or has_table_privilege('authenticated', 'public.classroom_join_rate_limits', 'select')
+    or has_table_privilege('service_role', 'public.classroom_join_rate_limits', 'select')
+    or has_function_privilege('anon', v_signature, 'execute')
+    or has_function_privilege('authenticated', v_signature, 'execute')
+    or not has_function_privilege('service_role', v_signature, 'execute')
+    or has_function_privilege('anon', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
+    or has_function_privilege('authenticated', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
+    or not has_function_privilege('service_role', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute') then
+    raise exception 'Contextual enrollment privileges are incorrect';
+  end if;
+  select procedure.prosecdef, procedure.proconfig, owner.rolname
+  into strict v_security_definer, v_config, v_owner
+  from pg_proc procedure
+  join pg_namespace namespace on namespace.oid = procedure.pronamespace
+  join pg_roles owner on owner.oid = procedure.proowner
+  where namespace.nspname = 'public'
+    and procedure.oid = to_regprocedure(v_signature);
+  if not v_security_definer
+    or not (v_config @> array['search_path=""']::text[])
+    or v_owner <> 'postgres' then
+    raise exception 'Contextual enrollment function security metadata is incorrect';
+  end if;
+end;
+$check$;
+
+insert into public.users (id, email, role) values
+  ('c1550000-0000-4000-8000-000000000001', 'mixed-actor@example.invalid', 'teacher'),
+  ('c1550000-0000-4000-8000-000000000002', 'class-owner@example.invalid', 'teacher'),
+  ('c1550000-0000-4000-8000-000000000003', 'other-actor@example.invalid', 'student');
+
+insert into public.classrooms (
+  id, teacher_id, title, class_code, allow_enrollment, join_policy, archived_at
+) values
+  ('c1550000-0000-4000-8000-000000000010', 'c1550000-0000-4000-8000-000000000002', 'Open join', 'C155OPEN', true, 'open_join', null),
+  ('c1550000-0000-4000-8000-000000000011', 'c1550000-0000-4000-8000-000000000002', 'Roster join', 'C155ROSTER', true, 'roster', null),
+  ('c1550000-0000-4000-8000-000000000012', 'c1550000-0000-4000-8000-000000000002', 'Closed join', 'C155CLOSED', false, 'open_join', null),
+  ('c1550000-0000-4000-8000-000000000013', 'c1550000-0000-4000-8000-000000000002', 'Archived join', 'C155ARCH', true, 'open_join', clock_timestamp()),
+  ('c1550000-0000-4000-8000-000000000014', 'c1550000-0000-4000-8000-000000000001', 'Owned join', 'C155OWN', true, 'open_join', null),
+  ('c1550000-0000-4000-8000-000000000015', 'c1550000-0000-4000-8000-000000000002', 'Rollback join', 'C155ROLL', true, 'open_join', null),
+  ('c1550000-0000-4000-8000-000000000016', 'c1550000-0000-4000-8000-000000000002', 'Pal collision join', 'C155PAL', true, 'open_join', null);
+
+insert into public.classroom_roster (
+  classroom_id, email, student_number, first_name, last_name, join_source
+) values (
+  'c1550000-0000-4000-8000-000000000011',
+  'mixed-actor@example.invalid',
+  'S155',
+  'Mixed',
+  'Actor',
+  'manual'
+);
+
+insert into public.classroom_join_rate_limits (scope, key_hash, updated_at) values
+  ('actor', repeat('6', 64), clock_timestamp() - interval '2 days'),
+  ('invitation', repeat('7', 64), clock_timestamp() - interval '2 days'),
+  ('invitation', repeat('8', 64), clock_timestamp() - interval '2 days');
+
+set local role service_role;
+do $behavior$
+declare
+  v_actor constant uuid := 'c1550000-0000-4000-8000-000000000001';
+  v_open constant uuid := 'c1550000-0000-4000-8000-000000000010';
+  v_roster_class constant uuid := 'c1550000-0000-4000-8000-000000000011';
+  v_result jsonb;
+  v_roster_id uuid;
+  v_enrollment_id uuid;
+  v_event jsonb := jsonb_build_object(
+    'schema_version', 1,
+    'idempotency_key', 'pika:v1:pika-fact-' || repeat('a', 43),
+    'event_type', 'classroom.joined',
+    'learner_id', 'pika-learner-' || repeat('b', 43),
+    'occurred_at', '2026-09-03T12:00:00.000Z',
+    'metadata', jsonb_build_object(
+      'classroom_token', 'pika-classroom-' || repeat('c', 43)
+    )
+  );
+begin
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(null);
+    raise exception 'Expected null cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(0);
+    raise exception 'Expected zero cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.cleanup_classroom_join_rate_limits_v1(10001);
+    raise exception 'Expected oversized cleanup batch denial';
+  exception when invalid_parameter_value then null;
+  end;
+  if public.cleanup_classroom_join_rate_limits_v1(1) <> 1
+    or public.cleanup_classroom_join_rate_limits_v1(10) <> 2 then
+    raise exception 'Bounded stale limiter cleanup exceeded or missed its requested batch';
+  end if;
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_open, ' c155open ', repeat('a', 64), repeat('b', 64),
+    ' Mixed ', ' Actor ', ' S-155 ', v_event
+  );
+  if not (v_result->>'ok')::boolean or not (v_result->>'created')::boolean
+    or (v_result->>'status')::integer <> 201
+    or v_result->'classroom' ? 'class_code'
+    or v_result->'classroom' ? 'teacher_id' then
+    raise exception 'Open join did not return the expected least-data creation result: %', v_result;
+  end if;
+
+  select id into v_roster_id from public.classroom_roster
+  where classroom_id = v_open and email = 'mixed-actor@example.invalid';
+  select id into v_enrollment_id from public.classroom_enrollments
+  where classroom_id = v_open and student_id = v_actor;
+  if v_roster_id is null or v_enrollment_id is null
+    or not exists (
+      select 1 from public.classroom_roster_student_bindings
+      where roster_id = v_roster_id and classroom_id = v_open and student_id = v_actor
+    )
+    or not exists (
+      select 1 from public.student_profiles
+      where user_id = v_actor and first_name = 'Mixed' and last_name = 'Actor' and student_number = 'S-155'
+    )
+    or not exists (
+      select 1 from public.pal_event_outbox
+      where student_id = v_actor and source_kind = 'classroom_enrollment'
+        and source_id = v_open::text and payload = v_event
+    ) then
+    raise exception 'Open join did not commit all membership effects';
+  end if;
+
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_open, 'C155OPEN', repeat('a', 64), repeat('b', 64),
+    null, null, null, v_event
+  );
+  if not (v_result->>'ok')::boolean or (v_result->>'created')::boolean
+    or (select count(*) from public.classroom_enrollments where classroom_id = v_open and student_id = v_actor) <> 1
+    or (select count(*) from public.pal_event_outbox where idempotency_key = 'pika:v1:pika-fact-' || repeat('a', 43)) <> 1 then
+    raise exception 'Duplicate join was not idempotent: %', v_result;
+  end if;
+
+  delete from public.classroom_enrollments
+  where classroom_id = v_open and student_id = v_actor;
+  delete from public.classroom_roster
+  where classroom_id = v_open and email = 'mixed-actor@example.invalid';
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_open, 'C155OPEN', repeat('a', 64), repeat('b', 64),
+    'Mixed', 'Actor', 'S-155',
+    jsonb_set(v_event, '{occurred_at}', to_jsonb('2026-09-03T12:01:00.000Z'::text))
+  );
+  if not (v_result->>'ok')::boolean or not (v_result->>'created')::boolean
+    or (select count(*) from public.classroom_enrollments where classroom_id = v_open and student_id = v_actor) <> 1
+    or (select count(*) from public.pal_event_outbox where idempotency_key = 'pika:v1:pika-fact-' || repeat('a', 43)) <> 1 then
+    raise exception 'Legitimate Pal rejoin did not reuse same-source evidence: %', v_result;
+  end if;
+
+  -- A teacher-valued account can join a different classroom through roster evidence.
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_roster_class, 'C155ROSTER', repeat('a', 64), repeat('c', 64),
+    null, null, null, null
+  );
+  if not (v_result->>'ok')::boolean or not (v_result->>'created')::boolean
+    or not exists (
+      select 1 from public.classroom_roster_student_bindings binding
+      join public.classroom_roster roster on roster.id = binding.roster_id
+      where roster.classroom_id = v_roster_class and binding.student_id = v_actor
+    ) or not exists (
+      select 1 from public.student_profiles
+      where user_id = v_actor and student_number = 'S-155'
+    ) then
+    raise exception 'Contextual roster join failed or rewrote established global profile: %', v_result;
+  end if;
+
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, 'c1550000-0000-4000-8000-000000000012', 'C155CLOSED',
+    repeat('a', 64), repeat('d', 64), 'Mixed', 'Actor', null, null
+  );
+  if v_result->>'error_code' <> 'enrollment_closed' then raise exception 'Closed enrollment was admitted'; end if;
+
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, 'c1550000-0000-4000-8000-000000000013', 'C155ARCH',
+    repeat('a', 64), repeat('e', 64), 'Mixed', 'Actor', null, null
+  );
+  if v_result->>'error_code' <> 'classroom_not_found' then raise exception 'Archived classroom was revealed'; end if;
+
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, v_open, 'WRONG', repeat('a', 64), repeat('f', 64), null, null, null, null
+  );
+  if v_result->>'error_code' <> 'classroom_not_found' then raise exception 'Wrong code was distinguishable'; end if;
+
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, 'c1550000-0000-4000-8000-000000000014', 'C155OWN',
+    repeat('a', 64), repeat('1', 64), 'Mixed', 'Actor', null, null
+  );
+  if v_result->>'error_code' <> 'owner_self_join' then raise exception 'Owner self-join was admitted'; end if;
+
+  begin
+    perform public.join_classroom_by_code_atomic_v1(
+      v_actor, 'c1550000-0000-4000-8000-000000000016', 'C155PAL',
+      repeat('a', 64), repeat('5', 64), 'Mixed', 'Actor', null,
+      v_event || jsonb_build_object('schema_version', '1')
+    );
+    raise exception 'Expected invalid Pal envelope denial';
+  exception when invalid_parameter_value then null;
+  end;
+  if exists (
+    select 1 from public.classroom_enrollments
+    where classroom_id = 'c1550000-0000-4000-8000-000000000016'
+  ) then
+    raise exception 'Invalid Pal envelope created a membership';
+  end if;
+
+  -- Reusing a Pal idempotency key for another source must roll the new join
+  -- back rather than attaching spoofed or cross-class evidence.
+  v_result := public.join_classroom_by_code_atomic_v1(
+    v_actor, 'c1550000-0000-4000-8000-000000000016', 'C155PAL',
+    repeat('a', 64), repeat('4', 64), 'Mixed', 'Actor', null, v_event
+  );
+  if v_result->>'error_code' <> 'join_failed'
+    or exists (
+      select 1 from public.classroom_enrollments
+      where classroom_id = 'c1550000-0000-4000-8000-000000000016'
+    ) or exists (
+      select 1 from public.classroom_roster
+      where classroom_id = 'c1550000-0000-4000-8000-000000000016'
+    ) then
+    raise exception 'Pal evidence collision did not roll back the join: %', v_result;
+  end if;
+end;
+$behavior$;
+reset role;
+
+-- Fail after roster and enrollment writes; the caught subtransaction must roll
+-- every membership effect back together.
+create function pg_temp.fail_c155_profile() returns trigger language plpgsql as $trigger$
+begin
+  if new.user_id = 'c1550000-0000-4000-8000-000000000003'::uuid then
+    raise exception using errcode = '23514', message = 'forced contextual join profile failure';
+  end if;
+  return new;
+end;
+$trigger$;
+create trigger c155_profile_failure before insert or update on public.student_profiles
+for each row execute function pg_temp.fail_c155_profile();
+
+set local role service_role;
+do $rollback_test$
+declare
+  v_result jsonb;
+begin
+  v_result := public.join_classroom_by_code_atomic_v1(
+    'c1550000-0000-4000-8000-000000000003',
+    'c1550000-0000-4000-8000-000000000015',
+    'C155ROLL', repeat('2', 64), repeat('3', 64),
+    'Other', 'Actor', null, null
+  );
+  if v_result->>'error_code' <> 'join_failed' then
+    raise exception 'Expected sanitized failed-join result: %', v_result;
+  end if;
+
+  if exists (
+      select 1 from public.classroom_enrollments
+      where classroom_id = 'c1550000-0000-4000-8000-000000000015'
+    ) or exists (
+      select 1 from public.classroom_roster
+      where classroom_id = 'c1550000-0000-4000-8000-000000000015'
+    ) or exists (
+      select 1 from public.classroom_roster_student_bindings
+      where classroom_id = 'c1550000-0000-4000-8000-000000000015'
+    ) or exists (
+      select 1 from public.student_profiles
+      where user_id = 'c1550000-0000-4000-8000-000000000003'
+    ) then
+    raise exception 'Failed contextual join left a partial write';
+  end if;
+end;
+$rollback_test$;
+reset role;
+
+do $limiter_survives$
+begin
+  if not exists (
+    select 1 from public.classroom_join_rate_limits
+    where scope = 'actor' and key_hash = repeat('2', 64)
+      and cardinality(attempt_timestamps) = 1
+  ) then
+    raise exception 'Downstream rollback also erased the charged actor attempt';
+  end if;
+end;
+$limiter_survives$;
+
+rollback;
+SQL
+
+echo 'Contextual enrollment authorization, atomicity, idempotency, privacy, and privilege contracts passed.'
