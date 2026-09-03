@@ -1,9 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileArchive, Users } from 'lucide-react'
 import { Button, ContentDialog, FormField, Input } from '@/ui'
 import { fetchJSON } from '@/lib/request-cache'
+import { attendanceDecommissionOperationId } from '@/lib/attendance-decommission-operation-id'
+import {
+  ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE,
+  attendanceDecommissionStatusSchema,
+  type AttendanceDecommissionStatus,
+} from '@/lib/validations/attendance-decommission'
 import type {
   ClassroomPurgeImpact,
   ClassroomPurgeStatus,
@@ -24,6 +30,11 @@ type PurgeResponse = {
   error?: string
 }
 
+type AttendanceResponse = {
+  operation?: unknown
+  error?: string
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`
@@ -38,14 +49,21 @@ export function ClassroomPurgeDialog({
   onCompleted,
 }: Props) {
   const mountedRef = useRef(true)
+  const loadGenerationRef = useRef(0)
+  const purgeOperationIdRef = useRef<string | null>(null)
   const [impact, setImpact] = useState<ClassroomPurgeImpact | null>(null)
   const [operation, setOperation] = useState<ClassroomPurgeStatus | null>(null)
+  const [attendanceOperation, setAttendanceOperation] =
+    useState<AttendanceDecommissionStatus | null>(null)
   const [confirmation, setConfirmation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
   const [error, setError] = useState('')
 
   const isConfirmed = confirmation === 'DELETE' || confirmation === classroomTitle
+  const deletionStarted = Boolean(attendanceOperation || operation)
+  const requiresPurgeConfirmation = !operation
+    && (!attendanceOperation || attendanceOperation.attendance_removed)
   const totalFiles = useMemo(
     () => operation
       ? Object.values(operation.storage_object_counts).reduce((total, count) => total + count, 0)
@@ -59,27 +77,102 @@ export function ClassroomPurgeDialog({
     return () => { mountedRef.current = false }
   }, [])
 
-  useEffect(() => {
-    if (!isOpen) return
-    setConfirmation('')
-    setError('')
-    setIsLoading(true)
-    fetchJSON<PurgeResponse>(`/api/teacher/classrooms/${classroomId}/purge`, {
+  const fetchPurgeSnapshot = useCallback(async (): Promise<PurgeResponse> => {
+    return fetchJSON<PurgeResponse>(`/api/teacher/classrooms/${classroomId}/purge`, {
       init: { cache: 'no-store' },
       errorMessage: 'Could not prepare permanent deletion',
     })
-      .then((body) => {
+  }, [classroomId])
+
+  const readAttendanceStatus = useCallback(async (): Promise<AttendanceDecommissionStatus | null> => {
+    const operationId = await attendanceDecommissionOperationId(classroomId)
+    const response = await fetch(
+      `/api/teacher/classrooms/${classroomId}/attendance-decommission/${operationId}`,
+      { cache: 'no-store' },
+    )
+    const body = await response.json().catch(() => ({})) as AttendanceResponse
+    if (response.status === 404 || (response.ok && !body.operation)) return null
+    if (!response.ok) throw new Error(body.error || 'Could not read attendance deletion progress')
+    return attendanceDecommissionStatusSchema.parse(body.operation)
+  }, [classroomId])
+
+  useEffect(() => {
+    if (!isOpen) {
+      loadGenerationRef.current += 1
+      return
+    }
+    const generation = loadGenerationRef.current + 1
+    loadGenerationRef.current = generation
+    setConfirmation('')
+    setError('')
+    setImpact(null)
+    setOperation(null)
+    setAttendanceOperation(null)
+    purgeOperationIdRef.current = null
+    setIsLoading(true)
+    Promise.all([
+      fetchPurgeSnapshot(),
+      readAttendanceStatus().catch(() => null),
+    ])
+      .then(([body, attendance]) => {
         if (!body.impact) throw new Error(body.error || 'Could not prepare permanent deletion')
-        if (!mountedRef.current) return
+        if (!mountedRef.current || loadGenerationRef.current !== generation) return
         setImpact(body.impact)
         setOperation(body.operation || null)
+        setAttendanceOperation(attendance)
+        if (body.operation) purgeOperationIdRef.current = body.operation.operation_id
       })
       .catch((reason: unknown) => {
-        if (!mountedRef.current) return
+        if (!mountedRef.current || loadGenerationRef.current !== generation) return
         setError(reason instanceof Error ? reason.message : 'Could not prepare permanent deletion')
       })
-      .finally(() => { if (mountedRef.current) setIsLoading(false) })
-  }, [classroomId, isOpen])
+      .finally(() => {
+        if (mountedRef.current && loadGenerationRef.current === generation) setIsLoading(false)
+      })
+  }, [fetchPurgeSnapshot, isOpen, readAttendanceStatus])
+
+  async function beginOrResumeAttendance(): Promise<AttendanceDecommissionStatus> {
+    const existing = await readAttendanceStatus()
+    if (existing) return existing
+
+    const operationId = await attendanceDecommissionOperationId(classroomId)
+    try {
+      const response = await fetch(
+        `/api/teacher/classrooms/${classroomId}/attendance-decommission`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operation_id: operationId, confirmation }),
+        },
+      )
+      const body = await response.json().catch(() => ({})) as AttendanceResponse
+      if (!response.ok) throw new Error(body.error || 'Could not start linked attendance deletion')
+      return attendanceDecommissionStatusSchema.parse(body.operation)
+    } catch (reason) {
+      const recovered = await readAttendanceStatus().catch(() => null)
+      if (recovered) return recovered
+      throw reason
+    }
+  }
+
+  async function runAttendanceUntilSettled(initial: AttendanceDecommissionStatus) {
+    let current = initial
+    setAttendanceOperation(current)
+    for (let tick = 0; tick < 10_000 && mountedRef.current; tick += 1) {
+      if (current.attendance_removed) return current
+      const response = await fetch(
+        `/api/teacher/classrooms/${classroomId}/attendance-decommission/${current.operation_id}`,
+        { method: 'POST' },
+      )
+      const body = await response.json().catch(() => ({})) as AttendanceResponse
+      if (!response.ok) {
+        throw new Error(body.error || 'Linked attendance deletion paused before it could finish')
+      }
+      current = attendanceDecommissionStatusSchema.parse(body.operation)
+      if (mountedRef.current) setAttendanceOperation(current)
+    }
+    throw new Error('Linked attendance deletion is still in progress. Select Continue deletion to resume.')
+  }
 
   async function runUntilSettled(initial: ClassroomPurgeStatus) {
     let current = initial
@@ -112,30 +205,80 @@ export function ClassroomPurgeDialog({
     throw new Error('Permanent deletion is still in progress. Select Continue deletion to resume.')
   }
 
+  async function startPurge(currentImpact: ClassroomPurgeImpact) {
+    const operationId = purgeOperationIdRef.current || crypto.randomUUID()
+    purgeOperationIdRef.current = operationId
+    let current: ClassroomPurgeStatus | null = null
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroomId}/purge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operation_id: operationId,
+          confirmation,
+          expected_source_revision: currentImpact.source_revision,
+          expected_storage_inventory_sha256: currentImpact.storage_inventory_sha256,
+          expected_operational_inventory_sha256: currentImpact.operational_inventory_sha256,
+        }),
+      })
+      const body = await response.json().catch(() => ({})) as PurgeResponse
+      if (!response.ok || !body.operation) {
+        if (body.error === ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE) {
+          return { attendanceRequired: true as const }
+        }
+        throw new Error(body.error || 'Could not start permanent deletion')
+      }
+      current = body.operation
+    } catch (reason) {
+      current = await fetch(
+        `/api/teacher/classrooms/${classroomId}/purge/${operationId}`,
+        { cache: 'no-store' },
+      ).then(async (response) => {
+        const body = await response.json().catch(() => ({})) as PurgeResponse
+        return response.ok && body.operation ? body.operation : null
+      }).catch(() => null)
+      if (!current) throw reason
+    }
+    setOperation(current)
+    await runUntilSettled(current)
+    return { attendanceRequired: false as const }
+  }
+
   async function startOrContinue() {
     setIsWorking(true)
     setError('')
     try {
-      let current = operation
-      if (!current) {
-        const response = await fetch(`/api/teacher/classrooms/${classroomId}/purge`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            operation_id: crypto.randomUUID(),
-            confirmation,
-            expected_source_revision: impact?.source_revision,
-            expected_storage_inventory_sha256: impact?.storage_inventory_sha256,
-            expected_operational_inventory_sha256: impact?.operational_inventory_sha256,
-          }),
-        })
-        const body = await response.json() as PurgeResponse
-        if (!response.ok || !body.operation) {
-          throw new Error(body.error || 'Could not start permanent deletion')
-        }
-        current = body.operation
+      if (operation) {
+        await runUntilSettled(operation)
+        return
       }
-      await runUntilSettled(current)
+
+      if (attendanceOperation) {
+        await runAttendanceUntilSettled(attendanceOperation)
+        if (!isConfirmed) return
+        const refreshed = await fetchPurgeSnapshot()
+        if (!refreshed.impact) throw new Error('Could not refresh permanent deletion impact')
+        setImpact(refreshed.impact)
+        const finalAttempt = await startPurge(refreshed.impact)
+        if (finalAttempt.attendanceRequired) {
+          throw new Error('Linked attendance removal could not be verified. Progress is saved; select Continue deletion to retry.')
+        }
+        return
+      }
+
+      if (!impact) throw new Error('Could not prepare permanent deletion')
+      const firstAttempt = await startPurge(impact)
+      if (!firstAttempt.attendanceRequired) return
+
+      const attendance = await beginOrResumeAttendance()
+      await runAttendanceUntilSettled(attendance)
+      const refreshed = await fetchPurgeSnapshot()
+      if (!refreshed.impact) throw new Error('Could not refresh permanent deletion impact')
+      setImpact(refreshed.impact)
+      const finalAttempt = await startPurge(refreshed.impact)
+      if (finalAttempt.attendanceRequired) {
+        throw new Error('Linked attendance removal could not be verified. Progress is saved; select Continue deletion to retry.')
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Permanent deletion paused')
     } finally {
@@ -147,6 +290,8 @@ export function ClassroomPurgeDialog({
     if (isWorking) return
     setImpact(null)
     setOperation(null)
+    setAttendanceOperation(null)
+    purgeOperationIdRef.current = null
     setError('')
     onClose()
   }
@@ -234,6 +379,37 @@ export function ClassroomPurgeDialog({
                 Progress is saved. If a request fails, you can safely continue.
               </p>
             </div>
+          ) : attendanceOperation ? (
+            <>
+              <div className="rounded-card border border-border bg-surface-2 p-4" aria-live="polite">
+                <p className="text-sm font-medium text-text-default">
+                  {attendanceOperation.attendance_removed
+                    ? 'Linked attendance removed'
+                    : attendanceOperation.state === 'remote_deleted'
+                      ? 'Removing local attendance records…'
+                      : 'Removing linked attendance…'}
+                </p>
+                <p className="mt-1 text-xs text-text-muted">
+                  {attendanceOperation.deleted_count > 0
+                    ? `${attendanceOperation.deleted_count} attendance record${attendanceOperation.deleted_count === 1 ? '' : 's'} removed. Progress is saved.`
+                    : 'Attendance writes are safely stopped. Progress is saved if you close this window.'}
+                </p>
+              </div>
+              {attendanceOperation.attendance_removed ? (
+                <FormField
+                  label={`Type “${classroomTitle}” or DELETE to confirm`}
+                  htmlFor="classroom-purge-confirmation"
+                  hint="Confirm again to finish removing the classroom and its files."
+                >
+                  <Input
+                    id="classroom-purge-confirmation"
+                    value={confirmation}
+                    onChange={(event) => setConfirmation(event.target.value)}
+                    autoComplete="off"
+                  />
+                </FormField>
+              ) : null}
+            </>
           ) : (
             <FormField
               label={`Type “${classroomTitle}” or DELETE to confirm`}
@@ -266,7 +442,7 @@ export function ClassroomPurgeDialog({
 
           <div className="flex flex-row justify-end gap-2">
             <Button type="button" variant="secondary" onClick={close} disabled={isWorking}>
-              Cancel
+              {deletionStarted ? 'Close' : 'Cancel'}
             </Button>
             <Button
               type="button"
@@ -275,13 +451,13 @@ export function ClassroomPurgeDialog({
               loading={isWorking}
               disabled={
                 isLoading
-                || impact?.deletion_available === false
+                || (impact?.deletion_available === false && !deletionStarted)
                 || Boolean(impact?.conflicting_operation)
-                || (!operation && !isConfirmed)
+                || (requiresPurgeConfirmation && !isConfirmed)
                 || operation?.status === 'completed'
               }
             >
-              {operation ? 'Continue deletion' : 'Delete permanently'}
+              {deletionStarted ? 'Continue deletion' : 'Delete permanently'}
             </Button>
           </div>
         </div>

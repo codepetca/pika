@@ -23,9 +23,17 @@ in Pika and Bara. Risk: runtime-platform / destructive privacy workflow.
    its normal fresh inventory/confirmation checks to remove files and the
    classroom. No new path bypasses managed Storage ownership or deletion leases.
 
-The backend endpoints have no UI or cron caller yet. Classroom deletion UI
-orchestration and full cross-service canaries are rollout gates, not completed
-by these dormant endpoints. Normal teachers/students see no new controls.
+The existing hot-archived Classroom deletion dialog is the teacher-facing
+orchestrator. It first attempts the existing permanent purge so classrooms with
+no linked Bara state keep the direct path. Only the database's exact
+attendance-decommission requirement activates the linked-attendance stage.
+That stage uses a deterministic per-Classroom operation UUID, resumes saved
+status after reload, removes remote and local attendance, refreshes the purge
+inventory, and then invokes the unchanged managed-file/Classroom purge. There
+is no separate unlink action. If attendance finishes after a reload or other
+lost UI state, the dialog requires fresh typed confirmation before it starts
+the final Classroom/file purge. The controls remain hidden until their
+existing rollout gates authorize the Classroom.
 
 ## Ownership and retention
 

@@ -1,3 +1,5 @@
+import { ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE } from '@/lib/validations/attendance-decommission'
+
 export const ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED =
   'attendance_classroom_decommission_required' as const
 
@@ -21,7 +23,7 @@ export function classifyAttendanceDecommissionError(error: {
 
   return {
     code: ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED,
-    message: 'Attendance must be decommissioned before this classroom can be permanently removed',
+    message: ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE,
     status: 409,
     retryable: false,
   }
