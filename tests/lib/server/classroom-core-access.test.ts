@@ -4,7 +4,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { authorizeClassroomCoreRequest } from '@/lib/server/classroom-core-access'
 import type { AuthenticatedUser } from '@/types'
 
-vi.mock('@/lib/auth', () => ({ requireAuth: vi.fn(), requireRole: vi.fn() }))
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth')>(), requireAuth: vi.fn(), requireRole: vi.fn(),
+}))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 const ownerId = '11111111-1111-4111-8111-111111111111'
 const memberId = '22222222-2222-4222-8222-222222222222'
@@ -57,7 +59,7 @@ describe('classroom core access pilot (server identity + exact pair + relationsh
     vi.stubEnv('PIKA_CLASSROOM_CORE_ACCESS_PAIRS', JSON.stringify([
       { userId: ownerId, classroomId }, { userId: memberId, classroomId: otherClassroomId },
     ]))
-    await expect(authorize('owner', otherClassroomId)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(authorize('owner', otherClassroomId)).rejects.toMatchObject({ name: 'AuthorizationError' })
     expect(getServiceRoleClient).not.toHaveBeenCalled()
   })
 

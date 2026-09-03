@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { requireAuth, requireRole } from '@/lib/auth'
+import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { canAccessClassroom, type ClassroomAccessContext } from '@/lib/access/classroom-policy'
@@ -48,9 +48,12 @@ export async function authorizeClassroomCoreRequest(
   const identity = canonicalUuid.safeParse(user.id)
   if (pairs === null || !identity.success) throw new ApiError(503, 'Classroom access configuration is unavailable')
   const requestedId = canonicalUuid.safeParse(classroomId)
-  if (!requestedId.success || !pairs.some((pair) => pair.userId === identity.data && pair.classroomId === requestedId.data)) {
+  // PostgreSQL also accepts dashless/braced UUIDs. Never let an unrecognized
+  // spelling of an admitted class escape to the legacy authorization path.
+  if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')
+  if (!pairs.some((pair) => pair.userId === identity.data && pair.classroomId === requestedId.data)) {
     if (options.legacyRole && user.role !== options.legacyRole) {
-      throw new ApiError(403, `Forbidden: ${options.legacyRole} role required`)
+      throw new AuthorizationError(`Forbidden: ${options.legacyRole} role required`)
     }
     return { mode: 'legacy', user }
   }

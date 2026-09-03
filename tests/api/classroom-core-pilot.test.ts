@@ -11,7 +11,9 @@ import { fetchClassDaysForClassroom } from '@/lib/server/class-days'
 import { getClassroomCourseGuide } from '@/lib/server/course-guide'
 import type { AuthenticatedUser } from '@/types'
 
-vi.mock('@/lib/auth', () => ({ requireAuth: vi.fn(), requireRole: vi.fn() }))
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth')>(), requireAuth: vi.fn(), requireRole: vi.fn(),
+}))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 vi.mock('@/lib/server/classroom-order', () => ({ getNextTeacherClassroomPosition: vi.fn(async () => -2) }))
 vi.mock('@/lib/server/class-days', () => ({ fetchClassDaysForClassroom: vi.fn(), generateClassDaysForClassroom: vi.fn(), upsertClassDayForClassroom: vi.fn() }))
@@ -35,6 +37,15 @@ function request(id: string, body?: unknown) {
   })
 }
 function params(id: string) { return { params: { id, classroomId: id } } }
+
+// PostgreSQL accepts these equivalent UUID spellings, unlike strict string mocks.
+function databaseUuid(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  const hex = value.replace(/[{}-]/g, '').toLowerCase()
+  return /^[0-9a-f]{32}$/.test(hex)
+    ? `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+    : value
+}
 
 describe('contextual classroom-core API pilot', () => {
   beforeEach(() => {
@@ -63,10 +74,13 @@ describe('contextual classroom-core API pilot', () => {
       let updates: Record<string, unknown> | undefined
       const execute = async () => {
         if (updates) beforeWrite?.()
-        const classroom = rows.find((row) => filters.every(([key, value]) => (row as unknown as Record<string, unknown>)[key] === value))
+        const classroom = rows.find((row) => filters.every(([key, value]) => {
+          const actual = (row as unknown as Record<string, unknown>)[key]
+          return key === 'id' || key.endsWith('_id') ? databaseUuid(actual) === databaseUuid(value) : actual === value
+        }))
         if (table === 'classroom_enrollments') {
-          const enrolled = filters.some(([key, value]) => key === 'classroom_id' && value === joinedId) &&
-            filters.some(([key, value]) => key === 'student_id' && value === actorId)
+          const enrolled = filters.some(([key, value]) => key === 'classroom_id' && databaseUuid(value) === joinedId) &&
+            filters.some(([key, value]) => key === 'student_id' && databaseUuid(value) === actorId)
           return { data: enrolled ? { id: actorId, classroom_id: joinedId, student_id: actorId } : null, error: null }
         }
         if (updates && writeError) return { data: null, error: writeError }
@@ -113,6 +127,40 @@ describe('contextual classroom-core API pilot', () => {
     expect((await memberGet(request(uppercase), params(uppercase))).status).toBe(403)
     expect((await PATCH(request(uppercase, { title: 'Updated' }), params(uppercase))).status).toBe(200)
     expect(rows[0].title).toBe('Updated')
+  })
+
+  it.each(['dashless', 'braced', 'alternate-hyphens'])('rejects %s UUID aliases before legacy fallback', async (format) => {
+    const alias = (id: string) => format === 'dashless' ? id.replaceAll('-', '')
+      : format === 'braced' ? `{${id}}` : id.replaceAll('-', '').match(/.{4}/g)!.join('-')
+    rows[1].course_overview_markdown = 'Private draft'
+    const response = await memberGet(request(alias(joinedId)), params(alias(joinedId)))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid classroom identifier' })
+    expect((await memberGet(request(alias(ownId)), params(alias(ownId)))).status).toBe(400)
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role: 'teacher' } as AuthenticatedUser)
+    expect((await PATCH(request(alias(ownId), { title: 'No' }), params(alias(ownId)))).status).toBe(400)
+    expect(queries).toEqual([])
+    expect(rows[0].title).toBe('Own class')
+
+    // Prove the mock would resolve this spelling on the unchanged disabled path.
+    vi.stubEnv('PIKA_CLASSROOM_CORE_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role: 'student' } as AuthenticatedUser)
+    const legacy = await memberGet(request(alias(joinedId)), params(alias(joinedId)))
+    expect(legacy.status).toBe(200)
+    expect((await legacy.json()).classroom.id).toBe(joinedId)
+  })
+
+  it.each(['empty', 'unmatched'])('preserves the legacy Forbidden response for an enabled %s cohort', async (cohort) => {
+    vi.stubEnv('PIKA_CLASSROOM_CORE_ACCESS_PAIRS', JSON.stringify(cohort === 'empty' ? [] : [{ userId: otherOwner, classroomId: ownId }]))
+    for (const response of [await ownerGet(request(ownId), params(ownId)), await PATCH(request(ownId, { title: 'No' }), params(ownId))]) {
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({ error: 'Forbidden' })
+    }
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role: 'teacher' } as AuthenticatedUser)
+    const member = await memberGet(request(joinedId), params(joinedId))
+    expect(member.status).toBe(403)
+    expect(await member.json()).toEqual({ error: 'Forbidden' })
+    expect(queries).toEqual([])
   })
 
   it.each([ownId, joinedId])('uses classroom relationships for shared reads of %s', async (id) => {

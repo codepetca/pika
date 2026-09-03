@@ -43,8 +43,14 @@ Server-only configuration (never a request flag or `NEXT_PUBLIC_` variable):
   are canonicalized so casing cannot evade pair admission. Two independent allowlists
   are deliberately not used: admitting user A/class A and user B/class B does not
   admit A/class B.
-- `[]` intentionally selects nobody. Unmatched requests retain the existing global-role
-  and route-level checks. A legacy result from the helper is authentication only;
+- When enabled, invalid/noncanonical UUID spellings (including PostgreSQL's dashless,
+  braced and alternate-hyphen aliases) return 400 before pair matching. Uppercase
+  canonical UUIDs are accepted and normalized. Rejecting aliases prevents a pilot
+  request from evading contextual checks through the legacy path; the disabled gate
+  retains existing identifier behavior.
+- `[]` intentionally selects nobody. Unmatched canonical-ID requests retain the existing
+  global-role and route-level checks, including the generic `Forbidden` response body.
+  A legacy result from the helper is authentication only;
   callers must not omit those original guards.
 - With the flag enabled, absent/malformed pair configuration or malformed authenticated
   identity returns 503 after authentication. It never silently falls back to permissive
