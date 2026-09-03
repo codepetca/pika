@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
+import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 
 const assessment = { assessment_id: 'a1', assessment_type: 'assignment' as const, title: 'Old', weight: 10, code: 'A1', possible: 30, include_in_final: true }
 const ok = (data: unknown = {}) => ({ ok: true, json: async () => data })
@@ -29,5 +30,23 @@ describe('saveGradebookAssessment', () => {
     const fetch = vi.fn().mockResolvedValueOnce(ok()).mockResolvedValue({ ok: false, json: async () => ({ error: 'Unavailable' }) })
     vi.stubGlobal('fetch', fetch)
     await expect(saveGradebookAssessment({ classroomId: 'c1', assessment, title: 'New', categoryId: null, weight: 20 })).rejects.toThrow('Title saved')
+  })
+  it('notifies Tests after an uncertain title-write response but not after a failed draft read', async () => {
+    const updated = vi.fn()
+    vi.stubGlobal('window', new EventTarget())
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, updated)
+    try {
+      const fetchMock = vi.fn().mockResolvedValueOnce(ok({ draft: { version: 7 } })).mockRejectedValue(new Error('Network interrupted'))
+      vi.stubGlobal('fetch', fetchMock)
+      const input = { classroomId: 'c1', assessment: { ...assessment, assessment_type: 'test' as const }, title: 'New', categoryId: null, weight: 20 }
+      await expect(saveGradebookAssessment(input)).rejects.toThrow('Network interrupted')
+      expect(updated).toHaveBeenCalledOnce()
+      expect(updated.mock.calls[0][0].detail).toEqual({ classroomId: 'c1', canonicalTitleTestId: 'a1' })
+      updated.mockClear()
+      await expect(saveGradebookAssessment(input)).rejects.toThrow('Network interrupted')
+      expect(updated).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, updated)
+    }
   })
 })

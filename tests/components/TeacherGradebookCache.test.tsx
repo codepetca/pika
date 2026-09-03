@@ -5,6 +5,11 @@ import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
 
+// Keep this suite's network counts specific to the real Gradebook cache.
+vi.mock('@/hooks/useGradebookEmail2', () => ({
+  useGradebookEmail2: () => ({ rows: [], loading: false, error: null, reload: vi.fn() }),
+}))
+
 describe('TeacherGradebookTab with the real request cache', () => {
   beforeEach(() => {
     invalidateCachedJSONMatching('gradebook:')

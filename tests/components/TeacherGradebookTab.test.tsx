@@ -4,6 +4,11 @@ import { TeacherGradebookTab } from '@/app/classrooms/[classroomId]/TeacherGrade
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
 
+// Address loading/copying has a real-hook integration suite of its own.
+vi.mock('@/hooks/useGradebookEmail2', () => ({
+  useGradebookEmail2: () => ({ rows: [], loading: false, error: null, reload: vi.fn() }),
+}))
+
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: vi.fn((_key: string, load: () => Promise<unknown>) => load()),
   invalidateCachedJSONMatching: vi.fn(),

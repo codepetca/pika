@@ -53,9 +53,10 @@ other page compositions remain experimental.
   off the mobile viewport. Returning from Classwork invalidates the Gradebook
   cache before refreshing, even within its normal cache lifetime.
 - The maintainer chose the display label Email 2 for the existing counselor_email
-  address. The Gradebook command is Copy email 2; it remains disabled until its
-  roster-data wiring is completed in a subsequent reviewed pass. No new personal
-  data field or guessed address convention is introduced.
+  address. Copy email 2 uses selected students' stable roster bindings, skips
+  blanks and deduplicates addresses. Roster reads are prefetched separately from
+  grades; loading/failure disables copying and a failed read has an explicit retry.
+  No new personal data field or guessed address convention is introduced.
 
 ## Follow-up menu refinement
 
@@ -67,9 +68,36 @@ other page compositions remain experimental.
 - Verify teacher desktop/mobile, light/dark, menu closed/open/focused and selected
   email menu. Student UI is n/a (teacher-only controls); confirm role isolation.
 - Risk profile: none for this icon/label refinement. No new shared owner, layout,
-  title-save changes or copy-data wiring. Composite keyboard/focus checks apply.
+  title-save changes or copy-data wiring in that earlier icon/label pass.
+  Composite keyboard/focus checks apply.
 
 ## Accessibility and verification
+
+### Approved completion pass
+
+The maintainer authorized one additional fix/review pass for Test-title refresh
+and Email 2 copying. Scope remains teacher Gradebook; no roster-wide rename,
+schema change, migration or merge is authorized.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Copy Email 2 | Gradebook student-actions menu | extend | Enable the existing command; keep its shared keyboard/focus owner |
+| Alternate addresses | Teacher-only roster API | reuse | Use existing counselor_email values and stable student bindings |
+| Tests title refresh | Tests-updated event and request cache | reuse | Refresh the mounted list after potentially committed title writes |
+| Copy failure/retry | AppMessage, Button, inline error surface | reuse | Explicit empty/failure feedback without changing the grade table |
+
+Reference: approved Pattern Lab Gradebook. Verify teacher desktop/mobile,
+light/dark, selected/enabled copy, loading/empty/error/retry, clipboard failure,
+and return-to-Tests after full/partial title saves. Student UI remains unchanged;
+confirm no teacher-only menu exposure. Prefetch addresses so clipboard writing
+starts within the user's click/tap, without awaiting a network request.
+Risk profile: workspace-state. No new visual pattern or shared primitive.
+
+Test-title writes invalidate the Tests list and emit its existing classroom-scoped
+update event, including uncertain/partial writes. The list uses the canonical
+server title for that test instead of reapplying a retained editor's stale title,
+while preserving other draft-summary fields. Tests remain mounted during the
+regression flow; both successful and partial saves are covered.
 
 Shared menus, segmented controls and dialogs retain their keyboard and focus
 contracts. Category dragging uses pointer and keyboard sensors; controls have

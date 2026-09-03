@@ -15,6 +15,8 @@ import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sor
 import { getStudentDisplayId, getValidEmailList, getAssessmentColumnKey, type GradebookIdentityColumn } from '@/lib/gradebook-display'
 import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
+import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
+import { useGradebookEmail2 } from '@/hooks/useGradebookEmail2'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
@@ -42,6 +44,7 @@ export function TeacherGradebookTab({
 }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { showMessage } = useAppMessage()
+  const email2 = useGradebookEmail2(classroom.id, isActive)
   const [loading, setLoading] = useState(true)
   const [isRetrying, setIsRetrying] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -295,24 +298,32 @@ export function TeacherGradebookTab({
     setSelectedStudentId(null)
   }, [selectedStudentId, students])
 
-  async function copySelectedEmailsToClipboard() {
-    if (selectedStudentEmails.length === 0) {
-      showMessage({ text: 'No selected student emails', tone: 'warning' })
+  async function copySelectedEmailsToClipboard(emails = selectedStudentEmails, label = 'Student emails') {
+    if (emails.length === 0) {
+      showMessage({ text: `No ${label.toLowerCase()} for selected students`, tone: 'warning' })
       return
     }
 
-    const text = selectedStudentEmails.join(', ')
+    const text = emails.join(', ')
+    setActionError('')
     try {
-      await navigator.clipboard.writeText(text)
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        document.body.appendChild(textarea)
+        try {
+          textarea.select()
+          if (!document.execCommand('copy')) throw new Error('Clipboard unavailable')
+        } finally {
+          document.body.removeChild(textarea)
+        }
+      }
+      showMessage({ text: `${label} copied`, tone: 'success' })
     } catch {
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
+      setActionError(`Could not copy ${label.toLowerCase()}. Check browser clipboard permission and try again.`)
     }
-    showMessage({ text: 'Student emails copied', tone: 'success' })
   }
 
   function handleStudentSelect(student: GradebookStudentSummary) {
@@ -506,6 +517,9 @@ export function TeacherGradebookTab({
       isReadOnly={isReadOnly || !hasCurrentSnapshot || !categorySchemaAvailable || savingAssessmentKeys.size > 0}
       onEditCategories={() => { setDialogError(''); setGradebookEditorOpen(true) }}
       onCopyEmails={() => { void copySelectedEmailsToClipboard() }}
+      onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
+        void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Email 2 addresses')
+      }}
       onExport={() => downloadGradebookCsv(students, assessmentColumns, scoreDisplayMode)}
     />
   )
@@ -602,11 +616,13 @@ export function TeacherGradebookTab({
         workspaceFrame="standalone"
         primary={actionBar}
         feedback={
-          actionError ? (
-            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              {actionError}
-            </div>
-          ) : null
+          actionError || email2.error ? <div className="space-y-2">
+            {actionError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{actionError}</div> : null}
+            {email2.error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              <span>Email 2 addresses could not be loaded. Grades are still available.</span>
+              <Button variant="secondary" onClick={() => { void email2.reload() }}>Retry Email 2</Button>
+            </div> : null}
+          </div> : null
         }
         summary={null}
         workspace={gradesWorkspace}

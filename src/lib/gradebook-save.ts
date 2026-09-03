@@ -1,5 +1,6 @@
 import type { GradebookAssessmentColumn } from '@/types'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 
 async function requestJSON(url: string, body?: unknown) {
   const response = await fetch(url, body === undefined ? { cache: 'no-store' } : {
@@ -18,6 +19,7 @@ export async function saveGradebookAssessment({ classroomId, assessment, title, 
   weight: number
 }) {
   let titleSaved = false
+  let testTitleWriteAttempted = false
   const id = encodeURIComponent(assessment.assessment_id)
   try {
     if (title !== assessment.title) {
@@ -27,6 +29,7 @@ export async function saveGradebookAssessment({ classroomId, assessment, title, 
         // The canonical Test draft writer fences concurrent edits and preserves questions.
         const { draft } = await requestJSON(`/api/teacher/tests/${id}/draft`)
         if (!Number.isInteger(draft?.version)) throw new Error('Could not load the current Test version')
+        testTitleWriteAttempted = true
         await requestJSON(`/api/teacher/tests/${id}/draft`, {
           version: draft.version,
           patch: [{ op: 'replace', path: '/title', value: title }],
@@ -53,5 +56,13 @@ export async function saveGradebookAssessment({ classroomId, assessment, title, 
     invalidateCachedJSONMatching(`student-assignments:${classroomId}`)
     invalidateCachedJSONMatching(`teacher-test-results:${assessment.assessment_id}:`)
     invalidateCachedJSONMatching(`test:${assessment.assessment_id}`)
+    if (testTitleWriteAttempted) {
+      invalidateCachedJSONMatching(`teacher-tests:${classroomId}`)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, {
+          detail: { classroomId, canonicalTitleTestId: assessment.assessment_id },
+        }))
+      }
+    }
   }
 }
