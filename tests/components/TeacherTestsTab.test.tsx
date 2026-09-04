@@ -472,7 +472,8 @@ describe('TeacherTestsTab', () => {
   }
 
   function toggleTestListControls() {
-    fireEvent.click(screen.getByRole('button', { name: 'Organize tests' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' }))
   }
 
   it('renders the tests list by default with no selected workspace', async () => {
@@ -484,7 +485,9 @@ describe('TeacherTestsTab', () => {
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     expect(screen.getByRole('button', { name: 'Create test' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create test' }).closest('.fixed')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: 'Organize tests' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
@@ -731,12 +734,12 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
 
     const newTest = screen.getByRole('button', { name: 'Create test' })
-    const organizeTests = screen.getByRole('button', { name: 'Organize tests' })
-
     expect(newTest).toBeDisabled()
-    expect(organizeTests).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    const editTests = screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' })
+    expect(editTests).toBeDisabled()
 
-    fireEvent.click(organizeTests)
+    fireEvent.click(editTests)
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
   })
 
@@ -1580,8 +1583,9 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Organize tests' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit Tests' }))
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
 
     toggleTestListControls()

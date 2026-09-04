@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Finish Gradebook prototype edge cases and browser verification
-
-- Completed the remaining Pattern Lab work for #1167: consistent Edit/Save categories labels, mobile selection access outside the scrolling display controls, collision-free category IDs after delete/reopen, preserved assessment weights on category changes, and validation that keeps invalid inline drafts out of calculations. Hidden weight labels are contained by the table scroller; assessment titles cannot overwrite hidden few-assessment fixtures. The no-categories option is teacher Gradebook-only and clears on leaving.
-- Updated the full page-mockup browser contract (212 checks) and added a dedicated Gradebook verifier covering desktop/mobile light/dark, invalid weights, empty setup, half-point redistribution, locks, keyboard drag, delete/reopen/add, title editing, and None fallback. All browser checks pass before the final main integration; reviewed teacher/student screenshots plus dialog, selection, and scrolling states. Evidence: `/tmp/pika-gradebook-completion.aQE5Fv`. Focused checks pass 147 tests plus a new direct inline-input regression; Pika audit passes.
-- Rebased onto `ebf86178` after #1138 and #1168 landed. Only archive markers conflicted; retained main's history and preserved the prototype. No migration changes/application, stash creation, deployment, or live Gradebook adoption. Final post-rebase checks precede a standard-risk Terra/high independent review and exact-head CI. Live adoption still requires design acceptance; no merge authority inferred.
-- Post-rebase verification: 17 files / 149 tests and all static gates pass. Both browser verifiers pass (212 full-page checks plus the dedicated Gradebook flows); refreshed teacher/student, desktop/mobile, light/dark and dialog/scrolling captures inspected. Shared-history trimming preserves the two newly archived entries and avoids re-adding seven entries already archived on main. Independent review/CI results will be recorded on the PR to keep its reviewed commit stable.
-- Independent review identified a fixture consistency bug: Few assessments hid nine retained items from the course-weight denominator. Remediation batch 1 builds calculation/editor inputs from all assessments while displaying only the three preview columns, and adds row/dialog/weight-edit regressions. The example description now makes the full-course calculation explicit. PR remains draft for targeted re-review and final cumulative integration review; no live behavior changed.
-- Targeted and final integration reviews cleared `8aef0260`; exact-head CI `33692785109` passed Test & Build, browser contracts and PR Gate. While CI ran, #1170 landed and conflicted only in shared archive history. Returned #1167 to draft and rebased onto `a9dcf20f`; Gradebook source/tests/browser verifiers are byte-for-byte unchanged from the passing candidate. A final bounded targeted rebase review and new exact-head CI are required; prior CI success is not represented as approval of the new commit. No merge authority inferred.
-
 ## 2026-09-02 — Fix release grade aggregation and gate stable QR canary
 
 - Owner approved the release-review correction: preserve an intentionally empty categorized final grade instead of falling back to legacy totals, including empty-category schemas. Three API regressions reproduced the wrong 100% before the fix. Legacy fallback remains only for an unavailable schema.
@@ -271,3 +262,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1188 after #1183 merged, flattening obsolete merge commits into the single reviewed feature patch. Gradebook retains compact single-button `%`/`x/y` and `AVG`/`MED` display switches in the live teacher surface and Pattern Lab.
 - Retained current rolling history; application and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge. The later Gradebook refinement PR remains responsible for its approved final toolbar composition.
+
+## 2026-09-04 — Rebase Tests edit action for merge
+
+- Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
+- Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
