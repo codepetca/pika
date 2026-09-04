@@ -24,6 +24,12 @@ const STATUS_CHIP_CLASSES: Record<TeacherAttendanceMark, string> = {
   absent: 'bg-attendance-absent text-attendance-absent-text',
 }
 
+export const ATTENDANCE_STATUS_DOT_CLASSES: Record<TeacherAttendanceMark, string> = {
+  present: 'bg-attendance-present',
+  late: 'bg-attendance-late',
+  absent: 'bg-attendance-absent',
+}
+
 const STATUS_BUTTON_CLASSES: Record<TeacherAttendanceMark, string> = {
   present: 'bg-transparent hover:bg-transparent after:bg-attendance-present',
   late: 'bg-transparent hover:bg-transparent after:bg-attendance-late',
