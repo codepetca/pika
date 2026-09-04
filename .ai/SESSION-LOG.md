@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Resequence pending classroom QR migration
-
-- User requested the migration rename only; implementation, rebase, PR, and database rollout remain paused.
-- Fetched main and confirmed migrations through 150. Renamed this worktree's unapplied `147_stable_classroom_attendance_qr.sql` to `151_stable_classroom_attendance_qr.sql` and updated its contract-test reference; the focused test passes.
-- No database migration, rebase, stash, commit, or PR action was performed. This older checkout still needs main integration before the full contiguous-filename gate can pass.
-
-## 2026-09-02 — Prepare stable classroom QR draft for independent review
-
-- User authorized PR creation and review, not merge. Integrated main cb797436 while preserving the new Daily attendance controls; retained the named pre-integration safety stash. Migration remains 151 and unapplied by this task.
-- Added authenticated classroom-locator resolution, rotatable opaque poster handles, teacher poster print/download controls and large square live QR. Existing Bara occurrence validation remains server-side. Rollout/design/verification boundaries are documented in classroom-attendance-qr.md.
-- Corrected quiet-zone export colors, request supersession, historical projection selection, and mobile clipping during preparation. Focused gate passes 154 files / 1,486 tests, architecture, UI/design policy, TypeScript and lint; supplemental dialog/gallery/QR tests pass. Browser fixtures cover both roles, themes and viewport sizes; screenshots include poster/live QR/print/closed states and Pattern Lab focus return. Refreshed installed dependencies to main's pinned lockfile. No new dependency was introduced.
-- Local migration history is through 150. Generated types and real-stack rollout verification are pending exact local migration authorization; the current Supabase CLI JSON output bypasses the existing pipe-table history guard, so its nominal db:types:check pass is not accepted as migration-151 evidence. Production was not inspected or modified. Draft-first independent security and compatibility reviews follow; no merge authorization.
-- Opened draft PR #1168. Initial Sol/high and Terra/high reviews identified disabled-policy/non-class-day cancellation lag, uncertain rotation recovery, missing locator lifecycle classification, sign-in handoff test coverage, and the already-disclosed generated-type blocker. Batched the safe corrections with regressions: focused checks pass 184 files / 1,807 tests plus policies, TypeScript and lint; four refreshed teacher browser variants verify lost-response recovery with inspected screenshots. The initial production build passed. Database types/application/replay and live authenticated Bara smoke remain pending; no ready-for-CI or merge action.
-
-## 2026-09-02 — Apply stable classroom QR migration locally
-
-- User explicitly authorized migration 151 on local and production. Local history matched through 150 and the dry-run listed only `151_stable_classroom_attendance_qr.sql`; applied it once successfully with `supabase db push --local`. Read-only checks confirm migration history 151, six columns, primary/unique/positive-generation/foreign-key constraints, RLS enabled, no browser-role grants or policies, and only SELECT/INSERT/UPDATE for service_role.
-- Eighteen focused migration/API/server tests and database lint before/after application pass. Regenerated database types from local schema; only the new table's 35-line contract was added, and db:types:check passes with independently verified migration history. Full fresh replay and live authenticated Bara smoke remain pending.
-- Production project Pika (`zhioqbapgfcrronyuidm`) is healthy, but this worktree has no linked project. Requested separate permission to establish that binding; no production migration command was attempted. Keep generated types and rollout notes for the pending PR #1168 rebase/review after #1138 merges. No merge, reset, history repair, seed, or deployment performed.
-
-## 2026-09-02 — Apply stable classroom QR migration to production
-
-- User approved linking this worktree to verified Pika production `zhioqbapgfcrronyuidm`, then applying migration 151. Linked successfully; production history matched through 150 and the dry-run listed only `151_stable_classroom_attendance_qr.sql`. One `supabase db push --linked --yes` application succeeded.
-- Post-application migration history contains 001–151 with no drift. Read-only production catalog checks confirm all six columns/defaults, primary/unique/positive-generation/FK-cascade constraints, RLS enabled, zero policies, and only SELECT/INSERT/UPDATE application grants to service_role. Both local and production are now verified at 151; no reset, repair, seed or deployment was performed.
-- Preserve the applied migration filename/version during the pending #1138-dependent rebase/review/merge of #1168. Generated types and rollout documentation remain uncommitted in this worktree for that workflow; fresh full replay and live authenticated Bara smoke remain outstanding verification, not migration-application permission blockers.
-
 ## 2026-09-02 — Rebase stable classroom QR after PR 1138
 
 - Confirmed #1138 merged at `a068a846`; this task remains the sole writer of `codex/classroom-permanent-attendance-qr`. Rebased both feature commits onto that main. Only session-history archive markers conflicted; preserved history without duplicating entries. Application changes merged automatically and a range comparison confirms no feature behavior changes. Migration 151 is byte-for-byte unchanged and remains applied to local/production.
@@ -292,3 +266,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Renamed Settings > Features > Attendance to QR Attendance and clarified that switching it off enables manual or log-based attendance. The existing feature key, persistence and attendance behavior are unchanged.
 - Reused `SettingsSwitchRow` and the existing Classroom Features surface; inspected Pattern Lab Controls. No new pattern, component, refactor or promotion. Teacher desktop/mobile and light/dark, on/off and keyboard-focus states are the visual matrix; student settings are not applicable. Risk profile: none.
 - Component checks pass 36 tests, including both toggle directions and archived read-only state. The focused gate passes 164 tests plus architecture, UI/design policies, TypeScript and lint. Playwright evidence is under `output/playwright/qr-attendance-*` in `codex/qr-attendance-settings-label`; browser saves are intercepted, not written to classroom data. Independent review and exact-head CI are recorded on PR #1181; merge was authorized on 2026-09-03 and is pending final post-rebase gates.
+
+## 2026-09-03 — Shorten Gradebook assessment header tooltips
+
+- Changed live Gradebook assessment-header tooltips to show only the assessment title, removing the appended category name while preserving the visible truncated header, edit action and accessible name.
+- Added focused hover coverage. Verified the seeded teacher Gradebook on desktop/mobile in light/dark: tooltip text is title-only, readable and contained. Student Gradebook UI is n/a because this is a teacher-only surface; the student role still has no access to the teacher Gradebook.
+- Composite-widget checklist reviewed: tooltip focus/hover behavior and the header's edit semantics are unchanged, the accessible edit name remains covered, and no manual follow-up remains. Risk profile none; use one Terra/medium reviewer for this localized copy-only UI change. No schema, data, API, dependency, deployment or merge action is included.
+
+## 2026-09-04 — Shorten the classroom-deletion warning
+
+- Replaced the detailed deletion inventory sentence with: “This permanently removes all student-related work. The Course Blueprint and user accounts are kept.” The shared dialog geometry, deletion impact counts, typed confirmation, attendance coordination and deletion behavior are unchanged.
+- Added component coverage for the concise wording and a browser assertion that the initial dialog body does not overflow. Teacher deletion states and student access boundaries pass across desktop/mobile and light/dark; screenshots were inspected with no visible scrollbar or clipping.
+- Focused checks pass 12 files / 135 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile none; no schema, data, API, dependency, deployment or merge action is included.

@@ -318,11 +318,8 @@ export function ClassroomPurgeDialog({
               <div>
                 <p className="font-semibold text-danger">This cannot be undone.</p>
                 <p className="mt-1 text-sm text-text-default">
-                  This permanently removes all student work, submissions, tests, grades,
-                  attendance and logs, feedback, roster data, and uploads from this classroom.
-                </p>
-                <p className="mt-2 text-sm text-text-muted">
-                  The reusable Course Blueprint and user accounts are kept.
+                  This permanently removes all student-related work. The Course Blueprint and
+                  user accounts are kept.
                 </p>
               </div>
             </div>

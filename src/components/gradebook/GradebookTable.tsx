@@ -112,7 +112,7 @@ export function GradebookTable({
               {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-2" /> : null}
               {columns.map((column) => (
                 <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden whitespace-nowrap border-b border-border bg-surface-2 !px-1">
-                  <Tooltip content={`${column.title} · ${column.category_name ?? 'None'}`} side="bottom">
+                  <Tooltip content={column.title} side="bottom">
                     <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className="w-full overflow-hidden px-1 font-normal text-text-default">
                       <span className="min-w-0 truncate">{column.title}</span>
                     </Button>
