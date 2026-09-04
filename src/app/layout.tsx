@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import '@codepet/pal-widget/styles.css'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -40,6 +41,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   const workOSInitialAuth = isWorkOSMagicAuthPilotEnabled()
     ? await withAuth().then(({ accessToken: _accessToken, ...auth }) => auth)
     : null
@@ -61,7 +63,11 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body className="min-h-screen bg-page font-sans">
         {workOSInitialAuth
