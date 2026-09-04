@@ -74,8 +74,9 @@ by live-table verification.
   `PIKA_BARA_DECOMMISSION_MODE=canary` with
   `PIKA_BARA_DECOMMISSION_CANARY_ROSTER_REF`; database settings independently
   bind the installation, teacher, and classroom. Bara uses
-  `PIKA_DECOMMISSION_MODE=canary` with its exact roster reference. Only broaden
-  after Pika's database fence is installed and verified.
+  `PIKA_DECOMMISSION_MODE=canary` with
+  `PIKA_DECOMMISSION_CANARY_ROSTER_REF` set to its exact roster reference. Only
+  broaden after Pika's database fence is installed and verified.
 - Disabling a rollout gate pauses further deletion but never removes an existing
   fence. Each remote request requires fresh database authorization, including
   the installation binding; pausing cannot recall an already-authorized request
