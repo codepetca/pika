@@ -140,6 +140,11 @@ async function mockBlueprintRollover(page: Page) {
     expect(route.request().headers()['idempotency-key']).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     )
+    expect(route.request().postDataJSON()).toEqual({
+      title: 'Computer Science 11 - Period 2',
+      start_date: '2026-09-08',
+      end_date: '2027-01-31',
+    })
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
@@ -1571,6 +1576,8 @@ test.describe('teacher experience matrix', () => {
     await page.getByRole('menuitem', { name: 'From Course Blueprint' }).click()
     await page.getByRole('combobox', { name: 'Course Blueprint' }).selectOption(BLUEPRINT_ID)
     await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByLabel('First day of class').fill('2026-09-08')
+    await expect(page.getByLabel('Last day of class')).toHaveValue('2027-01-31')
     await page.getByRole('button', { name: 'Create' }).click()
 
     await expect(page.getByRole('heading', { name: 'Classroom Created' })).toBeFocused()
@@ -1588,7 +1595,9 @@ test.describe('teacher experience matrix', () => {
       animations: 'disabled',
     })
     await reviewButton.click()
-    await expect(page).toHaveURL(/\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments$/)
+    await expect(page).toHaveURL(
+      /\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments&reviewClassDays=1$/,
+    )
   })
 
   test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {
