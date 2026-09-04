@@ -44,6 +44,7 @@ describe('browser security policy', () => {
     const policy = createContentSecurityPolicy('nonce', {
       isDevelopment: false,
       supabaseUrl: 'https://project.supabase.co/storage/v1',
+      palEnabled: true,
       palApiUrl: 'https://pal.example.test',
     })
 
@@ -51,6 +52,17 @@ describe('browser security policy', () => {
       "connect-src 'self' https://project.supabase.co https://pal.example.test",
     )
     expect(policy).not.toContain('/storage/v1')
+  })
+
+  it('does not allow the configured Pal origin while the integration is disabled', () => {
+    const policy = createContentSecurityPolicy('nonce', {
+      isDevelopment: false,
+      palEnabled: false,
+      palApiUrl: 'https://pal.example.test',
+    })
+
+    expect(policy).toContain("connect-src 'self';")
+    expect(policy).not.toContain('pal.example.test')
   })
 
   it('rejects unsafe configured origins and limits development exceptions', () => {
@@ -61,6 +73,7 @@ describe('browser security policy', () => {
     })
     const developmentPolicy = createContentSecurityPolicy('nonce', {
       isDevelopment: true,
+      palEnabled: true,
       palApiUrl: 'http://127.0.0.1:3210',
       workosEnabled: true,
       workosApiHostname: 'localhost',

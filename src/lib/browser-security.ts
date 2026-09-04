@@ -1,6 +1,7 @@
 export interface BrowserSecurityEnvironment {
   isDevelopment: boolean
   supabaseUrl?: string
+  palEnabled?: boolean
   palApiUrl?: string
   workosEnabled?: boolean
   workosApiHostname?: string
@@ -64,10 +65,9 @@ export function createContentSecurityPolicy(
     environment.supabaseUrl,
     environment.isDevelopment,
   )
-  const palOrigin = configuredBrowserOrigin(
-    environment.palApiUrl,
-    environment.isDevelopment,
-  )
+  const palOrigin = environment.palEnabled
+    ? configuredBrowserOrigin(environment.palApiUrl, environment.isDevelopment)
+    : null
   const workOSOrigin = configuredWorkOSOrigin(environment)
   const connectSources = uniqueSources([
     "'self'",
@@ -115,6 +115,7 @@ export function getBrowserSecurityEnvironment(): BrowserSecurityEnvironment {
   return {
     isDevelopment: process.env.NODE_ENV === 'development',
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    palEnabled: process.env.PAL_ENABLED?.trim().toLowerCase() === 'true',
     palApiUrl: process.env.PAL_API_URL,
     workosEnabled: process.env.WORKOS_MAGIC_AUTH_PILOT === 'true',
     workosApiHostname: process.env.WORKOS_API_HOSTNAME,

@@ -45,8 +45,9 @@ capabilities.
   preserving same-origin document previews while preventing external
   clickjacking.
 - Browser connections default to Pika itself. Direct Storage uploads and the
-  optional Pal widget add only the origins parsed from
-  `NEXT_PUBLIC_SUPABASE_URL` and `PAL_API_URL`.
+  enabled optional Pal widget add only the origins parsed from
+  `NEXT_PUBLIC_SUPABASE_URL` and `PAL_API_URL`; a configured but disabled Pal
+  integration grants no browser connection access.
 - Form submissions stay on Pika, except for the exact WorkOS API origin when
   the WorkOS browser-session logout flow is enabled.
 - Fullscreen remains available to Pika for student test-taking. Camera,
