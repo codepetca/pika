@@ -1110,7 +1110,12 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await expect(contextBar).not.toContainText(/Draft|Active|Closed/)
   await expect(primaryControl.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
-  await expect(primaryControl.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+  const defaultStudentActionsButton = primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })
+  await expect(defaultStudentActionsButton).toBeDisabled()
+  const defaultStudentActionsBox = await defaultStudentActionsButton.boundingBox()
+  expect(defaultStudentActionsBox).not.toBeNull()
   await expect(trailingActions).toBeVisible()
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
@@ -1185,6 +1190,9 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const gradingToolbar = page.getByRole('toolbar', { name: 'Test grading actions' })
   const studentActionsButton = gradingToolbar.getByRole('button', { name: 'Student actions for 1 selected' })
   await expect(studentActionsButton).toContainText('1 selected')
+  const selectedStudentActionsBox = await studentActionsButton.boundingBox()
+  expect(selectedStudentActionsBox).not.toBeNull()
+  expect(selectedStudentActionsBox!.width).toBeCloseTo(defaultStudentActionsBox!.width, 1)
   await expect(gradingToolbar.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(gradingToolbar.getByRole('button', { name: 'Close All' })).toBeVisible()
   const selectionBarBox = await gradingToolbar.boundingBox()

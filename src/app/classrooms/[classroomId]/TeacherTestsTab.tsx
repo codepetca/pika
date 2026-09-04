@@ -2567,6 +2567,7 @@ export function TeacherTestsTab({
           disabled={batchSelectedCount === 0 || isCombinedTestActionsBusy}
           variant="secondary"
           size="sm"
+          className="w-36"
           menuPlacement="down"
           menuAlign="center"
           menuAriaLabel="Selected student actions"
@@ -2657,13 +2658,24 @@ export function TeacherTestsTab({
           icon={<EllipsisVertical className="h-4 w-4" aria-hidden="true" />}
           variant="ghost"
           menuAriaLabel="Tests list actions"
-          items={[{
-            id: 'edit-tests-markdown',
-            label: 'Edit Markdown',
-            icon: <Code className="h-4 w-4" aria-hidden="true" />,
-            onSelect: () => setShowMarkdownTestPicker(true),
-            disabled: isReadOnly || !hasTestsSnapshot || visibleTests.length === 0,
-          }]}
+          items={[
+            {
+              id: 'edit-tests',
+              label: 'Edit Tests',
+              icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
+              checked: testEditMode,
+              checkedRole: 'menuitemcheckbox',
+              onSelect: () => setTestEditMode((prev) => !prev),
+              disabled: isReadOnly,
+            },
+            {
+              id: 'edit-tests-markdown',
+              label: 'Edit Markdown',
+              icon: <Code className="h-4 w-4" aria-hidden="true" />,
+              onSelect: () => setShowMarkdownTestPicker(true),
+              disabled: isReadOnly || !hasTestsSnapshot || visibleTests.length === 0,
+            },
+          ]}
         />
       )}
       trailingClassName="overflow-visible"
@@ -2676,14 +2688,6 @@ export function TeacherTestsTab({
             onClick={handleNewTest}
             loading={isCreatingTest}
             disabled={isReadOnly || loading}
-          />
-          <TeacherWorkSurfaceIconButton
-            ariaLabel="Organize tests"
-            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-            onClick={() => setTestEditMode((prev) => !prev)}
-            disabled={isReadOnly}
-            pressed={testEditMode}
-            tooltip={testEditMode ? 'Done organizing tests' : 'Organize tests'}
           />
         </TeacherWorkSurfaceActionCluster>
       }

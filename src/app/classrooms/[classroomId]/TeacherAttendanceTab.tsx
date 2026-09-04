@@ -74,6 +74,7 @@ import { ONBOARDING_TARGET_IDS } from '@/components/onboarding/classroom-setup-o
 import { TeacherClassroomQrDialog } from './TeacherClassroomQrDialog'
 import { useTeacherAttendancePolicy } from '@/hooks/useTeacherAttendancePolicy'
 import {
+  ATTENDANCE_STATUS_DOT_CLASSES,
   AttendanceMarkButton,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
@@ -1540,6 +1541,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 void submitAttendanceMarks(visibleStudentIds, status)
               }}
             >
+              <span className={cn('h-3 w-3 shrink-0 rounded-full', ATTENDANCE_STATUS_DOT_CLASSES[status])} aria-hidden="true" />
               Mark all {status}
             </Button>
           ))}

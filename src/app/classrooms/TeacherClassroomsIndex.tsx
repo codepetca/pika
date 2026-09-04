@@ -31,6 +31,7 @@ import {
   MoreVertical,
   Plus,
   RotateCw,
+  Settings,
   ShieldCheck,
   Trash2,
   TriangleAlert,
@@ -40,7 +41,7 @@ import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState, Tooltip } from '@/ui'
+import { Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
@@ -801,114 +802,76 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                         key={c.id}
                         data-classroom-theme-color={theme.value}
                         style={getClassroomThemeStyle(theme.value)}
-                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative flex items-start gap-3 focus-within:z-local-menu rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
                       >
-                        <button
-                          type="button"
-                          data-testid="classroom-card"
-                          onClick={() => openClassroom(c)}
-                          disabled={openingClassroomId !== null}
-                          aria-busy={openingClassroomId === c.id}
-                          className={[
-                            '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
-                            openingClassroomId === c.id ? 'cursor-wait' : '',
-                          ].join(' ')}
-                        >
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
-                            {c.term_label && (
-                              <div className="text-sm text-text-muted">{c.term_label}</div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <button
+                            type="button"
+                            data-testid="classroom-card"
+                            onClick={() => openClassroom(c)}
+                            disabled={openingClassroomId !== null}
+                            aria-busy={openingClassroomId === c.id}
+                            className={[
+                              '-m-1.5 block w-full min-w-0 rounded-control p-1.5 text-left',
+                              openingClassroomId === c.id ? 'cursor-wait' : '',
+                            ].join(' ')}
+                          >
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
+                              {c.term_label && (
+                                <div className="text-sm text-text-muted">{c.term_label}</div>
+                              )}
+                            </div>
+                            <div className="mt-1 text-sm text-text-muted">
+                              {dateRange ?? 'Semester dates not set'}
+                            </div>
+                            {verifiedArchive ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+                                <span className="inline-flex items-center gap-1 font-medium text-success">
+                                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Recovery copy verified
+                                </span>
+                                <span aria-hidden="true">&middot;</span>
+                                <span>{formatArchiveSize(verifiedArchive.compressed_byte_size)}</span>
+                                <span aria-hidden="true">&middot;</span>
+                                <span>
+                                  {verifiedArchive.retention.mode === 'teacher_managed'
+                                    ? 'Kept until you delete it'
+                                    : `Retention date ${new Intl.DateTimeFormat('en-CA', {
+                                        timeZone: 'America/Toronto',
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      }).format(new Date(verifiedArchive.retention.delete_after))}`}
+                                </span>
+                              </div>
+                            ) : staleArchive ? (
+                              <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                                <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                                Recovery copy out of date
+                              </div>
+                            ) : latestOperation?.status === 'failed' ? (
+                              <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
+                                <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                                Recovery copy needs attention
+                              </div>
+                            ) : (
+                              <div className="mt-2 inline-flex items-center gap-1 text-xs text-text-muted">
+                                <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
+                                {latestOperation?.status === 'snapshot_ready'
+                                  ? 'Recovery copy interrupted'
+                                  : recovery && !recovery.export_available
+                                    ? 'Database archive only · Recovery copy unavailable'
+                                    : 'Database archive only'}
+                              </div>
                             )}
-                          </div>
-                          <div className="mt-1 text-sm text-text-muted">
-                            {dateRange ?? 'Semester dates not set'}
-                          </div>
-                          {verifiedArchive ? (
-                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
-                              <span className="inline-flex items-center gap-1 font-medium text-success">
-                                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                Recovery copy verified
-                              </span>
-                              <span aria-hidden="true">&middot;</span>
-                              <span>{formatArchiveSize(verifiedArchive.compressed_byte_size)}</span>
-                              <span aria-hidden="true">&middot;</span>
-                              <span>
-                                {verifiedArchive.retention.mode === 'teacher_managed'
-                                  ? 'Kept until you delete it'
-                                  : `Retention date ${new Intl.DateTimeFormat('en-CA', {
-                                      timeZone: 'America/Toronto',
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                    }).format(new Date(verifiedArchive.retention.delete_after))}`}
-                              </span>
-                            </div>
-                          ) : staleArchive ? (
-                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
-                              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                              Recovery copy out of date
-                            </div>
-                          ) : latestOperation?.status === 'failed' ? (
-                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
-                              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                              Recovery copy needs attention
-                            </div>
-                          ) : (
-                            <div className="mt-2 inline-flex items-center gap-1 text-xs text-text-muted">
-                              <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
-                              {latestOperation?.status === 'snapshot_ready'
-                                ? 'Recovery copy interrupted'
-                                : recovery && !recovery.export_available
-                                  ? 'Database archive only · Recovery copy unavailable'
-                                  : 'Database archive only'}
-                            </div>
-                          )}
-                          {openingClassroomId === c.id && (
-                            <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                              Opening classroom...
-                            </div>
-                          )}
-                        </button>
-                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                          <Tooltip content="Reuse">
-                            <span className="inline-flex">
-                              <Button
-                                type="button"
-                                variant="primary"
-                                size="xs"
-                                className="p-0"
-                                aria-label="Reuse"
-                                aria-busy={reusingClassroomId === c.id || undefined}
-                                onClick={() => prepareArchivedClassroomAgain(c)}
-                                disabled={
-                                  openingClassroomId !== null
-                                  || reusingClassroomId !== null
-                                }
-                              >
-                                {reusingClassroomId === c.id ? (
-                                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                                ) : (
-                                  <CopyPlus className="h-4 w-4" aria-hidden="true" />
-                                )}
-                              </Button>
-                            </span>
-                          </Tooltip>
-                          <Tooltip content="Unarchive">
-                            <span className="inline-flex">
-                              <Button
-                                type="button"
-                                variant="surface"
-                                size="xs"
-                                className="p-0"
-                                aria-label="Unarchive"
-                                onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
-                                disabled={openingClassroomId !== null || reusingClassroomId !== null}
-                              >
-                                <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
-                              </Button>
-                            </span>
-                          </Tooltip>
+                            {openingClassroomId === c.id && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                                <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                Opening classroom...
+                              </div>
+                            )}
+                          </button>
                           {!verifiedArchive && recovery && exportCanStart ? (
                             <Button
                               type="button"
@@ -923,20 +886,39 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                                 : 'Create recovery copy'}
                             </Button>
                           ) : null}
-                          {hotClassroomPurgeEnabledIds.has(c.id) ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="xs"
-                              className="text-danger hover:text-danger"
-                              aria-label="Delete permanently"
-                              title="Delete permanently"
-                              onClick={() => setPurgeClassroom(c)}
-                              disabled={openingClassroomId !== null || reusingClassroomId !== null}
-                            >
-                              <Trash2 className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                          ) : null}
+                        </div>
+                        <div className="shrink-0 self-start lg:self-center">
+                          <TeacherWorkSurfaceIconMenuButton
+                            ariaLabel={`Settings for ${c.title}`}
+                            tooltip="Settings"
+                            icon={reusingClassroomId === c.id
+                              ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+                              : <Settings className="h-5 w-5" aria-hidden="true" />}
+                            disabled={openingClassroomId !== null || reusingClassroomId !== null}
+                            buttonProps={{ 'aria-busy': reusingClassroomId === c.id || undefined }}
+                            items={[
+                              {
+                                id: 'reuse',
+                                label: 'Reuse',
+                                icon: <CopyPlus className="h-4 w-4" aria-hidden="true" />,
+                                onSelect: () => void prepareArchivedClassroomAgain(c),
+                              },
+                              {
+                                id: 'unarchive',
+                                label: 'Unarchive',
+                                icon: <ArchiveRestore className="h-4 w-4" aria-hidden="true" />,
+                                onSelect: () => setPendingAction({ mode: 'restore-hot', classroom: c }),
+                              },
+                              {
+                                id: 'delete',
+                                label: 'Delete',
+                                icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+                                destructive: true,
+                                disabled: !hotClassroomPurgeEnabledIds.has(c.id),
+                                onSelect: () => setPurgeClassroom(c),
+                              },
+                            ]}
+                          />
                         </div>
                       </div>
                     )

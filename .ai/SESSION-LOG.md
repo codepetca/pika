@@ -11,52 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Rebase stable classroom QR after PR 1138
-
-- Confirmed #1138 merged at `a068a846`; this task remains the sole writer of `codex/classroom-permanent-attendance-qr`. Rebased both feature commits onto that main. Only session-history archive markers conflicted; preserved history without duplicating entries. Application changes merged automatically and a range comparison confirms no feature behavior changes. Migration 151 is byte-for-byte unchanged and remains applied to local/production.
-- Restored regenerated database types, rollout documentation and untracked screenshot helper/artifacts from exact safety stash `dd0dc07844076687621d3a5741339d631129d579`; retain this and the older pre-PR stash for recovery. Focused gate passes 185 files / 1,817 tests plus architecture, UI/design policy, TypeScript and lint. Eight teacher/student desktop/mobile light/dark browser cases pass; refreshed poster/student screenshots inspected. Pika pre-commit audit passes.
-- Final security/integration review will use one Sol/high reviewer on a detached exact-head checkout, reusing completed initial Sol/Terra and targeted review evidence. Fresh full replay is delegated to required CI. Asked the owner whether live Pika→Bara scan verification remains pre-merge or is an explicit pre-enablement rollout check, because this worktree lacks live integration configuration. Keep draft until that decision and all remaining gates are satisfied; no database application or deployment in this rebase pass.
-
-## 2026-09-02 — Refresh QR Pattern Lab acceptance references
-
-- Final Sol/high integration review on `445f6a46` passed 85 targeted tests and found no new security/correctness defects, but reproduced a merge-blocking P2: teacher Pattern Lab references omitted the new QR example button (2/2 checked cases failed). Updated all eight teacher contract baselines after inspecting the intended button/mobile-row delta; no source, test assertions or screenshot tolerances changed. Capture source `445f6a46`, Playwright 1.58.0, Darwin and Noble Linux with fonts-dejavu-core; student baselines unchanged.
-- Exact candidate production build passes. One targeted snapshot-only re-review follows this correction (fifth reviewer launch overall); no additional broad review wave. Live authenticated Bara smoke gating remains an explicit owner decision, and required exact-head CI/replay has not run yet. PR stays draft.
-
-## 2026-09-02 — Dormant classroom-access and entitlement foundation
-
-- Recorded the approved neutral-account/classroom-relationship direction and teacher-first monetization roadmap in `docs/guidance/classroom-access-and-entitlements-roadmap.md`. Phased rollout preserves production classes; billing, pricing, general grants, UI and neutral signup remain future work. The new epic stays incomplete.
-- Added unused read-only ownership/enrollment resolution, pure coarse classroom permissions, effective feature entitlement eligibility, explicit owner-sponsored grading composition and teacher-only legacy creation compatibility. No existing routes, global roles, signup, server-session contract, attendance entitlement rules, dependencies or schemas changed; no migration applied or production deployment performed.
-- New contracts pass 81 tests with 100% statement/branch/function/line coverage; existing auth/create/join/access/attendance-entitlement regressions pass 153 tests. Pika audit and TypeScript pass. Shortened routing link labels without removing destinations to keep startup guidance within its enforced size budget after adding the epic.
-- Dev-flow risk profile: none (no live consumer); independent review risk: high (future authorization contracts). Required focused gate, draft PR, independent reviews and exact-head CI tracked in the PR lifecycle; no merge authorization assumed.
-- PR #1170 initial Sol/high review found no issues; Terra/high found a non-blocking malformed archive-timestamp contract mismatch. Added a red-first regression and offset-datetime validation. Synced main `ebf86178` after #1168; preserved shared history without duplicate archive entries, and removed a copied migration-status assertion from the roadmap. Live access code remains untouched. Targeted/final review and exact-head CI follow this single correction batch.
-
-## 2026-09-02 — Refine Pattern Lab Gradebook category and weight controls
-
-- Prototyped table-card category editing with Term default, drag handles, half-point course percentages, read-only amber locks, and top-to-bottom automatic balancing. Removed the default item weight input (new categories use 10) and added a blank no-categories example.
-- Added compact single-column assessment editing for title, Category/None, Category weight, and calculated Course weight. Centered percent/x-y and AVG/MED controls plus a Lucide Dumbbell toggle; selected-student actions show Copy emails and Copy secondary emails as fixture actions.
-- Show weights now reveals two table metadata rows with left-hand labels, editable category weights, and read-only course weights. Refined opaque frozen cells, header layering, the summary divider, and desktop menu overflow. Production Gradebook and database are unchanged; migration 147 belongs to the already-merged PR #1160, not this refinement.
-- Verification before packaging: 24 focused UI/state tests, TypeScript, affected-file lint, design/UI policy, and diff checks passed. Teacher desktop/mobile light/dark captures and horizontal/vertical scrolling were inspected. This fixture-only proposal remains experimental; independent PR review and live adoption are separate next steps.
-- Packaging updated the gallery's stale menu-label expectations and added direct dialog accessibility tests. The focused gate passes 16 files / 137 tests plus architecture, UI/design policy, TypeScript, and lint; staged Pika audit passes. Composite checklist reviewed: Escape/focus return, keyboard toggle activation, labels, and pressed/read-only/disabled semantics are covered; drag keyboard and final browser-contract review remain pre-ready follow-up.
-- Risk profile: none (fixture-only UI). Model recommendation: GPT-5.6 Terra — bounded prototype interaction and accessibility review. Branch: codex/gradebook-editor-table; user requested a draft PR only.
-- Rebased draft PR #1167 onto main `17cb15a6`, preserving the newer Daily/student page sets alongside the Gradebook prototype and reconciling session-history conflicts without duplicating archived entries. Installed the locked main dependency updates. The integrated focused gate passes 16 files / 142 tests, architecture, UI/design policies, TypeScript, lint, and Pika audit; teacher/student login checks pass. Inspected desktop/mobile light/dark reference captures plus populated/empty category editors at `/tmp/pika-gradebook-rebase.75zTmk`. No migration changes or stash changes. Independent review, browser-verifier label updates, mobile action access, and category/weight edge-case checks remain before ready; live adoption is separate.
-
-## 2026-09-02 — Finish Gradebook prototype edge cases and browser verification
-
-- Completed the remaining Pattern Lab work for #1167: consistent Edit/Save categories labels, mobile selection access outside the scrolling display controls, collision-free category IDs after delete/reopen, preserved assessment weights on category changes, and validation that keeps invalid inline drafts out of calculations. Hidden weight labels are contained by the table scroller; assessment titles cannot overwrite hidden few-assessment fixtures. The no-categories option is teacher Gradebook-only and clears on leaving.
-- Updated the full page-mockup browser contract (212 checks) and added a dedicated Gradebook verifier covering desktop/mobile light/dark, invalid weights, empty setup, half-point redistribution, locks, keyboard drag, delete/reopen/add, title editing, and None fallback. All browser checks pass before the final main integration; reviewed teacher/student screenshots plus dialog, selection, and scrolling states. Evidence: `/tmp/pika-gradebook-completion.aQE5Fv`. Focused checks pass 147 tests plus a new direct inline-input regression; Pika audit passes.
-- Rebased onto `ebf86178` after #1138 and #1168 landed. Only archive markers conflicted; retained main's history and preserved the prototype. No migration changes/application, stash creation, deployment, or live Gradebook adoption. Final post-rebase checks precede a standard-risk Terra/high independent review and exact-head CI. Live adoption still requires design acceptance; no merge authority inferred.
-- Post-rebase verification: 17 files / 149 tests and all static gates pass. Both browser verifiers pass (212 full-page checks plus the dedicated Gradebook flows); refreshed teacher/student, desktop/mobile, light/dark and dialog/scrolling captures inspected. Shared-history trimming preserves the two newly archived entries and avoids re-adding seven entries already archived on main. Independent review/CI results will be recorded on the PR to keep its reviewed commit stable.
-- Independent review identified a fixture consistency bug: Few assessments hid nine retained items from the course-weight denominator. Remediation batch 1 builds calculation/editor inputs from all assessments while displaying only the three preview columns, and adds row/dialog/weight-edit regressions. The example description now makes the full-course calculation explicit. PR remains draft for targeted re-review and final cumulative integration review; no live behavior changed.
-- Targeted and final integration reviews cleared `8aef0260`; exact-head CI `33692785109` passed Test & Build, browser contracts and PR Gate. While CI ran, #1170 landed and conflicted only in shared archive history. Returned #1167 to draft and rebased onto `a9dcf20f`; Gradebook source/tests/browser verifiers are byte-for-byte unchanged from the passing candidate. A final bounded targeted rebase review and new exact-head CI are required; prior CI success is not represented as approval of the new commit. No merge authority inferred.
-
-## 2026-09-02 — Fix release grade aggregation and gate stable QR canary
-
-- Owner approved the release-review correction: preserve an intentionally empty categorized final grade instead of falling back to legacy totals, including empty-category schemas. Three API regressions reproduced the wrong 100% before the fix. Legacy fallback remains only for an unavailable schema.
-- Added a fail-closed, separate stable-poster rollout gate: disabled by default, exact synthetic teacher/classroom pair in canary mode, explicit enabled mode after live verification. Enforced in teacher API/helpers, student resolution and server-provided menu availability. Existing occurrence-specific attendance is unchanged; no migration or production mutation.
-- Added persistence/concurrency/error-mapping coverage and gate boundary tests. Focused checks passed 20 files / 256 tests plus architecture, UI/design policy, TypeScript and lint. Eight teacher/student desktop/mobile light/dark browser fixtures passed; all role states were visually inspected. Dark poster captures were repeated with explicit SVG fill assertions after an initial blank capture; no display source change was needed. Pattern Lab QR and shared menu keyboard/focus checks passed. Local fixture evidence does not replace the production Bara canary.
-- Worktree `codex/release-gradebook-qr-canary` is the sole implementation writer. Initial cumulative release Sol/Terra review completed on `ebf86178`; this is remediation batch 1, followed by targeted and final integration review. Production PR #1169 remains draft; exact-head CI and controlled live rollout are next.
-- PR #1171 targeted and cumulative final Sol reviews passed at `a55c675c`. Full CI then found one stale documentation assertion among 5,755 tests: it expected production migration 146 after CURRENT was corrected to verified 151. Reproduced locally and updated that assertion in batch 2; application source is unchanged. PR returned to draft before correction; final test-only review uses launch 5/5. No production mutation.
-
 ## 2026-09-02 — Rollout checkpoint after access foundation merged
 
 - Final #1171 candidate `04334180` passed all CI lanes and PR Gate in run `33692713522`. Before merge, main advanced to `a9dcf20f` via #1170; GitHub now reports a conflict. Read-only merge-tree confines the conflict to `.ai/JOURNAL-ARCHIVE.md`; no application-file conflicts and no rebase performed.
@@ -278,3 +232,35 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Replaced the detailed deletion inventory sentence with: “This permanently removes all student-related work. The Course Blueprint and user accounts are kept.” The shared dialog geometry, deletion impact counts, typed confirmation, attendance coordination and deletion behavior are unchanged.
 - Added component coverage for the concise wording and a browser assertion that the initial dialog body does not overflow. Teacher deletion states and student access boundaries pass across desktop/mobile and light/dark; screenshots were inspected with no visible scrollbar or clipping.
 - Focused checks pass 12 files / 135 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile none; no schema, data, API, dependency, deployment or merge action is included.
+
+## 2026-09-04 — Enable coordinated attendance deletion in production
+
+- Merged the concise deletion-warning change in PR #1198 and promoted the reviewed release through PR #1199; production is live at `859e1816`. Verified Pika production migrations 001–156 before changing any rollout gate.
+- Used an isolated synthetic teacher/student fixture for the exact signed deletion canary. Bara removed 12 remote entities and verified absence, Pika removed 9 local attendance records, and the final Classroom purge completed. Both user accounts, five unrelated student enrollments, and the retained QR attendance canary remained.
+- Enabled coordinated deletion broadly only after the canary passed, removed the temporary canary environment bindings, and verified the replacement deployment was ready before enabling Pika's database gate. The teacher browser smoke test and final database checks passed; no student browser session was available, so student preservation was verified at the database boundary.
+- Removed the temporary environment directories used during production verification. No student names, emails, opaque roster references, or production credentials were recorded here.
+
+## 2026-09-04 — Rebase attendance option colors for merge
+
+- Rebased PR #1182 onto current main after explicit merge authorization. The live and Pattern Lab Edit attendance cards retain the reviewed green Present, yellow Late, and red Absent circles; shared attendance color tokens and existing interaction semantics remain unchanged.
+- Resolved only rolling session-history conflicts by retaining current main history and recording this rebase once. Application source changes match the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase archived classroom actions for merge
+
+- Rebased PR #1183 after #1182 merged. Archived classroom cards retain the reviewed right-side Settings menu with Reuse, Unarchive, and availability-gated Delete, while missed clicks in the card's right padding remain inert.
+- Retained current rolling history and updated the browser flow to reopen the new Settings menu before each coordinated-deletion state. Runtime source is unchanged from the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase Gradebook display toggles for merge
+
+- Rebased PR #1188 after #1183 merged, flattening obsolete merge commits into the single reviewed feature patch. Gradebook retains compact single-button `%`/`x/y` and `AVG`/`MED` display switches in the live teacher surface and Pattern Lab.
+- Retained current rolling history; application and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge. The later Gradebook refinement PR remains responsible for its approved final toolbar composition.
+
+## 2026-09-04 — Rebase Tests edit action for merge
+
+- Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
+- Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase fixed-width Test student actions for merge
+
+- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
+- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
