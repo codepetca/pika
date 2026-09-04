@@ -20,13 +20,12 @@ capabilities.
 - `next.config.js` disables `X-Powered-By` and applies the route-wide baseline:
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and
   `Permissions-Policy`.
-- The global referrer policy is `same-origin`: browsers preserve the Origin
-  signal used to reject forged logout submissions while sending no referrer to
-  other sites. Private Storage, test-document delivery, and attendance routes
-  retain their stricter `no-referrer` policy through explicit route rules.
-  Token-bearing attendance entry pages and their `/login?next=...` handoff also
-  use `no-referrer`, preventing opaque entry tokens from entering same-origin
-  request logs.
+- The global referrer policy is `no-referrer`, so private Storage URLs,
+  test-document links, and token-bearing attendance/login paths cannot enter
+  same-origin or cross-origin request logs. Logout CSRF validation accepts an
+  exact Origin normally. When this privacy policy produces `Origin: null`, it
+  additionally requires browser-controlled `Sec-Fetch-Site: same-origin`;
+  missing, same-site, and cross-site signals still fail closed.
 - API responses receive the nonce policy so Next.js HTML fallbacks under `/api`
   remain protected. The student and teacher test-document snapshot routes retain
   ownership of their stricter script-free CSP; spoofed policy/nonce request
