@@ -63,13 +63,25 @@ describe('AuthKit middleware matcher', () => {
   it('injects a trusted request path and overwrites a spoofed client header', async () => {
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
     const request = new NextRequest('https://pika.example/teacher/calendar?view=month', {
-      headers: { [PIKA_REQUEST_PATH_HEADER]: '/evil' },
+      headers: {
+        [PIKA_REQUEST_PATH_HEADER]: '/evil',
+        'x-nonce': 'attacker-controlled',
+        'content-security-policy': "default-src * 'unsafe-inline'",
+      },
     })
 
     const response = await middleware(request)
 
     expect(response.headers.get(`x-middleware-request-${PIKA_REQUEST_PATH_HEADER}`))
       .toBe('/teacher/calendar?view=month')
+    const nonce = response.headers.get('x-middleware-request-x-nonce')
+    const policy = response.headers.get('content-security-policy')
+    expect(nonce).toMatch(/^[a-f0-9]{32}$/)
+    expect(nonce).not.toBe('attacker-controlled')
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toBe(policy)
+    expect(policy).toContain(`'nonce-${nonce}'`)
+    expect(policy).toContain("frame-ancestors 'self'")
+    expect(policy).not.toContain("default-src * 'unsafe-inline'")
     expect(workOSMocks.authkit).not.toHaveBeenCalled()
   })
 
@@ -87,5 +99,7 @@ describe('AuthKit middleware matcher', () => {
     expect(response.headers.get(`x-middleware-request-${PIKA_REQUEST_PATH_HEADER}`))
       .toBe('/student/history?month=8')
     expect(response.headers.get('set-cookie')).toContain('pika-wos-session=refreshed')
+    const nonce = response.headers.get('x-middleware-request-x-nonce')
+    expect(response.headers.get('content-security-policy')).toContain(`'nonce-${nonce}'`)
   })
 })
