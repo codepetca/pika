@@ -11,6 +11,10 @@ import type {
   GradebookCategoriesPutCommand,
   GradebookPatchCommand,
 } from '@/lib/validations/gradebook'
+import type {
+  GradebookScoreOverrideDeleteCommand,
+  GradebookScoreOverridePutCommand,
+} from '@/lib/validations/gradebook-score-overrides'
 import {
   loadChunkedRows,
   loadPagedRows as loadServerPagedRows,
@@ -37,6 +41,7 @@ type GradebookCategory = {
 }
 
 type GradebookAssessmentType = 'assignment' | 'test'
+type GradebookOverrideType = GradebookAssessmentType | 'final'
 type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -54,6 +59,7 @@ type GradebookAssessmentCell = {
   percent: number | null
   is_graded: boolean
   is_manual_override?: boolean
+  calculated_earned?: number | null
   status?: GradebookAssessmentStatus | null
 }
 
@@ -598,6 +604,44 @@ export async function loadTeacherGradebook(opts: {
   tests.sort(comparePositionThenTitle)
 
   const testIds = tests.map((test) => test.id)
+  let scoreOverridesAvailable = true
+  const scoreOverrideMap = new Map<string, number>()
+  const finalScoreOverrideMap = new Map<string, number>()
+  const {
+    rows: scoreOverrides,
+    error: scoreOverridesError,
+  } = await loadPagedRows<{
+    student_id: string
+    assessment_type: GradebookOverrideType
+    assessment_id: string
+    earned: number
+  }>(() =>
+    supabase
+      .from('gradebook_score_overrides')
+      .select('student_id, assessment_type, assessment_id, earned')
+      .eq('classroom_id', classroomId)
+  )
+
+  if (scoreOverridesError && isMissingTableError(scoreOverridesError)) {
+    scoreOverridesAvailable = false
+  } else if (scoreOverridesError) {
+    console.error('Error loading Gradebook score overrides:', scoreOverridesError)
+    throw new ApiError(500, 'Failed to load Gradebook overrides')
+  } else {
+    for (const override of scoreOverrides || []) {
+      if (!enrolledStudentIds.has(override.student_id)) continue
+      if (override.assessment_type === 'final') {
+        if (override.assessment_id !== classroomId) continue
+        finalScoreOverrideMap.set(override.student_id, Number(override.earned))
+        continue
+      }
+      const knownAssessment = override.assessment_type === 'assignment'
+        ? assignmentIds.includes(override.assessment_id)
+        : testIds.includes(override.assessment_id)
+      if (!knownAssessment) continue
+      scoreOverrideMap.set(cellKey(override.student_id, override.assessment_id), Number(override.earned))
+    }
+  }
   const {
     rows: testQuestions,
     error: testQuestionsError,
@@ -788,12 +832,28 @@ export async function loadTeacherGradebook(opts: {
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
+    const manualOverride = scoreOverrideMap.get(cellKey(studentId, assignment.id))
+    if (manualOverride != null) {
+      const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
+      return {
+        assessment_id: assignment.id,
+        assessment_type: 'assignment',
+        earned: round2(manualOverride),
+        possible: round2(possible),
+        percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+        is_graded: possible > 0,
+        is_manual_override: true,
+        calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
+        ...(status ? { status } : {}),
+      }
+    }
     if (sc == null || st == null || sw == null) {
       return blankAssessmentCell('assignment', assignment.id, possible, undefined, status)
     }
 
     const raw = Number(sc) + Number(st) + Number(sw)
     const earned = (raw / 30) * possible
+
     return {
       assessment_id: assignment.id,
       assessment_type: 'assignment',
@@ -884,8 +944,35 @@ export async function loadTeacherGradebook(opts: {
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
-    const assignmentRows = assignmentRowsByStudent.get(studentId) || []
-    const testRows = testRowsByStudent.get(studentId) || []
+    const assessmentScores = [
+      ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
+      ...tests.map((test) => {
+        const questionsForTest = testQuestionsByTest.get(test.id) || []
+        const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+        const baseCell = testCellMap.get(cellKey(studentId, test.id)) || blankAssessmentCell('test', test.id, possible)
+        const manualOverride = scoreOverrideMap.get(cellKey(studentId, test.id))
+        if (manualOverride == null) return baseCell
+        return {
+          ...baseCell,
+          earned: round2(manualOverride),
+          percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+          is_graded: possible > 0,
+          is_manual_override: true,
+          calculated_earned: baseCell.earned,
+        }
+      }),
+    ]
+    const assignmentRows = assignments.flatMap((assignment, index) => {
+      const cell = assessmentScores[index]
+      if (!assignment.include_in_final || assignment.is_draft || cell.earned == null || cell.possible <= 0) return []
+      return [{ earned: cell.earned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+    })
+    const testOffset = assignments.length
+    const testRows = tests.flatMap((test, index) => {
+      const cell = assessmentScores[testOffset + index]
+      if (!test.include_in_final || test.status === 'draft' || cell.earned == null || cell.possible <= 0) return []
+      return [{ earned: cell.earned, possible: cell.possible, weight: test.gradebook_weight, categoryId: test.gradebook_category_id }]
+    })
     const legacyCalc = calculateFinalPercent({
       useWeights: false,
       assignmentsWeight: DEFAULT_SETTINGS.assignments_weight,
@@ -916,6 +1003,8 @@ export async function loadTeacherGradebook(opts: {
       }),
       { earned: 0, possible: 0 }
     )
+    const calculatedFinalPercent = categorizedCalc ? categorizedCalc.finalPercent : legacyCalc.finalPercent
+    const finalOverride = finalScoreOverrideMap.get(studentId)
 
     return {
       student_id: studentId,
@@ -929,15 +1018,9 @@ export async function loadTeacherGradebook(opts: {
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
       tests_percent: legacyCalc.testsPercent,
-      final_percent: categorizedCalc ? categorizedCalc.finalPercent : legacyCalc.finalPercent,
-      assessment_scores: [
-        ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
-        ...tests.map((test) => {
-          const questionsForTest = testQuestionsByTest.get(test.id) || []
-          const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
-          return testCellMap.get(cellKey(studentId, test.id)) || blankAssessmentCell('test', test.id, possible)
-        }),
-      ],
+      final_percent: finalOverride == null ? calculatedFinalPercent : round2(finalOverride),
+      ...(finalOverride == null ? {} : { is_final_override: true, calculated_final_percent: calculatedFinalPercent }),
+      assessment_scores: assessmentScores,
     }
   })
 
@@ -951,20 +1034,9 @@ export async function loadTeacherGradebook(opts: {
     ? students.find((student) => student.student_id === selectedStudentId) || null
     : null
 
-  const classAssignmentSummaries = assignments.map((assignment) => {
-    const docsForAssignment = docsByAssignment.get(assignment.id) || []
-    const graded = docsForAssignment
-      .filter((doc) => enrolledStudentIds.has(doc.student_id))
-      .map((doc) => {
-        const sc = doc.score_completion
-        const st = doc.score_thinking
-        const sw = doc.score_workflow
-        if (sc == null || st == null || sw == null) return null
-        const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
-        const raw = Number(sc) + Number(st) + Number(sw)
-        const earned = (raw / 30) * possible
-        return round2((earned / possible) * 100)
-      })
+  const classAssignmentSummaries = assignments.map((assignment, assignmentIndex) => {
+    const graded = students
+      .map((student) => student.assessment_scores[assignmentIndex]?.percent ?? null)
       .filter((value): value is number => value != null)
 
     const averagePercent = graded.length > 0
@@ -989,11 +1061,12 @@ export async function loadTeacherGradebook(opts: {
     .map((test) => {
       const questionsForTest = testQuestionsByTest.get(test.id) || []
       const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
-      const scored = testScoresByTest.get(test.id) || []
+      const testIndex = assignments.length + tests.findIndex((candidate) => candidate.id === test.id)
+      const scored = students
+        .map((student) => student.assessment_scores[testIndex]?.percent ?? null)
+        .filter((value): value is number => value != null)
       const averagePercent = scored.length > 0
-        ? round2(
-            scored.reduce((sum, row) => sum + (row.earned / row.possible) * 100, 0) / scored.length
-          )
+        ? round2(scored.reduce((sum, value) => sum + value, 0) / scored.length)
         : null
 
       return {
@@ -1014,6 +1087,7 @@ export async function loadTeacherGradebook(opts: {
     settings: DEFAULT_SETTINGS,
     categories,
     category_schema_available: categorySchemaAvailable,
+    score_overrides_available: scoreOverridesAvailable,
     assessment_columns: assessmentColumns,
     students,
     selected_student: selectedStudent
@@ -1142,6 +1216,114 @@ export async function updateTeacherGradebook(opts: {
         : {}),
     },
   }
+}
+
+async function assertGradebookOverrideTarget(input: {
+  classroomId: string
+  studentId: string
+  assessmentType: GradebookOverrideType
+  assessmentId: string
+}) {
+  const supabase = getServiceRoleClient()
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('classroom_enrollments')
+    .select('student_id')
+    .eq('classroom_id', input.classroomId)
+    .eq('student_id', input.studentId)
+    .maybeSingle()
+
+  if (enrollmentError) {
+    console.error('Error checking Gradebook override enrollment:', enrollmentError)
+    throw new ApiError(500, 'Failed to validate student')
+  }
+  if (!enrollment) throw new ApiError(404, 'Student is not enrolled in this classroom')
+  if (input.assessmentType === 'final') {
+    if (input.assessmentId !== input.classroomId) throw new ApiError(400, 'Invalid final override target')
+    return
+  }
+
+  const { data: assessment, error: assessmentError } = await supabase
+    .from(assessmentTableName(input.assessmentType))
+    .select('id')
+    .eq('id', input.assessmentId)
+    .eq('classroom_id', input.classroomId)
+    .maybeSingle()
+  if (assessmentError) {
+    console.error('Error checking Gradebook override assessment:', assessmentError)
+    throw new ApiError(500, 'Failed to validate assessment')
+  }
+  if (!assessment) throw new ApiError(404, 'Assessment not found')
+}
+
+export async function saveTeacherGradebookScoreOverride(opts: {
+  teacherId: string
+  command: GradebookScoreOverridePutCommand
+}) {
+  const { teacherId, command } = opts
+  await assertTeacherOwnsClassroom(teacherId, command.classroom_id, { checkArchived: true })
+  await assertGradebookOverrideTarget({
+    classroomId: command.classroom_id,
+    studentId: command.student_id,
+    assessmentType: command.assessment_type,
+    assessmentId: command.assessment_id,
+  })
+
+  const supabase = getServiceRoleClient()
+  const { error } = await supabase.from('gradebook_score_overrides').upsert({
+    classroom_id: command.classroom_id,
+    student_id: command.student_id,
+    assessment_type: command.assessment_type,
+    assessment_id: command.assessment_id,
+    earned: command.earned,
+    created_by: teacherId,
+  }, { onConflict: 'classroom_id,student_id,assessment_type,assessment_id' })
+
+  if (error && isMissingTableError(error)) {
+    throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
+  }
+  if (error) {
+    console.error('Error saving Gradebook override:', error)
+    throw new ApiError(500, 'Failed to save override')
+  }
+  return { saved: true }
+}
+
+export async function deleteTeacherGradebookScoreOverride(opts: {
+  teacherId: string
+  command: GradebookScoreOverrideDeleteCommand
+}) {
+  const { teacherId, command } = opts
+  await assertTeacherOwnsClassroom(teacherId, command.classroom_id, { checkArchived: true })
+  if (!('all' in command)) {
+    await assertGradebookOverrideTarget({
+      classroomId: command.classroom_id,
+      studentId: command.student_id,
+      assessmentType: command.assessment_type,
+      assessmentId: command.assessment_id,
+    })
+  }
+
+  const supabase = getServiceRoleClient()
+  let query = supabase
+    .from('gradebook_score_overrides')
+    .delete()
+    .eq('classroom_id', command.classroom_id)
+  if (!('all' in command)) {
+    query = query
+      .eq('student_id', command.student_id)
+      .eq('assessment_type', command.assessment_type)
+      .eq('assessment_id', command.assessment_id)
+  }
+  const { error } = await query
+
+  if (error && isMissingTableError(error)) {
+    throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
+  }
+  if (error) {
+    console.error('Error undoing Gradebook overrides:', error)
+    throw new ApiError(500, 'Failed to undo overrides')
+  }
+  return { deleted: true }
 }
 
 export async function replaceTeacherGradebookCategories(opts: {

@@ -4,6 +4,10 @@ import {
   gradebookPatchSchema,
   gradebookQuerySchema,
 } from '@/lib/validations/gradebook'
+import {
+  gradebookScoreOverrideDeleteSchema,
+  gradebookScoreOverridePutSchema,
+} from '@/lib/validations/gradebook-score-overrides'
 
 describe('gradebookQuerySchema', () => {
   it('normalizes an optional selected student while preserving the classroom id', () => {
@@ -16,6 +20,28 @@ describe('gradebookQuerySchema', () => {
   it('requires a classroom id', () => {
     expect(() => gradebookQuerySchema.parse({ classroom_id: '', student_id: null }))
       .toThrow('classroom_id is required')
+  })
+})
+
+describe('Gradebook manual score validation', () => {
+  const identity = {
+    classroom_id: 'classroom-1',
+    student_id: 'student-1',
+    assessment_type: 'assignment' as const,
+    assessment_id: 'assignment-1',
+  }
+
+  it('accepts decimal and extra-credit marks', () => {
+    expect(gradebookScoreOverridePutSchema.parse({ ...identity, earned: 31.5 })).toEqual({ ...identity, earned: 31.5 })
+    const finalIdentity = { ...identity, assessment_type: 'final' as const, assessment_id: 'classroom-1' }
+    expect(gradebookScoreOverridePutSchema.parse({ ...finalIdentity, earned: 68.5 })).toEqual({ ...finalIdentity, earned: 68.5 })
+  })
+
+  it('rejects negative marks and distinguishes one-cell from undo-all requests', () => {
+    expect(gradebookScoreOverridePutSchema.safeParse({ ...identity, earned: -1 }).success).toBe(false)
+    expect(gradebookScoreOverridePutSchema.safeParse({ ...identity, earned: 31.55 }).success).toBe(false)
+    expect(gradebookScoreOverrideDeleteSchema.parse(identity)).toEqual(identity)
+    expect(gradebookScoreOverrideDeleteSchema.parse({ classroom_id: 'classroom-1', all: true })).toEqual({ classroom_id: 'classroom-1', all: true })
   })
 })
 

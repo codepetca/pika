@@ -30,6 +30,8 @@ type GradebookFixture = {
   settingsError?: SupabaseReadError | null
   categories?: Array<any>
   categoriesError?: SupabaseReadError | null
+  scoreOverrides?: Array<any>
+  scoreOverridesError?: SupabaseReadError | null
 }
 
 function buildMockFrom(fixture: GradebookFixture) {
@@ -70,6 +72,17 @@ function buildMockFrom(fixture: GradebookFixture) {
               error: fixture.categoriesError ?? (fixture.categories === undefined ? { code: '42P01' } : null),
             }),
           })),
+        })),
+      }
+    }
+
+    if (table === 'gradebook_score_overrides') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: fixture.scoreOverridesError ? null : fixture.scoreOverrides ?? [],
+            error: fixture.scoreOverridesError ?? null,
+          }),
         })),
       }
     }
@@ -367,6 +380,46 @@ describe('GET /api/teacher/gradebook', () => {
     ])
     expect(body.selected_student).not.toHaveProperty('quizzes')
     expect(body.selected_student.tests).toEqual([])
+  })
+
+  it('uses a manual mark in the student row, final, and class summary', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 27 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.score_overrides_available).toBe(true)
+    expect(body.students[0].assessment_scores[0]).toMatchObject({
+      earned: 27,
+      possible: 30,
+      percent: 90,
+      is_manual_override: true,
+      calculated_earned: 24,
+    })
+    expect(body.students[0].assignments_percent).toBe(90)
+    expect(body.students[0].final_percent).toBe(90)
+    expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: 90, median_percent: 90 })
+  })
+
+  it('uses a final override in the student row and class average without changing assessment marks', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'final', assessment_id: 'c1', earned: 49.5 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores[0].percent).toBe(80)
+    expect(body.students[0]).toMatchObject({ final_percent: 49.5, is_final_override: true, calculated_final_percent: 80 })
+    expect(body.class_summary.average_final_percent).toBe(49.5)
   })
 
   it('includes fully scored tests in grade calculations and class summary', async () => {
@@ -1155,6 +1208,14 @@ describe('GET /api/teacher/gradebook', () => {
             in: vi.fn(() => ({
               in: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+          })),
+        }
+      }
+
+      if (table === 'gradebook_score_overrides') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
           })),
         }
       }

@@ -49,6 +49,7 @@ describe('GradebookEditorDialog', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Drag to reorder Term' })).toBeEnabled()
+    expect(screen.getByRole('spinbutton', { name: 'Course percentage for Term' })).toHaveClass('[appearance:textfield]')
     await user.click(screen.getByRole('button', { name: 'Lock Term course percentage' }))
     expect(screen.getByRole('spinbutton', { name: 'Course percentage for Term' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Save categories' }))
@@ -97,6 +98,7 @@ describe('GradebookAssessmentEditor', () => {
     expect(screen.getByRole('dialog', { name: 'Edit assessment' })).toBeInTheDocument()
     fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: '' } })
     expect(screen.getByRole('spinbutton', { name: 'Category weight' })).toHaveValue(20)
+    expect(screen.getByRole('spinbutton', { name: 'Category weight' })).toHaveClass('[appearance:textfield]')
     expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('Not counted')
     fireEvent.click(screen.getByRole('button', { name: 'Save assessment' }))
     expect(onSave).toHaveBeenCalledWith('Essay', null, 20)
