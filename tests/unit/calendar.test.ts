@@ -13,6 +13,7 @@ import {
   generateClassDays,
   getSemesterForDate,
   getCurrentSemester,
+  getDefaultClassroomEndDate,
   SEMESTER_RANGES,
 } from '@/lib/calendar'
 import {
@@ -290,20 +291,21 @@ describe('calendar utilities', () => {
       expect(classDays).toContain(formatDate(addDays(start, 4))) // Friday
     })
 
-    it('should exclude holidays', () => {
+    it('should include weekday holidays for teacher review', () => {
       const start = new Date('2024-12-23')
       const end = new Date('2024-12-27')
       const classDays = generateClassDaysFromRange(start, end)
 
-      // All days in winter break should be excluded
-      expect(classDays).not.toContain('2024-12-23')
-      expect(classDays).not.toContain('2024-12-24')
-      expect(classDays).not.toContain('2024-12-25')
-      expect(classDays).not.toContain('2024-12-26')
-      expect(classDays).not.toContain('2024-12-27')
+      expect(classDays).toEqual([
+        '2024-12-23',
+        '2024-12-24',
+        '2024-12-25',
+        '2024-12-26',
+        '2024-12-27',
+      ])
     })
 
-    it('should exclude Good Friday from April custom ranges', () => {
+    it('should include Good Friday for teacher review', () => {
       const start = new Date('2026-04-01')
       const end = new Date('2026-04-03')
       const classDays = generateClassDaysFromRange(start, end)
@@ -311,6 +313,7 @@ describe('calendar utilities', () => {
       expect(classDays).toEqual([
         '2026-04-01',
         '2026-04-02',
+        '2026-04-03',
       ])
     })
 
@@ -402,6 +405,24 @@ describe('calendar utilities', () => {
     })
   })
 
+  describe('getDefaultClassroomEndDate', () => {
+    it('uses the next fixed school-term boundary as the editable initial boundary', () => {
+      expect(getDefaultClassroomEndDate('2027-01-01')).toBe('2027-06-30')
+      expect(getDefaultClassroomEndDate('2026-11-30')).toBe('2027-01-31')
+      expect(getDefaultClassroomEndDate('2026-09-08')).toBe('2027-01-31')
+      expect(getDefaultClassroomEndDate('2027-02-03')).toBe('2027-06-30')
+    })
+
+    it('keeps the editable end date after a June 30 start', () => {
+      expect(getDefaultClassroomEndDate('2027-06-30')).toBe('2028-01-31')
+    })
+
+    it('rejects malformed calendar dates', () => {
+      expect(getDefaultClassroomEndDate('')).toBe('')
+      expect(getDefaultClassroomEndDate('2026-02-30')).toBe('')
+    })
+  })
+
   // ==========================================================================
   // generateClassDays()
   // ==========================================================================
@@ -435,41 +456,32 @@ describe('calendar utilities', () => {
       expect(classDays[classDays.length - 1]).toMatch(new RegExp(`^${TEST_YEAR}-06-`))
     })
 
-    it('should exclude winter break for semester1', () => {
-      const classDays = generateClassDays('semester1', TEST_YEAR)
+    it('should leave winter-break weekdays in the draft for teacher review', () => {
+      const classDays = generateClassDays('semester1', 2024)
 
-      // Winter break days should not be included (Dec 25-26, Jan 1-3)
-      expect(classDays).not.toContain(`${TEST_YEAR}-12-25`)
-      expect(classDays).not.toContain(`${TEST_YEAR}-12-26`)
-      expect(classDays).not.toContain(`${TEST_YEAR + 1}-01-01`)
-      expect(classDays).not.toContain(`${TEST_YEAR + 1}-01-02`)
-      expect(classDays).not.toContain(`${TEST_YEAR + 1}-01-03`)
-
-      // Note: Dec 23-24, 27-31 may or may not be included due to winter break bug
-      // This test checks the holidays that ARE consistently excluded
+      expect(classDays).toContain('2024-12-25')
+      expect(classDays).toContain('2024-12-26')
+      expect(classDays).toContain('2025-01-01')
+      expect(classDays).toContain('2025-01-02')
+      expect(classDays).toContain('2025-01-03')
     })
 
-    it('should exclude March break for semester2', () => {
+    it('should leave March-break weekdays in the draft for teacher review', () => {
       const classDays = generateClassDays('semester2', 2024)
 
-      // March break (second week) should not be included
-      expect(classDays).not.toContain('2024-03-11')
-      expect(classDays).not.toContain('2024-03-12')
-      expect(classDays).not.toContain('2024-03-13')
-      expect(classDays).not.toContain('2024-03-14')
-      expect(classDays).not.toContain('2024-03-15')
+      expect(classDays).toContain('2024-03-11')
+      expect(classDays).toContain('2024-03-12')
+      expect(classDays).toContain('2024-03-13')
+      expect(classDays).toContain('2024-03-14')
+      expect(classDays).toContain('2024-03-15')
     })
 
-    it('should have typical semester length (85-95 class days)', () => {
+    it('should include every weekday in the semester range', () => {
       const sem1Days = generateClassDays('semester1', 2024)
       const sem2Days = generateClassDays('semester2', 2024)
 
-      // Typical semester has 85-95 class days
-      expect(sem1Days.length).toBeGreaterThanOrEqual(75)
-      expect(sem1Days.length).toBeLessThanOrEqual(100)
-
-      expect(sem2Days.length).toBeGreaterThanOrEqual(75)
-      expect(sem2Days.length).toBeLessThanOrEqual(100)
+      expect(sem1Days).toHaveLength(110)
+      expect(sem2Days).toHaveLength(107)
     })
   })
 

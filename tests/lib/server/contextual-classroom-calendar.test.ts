@@ -11,20 +11,21 @@ const classroom = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const other = '22222222-2222-4222-8222-222222222222'
 const context: ClassroomAccessContext = { userId: actor, classroomId: classroom, ownerId: actor, relationship: 'owner', archived: false }
 const row = { id: other, classroom_id: classroom, date: '2026-09-08', is_class_day: true, prompt_text: null }
+const firstRow = { ...row, id: actor, date: '2026-09-07' }
 const rpc = vi.fn()
 const input = () => createClassroomCalendarSchema.parse({ start_date: '2026-09-07', end_date: '2026-09-08' })
 
 describe('contextual classroom calendar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    rpc.mockResolvedValue({ data: [row], error: null })
+    rpc.mockResolvedValue({ data: [firstRow, row], error: null })
     vi.mocked(getServiceRoleClient).mockReturnValue({ rpc } as unknown as ReturnType<typeof getServiceRoleClient>)
   })
   it('generates Ontario class dates on the server and binds only trusted identity', async () => {
     const parsed = createClassroomCalendarSchema.parse({ start_date: '2026-09-07', end_date: '2026-09-08', dates: ['2026-09-07'], actor_id: other, plan: 'pro' })
-    expect(await createContextualClassroomCalendar(context, parsed)).toEqual({ success: true, count: 1, class_days: [row] })
+    expect(await createContextualClassroomCalendar(context, parsed)).toEqual({ success: true, count: 2, class_days: [firstRow, row] })
     expect(rpc).toHaveBeenCalledWith('create_classroom_calendar_v1', {
-      p_actor_id: actor, p_classroom_id: classroom, p_start_date: '2026-09-07', p_end_date: '2026-09-08', p_dates: ['2026-09-08'],
+      p_actor_id: actor, p_classroom_id: classroom, p_start_date: '2026-09-07', p_end_date: '2026-09-08', p_dates: ['2026-09-07', '2026-09-08'],
     })
   })
   it('supports the existing semester ranges', async () => {
@@ -41,7 +42,7 @@ describe('contextual classroom calendar', () => {
     expect(createClassroomCalendarSchema.safeParse(body).success).toBe(false)
   })
   it('rejects a range without class days before the database', async () => {
-    await expect(createContextualClassroomCalendar(context, createClassroomCalendarSchema.parse({ start_date: '2026-09-05', end_date: '2026-09-07' }))).rejects.toMatchObject({ statusCode: 400 })
+    await expect(createContextualClassroomCalendar(context, createClassroomCalendarSchema.parse({ start_date: '2026-09-05', end_date: '2026-09-06' }))).rejects.toMatchObject({ statusCode: 400 })
     expect(rpc).not.toHaveBeenCalled()
   })
   it.each([{ ...context, archived: true }, { ...context, userId: other, relationship: 'member' as const }])('rejects an inactive or nonowner context', async (denied) => {
