@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Pika sends an enforced browser policy on application and API responses so a
+Pika sends an enforced browser policy on rendered application responses so a
 browser that is displaying student information cannot freely execute injected
 code, disclose full internal URLs to another site, or expose unused device
 capabilities.
 
 ## Policy ownership
 
-- `src/middleware.ts` creates a new unpredictable CSP nonce for every request,
+- `src/middleware.ts` creates a new unpredictable CSP nonce for every rendered page request,
   forwards the trusted nonce to Next.js rendering, and applies the matching
   `Content-Security-Policy` response header after optional AuthKit headers.
 - `src/app/layout.tsx` applies that nonce to Pika's explicit theme bootstrap
@@ -20,11 +20,16 @@ capabilities.
 - `next.config.js` disables `X-Powered-By` and applies the route-wide baseline:
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and
   `Permissions-Policy`.
+- The global referrer policy is `no-referrer`, so it cannot weaken the private
+  Storage and attendance routes that already require complete suppression.
+- API routes retain ownership of specialized response policies, including the
+  script-free CSP on sanitized test-document snapshots. Spoofed policy/nonce
+  request headers are still removed before API handlers run.
 - Vercel owns production HSTS. Verify it remains present after deployment.
 
 ## Deliberate compatibility allowances
 
-- Scripts require the per-request nonce. Production does not allow
+- Rendered-page scripts require the per-request nonce. Production does not allow
   `unsafe-inline` or `unsafe-eval` scripts.
 - Inline styles remain allowed because Pika and the Pal widget use React style
   attributes. Google Fonts styles and font files are allowed by exact origin.
@@ -37,6 +42,8 @@ capabilities.
 - Browser connections default to Pika itself. Direct Storage uploads and the
   optional Pal widget add only the origins parsed from
   `NEXT_PUBLIC_SUPABASE_URL` and `PAL_API_URL`.
+- Form submissions stay on Pika, except for the exact WorkOS API origin when
+  the WorkOS browser-session logout flow is enabled.
 - Fullscreen remains available to Pika for student test-taking. Camera,
   microphone, location, payment, USB, and other unused capabilities are denied.
 
@@ -66,8 +73,9 @@ Before merge:
 
 After deployment:
 
-1. Verify the global baseline and CSP on `/login`, `/classrooms`, and
-   `/api/auth/me`; confirm `X-Powered-By` is absent and HSTS remains present.
+1. Verify the global baseline on `/login`, `/classrooms`, and `/api/auth/me`,
+   and the rendered-page CSP on the first two; confirm `X-Powered-By` is absent
+   and HSTS remains present.
 2. Smoke teacher and student sign-in/navigation.
 3. As a teacher, directly upload a test document and preview an HTTPS link.
 4. As a student, open an assigned uploaded document and HTTPS link; when Pal is

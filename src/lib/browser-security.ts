@@ -2,6 +2,10 @@ export interface BrowserSecurityEnvironment {
   isDevelopment: boolean
   supabaseUrl?: string
   palApiUrl?: string
+  workosEnabled?: boolean
+  workosApiHostname?: string
+  workosApiHttps?: string
+  workosApiPort?: string
 }
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
@@ -35,6 +39,18 @@ function uniqueSources(sources: Array<string | null>): string {
     .join(' ')
 }
 
+function configuredWorkOSOrigin(
+  environment: BrowserSecurityEnvironment,
+): string | null {
+  if (!environment.workosEnabled) return null
+
+  const protocol = environment.workosApiHttps === 'false' ? 'http' : 'https'
+  const hostname = environment.workosApiHostname?.trim() || 'api.workos.com'
+  const port = environment.workosApiPort?.trim()
+  const rawUrl = `${protocol}://${hostname}${port ? `:${port}` : ''}`
+  return configuredBrowserOrigin(rawUrl, environment.isDevelopment)
+}
+
 /**
  * Build the enforced browser policy around the exact runtime integrations that
  * can be reached from client code. The nonce keeps executable inline code off
@@ -52,6 +68,7 @@ export function createContentSecurityPolicy(
     environment.palApiUrl,
     environment.isDevelopment,
   )
+  const workOSOrigin = configuredWorkOSOrigin(environment)
   const connectSources = uniqueSources([
     "'self'",
     supabaseOrigin,
@@ -86,7 +103,7 @@ export function createContentSecurityPolicy(
     "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action ${uniqueSources(["'self'", workOSOrigin])}`,
   ].join('; ')
 }
 
@@ -99,5 +116,9 @@ export function getBrowserSecurityEnvironment(): BrowserSecurityEnvironment {
     isDevelopment: process.env.NODE_ENV === 'development',
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     palApiUrl: process.env.PAL_API_URL,
+    workosEnabled: process.env.WORKOS_MAGIC_AUTH_PILOT === 'true',
+    workosApiHostname: process.env.WORKOS_API_HOSTNAME,
+    workosApiHttps: process.env.WORKOS_API_HTTPS,
+    workosApiPort: process.env.WORKOS_API_PORT,
   }
 }

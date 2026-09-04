@@ -37,7 +37,7 @@ describe('Vercel deployment configuration', () => {
     )
     expect(headers['x-content-type-options']).toBe('nosniff')
     expect(headers['x-frame-options']).toBe('SAMEORIGIN')
-    expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
+    expect(headers['referrer-policy']).toBe('no-referrer')
     expect(headers['permissions-policy']).toContain('camera=()')
     expect(headers['permissions-policy']).toContain('fullscreen=(self)')
   })

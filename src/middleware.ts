@@ -17,30 +17,42 @@ const CSP_NONCE_REQUEST_HEADER = 'x-nonce'
 function withTrustedRequestHeaders(
   headers: Headers,
   request: NextRequest,
-  contentSecurityPolicy: string,
-  nonce: string,
+  browserPolicy: { value: string; nonce: string } | null,
 ): Headers {
   const requestHeaders = new Headers(headers)
   requestHeaders.delete(PIKA_REQUEST_PATH_HEADER)
   requestHeaders.delete(CSP_NONCE_REQUEST_HEADER)
   requestHeaders.delete('content-security-policy')
   requestHeaders.set(PIKA_REQUEST_PATH_HEADER, getRequestPath(request.nextUrl))
-  requestHeaders.set(CSP_NONCE_REQUEST_HEADER, nonce)
-  requestHeaders.set('content-security-policy', contentSecurityPolicy)
+  if (browserPolicy) {
+    requestHeaders.set(CSP_NONCE_REQUEST_HEADER, browserPolicy.nonce)
+    requestHeaders.set('content-security-policy', browserPolicy.value)
+  }
   return requestHeaders
 }
 
-function applyContentSecurityPolicy(response: NextResponse, value: string): NextResponse {
-  response.headers.set('Content-Security-Policy', value)
+function applyContentSecurityPolicy(
+  response: NextResponse,
+  browserPolicy: { value: string } | null,
+): NextResponse {
+  if (browserPolicy) {
+    response.headers.set('Content-Security-Policy', browserPolicy.value)
+  }
   return response
 }
 
 export default async function middleware(request: NextRequest) {
-  const nonce = createCspNonce()
-  const contentSecurityPolicy = createContentSecurityPolicy(
-    nonce,
-    getBrowserSecurityEnvironment(),
-  )
+  const isApiRequest = request.nextUrl.pathname === '/api'
+    || request.nextUrl.pathname.startsWith('/api/')
+  const browserPolicy = isApiRequest
+    ? null
+    : (() => {
+      const nonce = createCspNonce()
+      return {
+        nonce,
+        value: createContentSecurityPolicy(nonce, getBrowserSecurityEnvironment()),
+      }
+    })()
 
   if (process.env.WORKOS_MAGIC_AUTH_PILOT !== 'true') {
     return applyContentSecurityPolicy(
@@ -49,12 +61,11 @@ export default async function middleware(request: NextRequest) {
           headers: withTrustedRequestHeaders(
             request.headers,
             request,
-            contentSecurityPolicy,
-            nonce,
+            browserPolicy,
           ),
         },
       }),
-      contentSecurityPolicy,
+      browserPolicy,
     )
   }
 
@@ -65,14 +76,13 @@ export default async function middleware(request: NextRequest) {
       headers: withTrustedRequestHeaders(
         partitioned.requestHeaders,
         request,
-        contentSecurityPolicy,
-        nonce,
+        browserPolicy,
       ),
     },
   })
   return applyContentSecurityPolicy(
     applyResponseHeaders(response, partitioned.responseHeaders),
-    contentSecurityPolicy,
+    browserPolicy,
   )
 }
 

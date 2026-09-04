@@ -17,6 +17,29 @@ describe('browser security policy', () => {
     expect(policy).toContain("frame-ancestors 'self'")
   })
 
+  it('allows only the configured WorkOS origin when its browser logout is enabled', () => {
+    const defaultWorkOSPolicy = createContentSecurityPolicy('nonce', {
+      isDevelopment: false,
+      workosEnabled: true,
+    })
+    const customWorkOSPolicy = createContentSecurityPolicy('nonce', {
+      isDevelopment: false,
+      workosEnabled: true,
+      workosApiHostname: 'auth.example.test',
+      workosApiPort: '8443',
+    })
+    const disabledPolicy = createContentSecurityPolicy('nonce', {
+      isDevelopment: false,
+      workosEnabled: false,
+      workosApiHostname: 'auth.example.test',
+    })
+
+    expect(defaultWorkOSPolicy).toContain("form-action 'self' https://api.workos.com")
+    expect(customWorkOSPolicy).toContain("form-action 'self' https://auth.example.test:8443")
+    expect(disabledPolicy).toContain("form-action 'self'")
+    expect(disabledPolicy).not.toContain('auth.example.test')
+  })
+
   it('allows only validated configured origins for browser integrations', () => {
     const policy = createContentSecurityPolicy('nonce', {
       isDevelopment: false,
@@ -39,6 +62,10 @@ describe('browser security policy', () => {
     const developmentPolicy = createContentSecurityPolicy('nonce', {
       isDevelopment: true,
       palApiUrl: 'http://127.0.0.1:3210',
+      workosEnabled: true,
+      workosApiHostname: 'localhost',
+      workosApiHttps: 'false',
+      workosApiPort: '8000',
     })
 
     expect(productionPolicy).toContain("connect-src 'self';")
@@ -47,5 +74,6 @@ describe('browser security policy', () => {
     expect(developmentPolicy).toContain("connect-src 'self' http://127.0.0.1:3210 ws:")
     expect(developmentPolicy).toContain("'unsafe-eval'")
     expect(developmentPolicy).toContain("frame-src 'self' https: http:")
+    expect(developmentPolicy).toContain("form-action 'self' http://localhost:8000")
   })
 })

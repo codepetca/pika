@@ -102,4 +102,20 @@ describe('AuthKit middleware matcher', () => {
     const nonce = response.headers.get('x-middleware-request-x-nonce')
     expect(response.headers.get('content-security-policy')).toContain(`'nonce-${nonce}'`)
   })
+
+  it('leaves API response policies to the route while removing spoofed policy inputs', async () => {
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    const request = new NextRequest('https://pika.example/api/student/tests/test/documents/doc/snapshot', {
+      headers: {
+        'x-nonce': 'attacker-controlled',
+        'content-security-policy': "default-src * 'unsafe-inline'",
+      },
+    })
+
+    const response = await middleware(request)
+
+    expect(response.headers.get('content-security-policy')).toBeNull()
+    expect(response.headers.get('x-middleware-request-x-nonce')).toBeNull()
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toBeNull()
+  })
 })
