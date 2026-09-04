@@ -27,6 +27,7 @@ describe('migration 157 Gradebook score override lifecycle', () => {
     expect(migration).toContain('student_purge_guard_gradebook_score_overrides')
     expect(migration).toContain('remove_classroom_roster_entries_without_gradebook_overrides_v157')
     expect(migration).toContain("'deleted_gradebook_score_overrides'")
+    expect(migration).toMatch(/create function public\.remove_classroom_roster_entries_atomic\([\s\S]*?language plpgsql\s+security definer\s+set search_path = ''/)
   })
 
   it('keeps browser roles outside the table and destructive helpers', () => {

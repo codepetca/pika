@@ -216,6 +216,7 @@ create function public.remove_classroom_roster_entries_atomic(
 )
 returns jsonb
 language plpgsql
+security definer
 set search_path = ''
 as $$
 declare
