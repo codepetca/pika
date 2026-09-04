@@ -9,6 +9,7 @@ import {
   ArchiveRestore,
   ChevronDown,
   CircleDot,
+  CopyPlus,
   Dumbbell,
   Eye,
   GripVertical,
@@ -17,6 +18,8 @@ import {
   MoreVertical,
   Plus,
   RotateCw,
+  Settings,
+  Trash2,
   Upload,
   Users,
 } from 'lucide-react'
@@ -381,7 +384,8 @@ function ClassroomsMockup({
     if (!isActive) return
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (classroomsRef.current?.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return
       if (view === 'active' && !isEditing) return
       const activeElement = document.activeElement
       if (!activeElement || !classroomsRef.current?.contains(activeElement)) return
@@ -518,11 +522,15 @@ function ClassroomsMockup({
                     onClick={() => onPrototypeAction(`Archive ${classroom.title}`)}
                   />
                 ) : view === 'archived' ? (
-                  <IconButton
-                    icon={ArchiveRestore}
-                    label={`Unarchive ${classroom.title}`}
-                    variant="ghost"
-                    onClick={() => onPrototypeAction(`Unarchive ${classroom.title}`)}
+                  <TeacherWorkSurfaceIconMenuButton
+                    ariaLabel={`Settings for ${classroom.title}`}
+                    tooltip="Settings"
+                    icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+                    items={[
+                      { id: 'reuse', label: 'Reuse', icon: <CopyPlus className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction(`Reuse ${classroom.title}`) },
+                      { id: 'unarchive', label: 'Unarchive', icon: <ArchiveRestore className="h-4 w-4" aria-hidden="true" />, onSelect: () => onPrototypeAction(`Unarchive ${classroom.title}`) },
+                      { id: 'delete', label: 'Delete', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, onSelect: () => onPrototypeAction(`Delete ${classroom.title}`) },
+                    ]}
                   />
                 ) : null}
               </div>

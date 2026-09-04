@@ -61,6 +61,12 @@ function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
   )
 }
 
+async function openArchivedClassroomSettings(title = 'Archived') {
+  const trigger = await screen.findByRole('button', { name: `Settings for ${title}` })
+  fireEvent.click(trigger)
+  return trigger
+}
+
 function selectClassroomAction(name: string, role: 'menuitem' | 'menuitemcheckbox' = 'menuitem') {
   fireEvent.click(screen.getByRole('button', { name: 'Classroom actions' }))
   fireEvent.click(screen.getByRole(role, { name }))
@@ -208,6 +214,12 @@ describe('TeacherClassroomsIndex', () => {
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
     expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
+    await openArchivedClassroomSettings()
+    const deleteOption = screen.getByRole('menuitem', { name: 'Delete', exact: true })
+    expect(deleteOption).toBeDisabled()
+    fireEvent.click(deleteOption)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
@@ -224,32 +236,31 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
     selectClassroomAction('Show Archived')
 
-    const unarchiveButton = await screen.findByRole('button', { name: 'Unarchive' })
-    const reuseButton = screen.getByRole('button', { name: 'Reuse' })
-    expect(reuseButton).toHaveTextContent('')
-    expect(reuseButton.querySelector('svg')).toHaveClass('lucide-copy-plus')
-    expect(unarchiveButton).toHaveTextContent('')
-    expect(unarchiveButton.querySelector('svg')).toHaveClass('lucide-archive-restore')
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    const settings = await openArchivedClassroomSettings()
+    expect(settings).toHaveAttribute('aria-expanded', 'true')
+    const menu = screen.getByRole('menu', { name: 'Settings for Archived' })
+    const reuse = within(menu).getByRole('menuitem', { name: 'Reuse' })
+    const unarchive = within(menu).getByRole('menuitem', { name: 'Unarchive' })
+    const remove = within(menu).getByRole('menuitem', { name: 'Delete', exact: true })
+    expect(reuse).toHaveFocus()
+    expect(remove).toBeEnabled()
+    expect(push).not.toHaveBeenCalled()
+    fireEvent.keyDown(reuse, { key: 'ArrowDown' })
+    expect(unarchive).toHaveFocus()
+    fireEvent.keyDown(unarchive, { key: 'End' })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(settings).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Archived classrooms' })).toBeInTheDocument()
 
-    fireEvent.pointerMove(reuseButton)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Reuse')
-    fireEvent.pointerLeave(reuseButton)
-    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
-
-    fireEvent.focus(unarchiveButton)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Unarchive')
-    fireEvent.blur(unarchiveButton)
-    const purgeButton = screen.getByRole('button', { name: 'Delete permanently' })
-    expect(purgeButton).toHaveAttribute('title', 'Delete permanently')
-    expect(purgeButton).toHaveTextContent('')
-    expect(purgeButton.querySelector('svg')).toHaveClass('lucide-trash-2')
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
-
-    fireEvent.click(unarchiveButton)
+    fireEvent.click(settings)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unarchive' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Unarchive Archived?')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
   })
 
   it('creates a verified recovery copy with one stable idempotency key across retries', async () => {
@@ -673,8 +684,9 @@ describe('TeacherClassroomsIndex', () => {
     selectClassroomAction('Show Archived')
 
     expect(await screen.findByText('Recovery-copy status is temporarily unavailable.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    await openArchivedClassroomSettings('Archived Music')
+    expect(screen.getByRole('menuitem', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Reuse' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Create recovery copy' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry status' }))
     await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(2))
@@ -706,7 +718,8 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
     selectClassroomAction('Show Archived')
-    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
+    await openArchivedClassroomSettings()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reuse' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/classrooms/archived-1/use-again',
@@ -754,7 +767,8 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
     selectClassroomAction('Show Archived')
-    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
+    await openArchivedClassroomSettings()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reuse' }))
 
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(

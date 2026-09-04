@@ -120,7 +120,9 @@ for (const entry of matrix) {
     await openArchivedView(statusError.page)
     await expect(statusError.page.getByText('Recovery-copy status is temporarily unavailable.')).toBeVisible()
     await expect(statusError.page.getByRole('button', { name: 'Retry status' })).toBeVisible()
-    await expect(statusError.page.getByRole('button', { name: 'Unarchive' })).toBeVisible()
+    await statusError.page.getByRole('button', { name: 'Settings for Archived Biology' }).click()
+    await expect(statusError.page.getByRole('menuitem', { name: 'Unarchive' })).toBeVisible()
+    await statusError.page.keyboard.press('Escape')
     await expectNoHorizontalOverflow(statusError.page)
     await statusError.page.screenshot({
       path: `/tmp/pika-archive-recovery-status-error-${entry.name}.png`,
