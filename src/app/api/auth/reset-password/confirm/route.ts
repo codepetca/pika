@@ -3,12 +3,14 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { resetPasswordConfirmSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 
 const INVALID_RESET_SESSION = 'Password reset session expired. Please request a new code.'
 
 export const POST = withErrorHandler('ResetPasswordConfirm', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, password, handoffToken } = resetPasswordConfirmSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

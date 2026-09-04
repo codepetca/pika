@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { loginSchema } from '@/lib/validations/auth'
 import {
   clearAuthRateLimit,
@@ -16,6 +17,7 @@ const LOGIN_WINDOW_SECONDS = 15 * 60
 // failures perform the same expensive comparison as a normal login failure.
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, password } = loginSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { resetPasswordVerifySchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
@@ -13,6 +14,7 @@ const NONEXISTENT_USER_ID = '00000000-0000-0000-0000-000000000000'
 const NONEXISTENT_CODE_ID = '00000000-0000-0000-0000-000000000001'
 
 export const POST = withErrorHandler('ResetPasswordVerify', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail, code: normalizedCode } = resetPasswordVerifySchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
