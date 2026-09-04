@@ -13,6 +13,7 @@ const nextConfig = require(resolve(process.cwd(), 'next.config.js')) as {
   poweredByHeader?: boolean
   headers?: () => Promise<Array<{
     source: string
+    has?: Array<{ type: string; key: string; value: string }>
     headers: Array<{ key: string; value: string }>
   }>>
 }
@@ -29,7 +30,7 @@ describe('Vercel deployment configuration', () => {
   it('applies baseline browser security headers and preserves sensitive no-referrer routes', async () => {
     expect(nextConfig.poweredByHeader).toBe(false)
     const rules = await nextConfig.headers?.()
-    expect(rules).toHaveLength(8)
+    expect(rules).toHaveLength(11)
     expect(rules?.[0].source).toBe('/(.*)')
 
     const headers = Object.fromEntries(
@@ -41,18 +42,30 @@ describe('Vercel deployment configuration', () => {
     expect(headers['permissions-policy']).toContain('camera=()')
     expect(headers['permissions-policy']).toContain('fullscreen=(self)')
 
-    const noReferrerSources = rules?.slice(1).map((rule) => {
-      expect(rule.headers).toEqual([{ key: 'Referrer-Policy', value: 'no-referrer' }])
-      return rule.source
+    const noReferrerMatches = rules?.slice(1).map(({ headers: routeHeaders, ...match }) => {
+      expect(routeHeaders).toEqual([{ key: 'Referrer-Policy', value: 'no-referrer' }])
+      return match
     })
-    expect(noReferrerSources).toEqual([
-      '/api/storage/submission-images',
-      '/api/student/tests/:id/documents/:docId/:delivery(file|snapshot)',
-      '/api/teacher/tests/:id/documents/:docId/:delivery(file|snapshot)',
-      '/api/student/attendance/:path*',
-      '/api/teacher/attendance/:path*',
-      '/api/integrations/attendance/:path*',
-      '/api/cron/bara-attendance-smoke',
+    expect(noReferrerMatches).toEqual([
+      { source: '/api/storage/submission-images' },
+      { source: '/api/student/tests/:id/documents/:docId/:delivery(file|snapshot)' },
+      { source: '/api/teacher/tests/:id/documents/:docId/:delivery(file|snapshot)' },
+      { source: '/api/student/attendance/:path*' },
+      { source: '/api/teacher/attendance/:path*' },
+      { source: '/api/integrations/attendance/:path*' },
+      { source: '/api/cron/bara-attendance-smoke' },
+      { source: '/attendance/check-in/:token' },
+      { source: '/attendance/classroom/:token' },
+      {
+        source: '/login',
+        has: [
+          {
+            type: 'query',
+            key: 'next',
+            value: '/attendance/(?:check-in|classroom)/.+',
+          },
+        ],
+      },
     ])
   })
 })
