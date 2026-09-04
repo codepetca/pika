@@ -68,14 +68,12 @@ declare
   v_expected_trigger_count integer;
   v_claim record;
 begin
-  v_expected_resource_count := case
-    when to_regclass('public.gradebook_categories') is null then 40
-    else 41
-  end;
-  v_expected_trigger_count := case
-    when to_regclass('public.gradebook_categories') is null then 39
-    else 40
-  end;
+  v_expected_resource_count := 40
+    + case when to_regclass('public.gradebook_categories') is null then 0 else 1 end
+    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end;
+  v_expected_trigger_count := 39
+    + case when to_regclass('public.gradebook_categories') is null then 0 else 1 end
+    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end;
   if (select count(*) from public.classroom_archive_resource_contract)
       <> v_expected_resource_count then
     raise exception 'Expected % database archive-v2 resources', v_expected_resource_count;
@@ -87,6 +85,16 @@ begin
       and primary_key_columns = array['classroom_id']
   ) then
     raise exception 'Gradebook settings primary key contract is stale';
+  end if;
+  if to_regclass('public.gradebook_score_overrides') is not null and not exists (
+    select 1
+    from public.classroom_archive_resource_contract
+    where table_name = 'gradebook_score_overrides'
+      and primary_key_columns = array['id']
+      and actor_columns = array['student_id', 'created_by']
+      and restore_after = array['classrooms', 'classroom_enrollments']
+  ) then
+    raise exception 'Gradebook score override archive contract is stale';
   end if;
   select count(*)
   into v_trigger_count

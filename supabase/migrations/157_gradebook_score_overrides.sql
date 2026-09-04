@@ -36,6 +36,45 @@ create trigger update_gradebook_score_overrides_updated_at
   before update on public.gradebook_score_overrides
   for each row execute function public.update_gradebook_score_overrides_updated_at();
 
+-- The polymorphic assessment_id cannot use a foreign key to both assignments
+-- and tests. Keep the cleanup at the database boundary so every delete path,
+-- including atomic RPCs and draft cleanup, removes the matching overrides.
+-- Classroom purge and archive maintenance delete catalogued resources in their
+-- own exact order, so they retain ownership of cleanup while those modes run.
+create function public.delete_gradebook_overrides_for_assessment()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or public.is_classroom_archive_maintenance_mode('restore')
+    or public.is_classroom_archive_maintenance_mode('compaction')
+  then
+    return old;
+  end if;
+
+  delete from public.gradebook_score_overrides as override
+  where override.classroom_id = old.classroom_id
+    and override.assessment_type = tg_argv[0]
+    and override.assessment_id = old.id;
+
+  return old;
+end;
+$$;
+
+revoke all on function public.delete_gradebook_overrides_for_assessment()
+  from public, anon, authenticated, service_role;
+
+create trigger delete_assignment_gradebook_score_overrides
+  after delete on public.assignments
+  for each row execute function public.delete_gradebook_overrides_for_assessment('assignment');
+
+create trigger delete_test_gradebook_score_overrides
+  after delete on public.tests
+  for each row execute function public.delete_gradebook_overrides_for_assessment('test');
+
 -- Score overrides are portable classroom state. Add them after enrollments so
 -- their deferred enrollment reference is also satisfied by ordinary restores.
 do $$
@@ -129,9 +168,12 @@ create trigger classroom_purge_fence_gradebook_score_overrides
 -- Add score rows to the exact student-purge inventory. The existing finalizer
 -- deletes staged resources by their stable UUID id and includes them in impact counts.
 alter function public.student_purge_inventory_resources(uuid, uuid)
-  rename to student_purge_inventory_resources_without_gradebook_overrides_v157;
+  rename to student_purge_inventory_resources_pre_v157;
 
-revoke all on function public.student_purge_inventory_resources_without_gradebook_overrides_v157(uuid, uuid)
+alter function public.student_purge_inventory_resources_pre_v157(uuid, uuid)
+  set schema private;
+
+revoke all on function private.student_purge_inventory_resources_pre_v157(uuid, uuid)
   from public, anon, authenticated, service_role;
 
 create function public.student_purge_inventory_resources(
@@ -144,7 +186,7 @@ stable
 set search_path = ''
 as $$
   select *
-  from public.student_purge_inventory_resources_without_gradebook_overrides_v157(
+  from private.student_purge_inventory_resources_pre_v157(
     p_classroom_id,
     p_student_id
   )
@@ -205,9 +247,12 @@ revoke all on function public.reject_gradebook_override_change_during_student_pu
 -- Ordinary roster removal also deletes these grades atomically. The deferred
 -- enrollment reference prevents a late save from recreating a removed student's row.
 alter function public.remove_classroom_roster_entries_atomic(uuid, uuid[])
-  rename to remove_classroom_roster_entries_without_gradebook_overrides_v157;
+  rename to remove_classroom_roster_entries_pre_v157;
 
-revoke all on function public.remove_classroom_roster_entries_without_gradebook_overrides_v157(uuid, uuid[])
+alter function public.remove_classroom_roster_entries_pre_v157(uuid, uuid[])
+  set schema private;
+
+revoke all on function private.remove_classroom_roster_entries_pre_v157(uuid, uuid[])
   from public, anon, authenticated, service_role;
 
 create function public.remove_classroom_roster_entries_atomic(
@@ -251,7 +296,7 @@ begin
     on lower(btrim(student.email)) = lower(btrim(roster.email))
     and student.role = 'student';
 
-  v_result := public.remove_classroom_roster_entries_without_gradebook_overrides_v157(
+  v_result := private.remove_classroom_roster_entries_pre_v157(
     p_classroom_id,
     p_roster_ids
   );
