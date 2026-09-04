@@ -644,9 +644,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     },
   ]
 
-  const openClassroom = useCallback((classroom: Classroom) => {
+  const openClassroom = useCallback((classroom: Classroom, options?: { reviewClassDays?: boolean }) => {
     setOpeningClassroomId(classroom.id)
-    router.push(`/classrooms/${classroom.id}?tab=daily`)
+    const params = new URLSearchParams({ tab: 'daily' })
+    if (options?.reviewClassDays) params.set('reviewClassDays', '1')
+    router.push(`/classrooms/${classroom.id}?${params.toString()}`)
   }, [router])
 
   return (
@@ -957,7 +959,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           setShowCreate(false)
           setReuseBlueprintId(null)
           setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
-          openClassroom(created)
+          openClassroom(created, { reviewClassDays: true })
         }}
         onBlueprintCreated={(created) => {
           setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])

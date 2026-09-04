@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
-import { Button, Tooltip, useAppMessage } from '@/ui'
+import { Button, FormField, Input, Tooltip, useAppMessage } from '@/ui'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import type { ClassDay, Classroom } from '@/types'
@@ -11,6 +11,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseIS
 import { getTodayInToronto } from '@/lib/timezone'
 import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
 import { invalidateClassDaysForClassroom } from '@/lib/class-days-client'
+import { getDefaultClassroomEndDate } from '@/lib/calendar'
 
 interface Props {
   classroom: Classroom
@@ -25,7 +26,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
   const [error, setError] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [endDateEdited, setEndDateEdited] = useState(false)
   const [saving, setSaving] = useState(false)
+  const pendingToggleDatesRef = useRef(new Set<string>())
+  const [pendingToggleDates, setPendingToggleDates] = useState<Set<string>>(() => new Set())
   const { showMessage } = useAppMessage()
 
   // Sync from shared context (used for initial load and after event-driven refreshes)
@@ -113,8 +117,30 @@ export function TeacherCalendarTab({ classroom }: Props) {
   }
 
   async function toggleDay(date: string, isClassDay: boolean) {
-    if (isReadOnly) return
+    if (isReadOnly || pendingToggleDatesRef.current.has(date)) return
+
+    const previousClassDay = classDayMap.get(date)
+    const optimisticClassDay: ClassDay = previousClassDay
+      ? { ...previousClassDay, is_class_day: isClassDay }
+      : {
+          id: `optimistic-${date}`,
+          classroom_id: classroom.id,
+          date,
+          prompt_text: null,
+          is_class_day: isClassDay,
+        }
+
+    pendingToggleDatesRef.current.add(date)
+    setPendingToggleDates(new Set(pendingToggleDatesRef.current))
+    setClassDays(prev => {
+      const existingIndex = prev.findIndex(day => day.date === date)
+      if (existingIndex === -1) return [...prev, optimisticClassDay]
+      const next = [...prev]
+      next[existingIndex] = optimisticClassDay
+      return next
+    })
     setError('')
+
     try {
       const res = await fetch(`/api/classrooms/${classroom.id}/class-days`, {
         method: 'PATCH',
@@ -128,18 +154,35 @@ export function TeacherCalendarTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update day')
       }
+      const savedClassDay = data.class_day as ClassDay | undefined
+      if (!savedClassDay) {
+        throw new Error('Failed to update day')
+      }
       setClassDays(prev => {
         const existingIndex = prev.findIndex(d => d.date === date)
-        if (existingIndex === -1) return [...prev, data.class_day]
+        if (existingIndex === -1) return [...prev, savedClassDay]
         const next = [...prev]
-        next[existingIndex] = data.class_day
+        next[existingIndex] = savedClassDay
         return next
       })
       // Notify other components (e.g., calendar) that class days changed
       invalidateClassDaysForClassroom(classroom.id)
       window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
+      setClassDays(prev => {
+        const existingIndex = prev.findIndex(day => day.date === date)
+        if (!previousClassDay) {
+          return existingIndex === -1 ? prev : prev.filter(day => day.date !== date)
+        }
+        if (existingIndex === -1) return [...prev, previousClassDay]
+        const next = [...prev]
+        next[existingIndex] = previousClassDay
+        return next
+      })
       setError(err.message || 'Failed to update day')
+    } finally {
+      pendingToggleDatesRef.current.delete(date)
+      setPendingToggleDates(new Set(pendingToggleDatesRef.current))
     }
   }
 
@@ -155,34 +198,48 @@ export function TeacherCalendarTab({ classroom }: Props) {
     <div>
 
       {!isInitialized && (
-        <div className="bg-surface rounded-lg border border-border p-3 space-y-3 mb-4">
-          <div className="flex flex-wrap items-end gap-2">
-            <div>
-              <label className="block text-xs text-text-muted mb-1">Start</label>
-              <input
+        <div className="mb-4 space-y-4 rounded-lg border border-border bg-surface p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-text-default">Set up class days</h2>
+            <p className="mt-1 text-sm text-text-muted">
+              Choose the actual first day. Pika will add every Monday-Friday so you can review exceptions yourself.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="First class day" required>
+              <Input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 rounded-md border border-border bg-surface text-sm text-text-default"
+                onChange={(event) => {
+                  const nextStartDate = event.target.value
+                  setStartDate(nextStartDate)
+                  if (!endDateEdited) setEndDate(getDefaultClassroomEndDate(nextStartDate))
+                }}
                 disabled={saving || isReadOnly}
               />
-            </div>
-            <div>
-              <label className="block text-xs text-text-muted mb-1">End</label>
-              <input
+            </FormField>
+            <FormField label="Last class day" required>
+              <Input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 rounded-md border border-border bg-surface text-sm text-text-default"
+                onChange={(event) => {
+                  setEndDate(event.target.value)
+                  setEndDateEdited(true)
+                }}
                 disabled={saving || isReadOnly}
               />
-            </div>
+            </FormField>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-text-muted">
+              Review holidays, PA days, and the final class day after setup.
+            </p>
             <Button
               size="sm"
               onClick={generateFromRange}
               disabled={saving || isReadOnly || !startDate || !endDate}
             >
-              {saving ? 'Generating…' : 'Generate'}
+              {saving ? 'Setting up…' : 'Set up class days'}
             </Button>
           </div>
         </div>
@@ -273,12 +330,15 @@ export function TeacherCalendarTab({ classroom }: Props) {
                           : 'bg-surface-2 text-text-muted hover:bg-surface-hover'
 
                       const outlineClasses = isToday ? 'ring-2 ring-primary' : ''
-                      const toggleDisabled = disabled || isToday || isReadOnly
+                      const isPending = pendingToggleDates.has(dateString)
+                      const toggleDisabled = disabled || isToday || isReadOnly || isPending
                       return (
                         <button
                           key={dateString}
                           onClick={() => toggleDay(dateString, !isClassDay)}
-                          className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${toggleDisabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
+                          aria-pressed={isClassDay}
+                          aria-busy={isPending || undefined}
+                          className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${isPending ? 'cursor-wait' : toggleDisabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
                           disabled={toggleDisabled}
                         >
                           {format(day, 'd')}

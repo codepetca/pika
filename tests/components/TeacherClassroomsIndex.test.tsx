@@ -18,6 +18,7 @@ vi.mock('@/components/CreateClassroomModal', () => ({
   CreateClassroomModal: (props: {
     isOpen: boolean
     initialBlueprintId?: string | null
+    onSuccess?: (classroom: Classroom) => void
     onBlueprintCreated?: (classroom: Classroom) => void
   }) => {
     createClassroomModalProps.current = props
@@ -804,6 +805,18 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('menuitem', { name: 'Show Active' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: 'New Classroom' }))
     expect(screen.getByTestId('create-classroom-modal')).toBeInTheDocument()
+  })
+
+  it('opens a newly created classroom with the class-day review reminder', () => {
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Create classroom' }))
+
+    const created = createMockClassroom({ id: 'new-classroom', title: 'Career Studies' })
+    act(() => createClassroomModalProps.current.onSuccess(created))
+
+    expect(push).toHaveBeenCalledWith(
+      '/classrooms/new-classroom?tab=daily&reviewClassDays=1',
+    )
   })
 
   it('toggles edit controls through a checked menu action without duplicate creation controls', async () => {
