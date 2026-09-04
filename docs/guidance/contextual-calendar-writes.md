@@ -37,8 +37,9 @@ execution. The search path is fixed and application tables are schema-qualified.
 Generation accepts a range of at most 366 days' difference (367 inclusive dates), with
 at least one distinct, non-null date inside the range. This is an execution bound for
 the new pilot path, not a plan allowance or a decision about classroom-creation quotas.
-The server caller generates dates with existing Ontario calendar/holiday helpers;
-it never forwards client-supplied date arrays. Existing disabled-gate input behavior stays
+The server caller generates every Monday-Friday in the requested range as an initial
+draft for teacher review; it does not infer holidays, PA days, or local schedule
+exceptions, and it never forwards client-supplied date arrays. Existing disabled-gate input behavior stays
 unchanged. Calendar creation retains the existing 409-on-repeat semantics; a retry must
 read the current calendar and must not erase later edits.
 

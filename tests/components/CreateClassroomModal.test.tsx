@@ -204,7 +204,24 @@ describe('CreateClassroomModal', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('opens the created classroom when class-day setup cannot be completed', async () => {
+  it('requires the last day of class to be after the first day', async () => {
+    renderModal()
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay('2026-09-08')
+
+    const lastDayInput = screen.getByLabelText(/Last day of class/i)
+    expect(lastDayInput).toHaveAttribute('min', '2026-09-09')
+    fireEvent.change(lastDayInput, { target: { value: '2026-09-08' } })
+
+    expect(screen.getByText('Last day of class must be after the first day.')).toBeInTheDocument()
+    expect(lastDayInput).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/classrooms', expect.anything())
+  })
+
+  it('opens the created classroom when class-day setup returns an error', async () => {
     const onSuccess = vi.fn()
     const onClose = vi.fn()
     fetchMock
@@ -212,7 +229,10 @@ describe('CreateClassroomModal', () => {
         ok: true,
         json: async () => ({ classroom: { id: 'classroom-1', title: 'Career Studies' } }),
       })
-      .mockRejectedValueOnce(new Error('Temporary class-day failure'))
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary class-day failure' }),
+      })
 
     renderModal({ onSuccess, onClose })
     fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })

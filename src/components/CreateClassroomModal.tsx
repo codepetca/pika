@@ -8,6 +8,7 @@ import { CalendarDays } from 'lucide-react'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { getDefaultClassroomEndDate } from '@/lib/calendar'
+import { addDaysToDateString } from '@/lib/date-string'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import {
   courseBlueprintImportRequestInit,
@@ -231,8 +232,8 @@ export function CreateClassroomModal({
         end_date: lastClassDate,
       }
 
-      if (!firstClassDate || !lastClassDate) {
-        throw new Error('Choose the first and last days of class')
+      if (!firstClassDate || !lastClassDate || lastClassDate <= firstClassDate) {
+        throw new Error('Choose a last day of class after the first day')
       }
 
       let classroom: any
@@ -288,11 +289,15 @@ export function CreateClassroomModal({
         classroom = createData.classroom
         calendarBody.classroom_id = classroom.id
         try {
-          await fetch('/api/teacher/class-days', {
+          const calendarResponse = await fetch('/api/teacher/class-days', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(calendarBody),
           })
+          if (!calendarResponse.ok) {
+            const calendarData = await calendarResponse.json().catch(() => ({}))
+            throw new Error(calendarData.error || 'Failed to set up class days')
+          }
         } catch {
           // The classroom already exists. Finish opening it so the persistent
           // setup prompt can safely guide the teacher to retry without creating
@@ -336,6 +341,15 @@ export function CreateClassroomModal({
   const currentProgressIndex = step === 'review' ? progressSteps.length : progressSteps.indexOf(step)
   const canContinueFromBlueprintStep = !!selectedBlueprintId
   const isBusy = loading || importingBlueprint
+  const minimumLastClassDate = firstClassDate
+    ? addDaysToDateString(firstClassDate, 1)
+    : undefined
+  const hasValidClassDateRange = Boolean(
+    firstClassDate && lastClassDate && lastClassDate > firstClassDate,
+  )
+  const lastClassDateError = firstClassDate && lastClassDate && !hasValidClassDateRange
+    ? 'Last day of class must be after the first day.'
+    : undefined
 
   return (
     <DialogPanel
@@ -458,10 +472,11 @@ export function CreateClassroomModal({
               <FormField
                 label="Last day of class"
                 hint="You can modify this later in Settings."
+                error={lastClassDateError}
               >
                 <ReadableCalendarInput
                   value={lastClassDate}
-                  min={firstClassDate}
+                  min={minimumLastClassDate}
                   aria-required="true"
                   onChange={(nextLastClassDate) => {
                     setLastClassDate(nextLastClassDate)
@@ -582,8 +597,7 @@ export function CreateClassroomModal({
             disabled={
               isBusy ||
               (creationMode === 'blueprint' && !selectedBlueprintId) ||
-              !firstClassDate ||
-              !lastClassDate
+              !hasValidClassDateRange
             }
             className="flex-1"
           >
