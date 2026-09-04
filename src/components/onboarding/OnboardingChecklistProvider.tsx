@@ -10,8 +10,14 @@ export interface OnboardingStep<Ctx> {
   tab: string
   /** Optional sub-section within that tab, e.g. a Settings SegmentedControl value. */
   section?: string
-  /** CSS selector for the coachmark to ring. */
+  /** CSS selector for the coachmark to ring — the actual control to use. */
   targetSelector: string
+  /**
+   * Optional CSS selector for the nav entry point that leads there (e.g.
+   * the rail icon for `tab`). Coachmark rings both at once, so the teacher
+   * sees the path and the destination together, not just the destination.
+   */
+  pathTargetSelector?: string
   /** Checklist row text. */
   label: string
   /** Coachmark card copy. */
@@ -52,6 +58,8 @@ export interface OnboardingChecklistProviderProps<Ctx> {
     isLoading: boolean
     update: (next: OnboardingState) => Promise<void>
   }
+  /** Fires once dismissal state is known (loaded, or just became true) — lets a caller retire a "reopen" affordance once there's nothing left to reopen. */
+  onDismissedResolved?: (dismissed: boolean) => void
 }
 
 /**
@@ -68,6 +76,7 @@ export function OnboardingChecklistProvider<Ctx>({
   autoStart,
   onAutoStartConsumed,
   uiState,
+  onDismissedResolved,
 }: OnboardingChecklistProviderProps<Ctx>) {
   const { value, isLoading, update } = uiState
   const dismissed = value?.dismissed ?? false
@@ -112,6 +121,11 @@ export function OnboardingChecklistProvider<Ctx>({
     return () => clearTimeout(timeout)
   }, [allDone, dismissed, isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!isLoading) onDismissedResolved?.(dismissed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, dismissed])
+
   if (isLoading || dismissed || steps.length === 0) return null
 
   const activeStep = steps.find((step) => step.id === activeStepId) ?? null
@@ -145,6 +159,7 @@ export function OnboardingChecklistProvider<Ctx>({
       {activeStep ? (
         <Coachmark
           targetSelector={activeStep.targetSelector}
+          pathTargetSelector={activeStep.pathTargetSelector}
           title={activeStep.title}
           body={activeStep.body}
           stepLabel={`Step ${steps.findIndex((s) => s.id === activeStep.id) + 1} of ${steps.length}`}

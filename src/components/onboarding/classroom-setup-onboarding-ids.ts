@@ -9,3 +9,13 @@ export const ONBOARDING_TARGET_IDS = {
   attendanceWindow: 'onboarding-attendance-window',
   joinCodeCard: 'onboarding-join-code-card',
 } as const
+
+/**
+ * CSS selectors for the left-rail nav entries (see NavItems.tsx, which
+ * carries `data-nav-item="<ClassroomTabId>"` on every item — no id needed
+ * since the rail is a fixed, small set of ids already).
+ */
+export const ONBOARDING_RAIL_SELECTORS = {
+  settings: '[data-nav-item="settings"]',
+  daily: '[data-nav-item="daily"]',
+} as const

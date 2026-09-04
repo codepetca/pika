@@ -53,6 +53,14 @@ describe('CLASSROOM_SETUP_STEPS', () => {
     expect(stepById('invite-students').targetSelector).toBe(`#${ONBOARDING_TARGET_IDS.joinCodeCard}`)
   })
 
+  it('also rings the left-rail entry point that leads to each step', () => {
+    // class-days and invite-students both live under the Settings tab;
+    // attendance-hours lives on the Daily/Attendance tab.
+    expect(stepById('class-days').pathTargetSelector).toBe('[data-nav-item="settings"]')
+    expect(stepById('attendance-hours').pathTargetSelector).toBe('[data-nav-item="daily"]')
+    expect(stepById('invite-students').pathTargetSelector).toBe('[data-nav-item="settings"]')
+  })
+
   it('scopes the storage key per classroom', () => {
     expect(classroomSetupOnboardingKey('abc-123')).toBe('onboarding:classroom:abc-123')
   })

@@ -180,6 +180,7 @@ export function NavItems({
         const navLink = (
           <a
             href={href}
+            data-nav-item={item.id}
             onClick={(event) => {
               event.preventDefault()
               if (item.id === 'assignments') {

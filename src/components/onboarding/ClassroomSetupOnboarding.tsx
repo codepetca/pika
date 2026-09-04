@@ -12,6 +12,7 @@ interface ClassroomSetupOnboardingProps {
   autoStart: boolean
   onNavigate: (tab: string, section?: string) => void
   onAutoStartConsumed: () => void
+  onDismissedResolved?: (dismissed: boolean) => void
 }
 
 /**
@@ -25,6 +26,7 @@ export function ClassroomSetupOnboarding({
   autoStart,
   onNavigate,
   onAutoStartConsumed,
+  onDismissedResolved,
 }: ClassroomSetupOnboardingProps) {
   const uiState = useTeacherUiState<OnboardingState>(classroomSetupOnboardingKey(classroomId), true)
   const dismissed = uiState.value?.dismissed ?? false
@@ -55,6 +57,7 @@ export function ClassroomSetupOnboarding({
       autoStart={autoStart}
       onAutoStartConsumed={onAutoStartConsumed}
       uiState={uiState}
+      onDismissedResolved={onDismissedResolved}
     />
   )
 }

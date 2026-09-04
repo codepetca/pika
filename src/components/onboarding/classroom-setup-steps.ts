@@ -1,6 +1,6 @@
 import type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 import type { OnboardingStep } from './OnboardingChecklistProvider'
-import { ONBOARDING_TARGET_IDS } from './classroom-setup-onboarding-ids'
+import { ONBOARDING_RAIL_SELECTORS, ONBOARDING_TARGET_IDS } from './classroom-setup-onboarding-ids'
 
 export interface ClassroomSetupContext {
   attendancePolicy: TeacherAttendancePolicy | null
@@ -24,6 +24,7 @@ export const CLASSROOM_SETUP_STEPS: Array<OnboardingStep<ClassroomSetupContext>>
     tab: 'settings',
     section: 'class-days',
     targetSelector: `#${ONBOARDING_TARGET_IDS.settingsClassDaysTab}`,
+    pathTargetSelector: ONBOARDING_RAIL_SELECTORS.settings,
     label: 'Review your class days',
     title: 'Review your class days',
     body: 'A default calendar is already set. Add holidays, PA days, and any other days off here.',
@@ -32,6 +33,7 @@ export const CLASSROOM_SETUP_STEPS: Array<OnboardingStep<ClassroomSetupContext>>
     id: 'attendance-hours',
     tab: 'daily',
     targetSelector: `#${ONBOARDING_TARGET_IDS.attendanceWindow}`,
+    pathTargetSelector: ONBOARDING_RAIL_SELECTORS.daily,
     label: 'Set attendance hours',
     title: 'Set your attendance window',
     body: 'Students can only check in during this window on class days.',
@@ -42,6 +44,7 @@ export const CLASSROOM_SETUP_STEPS: Array<OnboardingStep<ClassroomSetupContext>>
     tab: 'settings',
     section: 'access',
     targetSelector: `#${ONBOARDING_TARGET_IDS.joinCodeCard}`,
+    pathTargetSelector: ONBOARDING_RAIL_SELECTORS.settings,
     label: 'Invite students',
     title: 'Share your join code',
     body: 'Students enter this code once to join the classroom — no invite required.',

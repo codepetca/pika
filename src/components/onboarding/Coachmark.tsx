@@ -5,8 +5,15 @@ import { createPortal } from 'react-dom'
 import { Button } from '@/ui'
 
 export interface CoachmarkProps {
-  /** CSS selector for the element to spotlight. Re-resolved on every render while open. */
+  /** CSS selector for the element to spotlight — the actual control to use. Re-resolved on every render while open. */
   targetSelector: string
+  /**
+   * Optional CSS selector for the nav entry point that leads to
+   * targetSelector (e.g. the rail icon for its tab). Drawn as a lighter
+   * "you are here" ring alongside the primary spotlight, so the teacher
+   * sees both the path and the destination at once.
+   */
+  pathTargetSelector?: string
   title: string
   body: string
   /** e.g. "Step 1 of 3" */
@@ -29,8 +36,18 @@ const FIND_TARGET_RETRIES = 20
  * next to it. Unlike ModalLayer, it never traps focus or makes the rest of
  * the page inert — the teacher can keep working while it's open.
  */
-export function Coachmark({ targetSelector, title, body, stepLabel, open, onAcknowledge, onSkip }: CoachmarkProps) {
+export function Coachmark({
+  targetSelector,
+  pathTargetSelector,
+  title,
+  body,
+  stepLabel,
+  open,
+  onAcknowledge,
+  onSkip,
+}: CoachmarkProps) {
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const [pathRect, setPathRect] = useState<DOMRect | null>(null)
   const [portalReady, setPortalReady] = useState(false)
   const ackButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -39,6 +56,7 @@ export function Coachmark({ targetSelector, title, body, stepLabel, open, onAckn
   useEffect(() => {
     if (!open) {
       setRect(null)
+      setPathRect(null)
       return
     }
 
@@ -48,11 +66,12 @@ export function Coachmark({ targetSelector, title, body, stepLabel, open, onAckn
 
     const measure = () => {
       const el = document.querySelector(targetSelector)
-      if (el) {
-        setRect(el.getBoundingClientRect())
-        return true
+      if (el) setRect(el.getBoundingClientRect())
+      if (pathTargetSelector) {
+        const pathEl = document.querySelector(pathTargetSelector)
+        setPathRect(pathEl ? pathEl.getBoundingClientRect() : null)
       }
-      return false
+      return Boolean(el)
     }
 
     const tryMeasure = () => {
@@ -75,7 +94,7 @@ export function Coachmark({ targetSelector, title, body, stepLabel, open, onAckn
       window.removeEventListener('resize', onViewportChange)
       window.removeEventListener('scroll', onViewportChange, true)
     }
-  }, [open, targetSelector])
+  }, [open, targetSelector, pathTargetSelector])
 
   const hasRect = rect !== null
   useEffect(() => {
@@ -118,6 +137,19 @@ export function Coachmark({ targetSelector, title, body, stepLabel, open, onAckn
           boxShadow: '0 0 0 3px var(--color-warning), 0 0 0 9999px rgba(15, 23, 42, 0.45)',
         }}
       />
+      {pathRect ? (
+        <div
+          aria-hidden="true"
+          className="fixed rounded-lg transition-[top,left,width,height] duration-standard ease-standard motion-reduce:transition-none z-popover pointer-events-none"
+          style={{
+            top: pathRect.top - RING_PADDING,
+            left: pathRect.left - RING_PADDING,
+            width: pathRect.width + RING_PADDING * 2,
+            height: pathRect.height + RING_PADDING * 2,
+            boxShadow: '0 0 0 2px var(--color-warning)',
+          }}
+        />
+      ) : null}
       <div
         role="dialog"
         aria-label={title}
