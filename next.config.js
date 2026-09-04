@@ -1,5 +1,15 @@
 const { execSync } = require('child_process')
 
+const NO_REFERRER_ROUTES = [
+  '/api/storage/submission-images',
+  '/api/student/tests/:id/documents/:docId/:delivery(file|snapshot)',
+  '/api/teacher/tests/:id/documents/:docId/:delivery(file|snapshot)',
+  '/api/student/attendance/:path*',
+  '/api/teacher/attendance/:path*',
+  '/api/integrations/attendance/:path*',
+  '/api/cron/bara-attendance-smoke',
+]
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -25,7 +35,7 @@ const nextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'Referrer-Policy', value: 'same-origin' },
           {
             key: 'Permissions-Policy',
             value: [
@@ -45,6 +55,12 @@ const nextConfig = {
           },
         ],
       },
+      ...NO_REFERRER_ROUTES.map((source) => ({
+        source,
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      })),
     ]
   },
 }

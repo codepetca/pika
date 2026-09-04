@@ -20,8 +20,10 @@ capabilities.
 - `next.config.js` disables `X-Powered-By` and applies the route-wide baseline:
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and
   `Permissions-Policy`.
-- The global referrer policy is `no-referrer`, so it cannot weaken the private
-  Storage and attendance routes that already require complete suppression.
+- The global referrer policy is `same-origin`: browsers preserve the Origin
+  signal used to reject forged logout submissions while sending no referrer to
+  other sites. Private Storage, test-document delivery, and attendance routes
+  retain their stricter `no-referrer` policy through explicit route rules.
 - API responses receive the nonce policy so Next.js HTML fallbacks under `/api`
   remain protected. The student and teacher test-document snapshot routes retain
   ownership of their stricter script-free CSP; spoofed policy/nonce request

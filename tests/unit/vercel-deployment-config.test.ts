@@ -26,10 +26,10 @@ describe('Vercel deployment configuration', () => {
     })
   })
 
-  it('applies baseline browser security headers to every route', async () => {
+  it('applies baseline browser security headers and preserves sensitive no-referrer routes', async () => {
     expect(nextConfig.poweredByHeader).toBe(false)
     const rules = await nextConfig.headers?.()
-    expect(rules).toHaveLength(1)
+    expect(rules).toHaveLength(8)
     expect(rules?.[0].source).toBe('/(.*)')
 
     const headers = Object.fromEntries(
@@ -37,8 +37,22 @@ describe('Vercel deployment configuration', () => {
     )
     expect(headers['x-content-type-options']).toBe('nosniff')
     expect(headers['x-frame-options']).toBe('SAMEORIGIN')
-    expect(headers['referrer-policy']).toBe('no-referrer')
+    expect(headers['referrer-policy']).toBe('same-origin')
     expect(headers['permissions-policy']).toContain('camera=()')
     expect(headers['permissions-policy']).toContain('fullscreen=(self)')
+
+    const noReferrerSources = rules?.slice(1).map((rule) => {
+      expect(rule.headers).toEqual([{ key: 'Referrer-Policy', value: 'no-referrer' }])
+      return rule.source
+    })
+    expect(noReferrerSources).toEqual([
+      '/api/storage/submission-images',
+      '/api/student/tests/:id/documents/:docId/:delivery(file|snapshot)',
+      '/api/teacher/tests/:id/documents/:docId/:delivery(file|snapshot)',
+      '/api/student/attendance/:path*',
+      '/api/teacher/attendance/:path*',
+      '/api/integrations/attendance/:path*',
+      '/api/cron/bara-attendance-smoke',
+    ])
   })
 })
