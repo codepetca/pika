@@ -122,7 +122,11 @@ const legacyQuizTables = new Set<string>(LEGACY_QUIZ_ARCHIVE_V1_RESOURCES)
 export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
   ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(0, 4),
   archiveResource('gradebook_categories'),
-  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4).filter((resource) =>
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4, 17).filter((resource) =>
+    !legacyQuizTables.has(resource.table),
+  ),
+  archiveResource('gradebook_score_overrides', ['student_id', 'created_by']),
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(17).filter((resource) =>
     !legacyQuizTables.has(resource.table),
   ),
   archiveResource('classroom_retired_assessment_records'),
@@ -132,7 +136,11 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
 export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(0, 3),
   'gradebook_categories',
-  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(3).filter((table) =>
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(3, 6).filter((table) =>
+    !legacyQuizTables.has(table),
+  ),
+  'gradebook_score_overrides',
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(6).filter((table) =>
     !legacyQuizTables.has(table),
   ),
   'classroom_retired_assessment_records',

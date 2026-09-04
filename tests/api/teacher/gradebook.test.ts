@@ -389,7 +389,7 @@ describe('GET /api/teacher/gradebook', () => {
       scoreOverrides: [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 27 }],
     })
 
-    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
     const body = await response.json()
 
     expect(response.status).toBe(200)
@@ -404,6 +404,14 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].assignments_percent).toBe(90)
     expect(body.students[0].final_percent).toBe(90)
     expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: 90, median_percent: 90 })
+    expect(body.selected_student.assignments[0]).toMatchObject({
+      assignment_id: 'a1',
+      earned: 27,
+      possible: 30,
+      percent: 90,
+      is_manual_override: true,
+      calculated_earned: 24,
+    })
   })
 
   it('uses a final override in the student row and class average without changing assessment marks', async () => {
@@ -464,6 +472,39 @@ describe('GET /api/teacher/gradebook', () => {
       },
     ])
     expect(body.totals.tests).toBe(1)
+  })
+
+  it('includes test override metadata in selected student details', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
+      testQuestions: [
+        { id: 'tq1', test_id: 't1', points: 5 },
+        { id: 'tq2', test_id: 't1', points: 5 },
+      ],
+      testResponses: [
+        { test_id: 't1', question_id: 'tq1', student_id: 'student-1', score: 5 },
+        { test_id: 't1', question_id: 'tq2', student_id: 'student-1', score: 3 },
+      ],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9.5 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.selected_student.tests).toEqual([
+      {
+        test_id: 't1',
+        title: 'Unit Test',
+        earned: 9.5,
+        possible: 10,
+        percent: 95,
+        status: 'closed',
+        is_manual_override: true,
+        calculated_earned: 8,
+      },
+    ])
   })
 
   it('adds sparse per-student assessment statuses for the inspector', async () => {

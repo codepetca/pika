@@ -96,6 +96,7 @@ export function TeacherGradebookTab({
   const settingsLinkHandledRef = useRef(false)
   const wasActiveRef = useRef(isActive)
   const dialogSaveSequenceRef = useRef(0)
+  const scoreMutationSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -256,6 +257,7 @@ export function TeacherGradebookTab({
   useEffect(() => {
     loadRequestIdRef.current += 1
     dialogSaveSequenceRef.current += 1
+    scoreMutationSequenceRef.current += 1
     assessmentSaveChainsRef.current = new Map()
     dirtyWeightsRef.current.clear()
     settingsLinkHandledRef.current = false
@@ -544,8 +546,11 @@ export function TeacherGradebookTab({
 
   async function saveManualScore(earned: number) {
     if (!scoreEditTarget || isReadOnly || !scoreOverridesAvailable) return
+    const classroomId = classroom.id
     const target = scoreEditTarget
     const key = scoreSaveKey(target)
+    const requestId = scoreMutationSequenceRef.current + 1
+    scoreMutationSequenceRef.current = requestId
     setSavingScoreKeys((current) => new Set(current).add(key))
     setScoreDialogError('')
     try {
@@ -553,33 +558,53 @@ export function TeacherGradebookTab({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          classroom_id: classroom.id,
+          classroom_id: classroomId,
           student_id: target.student.student_id,
           assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
-          assessment_id: target.kind === 'final' ? classroom.id : target.column.assessment_id,
+          assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
           earned,
         }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save override')
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
       setScoreEditTarget(null)
-      invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
       await loadGradebook({ preserveSnapshot: true })
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
       showMessage({ text: 'Override saved', tone: 'success' })
     } catch (error: unknown) {
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
       setScoreDialogError(error instanceof Error ? error.message : 'Failed to save override')
     } finally {
-      setSavingScoreKeys((current) => {
-        const next = new Set(current)
-        next.delete(key)
-        return next
-      })
+      if (
+        scoreMutationSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        setSavingScoreKeys((current) => {
+          const next = new Set(current)
+          next.delete(key)
+          return next
+        })
+      }
     }
   }
 
   async function undoManualScores(target?: GradebookScoreEditTarget) {
     if (isReadOnly || !scoreOverridesAvailable) return false
+    const classroomId = classroom.id
     const key = target ? scoreSaveKey(target) : null
+    const requestId = scoreMutationSequenceRef.current + 1
+    scoreMutationSequenceRef.current = requestId
     if (key) setSavingScoreKeys((current) => new Set(current).add(key))
     else setUndoAllSaving(true)
     setActionError('')
@@ -588,31 +613,49 @@ export function TeacherGradebookTab({
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(target ? {
-          classroom_id: classroom.id,
+          scope: 'one',
+          classroom_id: classroomId,
           student_id: target.student.student_id,
           assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
-          assessment_id: target.kind === 'final' ? classroom.id : target.column.assessment_id,
-        } : { classroom_id: classroom.id, all: true }),
+          assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
+        } : { scope: 'all', classroom_id: classroomId }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to undo overrides')
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
       setUndoAllOpen(false)
-      invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
       await loadGradebook({ preserveSnapshot: true })
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
       showMessage({ text: target ? 'Override undone' : 'All overrides undone', tone: 'success' })
       return true
     } catch (error: unknown) {
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
       const message = error instanceof Error ? error.message : 'Failed to undo overrides'
       if (target) setScoreDialogError(message)
       else setActionError(message)
       return false
     } finally {
-      if (key) setSavingScoreKeys((current) => {
-        const next = new Set(current)
-        next.delete(key)
-        return next
-      })
-      else setUndoAllSaving(false)
+      if (
+        scoreMutationSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        if (key) setSavingScoreKeys((current) => {
+          const next = new Set(current)
+          next.delete(key)
+          return next
+        })
+        else setUndoAllSaving(false)
+      }
     }
   }
 

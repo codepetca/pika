@@ -5236,6 +5236,7 @@ export type Database = {
           created_at: string
           created_by: string
           earned: number
+          id: string
           student_id: string
           updated_at: string
         }
@@ -5246,6 +5247,7 @@ export type Database = {
           created_at?: string
           created_by: string
           earned: number
+          id?: string
           student_id: string
           updated_at?: string
         }
@@ -5256,6 +5258,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           earned?: number
+          id?: string
           student_id?: string
           updated_at?: string
         }
@@ -5266,6 +5269,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classrooms"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_score_overrides_classroom_id_student_id_fkey"
+            columns: ["classroom_id", "student_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_enrollments"
+            referencedColumns: ["classroom_id", "student_id"]
           },
           {
             foreignKeyName: "gradebook_score_overrides_created_by_fkey"

@@ -1094,40 +1094,39 @@ export async function loadTeacherGradebook(opts: {
       ? {
           ...selectedStudent,
           assignments: assignments
-            .map((assignment) => {
-              const score = assignmentDocMap.get(`${selectedStudent.student_id}:${assignment.id}`)
-              const sc = score?.score_completion
-              const st = score?.score_thinking
-              const sw = score?.score_workflow
-              const hasGrade = sc != null && st != null && sw != null
-              if (!hasGrade) {
-                return {
-                  assignment_id: assignment.id,
-                  title: assignment.title,
-                  due_at: assignment.due_at,
-                  is_draft: assignment.is_draft,
-                  earned: null,
-                  possible: round2(assignment.points_possible),
-                  percent: null,
-                  is_graded: false,
-                }
-              }
-
-              const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
-              const raw = Number(sc) + Number(st) + Number(sw)
-              const earned = (raw / 30) * possible
+            .map((assignment, index) => {
+              const cell = selectedStudent.assessment_scores[index]
               return {
                 assignment_id: assignment.id,
                 title: assignment.title,
                 due_at: assignment.due_at,
                 is_draft: assignment.is_draft,
-                earned: round2(earned),
-                possible: round2(possible),
-                percent: round2((earned / possible) * 100),
-                is_graded: true,
+                earned: cell?.earned ?? null,
+                possible: cell?.possible ?? round2(assignment.points_possible),
+                percent: cell?.percent ?? null,
+                is_graded: cell?.is_graded ?? false,
+                ...(cell?.is_manual_override ? {
+                  is_manual_override: true,
+                  calculated_earned: cell.calculated_earned ?? null,
+                } : {}),
               }
             }),
-          tests: testDetailsByStudent.get(selectedStudent.student_id) || [],
+          tests: tests.flatMap((test, index) => {
+            const cell = selectedStudent.assessment_scores[assignments.length + index]
+            if (test.include_in_final === false || test.status === 'draft' || !cell?.is_graded || cell.earned == null || cell.possible <= 0) return []
+            return [{
+              test_id: test.id,
+              title: test.title,
+              earned: cell.earned,
+              possible: cell.possible,
+              percent: cell.percent ?? round2((cell.earned / cell.possible) * 100),
+              status: test.status,
+              ...(cell.is_manual_override ? {
+                is_manual_override: true,
+                calculated_earned: cell.calculated_earned ?? null,
+              } : {}),
+            }]
+          }),
         }
       : null,
     class_summary: {
@@ -1294,7 +1293,7 @@ export async function deleteTeacherGradebookScoreOverride(opts: {
 }) {
   const { teacherId, command } = opts
   await assertTeacherOwnsClassroom(teacherId, command.classroom_id, { checkArchived: true })
-  if (!('all' in command)) {
+  if (command.scope === 'one') {
     await assertGradebookOverrideTarget({
       classroomId: command.classroom_id,
       studentId: command.student_id,
@@ -1308,7 +1307,7 @@ export async function deleteTeacherGradebookScoreOverride(opts: {
     .from('gradebook_score_overrides')
     .delete()
     .eq('classroom_id', command.classroom_id)
-  if (!('all' in command)) {
+  if (command.scope === 'one') {
     query = query
       .eq('student_id', command.student_id)
       .eq('assessment_type', command.assessment_type)

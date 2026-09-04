@@ -1,37 +1,35 @@
 import { z } from 'zod'
 
 const overrideBaseSchema = z.object({
-  classroom_id: z.string().trim().min(1, 'classroom_id is required'),
-  student_id: z.string().trim().min(1, 'student_id is required'),
-})
+  classroom_id: z.string().uuid(),
+  student_id: z.string().uuid(),
+}).strict()
 
 const assessmentOverrideIdentitySchema = overrideBaseSchema.extend({
   assessment_type: z.enum(['assignment', 'test']),
-  assessment_id: z.string().trim().min(1, 'assessment_id is required'),
-})
+  assessment_id: z.string().uuid(),
+}).strict()
 
 const finalOverrideIdentitySchema = overrideBaseSchema.extend({
   assessment_type: z.literal('final'),
   // Final overrides use the classroom id as their stable per-student target key.
-  assessment_id: z.string().trim().min(1, 'assessment_id is required'),
-})
+  assessment_id: z.string().uuid(),
+}).strict()
 
-const earnedSchema = z.object({
-  earned: z.number().finite().min(0).max(999999.9).multipleOf(0.1),
-})
+const earnedSchema = z.number().finite().min(0).max(999999.9).multipleOf(0.1)
 
 export const gradebookScoreOverridePutSchema = z.union([
-  assessmentOverrideIdentitySchema.and(earnedSchema),
-  finalOverrideIdentitySchema.and(earnedSchema),
+  assessmentOverrideIdentitySchema.extend({ earned: earnedSchema }).strict(),
+  finalOverrideIdentitySchema.extend({ earned: earnedSchema }).strict(),
 ])
 
 export const gradebookScoreOverrideDeleteSchema = z.union([
-  assessmentOverrideIdentitySchema,
-  finalOverrideIdentitySchema,
+  assessmentOverrideIdentitySchema.extend({ scope: z.literal('one') }).strict(),
+  finalOverrideIdentitySchema.extend({ scope: z.literal('one') }).strict(),
   z.object({
-    classroom_id: z.string().trim().min(1, 'classroom_id is required'),
-    all: z.literal(true),
-  }),
+    scope: z.literal('all'),
+    classroom_id: z.string().uuid(),
+  }).strict(),
 ])
 
 export type GradebookScoreOverridePutCommand = z.infer<typeof gradebookScoreOverridePutSchema>

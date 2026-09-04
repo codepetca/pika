@@ -609,6 +609,165 @@ describe('TeacherGradebookTab', () => {
     ))).toHaveLength(1)
   })
 
+  it('does not close or refresh the next classroom after a delayed mark save', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveSave: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'PUT') {
+        return new Promise((resolve) => { resolveSave = resolve })
+      }
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        const response = gradebookResponse()
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: /Edit Ada Lovelace mark for Essay/ }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Mark earned' }), { target: { value: '9.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save mark' }))
+    await waitFor(() => expect(resolveSave).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveSave?.({ ok: true, json: async () => ({ saved: true }) })
+    })
+
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
+  it('does not close or refresh the next classroom after a delayed cell undo', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveUndo: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'DELETE') {
+        return new Promise((resolve) => { resolveUndo = resolve })
+      }
+      const response = gradebookResponse()
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        const ada = response.students.find((student) => student.student_id === 'student-1')
+        if (!ada) throw new Error('Missing Ada fixture')
+        ada.assessment_scores[0] = {
+          ...ada.assessment_scores[0],
+          earned: 9,
+          percent: 90,
+          is_manual_override: true,
+          calculated_earned: 8,
+        }
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: /Edit Ada Lovelace mark for Essay: 90%, overridden/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(resolveUndo).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveUndo?.({ ok: true, json: async () => ({ deleted: true }) })
+    })
+
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(JSON.parse(String(deleteCall?.[1]?.body))).toMatchObject({ scope: 'one', classroom_id: classroom.id })
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
+  it('does not close or refresh the next classroom after a delayed undo-all request', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveUndo: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'DELETE') {
+        return new Promise((resolve) => { resolveUndo = resolve })
+      }
+      const response = gradebookResponse()
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        const ada = response.students.find((student) => student.student_id === 'student-1')
+        if (!ada) throw new Error('Missing Ada fixture')
+        ada.is_final_override = true
+        ada.calculated_final_percent = 80
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitem', { name: 'Undo all overrides' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo all' }))
+    await waitFor(() => expect(resolveUndo).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveUndo?.({ ok: true, json: async () => ({ deleted: true }) })
+    })
+
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(JSON.parse(String(deleteCall?.[1]?.body))).toEqual({ scope: 'all', classroom_id: classroom.id })
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
   it('color codes grade text by percentage band', async () => {
     const response = gradebookResponse()
     const grace = response.students.find((student) => student.student_id === 'student-2')

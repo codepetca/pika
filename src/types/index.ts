@@ -1357,6 +1357,8 @@ export interface GradebookAssignmentDetail {
   possible: number
   percent: number | null
   is_graded: boolean
+  is_manual_override?: boolean
+  calculated_earned?: number | null
 }
 
 export interface GradebookTestDetail {
@@ -1366,6 +1368,8 @@ export interface GradebookTestDetail {
   possible: number
   percent: number
   status: 'draft' | 'active' | 'closed' | null
+  is_manual_override?: boolean
+  calculated_earned?: number | null
 }
 
 export interface GradebookStudentDetail extends GradebookStudentSummary {
