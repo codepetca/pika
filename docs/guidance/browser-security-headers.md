@@ -59,7 +59,10 @@ Nonce delivery makes App Router pages dynamically rendered. Pika's principal
 authenticated routes were already request-rendered; public auth pages now use
 the same path. This trades static/CDN HTML caching for a materially stronger
 script policy. Static assets remain cacheable and are excluded from middleware.
-No database, Storage, teacher, or student workflow changes are introduced.
+Only actual `/_next/static/*` assets and the `/_next/image` optimizer endpoint
+are excluded; reserved-prefix requests that render an HTML fallback still
+receive the nonce policy. No database, Storage, teacher, or student workflow
+changes are introduced.
 
 Adding a new browser-side service, external frame protocol, font host, or script
 requires an explicit policy update and regression coverage. Server-only

@@ -33,10 +33,10 @@ describe('AuthKit middleware matcher', () => {
     expect(matchesPath('/pika-icon-dark.svg/anything')).toBe(true)
     expect(matchesPath('/classrooms')).toBe(true)
     expect(matchesPath('/_next/static/chunks/app.js')).toBe(false)
-    expect(matchesPath('/_next/static')).toBe(false)
+    expect(matchesPath('/_next/static')).toBe(true)
     expect(matchesPath('/_next/staticx')).toBe(true)
     expect(matchesPath('/_next/image')).toBe(false)
-    expect(matchesPath('/_next/image/transform')).toBe(false)
+    expect(matchesPath('/_next/image/transform')).toBe(true)
     expect(matchesPath('/_next/imageevil')).toBe(true)
 
     const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
@@ -125,23 +125,26 @@ describe('AuthKit middleware matcher', () => {
     },
   )
 
-  it('protects API HTML fallbacks while overwriting spoofed policy inputs', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
-    const request = new NextRequest('https://pika.example/api/does-not-exist', {
-      headers: {
-        'x-nonce': 'attacker-controlled',
-        'content-security-policy': "default-src * 'unsafe-inline'",
-      },
-    })
+  it.each(['/api/does-not-exist', '/_next/static', '/_next/image/not-an-optimizer'])(
+    'protects the %s HTML fallback while overwriting spoofed policy inputs',
+    async (pathname) => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+      const request = new NextRequest(`https://pika.example${pathname}`, {
+        headers: {
+          'x-nonce': 'attacker-controlled',
+          'content-security-policy': "default-src * 'unsafe-inline'",
+        },
+      })
 
-    const response = await middleware(request)
+      const response = await middleware(request)
 
-    const nonce = response.headers.get('x-middleware-request-x-nonce')
-    const policy = response.headers.get('content-security-policy')
-    expect(nonce).toMatch(/^[a-f0-9]{32}$/)
-    expect(nonce).not.toBe('attacker-controlled')
-    expect(response.headers.get('x-middleware-request-content-security-policy')).toBe(policy)
-    expect(policy).toContain(`'nonce-${nonce}'`)
-    expect(policy).not.toContain("default-src * 'unsafe-inline'")
-  })
+      const nonce = response.headers.get('x-middleware-request-x-nonce')
+      const policy = response.headers.get('content-security-policy')
+      expect(nonce).toMatch(/^[a-f0-9]{32}$/)
+      expect(nonce).not.toBe('attacker-controlled')
+      expect(response.headers.get('x-middleware-request-content-security-policy')).toBe(policy)
+      expect(policy).toContain(`'nonce-${nonce}'`)
+      expect(policy).not.toContain("default-src * 'unsafe-inline'")
+    },
+  )
 })
