@@ -848,7 +848,8 @@ describe('TeacherAttendanceTab', () => {
 
     expect(dateButton).toHaveTextContent('Wed May 6')
     expect(within(dateButton).queryByText('Today')).not.toBeInTheDocument()
-    expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
+    expect(dateButton.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(dateButton).not.toHaveClass('flex-col')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
 
     view.unmount()
@@ -858,6 +859,8 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(within(restoredDateButton).queryByText('Today')).not.toBeInTheDocument()
     })
+    expect(restoredDateButton.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(restoredDateButton).not.toHaveClass('flex-col')
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Show relative date' }))
