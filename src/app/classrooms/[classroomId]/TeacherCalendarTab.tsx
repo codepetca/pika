@@ -17,6 +17,28 @@ interface Props {
   classroom: Classroom
 }
 
+function mergeClassDaysPreservingPending(
+  currentClassDays: ClassDay[],
+  nextClassDays: ClassDay[],
+  pendingDates: ReadonlySet<string>,
+): ClassDay[] {
+  if (pendingDates.size === 0) return nextClassDays
+
+  const currentByDate = new Map(currentClassDays.map(day => [day.date, day]))
+  const nextDates = new Set(nextClassDays.map(day => day.date))
+  const mergedClassDays = nextClassDays.map(day => (
+    pendingDates.has(day.date) ? currentByDate.get(day.date) ?? day : day
+  ))
+
+  for (const day of currentClassDays) {
+    if (pendingDates.has(day.date) && !nextDates.has(day.date)) {
+      mergedClassDays.push(day)
+    }
+  }
+
+  return mergedClassDays
+}
+
 export function TeacherCalendarTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { showMarkdown } = useMarkdownPreference()
@@ -35,7 +57,11 @@ export function TeacherCalendarTab({ classroom }: Props) {
   // Sync from shared context (used for initial load and after event-driven refreshes)
   useEffect(() => {
     if (!contextLoading) {
-      setClassDays(contextClassDays)
+      setClassDays(currentClassDays => mergeClassDaysPreservingPending(
+        currentClassDays,
+        contextClassDays,
+        pendingToggleDatesRef.current,
+      ))
       setLoading(false)
     }
   }, [contextClassDays, contextLoading])
