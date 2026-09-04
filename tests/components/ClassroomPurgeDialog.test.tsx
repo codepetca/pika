@@ -7,7 +7,7 @@ const CLASSROOM_ID = '10000000-0000-4000-8000-000000000001'
 describe('ClassroomPurgeDialog', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('shows the complete irreversible impact and requires typed confirmation', async () => {
+  it('shows the concise irreversible warning and requires typed confirmation', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -48,9 +48,9 @@ describe('ClassroomPurgeDialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete classroom permanently?' })
     await within(dialog).findByText('This cannot be undone.')
     expect(dialog).toHaveTextContent('This cannot be undone.')
-    expect(dialog).toHaveTextContent(/all student work, submissions, tests, grades/)
-    expect(dialog).toHaveTextContent(/attendance and logs, feedback, roster data, and uploads/)
+    expect(dialog).toHaveTextContent(/This permanently removes all student-related work/)
     expect(dialog).toHaveTextContent(/Course Blueprint and user accounts are kept/)
+    expect(dialog).not.toHaveTextContent(/submissions, tests, grades/)
     expect(dialog).toHaveTextContent(/2 interrupted uploads/)
     const deleteButton = within(dialog).getByRole('button', { name: 'Delete permanently' })
     expect(deleteButton).toBeDisabled()

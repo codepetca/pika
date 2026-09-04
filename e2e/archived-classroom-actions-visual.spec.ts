@@ -145,6 +145,10 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     const deleteDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
     await expect(deleteDialog.getByText('This cannot be undone.')).toBeVisible()
     await expect(deleteDialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
+    const deleteDialogBody = deleteDialog.locator('.overflow-y-auto')
+    expect(await deleteDialogBody.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    )).toBe(false)
     await page.screenshot({
       path: `/tmp/pika-coordinated-delete-confirm-${entry.name}.png`,
       fullPage: true,
