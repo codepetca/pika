@@ -643,9 +643,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     },
   ]
 
-  const openClassroom = useCallback((classroom: Classroom) => {
+  const openClassroom = useCallback((classroom: Classroom, options?: { onboardingStart?: boolean }) => {
     setOpeningClassroomId(classroom.id)
-    router.push(`/classrooms/${classroom.id}?tab=daily`)
+    const query = options?.onboardingStart ? '?tab=daily&onboarding=start' : '?tab=daily'
+    router.push(`/classrooms/${classroom.id}${query}`)
   }, [router])
 
   return (
@@ -975,7 +976,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           setShowCreate(false)
           setReuseBlueprintId(null)
           setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
-          openClassroom(created)
+          openClassroom(created, { onboardingStart: true })
         }}
         onBlueprintCreated={(created) => {
           setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])

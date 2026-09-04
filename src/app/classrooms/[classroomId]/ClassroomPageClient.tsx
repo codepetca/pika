@@ -27,6 +27,7 @@ import {
 } from '@/components/StudentAttendanceStatus'
 import type { StudentAttendanceClassroomState } from '@/lib/validations/student-attendance'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
+import { ClassroomSetupOnboarding } from '@/components/onboarding/ClassroomSetupOnboarding'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
 import {
   ThreePanelProvider,
@@ -245,6 +246,12 @@ export function ClassroomPageClient({
   const tab = activeSearchParams.get('tab')
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
+  // Sticky for this mount even after onNavigate strips the `onboarding`
+  // query param — captured once so the getting-started chain stays
+  // reachable for the rest of this classroom-creation session, without
+  // fetching its state on every other classroom render.
+  const [onboardingSessionActive] = useState(() => activeSearchParams.get('onboarding') === 'start')
+
   useEffect(() => {
     if ((validTabs as readonly string[]).includes(tab ?? '')) return
     updateSearchParams((params) => {
@@ -285,6 +292,21 @@ export function ClassroomPageClient({
           featureVisibility={featureVisibility}
           classroomQrAvailable={classroomQrAvailable}
         />
+        {isTeacher && onboardingSessionActive ? (
+          <ClassroomSetupOnboarding
+            classroomId={effectiveClassroom.id}
+            activeTab={activeTab}
+            autoStart={activeSearchParams.get('onboarding') === 'start'}
+            onNavigate={(nextTab, section) => updateSearchParams((params) => {
+              params.set('tab', nextTab)
+              if (section) params.set('section', section)
+              else params.delete('section')
+            })}
+            onAutoStartConsumed={() => updateSearchParams((params) => {
+              params.delete('onboarding')
+            }, { replace: true })}
+          />
+        ) : null}
       </ClassDaysProvider>
     </ThreePanelProvider>
   )

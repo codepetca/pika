@@ -70,6 +70,7 @@ import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { AttendanceWindowDialog } from './AttendanceWindowDialog'
+import { ONBOARDING_TARGET_IDS } from '@/components/onboarding/classroom-setup-onboarding-ids'
 import { TeacherClassroomQrDialog } from './TeacherClassroomQrDialog'
 import { useTeacherAttendancePolicy } from '@/hooks/useTeacherAttendancePolicy'
 import {
@@ -887,6 +888,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               />
             ) : null}
             <Button
+              id={ONBOARDING_TARGET_IDS.attendanceWindow}
               type="button"
               variant="ghost"
               size="sm"

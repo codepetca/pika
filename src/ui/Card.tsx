@@ -39,6 +39,7 @@ const cardVariants = cva(
 export interface CardProps extends VariantProps<typeof cardVariants> {
   children: ReactNode
   className?: string
+  id?: string
 }
 
 /**
@@ -55,9 +56,9 @@ export interface CardProps extends VariantProps<typeof cardVariants> {
  *   <form>...</form>
  * </Card>
  */
-export function Card({ children, tone, padding, interactive, className }: CardProps) {
+export function Card({ children, tone, padding, interactive, className, id }: CardProps) {
   return (
-    <div className={cn(cardVariants({ tone, padding, interactive }), className)}>
+    <div id={id} className={cn(cardVariants({ tone, padding, interactive }), className)}>
       {children}
     </div>
   )

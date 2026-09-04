@@ -83,6 +83,15 @@ type RosterRemovalCounts = {
 }
 
 type TableOverrides = {
+  // Hand-authored: migration 157 has not been applied/regenerated into
+  // database.generated.ts yet. Replace with a TableContract<'teacher_ui_state', ...>
+  // override once `pnpm run db:types:generate` picks up the new table.
+  teacher_ui_state: {
+    Row: { teacher_id: string; key: string; value: Json; updated_at: string }
+    Insert: { teacher_id: string; key: string; value?: Json; updated_at?: string }
+    Update: { teacher_id?: string; key?: string; value?: Json; updated_at?: string }
+    Relationships: []
+  }
   assessment_drafts: TableContract<
     'assessment_drafts',
     { assessment_type: AssessmentDraftType; content: TestDraftContent },

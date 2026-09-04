@@ -35,6 +35,7 @@ import {
 } from '@/lib/classroom-feature-visibility'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { ONBOARDING_TARGET_IDS } from '@/components/onboarding/classroom-setup-onboarding-ids'
 import type { Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -47,11 +48,11 @@ function generateJoinCode() {
 
 type SettingsSection = 'general' | 'access' | 'features' | 'class-days' | 'reuse' | 'advanced'
 
-const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
+const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string; id?: string }> = [
   { value: 'general', label: 'General' },
-  { value: 'access', label: 'Access' },
+  { value: 'access', label: 'Access', id: ONBOARDING_TARGET_IDS.settingsAccessTab },
   { value: 'features', label: 'Features' },
-  { value: 'class-days', label: 'Class Days' },
+  { value: 'class-days', label: 'Class Days', id: ONBOARDING_TARGET_IDS.settingsClassDaysTab },
   { value: 'reuse', label: 'Reuse' },
   { value: 'advanced', label: 'Advanced' },
 ]
@@ -76,9 +77,9 @@ interface Props {
   onClassroomUpdated?: (classroom: Classroom) => void
 }
 
-function SettingsPanel({ children, className }: { children: ReactNode; className?: string }) {
+function SettingsPanel({ children, className, id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <Card padding="md" className={cn('space-y-3 shadow-none', className)}>
+    <Card padding="md" id={id} className={cn('space-y-3 shadow-none', className)}>
       {children}
     </Card>
   )
@@ -592,7 +593,7 @@ export function TeacherSettingsTab({
           ) : null}
 
           {section === 'access' ? (
-            <SettingsPanel>
+            <SettingsPanel id={ONBOARDING_TARGET_IDS.joinCodeCard}>
             <SettingsHeading
               title="Joining"
               tooltip="Control new joins and whether students must be on the roster."

@@ -13,6 +13,8 @@ export interface SegmentedControlOption<TValue extends string> {
   className?: string
   activeClassName?: string
   inactiveClassName?: string
+  /** Optional DOM id on the option's button, e.g. as a coachmark anchor. */
+  id?: string
 }
 
 export interface SegmentedControlProps<TValue extends string> {
@@ -91,6 +93,7 @@ export function SegmentedControl<TValue extends string>({
         const button = (
           <button
             key={option.value}
+            id={option.id}
             ref={(element) => {
               optionRefs.current[index] = element
             }}
