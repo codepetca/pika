@@ -13,6 +13,11 @@ import {
 } from '@/lib/browser-security'
 
 const CSP_NONCE_REQUEST_HEADER = 'x-nonce'
+const TEST_DOCUMENT_SNAPSHOT_PATH = /^\/api\/(?:student|teacher)\/tests\/[^/]+\/documents\/[^/]+\/snapshot\/?$/
+
+function routeOwnsContentSecurityPolicy(pathname: string): boolean {
+  return TEST_DOCUMENT_SNAPSHOT_PATH.test(pathname)
+}
 
 function withTrustedRequestHeaders(
   headers: Headers,
@@ -42,9 +47,7 @@ function applyContentSecurityPolicy(
 }
 
 export default async function middleware(request: NextRequest) {
-  const isApiRequest = request.nextUrl.pathname === '/api'
-    || request.nextUrl.pathname.startsWith('/api/')
-  const browserPolicy = isApiRequest
+  const browserPolicy = routeOwnsContentSecurityPolicy(request.nextUrl.pathname)
     ? null
     : (() => {
       const nonce = createCspNonce()
