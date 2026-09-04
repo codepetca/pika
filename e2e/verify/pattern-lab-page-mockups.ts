@@ -644,8 +644,10 @@ export const patternLabPageMockups: VerificationScript = {
     await section.screenshot({ path: stickySummaryDesktopLightArtifact })
     artifacts.push(stickySummaryDesktopLightArtifact)
     await section.getByRole('button', { name: 'More actions' }).click()
-    const scoreModeToggle = section.getByRole('group', { name: 'Score display' }).getByRole('button', { name: 'x/y' })
-    const summaryKindToggle = section.getByRole('group', { name: 'Class summary' }).getByRole('button', { name: 'MED' })
+    const scoreDisplayGroup = section.getByRole('group', { name: 'Score display' })
+    const classSummaryGroup = section.getByRole('group', { name: 'Class summary' })
+    const scoreModeToggle = scoreDisplayGroup.getByRole('button', { name: 'Score display: %. Switch to x/y' })
+    const summaryKindToggle = classSummaryGroup.getByRole('button', { name: 'Class summary: AVG. Switch to MED' })
     const nameOrderToggle = section.getByRole('menuitem', { name: 'Show last name in column 1' })
     const studentIds = section.getByRole('menuitemcheckbox', { name: 'Show student IDs' })
     const keepKeyColumnsVisible = section.getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
@@ -653,6 +655,8 @@ export const patternLabPageMockups: VerificationScript = {
       name: 'Gradebook centers display controls and keeps utility commands in More actions',
       passed: await scoreModeToggle.isVisible()
         && await summaryKindToggle.isVisible()
+        && await scoreDisplayGroup.getByRole('button').count() === 1
+        && await classSummaryGroup.getByRole('button').count() === 1
         && await nameOrderToggle.isVisible()
         && await section.getByRole('menuitem', { name: 'Edit categories' }).isVisible()
         && await section.getByRole('menuitemradio').count() === 0
@@ -669,8 +673,11 @@ export const patternLabPageMockups: VerificationScript = {
       passed: await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).isVisible()
         && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).count() === 0,
     })
-    const showAverage = section.getByRole('group', { name: 'Class summary' }).getByRole('button', { name: 'AVG' })
-    checks.push({ name: 'Gradebook summary buttons expose the active mode', passed: await summaryKindToggle.getAttribute('aria-pressed') === 'true' && await showAverage.getAttribute('aria-pressed') === 'false' })
+    const showAverage = classSummaryGroup.getByRole('button', { name: 'Class summary: MED. Switch to AVG' })
+    checks.push({
+      name: 'Gradebook summary toggle replaces its label with the active mode',
+      passed: await showAverage.textContent() === 'MED' && await classSummaryGroup.getByRole('button').count() === 1,
+    })
     await showAverage.click()
     await section.getByRole('button', { name: 'More actions' }).click()
     await nameOrderToggle.click()
@@ -741,11 +748,13 @@ export const patternLabPageMockups: VerificationScript = {
         && await section.getByRole('cell', { name: '1004832' }).isVisible(),
     })
     await scoreModeToggle.click()
+    const percentScoreToggle = scoreDisplayGroup.getByRole('button', { name: 'Score display: x/y. Switch to %' })
     checks.push({
-      name: 'Raw score mode updates visible assignment columns',
+      name: 'Raw score mode updates visible assignment columns and replaces the toggle label',
       passed: await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '18/20' }).isVisible()
         && await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '42/50' }).isVisible()
-        && await scoreModeToggle.getAttribute('aria-pressed') === 'true',
+        && await percentScoreToggle.textContent() === 'x/y'
+        && await scoreDisplayGroup.getByRole('button').count() === 1,
     })
     await page.keyboard.press('Escape')
     await section.getByRole('button', { name: 'More actions' }).click()

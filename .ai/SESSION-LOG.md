@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Refine Pattern Lab Gradebook category and weight controls
-
-- Prototyped table-card category editing with Term default, drag handles, half-point course percentages, read-only amber locks, and top-to-bottom automatic balancing. Removed the default item weight input (new categories use 10) and added a blank no-categories example.
-- Added compact single-column assessment editing for title, Category/None, Category weight, and calculated Course weight. Centered percent/x-y and AVG/MED controls plus a Lucide Dumbbell toggle; selected-student actions show Copy emails and Copy secondary emails as fixture actions.
-- Show weights now reveals two table metadata rows with left-hand labels, editable category weights, and read-only course weights. Refined opaque frozen cells, header layering, the summary divider, and desktop menu overflow. Production Gradebook and database are unchanged; migration 147 belongs to the already-merged PR #1160, not this refinement.
-- Verification before packaging: 24 focused UI/state tests, TypeScript, affected-file lint, design/UI policy, and diff checks passed. Teacher desktop/mobile light/dark captures and horizontal/vertical scrolling were inspected. This fixture-only proposal remains experimental; independent PR review and live adoption are separate next steps.
-- Packaging updated the gallery's stale menu-label expectations and added direct dialog accessibility tests. The focused gate passes 16 files / 137 tests plus architecture, UI/design policy, TypeScript, and lint; staged Pika audit passes. Composite checklist reviewed: Escape/focus return, keyboard toggle activation, labels, and pressed/read-only/disabled semantics are covered; drag keyboard and final browser-contract review remain pre-ready follow-up.
-- Risk profile: none (fixture-only UI). Model recommendation: GPT-5.6 Terra — bounded prototype interaction and accessibility review. Branch: codex/gradebook-editor-table; user requested a draft PR only.
-- Rebased draft PR #1167 onto main `17cb15a6`, preserving the newer Daily/student page sets alongside the Gradebook prototype and reconciling session-history conflicts without duplicating archived entries. Installed the locked main dependency updates. The integrated focused gate passes 16 files / 142 tests, architecture, UI/design policies, TypeScript, lint, and Pika audit; teacher/student login checks pass. Inspected desktop/mobile light/dark reference captures plus populated/empty category editors at `/tmp/pika-gradebook-rebase.75zTmk`. No migration changes or stash changes. Independent review, browser-verifier label updates, mobile action access, and category/weight edge-case checks remain before ready; live adoption is separate.
-
 ## 2026-09-02 — Finish Gradebook prototype edge cases and browser verification
 
 - Completed the remaining Pattern Lab work for #1167: consistent Edit/Save categories labels, mobile selection access outside the scrolling display controls, collision-free category IDs after delete/reopen, preserved assessment weights on category changes, and validation that keeps invalid inline drafts out of calculations. Hidden weight labels are contained by the table scroller; assessment titles cannot overwrite hidden few-assessment fixtures. The no-categories option is teacher Gradebook-only and clears on leaving.
@@ -276,3 +266,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1183 after #1182 merged. Archived classroom cards retain the reviewed right-side Settings menu with Reuse, Unarchive, and availability-gated Delete, while missed clicks in the card's right padding remain inert.
 - Retained current rolling history and updated the browser flow to reopen the new Settings menu before each coordinated-deletion state. Runtime source is unchanged from the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase Gradebook display toggles for merge
+
+- Rebased PR #1188 after #1183 merged, flattening obsolete merge commits into the single reviewed feature patch. Gradebook retains compact single-button `%`/`x/y` and `AVG`/`MED` display switches in the live teacher surface and Pattern Lab.
+- Retained current rolling history; application and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge. The later Gradebook refinement PR remains responsible for its approved final toolbar composition.

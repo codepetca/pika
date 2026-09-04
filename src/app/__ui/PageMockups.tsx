@@ -45,6 +45,7 @@ import type {
   LessonPlan,
   TiptapContent,
 } from '@/types'
+import { GradebookDisplayToggleButtons } from '@/components/gradebook/GradebookToolbar'
 import { DailyMockup, type DailyAttendanceMode } from './DailyMockup'
 import { SettingsMockup } from './SettingsMockup'
 import { STUDENT_PAGE_ITEMS, StudentPageMockup, type StudentPageId } from './StudentPageMockups'
@@ -663,23 +664,11 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             menuAlign="start"
           />
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto sm:overflow-visible" data-testid="gradebook-display-controls">
-            <SegmentedControl<ScoreMode>
-              ariaLabel="Score display"
-              value={scoreMode}
-              onChange={setScoreMode}
-              options={[
-                { value: 'percent', label: '%' },
-                { value: 'raw', label: 'x/y' },
-              ]}
-            />
-            <SegmentedControl<'average' | 'median'>
-              ariaLabel="Class summary"
-              value={summaryKind}
-              onChange={setSummaryKind}
-              options={[
-                { value: 'average', label: 'AVG' },
-                { value: 'median', label: 'MED' },
-              ]}
+            <GradebookDisplayToggleButtons
+              scoreDisplayMode={scoreMode}
+              summaryKind={summaryKind}
+              onScoreDisplayModeChange={setScoreMode}
+              onSummaryKindChange={setSummaryKind}
             />
             <IconButton
               icon={Dumbbell}
@@ -957,7 +946,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
         ? 'With no assessments, the roster remains visible and the Assessments column spans the remaining table width.'
         : fewAssessments
           ? 'This preview shows only a few assessment columns; calculations still include the full course. Each assessment keeps its compact minimum width while the empty assessment area expands and keeps Final at the far edge.'
-          : 'Compact assessment columns show the dense horizontal gradebook. Center controls set score display, class summary, and weights; More actions owns categories, name order, student IDs, and frozen columns.'}</Description>
+          : 'Compact assessment columns show the dense horizontal gradebook. Center buttons toggle score display and class summary, while the weights control and More actions hold the remaining display options.'}</Description>
     </div>
   )
 }
