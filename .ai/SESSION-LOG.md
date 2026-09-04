@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Rebase stable classroom QR after PR 1138
-
-- Confirmed #1138 merged at `a068a846`; this task remains the sole writer of `codex/classroom-permanent-attendance-qr`. Rebased both feature commits onto that main. Only session-history archive markers conflicted; preserved history without duplicating entries. Application changes merged automatically and a range comparison confirms no feature behavior changes. Migration 151 is byte-for-byte unchanged and remains applied to local/production.
-- Restored regenerated database types, rollout documentation and untracked screenshot helper/artifacts from exact safety stash `dd0dc07844076687621d3a5741339d631129d579`; retain this and the older pre-PR stash for recovery. Focused gate passes 185 files / 1,817 tests plus architecture, UI/design policy, TypeScript and lint. Eight teacher/student desktop/mobile light/dark browser cases pass; refreshed poster/student screenshots inspected. Pika pre-commit audit passes.
-- Final security/integration review will use one Sol/high reviewer on a detached exact-head checkout, reusing completed initial Sol/Terra and targeted review evidence. Fresh full replay is delegated to required CI. Asked the owner whether live Pika→Bara scan verification remains pre-merge or is an explicit pre-enablement rollout check, because this worktree lacks live integration configuration. Keep draft until that decision and all remaining gates are satisfied; no database application or deployment in this rebase pass.
-
 ## 2026-09-02 — Refresh QR Pattern Lab acceptance references
 
 - Final Sol/high integration review on `445f6a46` passed 85 targeted tests and found no new security/correctness defects, but reproduced a merge-blocking P2: teacher Pattern Lab references omitted the new QR example button (2/2 checked cases failed). Updated all eight teacher contract baselines after inspecting the intended button/mobile-row delta; no source, test assertions or screenshot tolerances changed. Capture source `445f6a46`, Playwright 1.58.0, Darwin and Noble Linux with fonts-dejavu-core; student baselines unchanged.
@@ -278,3 +272,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Replaced the detailed deletion inventory sentence with: “This permanently removes all student-related work. The Course Blueprint and user accounts are kept.” The shared dialog geometry, deletion impact counts, typed confirmation, attendance coordination and deletion behavior are unchanged.
 - Added component coverage for the concise wording and a browser assertion that the initial dialog body does not overflow. Teacher deletion states and student access boundaries pass across desktop/mobile and light/dark; screenshots were inspected with no visible scrollbar or clipping.
 - Focused checks pass 12 files / 135 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile none; no schema, data, API, dependency, deployment or merge action is included.
+
+## 2026-09-04 — Enable coordinated attendance deletion in production
+
+- Merged the concise deletion-warning change in PR #1198 and promoted the reviewed release through PR #1199; production is live at `859e1816`. Verified Pika production migrations 001–156 before changing any rollout gate.
+- Used an isolated synthetic teacher/student fixture for the exact signed deletion canary. Bara removed 12 remote entities and verified absence, Pika removed 9 local attendance records, and the final Classroom purge completed. Both user accounts, five unrelated student enrollments, and the retained QR attendance canary remained.
+- Enabled coordinated deletion broadly only after the canary passed, removed the temporary canary environment bindings, and verified the replacement deployment was ready before enabling Pika's database gate. The teacher browser smoke test and final database checks passed; no student browser session was available, so student preservation was verified at the database boundary.
+- Removed the temporary environment directories used during production verification. No student names, emails, opaque roster references, or production credentials were recorded here.
