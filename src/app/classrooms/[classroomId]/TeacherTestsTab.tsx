@@ -2567,6 +2567,7 @@ export function TeacherTestsTab({
           disabled={batchSelectedCount === 0 || isCombinedTestActionsBusy}
           variant="secondary"
           size="sm"
+          className="w-36"
           menuPlacement="down"
           menuAlign="center"
           menuAriaLabel="Selected student actions"

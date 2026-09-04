@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Fix release grade aggregation and gate stable QR canary
-
-- Owner approved the release-review correction: preserve an intentionally empty categorized final grade instead of falling back to legacy totals, including empty-category schemas. Three API regressions reproduced the wrong 100% before the fix. Legacy fallback remains only for an unavailable schema.
-- Added a fail-closed, separate stable-poster rollout gate: disabled by default, exact synthetic teacher/classroom pair in canary mode, explicit enabled mode after live verification. Enforced in teacher API/helpers, student resolution and server-provided menu availability. Existing occurrence-specific attendance is unchanged; no migration or production mutation.
-- Added persistence/concurrency/error-mapping coverage and gate boundary tests. Focused checks passed 20 files / 256 tests plus architecture, UI/design policy, TypeScript and lint. Eight teacher/student desktop/mobile light/dark browser fixtures passed; all role states were visually inspected. Dark poster captures were repeated with explicit SVG fill assertions after an initial blank capture; no display source change was needed. Pattern Lab QR and shared menu keyboard/focus checks passed. Local fixture evidence does not replace the production Bara canary.
-- Worktree `codex/release-gradebook-qr-canary` is the sole implementation writer. Initial cumulative release Sol/Terra review completed on `ebf86178`; this is remediation batch 1, followed by targeted and final integration review. Production PR #1169 remains draft; exact-head CI and controlled live rollout are next.
-- PR #1171 targeted and cumulative final Sol reviews passed at `a55c675c`. Full CI then found one stale documentation assertion among 5,755 tests: it expected production migration 146 after CURRENT was corrected to verified 151. Reproduced locally and updated that assertion in batch 2; application source is unchanged. PR returned to draft before correction; final test-only review uses launch 5/5. No production mutation.
-
 ## 2026-09-02 — Rollout checkpoint after access foundation merged
 
 - Final #1171 candidate `04334180` passed all CI lanes and PR Gate in run `33692713522`. Before merge, main advanced to `a9dcf20f` via #1170; GitHub now reports a conflict. Read-only merge-tree confines the conflict to `.ai/JOURNAL-ARCHIVE.md`; no application-file conflicts and no rebase performed.
@@ -267,3 +259,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
 - Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase fixed-width Test student actions for merge
+
+- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
+- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.

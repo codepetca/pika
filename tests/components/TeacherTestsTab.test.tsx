@@ -1913,7 +1913,11 @@ describe('TeacherTestsTab', () => {
     expect(within(contextBar).queryByRole('button', { name: 'Edit Test' })).not.toBeInTheDocument()
     expect(within(contextBar).getByRole('button', { name: 'More actions' })).toBeEnabled()
     expect(within(contextBar).getByRole('button', { name: 'Open All' })).toBeDisabled()
-    expect(within(contextBar).getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    const defaultStudentActionsButton = within(contextBar).getByRole('button', {
+      name: 'Student actions (select students to enable)',
+    })
+    expect(defaultStudentActionsButton).toBeDisabled()
+    expect(defaultStudentActionsButton).toHaveClass('w-36')
     expect(screen.getByTestId('test-grading-student-scroll-pane').querySelector('thead')).toHaveClass(
       'sticky',
       'top-0',
@@ -1938,6 +1942,7 @@ describe('TeacherTestsTab', () => {
     })
     expect(studentActionsButton).toBeEnabled()
     expect(studentActionsButton).toHaveTextContent('1 selected')
+    expect(studentActionsButton).toHaveClass('w-36')
     expect(within(gradingToolbar).getByRole('button', { name: 'Open All' })).toBeInTheDocument()
     expect(within(gradingToolbar).getByRole('button', { name: 'Close All' })).toBeInTheDocument()
     fireEvent.click(studentActionsButton)
