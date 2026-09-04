@@ -171,6 +171,7 @@ describe('server class-day helpers', () => {
         data: [
           { date: '2026-04-01' },
           { date: '2026-04-02' },
+          { date: '2026-04-03' },
         ],
         error: null,
       })),
@@ -198,10 +199,11 @@ describe('server class-day helpers', () => {
       endDate: '2026-04-03',
     })).resolves.toEqual({
       ok: true,
-      count: 2,
+      count: 3,
       classDays: [
         { date: '2026-04-01' },
         { date: '2026-04-02' },
+        { date: '2026-04-03' },
       ],
     })
     expect(classroomUpdate).toHaveBeenCalledWith({
@@ -211,6 +213,7 @@ describe('server class-day helpers', () => {
     expect(insert).toHaveBeenCalledWith([
       { classroom_id: 'classroom-1', date: '2026-04-01', is_class_day: true, prompt_text: null },
       { classroom_id: 'classroom-1', date: '2026-04-02', is_class_day: true, prompt_text: null },
+      { classroom_id: 'classroom-1', date: '2026-04-03', is_class_day: true, prompt_text: null },
     ])
   })
 

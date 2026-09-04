@@ -254,6 +254,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added focused hover coverage. Verified the seeded teacher Gradebook on desktop/mobile in light/dark: tooltip text is title-only, readable and contained. Student Gradebook UI is n/a because this is a teacher-only surface; the student role still has no access to the teacher Gradebook.
 - Composite-widget checklist reviewed: tooltip focus/hover behavior and the header's edit semantics are unchanged, the accessible edit name remains covered, and no manual follow-up remains. Risk profile none; use one Terra/medium reviewer for this localized copy-only UI change. No schema, data, API, dependency, deployment or merge action is included.
 
+## 2026-09-03 — Make class-day setup explicit during classroom creation
+
+- Replaced inferred semester/holiday setup in the classroom wizard with one required actual first-class-day choice. Blank classrooms may defer; blueprint classrooms still require a date so lesson templates can map safely. The proposed five-month end boundary remains editable in Settings, and initial generation now includes every Monday-Friday for teacher review instead of guessing holidays or PA days.
+- Added a persistent teacher-only classroom reminder when setup is deferred, linking directly to Settings > Class Days. Calendar setup now explains and auto-populates the editable end boundary; the existing calendar remains the place to toggle individual exceptions. If class-day creation fails after the classroom itself succeeds, the wizard opens the saved classroom so the reminder can guide a safe retry without duplicating it.
+- Focused gate passes 42 files / 607 tests plus architecture, UI/design policy, TypeScript and lint; targeted coverage passes 146 tests and the pre-commit audit is clean. The classroom-creation browser contract passes six checks. Teacher desktop/mobile light/dark and student role screenshots were inspected, the start-date auto-fill was exercised, and the browser console had no errors. Accessibility checklist reviewed: no composite keyboard behavior changed; labeled date inputs, disabled state and dialog focus are covered semantically; no manual follow-up remains. No migration, hosted data, deployment, commit or PR action was performed.
+
 ## 2026-09-04 — Shorten the classroom-deletion warning
 
 - Replaced the detailed deletion inventory sentence with: “This permanently removes all student-related work. The Course Blueprint and user accounts are kept.” The shared dialog geometry, deletion impact counts, typed confirmation, attendance coordination and deletion behavior are unchanged.
@@ -276,3 +282,55 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1183 after #1182 merged. Archived classroom cards retain the reviewed right-side Settings menu with Reuse, Unarchive, and availability-gated Delete, while missed clicks in the card's right padding remain inert.
 - Retained current rolling history and updated the browser flow to reopen the new Settings menu before each coordinated-deletion state. Runtime source is unchanged from the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+## 2026-09-04 — Require class-day setup in the classroom wizard
+
+- Removed the blank-classroom deferral option from the creation wizard. All classroom creation paths now require the teacher to choose the actual first class day before Create is enabled.
+- Replaced the inferred Monday-Friday range label and warning block with the concise field guidance `You can modify class days later in Settings.` The existing post-creation reminder remains as failure recovery for classrooms that still have no calendar.
+- Component, TypeScript and browser checks pass; teacher light-desktop and dark-mobile screenshots confirm the simplified dialog, required/selected date states and responsive layout. Student creation remains unavailable by role. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Open the native first-day picker from the wizard
+
+- Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
+- A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
+
+- Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
+- Selected dates display in long form such as `September 9, 2026`; the underlying ISO values still drive the API. The existing immediate native-picker opening and progressive last-day reveal remain. Focus rings transfer to the readable control and a Lucide calendar icon preserves the familiar affordance.
+- Component, TypeScript, UI/design policy and the eight-check browser flow pass. Teacher desktop light and mobile dark selected-date states were visually inspected, including the open native calendar; the browser console has no errors. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Progressively reveal the last class day
+
+- Simplified the calendar step to begin with only `First day of class`; removed its heading, subtitle and helper text. Selecting the first day now reveals an editable, five-month-prefilled `Last day of class` with `You can modify this later in Settings.`
+- The chosen last day is sent through blank and Blueprint classroom creation, and Create remains disabled until both dates are present. Semantic component coverage and the eight-check classroom-creation browser contract verify the hidden/revealed states, generated default and required fields.
+- Focused gate passes 42 files / 608 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile light/dark states were visually inspected and the browser console had no errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Default class end dates to fixed term boundaries
+
+- Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
+- The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
+- The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Restore the post-creation class-day review notice
+
+- Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
+- The existing missing-calendar recovery state remains stronger: it continues to show `Set up class days` when no dates exist. Normal classroom opens are unchanged, and blueprint review navigation carries the same class-day review reminder.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check creation flow also pass. The live notice and destination were exercised at desktop/light and mobile/dark with no browser-console errors. Student view is not applicable because students cannot create classrooms. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Wait for a click before opening the first-day picker
+
+- Removed the programmatic native-calendar launch when the classroom wizard enters the First day of class step. The full-control date input remains focused for keyboard accessibility and opens its native picker only after a deliberate click.
+- Component coverage verifies that step entry does not call `showPicker()` and that clicking the field does. Desktop/light and mobile/dark entry states were visually inspected with no picker overlay and no browser-console errors; student creation is not applicable.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check classroom wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
+
+## 2026-09-04 — Keep the first-day selector neutral on step entry
+
+- Moved calendar-step entry focus from the hidden native date input to an accessible `Choose class dates` group, removing the premature blue input outline while preserving screen-reader context. The standard Pika focus treatment still appears when the teacher deliberately clicks or tabs into the date control.
+- Updated semantic coverage verifies group focus, neutral input state and deliberate picker invocation. Desktop and mobile states were visually inspected in dark mode; the existing light-theme input treatment is unchanged. Student creation is not applicable.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
+
+## 2026-09-04 — Make class-day toggles respond immediately
+
+- Changed Settings > Class Days to update each clicked date optimistically instead of waiting for the PATCH response. Only the affected date is temporarily disabled while saving, preventing duplicate requests without blocking edits to other dates.
+- Successful saves replace the optimistic value with the server result and retain the existing cross-tab cache refresh. Failed or malformed saves restore the prior state and show the existing inline error feedback.
+- Added semantic component coverage for immediate `aria-pressed` state, per-date pending state, duplicate-click prevention and failure rollback. The full focused gate passes 43 files / 614 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Teacher desktop/mobile light and desktop dark screenshots were inspected; student settings are unavailable by role. Composite-widget checklist reviewed: keyboard behavior remains native-button behavior, semantic state is covered by tests, and no manual follow-up remains. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.

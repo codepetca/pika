@@ -17,6 +17,7 @@ const actor = '11111111-1111-4111-8111-111111111111'
 const other = '22222222-2222-4222-8222-222222222222'
 const classroomId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const row = { id: other, classroom_id: classroomId, date: '2026-09-08', is_class_day: true, prompt_text: null }
+const firstRow = { ...row, id: actor, date: '2026-09-07' }
 const rpc = vi.fn()
 const from = vi.fn()
 let classroom: { id: string; teacher_id: string; archived_at: string | null } | null
@@ -55,7 +56,7 @@ describe.each(endpoints)('$name contextual pilot', (endpoint) => {
       }
       return builder
     })
-    rpc.mockResolvedValue({ data: [row], error: null })
+    rpc.mockResolvedValue({ data: endpoint.method === 'POST' ? [firstRow, row] : [row], error: null })
     vi.mocked(getServiceRoleClient).mockReturnValue({ from, rpc } as unknown as ReturnType<typeof getServiceRoleClient>)
   })
   afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks() })
@@ -63,7 +64,9 @@ describe.each(endpoints)('$name contextual pilot', (endpoint) => {
   it('admits a student-valued owner and strips client actor/plan/date-array claims', async () => {
     const response = await call({ ...endpoint.body, actor_id: other, teacher_id: other, plan: 'pro', dates: ['1999-01-01'] })
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual(endpoint.method === 'POST' ? { success: true, count: 1, class_days: [row] } : { class_day: row })
+    expect(await response.json()).toEqual(endpoint.method === 'POST'
+      ? { success: true, count: 2, class_days: [firstRow, row] }
+      : { class_day: row })
     expect(rpc).toHaveBeenCalledWith(endpoint.rpcName, expect.objectContaining({ p_actor_id: actor, p_classroom_id: classroomId }))
     expect(requireRole).not.toHaveBeenCalled()
     expect(generateClassDaysForClassroom).not.toHaveBeenCalled()

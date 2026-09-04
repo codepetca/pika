@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { CalendarDays } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownEditor, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
@@ -467,7 +468,11 @@ function ClassroomPageContent({
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
-  const { classDays } = useClassDaysContext()
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasLoadedClassDays,
+  } = useClassDaysContext()
   const { showMarkdown } = useMarkdownPreference()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
@@ -483,6 +488,7 @@ function ClassroomPageContent({
   const testStudentIdParam = activeTab === 'tests' ? searchParams.get('testStudentId') : null
   const sectionParam = searchParams.get('section')
   const gradebookSectionParam = searchParams.get('gradebookSection')
+  const reviewClassDaysAfterCreation = searchParams.get('reviewClassDays') === '1'
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
@@ -503,6 +509,16 @@ function ClassroomPageContent({
     awayTotalSeconds: 0,
   })
   const hideLeftRailForExamMode = !isTeacher && activeTab === 'tests' && studentTestExamMode.active
+  const classDaysNeedSetup =
+    hasLoadedClassDays &&
+    !classDaysError &&
+    classDays.length === 0
+  const isViewingClassDaysSettings = activeTab === 'settings' && sectionParam === 'class-days'
+  const showClassDaysSetupPrompt =
+    isTeacher &&
+    !isArchived &&
+    !isViewingClassDaysSettings &&
+    (classDaysNeedSetup || reviewClassDaysAfterCreation)
 
   const logStudentTestRouteExitAttempt = useCallback((
     source: string,
@@ -1296,6 +1312,41 @@ function ClassroomPageContent({
                 disabled until it is restored.
               </div>
             )}
+
+            {showClassDaysSetupPrompt ? (
+              <div
+                role="status"
+                className="mb-3 flex flex-col gap-3 rounded-md border border-warning bg-warning-bg px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-text-default">
+                      {classDaysNeedSetup ? 'Set up class days' : 'Review class days'}
+                    </p>
+                    <p className="mt-0.5 text-sm text-text-muted">
+                      {classDaysNeedSetup
+                        ? 'Choose your first and last class days so Pika can build the classroom calendar.'
+                        : 'Review holidays, PA days, and other non-class days.'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() =>
+                    navigateInClassroom((params) => {
+                      params.set('tab', 'settings')
+                      params.set('section', 'class-days')
+                      params.delete('reviewClassDays')
+                    })
+                  }
+                >
+                  {classDaysNeedSetup ? 'Set up now' : 'Review now'}
+                </Button>
+              </div>
+            ) : null}
 
             <div className="flex min-h-0 flex-1 flex-col">
               {isTeacher ? (

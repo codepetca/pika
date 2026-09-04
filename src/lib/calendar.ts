@@ -118,30 +118,51 @@ export function getSemesterDates(semester: Semester, year: number): { start: Dat
 }
 
 /**
- * Generates all class days for a date range, excluding weekends and holidays
+ * Generates the initial class-day draft for a date range.
+ *
+ * Every Monday-Friday is included intentionally. School holidays, PA days,
+ * exam days, and local schedule exceptions vary too much to infer reliably;
+ * teachers review and toggle those dates in Classroom Settings.
  */
 export function generateClassDaysFromRange(startDate: Date, endDate: Date): string[] {
-  // Get all holidays in the range
-  const holidays = getOntarioHolidays(startDate, endDate)
-  const holidaySet = new Set(holidays)
-
-  // Get all dates in the range
   const allDates = getUtcNoonRange(startDate, endDate)
 
-  // Filter out weekends and holidays
-  const classDays = allDates
+  return allDates
     .filter(date => !isWeekend(toZonedTime(date, TIMEZONE)))
-    .filter(date => {
-      const dateString = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd')
-      return !holidaySet.has(dateString)
-    })
     .map(date => formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
-
-  return classDays
 }
 
 /**
- * Generates all class days for a semester, excluding weekends and holidays
+ * Provides the next standard school-term boundary for first-day-only setup.
+ * January-June dates use June 30; July-December dates use January 31 of the
+ * following year. If June 30 itself is selected, the next January 31 is used
+ * so the end remains after the start. Teachers can edit this in Settings.
+ */
+export function getDefaultClassroomEndDate(startDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
+  if (!match) return ''
+
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  const day = Number(match[3])
+  const parsed = new Date(Date.UTC(year, monthIndex, day, NOON_UTC_HOUR))
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== monthIndex ||
+    parsed.getUTCDate() !== day
+  ) {
+    return ''
+  }
+
+  if (monthIndex < 5 || (monthIndex === 5 && day < 30)) {
+    return `${year}-06-30`
+  }
+
+  return `${year + 1}-01-31`
+}
+
+/**
+ * Generates every Monday-Friday in a semester for teacher review.
  */
 export function generateClassDays(semester: Semester, year: number): string[] {
   const { start, end } = getSemesterDates(semester, year)

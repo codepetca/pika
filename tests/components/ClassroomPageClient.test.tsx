@@ -31,4 +31,28 @@ describe('ClassroomPageClient titlebar navigation', () => {
     expect(source).toContain('manualAttendanceEnabled={!featureVisibility.attendance}')
     expect(source.match(/classroomQrAvailable=\{classroomQrAvailable\}/g)).toHaveLength(2)
   })
+
+  it('keeps missing class-day setup visible and routes teachers to the setup section', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('classDays.length === 0')
+    expect(source).toContain('hasLoadedClassDays')
+    expect(source).toContain('Set up class days')
+    expect(source).toContain("params.set('section', 'class-days')")
+  })
+
+  it('prompts teachers to review automatically generated class days after creation', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain("searchParams.get('reviewClassDays') === '1'")
+    expect(source).toContain('Review class days')
+    expect(source).toContain('Review holidays, PA days, and other non-class days.')
+    expect(source).toContain("params.delete('reviewClassDays')")
+  })
 })
