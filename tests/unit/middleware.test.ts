@@ -41,6 +41,8 @@ describe('AuthKit middleware matcher', () => {
 
     const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
     expect(layout).toContain("url: '/pika-icon-light.svg'")
+    expect(layout).toContain('suppressHydrationWarning')
+    expect(layout).toContain('nonce={nonce}')
     expect(layout).not.toContain("url: '/pika-icon-dark.svg'")
     expect(layout).not.toContain("media: '(prefers-color-scheme")
 
