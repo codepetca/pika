@@ -1,4 +1,4 @@
-# Coordinated attendance deletion (disabled rollout)
+# Coordinated attendance deletion
 
 Owner: Audit Pika security and privacy, `codex/coordinated-classroom-deletion`
 in Pika and Bara. Risk: runtime-platform / destructive privacy workflow.
@@ -54,18 +54,28 @@ by live-table verification.
 
 ## Rollout and recovery
 
-- Migration 153 creates disabled settings and installs fences; applying it does
-  not delete rows. Missing migration fails closed. Migrations 153–154 are applied
-  locally only; generated types, a clean database checker, and rollback-only
-  decommission/hot/cold/Blueprint tests passed. Migration 154 makes the unused
-  lookup result and array-element loop explicit for the checker without changing
-  deletion behavior. Both migrations still need separate production approval.
-- Pika transport: `PIKA_BARA_DECOMMISSION_MODE=canary` plus
+- Production migrations through 156 were verified on 2026-09-04. Migration 153
+  creates the settings and fences; applying it does not delete rows. Missing
+  migration fails closed. Migration 154 makes the unused lookup result and
+  array-element loop explicit for the checker without changing deletion
+  behavior.
+- The production rollout is enabled in all three gates: Pika's database setting,
+  Pika's Vercel transport setting, and Bara's Convex setting. The temporary
+  canary roster bindings have been removed. `enabled` means all otherwise-
+  authorized rosters; the owning-teacher, archived-classroom, confirmation,
+  inventory, and durable-fence checks still apply.
+- Before broad enablement, an exact synthetic teacher/classroom/roster canary
+  completed the real signed cross-service flow. Pika removed 9 local attendance
+  records, Bara removed 12 remote entities and verified their absence, and the
+  final Classroom purge completed. Both user accounts, five unrelated student
+  enrollments, and the previously retained QR attendance canary remained. A
+  teacher browser smoke test and post-deletion database checks passed.
+- For a future staged rollback or re-enable, Pika transport can use
+  `PIKA_BARA_DECOMMISSION_MODE=canary` with
   `PIKA_BARA_DECOMMISSION_CANARY_ROSTER_REF`; database settings independently
-  bind the installation, teacher, and classroom. All are disabled by default.
-- Bara: `PIKA_DECOMMISSION_MODE=canary` and the exact
-  `PIKA_DECOMMISSION_CANARY_ROSTER_REF`. Only enable after Pika's DB fence is
-  installed and verified. `enabled` means all otherwise-authorized rosters.
+  bind the installation, teacher, and classroom. Bara uses
+  `PIKA_DECOMMISSION_MODE=canary` with its exact roster reference. Only broaden
+  after Pika's database fence is installed and verified.
 - Disabling a rollout gate pauses further deletion but never removes an existing
   fence. Each remote request requires fresh database authorization, including
   the installation binding; pausing cannot recall an already-authorized request
@@ -77,14 +87,14 @@ by live-table verification.
   no network round trip to ordinary attendance; active fences add indexed reads
   at write boundaries. Legacy cleanup scans cost work proportional to the
   installation's cached/outbox history, not merely this classroom's row count.
-- Run `bash scripts/check-attendance-decommission-database.sh` after approved
+- Run `bash scripts/check-attendance-decommission-database.sh` after an approved
   local application. It rejects hosted targets and rolls all fixtures back.
-  Then exercise a real signed synthetic cross-service run, interrupted ticks,
-  delayed delivery, and existing final purge before any broader enablement.
-- Production migration, rollout settings, and real-data erasure each require
-  exact owner authorization. The previously retained production QR canaries
-  are not authorized deletion targets here. Access PRs 1172/1174/1175 are
-  separately authorized for main only and must not be swept into production.
+  For future material changes, exercise a real signed synthetic cross-service
+  run, interrupted ticks, delayed delivery, and the existing final purge before
+  restoring broad enablement.
+- Production migrations, rollout-setting changes, and real-data erasure each
+  require exact owner authorization. Synthetic canaries must remain isolated;
+  do not repurpose retained production QR canaries as deletion targets.
 
 Review model recommendation: GPT-5.6 Sol (security/concurrency) and GPT-5.6 Terra
 (architecture/compatibility), high reasoning, one bounded initial wave.
