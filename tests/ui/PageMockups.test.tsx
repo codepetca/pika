@@ -1,10 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
+
+// PageMockups renders every gallery surface in one jsdom tree; under the
+// constrained CI runner, the interaction tests need more than the default
+// five-second test budget even though they complete quickly locally.
+vi.setConfig({ testTimeout: 20_000 })
 
 function renderMockups() {
   return render(<ThemeProvider><TooltipProvider><PageMockups /></TooltipProvider></ThemeProvider>)
