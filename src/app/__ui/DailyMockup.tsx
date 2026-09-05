@@ -334,7 +334,7 @@ export function DailyMockup({
             joined
             label={format(parseISO(date), 'EEE MMM d')}
             subtitle={showRelativeDate ? getPastRelativeDateLabel(date, REFERENCE_TODAY) : null}
-            reserveSubtitleSpace
+            reserveSubtitleSpace={showRelativeDate}
             onPrev={() => setDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => setDate(REFERENCE_TODAY)}

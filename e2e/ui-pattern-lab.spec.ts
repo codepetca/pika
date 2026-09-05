@@ -499,6 +499,7 @@ test.describe('teacher Pattern Lab', () => {
     const dateHeightWithSubtitle = (await date.boundingBox())!.height
     await page.getByRole('button', { name: 'Relative date' }).click()
     await expect(date).not.toHaveAttribute('aria-describedby')
+    await expect(date).not.toHaveClass(/flex-col/)
     expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
     await testInfo.attach('teacher-family-hidden-subtitle', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-hidden-subtitle.png'), animations: 'disabled' }), contentType: 'image/png',

@@ -120,7 +120,7 @@ describe('UiGallery history preview fixture', () => {
     expect(addRequirement).toHaveFocus()
   })
 
-  it('reserves Daily date subtitle space when relative context is hidden', async () => {
+  it('centers the Daily date when relative context is hidden', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TeacherPatterns /></TooltipProvider></ThemeProvider>)
 
@@ -130,7 +130,8 @@ describe('UiGallery history preview fixture', () => {
     await user.click(screen.getByRole('button', { name: 'Relative date' }))
 
     expect(date).not.toHaveAccessibleDescription()
-    expect(date.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
+    expect(date.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(date).not.toHaveClass('flex-col')
   })
 
   it('demonstrates one student confirmation for all missing attachments', async () => {
