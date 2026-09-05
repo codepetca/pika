@@ -1,6 +1,7 @@
 'use client'
 
 import type { Ref } from 'react'
+import { RotateCcw } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 import {
   Button, DataTable, DataTableBody, DataTableCell, DataTableHead,
@@ -9,11 +10,11 @@ import {
   TableSelectionHeaderCell, Tooltip, cn,
 } from '@/ui'
 import {
-  average, median, formatAssessmentScore, formatColumnStat, formatCompactPercent,
+  average, formatAssessmentScore, formatColumnStat, formatCompactPercent,
   formatPercent, getAssessmentCell, getAssessmentCellPercent, getAssessmentColumnKey,
   getColumnStats, getGradebookStudentRowId, getGradePercentTextClass,
-  getStudentDisplayId, getStudentIdentityValue, getStudentName,
-  type GradebookIdentityColumn, type GradebookSummaryKind, type ScoreDisplayMode,
+  getStudentDisplayId, getStudentIdentityValue, getStudentName, GRADEBOOK_NUMBER_INPUT_CLASS,
+  type GradebookIdentityColumn, type ScoreDisplayMode,
 } from '@/lib/gradebook-display'
 import { gradebookCourseWeightPreviews, isValidGradebookWeight } from '@/lib/gradebook-editor'
 
@@ -21,7 +22,6 @@ export interface GradebookTableProps {
   students: GradebookStudentSummary[]
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
-  summaryKind: GradebookSummaryKind
   lastNameFirst: boolean
   showStudentIds: boolean
   showWeights: boolean
@@ -31,9 +31,13 @@ export interface GradebookTableProps {
   weightDrafts: Record<string, string>
   savingKeys: Set<string>
   isReadOnly: boolean
+  scoreEditingDisabled?: boolean
   onWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
   onWeightCommit: (column: GradebookAssessmentColumn) => void
   onAssessmentOpen: (column: GradebookAssessmentColumn) => void
+  onScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
+  onFinalScoreOpen?: (student: GradebookStudentSummary) => void
+  savingScoreKeys?: Set<string>
   selectedIds: Set<string>
   allSelected: boolean
   someSelected: boolean
@@ -54,10 +58,10 @@ const ASSESSMENT_WIDTH = 88
 
 /** Gradebook-only matrix; persistence and calculations remain outside this renderer. */
 export function GradebookTable({
-  students, columns, displayMode, summaryKind, lastNameFirst, showStudentIds,
+  students, columns, displayMode, lastNameFirst, showStudentIds,
   showWeights, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
-  weightDrafts, savingKeys, isReadOnly, onWeightDraftChange, onWeightCommit,
-  onAssessmentOpen, selectedIds, allSelected, someSelected, toggleSelect,
+  weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
+  onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
   sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
 }: GradebookTableProps) {
@@ -70,8 +74,8 @@ export function GradebookTable({
     + (showStudentIds ? columnWidths.id : 0) + columnWidths.final
     + Math.max(1, columns.length) * ASSESSMENT_WIDTH
   const colSpan = 3 + (showStudentIds ? 1 : 0) + columns.length + (filler ? 1 : 0) + 1
-  const finalValues = students.map((s) => s.final_percent).filter((v): v is number => v != null)
-  const finalSummary = summaryKind === 'average' ? average(finalValues) : median(finalValues)
+  const finalValues = students.map((student) => student.final_percent).filter((value): value is number => value != null)
+  const finalAverage = average(finalValues)
   const courseWeights = gradebookCourseWeightPreviews(columns, weightDrafts)
   const rowLabelClass = cn('whitespace-normal bg-surface-2 !px-2 text-xs font-medium leading-tight text-text-muted', frozen && 'sticky left-10 border-r border-border-strong')
 
@@ -111,10 +115,10 @@ export function GradebookTable({
               ))}
               {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-2" /> : null}
               {columns.map((column) => (
-                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden whitespace-nowrap border-b border-border bg-surface-2 !px-1">
+                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden border-b border-border bg-surface-2 !px-1">
                   <Tooltip content={column.title} side="bottom">
                     <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className="w-full overflow-hidden px-1 font-normal text-text-default">
-                      <span className="min-w-0 truncate">{column.title}</span>
+                      <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{column.title}</span>
                     </Button>
                   </Tooltip>
                 </DataTableHeaderCell>
@@ -125,9 +129,22 @@ export function GradebookTable({
           </DataTableHead>
           {showWeights && columns.length > 0 ? (
             <tbody aria-label="Assessment weights">
-              <DataTableRow aria-label="Category weight">
+              <DataTableRow aria-label="Category">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category weight</DataTableHeaderCell>
+                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category</DataTableHeaderCell>
+                <DataTableCell className="bg-surface-2">{null}</DataTableCell>
+                {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 text-xs text-text-muted">
+                  <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="w-full min-w-0 truncate px-1 font-normal text-text-muted">
+                    {column.category_name || 'None'}
+                  </Button>
+                </DataTableCell>)}
+                {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+              </DataTableRow>
+              <DataTableRow aria-label="Weight">
+                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
+                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Weight</DataTableHeaderCell>
                 <DataTableCell className="bg-surface-2">{null}</DataTableCell>
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => {
@@ -137,7 +154,7 @@ export function GradebookTable({
                   return <DataTableCell key={key} align="center" className="bg-surface-2 !px-1">
                     <FormField label={`Category weight for ${column.title}`} hideLabel collapseHiddenLabel>
                       <Input type="number" min={1} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
-                        className="px-1 text-center text-sm tabular-nums" title="Enter a whole number from 1 to 999"
+                        className={cn('px-1 text-center text-sm tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 1 to 999"
                         onChange={(event) => onWeightDraftChange(column, event.target.value)}
                         onBlur={() => onWeightCommit(column)}
                         onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} />
@@ -147,9 +164,9 @@ export function GradebookTable({
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
               </DataTableRow>
-              <DataTableRow aria-label="Course weight">
+              <DataTableRow aria-label="Course %">
                 <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course weight</DataTableHeaderCell>
+                <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course %</DataTableHeaderCell>
                 <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell>
                 {showStudentIds ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="border-b border-border-strong bg-surface-2 text-xs font-medium tabular-nums">
@@ -173,26 +190,56 @@ export function GradebookTable({
                 {showStudentIds ? <DataTableCell className="truncate">{getStudentDisplayId(student)}</DataTableCell> : null}
                 {columns.map((column) => {
                   const cell = getAssessmentCell(student, column)
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('whitespace-nowrap tabular-nums', getGradePercentTextClass(getAssessmentCellPercent(cell)))}>{formatAssessmentScore(cell, displayMode)}</DataTableCell>
+                  const scoreKey = `${student.student_id}:${getAssessmentColumnKey(column)}`
+                  const canEdit = !scoreEditingDisabled && Boolean(onScoreOpen)
+                  const score = formatAssessmentScore(cell, displayMode)
+                  const scoreTone = getGradePercentTextClass(getAssessmentCellPercent(cell))
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', getGradePercentTextClass(getAssessmentCellPercent(cell)))}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      disabled={!canEdit || savingScoreKeys.has(scoreKey)}
+                      aria-label={`Edit ${getStudentName(student)} mark for ${column.title}: ${score}${cell?.is_manual_override ? ', overridden' : ''}`}
+                      className="w-full min-w-0 gap-1 px-1 tabular-nums"
+                      onClick={() => onScoreOpen?.(student, column)}
+                    >
+                      {cell?.is_manual_override ? <RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0 text-primary" /> : null}
+                      <span className={scoreTone}>{score}</span>
+                    </Button>
+                  </DataTableCell>
                 })}
                 {filler ? <DataTableCell aria-label={columns.length ? undefined : 'No assessments'}>{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', getGradePercentTextClass(student.final_percent), frozen && 'sticky right-0 border-l border-border-strong', frozen && surface)}>{formatPercent(student.final_percent)}</DataTableCell>
+                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', frozen && 'sticky right-0 border-l border-border-strong', frozen && surface)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    disabled={scoreEditingDisabled || !onFinalScoreOpen || savingScoreKeys.has(`${student.student_id}:final`)}
+                    aria-label={`Edit ${getStudentName(student)} final mark: ${formatPercent(student.final_percent)}${student.is_final_override ? ', overridden' : ''}`}
+                    className="w-full min-w-0 justify-end gap-1 px-1 font-semibold tabular-nums"
+                    onClick={() => onFinalScoreOpen?.(student)}
+                  >
+                    {student.is_final_override ? <RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0 text-primary" /> : null}
+                    <span className={getGradePercentTextClass(student.final_percent)}>{formatPercent(student.final_percent)}</span>
+                  </Button>
+                </DataTableCell>
               </DataTableRow>
             })}
             {!students.length ? <EmptyStateRow colSpan={colSpan} message="No students enrolled yet" /> : null}
           </DataTableBody>
           {students.length > 0 && columns.length > 0 ? (
             <tfoot className="sticky bottom-0 z-sticky-table bg-surface-2" data-testid="gradebook-summary-footer">
-              <DataTableRow aria-label={summaryKind === 'average' ? 'Class average' : 'Class median'}>
-                <DataTableCell className={cn('border-t border-border-strong bg-surface-2 !px-1 text-center text-xs font-semibold uppercase text-text-muted', frozen && 'sticky left-0 z-sticky-table')}>{summaryKind === 'average' ? 'Avg' : 'Med'}</DataTableCell>
+              <DataTableRow aria-label="Class average">
+                <DataTableCell className={cn('border-t border-border-strong bg-surface-2 !px-1 text-center text-xs font-semibold uppercase text-text-muted', frozen && 'sticky left-0 z-sticky-table')}>Avg</DataTableCell>
                 {names.map((column, index) => <DataTableCell key={column.key} className={cn('border-t border-border-strong bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table')}>{null}</DataTableCell>)}
                 {showStudentIds ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => {
                   const stats = getColumnStats(students, column)
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(summaryKind === 'average' ? stats.averagePercent : stats.medianPercent))}>{formatColumnStat(stats, column, summaryKind, displayMode)}</DataTableCell>
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>{formatColumnStat(stats, column, 'average', displayMode)}</DataTableCell>
                 })}
                 {filler ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('border-t border-border-strong bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalSummary), frozen && 'sticky right-0 z-sticky-table')}>{formatCompactPercent(finalSummary)}</DataTableCell>
+                <DataTableCell align="right" className={cn('border-t border-border-strong bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}>{formatCompactPercent(finalAverage)}</DataTableCell>
               </DataTableRow>
             </tfoot>
           ) : null}

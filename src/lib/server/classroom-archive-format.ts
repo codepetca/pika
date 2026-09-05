@@ -620,7 +620,11 @@ export function decodeClassroomArchiveData(
   for (const resource of contract.resources) {
     const descriptor = verified.manifest.resources.find((item) => item.table === resource.table)
     const bytes = descriptor ? verified.files.get(descriptor.path) : undefined
-    if (!descriptor && verified.manifest.version === 2 && resource.table === 'gradebook_categories') {
+    if (
+      !descriptor
+      && verified.manifest.version === 2
+      && ['gradebook_categories', 'gradebook_score_overrides'].includes(resource.table)
+    ) {
       resources[resource.table] = []
       continue
     }

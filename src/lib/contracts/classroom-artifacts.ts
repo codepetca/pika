@@ -217,7 +217,7 @@ export const classroomArchiveManifestV1Schema = createClassroomArchiveManifestSc
 export const classroomArchiveManifestV2Schema = createClassroomArchiveManifestSchema(
   CLASSROOM_ARCHIVE_V2_VERSION,
   CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
-  ['gradebook_categories'],
+  ['gradebook_categories', 'gradebook_score_overrides'],
 )
 
 export const classroomArchiveManifestHeaderSchema = z.object({

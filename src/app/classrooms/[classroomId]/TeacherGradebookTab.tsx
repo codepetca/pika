@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Classroom, GradebookAssessmentColumn, GradebookCategory, GradebookStudentSummary } from '@/types'
-import { Button, PageState, RefreshingIndicator, useAppMessage } from '@/ui'
+import { Button, ConfirmDialog, PageState, RefreshingIndicator, useAppMessage } from '@/ui'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { GradebookAssessmentDialog, GradebookEditorDialog } from '@/components/gradebook/GradebookDialogs'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
 import { GradebookTable } from '@/components/gradebook/GradebookTable'
+import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { GradebookToolbar, type GradebookDisplayPreferences } from '@/components/gradebook/GradebookToolbar'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
-import { getStudentDisplayId, getValidEmailList, getAssessmentColumnKey, type GradebookIdentityColumn } from '@/lib/gradebook-display'
+import { average, formatCompactPercent, getAssessmentCell, getStudentDisplayId, getStudentName, getValidEmailList, getAssessmentColumnKey, median, type GradebookIdentityColumn } from '@/lib/gradebook-display'
 import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
 import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
@@ -24,7 +25,10 @@ import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
 interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void }
-interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; students: GradebookStudentSummary[] }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; students: GradebookStudentSummary[] }
+type GradebookScoreEditTarget =
+  | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
+  | { kind: 'final'; student: GradebookStudentSummary }
 const PREFERENCES_KEY = 'teacher-gradebook:display:v1'
 const ASSESSMENT_WEIGHT_MIN = 1
 const ASSESSMENT_WEIGHT_DEFAULT = 10
@@ -54,6 +58,7 @@ export function TeacherGradebookTab({
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
   const { scoreDisplayMode } = preferences
   const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
+  const [scoreOverridesAvailable, setScoreOverridesAvailable] = useState(true)
   useEffect(() => {
     const saved = safeLocalGetJson<Partial<GradebookDisplayPreferences>>(PREFERENCES_KEY)
     if (saved) setPreferences(normalizeGradebookPreferences(saved))
@@ -75,6 +80,11 @@ export function TeacherGradebookTab({
   const [categories, setCategories] = useState<GradebookCategory[]>([])
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
+  const [scoreEditTarget, setScoreEditTarget] = useState<GradebookScoreEditTarget | null>(null)
+  const [savingScoreKeys, setSavingScoreKeys] = useState<Set<string>>(() => new Set())
+  const [scoreDialogError, setScoreDialogError] = useState('')
+  const [undoAllOpen, setUndoAllOpen] = useState(false)
+  const [undoAllSaving, setUndoAllSaving] = useState(false)
   const [dialogSaving, setDialogSaving] = useState(false)
   const [dialogError, setDialogError] = useState('')
   const [students, setStudents] = useState<GradebookStudentSummary[]>([])
@@ -86,6 +96,7 @@ export function TeacherGradebookTab({
   const settingsLinkHandledRef = useRef(false)
   const wasActiveRef = useRef(isActive)
   const dialogSaveSequenceRef = useRef(0)
+  const scoreMutationSequenceRef = useRef(0)
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -133,6 +144,13 @@ export function TeacherGradebookTab({
     () => students.find((student) => student.student_id === selectedStudentId) || null,
     [selectedStudentId, students],
   )
+  const mobileStudent = selectedStudent ?? sortedStudents[0] ?? null
+  const finalValues = useMemo(
+    () => students.map((student) => student.final_percent).filter((value): value is number => value != null),
+    [students],
+  )
+  const classAverage = formatCompactPercent(average(finalValues))
+  const classMedian = formatCompactPercent(median(finalValues))
   const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
   const {
     selectedIds,
@@ -200,6 +218,7 @@ export function TeacherGradebookTab({
       setAssessmentColumns(columnsWithWeights)
       setCategories(data.categories || [])
       setCategorySchemaAvailable(data.category_schema_available !== false)
+      setScoreOverridesAvailable(data.score_overrides_available !== false)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -238,6 +257,7 @@ export function TeacherGradebookTab({
   useEffect(() => {
     loadRequestIdRef.current += 1
     dialogSaveSequenceRef.current += 1
+    scoreMutationSequenceRef.current += 1
     assessmentSaveChainsRef.current = new Map()
     dirtyWeightsRef.current.clear()
     settingsLinkHandledRef.current = false
@@ -252,6 +272,11 @@ export function TeacherGradebookTab({
     setSavingAssessmentKeys(new Set())
     setGradebookEditorOpen(false)
     setSelectedAssessment(null)
+    setScoreEditTarget(null)
+    setSavingScoreKeys(new Set())
+    setScoreDialogError('')
+    setUndoAllOpen(false)
+    setUndoAllSaving(false)
     setDialogSaving(false)
     setDialogError('')
     setSelectedStudentId(null)
@@ -509,12 +534,145 @@ export function TeacherGradebookTab({
     }
   }
 
+  const hasManualChanges = students.some((student) => (
+    student.is_final_override || student.assessment_scores?.some((cell) => cell.is_manual_override)
+  ))
+
+  function scoreSaveKey(target: GradebookScoreEditTarget) {
+    return target.kind === 'final'
+      ? `${target.student.student_id}:final`
+      : `${target.student.student_id}:${getAssessmentColumnKey(target.column)}`
+  }
+
+  async function saveManualScore(earned: number) {
+    if (!scoreEditTarget || isReadOnly || !scoreOverridesAvailable) return
+    const classroomId = classroom.id
+    const target = scoreEditTarget
+    const key = scoreSaveKey(target)
+    const requestId = scoreMutationSequenceRef.current + 1
+    scoreMutationSequenceRef.current = requestId
+    setSavingScoreKeys((current) => new Set(current).add(key))
+    setScoreDialogError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook/manual-scores', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroomId,
+          student_id: target.student.student_id,
+          assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
+          assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
+          earned,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to save override')
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      setScoreEditTarget(null)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      showMessage({ text: 'Override saved', tone: 'success' })
+    } catch (error: unknown) {
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      setScoreDialogError(error instanceof Error ? error.message : 'Failed to save override')
+    } finally {
+      if (
+        scoreMutationSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        setSavingScoreKeys((current) => {
+          const next = new Set(current)
+          next.delete(key)
+          return next
+        })
+      }
+    }
+  }
+
+  async function undoManualScores(target?: GradebookScoreEditTarget) {
+    if (isReadOnly || !scoreOverridesAvailable) return false
+    const classroomId = classroom.id
+    const key = target ? scoreSaveKey(target) : null
+    const requestId = scoreMutationSequenceRef.current + 1
+    scoreMutationSequenceRef.current = requestId
+    if (key) setSavingScoreKeys((current) => new Set(current).add(key))
+    else setUndoAllSaving(true)
+    setActionError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook/manual-scores', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(target ? {
+          scope: 'one',
+          classroom_id: classroomId,
+          student_id: target.student.student_id,
+          assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
+          assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
+        } : { scope: 'all', classroom_id: classroomId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to undo overrides')
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
+      setUndoAllOpen(false)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
+      showMessage({ text: target ? 'Override undone' : 'All overrides undone', tone: 'success' })
+      return true
+    } catch (error: unknown) {
+      if (
+        scoreMutationSequenceRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return false
+      const message = error instanceof Error ? error.message : 'Failed to undo overrides'
+      if (target) setScoreDialogError(message)
+      else setActionError(message)
+      return false
+    } finally {
+      if (
+        scoreMutationSequenceRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        if (key) setSavingScoreKeys((current) => {
+          const next = new Set(current)
+          next.delete(key)
+          return next
+        })
+        else setUndoAllSaving(false)
+      }
+    }
+  }
+
   const actionBar = (
     <GradebookToolbar
       preferences={preferences}
       onChange={updatePreferences}
       selectedCount={selectedIds.size}
       isReadOnly={isReadOnly || !hasCurrentSnapshot || !categorySchemaAvailable || savingAssessmentKeys.size > 0}
+      classAverage={classAverage}
+      classMedian={classMedian}
+      mobileStudentOptions={sortedStudents.map((student) => ({ value: student.student_id, label: getStudentName(student) }))}
+      mobileStudentId={mobileStudent?.student_id ?? ''}
+      onMobileStudentChange={setSelectedStudentId}
+      hasManualChanges={hasManualChanges}
+      undoingManualChanges={undoAllSaving}
+      onUndoManualChanges={() => setUndoAllOpen(true)}
       onEditCategories={() => { setDialogError(''); setGradebookEditorOpen(true) }}
       onCopyEmails={() => { void copySelectedEmailsToClipboard() }}
       onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
@@ -527,17 +685,35 @@ export function TeacherGradebookTab({
   const gradebookTable = (
     <GradebookTable
       students={sortedStudents} columns={assessmentColumns} displayMode={scoreDisplayMode}
-      summaryKind={preferences.summaryKind} lastNameFirst={preferences.lastNameFirst}
+      lastNameFirst={preferences.lastNameFirst}
       showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
       keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
       columnWidths={columnWidths} onColumnWidthChange={setColumnWidth}
       weightDrafts={assessmentWeightDrafts} savingKeys={savingAssessmentKeys}
       isReadOnly={isReadOnly || !categorySchemaAvailable}
+      scoreEditingDisabled={isReadOnly || !scoreOverridesAvailable}
       onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
       onAssessmentOpen={(column) => {
         if (savingAssessmentKeys.size) { showMessage({ text: 'Wait for the weight save to finish', tone: 'info' }); return }
         setDialogError(''); setSelectedAssessment(column)
       }}
+      onScoreOpen={(student, column) => {
+        if (!scoreOverridesAvailable) {
+          showMessage({ text: 'Manual marks require the latest database update', tone: 'info' })
+          return
+        }
+        setScoreDialogError('')
+        setScoreEditTarget({ kind: 'assessment', student, column })
+      }}
+      onFinalScoreOpen={(student) => {
+        if (!scoreOverridesAvailable) {
+          showMessage({ text: 'Overrides require the latest database update', tone: 'info' })
+          return
+        }
+        setScoreDialogError('')
+        setScoreEditTarget({ kind: 'final', student })
+      }}
+      savingScoreKeys={savingScoreKeys}
       selectedIds={selectedIds} allSelected={allSelected} someSelected={someSelected}
       toggleSelect={toggleSelect} toggleSelectAll={toggleSelectAll}
       selectedStudentId={selectedStudentId} onStudentSelect={handleStudentSelect}
@@ -590,22 +766,35 @@ export function TeacherGradebookTab({
           {retryAction}
         </div>
       ) : null}
-      <TeacherWorkspaceSplit
-        className="h-full flex-1"
-        splitVariant="gapped"
-        primary={gradebookTable}
-        inspector={studentAssessmentPanel}
-        inspectorWidth={detailPaneWidth}
-        onInspectorWidthChange={setDetailPaneWidth}
-        inspectorCollapsed={false}
-        inspectorClassName="min-h-72 rounded-lg border border-border bg-surface"
-        dividerLabel="Resize gradebook details"
-        defaultInspectorWidth={32}
-        minInspectorPx={300}
-        minPrimaryPx={420}
-        minInspectorPercent={24}
-        maxInspectorPercent={45}
-      />
+      <div className="hidden h-full min-h-0 flex-1 lg:flex">
+        <TeacherWorkspaceSplit
+          className="h-full flex-1"
+          splitVariant="gapped"
+          primary={gradebookTable}
+          inspector={studentAssessmentPanel}
+          inspectorWidth={detailPaneWidth}
+          onInspectorWidthChange={setDetailPaneWidth}
+          inspectorCollapsed={false}
+          inspectorClassName="min-h-72 rounded-lg border border-border bg-surface"
+          dividerLabel="Resize gradebook details"
+          defaultInspectorWidth={32}
+          minInspectorPx={300}
+          minPrimaryPx={420}
+          minInspectorPercent={24}
+          maxInspectorPercent={45}
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+        {mobileStudent ? (
+          <GradebookStudentPanel
+            student={mobileStudent}
+            columns={assessmentColumns}
+            displayMode={scoreDisplayMode}
+          />
+        ) : (
+          <div className="px-3 py-6 text-sm text-text-muted">No students enrolled yet.</div>
+        )}
+      </div>
     </div>
   )
 
@@ -653,6 +842,33 @@ export function TeacherGradebookTab({
           setDialogError('')
         }}
         onSave={saveAssessmentDetails}
+      />
+      <GradebookScoreDialog
+        isOpen={Boolean(scoreEditTarget)}
+        student={scoreEditTarget?.student ?? null}
+        target={scoreEditTarget
+          ? scoreEditTarget.kind === 'final'
+            ? { kind: 'final', title: 'Final', value: scoreEditTarget.student.final_percent, isOverride: scoreEditTarget.student.is_final_override, undoValue: scoreEditTarget.student.calculated_final_percent }
+            : (() => {
+                const cell = getAssessmentCell(scoreEditTarget.student, scoreEditTarget.column)
+                return { kind: 'assessment' as const, title: scoreEditTarget.column.title, value: cell?.earned ?? null, possible: scoreEditTarget.column.possible, isOverride: cell?.is_manual_override, undoValue: cell?.calculated_earned }
+              })()
+          : null}
+        isSaving={scoreEditTarget ? savingScoreKeys.has(scoreSaveKey(scoreEditTarget)) : false}
+        error={scoreDialogError}
+        onClose={() => { setScoreEditTarget(null); setScoreDialogError('') }}
+        onSave={saveManualScore}
+        onUndo={scoreEditTarget ? () => undoManualScores(scoreEditTarget) : undefined}
+      />
+      <ConfirmDialog
+        isOpen={undoAllOpen}
+        title="Undo all overrides?"
+        description="This restores the calculated mark for every overridden Gradebook cell."
+        confirmLabel="Undo all"
+        isCancelDisabled={undoAllSaving}
+        isConfirmDisabled={undoAllSaving}
+        onCancel={() => { if (!undoAllSaving) setUndoAllOpen(false) }}
+        onConfirm={() => { void undoManualScores() }}
       />
     </>
   )

@@ -14,6 +14,7 @@ describe('GradebookWeightInputMockup', () => {
     }
     render(<Harness />)
     const input = screen.getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
+    expect(input).toHaveClass('[appearance:textfield]')
     fireEvent.change(input, { target: { value: '20' } })
     expect(screen.getByLabelText('Saved weight')).toHaveTextContent('20')
     for (const value of ['', '0', '-1', '2.5', '1000']) {

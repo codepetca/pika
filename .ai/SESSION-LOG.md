@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-02 — Rollout checkpoint after access foundation merged
-
-- Final #1171 candidate `04334180` passed all CI lanes and PR Gate in run `33692713522`. Before merge, main advanced to `a9dcf20f` via #1170; GitHub now reports a conflict. Read-only merge-tree confines the conflict to `.ai/JOURNAL-ARCHIVE.md`; no application-file conflicts and no rebase performed.
-- Returned #1171 to draft and paused the rollout follow-up. The five-reviewer budget is exhausted (two correction batches), so owner approval is needed for a rebase and one additional targeted integration review of the combined access-foundation/release boundary, then fresh exact-head CI. Production PR #1169 stays draft and production remains `28d42faa`; no production, migration, environment, or fixture mutation occurred.
-
 ## 2026-09-02 — Approved release integration rebase
 
 - Owner approved rebasing #1171 and one additional targeted Sol/high integration review (launch 6 total). Rebased onto `a9dcf20f`, preserving both archive markers and restoring local checkpoint notes/artifacts from safety stash `a4095b73`. Application edits merged without conflict; no migration filenames or contents changed.
@@ -264,3 +259,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
 - Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-04 — Rebase Gradebook score overrides for merge
+
+- Rebased PR #1201 after the earlier Gradebook toggle and Tests toolbar PRs merged. The later approved Gradebook design remains authoritative: desktop keeps the class matrix with a pinned Avg row, the action bar shows Class Average and Median, one button switches `%` and `x/y`, mobile stays per-student, and stored assessment/final overrides retain their undo and grade-band behavior.
+- Kept migration 157 because current main ends at 156; the still-open atomic-enrollment PR also using 157 must be resequenced when it is handled later. No migration was applied. Focused checks, full migration replay in CI, high-risk integration review, and fresh exact-head gates precede the authorized merge.
+- High-risk review found that polymorphic assessment IDs could leave overrides behind when an assignment or test was deleted. The correction adds database-owned, type-scoped cleanup triggers for every delete path, skips side effects during exact purge/archive maintenance ordering, and adds a rollback-only ephemeral database harness covering authenticated assignment deletion, atomic test deletion, type isolation, Final preservation, and helper privileges.
+- Targeted re-review confirmed the cleanup boundary and found stale archive database-harness totals. The same correction batch now counts the new current/v2 resource and revision trigger, verifies its actor/restore contract, and protects those expectations with a unit regression. The v2 count and metadata assertion remain conditional so the harness still validates its intentional migration-105 compatibility replay.
+- The first exact-head database run replayed migration 157 successfully, then the generated-type check exposed the two wrapped legacy helpers as public functions. The correction gives them short stable names and moves them into the private schema before the public wrappers are recreated, avoiding PostgreSQL identifier truncation and keeping internal helpers out of the generated public API.

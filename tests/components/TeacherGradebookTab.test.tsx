@@ -203,25 +203,16 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('textbox', { name: 'Course weight' })).toHaveValue('32.5%')
   })
 
-  it('persists display preferences and exposes two weight metadata rows', async () => {
+  it('persists display preferences and exposes three weight metadata rows', async () => {
     renderGradebook('grades')
     await screen.findByText('Ada')
     expect(screen.getByRole('button', { name: 'Student Actions' })).toBeDisabled()
     expect(screen.queryByText('1001')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Class Average 77.5% · Median 77.5%')).toHaveTextContent('Class Average 77.5% · Median 77.5%')
+    expect(screen.queryByRole('group', { name: 'Class summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('70%85%77.5%')
-    expect(screen.queryByRole('row', { name: 'Class median' })).not.toBeInTheDocument()
-    const scoreDisplay = screen.getByRole('group', { name: 'Score display' })
-    expect(within(scoreDisplay).getAllByRole('button')).toHaveLength(1)
-    expect(within(scoreDisplay).getByRole('button', { name: 'Score display: %. Switch to x/y' })).toHaveTextContent('%')
-    fireEvent.click(within(scoreDisplay).getByRole('button', { name: 'Score display: %. Switch to x/y' }))
-    expect(within(scoreDisplay).getByRole('button', { name: 'Score display: x/y. Switch to %' })).toHaveTextContent('x/y')
+    fireEvent.click(screen.getByRole('button', { name: 'Score display: %. Switch to x/y' }))
     expect(screen.getByRole('row', { name: /Ada Lovelace.*8[/]10 9[/]10 85[.]0%/ })).toBeInTheDocument()
-    const classSummary = screen.getByRole('group', { name: 'Class summary' })
-    expect(within(classSummary).getAllByRole('button')).toHaveLength(1)
-    expect(within(classSummary).getByRole('button', { name: 'Class summary: AVG. Switch to MED' })).toHaveTextContent('AVG')
-    fireEvent.click(within(classSummary).getByRole('button', { name: 'Class summary: AVG. Switch to MED' }))
-    expect(within(classSummary).getByRole('button', { name: 'Class summary: MED. Switch to AVG' })).toHaveTextContent('MED')
-    expect(screen.getByRole('row', { name: 'Class median' })).toBeInTheDocument()
     fireEvent.click(within(openGradebookActions()).getByRole('menuitem', { name: 'Show last name in column 1' }))
     fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show student IDs' }))
     expect(screen.getByText('1001')).toBeInTheDocument()
@@ -231,11 +222,12 @@ describe('TeacherGradebookTab', () => {
     fireEvent.keyDown(firstResize, { key: 'ArrowRight' })
     expect(firstResize).toHaveAttribute('aria-valuenow', '104')
     fireEvent.click(screen.getByRole('button', { name: 'Show weights' }))
-    expect(screen.getByRole('row', { name: 'Category weight' })).toBeInTheDocument()
-    expect(screen.getByRole('row', { name: 'Course weight' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Category' })).toHaveTextContent('TermTerm')
+    expect(screen.getByRole('row', { name: 'Weight' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Course %' })).toBeInTheDocument()
     expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent('32.5%')
     expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({
-      scoreDisplayMode: 'raw', summaryKind: 'median', lastNameFirst: true, showStudentIds: true, showWeights: true,
+      scoreDisplayMode: 'raw', summaryKind: 'average', lastNameFirst: true, showStudentIds: true, showWeights: true,
     })
   })
 
@@ -248,7 +240,7 @@ describe('TeacherGradebookTab', () => {
 
     fireEvent.keyDown(tableRegion, { key: 'End' })
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Ada Lovelace assessment details' })).toBeInTheDocument()
+      expect(screen.getAllByRole('region', { name: 'Ada Lovelace assessment details' })).toHaveLength(2)
     })
     expect(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ })).toHaveFocus()
 
@@ -617,6 +609,165 @@ describe('TeacherGradebookTab', () => {
     ))).toHaveLength(1)
   })
 
+  it('does not close or refresh the next classroom after a delayed mark save', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveSave: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'PUT') {
+        return new Promise((resolve) => { resolveSave = resolve })
+      }
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        const response = gradebookResponse()
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: /Edit Ada Lovelace mark for Essay/ }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Mark earned' }), { target: { value: '9.5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save mark' }))
+    await waitFor(() => expect(resolveSave).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveSave?.({ ok: true, json: async () => ({ saved: true }) })
+    })
+
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
+  it('does not close or refresh the next classroom after a delayed cell undo', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveUndo: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'DELETE') {
+        return new Promise((resolve) => { resolveUndo = resolve })
+      }
+      const response = gradebookResponse()
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        const ada = response.students.find((student) => student.student_id === 'student-1')
+        if (!ada) throw new Error('Missing Ada fixture')
+        ada.assessment_scores[0] = {
+          ...ada.assessment_scores[0],
+          earned: 9,
+          percent: 90,
+          is_manual_override: true,
+          calculated_earned: 8,
+        }
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: /Edit Ada Lovelace mark for Essay: 90%, overridden/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(resolveUndo).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveUndo?.({ ok: true, json: async () => ({ deleted: true }) })
+    })
+
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(JSON.parse(String(deleteCall?.[1]?.body))).toMatchObject({ scope: 'one', classroom_id: classroom.id })
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
+  it('does not close or refresh the next classroom after a delayed undo-all request', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveUndo: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook/manual-scores' && init?.method === 'DELETE') {
+        return new Promise((resolve) => { resolveUndo = resolve })
+      }
+      const response = gradebookResponse()
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        const ada = response.students.find((student) => student.student_id === 'student-1')
+        if (!ada) throw new Error('Missing Ada fixture')
+        ada.is_final_override = true
+        ada.calculated_final_percent = 80
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitem', { name: 'Undo all overrides' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo all' }))
+    await waitFor(() => expect(resolveUndo).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={secondClassroom} sectionParam="grades" onSectionChange={vi.fn()} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveUndo?.({ ok: true, json: async () => ({ deleted: true }) })
+    })
+
+    const deleteCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')
+    expect(JSON.parse(String(deleteCall?.[1]?.body))).toEqual({ scope: 'all', classroom_id: classroom.id })
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
+  })
+
   it('color codes grade text by percentage band', async () => {
     const response = gradebookResponse()
     const grace = response.students.find((student) => student.student_id === 'student-2')
@@ -648,19 +799,14 @@ describe('TeacherGradebookTab', () => {
     expect(within(graceRow).getByText('10%')).toHaveClass('text-danger')
     expect(within(graceRow).getByText('70%')).toHaveClass('text-text-default')
 
+    expect(screen.getByLabelText('Class Average 62.5% · Median 62.5%')).toBeInTheDocument()
     const avgRow = screen.getByRole('row', { name: 'Class average' })
     expect(within(avgRow).getByText('45%')).toHaveClass('text-danger')
     expect(within(avgRow).getByText('80%')).toHaveClass('text-text-default')
     expect(within(avgRow).getByText('62.5%')).toHaveClass('text-warning')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Class summary: AVG. Switch to MED' }))
-    const medRow = screen.getByRole('row', { name: 'Class median' })
-    expect(within(medRow).getByText('45%')).toHaveClass('text-danger')
-    expect(within(medRow).getByText('80%')).toHaveClass('text-text-default')
-    expect(within(medRow).getByText('62.5%')).toHaveClass('text-warning')
-
     fireEvent.click(graceRow)
-    const detailPanel = screen.getByRole('region', { name: 'Grace Hopper assessment details' })
+    const detailPanel = screen.getAllByRole('region', { name: 'Grace Hopper assessment details' })[0]
     expect(within(detailPanel).getByText('40.0%')).toHaveClass('text-danger')
     expect(within(detailPanel).getByText('10%')).toHaveClass('text-danger')
     expect(within(detailPanel).getByText('70%')).toHaveClass('text-text-default')

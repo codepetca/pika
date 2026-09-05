@@ -1555,7 +1555,14 @@ test.describe('teacher experience matrix', () => {
     await enterSeededClassroom(page, 'teacher')
 
     await expect(page.getByRole('table')).toBeVisible()
-    await expect(page.getByRole('row', { name: /Student1 Test/ })).toBeVisible()
+    const studentRow = page.getByRole('row', { name: /Student1 Test/ })
+    // The seeded semester can start after the runner's current date (for
+    // example, when CI runs on a weekend). Advance to the next class day so
+    // this contract remains independent of the calendar date.
+    for (let attempt = 0; attempt < 10 && !(await studentRow.isVisible().catch(() => false)); attempt += 1) {
+      await page.getByRole('button', { name: 'Next day' }).click()
+    }
+    await expect(studentRow).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
   })

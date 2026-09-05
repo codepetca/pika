@@ -5228,6 +5228,71 @@ export type Database = {
           },
         ]
       }
+      gradebook_score_overrides: {
+        Row: {
+          assessment_id: string
+          assessment_type: string
+          classroom_id: string
+          created_at: string
+          created_by: string
+          earned: number
+          id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          assessment_type: string
+          classroom_id: string
+          created_at?: string
+          created_by: string
+          earned: number
+          id?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          assessment_type?: string
+          classroom_id?: string
+          created_at?: string
+          created_by?: string
+          earned?: number
+          id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gradebook_score_overrides_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_score_overrides_classroom_id_student_id_fkey"
+            columns: ["classroom_id", "student_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_enrollments"
+            referencedColumns: ["classroom_id", "student_id"]
+          },
+          {
+            foreignKeyName: "gradebook_score_overrides_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_score_overrides_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_settings: {
         Row: {
           assignments_weight: number

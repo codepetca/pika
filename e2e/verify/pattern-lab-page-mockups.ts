@@ -617,46 +617,189 @@ export const patternLabPageMockups: VerificationScript = {
         && await section.getByRole('columnheader', { name: 'Space' }).isVisible(),
     })
     const gradebookScrollFrame = section.getByTestId('gradebook-scroll-frame')
-    const gradebookSummaryFooter = section.getByTestId('gradebook-summary-footer')
     await gradebookScrollFrame.evaluate((frame) => { frame.scrollTop = 120 })
+    const gradebookSummaryFooter = section.getByTestId('gradebook-summary-footer')
     const [summaryFrameBounds, summaryFooterBounds, summaryFooterPosition] = await Promise.all([
       gradebookScrollFrame.boundingBox(),
       gradebookSummaryFooter.boundingBox(),
       gradebookSummaryFooter.evaluate((footer) => getComputedStyle(footer).position),
     ])
-    const classAverageRow = gradebookSummaryFooter.getByRole('row', { name: 'Class average' })
     checks.push({
-      name: 'Gradebook class summary stays pinned to the visible table bottom',
-      passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollTop > 0)
+      name: 'Gradebook shows class metrics in the action bar and keeps the average row pinned',
+      passed: await section.getByLabel('Class Average 84.6% · Median 86%').isVisible()
+        && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).isVisible()
         && summaryFooterPosition === 'sticky'
         && ((summaryFrameBounds?.y ?? 0) + (summaryFrameBounds?.height ?? 0))
           - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) >= 0
         && ((summaryFrameBounds?.y ?? 0) + (summaryFrameBounds?.height ?? 0))
           - ((summaryFooterBounds?.y ?? 0) + (summaryFooterBounds?.height ?? 0)) <= 28
-        && await classAverageRow.isVisible()
-        && await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).count() === 0,
+        && await section.getByRole('group', { name: 'Class summary' }).count() === 0,
+    })
+    const amberMark = section.getByRole('button', { name: 'Edit Noah Williams-Montgomery mark for Genetics: 68%' })
+    checks.push({
+      name: 'Gradebook marks from 50% through 69.9% use the amber grade band',
+      passed: (await amberMark.locator('span').last().getAttribute('class'))?.includes('text-warning') === true,
+    })
+    const gradebookSummaryDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-summary-label.png')
+    await section.screenshot({ path: gradebookSummaryDesktopLightArtifact })
+    artifacts.push(gradebookSummaryDesktopLightArtifact)
+    await section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 90%' }).click()
+    const markDialog = page.getByRole('dialog')
+    const markInput = markDialog.getByRole('spinbutton', { name: 'Mark earned' })
+    const markInputBounds = await markInput.boundingBox()
+    checks.push({
+      name: 'Gradebook score cells open an x/y mark editor',
+      passed: await markDialog.getByRole('heading', { name: 'Edit mark' }).isVisible()
+        && await markDialog.getByText('Maya Chen · Ecosystems').isVisible()
+        && await markInput.inputValue() === '18'
+        && await markInput.getAttribute('step') === '0.1'
+        && (markInputBounds?.width ?? 999) <= 100
+        && (await markInput.getAttribute('class'))?.includes('[appearance:textfield]') === true
+        && await markDialog.getByText('/ 20').isVisible(),
+    })
+    const gradebookMarkDialogArtifact = path.join(artifactDir, 'desktop-light-gradebook-mark-dialog.png')
+    await page.screenshot({ path: gradebookMarkDialogArtifact })
+    artifacts.push(gradebookMarkDialogArtifact)
+    await markInput.fill('21')
+    checks.push({
+      name: 'Marks above the assessment total show a non-blocking warning',
+      passed: await markDialog.getByRole('status').getByText('This mark is 1 point over the total of 20.').isVisible()
+        && await markDialog.getByRole('button', { name: 'Save mark' }).isEnabled(),
+    })
+    const gradebookOverTotalWarningArtifact = path.join(artifactDir, 'desktop-light-gradebook-over-total-warning.png')
+    await page.screenshot({ path: gradebookOverTotalWarningArtifact })
+    artifacts.push(gradebookOverTotalWarningArtifact)
+    await markInput.fill('9')
+    await markDialog.getByRole('button', { name: 'Save mark' }).click()
+    const modifiedMark = section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 45%, overridden' })
+    checks.push({
+      name: 'Overridden Gradebook marks use a compact undo marker and retain the grade band',
+      passed: await modifiedMark.isVisible()
+        && await modifiedMark.locator('svg.text-primary').isVisible()
+        && (await modifiedMark.locator('span').last().getAttribute('class'))?.includes('text-danger') === true
+        && await section.getByRole('button', { name: /Undo override for Maya Chen/ }).count() === 0
+        && await section.getByRole('button', { name: 'Undo all overrides' }).count() === 0,
+    })
+    const gradebookManualMarkArtifact = path.join(artifactDir, 'desktop-light-gradebook-manual-mark.png')
+    await section.screenshot({ path: gradebookManualMarkArtifact })
+    artifacts.push(gradebookManualMarkArtifact)
+    await modifiedMark.click()
+    const markAfterUndo = page.getByRole('dialog').getByLabel('Mark after undo: 18')
+    checks.push({
+      name: 'The mark editor previews the value restored by its undo action',
+      passed: await page.getByRole('dialog').getByRole('button', { name: 'Undo override' }).isVisible()
+        && await markAfterUndo.isVisible()
+        && await markAfterUndo.textContent() === '18',
+    })
+    const gradebookManualMarkDialogArtifact = path.join(artifactDir, 'desktop-light-gradebook-manual-mark-dialog.png')
+    await page.screenshot({ path: gradebookManualMarkDialogArtifact })
+    artifacts.push(gradebookManualMarkDialogArtifact)
+    await page.getByRole('dialog').getByRole('button', { name: 'Undo override' }).click()
+    const restoredMarkDialog = page.getByRole('dialog')
+    checks.push({
+      name: 'Individual undo restores the textbox without closing the dialog',
+      passed: await restoredMarkDialog.isVisible()
+        && await restoredMarkDialog.getByRole('spinbutton', { name: 'Mark earned' }).inputValue() === '18'
+        && await restoredMarkDialog.getByRole('button', { name: 'Undo override' }).count() === 0
+        && await restoredMarkDialog.getByRole('button', { name: 'Save mark' }).isDisabled(),
+    })
+    const gradebookRestoredMarkDialogArtifact = path.join(artifactDir, 'desktop-light-gradebook-restored-mark-dialog.png')
+    await page.screenshot({ path: gradebookRestoredMarkDialogArtifact })
+    artifacts.push(gradebookRestoredMarkDialogArtifact)
+    await restoredMarkDialog.getByRole('button', { name: 'Cancel' }).click()
+    checks.push({
+      name: 'Closing the restored mark dialog reveals the calculated table mark',
+      passed: await section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 90%' }).isVisible()
+        && await section.getByRole('button', { name: 'Undo all overrides' }).count() === 0,
+    })
+    await section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 90%' }).click()
+    await page.getByRole('dialog').getByRole('spinbutton', { name: 'Mark earned' }).fill('19')
+    await page.getByRole('dialog').getByRole('button', { name: 'Save mark' }).click()
+    await section.getByRole('button', { name: 'More actions' }).click()
+    const undoAllOverridesItem = section.getByRole('menuitem', { name: 'Undo all overrides' })
+    checks.push({
+      name: 'Undo all overrides appears in Gradebook More actions',
+      passed: await undoAllOverridesItem.isVisible(),
+    })
+    const gradebookOverridesMenuArtifact = path.join(artifactDir, 'desktop-light-gradebook-overrides-menu.png')
+    await section.screenshot({ path: gradebookOverridesMenuArtifact })
+    artifacts.push(gradebookOverridesMenuArtifact)
+    await undoAllOverridesItem.click()
+    const undoAllDialog = page.getByRole('dialog')
+    checks.push({
+      name: 'Gradebook confirms undoing all overrides',
+      passed: await page.getByRole('dialog', { name: 'Undo all overrides?' }).isVisible()
+        && await undoAllDialog.getByRole('button', { name: 'Undo all' }).isVisible(),
+    })
+    const gradebookUndoAllArtifact = path.join(artifactDir, 'desktop-light-gradebook-undo-all.png')
+    await page.screenshot({ path: gradebookUndoAllArtifact })
+    artifacts.push(gradebookUndoAllArtifact)
+    await undoAllDialog.getByRole('button', { name: 'Undo all' }).click()
+    checks.push({
+      name: 'Undo all restores calculated marks and removes manual controls',
+      passed: await section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 90%' }).isVisible()
+        && await section.getByRole('button', { name: 'Undo all overrides' }).count() === 0,
+    })
+    await section.getByRole('button', { name: 'Edit Maya Chen final mark: 86%' }).click()
+    const finalMarkDialog = page.getByRole('dialog')
+    const finalMarkInput = finalMarkDialog.getByRole('spinbutton', { name: 'Final mark' })
+    await finalMarkInput.fill('49')
+    await finalMarkDialog.getByRole('button', { name: 'Save mark' }).click()
+    const overriddenFinal = section.getByRole('button', { name: 'Edit Maya Chen final mark: 49%, overridden' })
+    checks.push({
+      name: 'Final marks support overrides and retain the red grade band',
+      passed: await overriddenFinal.locator('svg.text-primary').isVisible()
+        && (await overriddenFinal.locator('span').last().getAttribute('class'))?.includes('text-danger') === true,
+    })
+    const gradebookFinalOverrideArtifact = path.join(artifactDir, 'desktop-light-gradebook-final-override.png')
+    await section.screenshot({ path: gradebookFinalOverrideArtifact })
+    artifacts.push(gradebookFinalOverrideArtifact)
+    await overriddenFinal.locator('svg').click()
+    const finalOverrideDialog = page.getByRole('dialog')
+    checks.push({
+      name: 'Final override undo previews its calculated percentage',
+      passed: await finalOverrideDialog.getByLabel('Mark after undo: 86%').isVisible(),
+    })
+    await finalOverrideDialog.getByRole('button', { name: 'Undo override' }).click()
+    checks.push({
+      name: 'Final override undo keeps the restored percentage in the modal',
+      passed: await finalOverrideDialog.isVisible()
+        && await finalOverrideDialog.getByRole('spinbutton', { name: 'Final mark' }).inputValue() === '86',
+    })
+    await finalOverrideDialog.getByRole('button', { name: 'Cancel' }).click()
+    const showWeights = section.getByRole('button', { name: 'Show weights' })
+    await showWeights.click()
+    const ecosystemWeightInput = section.getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
+    checks.push({
+      name: 'Gradebook weight metadata uses Category, Weight, and Course % rows',
+      passed: await section.getByRole('row', { name: 'Category' }).isVisible()
+        && await section.getByRole('row', { name: 'Weight' }).isVisible()
+        && await section.getByRole('row', { name: 'Course %' }).isVisible(),
     })
     checks.push({
-      name: 'Gradebook class summary includes every displayed student',
-      passed: await classAverageRow.getByRole('cell').nth(3).textContent() === '85%',
+      name: 'Gradebook numerical inputs omit browser stepper arrows',
+      passed: (await ecosystemWeightInput.getAttribute('class'))?.includes('[appearance:textfield]') === true,
     })
-    const stickySummaryDesktopLightArtifact = path.join(artifactDir, 'desktop-light-gradebook-sticky-summary.png')
-    await section.screenshot({ path: stickySummaryDesktopLightArtifact })
-    artifacts.push(stickySummaryDesktopLightArtifact)
+    const gradebookWeightsArtifact = path.join(artifactDir, 'desktop-light-gradebook-weights-no-steppers.png')
+    await section.screenshot({ path: gradebookWeightsArtifact })
+    artifacts.push(gradebookWeightsArtifact)
+    await section.getByRole('button', { name: 'Edit category for A1: Ecosystems' }).click()
+    const categoryAssessmentDialog = page.getByRole('dialog')
+    checks.push({
+      name: 'Gradebook Category cells open the assessment editor',
+      passed: await categoryAssessmentDialog.getByRole('heading', { name: 'Edit assessment' }).isVisible()
+        && await categoryAssessmentDialog.getByRole('textbox', { name: 'Assessment title' }).inputValue() === 'Ecosystems',
+    })
+    await categoryAssessmentDialog.getByRole('button', { name: 'Cancel' }).click()
+    await showWeights.click()
     await section.getByRole('button', { name: 'More actions' }).click()
-    const scoreDisplayGroup = section.getByRole('group', { name: 'Score display' })
-    const classSummaryGroup = section.getByRole('group', { name: 'Class summary' })
-    const scoreModeToggle = scoreDisplayGroup.getByRole('button', { name: 'Score display: %. Switch to x/y' })
-    const summaryKindToggle = classSummaryGroup.getByRole('button', { name: 'Class summary: AVG. Switch to MED' })
+    const scoreModeToggle = section.getByRole('group', { name: 'Score display' }).getByRole('button')
     const nameOrderToggle = section.getByRole('menuitem', { name: 'Show last name in column 1' })
     const studentIds = section.getByRole('menuitemcheckbox', { name: 'Show student IDs' })
     const keepKeyColumnsVisible = section.getByRole('menuitemcheckbox', { name: 'Keep key columns visible' })
     checks.push({
       name: 'Gradebook centers display controls and keeps utility commands in More actions',
       passed: await scoreModeToggle.isVisible()
-        && await summaryKindToggle.isVisible()
-        && await scoreDisplayGroup.getByRole('button').count() === 1
-        && await classSummaryGroup.getByRole('button').count() === 1
         && await nameOrderToggle.isVisible()
         && await section.getByRole('menuitem', { name: 'Edit categories' }).isVisible()
         && await section.getByRole('menuitemradio').count() === 0
@@ -667,18 +810,6 @@ export const patternLabPageMockups: VerificationScript = {
     await section.screenshot({ path: gradebookMenuArtifact })
     artifacts.push(gradebookMenuArtifact)
     await page.keyboard.press('Escape')
-    await summaryKindToggle.click()
-    checks.push({
-      name: 'Gradebook shows only the selected Average or Median summary',
-      passed: await gradebookSummaryFooter.getByRole('row', { name: 'Class median' }).isVisible()
-        && await gradebookSummaryFooter.getByRole('row', { name: 'Class average' }).count() === 0,
-    })
-    const showAverage = classSummaryGroup.getByRole('button', { name: 'Class summary: MED. Switch to AVG' })
-    checks.push({
-      name: 'Gradebook summary toggle replaces its label with the active mode',
-      passed: await showAverage.textContent() === 'MED' && await classSummaryGroup.getByRole('button').count() === 1,
-    })
-    await showAverage.click()
     await section.getByRole('button', { name: 'More actions' }).click()
     await nameOrderToggle.click()
     checks.push({
@@ -714,19 +845,20 @@ export const patternLabPageMockups: VerificationScript = {
     await section.screenshot({ path: frozenColumnsDesktopLightArtifact })
     artifacts.push(frozenColumnsDesktopLightArtifact)
     await page.setViewportSize(VIEWPORTS.mobile)
-    await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 448 })
     checks.push({
-      name: 'Frozen Gradebook columns remain contained on mobile',
-      passed: await gradebookScrollFrame.evaluate((frame) => frame.scrollLeft > 0)
+      name: 'Mobile Gradebook shows one selected student without the class matrix',
+      passed: await gradebookScrollFrame.isHidden()
+        && await section.getByRole('combobox', { name: 'Student' }).isVisible()
+        && await section.getByRole('region', { name: 'Maya Chen assessment details' }).isVisible()
         && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
     })
-    const frozenColumnsMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-frozen-columns.png')
-    await section.screenshot({ path: frozenColumnsMobileLightArtifact })
-    artifacts.push(frozenColumnsMobileLightArtifact)
+    const perStudentMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-per-student.png')
+    await section.screenshot({ path: perStudentMobileLightArtifact })
+    artifacts.push(perStudentMobileLightArtifact)
     await page.getByRole('button', { name: 'Use dark theme' }).click()
-    const frozenColumnsMobileDarkArtifact = path.join(artifactDir, 'mobile-dark-gradebook-frozen-columns.png')
-    await section.screenshot({ path: frozenColumnsMobileDarkArtifact })
-    artifacts.push(frozenColumnsMobileDarkArtifact)
+    const perStudentMobileDarkArtifact = path.join(artifactDir, 'mobile-dark-gradebook-per-student.png')
+    await section.screenshot({ path: perStudentMobileDarkArtifact })
+    artifacts.push(perStudentMobileDarkArtifact)
     await page.setViewportSize(VIEWPORTS.desktop)
     await gradebookScrollFrame.evaluate((frame) => { frame.scrollLeft = 96 })
     const frozenColumnsDesktopDarkArtifact = path.join(artifactDir, 'desktop-dark-gradebook-frozen-columns.png')
@@ -748,13 +880,11 @@ export const patternLabPageMockups: VerificationScript = {
         && await section.getByRole('cell', { name: '1004832' }).isVisible(),
     })
     await scoreModeToggle.click()
-    const percentScoreToggle = scoreDisplayGroup.getByRole('button', { name: 'Score display: x/y. Switch to %' })
     checks.push({
-      name: 'Raw score mode updates visible assignment columns and replaces the toggle label',
-      passed: await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '18/20' }).isVisible()
-        && await section.getByRole('row', { name: /Maya Chen/ }).getByRole('cell', { name: '42/50' }).isVisible()
-        && await percentScoreToggle.textContent() === 'x/y'
-        && await scoreDisplayGroup.getByRole('button').count() === 1,
+      name: 'Raw score mode updates visible assignment columns',
+      passed: await section.getByRole('button', { name: 'Edit Maya Chen mark for Ecosystems: 18/20' }).isVisible()
+        && await section.getByRole('button', { name: 'Edit Maya Chen mark for Cells: 42/50' }).isVisible()
+        && await scoreModeToggle.textContent() === 'x/y',
     })
     await page.keyboard.press('Escape')
     await section.getByRole('button', { name: 'More actions' }).click()
@@ -807,9 +937,10 @@ export const patternLabPageMockups: VerificationScript = {
     artifacts.push(emptyGradebookDesktopLightArtifact)
     await page.setViewportSize(VIEWPORTS.mobile)
     checks.push({
-      name: 'Empty Gradebook keeps natural columns inside its mobile scroll frame',
-      passed: await emptyGradebookTable.isVisible()
-        && await emptyGradebookTable.evaluate((table) => table.scrollWidth >= 380)
+      name: 'Empty mobile Gradebook keeps the per-student surface without a class matrix',
+      passed: await emptyGradebookTable.isHidden()
+        && await section.getByRole('region', { name: 'Maya Chen assessment details' }).isVisible()
+        && await section.getByText('No assessments yet.').isVisible()
         && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
     })
     const emptyGradebookMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-empty.png')
@@ -855,8 +986,11 @@ export const patternLabPageMockups: VerificationScript = {
     artifacts.push(fewAssessmentsDesktopLightArtifact)
     await page.setViewportSize(VIEWPORTS.mobile)
     checks.push({
-      name: 'Few-assessments Gradebook scrolls internally on mobile',
-      passed: await fewAssessmentsTable.evaluate((table) => table.scrollWidth >= 668)
+      name: 'Few-assessments mobile Gradebook keeps the per-student surface',
+      passed: await fewAssessmentsTable.isHidden()
+        && await section.getByRole('region', { name: 'Maya Chen assessment details' }).isVisible()
+        && await section.getByText('A3').isVisible()
+        && await section.getByText('A4').count() === 0
         && await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
     })
     const fewAssessmentsMobileLightArtifact = path.join(artifactDir, 'mobile-light-gradebook-few-assessments.png')
