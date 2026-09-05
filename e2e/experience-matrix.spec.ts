@@ -744,7 +744,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
-    name: 'Undo manual change for Student 03 Alpha03',
+    name: 'Undo override for Student 03 Alpha03',
   })
   await expect(overrideUndo).toBeVisible()
   const overrideCell = overrideUndo.locator('xpath=ancestor::td')
@@ -774,7 +774,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Hide ID column' }).click()
-  await expect(page.getByRole('columnheader', { name: 'ID' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'ID', exact: true })).toHaveCount(0)
   await expect(page.getByRole('separator', { name: 'Resize ID column' })).toHaveCount(0)
 
   await page.screenshot({
@@ -831,7 +831,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
-  await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'ID', exact: true })).toBeVisible()
 
   await dailyOnlyContextBar.getByRole('button', { name: 'More actions' }).click()
   await expect(page.getByRole('menuitem')).toHaveCount(2)

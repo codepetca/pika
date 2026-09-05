@@ -30650,6 +30650,7 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 <!-- pika-session-log-archive-batch:ec5ebfd3d130f07cfbb0df1a0c32fb24d5126d85f00aafa5ff469d5d0319399e -->
 <!-- pika-session-log-archive-batch:fb9fd38bf7c25473b38f41da34f17f97ffbd114068a93935b0d6a851f036b915 -->
+<!-- pika-session-log-archive-batch:d9fddb35b2bc101676f3c1380e40cff786042ce3f87652ebbd5bb02e13a103f0 -->
 ## 2026-09-02 — Dormant classroom-access and entitlement foundation
 
 - Recorded the approved neutral-account/classroom-relationship direction and teacher-first monetization roadmap in `docs/guidance/classroom-access-and-entitlements-roadmap.md`. Phased rollout preserves production classes; billing, pricing, general grants, UI and neutral signup remain future work. The new epic stays incomplete.

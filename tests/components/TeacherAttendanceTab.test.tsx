@@ -642,7 +642,7 @@ describe('TeacherAttendanceTab', () => {
       .toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Mark Student2 Test late' }))
       .toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Undo manual change for Student2 Test' }))
+    expect(screen.getByRole('button', { name: 'Undo override for Student2 Test' }))
       .toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Time of scan' })).not.toBeInTheDocument()
@@ -757,9 +757,13 @@ describe('TeacherAttendanceTab', () => {
     )
 
     const scanHeader = await screen.findByRole('columnheader', { name: 'Time of scan' })
+    const logHeader = screen.getByRole('columnheader', { name: /^Log/ })
+    const presentHeader = screen.getByRole('columnheader', { name: /present/i })
     const scanSort = within(scanHeader).getByRole('button', { name: 'Time of scan' })
     expect(scanSort).not.toHaveTextContent('Time of scan')
     expect(scanSort.querySelector('svg')).toBeInTheDocument()
+    expect(scanHeader.cellIndex).toBe(logHeader.cellIndex + 1)
+    expect(scanHeader.cellIndex).toBeLessThan(presentHeader.cellIndex)
     await user.hover(scanSort)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Time of scan')
     await user.unhover(scanSort)
@@ -911,7 +915,7 @@ describe('TeacherAttendanceTab', () => {
 
     const late = await screen.findByRole('button', { name: 'Mark Student1 Test late' })
     const undo = screen.getByRole('button', {
-      name: 'Undo manual change for Student1 Test',
+      name: 'Undo override for Student1 Test',
     })
     expect(late).toHaveAttribute('aria-pressed', 'true')
     expect(undo).toBeInTheDocument()
