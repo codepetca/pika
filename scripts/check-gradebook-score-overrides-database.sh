@@ -64,11 +64,11 @@ insert into public.gradebook_score_overrides (
   ('15700000-0000-4000-8000-000000000010', '15700000-0000-4000-8000-000000000002', 'test', '15700000-0000-4000-8000-000000000020', 9, '15700000-0000-4000-8000-000000000001'),
   ('15700000-0000-4000-8000-000000000010', '15700000-0000-4000-8000-000000000002', 'final', '15700000-0000-4000-8000-000000000010', 86, '15700000-0000-4000-8000-000000000001');
 
-set local role authenticated;
-select set_config('request.jwt.claim.sub', '15700000-0000-4000-8000-000000000001', true);
+-- Assignment deletion is performed by the teacher API with the service-role
+-- client.  Exercise the database trigger as the migration owner, since the
+-- browser role is intentionally denied direct table deletes.
 delete from public.assignments
 where id = '15700000-0000-4000-8000-000000000020';
-reset role;
 
 do $$
 begin
