@@ -64,7 +64,7 @@ insert into public.gradebook_score_overrides (
   ('15700000-0000-4000-8000-000000000010', '15700000-0000-4000-8000-000000000002', 'test', '15700000-0000-4000-8000-000000000020', 9, '15700000-0000-4000-8000-000000000001'),
   ('15700000-0000-4000-8000-000000000010', '15700000-0000-4000-8000-000000000002', 'final', '15700000-0000-4000-8000-000000000010', 86, '15700000-0000-4000-8000-000000000001');
 
--- Assignment deletion is performed by the teacher API with the service-role
+-- Assignment deletion is performed by the teacher API with its service-role
 -- client.  Exercise the database trigger as the migration owner, since the
 -- browser role is intentionally denied direct table deletes.
 delete from public.assignments
