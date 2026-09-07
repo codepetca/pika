@@ -261,6 +261,16 @@ describe('Teacher dashboard page', () => {
     )
   })
 
+  it.each([true, false])('opens class-day review after blank creation (empty=%s)', async (empty) => {
+    installFetchMock({ classrooms: empty ? [] : undefined })
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', { name: empty ? 'Create classroom' : '+ New' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create mocked classroom' }))
+
+    expect(push).toHaveBeenCalledWith('/classrooms/created?tab=daily&reviewClassDays=1')
+  })
+
   it('refreshes dashboard state without navigating when blueprint creation completes', async () => {
     installFetchMock({ classrooms: [] })
 
