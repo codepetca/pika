@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Rebase fixed-width Test student actions for merge
-
-- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
-- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
 ## 2026-09-04 — Rebase Gradebook score overrides for merge
 
 - Rebased PR #1201 after the earlier Gradebook toggle and Tests toolbar PRs merged. The later approved Gradebook design remains authoritative: desktop keeps the class matrix with a pinned Avg row, the action bar shows Class Average and Median, one button switches `%` and `x/y`, mobile stays per-student, and stored assessment/final overrides retain their undo and grade-band behavior.
@@ -239,3 +234,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
 - The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
 - Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.
+
+## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
+
+- Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
+- Regression coverage: disabled/enabled/global-off states, pending reward refresh, classroom transition, and modal cleanup; 52 focused component tests pass. Visual fixture with the real classroom client and pending early-start reward verified student desktop/mobile and light/dark, enabled/disabled (eight captures in local `output/playwright`). Teacher is n/a: student-only surfaces. Reuses Pal host layers, feature-visibility policy, and ModalLayer; no design/style changes or new pattern. Composite checklist reviewed; keyboard/semantic tests retained, no manual follow-up.
+- Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
+
+- Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.

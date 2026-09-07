@@ -31212,3 +31212,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
 - Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+<!-- pika-session-log-archive-batch:25e54c80f3034b3f7c900b5b02608b252e74e76405177cecc308a259c55e76ce -->
+## 2026-09-04 — Rebase fixed-width Test student actions for merge
+
+- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
+- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.

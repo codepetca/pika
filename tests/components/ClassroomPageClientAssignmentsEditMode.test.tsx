@@ -25,6 +25,10 @@ const mockClassDays = vi.hoisted(() => [
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
 ])
 
+vi.mock('@/integrations/pal', () => ({
+  StudentPalAmbientSurfaces: () => <div data-testid="pal-ambient-surfaces" />,
+}))
+
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
   TeacherClassroomView: ({
     onEditModeChange,
@@ -915,6 +919,35 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Go Achievements' }))
     expect(await screen.findByTestId('student-achievements')).toHaveTextContent('native Pal')
+  })
+
+  it.each([
+    [false, true, false],
+    [true, false, false],
+    [true, true, true],
+  ])('gates Pal surfaces with achievements=%s and integration=%s', (achievements, palEnabled, visible) => {
+    renderStudentClient({
+      classroom: { ...classroom, feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, achievements } },
+      palEnabled,
+    })
+    expect(Boolean(screen.queryByTestId('pal-ambient-surfaces'))).toBe(visible)
+  })
+
+  it('removes Pal surfaces immediately when navigating to a classroom with achievements disabled', () => {
+    const view = renderStudentClient({ palEnabled: true })
+    expect(screen.getByTestId('pal-ambient-surfaces')).toBeInTheDocument()
+    view.rerender(
+      <MarkdownPreferenceProvider>
+        <ClassroomPageClient
+          classroom={{ ...classroom, id: 'classroom-2', feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, achievements: false } }}
+          user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+          teacherClassrooms={[]}
+          initialTab="today"
+          palEnabled
+        />
+      </MarkdownPreferenceProvider>,
+    )
+    expect(screen.queryByTestId('pal-ambient-surfaces')).not.toBeInTheDocument()
   })
 
   it('updates the app shell classroom theme when settings saves classroom changes', async () => {
