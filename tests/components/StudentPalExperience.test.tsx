@@ -26,6 +26,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import {
   PalFailureBoundary,
   StudentPalExperience,
+  StudentPalAmbientSurfaces,
 } from '@/integrations/pal/StudentPalExperience'
 import { StudentAchievementsTab } from '@/app/classrooms/[classroomId]/StudentAchievementsTab'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
@@ -367,6 +368,40 @@ describe('StudentPalExperience', () => {
     expect(screen.getByRole('complementary', {
       name: /Mystery companion/,
     })).toBeVisible()
+  })
+
+  it('defers pending and newly delivered rewards while page surfaces are disabled', async () => {
+    const getSnapshot = vi.fn(async () => withReward())
+    const markRewardSeen = vi.fn(async () => undefined)
+    mockCreatePikaPalClient.mockReturnValue({ getSnapshot, markRewardSeen })
+    function Page({ enabled, classroomId }: { enabled: boolean; classroomId: string }) {
+      return (
+        <ThemeProvider>
+          <StudentPalExperience apiBaseUrl="https://pal.example.test" scopeKey="student-session" showAmbientSurfaces={false}>
+            <div>Academic work remains available</div>
+            {enabled ? <StudentPalAmbientSurfaces key={classroomId} scopeKey={classroomId} /> : null}
+          </StudentPalExperience>
+        </ThemeProvider>
+      )
+    }
+    const view = render(<Page enabled={false} classroomId="disabled-classroom" />)
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.querySelector('aside.pal-companion')).toBeNull()
+
+    act(() => window.dispatchEvent(new Event(PIKA_PAL_REFRESH_EVENT)))
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(2))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    view.rerender(<Page enabled classroomId="enabled-classroom" />)
+    expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    view.rerender(<Page enabled={false} classroomId="disabled-classroom" />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.querySelector('aside.pal-companion')).toBeNull()
+    expect(screen.getByText('Academic work remains available')).toBeVisible()
+    expect(document.body.style.overflow).not.toBe('hidden')
+    expect(markRewardSeen).not.toHaveBeenCalled()
+    expect(mockCreatePikaPalClient).toHaveBeenCalledTimes(1)
   })
 
   it('refreshes the learner snapshot immediately after a confirmed event delivery', async () => {

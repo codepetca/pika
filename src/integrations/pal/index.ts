@@ -1,2 +1,2 @@
 export { PalWidgetThemeBoundary } from './PalWidgetThemeBoundary'
-export { PalFailureBoundary, StudentPalExperience } from './StudentPalExperience'
+export { PalFailureBoundary, StudentPalExperience, StudentPalAmbientSurfaces } from './StudentPalExperience'

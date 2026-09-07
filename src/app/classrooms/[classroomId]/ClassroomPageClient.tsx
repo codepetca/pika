@@ -20,6 +20,7 @@ import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
+import { StudentPalAmbientSurfaces } from '@/integrations/pal'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
 import { CalendarSourceErrors, type CalendarSourceFailure } from '@/components/CalendarSourceErrors'
@@ -72,6 +73,7 @@ import type {
 } from '@/types'
 import {
   getAvailableClassroomTabs,
+  isClassroomFeatureEffectivelyEnabled,
   normalizeClassroomFeatureVisibility,
   type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
@@ -317,7 +319,14 @@ export function ClassroomPageClient({
     </ThreePanelProvider>
   )
 
-  return classroomPage
+  return (
+    <>
+      {classroomPage}
+      {!isTeacher && isClassroomFeatureEffectivelyEnabled(featureVisibility, 'achievements', palAvailable) ? (
+        <StudentPalAmbientSurfaces key={effectiveClassroom.id} scopeKey={effectiveClassroom.id} />
+      ) : null}
+    </>
+  )
 }
 
 function getLastClassHeading(lastClassDate: string | null, todayDate: string) {
