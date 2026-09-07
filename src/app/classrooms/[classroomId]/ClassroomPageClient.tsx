@@ -21,6 +21,7 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
+import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import {
   StudentAttendanceStatus,
@@ -57,12 +58,14 @@ import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
+import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getTodayInToronto } from '@/lib/timezone'
 import type {
   Classroom,
   LessonPlan,
   TiptapContent,
   Assignment,
+  Announcement,
   TestAssessmentWithStats,
 } from '@/types'
 import {
@@ -118,6 +121,12 @@ interface PendingExamNavigation {
   source: string
   nextTab: string | null
   navigate: () => void
+}
+
+interface StudentCalendarSources {
+  classroomId: string
+  assignments: Assignment[]
+  announcements: Announcement[]
 }
 
 function buildInitialQueryString(
@@ -293,14 +302,6 @@ export function ClassroomPageClient({
   return classroomPage
 }
 
-function hasLessonPlanContent(plan: LessonPlan | null) {
-  return Boolean(
-    plan?.content &&
-    plan.content.content &&
-    plan.content.content.length > 0
-  )
-}
-
 function getLastClassHeading(lastClassDate: string | null) {
   if (!lastClassDate) return 'Last class'
 
@@ -320,6 +321,12 @@ function StudentTodayPlanSidebar({
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
+  todayAssignments,
+  todayAnnouncements,
+  lastClassAssignments,
+  lastClassAnnouncements,
+  onAssignmentClick,
+  onAnnouncementClick,
 }: {
   attendanceState: StudentAttendanceClassroomState | undefined
   attendanceRefreshing: boolean
@@ -328,8 +335,13 @@ function StudentTodayPlanSidebar({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
+  todayAssignments: Assignment[]
+  todayAnnouncements: Announcement[]
+  lastClassAssignments: Assignment[]
+  lastClassAnnouncements: Announcement[]
+  onAssignmentClick: (assignment: Assignment) => void
+  onAnnouncementClick: () => void
 }) {
-  const viewerClassName = 'min-h-0 flex-1 overflow-y-auto [&_.simple-viewer-content_.tiptap.ProseMirror.simple-editor]:!p-0'
   const lastClassHeading = getLastClassHeading(lastClassDate)
 
   return (
@@ -342,11 +354,13 @@ function StudentTodayPlanSidebar({
           now={attendanceNow}
           variant="banner"
         />
-        {hasLessonPlanContent(todayLessonPlan) ? (
-          <div className={viewerClassName}>
-            <RichTextViewer content={todayLessonPlan!.content} chrome="flush" />
-          </div>
-        ) : null}
+        <StudentCalendarDateContent
+          lessonPlan={todayLessonPlan}
+          assignments={todayAssignments}
+          announcements={todayAnnouncements}
+          onAssignmentClick={onAssignmentClick}
+          onAnnouncementClick={onAnnouncementClick}
+        />
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
@@ -366,11 +380,15 @@ function StudentTodayPlanSidebar({
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <Spinner />
           </div>
-        ) : hasLessonPlanContent(lastClassLessonPlan) ? (
-          <div className={viewerClassName}>
-            <RichTextViewer content={lastClassLessonPlan!.content} chrome="flush" />
-          </div>
-        ) : null}
+        ) : (
+          <StudentCalendarDateContent
+            lessonPlan={lastClassLessonPlan}
+            assignments={lastClassAssignments}
+            announcements={lastClassAnnouncements}
+            onAssignmentClick={onAssignmentClick}
+            onAnnouncementClick={onAnnouncementClick}
+          />
+        )}
       </section>
     </div>
   )
@@ -383,6 +401,10 @@ function StudentTodayWorkspace({
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
+  calendarAssignments,
+  calendarAnnouncements,
+  onAssignmentClick,
+  onAnnouncementClick,
   onLessonPlanLoad,
 }: {
   classroom: Classroom
@@ -391,6 +413,10 @@ function StudentTodayWorkspace({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
+  calendarAssignments: Assignment[]
+  calendarAnnouncements: Announcement[]
+  onAssignmentClick: (assignment: Assignment) => void
+  onAnnouncementClick: () => void
   onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
@@ -399,6 +425,19 @@ function StudentTodayWorkspace({
   const attendanceState = attendanceView?.classrooms.find(
     (item) => item.classroomId === classroom.id,
   )
+  const todayDate = getTodayInToronto()
+  const todayAssignments = calendarAssignments.filter(
+    (assignment) => getCalendarAssignmentDate(assignment) === todayDate,
+  )
+  const todayAnnouncements = calendarAnnouncements.filter(
+    (announcement) => getCalendarAnnouncementDate(announcement) === todayDate,
+  )
+  const lastClassAssignments = lastClassDate
+    ? calendarAssignments.filter((assignment) => getCalendarAssignmentDate(assignment) === lastClassDate)
+    : []
+  const lastClassAnnouncements = lastClassDate
+    ? calendarAnnouncements.filter((announcement) => getCalendarAnnouncementDate(announcement) === lastClassDate)
+    : []
   const planSidebar = (
     <StudentTodayPlanSidebar
       attendanceState={attendanceState}
@@ -408,6 +447,12 @@ function StudentTodayWorkspace({
       lastClassLessonPlan={lastClassLessonPlan}
       lastClassDate={lastClassDate}
       lastClassLoading={lastClassLoading}
+      todayAssignments={todayAssignments}
+      todayAnnouncements={todayAnnouncements}
+      lastClassAssignments={lastClassAssignments}
+      lastClassAnnouncements={lastClassAnnouncements}
+      onAssignmentClick={onAssignmentClick}
+      onAnnouncementClick={onAnnouncementClick}
     />
   )
 
@@ -683,6 +728,11 @@ function ClassroomPageContent({
   const [lastClassLessonPlan, setLastClassLessonPlan] = useState<LessonPlan | null>(null)
   const [lastClassLessonPlanDate, setLastClassLessonPlanDate] = useState<string | null>(null)
   const [lastClassLessonPlanLoading, setLastClassLessonPlanLoading] = useState(false)
+  const [studentCalendarSources, setStudentCalendarSources] = useState<StudentCalendarSources>({
+    classroomId: classroom.id,
+    assignments: [],
+    announcements: [],
+  })
 
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
@@ -749,6 +799,26 @@ function ClassroomPageContent({
     setTodayLessonPlanState({ classroomId: loadedClassroomId, plan })
   }, [classroom.id])
 
+  const handleStudentCalendarAssignmentClick = useCallback((assignment: Assignment) => {
+    navigateInClassroom((params) => {
+      params.set('tab', 'assignments')
+      params.set('assignmentId', assignment.id)
+      params.delete('assignmentStudentId')
+      params.delete('materialId')
+      params.delete('surveyId')
+    })
+  }, [navigateInClassroom])
+
+  const handleStudentCalendarAnnouncementClick = useCallback(() => {
+    navigateInClassroom((params) => {
+      params.set('tab', 'announcements')
+      params.delete('section')
+      params.delete('assignmentId')
+      params.delete('materialId')
+      params.delete('surveyId')
+    })
+  }, [navigateInClassroom])
+
   useEffect(() => {
     if (isTeacher || activeTab !== 'today') return
 
@@ -792,6 +862,67 @@ function ClassroomPageContent({
       cancelled = true
     }
   }, [activeTab, classDays, classroom.id, isTeacher])
+
+  useEffect(() => {
+    if (isTeacher || activeTab !== 'today') return
+
+    const requestedClassroomId = classroom.id
+    let cancelled = false
+    setStudentCalendarSources({
+      classroomId: requestedClassroomId,
+      assignments: [],
+      announcements: [],
+    })
+
+    const assignmentsPromise = availableTabs.includes('assignments')
+      ? fetchJSONWithCache<{ assignments?: Assignment[] }>(
+        `student-assignments:${requestedClassroomId}`,
+        async () => {
+          const response = await fetch(`/api/student/assignments?classroom_id=${requestedClassroomId}`)
+          if (!response.ok) throw new Error('Failed to load calendar assignments')
+          return response.json()
+        },
+        20_000,
+      )
+      : Promise.resolve({ assignments: [] as Assignment[] })
+
+    const announcementsPromise = availableTabs.includes('announcements')
+      ? fetchJSONWithCache<{ announcements?: Announcement[] }>(
+        `student-announcements:${requestedClassroomId}`,
+        async () => {
+          const response = await fetch(`/api/student/classrooms/${requestedClassroomId}/announcements`)
+          if (!response.ok) throw new Error('Failed to load calendar announcements')
+          return response.json()
+        },
+        20_000,
+      )
+      : Promise.resolve({ announcements: [] as Announcement[] })
+
+    Promise.allSettled([assignmentsPromise, announcementsPromise]).then(([assignmentsResult, announcementsResult]) => {
+      if (cancelled) return
+
+      if (assignmentsResult.status === 'rejected') {
+        console.error('Error loading calendar assignments for Daily:', assignmentsResult.reason)
+      }
+      if (announcementsResult.status === 'rejected') {
+        console.error('Error loading calendar announcements for Daily:', announcementsResult.reason)
+      }
+
+      setStudentCalendarSources({
+        classroomId: requestedClassroomId,
+        assignments: assignmentsResult.status === 'fulfilled'
+          ? assignmentsResult.value.assignments || []
+          : [],
+        announcements: announcementsResult.status === 'fulfilled'
+          ? announcementsResult.value.announcements || []
+          : [],
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, availableTabs, classroom.id, isTeacher])
 
   const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
     setAssignmentViewMode(mode)
@@ -1176,6 +1307,9 @@ function ClassroomPageContent({
     studentTestExamMode.testTitle,
   ])
   const pageDensity = isTeacher ? 'teacher' : 'student'
+  const currentStudentCalendarSources = studentCalendarSources.classroomId === classroom.id
+    ? studentCalendarSources
+    : { assignments: [], announcements: [] }
   const mainContentClassName =
     activeTab === 'calendar' || activeTab === 'achievements' || activeTab === 'resources'
       ? 'px-0 pt-0 pb-0'
@@ -1491,6 +1625,10 @@ function ClassroomPageContent({
                         lastClassLessonPlan={lastClassLessonPlan}
                         lastClassDate={lastClassLessonPlanDate}
                         lastClassLoading={lastClassLessonPlanLoading}
+                        calendarAssignments={currentStudentCalendarSources.assignments}
+                        calendarAnnouncements={currentStudentCalendarSources.announcements}
+                        onAssignmentClick={handleStudentCalendarAssignmentClick}
+                        onAnnouncementClick={handleStudentCalendarAnnouncementClick}
                         onLessonPlanLoad={handleSetLessonPlan}
                       />
                     </TabContentTransition>

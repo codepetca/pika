@@ -84,7 +84,8 @@ export function StudentTodayTab({
   } = useClassDaysContext()
 
   // Constants
-  const historyLimit = 12
+  const pastHistoryLimit = 10
+  const historyLimit = pastHistoryLimit + 1
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
   const MAX_CHARS = 2000
@@ -646,7 +647,14 @@ export function StudentTodayTab({
     )
   }
 
-  const pastHistoryEntries = historyEntries.filter(entry => entry.date !== today)
+  const pastHistoryEntries = classDays
+    .filter(day => day.is_class_day && day.date < today)
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, pastHistoryLimit)
+    .map(day => ({
+      date: day.date,
+      entry: historyEntries.find(entry => entry.date === day.date) ?? null,
+    }))
 
   function toggleHistoryEntry(entryId: string) {
     setExpandedHistoryIds(prev => {
@@ -733,9 +741,26 @@ export function StudentTodayTab({
               No past logs yet
             </div>
           ) : (
-            pastHistoryEntries.map(entry => {
+            pastHistoryEntries.map(({ date, entry }) => {
+              const entryDateLabel = format(parseISO(date), 'EEE MMM d')
+
+              if (!entry) {
+                return (
+                  <div
+                    key={`missing-${date}`}
+                    className="px-4 py-3"
+                  >
+                    <p className="text-sm font-medium text-text-default">
+                      {entryDateLabel}
+                    </p>
+                    <p className="mt-1 text-sm text-text-muted">
+                      No log submitted
+                    </p>
+                  </div>
+                )
+              }
+
               const isExpanded = expandedHistoryIds.has(entry.id)
-              const entryDateLabel = format(parseISO(entry.date), 'EEE MMM d')
 
               return (
                 <button

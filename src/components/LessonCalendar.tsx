@@ -8,6 +8,7 @@ import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { normalizeAnnouncementTitle } from '@/lib/announcements'
+import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
@@ -127,9 +128,8 @@ export function LessonCalendar({
   const assignmentsByDate = useMemo(() => {
     const map = new Map<string, Assignment[]>()
     assignments.forEach((assignment) => {
-      // Convert due_at to Toronto timezone before extracting date
-      const dueInToronto = toZonedTime(new Date(assignment.due_at), TIMEZONE)
-      const dueDate = format(dueInToronto, 'yyyy-MM-dd')
+      const dueDate = getCalendarAssignmentDate(assignment)
+      if (!dueDate) return
       const existing = map.get(dueDate)
       if (existing) {
         existing.push(assignment)
@@ -145,12 +145,10 @@ export function LessonCalendar({
   // Published announcements appear on their created_at date
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
+    const now = new Date()
     announcements.forEach((announcement) => {
-      // Use scheduled_for date if scheduled, otherwise created_at
-      const isScheduled = announcement.scheduled_for && new Date(announcement.scheduled_for) > new Date()
-      const dateToUse = isScheduled ? announcement.scheduled_for! : announcement.created_at
-      const dateInToronto = toZonedTime(new Date(dateToUse), TIMEZONE)
-      const dateString = format(dateInToronto, 'yyyy-MM-dd')
+      const dateString = getCalendarAnnouncementDate(announcement, now)
+      if (!dateString) return
       const existing = map.get(dateString)
       if (existing) {
         existing.push(announcement)

@@ -567,6 +567,55 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(dailyPlan.compareDocumentPosition(mobileTodaySection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
+  it('shows calendar assignments and announcements in both student date panels', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        return Promise.resolve({ lesson_plans: [] })
+      }
+      if (key === 'student-assignments:classroom-1') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'assignment-today', title: 'Today assignment', due_at: '2026-05-12T16:00:00.000Z' },
+            { id: 'assignment-last', title: 'Last class assignment', due_at: '2026-05-11T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-1') {
+        return Promise.resolve({
+          announcements: [
+            {
+              id: 'announcement-today',
+              title: 'Today announcement',
+              content: 'Today announcement content.',
+              created_at: '2026-05-12T16:00:00.000Z',
+              scheduled_for: null,
+            },
+            {
+              id: 'announcement-last',
+              title: 'Last class announcement',
+              content: 'Last class announcement content.',
+              created_at: '2026-05-11T16:00:00.000Z',
+              scheduled_for: null,
+            },
+          ],
+        })
+      }
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+    })
+
+    expect(await screen.findAllByText('Today announcement content.')).toHaveLength(2)
+    expect(screen.getAllByText('Last class announcement content.')).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Open assignment Today assignment' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Open assignment Last class assignment' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'View all announcements' })).toHaveLength(4)
+  })
+
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {
     renderStudentClient({
       initialTab: 'tests',
