@@ -11,7 +11,7 @@ function renderWithTooltips(ui: ReactElement) {
 describe('AddStudentsModal', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('shows the ready count and roster format help without a preview step', async () => {
+  it('shows roster format help and enables adding without a preview step', async () => {
     renderWithTooltips(
       <AddStudentsModal
         isOpen
@@ -64,6 +64,8 @@ describe('AddStudentsModal', () => {
     fireEvent.change(rosterInput, { target: { value: 'Ada Lovelace not-an-email' } })
 
     const warning = screen.getByRole('status')
+    expect(rosterInput).toHaveAttribute('aria-invalid', 'true')
+    expect(rosterInput).toHaveAccessibleDescription('Use this format: Jane Doe email@example.com')
     expect(warning).toHaveTextContent('Use this format: Jane Doe email@example.com')
     expect(warning).not.toHaveTextContent('Some lines need attention before they can be added.')
     expect(screen.queryByText('Line 1: Ada Lovelace not-an-email')).not.toBeInTheDocument()
@@ -74,6 +76,8 @@ describe('AddStudentsModal', () => {
     expect(screen.queryByRole('button', { name: 'Show Preview' })).not.toBeInTheDocument()
 
     fireEvent.change(rosterInput, { target: { value: 'Ada Lovelace ada@example.com' } })
+    expect(rosterInput).toHaveAttribute('aria-invalid', 'false')
+    expect(rosterInput).not.toHaveAttribute('aria-describedby')
 
     expect(screen.queryByText('Some lines need attention before they can be added.')).not.toBeInTheDocument()
     expect(screen.queryByText(/student ready to add/i)).not.toBeInTheDocument()

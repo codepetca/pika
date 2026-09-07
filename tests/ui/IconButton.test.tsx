@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Plus } from 'lucide-react'
@@ -9,7 +9,7 @@ describe('IconButton', () => {
     const user = userEvent.setup()
     render(
       <TooltipProvider>
-        <IconButton icon={Plus} label="Roster format help" tooltip={<div>Format: <strong>First Last Email</strong><p>ID is optional</p></div>} />
+        <IconButton icon={Plus} label="Roster format help" tooltipOnClick tooltip={<div>Format: <strong>First Last Email</strong><p>ID is optional</p></div>} />
       </TooltipProvider>,
     )
     await user.tab()
@@ -18,6 +18,17 @@ describe('IconButton', () => {
     expect(tooltip).toHaveTextContent('Format: First Last Email')
     expect(tooltip).toHaveTextContent('ID is optional')
     expect(tooltip.querySelector('strong')).toHaveTextContent('First Last Email')
+    expect(screen.getByRole('button', { name: 'Roster format help' })).toHaveAccessibleDescription(/Format: First Last Email/)
+  })
+
+  it('toggles help on activation and dismisses with Escape', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><IconButton icon={Plus} label="Help" tooltipOnClick tooltip="Helpful instructions" /></TooltipProvider>)
+    const button = screen.getByRole('button', { name: 'Help' })
+    fireEvent.click(button)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Helpful instructions')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 
   it('names the icon, explains it on keyboard focus, and activates with Enter', async () => {

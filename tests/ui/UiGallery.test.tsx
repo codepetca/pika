@@ -25,6 +25,16 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('demonstrates explicitly activated formatted help', async () => {
+    renderGallery()
+    const help = screen.getByRole('button', { name: 'Formatting help' })
+    fireEvent.click(help)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Use plain text.')
+    expect(help).toHaveAccessibleDescription(/Use plain text/)
+    fireEvent.click(help)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('locates the separate Owned / Joined home for %s reviewers', async (role) => {
     const user = userEvent.setup()
     const scrollIntoView = vi.fn()

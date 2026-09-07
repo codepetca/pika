@@ -1,7 +1,7 @@
 'use client'
 
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { cn } from './utils'
 
@@ -30,6 +30,8 @@ export interface TooltipProps {
   className?: string
   /** Prevent the tooltip from opening while preserving its trigger structure. */
   disabled?: boolean
+  /** Allow help-only triggers to toggle their content with a click or tap. */
+  openOnClick?: boolean
 }
 
 /**
@@ -50,8 +52,10 @@ export function Tooltip({
   align = 'center',
   className,
   disabled = false,
+  openOnClick = false,
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const pointerOpenRef = useRef<boolean | null>(null)
 
   useEffect(() => {
     if (disabled) setIsOpen(false)
@@ -66,7 +70,17 @@ export function Tooltip({
         if (!disabled) setIsOpen(nextOpen)
       }}
     >
-      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Trigger
+        asChild
+        onPointerDown={openOnClick ? () => { pointerOpenRef.current = isOpen } : undefined}
+        onPointerCancel={openOnClick ? () => { pointerOpenRef.current = null } : undefined}
+        onClick={openOnClick ? (event) => {
+          event.preventDefault()
+          const wasOpen = pointerOpenRef.current ?? isOpen
+          pointerOpenRef.current = null
+          if (!disabled) setIsOpen(!wasOpen)
+        } : undefined}
+      >{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
           side={side}

@@ -21,6 +21,8 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [textareaScroll, setTextareaScroll] = useState({ top: 0, left: 0 })
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const mirrorRef = useRef<HTMLDivElement>(null)
   const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
 
   function isCurrentScope(scope: typeof scopeRef.current) {
@@ -48,7 +50,23 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
     }
   }, [classroomId, isOpen])
 
-  // Parse input as it changes so guidance and the ready count stay current.
+  // Match the usable area, including when classic scrollbars consume width.
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current
+    const mirror = mirrorRef.current
+    if (!textarea || !mirror) return
+    const syncSize = () => {
+      mirror.style.width = `${textarea.clientWidth}px`
+      mirror.style.height = `${textarea.clientHeight}px`
+    }
+    syncSize()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(syncSize)
+    observer.observe(textarea)
+    return () => observer.disconnect()
+  }, [input, isOpen])
+
+  // Parse input as it changes so guidance and the submit count stay current.
   function handleParseInput(value: string) {
     if (!value.trim()) {
       setParseResult(null)
@@ -137,6 +155,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
               <IconButton
                 icon={CircleHelp}
                 label="Roster format help"
+                tooltipOnClick
                 tooltip={
                   <div className="space-y-1">
                     <div>One student per line.</div>
@@ -153,8 +172,9 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
             <div className="relative">
               {input.length > 0 && (
                 <div
+                  ref={mirrorRef}
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-px overflow-hidden rounded-md px-3 py-2 font-mono text-sm leading-5"
+                  className="pointer-events-none absolute left-px top-px overflow-hidden rounded-md px-3 py-2 font-mono text-sm leading-5"
                 >
                   <div
                     className="whitespace-pre-wrap break-words"
@@ -178,12 +198,15 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                 </div>
               )}
               <textarea
+                ref={textareaRef}
                 id="roster-input"
-                className="relative w-full px-3 py-2 border border-border-strong rounded-md
+                className="relative block w-full px-3 py-2 border border-border-strong rounded-md
                            bg-transparent text-transparent caret-text-default placeholder:text-text-muted
                            focus:outline-none focus:ring-2 focus:ring-primary
                            resize-none font-mono text-sm leading-5"
                 rows={12}
+                aria-invalid={Boolean(parseResult?.errors.length)}
+                aria-describedby={parseResult?.errors.length ? 'roster-format-guidance' : undefined}
                 placeholder="Jane Doe jane@example.com [123456] [jane2@example.com]"
                 value={input}
                 onChange={(e) => {
@@ -206,7 +229,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                 <div
                   className="text-sm text-warning"
                 >
-                  <p role="status" aria-live="polite">
+                  <p id="roster-format-guidance" role="status" aria-live="polite">
                     Use this format: Jane Doe email@example.com
                   </p>
                 </div>
