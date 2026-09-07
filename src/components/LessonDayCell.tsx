@@ -19,7 +19,7 @@ function isScheduled(announcement: Announcement): boolean {
 
 function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
   return (
-    <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 break-words">
+    <div className="w-[min(14rem,calc(100vw-2rem))] md:w-[28rem] text-left text-sm leading-5 break-words">
       {announcements.map((announcement, index) => {
         const title = normalizeAnnouncementTitle(announcement.title)
 
@@ -165,6 +165,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           <div className="px-0.5 mt-0.5 flex items-start justify-center">
             <Tooltip
               content={<AnnouncementTooltipContent announcements={announcements} />}
+              className="md:max-w-none"
               side="right"
               align="start"
               interactive
@@ -254,6 +255,7 @@ export const LessonDayCell = memo(function LessonDayCell({
               <Tooltip
                 key={announcement.id}
                 content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                className="md:max-w-none"
                 align="start"
                 interactive
               >

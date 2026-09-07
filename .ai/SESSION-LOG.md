@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Rebase Gradebook score overrides for merge
-
-- Rebased PR #1201 after the earlier Gradebook toggle and Tests toolbar PRs merged. The later approved Gradebook design remains authoritative: desktop keeps the class matrix with a pinned Avg row, the action bar shows Class Average and Median, one button switches `%` and `x/y`, mobile stays per-student, and stored assessment/final overrides retain their undo and grade-band behavior.
-- Kept migration 157 because current main ends at 156; the still-open atomic-enrollment PR also using 157 must be resequenced when it is handled later. No migration was applied. Focused checks, full migration replay in CI, high-risk integration review, and fresh exact-head gates precede the authorized merge.
-- High-risk review found that polymorphic assessment IDs could leave overrides behind when an assignment or test was deleted. The correction adds database-owned, type-scoped cleanup triggers for every delete path, skips side effects during exact purge/archive maintenance ordering, and adds a rollback-only ephemeral database harness covering authenticated assignment deletion, atomic test deletion, type isolation, Final preservation, and helper privileges.
-- Targeted re-review confirmed the cleanup boundary and found stale archive database-harness totals. The same correction batch now counts the new current/v2 resource and revision trigger, verifies its actor/restore contract, and protects those expectations with a unit regression. The v2 count and metadata assertion remain conditional so the harness still validates its intentional migration-105 compatibility replay.
-- The first exact-head database run replayed migration 157 successfully, then the generated-type check exposed the two wrapped legacy helpers as public functions. The correction gives them short stable names and moves them into the private schema before the public wrappers are recreated, avoiding PostgreSQL identifier truncation and keeping internal helpers out of the generated public API.
-
 ## 2026-09-04 — Center Daily dates when relative context is hidden
 
 - Daily now removes the empty subtitle row when the saved relative-date display preference is off, so the date fills the existing selector height and remains vertically centered. The relative-date-on state still reserves its subtitle row across past, present and future navigation to prevent layout movement.
@@ -242,3 +234,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
 
 - Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.
+
+## 2026-09-07 — Wider calendar announcement tooltips (#1210)
+
+Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
