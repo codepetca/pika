@@ -31206,3 +31206,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Rebased PR #1188 after #1183 merged, flattening obsolete merge commits into the single reviewed feature patch. Gradebook retains compact single-button `%`/`x/y` and `AVG`/`MED` display switches in the live teacher surface and Pattern Lab.
 - Retained current rolling history; application and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge. The later Gradebook refinement PR remains responsible for its approved final toolbar composition.
+
+<!-- pika-session-log-archive-batch:b151897516ef16b0da4ec08c172e9b716b5174fe7e4a6448deac0c642c53fd5b -->
+## 2026-09-04 — Rebase Tests edit action for merge
+
+- Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
+- Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.

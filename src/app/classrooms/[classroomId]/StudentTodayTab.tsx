@@ -141,6 +141,17 @@ export function StudentTodayTab({
         const todayDate = getTodayInToronto()
         todayRef.current = todayDate
         setToday(todayDate)
+        const relevantHistoryDates = new Set([
+          todayDate,
+          ...classDays
+            .filter(day => day.is_class_day && day.date < todayDate)
+            .sort((left, right) => right.date.localeCompare(left.date))
+            .slice(0, pastHistoryLimit)
+            .map(day => day.date),
+        ])
+        const selectRelevantEntries = (entries: Entry[]) => (
+          entries.filter(entry => relevantHistoryDates.has(entry.date))
+        )
 
         const historyCacheKey = getStudentEntryHistoryCacheKey({
           classroomId: classroom.id,
@@ -214,17 +225,19 @@ export function StudentTodayTab({
 
         if (Array.isArray(cached)) {
           if (!isCurrentLoad()) return
-          setHistoryEntries(cached)
-          const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
+          const relevantCachedEntries = selectRelevantEntries(cached)
+          setHistoryEntries(relevantCachedEntries)
+          const todayEntry = relevantCachedEntries.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
           entriesSnapshotClassroomIdRef.current = requestedClassroomId
           setEntriesSnapshotClassroomId(requestedClassroomId)
           setLoading(false)
         }
 
-        const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId, { limit: historyLimit })
+        const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId)
           .then(entries => {
             if (!isCurrentLoad()) return
+            const relevantEntries = selectRelevantEntries(entries)
             entriesSnapshotClassroomIdRef.current = requestedClassroomId
             setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
@@ -232,16 +245,16 @@ export function StudentTodayTab({
                 if (!isCurrentLoad()) return prev
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
                 const next = currentTodayEntry
-                  ? upsertEntryIntoHistory(entries, currentTodayEntry, historyLimit)
-                  : entries
+                  ? upsertEntryIntoHistory(relevantEntries, currentTodayEntry, historyLimit)
+                  : relevantEntries
                 safeSessionSetJson(historyCacheKey, next)
                 return next
               })
               return
             }
-            setHistoryEntries(entries)
-            safeSessionSetJson(historyCacheKey, entries)
-            const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
+            setHistoryEntries(relevantEntries)
+            safeSessionSetJson(historyCacheKey, relevantEntries)
+            const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
             applyEntryState(todayEntry)
           })
 
@@ -268,7 +281,7 @@ export function StudentTodayTab({
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classroom.id, entriesRequestVersion, historyLimit, onLessonPlanLoad])
+  }, [classDays, classroom.id, entriesRequestVersion, historyLimit, onLessonPlanLoad, pastHistoryLimit])
 
   const retryEntries = useCallback(() => {
     invalidateStudentEntriesForClassroom(classroom.id)

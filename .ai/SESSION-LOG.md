@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Rebase Tests edit action for merge
-
-- Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
-- Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
 ## 2026-09-04 — Rebase fixed-width Test student actions for merge
 
 - Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
@@ -234,3 +229,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
 - Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.
+
+## 2026-09-07 — Remediate student Daily calendar and history review findings
+
+- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
+- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
+- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.

@@ -202,7 +202,7 @@ describe('StudentTodayTab history section', () => {
   it('shows past logs by default and expands each entry without refetching', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -283,7 +283,7 @@ describe('StudentTodayTab history section', () => {
     ]
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [entries[0], ...olderEntries] })
       }
       if (url.includes('/lesson-plans')) {
@@ -303,6 +303,55 @@ describe('StudentTodayTab history section', () => {
     expect(screen.getAllByRole('button', { name: /Expand log from/ })).toHaveLength(10)
   })
 
+  it('does not let interleaved non-class entries displace the ten recent class-day logs', async () => {
+    const classDateEntries = Array.from({ length: 10 }, (_, index) => ({
+      ...entries[1],
+      id: `class-entry-${index + 1}`,
+      date: `2025-12-${String(15 - index).padStart(2, '0')}`,
+      text: `Class-day log ${index + 1}`,
+    }))
+    const nonClassEntries = Array.from({ length: 11 }, (_, index) => ({
+      ...entries[1],
+      id: `non-class-entry-${index + 1}`,
+      date: `2025-11-${String(30 - index).padStart(2, '0')}`,
+      text: `Non-class log ${index + 1}`,
+    }))
+    classDaysContextMock.classDays = [
+      defaultClassDays[0],
+      ...classDateEntries.map((entry, index) => ({
+        id: `class-day-${index + 1}`,
+        classroom_id: 'c1',
+        date: entry.date,
+        prompt_text: null,
+        is_class_day: true,
+      })),
+      ...nonClassEntries.map((entry, index) => ({
+        id: `non-class-day-${index + 1}`,
+        classroom_id: 'c1',
+        date: entry.date,
+        prompt_text: null,
+        is_class_day: false,
+      })),
+    ]
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        const allEntries = [entries[0], ...nonClassEntries, ...classDateEntries]
+        return mockJson({ entries: url.includes('limit=') ? allEntries.slice(0, 11) : allEntries })
+      }
+      if (url.includes('/lesson-plans')) return mockJson({ lessonPlans: [] })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByText('Class-day log 10')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Expand log from/ })).toHaveLength(10)
+    expect(screen.queryByText('Non-class log 1')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('limit='))).toBe(false)
+  })
+
   it('does not show entries from non-class days in past logs', async () => {
     classDaysContextMock.classDays = [
       ...defaultClassDays,
@@ -310,7 +359,7 @@ describe('StudentTodayTab history section', () => {
     ]
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({
           entries: [
             entries[0],
@@ -337,7 +386,7 @@ describe('StudentTodayTab history section', () => {
   it('shows missed class days as empty past-log entries when only today has an entry', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [entries[0]] })
       }
       if (url.includes('/lesson-plans')) {
@@ -359,7 +408,7 @@ describe('StudentTodayTab history section', () => {
     let entriesRequests = 0
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         entriesRequests += 1
         return entriesRequests === 1
           ? mockJson({ error: 'Entries unavailable' }, false)
@@ -398,7 +447,7 @@ describe('StudentTodayTab history section', () => {
     classDaysContextMock.hasLoadedSnapshot = false
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -428,7 +477,7 @@ describe('StudentTodayTab history section', () => {
     classDaysContextMock.hasLoadedSnapshot = true
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -452,10 +501,10 @@ describe('StudentTodayTab history section', () => {
     const secondEntriesRequest = deferred<any>()
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
-      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}`)) {
         return secondEntriesRequest.promise
       }
       if (url.includes('/lesson-plans')) {
@@ -515,10 +564,10 @@ describe('StudentTodayTab history section', () => {
     }
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return firstEntriesRequest.promise
       }
-      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}`)) {
         return secondEntriesRequest.promise
       }
       if (url.includes(`/api/student/classrooms/${classroom.id}/lesson-plans`)) {
@@ -572,7 +621,7 @@ describe('StudentTodayTab history section', () => {
   it('keeps an empty new entry marked saved', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -820,7 +869,7 @@ describe('StudentTodayTab history section', () => {
 
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -889,7 +938,7 @@ describe('StudentTodayTab history section', () => {
 
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -924,7 +973,7 @@ describe('StudentTodayTab history section', () => {
     const saveRequest = deferred<any>()
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -983,7 +1032,7 @@ describe('StudentTodayTab history section', () => {
     const patchBodies: any[] = []
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [entries[0]] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1050,7 +1099,7 @@ describe('StudentTodayTab history section', () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1097,7 +1146,7 @@ describe('StudentTodayTab history section', () => {
   it('redirects to login when saving fails because the session expired', async () => {
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1127,7 +1176,7 @@ describe('StudentTodayTab history section', () => {
   it('keeps an authorization save failure in place without claiming the session expired', async () => {
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1158,7 +1207,7 @@ describe('StudentTodayTab history section', () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1207,7 +1256,7 @@ describe('StudentTodayTab history section', () => {
     const patchBodies: any[] = []
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=11`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {

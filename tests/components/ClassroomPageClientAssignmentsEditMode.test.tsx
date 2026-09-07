@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
-import type { Classroom } from '@/types'
+import type { Assignment, Classroom } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -10,6 +10,7 @@ import {
 } from '@/lib/events'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
+const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
@@ -228,6 +229,7 @@ vi.mock('@/ui', async (importOriginal) => {
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
+  invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
   prefetchJSON: (...args: any[]) => mockPrefetchJSON(...args),
 }))
 
@@ -479,6 +481,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       writable: true,
     })
     mockFetchJSONWithCache.mockReset()
+    mockInvalidateCachedJSON.mockReset()
     mockPrefetchJSON.mockReset()
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
@@ -614,6 +617,106 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getAllByRole('button', { name: 'Open assignment Today assignment' })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: 'Open assignment Last class assignment' })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: 'View all announcements' })).toHaveLength(4)
+  })
+
+  it('preserves successful calendar data and retries only the failed source', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let announcementRequests = 0
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) return Promise.resolve({ lesson_plans: [] })
+      if (key === 'student-assignments:classroom-1') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'assignment-today', title: 'Available assignment', due_at: '2026-05-12T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-1') {
+        announcementRequests += 1
+        return announcementRequests === 1
+          ? Promise.reject(new Error('Announcements unavailable'))
+          : Promise.resolve({
+            announcements: [
+              {
+                id: 'announcement-today',
+                title: 'Recovered announcement',
+                content: 'Announcement loaded after retry.',
+                created_at: '2026-05-12T16:00:00.000Z',
+                scheduled_for: null,
+              },
+            ],
+          })
+      }
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    expect(await screen.findAllByRole('button', { name: 'Open assignment Available assignment' })).toHaveLength(2)
+    expect(screen.getAllByText('Some calendar information could not be loaded.')).toHaveLength(2)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retry announcements' })[0])
+
+    expect(await screen.findAllByText('Announcement loaded after retry.')).toHaveLength(2)
+    expect(screen.queryByText('Some calendar information could not be loaded.')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open assignment Available assignment' })).toHaveLength(2)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith('student-announcements:classroom-1')
+    consoleError.mockRestore()
+  })
+
+  it('ignores stale calendar source responses after the classroom changes', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    let resolveOldAssignments!: (value: { assignments: Assignment[] }) => void
+    let resolveOldAnnouncements!: (value: { announcements: Announcement[] }) => void
+    const oldAssignments = new Promise<{ assignments: Assignment[] }>((resolve) => {
+      resolveOldAssignments = resolve
+    })
+    const oldAnnouncements = new Promise<{ announcements: Announcement[] }>((resolve) => {
+      resolveOldAnnouncements = resolve
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === 'student-assignments:classroom-1') return oldAssignments
+      if (key === 'student-announcements:classroom-1') return oldAnnouncements
+      if (key === 'student-assignments:classroom-2') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'new-assignment', title: 'New classroom assignment', due_at: '2026-05-12T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-2') return Promise.resolve({ announcements: [] })
+      if (key.startsWith('student-today:last-class-plan:')) return Promise.resolve({ lesson_plans: [] })
+      return Promise.resolve({ assignments: [] })
+    })
+
+    const view = renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
+    view.rerender(
+      <MarkdownPreferenceProvider>
+        <ClassroomPageClient
+          classroom={secondClassroom}
+          user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+          teacherClassrooms={[]}
+          initialTab="today"
+          initialSearchParams={{ tab: 'today' }}
+        />
+      </MarkdownPreferenceProvider>,
+    )
+
+    expect(await screen.findAllByRole('button', { name: 'Open assignment New classroom assignment' })).toHaveLength(2)
+
+    resolveOldAssignments({
+      assignments: [
+        { id: 'old-assignment', title: 'Old classroom assignment', due_at: '2026-05-12T16:00:00.000Z' } as Assignment,
+      ],
+    })
+    resolveOldAnnouncements({ announcements: [] })
+
+    await act(async () => undefined)
+    expect(screen.queryByRole('button', { name: 'Open assignment Old classroom assignment' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open assignment New classroom assignment' })).toHaveLength(2)
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {
