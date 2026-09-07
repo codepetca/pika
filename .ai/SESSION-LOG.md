@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Rebase attendance option colors for merge
-
-- Rebased PR #1182 onto current main after explicit merge authorization. The live and Pattern Lab Edit attendance cards retain the reviewed green Present, yellow Late, and red Absent circles; shared attendance color tokens and existing interaction semantics remain unchanged.
-- Resolved only rolling session-history conflicts by retaining current main history and recording this rebase once. Application source changes match the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
-## 2026-09-04 — Rebase archived classroom actions for merge
-
-- Rebased PR #1183 after #1182 merged. Archived classroom cards retain the reviewed right-side Settings menu with Reuse, Unarchive, and availability-gated Delete, while missed clicks in the card's right padding remain inert.
-- Retained current rolling history and updated the browser flow to reopen the new Settings menu before each coordinated-deletion state. Runtime source is unchanged from the previously reviewed feature patch; focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
-## 2026-09-04 — Rebase Gradebook display toggles for merge
-
-- Rebased PR #1188 after #1183 merged, flattening obsolete merge commits into the single reviewed feature patch. Gradebook retains compact single-button `%`/`x/y` and `AVG`/`MED` display switches in the live teacher surface and Pattern Lab.
-- Retained current rolling history; application and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge. The later Gradebook refinement PR remains responsible for its approved final toolbar composition.
-
-## 2026-09-04 — Rebase Tests edit action for merge
-
-- Rebased PR #1194 after the Gradebook display-toggle PR merged. The teacher Tests list retains the reviewed `Edit Tests` action in More actions, with checked edit state, archived-classroom disablement, and Create test as the centered action.
-- Retained current rolling history; the feature patch applies cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
 ## 2026-09-04 — Rebase fixed-width Test student actions for merge
 
 - Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
@@ -221,6 +201,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
 - Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.
 
+## 2026-09-06 — Mirror calendar items in student Daily panels
+
+- Added shared Toronto date mapping for assignments and announcements so the student Daily Today and Last class panels use the same dates as Calendar. Published announcements use `created_at`; future scheduled announcements use `scheduled_for` when applicable.
+- Reused the existing student lesson-plan viewer and announcement renderer, adding date-matched assignment cards, announcement content and navigation back to Classwork or all Announcements. Teacher Daily behavior is unchanged; empty and loading states remain intact.
+- Added focused coverage for calendar date mapping and both student date panels. Focused tests pass 5 files / 64 tests; TypeScript, lint, design policy and production build pass. Lint retains one pre-existing `TestDetailPanel` hook warning. Browser verification covered student desktop/mobile light/dark populated states and the existing teacher/student classroom surfaces; no schema, dependency, hosted-data or deployment change.
+
+## 2026-09-06 — Limit student Daily history to five past logs
+
+- Student Daily now requests a six-entry history window and renders at most five entries before today, preserving today’s log plus the five most recent past logs. The broader student History page and API behavior remain unchanged.
+- Added a regression covering an overfilled response so stale cache data cannot surface a sixth past log. Focused checks pass 24 files / 278 tests plus architecture, UI policy, design policy, TypeScript and lint. The UI verification script passes on the current classroom-list fixture; the local auth fixture no longer has a classroom for populated-route verification.
+- Excluded entries dated on non-class days from that same list, with a regression covering a weekend entry. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+- Added class-day-driven empty placeholders: the latest five prior class days now appear in history, with “No log submitted” for missed logs; non-class days remain excluded. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+
+## 2026-09-06 — Show ten past class-day logs in student Daily history
+
+- Expanded student Daily history from five to ten prior class days, still excluding non-class days and preserving empty “No log submitted” rows for missed class days. Today remains the separate current-day editor.
+- Updated the history boundary regression and all request/cache fixtures to use today plus ten past entries. Focused checks pass 24 files / 280 tests plus architecture, UI policy, design policy, TypeScript and lint; the Pika audit passes.
+- Playwright verification passed student desktop/mobile light/dark captures and teacher desktop/mobile unchanged-state captures. The current seeded classroom has only five past class days, so the ten-row boundary is covered by the focused fixture. Composite-widget checklist reviewed: keyboard behavior remains covered, scheduled semantics have a role/name regression, and no manual follow-up remains. No schema, dependency, hosted-data or deployment change.
+
 ## 2026-09-07 — Integrate class-day setup for the sequential merge queue
 
 - Coordinator released PR #1203 after #1209 merged. Rebased onto main `68b3a58c`; class-day source and concurrency remediation remain patch-equivalent. Current main already supplies the typography ESM fix; removed the duplicate import produced by replay and retained main's configuration exactly. Updated the architecture summary to match weekday-only generation and compacted combined session history after the focused gate identified its cap.
@@ -230,3 +229,13 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
 - Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.
+
+## 2026-09-07 — Remediate student Daily calendar and history review findings
+
+- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
+- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
+- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.
+- The cumulative integration pass found four additional boundaries. Added a reactive Toronto-day clock so midnight reloads the editor, history, Today and Last class without carrying content; lesson-plan sources now preserve snapshots and expose retry; scheduled announcements remap when publication time arrives; and successful retries restore focus to the active Daily plan region.
+- Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
+- The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
+- Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.

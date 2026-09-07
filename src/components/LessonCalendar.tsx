@@ -8,8 +8,10 @@ import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { normalizeAnnouncementTitle } from '@/lib/announcements'
+import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { useTorontoToday } from '@/hooks/use-toronto-today'
 import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan } from '@/types'
 
@@ -46,6 +48,7 @@ const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const MONTH_ROW_MIN_HEIGHT = '4.5rem'
 const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
+const MAX_BROWSER_TIMEOUT_MS = 2_147_483_647
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -90,9 +93,32 @@ export function LessonCalendar({
   onMarkdownToggle,
   isSidebarOpen = false,
 }: LessonCalendarProps) {
-  const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
+  const currentTorontoDate = useTorontoToday()
+  const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [currentTorontoDate])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
+  const [announcementNowMs, setAnnouncementNowMs] = useState(Date.now)
+  const announcementReferenceMs = useMemo(
+    () => Math.max(announcementNowMs, Date.now()),
+    [announcementNowMs, announcements],
+  )
+
+  useEffect(() => {
+    const nowMs = Date.now()
+    const nextPublicationMs = announcements.reduce<number | null>((nearest, announcement) => {
+      if (!announcement.scheduled_for) return nearest
+      const scheduledMs = new Date(announcement.scheduled_for).getTime()
+      if (!Number.isFinite(scheduledMs) || scheduledMs <= nowMs) return nearest
+      return nearest === null || scheduledMs < nearest ? scheduledMs : nearest
+    }, null)
+    if (nextPublicationMs === null) return
+
+    const timeoutId = window.setTimeout(
+      () => setAnnouncementNowMs(Date.now()),
+      Math.min(MAX_BROWSER_TIMEOUT_MS, Math.max(1, nextPublicationMs - nowMs + 50)),
+    )
+    return () => window.clearTimeout(timeoutId)
+  }, [announcementNowMs, announcements])
 
   const handlePresentedDayPrev = useCallback(() => {
     setPresentedDay((d) => (d ? addDays(d, -1) : d))
@@ -127,9 +153,8 @@ export function LessonCalendar({
   const assignmentsByDate = useMemo(() => {
     const map = new Map<string, Assignment[]>()
     assignments.forEach((assignment) => {
-      // Convert due_at to Toronto timezone before extracting date
-      const dueInToronto = toZonedTime(new Date(assignment.due_at), TIMEZONE)
-      const dueDate = format(dueInToronto, 'yyyy-MM-dd')
+      const dueDate = getCalendarAssignmentDate(assignment)
+      if (!dueDate) return
       const existing = map.get(dueDate)
       if (existing) {
         existing.push(assignment)
@@ -145,12 +170,10 @@ export function LessonCalendar({
   // Published announcements appear on their created_at date
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
+    const now = new Date(announcementReferenceMs)
     announcements.forEach((announcement) => {
-      // Use scheduled_for date if scheduled, otherwise created_at
-      const isScheduled = announcement.scheduled_for && new Date(announcement.scheduled_for) > new Date()
-      const dateToUse = isScheduled ? announcement.scheduled_for! : announcement.created_at
-      const dateInToronto = toZonedTime(new Date(dateToUse), TIMEZONE)
-      const dateString = format(dateInToronto, 'yyyy-MM-dd')
+      const dateString = getCalendarAnnouncementDate(announcement, now)
+      if (!dateString) return
       const existing = map.get(dateString)
       if (existing) {
         existing.push(announcement)
@@ -159,7 +182,7 @@ export function LessonCalendar({
       }
     })
     return map
-  }, [announcements])
+  }, [announcementReferenceMs, announcements])
 
   // Build a set of class day dates for quick lookup
   const classDayDates = useMemo(() => {

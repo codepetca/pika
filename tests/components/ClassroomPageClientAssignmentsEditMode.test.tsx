@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
-import type { Classroom } from '@/types'
+import type { Assignment, Classroom, LessonPlan } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -10,6 +10,7 @@ import {
 } from '@/lib/events'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
+const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
@@ -228,6 +229,7 @@ vi.mock('@/ui', async (importOriginal) => {
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
+  invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
   prefetchJSON: (...args: any[]) => mockPrefetchJSON(...args),
 }))
 
@@ -261,8 +263,8 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
   const React = await import('react')
 
   return {
-    StudentTodayTab: ({ classroom, mobilePlan, onLessonPlanLoad, ...props }: any) => {
-      mockStudentTodayTabProps({ classroom, mobilePlan, onLessonPlanLoad, ...props })
+    StudentTodayTab: ({ classroom, mobilePlan, onLessonPlanLoad, lessonPlanRequestVersion, ...props }: any) => {
+      mockStudentTodayTabProps({ classroom, mobilePlan, onLessonPlanLoad, lessonPlanRequestVersion, ...props })
       React.useEffect(() => {
         if (classroom?.id !== 'classroom-1') return
         onLessonPlanLoad?.({
@@ -282,10 +284,13 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
           created_at: '2026-05-12T00:00:00Z',
           updated_at: '2026-05-12T00:00:00Z',
         }, classroom.id)
-      }, [classroom?.id, onLessonPlanLoad])
+      }, [classroom?.id, lessonPlanRequestVersion, onLessonPlanLoad])
 
       return (
         <div data-testid="student-today-primary">
+          <button type="button" onClick={() => props.onLessonPlanError?.(classroom.id)}>
+            Emit today lesson plan error
+          </button>
           <div data-testid="student-daily-plan" />
           {mobilePlan ? (
             <div data-testid="student-today-mobile-plan" className="lg:hidden">
@@ -479,6 +484,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       writable: true,
     })
     mockFetchJSONWithCache.mockReset()
+    mockInvalidateCachedJSON.mockReset()
     mockPrefetchJSON.mockReset()
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
@@ -565,6 +571,279 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(desktopTodaySection?.parentElement?.parentElement).toHaveClass('hidden', 'lg:block')
     expect(primary).toContainElement(mobileTodaySection)
     expect(dailyPlan.compareDocumentPosition(mobileTodaySection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('shows calendar assignments and announcements in both student date panels', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        return Promise.resolve({ lesson_plans: [] })
+      }
+      if (key === 'student-assignments:classroom-1') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'assignment-today', title: 'Today assignment', due_at: '2026-05-12T16:00:00.000Z' },
+            { id: 'assignment-last', title: 'Last class assignment', due_at: '2026-05-11T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-1') {
+        return Promise.resolve({
+          announcements: [
+            {
+              id: 'announcement-today',
+              title: 'Today announcement',
+              content: 'Today announcement content.',
+              created_at: '2026-05-12T16:00:00.000Z',
+              scheduled_for: null,
+            },
+            {
+              id: 'announcement-last',
+              title: 'Last class announcement',
+              content: 'Last class announcement content.',
+              created_at: '2026-05-11T16:00:00.000Z',
+              scheduled_for: null,
+            },
+          ],
+        })
+      }
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+    })
+
+    expect(await screen.findAllByText('Today announcement content.')).toHaveLength(2)
+    expect(screen.getAllByText('Last class announcement content.')).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Open assignment Today assignment' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Open assignment Last class assignment' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'View all announcements' })).toHaveLength(4)
+  })
+
+  it('preserves successful calendar data and retries only the failed source', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let announcementRequests = 0
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) return Promise.resolve({ lesson_plans: [] })
+      if (key === 'student-assignments:classroom-1') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'assignment-today', title: 'Available assignment', due_at: '2026-05-12T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-1') {
+        announcementRequests += 1
+        return announcementRequests === 1
+          ? Promise.reject(new Error('Announcements unavailable'))
+          : Promise.resolve({
+            announcements: [
+              {
+                id: 'announcement-today',
+                title: 'Recovered announcement',
+                content: 'Announcement loaded after retry.',
+                created_at: '2026-05-12T16:00:00.000Z',
+                scheduled_for: null,
+              },
+            ],
+          })
+      }
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    expect(await screen.findAllByRole('button', { name: 'Open assignment Available assignment' })).toHaveLength(2)
+    expect(screen.getAllByText('Some calendar information could not be loaded.')).toHaveLength(2)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retry announcements' })[0])
+
+    expect(await screen.findAllByText('Announcement loaded after retry.')).toHaveLength(2)
+    expect(screen.queryByText('Some calendar information could not be loaded.')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open assignment Available assignment' })).toHaveLength(2)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith('student-announcements:classroom-1')
+    consoleError.mockRestore()
+  })
+
+  it('shows and retries today lesson-plan failures while restoring focus', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Emit today lesson plan error' }))
+    const retryButton = screen.getAllByRole('button', { name: "Retry today's lesson plan" })[0]
+    const returnRegion = retryButton.closest<HTMLElement>('[data-student-today-plan-region]')
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: "Retry today's lesson plan" })).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(returnRegion)
+    })
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(
+      'student-lesson-plans:classroom-1:2026-05-12:2026-05-12',
+    )
+  })
+
+  it('shows and retries last-class lesson-plan failures', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let lastClassRequests = 0
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        lastClassRequests += 1
+        return lastClassRequests === 1
+          ? Promise.reject(new Error('Last class unavailable'))
+          : Promise.resolve({
+            lesson_plans: [{
+              id: 'last-class-plan',
+              classroom_id: 'classroom-1',
+              date: '2026-05-11',
+              content: {
+                type: 'doc',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Recovered last class plan' }] }],
+              },
+              content_markdown: null,
+              created_at: '2026-05-11T00:00:00Z',
+              updated_at: '2026-05-11T00:00:00Z',
+            }],
+          })
+      }
+      if (key === 'student-assignments:classroom-1') return Promise.resolve({ assignments: [] })
+      if (key === 'student-announcements:classroom-1') return Promise.resolve({ announcements: [] })
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    const retryButton = (await screen.findAllByRole('button', { name: 'Retry last class lesson plan' }))[0]
+    fireEvent.click(retryButton)
+
+    expect(await screen.findAllByText('Recovered last class plan')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Retry last class lesson plan' })).not.toBeInTheDocument()
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(
+      'student-today:last-class-plan:classroom-1:2026-05-11',
+    )
+    consoleError.mockRestore()
+  })
+
+  it('keeps the last-class snapshot visible through a failed refresh and retry recovery', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let rejectRefresh!: (reason?: unknown) => void
+    let resolveRetry!: (value: { lesson_plans: LessonPlan[] }) => void
+    const refreshRequest = new Promise<never>((_resolve, reject) => {
+      rejectRefresh = reject
+    })
+    const retryRequest = new Promise<{ lesson_plans: LessonPlan[] }>((resolve) => {
+      resolveRetry = resolve
+    })
+    let lastClassRequests = 0
+    const plan = (text: string): LessonPlan => ({
+      id: `last-class-${text}`,
+      classroom_id: 'classroom-1',
+      date: '2026-05-11',
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+      },
+      content_markdown: null,
+      created_at: '2026-05-11T00:00:00Z',
+      updated_at: '2026-05-11T00:00:00Z',
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        lastClassRequests += 1
+        if (lastClassRequests === 1) return Promise.resolve({ lesson_plans: [plan('Saved last class plan')] })
+        if (lastClassRequests === 2) return refreshRequest
+        return retryRequest
+      }
+      if (key === 'student-assignments:classroom-1') return Promise.resolve({ assignments: [] })
+      if (key === 'student-announcements:classroom-1') return Promise.resolve({ announcements: [] })
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+    expect(await screen.findAllByText('Saved last class plan')).toHaveLength(2)
+
+    act(() => {
+      window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    act(() => {
+      window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await waitFor(() => expect(lastClassRequests).toBe(2))
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+
+    await act(async () => rejectRefresh(new Error('Refresh failed')))
+    const retryButton = (await screen.findAllByRole('button', { name: 'Retry last class lesson plan' }))[0]
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+
+    fireEvent.click(retryButton)
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+    await act(async () => resolveRetry({ lesson_plans: [plan('Recovered last class plan')] }))
+
+    expect(await screen.findAllByText('Recovered last class plan')).toHaveLength(2)
+    expect(screen.queryByText('Saved last class plan')).not.toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('ignores stale calendar source responses after the classroom changes', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    let resolveOldAssignments!: (value: { assignments: Assignment[] }) => void
+    let resolveOldAnnouncements!: (value: { announcements: Announcement[] }) => void
+    const oldAssignments = new Promise<{ assignments: Assignment[] }>((resolve) => {
+      resolveOldAssignments = resolve
+    })
+    const oldAnnouncements = new Promise<{ announcements: Announcement[] }>((resolve) => {
+      resolveOldAnnouncements = resolve
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === 'student-assignments:classroom-1') return oldAssignments
+      if (key === 'student-announcements:classroom-1') return oldAnnouncements
+      if (key === 'student-assignments:classroom-2') {
+        return Promise.resolve({
+          assignments: [
+            { id: 'new-assignment', title: 'New classroom assignment', due_at: '2026-05-12T16:00:00.000Z' },
+          ],
+        })
+      }
+      if (key === 'student-announcements:classroom-2') return Promise.resolve({ announcements: [] })
+      if (key.startsWith('student-today:last-class-plan:')) return Promise.resolve({ lesson_plans: [] })
+      return Promise.resolve({ assignments: [] })
+    })
+
+    const view = renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
+    view.rerender(
+      <MarkdownPreferenceProvider>
+        <ClassroomPageClient
+          classroom={secondClassroom}
+          user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+          teacherClassrooms={[]}
+          initialTab="today"
+          initialSearchParams={{ tab: 'today' }}
+        />
+      </MarkdownPreferenceProvider>,
+    )
+
+    expect(await screen.findAllByRole('button', { name: 'Open assignment New classroom assignment' })).toHaveLength(2)
+
+    resolveOldAssignments({
+      assignments: [
+        { id: 'old-assignment', title: 'Old classroom assignment', due_at: '2026-05-12T16:00:00.000Z' } as Assignment,
+      ],
+    })
+    resolveOldAnnouncements({ announcements: [] })
+
+    await act(async () => undefined)
+    expect(screen.queryByRole('button', { name: 'Open assignment Old classroom assignment' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Open assignment New classroom assignment' })).toHaveLength(2)
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {

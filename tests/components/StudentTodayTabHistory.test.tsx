@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { StudentTodayTab } from '@/app/classrooms/[classroomId]/StudentTodayTab'
 import { getStudentEntryHistoryCacheKey } from '@/lib/student-entry-history'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
@@ -13,6 +13,7 @@ const notifyImmediatePalDeliveryMock = vi.hoisted(() => vi.fn())
 const classDaysContextMock = vi.hoisted(() => ({
   classDays: [
     { id: 'd1', classroom_id: 'c1', date: '2025-12-16', prompt_text: null, is_class_day: true },
+    { id: 'd4', classroom_id: 'c1', date: '2025-12-15', prompt_text: null, is_class_day: true },
     { id: 'd2', classroom_id: 'c1', date: '2025-05-06', prompt_text: null, is_class_day: true },
     { id: 'd3', classroom_id: 'c1', date: '2025-05-11', prompt_text: null, is_class_day: true },
   ],
@@ -195,13 +196,14 @@ describe('StudentTodayTab history section', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
   })
 
   it('shows past logs by default and expands each entry without refetching', async () => {
-    const fetchMock = vi.fn((input: RequestInfo) => {
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -263,10 +265,129 @@ describe('StudentTodayTab history section', () => {
     expect(entryFetchCalls).toHaveLength(1)
   })
 
-  it('shows an empty past-log state when only today has an entry', async () => {
+  it('shows today plus only the ten most recent past logs', async () => {
+    const olderEntries = Array.from({ length: 11 }, (_, index) => ({
+      ...entries[1],
+      id: `past-${index + 1}`,
+      date: `2025-12-${String(15 - index).padStart(2, '0')}`,
+      text: `Past log ${index + 1}`,
+    }))
+    classDaysContextMock.classDays = [
+      ...defaultClassDays,
+      ...olderEntries.slice(1).map((entry, index) => ({
+        id: `history-day-${index}`,
+        classroom_id: 'c1',
+        date: entry.date,
+        prompt_text: null,
+        is_class_day: true,
+      })),
+    ]
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({ entries: [entries[0], ...olderEntries] })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    await screen.findByText('Past logs')
+
+    expect(screen.getByText('Past log 1')).toBeInTheDocument()
+    expect(screen.getByText('Past log 10')).toBeInTheDocument()
+    expect(screen.queryByText('Past log 11')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Expand log from/ })).toHaveLength(10)
+  })
+
+  it('does not let interleaved non-class entries displace the ten recent class-day logs', async () => {
+    const classDateEntries = Array.from({ length: 10 }, (_, index) => ({
+      ...entries[1],
+      id: `class-entry-${index + 1}`,
+      date: `2025-12-${String(15 - index).padStart(2, '0')}`,
+      text: `Class-day log ${index + 1}`,
+    }))
+    const nonClassEntries = Array.from({ length: 11 }, (_, index) => ({
+      ...entries[1],
+      id: `non-class-entry-${index + 1}`,
+      date: `2025-11-${String(30 - index).padStart(2, '0')}`,
+      text: `Non-class log ${index + 1}`,
+    }))
+    classDaysContextMock.classDays = [
+      defaultClassDays[0],
+      ...classDateEntries.map((entry, index) => ({
+        id: `class-day-${index + 1}`,
+        classroom_id: 'c1',
+        date: entry.date,
+        prompt_text: null,
+        is_class_day: true,
+      })),
+      ...nonClassEntries.map((entry, index) => ({
+        id: `non-class-day-${index + 1}`,
+        classroom_id: 'c1',
+        date: entry.date,
+        prompt_text: null,
+        is_class_day: false,
+      })),
+    ]
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        const allEntries = [entries[0], ...nonClassEntries, ...classDateEntries]
+        return mockJson({ entries: url.includes('limit=') ? allEntries.slice(0, 11) : allEntries })
+      }
+      if (url.includes('/lesson-plans')) return mockJson({ lessonPlans: [] })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByText('Class-day log 10')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Expand log from/ })).toHaveLength(10)
+    expect(screen.queryByText('Non-class log 1')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('limit='))).toBe(false)
+  })
+
+  it('does not show entries from non-class days in past logs', async () => {
+    classDaysContextMock.classDays = [
+      ...defaultClassDays,
+      { id: 'weekend', classroom_id: 'c1', date: '2025-12-14', prompt_text: null, is_class_day: false },
+    ]
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({
+          entries: [
+            entries[0],
+            entries[1],
+            { ...entries[1], id: 'weekend-entry', date: '2025-12-14', text: 'Weekend log' },
+          ],
+        })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    await screen.findByText('Past logs')
+
+    expect(screen.getByText(entries[1].text)).toBeInTheDocument()
+    expect(screen.queryByText('Weekend log')).not.toBeInTheDocument()
+  })
+
+  it('shows missed class days as empty past-log entries when only today has an entry', async () => {
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [entries[0]] })
       }
       if (url.includes('/lesson-plans')) {
@@ -278,7 +399,8 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
+    expect(await screen.findAllByText('No log submitted')).toHaveLength(3)
+    expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
   })
 
@@ -287,7 +409,7 @@ describe('StudentTodayTab history section', () => {
     let entriesRequests = 0
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         entriesRequests += 1
         return entriesRequests === 1
           ? mockJson({ error: 'Entries unavailable' }, false)
@@ -320,13 +442,57 @@ describe('StudentTodayTab history section', () => {
     consoleError.mockRestore()
   })
 
+  it('reports a today lesson-plan failure and recovers on a retry request', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const onLessonPlanError = vi.fn()
+    const onLessonPlanLoad = vi.fn()
+    let lessonPlanRequests = 0
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        lessonPlanRequests += 1
+        return lessonPlanRequests === 1
+          ? mockJson({ error: 'Lesson plan unavailable' }, false)
+          : mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(
+      <StudentTodayTab
+        classroom={classroom}
+        onLessonPlanError={onLessonPlanError}
+        onLessonPlanLoad={onLessonPlanLoad}
+      />,
+    )
+
+    await waitFor(() => expect(onLessonPlanError).toHaveBeenCalledWith(classroom.id))
+    expect(onLessonPlanLoad).not.toHaveBeenCalled()
+
+    view.rerender(
+      <StudentTodayTab
+        classroom={classroom}
+        lessonPlanRequestVersion={1}
+        onLessonPlanError={onLessonPlanError}
+        onLessonPlanLoad={onLessonPlanLoad}
+      />,
+    )
+
+    await waitFor(() => expect(onLessonPlanLoad).toHaveBeenCalledWith(null, classroom.id))
+    consoleError.mockRestore()
+  })
+
   it('shows a retryable schedule error instead of reporting no class after class-days failure', async () => {
     classDaysContextMock.classDays = []
     classDaysContextMock.error = 'The class schedule could not be loaded.'
     classDaysContextMock.hasLoadedSnapshot = false
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -356,7 +522,7 @@ describe('StudentTodayTab history section', () => {
     classDaysContextMock.hasLoadedSnapshot = true
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -380,10 +546,10 @@ describe('StudentTodayTab history section', () => {
     const secondEntriesRequest = deferred<any>()
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
       }
-      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}`)) {
         return secondEntriesRequest.promise
       }
       if (url.includes('/lesson-plans')) {
@@ -401,7 +567,7 @@ describe('StudentTodayTab history section', () => {
     expect(screen.queryByDisplayValue(entries[0].text)).not.toBeInTheDocument()
 
     secondEntriesRequest.resolve(await mockJson({ entries: [] }))
-    expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
+    expect(await screen.findAllByText('No log submitted')).toHaveLength(3)
   })
 
   it('ignores stale entry and lesson-plan responses after classroom changes', async () => {
@@ -443,10 +609,10 @@ describe('StudentTodayTab history section', () => {
     }
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return firstEntriesRequest.promise
       }
-      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}`)) {
         return secondEntriesRequest.promise
       }
       if (url.includes(`/api/student/classrooms/${classroom.id}/lesson-plans`)) {
@@ -500,7 +666,7 @@ describe('StudentTodayTab history section', () => {
   it('keeps an empty new entry marked saved', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -529,7 +695,7 @@ describe('StudentTodayTab history section', () => {
   })
 
   it('renders cached entries immediately and refreshes them in the background', async () => {
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
     const refreshedEntries = [
       entries[0],
@@ -571,7 +737,7 @@ describe('StudentTodayTab history section', () => {
 
   it('keeps cached entries available when a background refresh fails and retries', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
     let entriesRequests = 0
     const fetchMock = vi.fn((input: RequestInfo) => {
@@ -609,7 +775,7 @@ describe('StudentTodayTab history section', () => {
 
   it('retains the session snapshot when a background retry also fails', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
     let entriesRequests = 0
     const fetchMock = vi.fn((input: RequestInfo) => {
@@ -646,7 +812,7 @@ describe('StudentTodayTab history section', () => {
   })
 
   it('does not overwrite local edits when the background refresh completes', async () => {
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     const cachedEntries = [
       {
         ...entries[0],
@@ -697,7 +863,7 @@ describe('StudentTodayTab history section', () => {
   })
 
   it('applies refreshed today content after a local edit is reverted', async () => {
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     const cachedEntries = [
       {
         ...entries[0],
@@ -743,36 +909,16 @@ describe('StudentTodayTab history section', () => {
     expect(window.sessionStorage.getItem(cacheKey)).toContain('Server refreshed today entry.')
   })
 
-  it('saves against the current Toronto date when the mounted date is stale', async () => {
+  it('reloads a new Toronto day instead of carrying stale editor content into it', async () => {
     getTodayInTorontoMock.mockReturnValue('2025-05-06')
 
-    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
         return mockJson({ lesson_plans: [] })
-      }
-      if (url === '/api/student/entries' && init?.method === 'PATCH') {
-        const body = JSON.parse(String(init.body))
-        return mockJson({
-          pal_delivery: 'delivered',
-          entry: {
-            id: 'entry-today',
-            student_id: 's1',
-            classroom_id: classroom.id,
-            date: body.date,
-            text: 'Worked today',
-            rich_content: body.rich_content,
-            version: 1,
-            minutes_reported: null,
-            mood: null,
-            created_at: '2025-05-11T14:00:00Z',
-            updated_at: '2025-05-11T14:00:00Z',
-            on_time: true,
-          },
-        })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -786,24 +932,57 @@ describe('StudentTodayTab history section', () => {
     fireEvent.change(editor, { target: { value: 'Worked today' } })
     fireEvent.blur(editor)
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/student/entries',
-        expect.objectContaining({ method: 'PATCH' })
-      )
+    await waitFor(() => expect(editor).toHaveValue(''))
+    expect(fetchMock.mock.calls.some(([input, init]) => (
+      String(input) === '/api/student/entries' && init?.method === 'PATCH'
+    ))).toBe(false)
+    expect(invalidateStudentEntriesForClassroomMock).not.toHaveBeenCalled()
+    expect(notifyImmediatePalDeliveryMock).not.toHaveBeenCalled()
+  })
+
+  it('moves the previous log into history at Toronto midnight and opens a clean new day', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-12-17T04:59:59.900Z'))
+    getTodayInTorontoMock.mockImplementation(() => (
+      Date.now() < new Date('2025-12-17T05:00:00.000Z').getTime()
+        ? '2025-12-16'
+        : '2025-12-17'
+    ))
+    classDaysContextMock.classDays = [
+      { id: 'new-today', classroom_id: 'c1', date: '2025-12-17', prompt_text: null, is_class_day: true },
+      ...defaultClassDays,
+    ]
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByLabelText('Daily Log')).toHaveValue(entries[0].text)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
     })
 
-    const saveCall = fetchMock.mock.calls.find(([input, init]) =>
+    expect(screen.getByLabelText('Daily Log')).toHaveValue('')
+    expect(screen.getByText(entries[0].text)).toBeInTheDocument()
+    expect(screen.getByText('Tue Dec 16')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input, init]) => (
       String(input) === '/api/student/entries' && init?.method === 'PATCH'
-    )
-    expect(saveCall).toBeDefined()
-    expect(JSON.parse(String(saveCall?.[1]?.body)).date).toBe('2025-05-11')
-    expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
-    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
+    ))).toBe(false)
   })
 
   it('invalidates entry caches and clears session history on partial save conflict', async () => {
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     getTodayInTorontoMock.mockReturnValue('2025-12-16')
     const serverEntry = {
       id: entries[0].id,
@@ -817,7 +996,7 @@ describe('StudentTodayTab history section', () => {
 
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -852,7 +1031,7 @@ describe('StudentTodayTab history section', () => {
     const saveRequest = deferred<any>()
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -911,7 +1090,7 @@ describe('StudentTodayTab history section', () => {
     const patchBodies: any[] = []
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [entries[0]] })
       }
       if (url.includes('/lesson-plans')) {
@@ -978,7 +1157,7 @@ describe('StudentTodayTab history section', () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1025,7 +1204,7 @@ describe('StudentTodayTab history section', () => {
   it('redirects to login when saving fails because the session expired', async () => {
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1055,7 +1234,7 @@ describe('StudentTodayTab history section', () => {
   it('keeps an authorization save failure in place without claiming the session expired', async () => {
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1086,7 +1265,7 @@ describe('StudentTodayTab history section', () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
@@ -1135,7 +1314,7 @@ describe('StudentTodayTab history section', () => {
     const patchBodies: any[] = []
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {

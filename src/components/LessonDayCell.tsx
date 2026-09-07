@@ -6,6 +6,7 @@ import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/announcements'
+import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Tooltip } from '@/ui'
@@ -13,8 +14,7 @@ import type { Announcement, Assignment, LessonPlan } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
-  if (!announcement.scheduled_for) return false
-  return new Date(announcement.scheduled_for) > new Date()
+  return isCalendarAnnouncementScheduled(announcement)
 }
 
 function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
