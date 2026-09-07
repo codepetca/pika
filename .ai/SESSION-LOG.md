@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Center Daily dates when relative context is hidden
-
-- Daily now removes the empty subtitle row when the saved relative-date display preference is off, so the date fills the existing selector height and remains vertically centered. The relative-date-on state still reserves its subtitle row across past, present and future navigation to prevent layout movement.
-- Reused the shared `DateNavigator` and existing Daily preference/menu behavior in the live teacher surface and Pattern Lab references. Arrow controls, date-picker behavior, accessible labels, focus behavior and hit targets are unchanged; student surfaces are not affected.
-- Component and Pattern Lab regressions cover hidden, restored and persisted states. The focused gate passes 18 files / 229 tests plus architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark browser interactions pass and their hidden-state captures were inspected. Risk profile: none; no schema, data, API, dependency or deployment change.
-- The first exact-head CI run exposed an existing rollout-doc assertion that still expected production migrations through 151 after the active context advanced to 156. Updated that test-only expectation to the current production record; application behavior remains unchanged. PR returned to draft before the correction and requires targeted re-review plus fresh exact-head CI.
-
 ## 2026-09-04 — Require class-day setup in the classroom wizard
 
 - Removed the blank-classroom deferral option from the creation wizard. All classroom creation paths now require the teacher to choose the actual first class day before Create is enabled.
@@ -238,3 +231,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-09-07 — Wider calendar announcement tooltips (#1210)
 
 Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
+
+## 2026-09-07 — Production review: isolate Gradebook override identities
+
+- Cumulative production review found that assignment and test overrides sharing an assessment UUID collided in the server's lookup map.
+- Added assessment type to override lookup keys while preserving the separate calculated-score maps.
+- Three API regressions failed before the fix and passed afterward: distinct overrides for both types and each one-sided override; assertions cover cells, student details, final grades, and class averages.
+- No schema or UI changes. Migration 157 remains a separately controlled rollout.

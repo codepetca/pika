@@ -157,6 +157,10 @@ function cellKey(studentId: string, assessmentId: string): string {
   return `${studentId}:${assessmentId}`
 }
 
+function scoreOverrideKey(studentId: string, assessmentType: GradebookAssessmentType, assessmentId: string): string {
+  return `${assessmentType}:${cellKey(studentId, assessmentId)}`
+}
+
 function blankAssessmentCell(
   assessmentType: GradebookAssessmentType,
   assessmentId: string,
@@ -639,7 +643,7 @@ export async function loadTeacherGradebook(opts: {
         ? assignmentIds.includes(override.assessment_id)
         : testIds.includes(override.assessment_id)
       if (!knownAssessment) continue
-      scoreOverrideMap.set(cellKey(override.student_id, override.assessment_id), Number(override.earned))
+      scoreOverrideMap.set(scoreOverrideKey(override.student_id, override.assessment_type, override.assessment_id), Number(override.earned))
     }
   }
   const {
@@ -832,7 +836,7 @@ export async function loadTeacherGradebook(opts: {
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
-    const manualOverride = scoreOverrideMap.get(cellKey(studentId, assignment.id))
+    const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
       return {
@@ -950,7 +954,7 @@ export async function loadTeacherGradebook(opts: {
         const questionsForTest = testQuestionsByTest.get(test.id) || []
         const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
         const baseCell = testCellMap.get(cellKey(studentId, test.id)) || blankAssessmentCell('test', test.id, possible)
-        const manualOverride = scoreOverrideMap.get(cellKey(studentId, test.id))
+        const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'test', test.id))
         if (manualOverride == null) return baseCell
         return {
           ...baseCell,
