@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Enable coordinated attendance deletion in production
-
-- Merged the concise deletion-warning change in PR #1198 and promoted the reviewed release through PR #1199; production is live at `859e1816`. Verified Pika production migrations 001–156 before changing any rollout gate.
-- Used an isolated synthetic teacher/student fixture for the exact signed deletion canary. Bara removed 12 remote entities and verified absence, Pika removed 9 local attendance records, and the final Classroom purge completed. Both user accounts, five unrelated student enrollments, and the retained QR attendance canary remained.
-- Enabled coordinated deletion broadly only after the canary passed, removed the temporary canary environment bindings, and verified the replacement deployment was ready before enabling Pika's database gate. The teacher browser smoke test and final database checks passed; no student browser session was available, so student preservation was verified at the database boundary.
-- Removed the temporary environment directories used during production verification. No student names, emails, opaque roster references, or production credentials were recorded here.
-
 ## 2026-09-04 — Rebase attendance option colors for merge
 
 - Rebased PR #1182 onto current main after explicit merge authorization. The live and Pattern Lab Edit attendance cards retain the reviewed green Present, yellow Late, and red Absent circles; shared attendance color tokens and existing interaction semantics remain unchanged.
@@ -232,3 +225,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Coordinator released PR #1203 after #1209 merged. Rebased onto main `68b3a58c`; class-day source and concurrency remediation remain patch-equivalent. Current main already supplies the typography ESM fix; removed the duplicate import produced by replay and retained main's configuration exactly. Updated the architecture summary to match weekday-only generation and compacted combined session history after the focused gate identified its cap.
 - Sole writer remains `codex/classroom-class-days`. The authorized post-hold pass uses existing clean reviews plus one bounded Terra/high cumulative integration review, focused tests and teacher/student browser/visual checks before fresh final-SHA CI and merge to main. Risk profile: workspace-state. No new migration or production action is included.
+
+## 2026-09-07 — Cover class-day review from secondary creation entry points
+
+- The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
+- Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.

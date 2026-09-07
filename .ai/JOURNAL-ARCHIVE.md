@@ -30986,3 +30986,11 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Replaced the detailed deletion inventory sentence with: “This permanently removes all student-related work. The Course Blueprint and user accounts are kept.” The shared dialog geometry, deletion impact counts, typed confirmation, attendance coordination and deletion behavior are unchanged.
 - Added component coverage for the concise wording and a browser assertion that the initial dialog body does not overflow. Teacher deletion states and student access boundaries pass across desktop/mobile and light/dark; screenshots were inspected with no visible scrollbar or clipping.
 - Focused checks pass 12 files / 135 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile none; no schema, data, API, dependency, deployment or merge action is included.
+
+<!-- pika-session-log-archive-batch:0309ba5424900b03584c566ba72967f7b5a6a43c89b591d8629d069614a741ee -->
+## 2026-09-04 — Enable coordinated attendance deletion in production
+
+- Merged the concise deletion-warning change in PR #1198 and promoted the reviewed release through PR #1199; production is live at `859e1816`. Verified Pika production migrations 001–156 before changing any rollout gate.
+- Used an isolated synthetic teacher/student fixture for the exact signed deletion canary. Bara removed 12 remote entities and verified absence, Pika removed 9 local attendance records, and the final Classroom purge completed. Both user accounts, five unrelated student enrollments, and the retained QR attendance canary remained.
+- Enabled coordinated deletion broadly only after the canary passed, removed the temporary canary environment bindings, and verified the replacement deployment was ready before enabling Pika's database gate. The teacher browser smoke test and final database checks passed; no student browser session was available, so student preservation was verified at the database boundary.
+- Removed the temporary environment directories used during production verification. No student names, emails, opaque roster references, or production credentials were recorded here.

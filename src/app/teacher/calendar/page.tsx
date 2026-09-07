@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { Button, IconButton, AlertDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -23,6 +24,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 type WizardMode = 'preset' | 'custom'
 
 export default function CalendarPage() {
+  const router = useRouter()
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
@@ -205,11 +207,16 @@ export default function CalendarPage() {
     }
   }
 
-  function handleClassroomCreated(classroom: Classroom) {
+  function rememberCreatedClassroom(classroom: Classroom) {
     invalidateTeacherClassrooms()
     invalidateClassDaysForClassroom(classroom.id)
     setClassrooms((current) => [classroom, ...current.filter((item) => item.id !== classroom.id)])
     setSelectedClassroom(classroom)
+  }
+
+  function handleClassroomCreated(classroom: Classroom) {
+    rememberCreatedClassroom(classroom)
+    router.push(`/classrooms/${classroom.id}?tab=daily&reviewClassDays=1`)
   }
 
   function renderWizard() {
@@ -485,7 +492,7 @@ export default function CalendarPage() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleClassroomCreated}
-          onBlueprintCreated={handleClassroomCreated}
+          onBlueprintCreated={rememberCreatedClassroom}
         />
       </>
     )
@@ -579,7 +586,7 @@ export default function CalendarPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
-        onBlueprintCreated={handleClassroomCreated}
+        onBlueprintCreated={rememberCreatedClassroom}
       />
     </>
   )

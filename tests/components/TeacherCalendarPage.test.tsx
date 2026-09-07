@@ -7,12 +7,24 @@ import { createMockClassroom } from '../helpers/mocks'
 import { fetchJSONWithCache, invalidateCachedJSON, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { ClassDay, Classroom } from '@/types'
 
+const push = vi.hoisted(() => vi.fn())
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
+
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: ({ isOpen, onBlueprintCreated }: any) => {
+  CreateClassroomModal: ({ isOpen, onSuccess, onBlueprintCreated }: any) => {
     const [blueprintCreated, setBlueprintCreated] = useState(false)
     return isOpen ? (
       <div role="dialog">
         {blueprintCreated ? <h2>Classroom Created</h2> : null}
+        <button
+          type="button"
+          onClick={() => onSuccess(createMockClassroom({ id: 'created', title: 'Created Class' }))}
+        >
+          Create mocked classroom
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -188,6 +200,7 @@ function installFetchMock(options?: {
 
 describe('Teacher calendar page', () => {
   beforeEach(() => {
+    push.mockReset()
     vi.mocked(fetchJSONWithCache).mockImplementation((_key, load) => load())
     vi.mocked(invalidateCachedJSON).mockClear()
     vi.mocked(invalidateCachedJSONMatching).mockClear()
@@ -216,6 +229,16 @@ describe('Teacher calendar page', () => {
     )
   })
 
+  it.each([true, false])('opens class-day review after blank creation (empty=%s)', async (empty) => {
+    installFetchMock({ classrooms: empty ? [] : undefined })
+    renderCalendarPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: empty ? 'Create classroom' : '+ New' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create mocked classroom' }))
+
+    expect(push).toHaveBeenCalledWith('/classrooms/created?tab=daily&reviewClassDays=1')
+  })
+
   it('preserves the completed blueprint handoff when the first classroom is added', async () => {
     installFetchMock({ classrooms: [] })
 
@@ -226,6 +249,7 @@ describe('Teacher calendar page', () => {
 
     expect(await screen.findAllByText('Blueprint Class')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('does not expose permanent classroom deletion', async () => {
