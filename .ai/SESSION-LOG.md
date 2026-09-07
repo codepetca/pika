@@ -266,6 +266,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 ## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
 
-- Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added a component regression asserting the create picker uses upward placement.
+- Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
 - Focused checks pass 14 files / 165 tests, plus architecture, UI/design policy, TypeScript and lint. Playwright visual verification covered teacher schedule-open desktop/mobile in light/dark and student desktop/mobile announcement states; all rendered within the viewport with no visible overflow.
 - Risk profile: none. No schema, data, API, dependency, deployment or merge action is included.
