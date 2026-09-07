@@ -39,6 +39,7 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleAlert,
+  CircleHelp,
   Clock3,
   ExternalLink,
   Eye,
@@ -324,6 +325,12 @@ export function UiGallery({ role }: Props) {
                 <Button size="sm" variant="ghost">Ghost</Button>
                 <Button size="sm" loading>Saving</Button>
                 <Button size="sm" disabled>Disabled</Button>
+                <IconButton
+                  icon={CircleHelp}
+                  label="Formatting help"
+                  tooltipOnClick
+                  tooltip={<div>Use <strong>plain text</strong>.<p>Tap again or press Escape to dismiss.</p></div>}
+                />
                 <Tooltip content="Edit example" side="top">
                   <Button type="button" size="sm" variant="surface" className="px-0" aria-label="Edit example">
                     <Pencil className="h-4 w-4" aria-hidden="true" />
