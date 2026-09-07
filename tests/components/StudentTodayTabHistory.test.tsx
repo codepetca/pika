@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { StudentTodayTab } from '@/app/classrooms/[classroomId]/StudentTodayTab'
 import { getStudentEntryHistoryCacheKey } from '@/lib/student-entry-history'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
@@ -196,11 +196,12 @@ describe('StudentTodayTab history section', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
   })
 
   it('shows past logs by default and expands each entry without refetching', async () => {
-    const fetchMock = vi.fn((input: RequestInfo) => {
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries })
@@ -438,6 +439,50 @@ describe('StudentTodayTab history section', () => {
     expect(await screen.findByDisplayValue(entries[0].text)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(entriesRequests).toBe(2)
+    consoleError.mockRestore()
+  })
+
+  it('reports a today lesson-plan failure and recovers on a retry request', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const onLessonPlanError = vi.fn()
+    const onLessonPlanLoad = vi.fn()
+    let lessonPlanRequests = 0
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        lessonPlanRequests += 1
+        return lessonPlanRequests === 1
+          ? mockJson({ error: 'Lesson plan unavailable' }, false)
+          : mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(
+      <StudentTodayTab
+        classroom={classroom}
+        onLessonPlanError={onLessonPlanError}
+        onLessonPlanLoad={onLessonPlanLoad}
+      />,
+    )
+
+    await waitFor(() => expect(onLessonPlanError).toHaveBeenCalledWith(classroom.id))
+    expect(onLessonPlanLoad).not.toHaveBeenCalled()
+
+    view.rerender(
+      <StudentTodayTab
+        classroom={classroom}
+        lessonPlanRequestVersion={1}
+        onLessonPlanError={onLessonPlanError}
+        onLessonPlanLoad={onLessonPlanLoad}
+      />,
+    )
+
+    await waitFor(() => expect(onLessonPlanLoad).toHaveBeenCalledWith(null, classroom.id))
     consoleError.mockRestore()
   })
 
@@ -864,36 +909,16 @@ describe('StudentTodayTab history section', () => {
     expect(window.sessionStorage.getItem(cacheKey)).toContain('Server refreshed today entry.')
   })
 
-  it('saves against the current Toronto date when the mounted date is stale', async () => {
+  it('reloads a new Toronto day instead of carrying stale editor content into it', async () => {
     getTodayInTorontoMock.mockReturnValue('2025-05-06')
 
-    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
         return mockJson({ lesson_plans: [] })
-      }
-      if (url === '/api/student/entries' && init?.method === 'PATCH') {
-        const body = JSON.parse(String(init.body))
-        return mockJson({
-          pal_delivery: 'delivered',
-          entry: {
-            id: 'entry-today',
-            student_id: 's1',
-            classroom_id: classroom.id,
-            date: body.date,
-            text: 'Worked today',
-            rich_content: body.rich_content,
-            version: 1,
-            minutes_reported: null,
-            mood: null,
-            created_at: '2025-05-11T14:00:00Z',
-            updated_at: '2025-05-11T14:00:00Z',
-            on_time: true,
-          },
-        })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -907,20 +932,53 @@ describe('StudentTodayTab history section', () => {
     fireEvent.change(editor, { target: { value: 'Worked today' } })
     fireEvent.blur(editor)
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/student/entries',
-        expect.objectContaining({ method: 'PATCH' })
-      )
+    await waitFor(() => expect(editor).toHaveValue(''))
+    expect(fetchMock.mock.calls.some(([input, init]) => (
+      String(input) === '/api/student/entries' && init?.method === 'PATCH'
+    ))).toBe(false)
+    expect(invalidateStudentEntriesForClassroomMock).not.toHaveBeenCalled()
+    expect(notifyImmediatePalDeliveryMock).not.toHaveBeenCalled()
+  })
+
+  it('moves the previous log into history at Toronto midnight and opens a clean new day', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-12-17T04:59:59.900Z'))
+    getTodayInTorontoMock.mockImplementation(() => (
+      Date.now() < new Date('2025-12-17T05:00:00.000Z').getTime()
+        ? '2025-12-16'
+        : '2025-12-17'
+    ))
+    classDaysContextMock.classDays = [
+      { id: 'new-today', classroom_id: 'c1', date: '2025-12-17', prompt_text: null, is_class_day: true },
+      ...defaultClassDays,
+    ]
+    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByLabelText('Daily Log')).toHaveValue(entries[0].text)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
     })
 
-    const saveCall = fetchMock.mock.calls.find(([input, init]) =>
+    expect(screen.getByLabelText('Daily Log')).toHaveValue('')
+    expect(screen.getByText(entries[0].text)).toBeInTheDocument()
+    expect(screen.getByText('Tue Dec 16')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input, init]) => (
       String(input) === '/api/student/entries' && init?.method === 'PATCH'
-    )
-    expect(saveCall).toBeDefined()
-    expect(JSON.parse(String(saveCall?.[1]?.body)).date).toBe('2025-05-11')
-    expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
-    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
+    ))).toBe(false)
   })
 
   it('invalidates entry caches and clears session history on partial save conflict', async () => {

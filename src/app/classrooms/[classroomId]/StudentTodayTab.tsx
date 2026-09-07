@@ -31,6 +31,7 @@ import { useStudentNotifications } from '@/components/StudentNotificationsProvid
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
+import { useTorontoToday } from '@/hooks/use-toronto-today'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
@@ -66,6 +67,9 @@ interface StudentTodayTabProps {
   layout?: 'page' | 'pane'
   mobilePlan?: ReactNode
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
+  onLessonPlanLoading?: (classroomId: string) => void
+  onLessonPlanError?: (classroomId: string) => void
+  lessonPlanRequestVersion?: number
 }
 
 export function StudentTodayTab({
@@ -73,8 +77,17 @@ export function StudentTodayTab({
   layout = 'page',
   mobilePlan,
   onLessonPlanLoad,
+  onLessonPlanLoading,
+  onLessonPlanError,
+  lessonPlanRequestVersion = 0,
 }: StudentTodayTabProps) {
+  const scheduledTorontoDate = useTorontoToday()
+  const [currentTorontoDate, setCurrentTorontoDate] = useState(scheduledTorontoDate)
   const notifications = useStudentNotifications()
+
+  useEffect(() => {
+    setCurrentTorontoDate(scheduledTorontoDate)
+  }, [scheduledTorontoDate])
   const {
     classDays,
     error: classDaysError,
@@ -118,6 +131,7 @@ export function StudentTodayTab({
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   const entriesSnapshotClassroomIdRef = useRef<string | null>(null)
+  const entriesSnapshotDateRef = useRef<string | null>(null)
   currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
@@ -125,7 +139,11 @@ export function StudentTodayTab({
       const requestId = loadRequestIdRef.current + 1
       loadRequestIdRef.current = requestId
       const requestedClassroomId = classroom.id
-      const hasCurrentSnapshot = entriesSnapshotClassroomIdRef.current === requestedClassroomId
+      const todayDate = currentTorontoDate
+      const hasCurrentSnapshot = (
+        entriesSnapshotClassroomIdRef.current === requestedClassroomId &&
+        entriesSnapshotDateRef.current === todayDate
+      )
       const isCurrentLoad = () => (
         loadRequestIdRef.current === requestId &&
         currentClassroomIdRef.current === requestedClassroomId
@@ -136,9 +154,20 @@ export function StudentTodayTab({
         setLoading(true)
         setHistoryEntries([])
         setEntriesSnapshotClassroomId(null)
+        setToday(todayDate)
+        setContent(EMPTY_DOC)
+        currentContentRef.current = EMPTY_DOC
+        pendingContentRef.current = null
+        restoredDraftAutosaveRef.current = null
+        hasLocalEditSinceLoadRef.current = false
+        lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
+        entryIdRef.current = null
+        entryVersionRef.current = 1
+        setSaveStatus('saved')
+        setSaveError('')
+        setConflictEntry(null)
       }
       try {
-        const todayDate = getTodayInToronto()
         todayRef.current = todayDate
         setToday(todayDate)
         const relevantHistoryDates = new Set([
@@ -160,6 +189,7 @@ export function StudentTodayTab({
         const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
         // Fetch today's lesson plan (class days come from context)
+        onLessonPlanLoading?.(requestedClassroomId)
         const lessonPlanPromise = fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; lessonPlans?: LessonPlan[] }>(
           `student-lesson-plans:${classroom.id}:${todayDate}:${todayDate}`,
           async () => {
@@ -185,7 +215,7 @@ export function StudentTodayTab({
           .catch(err => {
             if (!isCurrentLoad()) return
             console.error('Error loading lesson plan:', err)
-            onLessonPlanLoad?.(null, requestedClassroomId)
+            onLessonPlanError?.(requestedClassroomId)
           })
 
         const applyEntryState = (todayEntry: Entry | null) => {
@@ -230,6 +260,7 @@ export function StudentTodayTab({
           const todayEntry = relevantCachedEntries.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
           entriesSnapshotClassroomIdRef.current = requestedClassroomId
+          entriesSnapshotDateRef.current = todayDate
           setEntriesSnapshotClassroomId(requestedClassroomId)
           setLoading(false)
         }
@@ -239,6 +270,7 @@ export function StudentTodayTab({
             if (!isCurrentLoad()) return
             const relevantEntries = selectRelevantEntries(entries)
             entriesSnapshotClassroomIdRef.current = requestedClassroomId
+            entriesSnapshotDateRef.current = todayDate
             setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
@@ -281,7 +313,7 @@ export function StudentTodayTab({
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classDays, classroom.id, entriesRequestVersion, historyLimit, onLessonPlanLoad, pastHistoryLimit])
+  }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit])
 
   const retryEntries = useCallback(() => {
     invalidateStudentEntriesForClassroom(classroom.id)
@@ -310,18 +342,13 @@ export function StudentTodayTab({
     newContent: TiptapContent,
     options?: { forceFull?: boolean }
   ) => {
-    const currentToday = getTodayInToronto()
-    const entryDate = currentToday || todayRef.current
-    if (!entryDate) return
-
-    if (todayRef.current !== entryDate) {
-      todayRef.current = entryDate
-      setToday(entryDate)
-      entryIdRef.current = null
-      entryVersionRef.current = 1
-      lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
-      setConflictEntry(null)
+    const actualTorontoDate = getTodayInToronto()
+    if (actualTorontoDate !== todayRef.current) {
+      setCurrentTorontoDate(actualTorontoDate)
+      return
     }
+    const entryDate = todayRef.current
+    if (!entryDate) return
 
     // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)

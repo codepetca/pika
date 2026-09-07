@@ -61,6 +61,7 @@ import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/re
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getTodayInToronto } from '@/lib/timezone'
+import { useTorontoToday } from '@/hooks/use-toronto-today'
 import type {
   Classroom,
   LessonPlan,
@@ -130,7 +131,7 @@ interface StudentCalendarSources {
   announcements: Announcement[]
 }
 
-type StudentCalendarSource = 'assignments' | 'announcements'
+type StudentCalendarSource = 'todayLessonPlan' | 'lastClassLessonPlan' | 'assignments' | 'announcements'
 
 interface StudentCalendarSourceStatus {
   classroomId: string | null
@@ -140,6 +141,8 @@ interface StudentCalendarSourceStatus {
 }
 
 const initialStudentCalendarSourceStatus = (): Record<StudentCalendarSource, StudentCalendarSourceStatus> => ({
+  todayLessonPlan: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  lastClassLessonPlan: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
 })
@@ -317,11 +320,11 @@ export function ClassroomPageClient({
   return classroomPage
 }
 
-function getLastClassHeading(lastClassDate: string | null) {
+function getLastClassHeading(lastClassDate: string | null, todayDate: string) {
   if (!lastClassDate) return 'Last class'
 
   const daysAgo = differenceInCalendarDays(
-    parseISO(getTodayInToronto()),
+    parseISO(todayDate),
     parseISO(lastClassDate)
   )
 
@@ -332,6 +335,7 @@ function StudentTodayPlanSidebar({
   attendanceState,
   attendanceRefreshing,
   attendanceNow,
+  todayDate,
   todayLessonPlan,
   lastClassLessonPlan,
   lastClassDate,
@@ -348,6 +352,7 @@ function StudentTodayPlanSidebar({
   attendanceState: StudentAttendanceClassroomState | undefined
   attendanceRefreshing: boolean
   attendanceNow: Date
+  todayDate: string
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
@@ -361,10 +366,14 @@ function StudentTodayPlanSidebar({
   onAssignmentClick: (assignment: Assignment) => void
   onAnnouncementClick: () => void
 }) {
-  const lastClassHeading = getLastClassHeading(lastClassDate)
+  const lastClassHeading = getLastClassHeading(lastClassDate, todayDate)
 
   return (
-    <div className="flex h-full min-h-0 flex-col divide-y divide-border">
+    <div
+      data-student-today-plan-region
+      tabIndex={-1}
+      className="flex h-full min-h-0 flex-col divide-y divide-border"
+    >
       {calendarRefreshing ? (
         <div role="status" className="flex items-center gap-2 px-4 pt-4 text-sm text-text-muted">
           <Spinner size="sm" />
@@ -427,6 +436,7 @@ function StudentTodayPlanSidebar({
 function StudentTodayWorkspace({
   classroom,
   studentId,
+  todayDate,
   todayLessonPlan,
   lastClassLessonPlan,
   lastClassDate,
@@ -438,9 +448,13 @@ function StudentTodayWorkspace({
   onAssignmentClick,
   onAnnouncementClick,
   onLessonPlanLoad,
+  onLessonPlanLoading,
+  onLessonPlanError,
+  lessonPlanRequestVersion,
 }: {
   classroom: Classroom
   studentId: string
+  todayDate: string
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
@@ -452,6 +466,9 @@ function StudentTodayWorkspace({
   onAssignmentClick: (assignment: Assignment) => void
   onAnnouncementClick: () => void
   onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
+  onLessonPlanLoading: (classroomId: string) => void
+  onLessonPlanError: (classroomId: string) => void
+  lessonPlanRequestVersion: number
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
   const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
@@ -459,7 +476,6 @@ function StudentTodayWorkspace({
   const attendanceState = attendanceView?.classrooms.find(
     (item) => item.classroomId === classroom.id,
   )
-  const todayDate = getTodayInToronto()
   const todayAssignments = calendarAssignments.filter(
     (assignment) => getCalendarAssignmentDate(assignment) === todayDate,
   )
@@ -477,6 +493,7 @@ function StudentTodayWorkspace({
       attendanceState={attendanceState}
       attendanceRefreshing={attendanceRefreshing}
       attendanceNow={attendanceNow}
+      todayDate={todayDate}
       todayLessonPlan={todayLessonPlan}
       lastClassLessonPlan={lastClassLessonPlan}
       lastClassDate={lastClassDate}
@@ -512,6 +529,9 @@ function StudentTodayWorkspace({
           layout="pane"
           mobilePlan={planSidebar}
           onLessonPlanLoad={onLessonPlanLoad}
+          onLessonPlanLoading={onLessonPlanLoading}
+          onLessonPlanError={onLessonPlanError}
+          lessonPlanRequestVersion={lessonPlanRequestVersion}
         />
       }
       inspector={planSidebar}
@@ -547,6 +567,7 @@ function ClassroomPageContent({
   featureVisibility: ClassroomFeatureVisibility
   classroomQrAvailable: boolean
 }) {
+  const currentTorontoDate = useTorontoToday()
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const {
@@ -756,14 +777,21 @@ function ClassroomPageContent({
   // State for today's lesson plan (student today tab)
   const [todayLessonPlanState, setTodayLessonPlanState] = useState<{
     classroomId: string
+    date: string
     plan: LessonPlan | null
-  }>({ classroomId: classroom.id, plan: null })
-  const todayLessonPlan = todayLessonPlanState.classroomId === classroom.id
+  }>({ classroomId: classroom.id, date: currentTorontoDate, plan: null })
+  const todayLessonPlan = (
+    todayLessonPlanState.classroomId === classroom.id &&
+    todayLessonPlanState.date === currentTorontoDate
+  )
     ? todayLessonPlanState.plan
     : null
   const [lastClassLessonPlan, setLastClassLessonPlan] = useState<LessonPlan | null>(null)
   const [lastClassLessonPlanDate, setLastClassLessonPlanDate] = useState<string | null>(null)
   const [lastClassLessonPlanLoading, setLastClassLessonPlanLoading] = useState(false)
+  const [todayLessonPlanRequestVersion, setTodayLessonPlanRequestVersion] = useState(0)
+  const [lastClassLessonPlanRequestVersion, setLastClassLessonPlanRequestVersion] = useState(0)
+  const lastClassLessonPlanSnapshotKeyRef = useRef<string | null>(null)
   const [studentCalendarSources, setStudentCalendarSources] = useState<StudentCalendarSources>({
     classroomId: classroom.id,
     assignments: [],
@@ -773,11 +801,27 @@ function ClassroomPageContent({
     initialStudentCalendarSourceStatus,
   )
   const studentCalendarRequestIdsRef = useRef<Record<StudentCalendarSource, number>>({
+    todayLessonPlan: 0,
+    lastClassLessonPlan: 0,
     assignments: 0,
     announcements: 0,
   })
   const studentCalendarClassroomIdRef = useRef(classroom.id)
+  const retryingStudentCalendarSourcesRef = useRef<Set<StudentCalendarSource>>(new Set())
+  const studentCalendarRetryFocusRef = useRef<HTMLElement | null>(null)
   studentCalendarClassroomIdRef.current = classroom.id
+
+  useEffect(() => {
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      todayLessonPlan: {
+        classroomId: classroom.id,
+        error: false,
+        hasLoadedSnapshot: false,
+        isLoading: true,
+      },
+    }))
+  }, [classroom.id, currentTorontoDate])
 
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
@@ -841,7 +885,42 @@ function ClassroomPageContent({
 
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null, loadedClassroomId: string) => {
     if (loadedClassroomId !== classroom.id) return
-    setTodayLessonPlanState({ classroomId: loadedClassroomId, plan })
+    setTodayLessonPlanState({ classroomId: loadedClassroomId, date: currentTorontoDate, plan })
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      todayLessonPlan: {
+        classroomId: loadedClassroomId,
+        error: false,
+        hasLoadedSnapshot: true,
+        isLoading: false,
+      },
+    }))
+  }, [classroom.id, currentTorontoDate])
+
+  const handleTodayLessonPlanLoading = useCallback((loadedClassroomId: string) => {
+    if (loadedClassroomId !== classroom.id) return
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      todayLessonPlan: {
+        classroomId: loadedClassroomId,
+        error: current.todayLessonPlan.classroomId === loadedClassroomId && current.todayLessonPlan.error,
+        hasLoadedSnapshot: current.todayLessonPlan.classroomId === loadedClassroomId && current.todayLessonPlan.hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+  }, [classroom.id])
+
+  const handleTodayLessonPlanError = useCallback((loadedClassroomId: string) => {
+    if (loadedClassroomId !== classroom.id) return
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      todayLessonPlan: {
+        ...current.todayLessonPlan,
+        classroomId: loadedClassroomId,
+        error: true,
+        isLoading: false,
+      },
+    }))
   }, [classroom.id])
 
   const handleStudentCalendarAssignmentClick = useCallback((assignment: Assignment) => {
@@ -867,23 +946,42 @@ function ClassroomPageContent({
   useEffect(() => {
     if (isTeacher || activeTab !== 'today') return
 
-    const todayDate = getTodayInToronto()
-    const lastClassDate = getMostRecentClassDayBefore(classDays, todayDate)
+    const source: StudentCalendarSource = 'lastClassLessonPlan'
+    const requestedClassroomId = classroom.id
+    const requestId = studentCalendarRequestIdsRef.current[source] + 1
+    studentCalendarRequestIdsRef.current[source] = requestId
+    const lastClassDate = getMostRecentClassDayBefore(classDays, currentTorontoDate)
     setLastClassLessonPlanDate(lastClassDate)
 
     if (!lastClassDate) {
       setLastClassLessonPlan(null)
       setLastClassLessonPlanLoading(false)
+      setStudentCalendarSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
       return
     }
 
+    const snapshotKey = `${requestedClassroomId}:${lastClassDate}`
+    const hasCurrentSnapshot = lastClassLessonPlanSnapshotKeyRef.current === snapshotKey
+    if (!hasCurrentSnapshot) setLastClassLessonPlan(null)
     let cancelled = false
     setLastClassLessonPlanLoading(true)
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: retryingStudentCalendarSourcesRef.current.has(source) && current[source].error,
+        hasLoadedSnapshot: hasCurrentSnapshot,
+        isLoading: true,
+      },
+    }))
     fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; lessonPlans?: LessonPlan[] }>(
-      `student-today:last-class-plan:${classroom.id}:${lastClassDate}`,
+      `student-today:last-class-plan:${requestedClassroomId}:${lastClassDate}`,
       async () => {
         const response = await fetch(
-          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${lastClassDate}&end=${lastClassDate}`
+          `/api/student/classrooms/${requestedClassroomId}/lesson-plans?start=${lastClassDate}&end=${lastClassDate}`
         )
         if (!response.ok) throw new Error('Failed to load last class lesson plan')
         return response.json()
@@ -891,22 +989,38 @@ function ClassroomPageContent({
       30_000
     )
       .then((data) => {
-        if (cancelled) return
+        if (
+          cancelled ||
+          studentCalendarRequestIdsRef.current[source] !== requestId ||
+          studentCalendarClassroomIdRef.current !== requestedClassroomId
+        ) return
         const plans = data.lesson_plans || data.lessonPlans || []
         setLastClassLessonPlan(plans.find(plan => plan.date === lastClassDate) || null)
+        lastClassLessonPlanSnapshotKeyRef.current = snapshotKey
         setLastClassLessonPlanLoading(false)
+        setStudentCalendarSourceStatus((current) => ({
+          ...current,
+          [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+        }))
       })
       .catch((error) => {
-        if (cancelled) return
+        if (
+          cancelled ||
+          studentCalendarRequestIdsRef.current[source] !== requestId ||
+          studentCalendarClassroomIdRef.current !== requestedClassroomId
+        ) return
         console.error('Error loading last class lesson plan:', error)
-        setLastClassLessonPlan(null)
         setLastClassLessonPlanLoading(false)
+        setStudentCalendarSourceStatus((current) => ({
+          ...current,
+          [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+        }))
       })
 
     return () => {
       cancelled = true
     }
-  }, [activeTab, classDays, classroom.id, isTeacher])
+  }, [activeTab, classDays, classroom.id, currentTorontoDate, isTeacher, lastClassLessonPlanRequestVersion])
 
   const showStudentCalendarAssignments = availableTabs.includes('assignments')
   const showStudentCalendarAnnouncements = availableTabs.includes('announcements')
@@ -1052,6 +1166,48 @@ function ClassroomPageContent({
       loadStudentCalendarAnnouncements(),
     ])
   }, [activeTab, isTeacher, loadStudentCalendarAnnouncements, loadStudentCalendarAssignments])
+
+  const startStudentCalendarRetry = useCallback((
+    source: StudentCalendarSource,
+    retry: () => void,
+  ) => {
+    const activeElement = document.activeElement
+    studentCalendarRetryFocusRef.current = activeElement instanceof HTMLElement
+      ? activeElement.closest<HTMLElement>('[data-student-today-plan-region]')
+      : null
+    retryingStudentCalendarSourcesRef.current.add(source)
+    setStudentCalendarSourceStatus((current) => ({
+      ...current,
+      [source]: { ...current[source], error: true, isLoading: true },
+    }))
+    retry()
+  }, [])
+
+  const retryTodayLessonPlan = useCallback(() => {
+    invalidateCachedJSON(
+      `student-lesson-plans:${classroom.id}:${currentTorontoDate}:${currentTorontoDate}`,
+    )
+    setTodayLessonPlanRequestVersion((version) => version + 1)
+  }, [classroom.id, currentTorontoDate])
+
+  const retryLastClassLessonPlan = useCallback(() => {
+    if (!lastClassLessonPlanDate) return
+    invalidateCachedJSON(
+      `student-today:last-class-plan:${classroom.id}:${lastClassLessonPlanDate}`,
+    )
+    setLastClassLessonPlanRequestVersion((version) => version + 1)
+  }, [classroom.id, lastClassLessonPlanDate])
+
+  useEffect(() => {
+    for (const source of retryingStudentCalendarSourcesRef.current) {
+      const status = studentCalendarSourceStatus[source]
+      if (status.isLoading) continue
+      retryingStudentCalendarSourcesRef.current.delete(source)
+      if (!status.error) {
+        window.requestAnimationFrame(() => studentCalendarRetryFocusRef.current?.focus())
+      }
+    }
+  }, [studentCalendarSourceStatus])
 
   const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
     setAssignmentViewMode(mode)
@@ -1439,20 +1595,43 @@ function ClassroomPageContent({
   const currentStudentCalendarSources = studentCalendarSources.classroomId === classroom.id
     ? studentCalendarSources
     : { assignments: [], announcements: [] }
-  const currentStudentCalendarStatuses = (['assignments', 'announcements'] as const).map(
+  const currentStudentCalendarStatuses = (
+    ['todayLessonPlan', 'lastClassLessonPlan', 'assignments', 'announcements'] as const
+  ).map(
     (source) => studentCalendarSourceStatus[source],
   )
   const studentCalendarRefreshing = currentStudentCalendarStatuses.some(
     (status) => status.classroomId === classroom.id && status.isLoading,
   )
   const studentCalendarFailures: CalendarSourceFailure[] = []
+  const todayLessonPlanStatus = studentCalendarSourceStatus.todayLessonPlan
+  if (todayLessonPlanStatus.classroomId === classroom.id && todayLessonPlanStatus.error) {
+    studentCalendarFailures.push({
+      id: 'today-lesson-plan',
+      label: "today's lesson plan",
+      isRetrying: todayLessonPlanStatus.isLoading,
+      onRetry: () => startStudentCalendarRetry('todayLessonPlan', retryTodayLessonPlan),
+    })
+  }
+  const lastClassLessonPlanStatus = studentCalendarSourceStatus.lastClassLessonPlan
+  if (lastClassLessonPlanStatus.classroomId === classroom.id && lastClassLessonPlanStatus.error) {
+    studentCalendarFailures.push({
+      id: 'last-class-lesson-plan',
+      label: 'last class lesson plan',
+      isRetrying: lastClassLessonPlanStatus.isLoading,
+      onRetry: () => startStudentCalendarRetry('lastClassLessonPlan', retryLastClassLessonPlan),
+    })
+  }
   const assignmentsCalendarStatus = studentCalendarSourceStatus.assignments
   if (assignmentsCalendarStatus.classroomId === classroom.id && assignmentsCalendarStatus.error) {
     studentCalendarFailures.push({
       id: 'assignments',
       label: 'assignments',
       isRetrying: assignmentsCalendarStatus.isLoading,
-      onRetry: () => { void loadStudentCalendarAssignments(true) },
+      onRetry: () => startStudentCalendarRetry(
+        'assignments',
+        () => { void loadStudentCalendarAssignments(true) },
+      ),
     })
   }
   const announcementsCalendarStatus = studentCalendarSourceStatus.announcements
@@ -1461,7 +1640,10 @@ function ClassroomPageContent({
       id: 'announcements',
       label: 'announcements',
       isRetrying: announcementsCalendarStatus.isLoading,
-      onRetry: () => { void loadStudentCalendarAnnouncements(true) },
+      onRetry: () => startStudentCalendarRetry(
+        'announcements',
+        () => { void loadStudentCalendarAnnouncements(true) },
+      ),
     })
   }
   const mainContentClassName =
@@ -1775,6 +1957,7 @@ function ClassroomPageContent({
                       <StudentTodayWorkspace
                         classroom={classroom}
                         studentId={user.id}
+                        todayDate={currentTorontoDate}
                         todayLessonPlan={todayLessonPlan}
                         lastClassLessonPlan={lastClassLessonPlan}
                         lastClassDate={lastClassLessonPlanDate}
@@ -1786,6 +1969,9 @@ function ClassroomPageContent({
                         onAssignmentClick={handleStudentCalendarAssignmentClick}
                         onAnnouncementClick={handleStudentCalendarAnnouncementClick}
                         onLessonPlanLoad={handleSetLessonPlan}
+                        onLessonPlanLoading={handleTodayLessonPlanLoading}
+                        onLessonPlanError={handleTodayLessonPlanError}
+                        lessonPlanRequestVersion={todayLessonPlanRequestVersion}
                       />
                     </TabContentTransition>
                   )}

@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { TooltipProvider } from '@/ui'
@@ -80,6 +80,7 @@ function MarkdownPreferenceWrapper({ children }: { children: ReactNode }) {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   window.localStorage.clear()
 })
 
@@ -221,6 +222,43 @@ describe('LessonCalendar', () => {
       'href',
       'https://example.com/outline',
     )
+  })
+
+  it('moves a scheduled announcement to its published date at the publication boundary', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-17T13:59:59.900Z'))
+    const scheduledAnnouncement: Announcement = {
+      ...markdownAnnouncement,
+      id: 'scheduled-announcement',
+      content: 'Publication boundary announcement',
+      created_at: '2026-03-16T14:00:00.000Z',
+      scheduled_for: '2026-03-17T14:00:00.000Z',
+    }
+    const announcements = [scheduledAnnouncement]
+
+    render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[]}
+        announcements={announcements}
+        viewMode="week"
+        currentDate={new Date('2026-03-16T12:00:00')}
+        editable={false}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /open tuesday, march 17, 2026/i }))
+    expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(200))
+    expect(within(screen.getByRole('dialog')).queryByText('Publication boundary announcement')).not.toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
+    expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
   })
 
   it('allows inline editing in all view', () => {

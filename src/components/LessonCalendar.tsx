@@ -11,6 +11,7 @@ import { normalizeAnnouncementTitle } from '@/lib/announcements'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { useTorontoToday } from '@/hooks/use-toronto-today'
 import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan } from '@/types'
 
@@ -91,9 +92,32 @@ export function LessonCalendar({
   onMarkdownToggle,
   isSidebarOpen = false,
 }: LessonCalendarProps) {
-  const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
+  const currentTorontoDate = useTorontoToday()
+  const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [currentTorontoDate])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
+  const [announcementNowMs, setAnnouncementNowMs] = useState(Date.now)
+  const announcementReferenceMs = useMemo(
+    () => Math.max(announcementNowMs, Date.now()),
+    [announcementNowMs, announcements],
+  )
+
+  useEffect(() => {
+    const nowMs = Date.now()
+    const nextPublicationMs = announcements.reduce<number | null>((nearest, announcement) => {
+      if (!announcement.scheduled_for) return nearest
+      const scheduledMs = new Date(announcement.scheduled_for).getTime()
+      if (!Number.isFinite(scheduledMs) || scheduledMs <= nowMs) return nearest
+      return nearest === null || scheduledMs < nearest ? scheduledMs : nearest
+    }, null)
+    if (nextPublicationMs === null) return
+
+    const timeoutId = window.setTimeout(
+      () => setAnnouncementNowMs(Date.now()),
+      Math.max(1, nextPublicationMs - nowMs + 50),
+    )
+    return () => window.clearTimeout(timeoutId)
+  }, [announcementNowMs, announcements])
 
   const handlePresentedDayPrev = useCallback(() => {
     setPresentedDay((d) => (d ? addDays(d, -1) : d))
@@ -145,7 +169,7 @@ export function LessonCalendar({
   // Published announcements appear on their created_at date
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
-    const now = new Date()
+    const now = new Date(announcementReferenceMs)
     announcements.forEach((announcement) => {
       const dateString = getCalendarAnnouncementDate(announcement, now)
       if (!dateString) return
@@ -157,7 +181,7 @@ export function LessonCalendar({
       }
     })
     return map
-  }, [announcements])
+  }, [announcementReferenceMs, announcements])
 
   // Build a set of class day dates for quick lookup
   const classDayDates = useMemo(() => {
