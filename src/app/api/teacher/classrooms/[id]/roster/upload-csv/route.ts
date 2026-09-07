@@ -15,6 +15,18 @@ interface ParsedStudent {
   counselorEmail: string | null
 }
 
+function parseCsvField(value: string | undefined) {
+  const trimmed = (value || '').trim()
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).replace(/""/g, '"').trim()
+  }
+  return trimmed
+}
+
+function normalizeCsvHeader(value: string | undefined) {
+  return parseCsvField(value).toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
 // POST /api/teacher/classrooms/[id]/roster/upload-csv - Upload CSV roster
 export const POST = withErrorHandler('PostUploadRosterCsv', async (request, context) => {
   const user = await requireRole('teacher')
@@ -40,7 +52,7 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
   }
 
   // Parse CSV
-  const lines = csvData.trim().split('\n')
+  const lines = csvData.trim().split(/\r?\n/)
   if (lines.length < 2) {
     return NextResponse.json(
       { error: 'CSV must have at least a header and one data row' },
@@ -48,17 +60,19 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     )
   }
 
-  // Expected format: Student Number,First Name,Last Name,Email[,Secondary email]
+  // Expected format: Student Number,First Name,Last Name,Email[,Secondary email].
+  // Student Number is optional when the header starts with First Name.
+  const hasStudentNumberColumn = normalizeCsvHeader(lines[0].split(',')[0]).includes('student')
   const students: ParsedStudent[] = []
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
 
-    const parts = line.split(',')
-    if (parts.length < 4) continue
-
-    const [studentNumber, firstName, lastName, email, counselorEmail] = parts.map((p: string) => p.trim())
+    const parts = line.split(',').map(parseCsvField)
+    const [studentNumber, firstName, lastName, email, counselorEmail] = hasStudentNumberColumn
+      ? parts
+      : ['', ...parts]
 
     if (email && firstName && lastName) {
       students.push({
@@ -66,7 +80,7 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
         firstName,
         lastName,
         studentNumber,
-        counselorEmail: counselorEmail || null,
+        counselorEmail: counselorEmail?.toLowerCase().trim() || null,
       })
     }
   }

@@ -7,6 +7,7 @@
  * - Comma-separated: "First, Last, email@example.com"
  * - Tab-separated: "First\tLast\temail@example.com"
  * - With optional student number as 4th field
+ * - With optional secondary email as the 4th field when no student number is provided
  */
 
 export interface ParsedStudent {
@@ -121,8 +122,10 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
   const firstName = tokens[0]
   const lastName = tokens[1]
   const emailCandidate = tokens[2]
-  const studentNumber = tokens[3] || undefined
-  const counselorEmailCandidate = tokens[4] || undefined
+  const fourthToken = tokens[3]
+  const hasStudentNumber = fourthToken && !EMAIL_REGEX.test(fourthToken)
+  const studentNumber = hasStudentNumber ? fourthToken : undefined
+  const counselorEmailCandidate = hasStudentNumber ? tokens[4] : fourthToken
 
   // Validate email format
   if (!EMAIL_REGEX.test(emailCandidate)) {

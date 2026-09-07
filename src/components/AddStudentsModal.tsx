@@ -16,7 +16,7 @@ interface AddStudentsModalProps {
   isOpen: boolean
   onClose: () => void
   classroomId: string
-  onSuccess: (classroomId: string) => void
+  onSuccess: (classroomId: string) => void | Promise<void>
 }
 
 export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: AddStudentsModalProps) {
@@ -100,7 +100,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       }
 
       // Success!
-      onSuccess(operationClassroomId)
+      await onSuccess(operationClassroomId)
       if (isCurrentScope(operationScope)) onClose()
     } catch (err: any) {
       if (isCurrentScope(operationScope)) {
@@ -141,7 +141,8 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
               rows={8}
               placeholder={`John Doe john@example.com
 Jane Smith jane@example.com 123456
-Bob Lee bob@example.com 789012 secondary@example.com`}
+Bob Lee bob@example.com secondary@example.com
+Sue Doe sue@example.com 789012 secondary@example.com`}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleParseInput}
@@ -207,7 +208,7 @@ Bob Lee bob@example.com 789012 secondary@example.com`}
                             Student #
                           </DataTableHeaderCell>
                           <DataTableHeaderCell className="text-xs">
-                            Email (secondary)
+                            Email (2nd)
                           </DataTableHeaderCell>
                         </DataTableRow>
                       </DataTableHead>
