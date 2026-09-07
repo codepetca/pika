@@ -1,16 +1,9 @@
 'use client'
 
 import { useState, useLayoutEffect, useRef } from 'react'
+import { CircleHelp } from 'lucide-react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
-import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  TableCard,
-} from '@/ui'
+import { IconButton } from '@/ui'
 
 interface AddStudentsModalProps {
   isOpen: boolean
@@ -21,13 +14,13 @@ interface AddStudentsModalProps {
 
 export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: AddStudentsModalProps) {
   const [input, setInput] = useState('')
-  const [preview, setPreview] = useState<{
+  const [parseResult, setParseResult] = useState<{
     students: ParsedStudent[]
     errors: ParseError[]
   } | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [textareaScroll, setTextareaScroll] = useState({ top: 0, left: 0 })
   const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
 
   function isCurrentScope(scope: typeof scopeRef.current) {
@@ -41,10 +34,10 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
     const generation = scopeRef.current.generation + 1
     scopeRef.current = { classroomId, isOpen, generation }
     setInput('')
-    setPreview(null)
-    setShowPreview(false)
+    setParseResult(null)
     setIsSubmitting(false)
     setError('')
+    setTextareaScroll({ top: 0, left: 0 })
     return () => {
       if (scopeRef.current.generation === generation) {
         scopeRef.current = {
@@ -55,20 +48,18 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
     }
   }, [classroomId, isOpen])
 
-  // Parse input when textarea loses focus or when toggling preview
-  function handleParseInput() {
-    if (!input.trim()) {
-      setPreview(null)
+  // Parse input as it changes so guidance and the ready count stay current.
+  function handleParseInput(value: string) {
+    if (!value.trim()) {
+      setParseResult(null)
       return
     }
 
-    const result = parseRosterInput(input)
-    setPreview(result)
-    setShowPreview(true)
+    setParseResult(parseRosterInput(value))
   }
 
   async function handleSubmit() {
-    if (!preview || preview.students.length === 0) {
+    if (!parseResult || parseResult.students.length === 0) {
       setError('No valid students to add')
       return
     }
@@ -83,7 +74,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          students: preview.students.map((s) => ({
+          students: parseResult.students.map((s) => ({
             email: s.email,
             firstName: s.firstName,
             lastName: s.lastName,
@@ -118,8 +109,18 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
 
   if (!isOpen) return null
 
-  const validCount = preview?.students.length || 0
-  const errorCount = preview?.errors.length || 0
+  const validCount = parseResult?.students.length || 0
+  const problemLineNumbers = new Set(parseResult?.errors.map((parseError) => parseError.line) || [])
+  let rosterLineNumber = 0
+  const rosterInputLines = input.split('\n').map((line) => {
+    const isRosterLine = line.trim().length > 0
+    if (isRosterLine) rosterLineNumber += 1
+
+    return {
+      line,
+      lineNumber: isRosterLine ? rosterLineNumber : null,
+    }
+  })
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
@@ -129,127 +130,89 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
         <div className="flex-1 overflow-auto">
           {/* Input Textarea */}
           <div className="mb-4">
-            <label htmlFor="roster-input" className="block text-sm font-medium text-text-muted mb-2">
-              Enter student information
-            </label>
-            <textarea
-              id="roster-input"
-              className="w-full px-3 py-2 border border-border-strong rounded-md
-                         bg-surface text-text-default
-                         focus:outline-none focus:ring-2 focus:ring-primary
-                         resize-none font-mono text-sm"
-              rows={8}
-              placeholder={`John Doe john@example.com
-Jane Smith jane@example.com 123456
-Bob Lee bob@example.com secondary@example.com
-Sue Doe sue@example.com 789012 secondary@example.com`}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onBlur={handleParseInput}
-              disabled={isSubmitting}
-            />
-            <p className="text-xs text-text-muted mt-2">
-              One student per line. Student number and secondary email are optional:<br />
-              <span className="font-mono">First Last MainEmail [StudentNumber] [SecondaryEmail]</span>
-            </p>
-          </div>
-
-          {/* Preview Toggle */}
-          {input.trim() && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!showPreview) {
-                  handleParseInput()
-                } else {
-                  setShowPreview(!showPreview)
-                }
-              }}
-              className="text-sm text-primary hover:text-primary-hover mb-3"
-              disabled={isSubmitting}
-            >
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </button>
-          )}
-
-          {/* Preview Section */}
-          {showPreview && preview && (
-            <div className="mb-4 p-4 bg-surface-2 rounded-lg border border-border">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-text-default">Preview</h3>
-                <div className="text-sm text-text-muted">
-                  {validCount} student{validCount !== 1 ? 's' : ''} will be added
-                  {errorCount > 0 && (
-                    <span className="text-danger ml-2">
-                      • {errorCount} error{errorCount !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Valid Students */}
-              {preview.students.length > 0 && (
-                <div className="mb-3">
-                  <h4 className="text-xs font-medium text-text-muted mb-2">Valid Students</h4>
-                  <TableCard overflowX chrome="flush">
-                    <DataTable density="compact" className="min-w-full">
-                      <DataTableHead>
-                        <DataTableRow>
-                          <DataTableHeaderCell className="text-xs">
-                            First Name
-                          </DataTableHeaderCell>
-                          <DataTableHeaderCell className="text-xs">
-                            Last Name
-                          </DataTableHeaderCell>
-                          <DataTableHeaderCell className="text-xs">
-                            Email (main)
-                          </DataTableHeaderCell>
-                          <DataTableHeaderCell className="text-xs">
-                            Student #
-                          </DataTableHeaderCell>
-                          <DataTableHeaderCell className="text-xs">
-                            Email (2nd)
-                          </DataTableHeaderCell>
-                        </DataTableRow>
-                      </DataTableHead>
-                      <DataTableBody>
-                        {preview.students.map((student, idx) => (
-                          <DataTableRow key={idx}>
-                            <DataTableCell>{student.firstName}</DataTableCell>
-                            <DataTableCell>{student.lastName}</DataTableCell>
-                            <DataTableCell className="text-text-muted">{student.email}</DataTableCell>
-                            <DataTableCell className="text-text-muted">
-                              {student.studentNumber || '—'}
-                            </DataTableCell>
-                            <DataTableCell className="text-text-muted">
-                              {student.counselorEmail || '—'}
-                            </DataTableCell>
-                          </DataTableRow>
-                        ))}
-                      </DataTableBody>
-                    </DataTable>
-                  </TableCard>
-                </div>
-              )}
-
-              {/* Errors */}
-              {preview.errors.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-medium text-danger mb-2">Errors</h4>
+            <div className="mb-1 flex items-center gap-2">
+              <label htmlFor="roster-input" className="block text-sm font-medium text-text-default">
+                Enter student information
+              </label>
+              <IconButton
+                icon={CircleHelp}
+                label="Roster format help"
+                tooltip={
                   <div className="space-y-1">
-                    {preview.errors.map((err, idx) => (
+                    <div>One student per line.</div>
+                    <div className="font-semibold">
+                      [First name] [Last name] [Email] [<em>ID</em>] [<em>Email 2</em>]
+                    </div>
+                    <div>ID and Email2 are optional</div>
+                  </div>
+                }
+                variant="ghost"
+                className="h-11 w-11"
+              />
+            </div>
+            <div className="relative">
+              {input.length > 0 && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-px overflow-hidden rounded-md px-3 py-2 font-mono text-sm leading-5"
+                >
+                  <div
+                    className="whitespace-pre-wrap break-words"
+                    style={{
+                      transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)`,
+                    }}
+                  >
+                    {rosterInputLines.map(({ line, lineNumber }, index) => (
                       <div
-                        key={idx}
-                        className="text-xs text-danger bg-danger-bg px-2 py-1 rounded"
+                        key={index}
+                        className={
+                          lineNumber !== null && problemLineNumbers.has(lineNumber)
+                            ? 'rounded-sm bg-warning-bg text-warning'
+                            : 'text-text-default'
+                        }
                       >
-                        <strong>Line {err.line}:</strong> {err.error} — <code className="font-mono">{err.raw}</code>
+                        {line || '\u00a0'}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+              <textarea
+                id="roster-input"
+                className="relative w-full px-3 py-2 border border-border-strong rounded-md
+                           bg-transparent text-transparent caret-text-default placeholder:text-text-muted
+                           focus:outline-none focus:ring-2 focus:ring-primary
+                           resize-none font-mono text-sm leading-5"
+                rows={12}
+                placeholder="Jane Doe jane@example.com [123456] [jane2@example.com]"
+                value={input}
+                onChange={(e) => {
+                  const nextInput = e.target.value
+                  setInput(nextInput)
+                  handleParseInput(nextInput)
+                }}
+                onBlur={() => handleParseInput(input)}
+                onScroll={(e) => {
+                  setTextareaScroll({
+                    top: e.currentTarget.scrollTop,
+                    left: e.currentTarget.scrollLeft,
+                  })
+                }}
+                disabled={isSubmitting}
+              />
             </div>
-          )}
+            <div className="mt-2 min-h-10">
+              {parseResult && parseResult.errors.length > 0 && (
+                <div
+                  className="text-sm text-warning"
+                >
+                  <p role="status" aria-live="polite">
+                    Use this format: Jane Doe email@example.com
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Error Message */}
           {error && (
@@ -260,7 +223,7 @@ Sue Doe sue@example.com 789012 secondary@example.com`}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mt-6 pt-4 border-t border-border">
+        <div className="flex gap-3 mt-4 pt-2">
           <button
             type="button"
             onClick={handleClose}
@@ -274,7 +237,7 @@ Sue Doe sue@example.com 789012 secondary@example.com`}
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || !preview || preview.students.length === 0}
+            disabled={isSubmitting || !parseResult || parseResult.students.length === 0}
             className="flex-1 px-4 py-2 bg-primary-solid hover:bg-primary-solid-hover
                        text-text-inverse font-medium rounded-md
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

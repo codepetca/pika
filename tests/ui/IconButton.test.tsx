@@ -5,6 +5,21 @@ import { Plus } from 'lucide-react'
 import { IconButton, TooltipProvider } from '@/ui'
 
 describe('IconButton', () => {
+  it('exposes formatted help on keyboard focus while retaining its accessible name', async () => {
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <IconButton icon={Plus} label="Roster format help" tooltip={<div>Format: <strong>First Last Email</strong><p>ID is optional</p></div>} />
+      </TooltipProvider>,
+    )
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Roster format help' })).toHaveFocus()
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip).toHaveTextContent('Format: First Last Email')
+    expect(tooltip).toHaveTextContent('ID is optional')
+    expect(tooltip.querySelector('strong')).toHaveTextContent('First Last Email')
+  })
+
   it('names the icon, explains it on keyboard focus, and activates with Enter', async () => {
     const user = userEvent.setup()
     const onClick = vi.fn()

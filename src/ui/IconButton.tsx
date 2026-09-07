@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef } from 'react'
+import { forwardRef, type ReactNode } from 'react'
 import { LoaderCircle, type LucideIcon } from 'lucide-react'
 import { Button, type ButtonProps } from './Button'
 import { Tooltip } from './Tooltip'
@@ -9,7 +9,7 @@ import { cn } from './utils'
 export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'aria-label'> {
   label: string
   icon: LucideIcon
-  tooltip?: string
+  tooltip?: ReactNode
 }
 
 /** A named, tooltip-backed icon action with a full-sized touch target. */
