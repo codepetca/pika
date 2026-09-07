@@ -211,6 +211,10 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(textarea, { target: { value: 'Announcement draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
     expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+
+    const scheduleDateInput = screen.getByLabelText('Date (Toronto)')
+    expect(scheduleDateInput.closest('div.absolute')).toHaveClass('bottom-full', 'mb-1')
   })
 
   it('keeps announcement creation in the shared action surface menu', async () => {
