@@ -28,11 +28,12 @@ import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
+  TeacherWorkSurfaceMenuButton,
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import type { Classroom, RosterJoinSource } from '@/types'
-import { Check, Copy, Mail, MoreVertical, Pencil, Plus, Upload, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, MoreVertical, Pencil, Plus, Upload, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { useTableSelection } from '@/hooks/useTableSelection'
@@ -371,10 +372,9 @@ export function TeacherRosterTab({ classroom }: Props) {
     }
   }
 
-  const someSelected = selectedIds.size > 0
-
   // Get emails for selected students
   const selectedRows = sortedRoster.filter((r) => selectedIds.has(r.id))
+  const hasSelectedRows = selectedRows.length > 0
   const selectedStudentEmails = selectedRows.map((r) => r.email)
   const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
@@ -420,26 +420,6 @@ export function TeacherRosterTab({ classroom }: Props) {
       document.body.removeChild(textarea)
       showMessage({ text: `${label} copied`, tone: 'success' })
     }
-  }
-
-  function openGmail(emails: string[]) {
-    const validEmails = emails.filter((e) => e && e.includes('@'))
-    if (validEmails.length === 0) return
-    const bcc = validEmails.join(',')
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(bcc)}`, '_blank')
-  }
-
-  function openOutlook(emails: string[]) {
-    const validEmails = emails.filter((e) => e && e.includes('@'))
-    if (validEmails.length === 0) return
-    const bcc = validEmails.join(',')
-    window.open(`https://outlook.office.com/mail/deeplink/compose?bcc=${encodeURIComponent(bcc)}`, '_blank')
-  }
-
-  function openDefaultEmail(emails: string[]) {
-    const validEmails = emails.filter((e) => e && e.includes('@'))
-    if (validEmails.length === 0) return
-    window.location.href = `mailto:?bcc=${encodeURIComponent(validEmails.join(','))}`
   }
 
   // Counselor email editing
@@ -569,7 +549,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     invalidateCachedJSON(`teacher-roster:${mutatedClassroomId}`)
     if (currentClassroomIdRef.current !== mutatedClassroomId) return
     rosterMutationVersionRef.current += 1
-    void loadRoster({ preserveRoster: hasCurrentRoster })
+    return loadRoster({ preserveRoster: hasCurrentRoster })
   }
 
   function retryRosterLoad() {
@@ -662,65 +642,18 @@ export function TeacherRosterTab({ classroom }: Props) {
   const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-student-emails',
-      label: `Copy main emails (${selectedStudentEmails.length})`,
+      label: 'Copy emails (primary)',
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => copyToClipboard(selectedStudentEmails, 'Main emails'),
+      onSelect: () => copyToClipboard(selectedStudentEmails, 'Primary emails'),
       disabled: selectedStudentEmails.length === 0,
     },
     {
-      id: 'gmail-students',
-      label: 'Gmail',
-      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => openGmail(selectedStudentEmails),
-      disabled: selectedStudentEmails.length === 0,
+      id: 'copy-counselor-emails',
+      label: 'Copy emails (secondary)',
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => copyToClipboard(selectedCounselorEmails, 'Secondary emails'),
+      disabled: selectedCounselorEmails.length === 0,
     },
-    {
-      id: 'outlook-students',
-      label: 'Outlook',
-      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => openOutlook(selectedStudentEmails),
-      disabled: selectedStudentEmails.length === 0,
-    },
-  ]
-
-  if (selectedCounselorEmails.length > 0) {
-    const allEmails = [...selectedStudentEmails, ...selectedCounselorEmails]
-    selectedEmailOptions.push(
-      {
-        id: 'copy-counselor-emails',
-        label: `Copy secondary emails (${selectedCounselorEmails.length})`,
-        icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Secondary emails'),
-        dividerBefore: true,
-      },
-      {
-        id: 'copy-all-emails',
-        label: `Copy all emails (${allEmails.length})`,
-        icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => copyToClipboard(allEmails, 'All emails'),
-      },
-      {
-        id: 'gmail-all',
-        label: 'Gmail all',
-        icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => openGmail(allEmails),
-      },
-      {
-        id: 'outlook-all',
-        label: 'Outlook all',
-        icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => openOutlook(allEmails),
-      },
-    )
-  }
-  const combinedRosterActionOptions: TeacherWorkSurfaceActionItem[] = [
-    ...rosterActionOptions,
-    ...(someSelected
-      ? selectedEmailOptions.map((option, index) => ({
-          ...option,
-          dividerBefore: index === 0 ? true : option.dividerBefore,
-        }))
-      : []),
   ]
 
   const actionBar = (
@@ -738,6 +671,19 @@ export function TeacherRosterTab({ classroom }: Props) {
             }}
             disabled={isReadOnly || isRosterLoading}
           />
+          <TeacherWorkSurfaceMenuButton
+            buttonProps={{ 'aria-label': hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions' }}
+            label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span>{hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions'}</span>
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </span>}
+            items={selectedEmailOptions}
+            disabled={isRosterLoading || !hasSelectedRows}
+            variant={hasSelectedRows ? 'primary' : 'secondary'}
+            className="w-36"
+            menuAriaLabel="Student actions"
+            menuAlign="start"
+          />
         </TeacherWorkSurfaceActionCluster>
       }
       actions={
@@ -747,8 +693,8 @@ export function TeacherRosterTab({ classroom }: Props) {
           tooltip="More actions"
           variant="ghost"
           icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />}
-          items={combinedRosterActionOptions}
-          disabled={isRosterLoading || combinedRosterActionOptions.every((option) => option.disabled)}
+          items={rosterActionOptions}
+          disabled={isRosterLoading || rosterActionOptions.every((option) => option.disabled)}
           menuPlacement="down"
           menuAlign="end"
           menuClassName="w-64"
@@ -825,7 +771,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
               <col className="hidden md:table-column" style={{ width: `${columnWidths.email}px` }} />
-              <col className="hidden lg:table-column" style={{ width: `${columnWidths.counselor}px` }} />
+              <col className="hidden md:table-column" style={{ width: `${columnWidths.counselor}px` }} />
               <col style={{ width: '88px' }} />
             </colgroup>
             <DataTableHead>
@@ -878,11 +824,11 @@ export function TeacherRosterTab({ classroom }: Props) {
                   }}
                 />
                 <SortableHeaderCell
-                  label="Email (secondary)"
+                  label="Email (2nd)"
                   isActive={sortColumn === 'counselor_email'}
                   direction={sortDirection}
                   onClick={() => onSort('counselor_email')}
-                  className="hidden lg:table-cell"
+                  className="hidden md:table-cell"
                   buttonClassName="!pr-5"
                   resize={{
                     value: columnWidths.counselor,
@@ -942,11 +888,11 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <JoinSourceBadge source={row.join_source} />
                       </div>
                     </DataTableCell>
-                    <DataTableCell className="hidden text-text-muted lg:table-cell">
+                    <DataTableCell className="hidden text-text-muted md:table-cell">
                       {editingCounselorId === row.id ? (
                         <div className="flex items-center gap-1">
                           <FormField
-                            label={`Email (secondary) for ${rowName}`}
+                            label={`Email (2nd) for ${rowName}`}
                             hideLabel
                             className="w-32 [&>div:first-child]:sr-only"
                           >

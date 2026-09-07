@@ -236,7 +236,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                     )}
                     {counselorChanged && (
                       <div className="text-text-muted truncate">
-                        Email (secondary): <span className="line-through text-danger">{change.current.counselorEmail || '(none)'}</span>
+                        Email (2nd): <span className="line-through text-danger">{change.current.counselorEmail || '(none)'}</span>
                         {' → '}
                         <span className="text-success">{change.incoming.counselorEmail || '(none)'}</span>
                       </div>
@@ -305,7 +305,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                   { label: 'First Name', optional: false },
                   { label: 'Last Name', optional: false },
                   { label: 'Email (main)', optional: false },
-                  { label: 'Email (secondary)', optional: true },
+                  { label: 'Email (2nd)', optional: true },
                 ].map(({ label, optional }, index, arr) => (
                   <span
                     key={label}

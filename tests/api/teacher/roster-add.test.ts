@@ -69,7 +69,13 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
       method: 'POST',
       body: JSON.stringify({
         students: [
-          { email: 'A@student.com', firstName: 'A', lastName: 'B', studentNumber: '123' },
+          {
+            email: 'A@student.com',
+            firstName: 'A',
+            lastName: 'B',
+            studentNumber: '123',
+            counselorEmail: 'Secondary@Student.com',
+          },
         ],
       }),
     })
@@ -81,6 +87,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
     expect(upsertMock).toHaveBeenCalledWith([
       expect.objectContaining({
         email: 'a@student.com',
+        counselor_email: 'secondary@student.com',
         join_source: 'manual',
       }),
     ], { onConflict: 'classroom_id,email' })

@@ -25,13 +25,35 @@ describe('AddStudentsModal', () => {
     const table = screen.getByRole('table')
     expect(within(table).getByRole('columnheader', { name: 'First Name' })).toBeInTheDocument()
     expect(within(table).getByRole('columnheader', { name: 'Email (main)' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'Email (secondary)' })).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Email (2nd)' })).toBeInTheDocument()
     expect(screen.getByText(/secondary email are optional/i)).toBeInTheDocument()
     expect(screen.getByText(/\[SecondaryEmail\]/)).toBeInTheDocument()
     expect(within(table).getByRole('row', { name: /Ada Lovelace ada@example\.com 1001 counselor@example\.com/ }))
       .toBeInTheDocument()
     expect(within(table).queryByRole('checkbox')).not.toBeInTheDocument()
     expect(within(table).queryByRole('separator')).not.toBeInTheDocument()
+  })
+
+  it('shows a secondary email when the manual entry omits a student number', () => {
+    render(
+      <AddStudentsModal
+        isOpen
+        onClose={vi.fn()}
+        classroomId="classroom-1"
+        onSuccess={vi.fn()}
+      />,
+    )
+
+    const rosterInput = screen.getByLabelText('Enter student information')
+    fireEvent.change(rosterInput, {
+      target: { value: 'Grace Hopper grace@example.com secondary@example.com' },
+    })
+    fireEvent.blur(rosterInput)
+
+    const table = screen.getByRole('table')
+    expect(within(table).getByRole('row', {
+      name: /Grace Hopper grace@example\.com — secondary@example\.com/,
+    })).toBeInTheDocument()
   })
 
   it('does not let a stale classroom response close or repaint a newly opened modal', async () => {
