@@ -260,3 +260,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Owner authorized final review, required CI and merge of #1202 to main. Rebased onto `daa70b88` without conflicts; no migrations were added or changed. This task remains sole writer of `codex/global-browser-security-headers`; the active merge-coordinator task owns a separate archive compatibility branch and production promotion.
 - Final integration review uses one Sol/high reviewer against a detached fixed commit while local focused checks run. Risk profile: runtime-platform. Earlier security/compatibility reviews and browser evidence remain applicable; final reviewed SHA, check results and merge evidence are recorded in the PR. Production rollout is separate.
+## 2026-09-07 — Correct PPZ3C Online first class day
+
+- Production inventory resolved the exact active classroom and found four generated class days plus two lesson-plan mutation heads before the corrected September 8, 2026 start; no Daily logs, summaries, lesson plans, manual attendance marks, Bara occurrences, or PAL events exist in the affected range.
+- Added a replay-safe, fail-closed one-time migration that verifies the inventoried identity and data before deleting those six rows and changing only the classroom start date. The no-op replay path and full fixture success path pass locally; focused checks pass 10 files / 90 tests plus architecture, TypeScript, and lint. Production remains unchanged pending reviewed-PR completion and the separately authorized linked migration application.
