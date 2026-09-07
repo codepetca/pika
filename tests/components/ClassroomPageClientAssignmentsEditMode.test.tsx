@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
-import type { Assignment, Classroom } from '@/types'
+import type { Assignment, Classroom, LessonPlan } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -726,6 +726,69 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(
       'student-today:last-class-plan:classroom-1:2026-05-11',
     )
+    consoleError.mockRestore()
+  })
+
+  it('keeps the last-class snapshot visible through a failed refresh and retry recovery', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let rejectRefresh!: (reason?: unknown) => void
+    let resolveRetry!: (value: { lesson_plans: LessonPlan[] }) => void
+    const refreshRequest = new Promise<never>((_resolve, reject) => {
+      rejectRefresh = reject
+    })
+    const retryRequest = new Promise<{ lesson_plans: LessonPlan[] }>((resolve) => {
+      resolveRetry = resolve
+    })
+    let lastClassRequests = 0
+    const plan = (text: string): LessonPlan => ({
+      id: `last-class-${text}`,
+      classroom_id: 'classroom-1',
+      date: '2026-05-11',
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+      },
+      content_markdown: null,
+      created_at: '2026-05-11T00:00:00Z',
+      updated_at: '2026-05-11T00:00:00Z',
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        lastClassRequests += 1
+        if (lastClassRequests === 1) return Promise.resolve({ lesson_plans: [plan('Saved last class plan')] })
+        if (lastClassRequests === 2) return refreshRequest
+        return retryRequest
+      }
+      if (key === 'student-assignments:classroom-1') return Promise.resolve({ assignments: [] })
+      if (key === 'student-announcements:classroom-1') return Promise.resolve({ announcements: [] })
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+    expect(await screen.findAllByText('Saved last class plan')).toHaveLength(2)
+
+    act(() => {
+      window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    act(() => {
+      window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await waitFor(() => expect(lastClassRequests).toBe(2))
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+
+    await act(async () => rejectRefresh(new Error('Refresh failed')))
+    const retryButton = (await screen.findAllByRole('button', { name: 'Retry last class lesson plan' }))[0]
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+
+    fireEvent.click(retryButton)
+    expect(screen.getAllByText('Saved last class plan')).toHaveLength(2)
+    await act(async () => resolveRetry({ lesson_plans: [plan('Recovered last class plan')] }))
+
+    expect(await screen.findAllByText('Recovered last class plan')).toHaveLength(2)
+    expect(screen.queryByText('Saved last class plan')).not.toBeInTheDocument()
     consoleError.mockRestore()
   })
 

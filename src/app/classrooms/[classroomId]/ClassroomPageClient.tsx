@@ -340,6 +340,7 @@ function StudentTodayPlanSidebar({
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
+  lastClassHasSnapshot,
   todayAssignments,
   todayAnnouncements,
   lastClassAssignments,
@@ -357,6 +358,7 @@ function StudentTodayPlanSidebar({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
+  lastClassHasSnapshot: boolean
   todayAssignments: Assignment[]
   todayAnnouncements: Announcement[]
   lastClassAssignments: Assignment[]
@@ -415,7 +417,7 @@ function StudentTodayPlanSidebar({
           <p className="text-sm text-text-muted">
             No previous class day yet.
           </p>
-        ) : lastClassLoading ? (
+        ) : lastClassLoading && !lastClassHasSnapshot ? (
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <Spinner />
           </div>
@@ -441,6 +443,7 @@ function StudentTodayWorkspace({
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
+  lastClassHasSnapshot,
   calendarAssignments,
   calendarAnnouncements,
   calendarFailures,
@@ -459,6 +462,7 @@ function StudentTodayWorkspace({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
+  lastClassHasSnapshot: boolean
   calendarAssignments: Assignment[]
   calendarAnnouncements: Announcement[]
   calendarFailures: CalendarSourceFailure[]
@@ -498,6 +502,7 @@ function StudentTodayWorkspace({
       lastClassLessonPlan={lastClassLessonPlan}
       lastClassDate={lastClassDate}
       lastClassLoading={lastClassLoading}
+      lastClassHasSnapshot={lastClassHasSnapshot}
       todayAssignments={todayAssignments}
       todayAnnouncements={todayAnnouncements}
       lastClassAssignments={lastClassAssignments}
@@ -1962,6 +1967,10 @@ function ClassroomPageContent({
                         lastClassLessonPlan={lastClassLessonPlan}
                         lastClassDate={lastClassLessonPlanDate}
                         lastClassLoading={lastClassLessonPlanLoading}
+                        lastClassHasSnapshot={
+                          lastClassLessonPlanStatus.classroomId === classroom.id &&
+                          lastClassLessonPlanStatus.hasLoadedSnapshot
+                        }
                         calendarAssignments={currentStudentCalendarSources.assignments}
                         calendarAnnouncements={currentStudentCalendarSources.announcements}
                         calendarFailures={studentCalendarFailures}

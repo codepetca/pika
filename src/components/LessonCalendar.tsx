@@ -48,6 +48,7 @@ const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const MONTH_ROW_MIN_HEIGHT = '4.5rem'
 const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
+const MAX_BROWSER_TIMEOUT_MS = 2_147_483_647
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -114,7 +115,7 @@ export function LessonCalendar({
 
     const timeoutId = window.setTimeout(
       () => setAnnouncementNowMs(Date.now()),
-      Math.max(1, nextPublicationMs - nowMs + 50),
+      Math.min(MAX_BROWSER_TIMEOUT_MS, Math.max(1, nextPublicationMs - nowMs + 50)),
     )
     return () => window.clearTimeout(timeoutId)
   }, [announcementNowMs, announcements])

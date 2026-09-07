@@ -261,6 +261,51 @@ describe('LessonCalendar', () => {
     expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
   })
 
+  it('re-arms bounded timers until a long-range announcement publication boundary', () => {
+    vi.useFakeTimers()
+    const start = new Date('2026-03-01T14:00:00.000Z')
+    const publication = new Date('2026-04-15T14:00:00.000Z')
+    vi.setSystemTime(start)
+    const timeoutSpy = vi.spyOn(window, 'setTimeout')
+    const scheduledAnnouncement: Announcement = {
+      ...markdownAnnouncement,
+      id: 'long-range-announcement',
+      content: 'Long-range publication announcement',
+      created_at: start.toISOString(),
+      scheduled_for: publication.toISOString(),
+    }
+    const announcements = [scheduledAnnouncement]
+    const props = {
+      classroom: mockClassroom,
+      lessonPlans: [],
+      announcements,
+      viewMode: 'week' as const,
+      editable: false,
+      onDateChange: vi.fn(),
+      onViewModeChange: vi.fn(),
+    }
+
+    const view = render(
+      <LessonCalendar {...props} currentDate={new Date('2026-04-15T12:00:00')} />,
+      { wrapper: Wrapper },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /open wednesday, april 15, 2026/i }))
+    expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
+    expect(timeoutSpy.mock.calls.some(([, delay]) => delay === 2_147_483_647)).toBe(true)
+
+    act(() => vi.advanceTimersByTime(2_147_483_647))
+    expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
+    expect(timeoutSpy.mock.calls.every(([, delay]) => typeof delay !== 'number' || delay <= 2_147_483_647)).toBe(true)
+
+    act(() => vi.advanceTimersByTime(publication.getTime() - start.getTime() - 2_147_483_647 + 100))
+    expect(within(screen.getByRole('dialog')).queryByText('Long-range publication announcement')).not.toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    view.rerender(<LessonCalendar {...props} currentDate={new Date('2026-03-01T12:00:00')} />)
+    fireEvent.click(screen.getByRole('button', { name: /open sunday, march 1, 2026/i }))
+    expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
+  })
+
   it('allows inline editing in all view', () => {
     render(
       <LessonCalendar
