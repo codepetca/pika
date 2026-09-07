@@ -11,7 +11,7 @@ interface ParsedStudent {
   email: string
   firstName: string
   lastName: string
-  studentNumber: string
+  studentNumber: string | null
   counselorEmail: string | null
 }
 
@@ -70,9 +70,10 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     if (!line) continue
 
     const parts = line.split(',').map(parseCsvField)
-    const [studentNumber, firstName, lastName, email, counselorEmail] = hasStudentNumberColumn
+    const [rawStudentNumber, firstName, lastName, email, counselorEmail] = hasStudentNumberColumn
       ? parts
-      : ['', ...parts]
+      : [undefined, ...parts]
+    const studentNumber = rawStudentNumber || null
 
     if (email && firstName && lastName) {
       students.push({

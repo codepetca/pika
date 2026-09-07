@@ -181,6 +181,51 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
         }),
       ], { onConflict: 'classroom_id,email' })
     })
+
+    it('does not request confirmation when a four-column CSV matches an existing row', async () => {
+      const existingStudents = [
+        {
+          id: 'r-1',
+          email: 'same@student.com',
+          first_name: 'Same',
+          last_name: 'Name',
+          student_number: null,
+          counselor_email: 'secondary@student.com',
+        },
+      ]
+      const upsertMock = vi.fn(() => ({
+        select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'same@student.com' }], error: null }),
+      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({ data: existingStudents, error: null }),
+              })),
+            })),
+            upsert: upsertMock,
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const response = await POST(createRequest({
+        csvData: 'First Name,Last Name,Email,Email (2nd)\nSame,Name,same@student.com,secondary@student.com\n',
+      }), { params: { id: 'c-1' } })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.needsConfirmation).toBeUndefined()
+      expect(data.success).toBe(true)
+      expect(upsertMock).toHaveBeenCalledWith([
+        expect.objectContaining({
+          student_number: null,
+          counselor_email: 'secondary@student.com',
+        }),
+      ], { onConflict: 'classroom_id,email' })
+    })
   })
 
   describe('confirmed mode', () => {
