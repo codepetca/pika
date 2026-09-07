@@ -136,7 +136,7 @@ export const patternLabPageMockups: VerificationScript = {
                 && (await manualTime.getAttribute('class'))?.includes('bg-surface') === true
                 && (await manualTime.getAttribute('class'))?.includes('bg-success-bg') === false
                 && (await manualPresentCell.getAttribute('class'))?.includes('sticky') === true
-                && await manualDaily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible(),
+                && await manualDaily.getByRole('button', { name: 'Undo override for Noah Williams' }).isVisible(),
             })
             const manualArtifact = path.join(artifactDir, `${viewportName}-${theme}-daily-manual.png`)
             await section.screenshot({ path: manualArtifact })
@@ -262,10 +262,22 @@ export const patternLabPageMockups: VerificationScript = {
         && await daily.getByRole('checkbox').count() === 0
         && await daily.getByRole('button', { name: /Student actions/ }).count() === 0,
     })
+    const dailyLogHeader = daily.getByRole('columnheader', { name: /^Log/ })
+    const dailyScanHeader = daily.getByRole('columnheader', { name: 'Time of scan' })
+    const dailyPresentHeader = daily.getByRole('columnheader', { name: /present/i })
+    const [dailyLogIndex, dailyScanIndex, dailyPresentIndex] = await Promise.all([
+      dailyLogHeader.evaluate((cell) => (cell as HTMLTableCellElement).cellIndex),
+      dailyScanHeader.evaluate((cell) => (cell as HTMLTableCellElement).cellIndex),
+      dailyPresentHeader.evaluate((cell) => (cell as HTMLTableCellElement).cellIndex),
+    ])
+    checks.push({
+      name: 'Daily places Log before Time of scan and attendance statuses',
+      passed: dailyScanIndex === dailyLogIndex + 1 && dailyScanIndex < dailyPresentIndex,
+    })
     checks.push({
       name: 'Daily shows undo only for rows with manual attendance changes',
-      passed: await daily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible()
-        && await daily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).count() === 0,
+      passed: await daily.getByRole('button', { name: 'Undo override for Noah Williams' }).isVisible()
+        && await daily.getByRole('button', { name: 'Undo override for Maya Chen' }).count() === 0,
     })
     const presentSort = daily.getByRole('button', { name: 'Sort Present first, 2 students' })
     await presentSort.hover()
@@ -286,9 +298,9 @@ export const patternLabPageMockups: VerificationScript = {
     const dailyStatusSortArtifact = path.join(artifactDir, 'desktop-light-daily-status-sort.png')
     await daily.screenshot({ path: dailyStatusSortArtifact })
     artifacts.push(dailyStatusSortArtifact)
-    const noahUndo = daily.getByRole('button', { name: 'Undo manual change for Noah Williams' })
+    const noahUndo = daily.getByRole('button', { name: 'Undo override for Noah Williams' })
     await noahUndo.hover()
-    const undoTooltip = page.getByRole('tooltip').getByText('Undo manual change', { exact: true })
+    const undoTooltip = page.getByRole('tooltip').getByText('Undo override', { exact: true })
     await undoTooltip.waitFor()
     checks.push({
       name: 'Daily row revert tooltip stays concise',
@@ -432,7 +444,7 @@ export const patternLabPageMockups: VerificationScript = {
     checks.push({
       name: 'Daily batch marking reveals per-row undo controls',
       passed: await daily.getByRole('button', { name: 'Mark Sana Patel present' }).getAttribute('aria-pressed') === 'true'
-        && await daily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).isVisible(),
+        && await daily.getByRole('button', { name: 'Undo override for Maya Chen' }).isVisible(),
     })
     const dailyManualArtifact = path.join(artifactDir, 'desktop-light-daily-manual-undo.png')
     await daily.screenshot({ path: dailyManualArtifact })
@@ -478,14 +490,14 @@ export const patternLabPageMockups: VerificationScript = {
     await manualDaily.getByRole('menuitemcheckbox', { name: /Attendance from log/ }).click()
     checks.push({
       name: 'Attendance from log supplies the completed-log baseline when checked',
-      passed: await manualDaily.getByRole('button', { name: 'Undo manual change for Noah Williams' }).isVisible()
-        && await manualDaily.getByRole('button', { name: 'Undo manual change for Sana Patel' }).isVisible(),
+      passed: await manualDaily.getByRole('button', { name: 'Undo override for Noah Williams' }).isVisible()
+        && await manualDaily.getByRole('button', { name: 'Undo override for Sana Patel' }).isVisible(),
     })
     await manualDaily.getByRole('button', { name: 'More actions' }).click()
     await manualDaily.getByRole('menuitemcheckbox', { name: /Attendance from log/ }).click()
     checks.push({
       name: 'Unchecked Attendance from log restores the manual baseline',
-      passed: await manualDaily.getByRole('button', { name: 'Undo manual change for Maya Chen' }).isVisible(),
+      passed: await manualDaily.getByRole('button', { name: 'Undo override for Maya Chen' }).isVisible(),
     })
     await manualDaily.getByRole('button', { name: 'More actions' }).click()
     await manualDaily.getByRole('menuitem', { name: /Edit attendance/ }).click()

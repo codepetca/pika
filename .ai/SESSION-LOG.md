@@ -356,3 +356,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
 - Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.
+## 2026-09-05 — Use override terminology in Daily attendance
+
+- Updated the Daily attendance row undo affordance in the live teacher surface and Pattern Lab from “Undo manual change” to “Undo override,” including accessible labels and hover tooltips. Updated focused component and browser assertions; batch “Revert manual changes” wording remains unchanged.
+- Focused tests, architecture/UI/design policy, TypeScript, lint, and the full Pattern Lab visual matrix passed across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or layout change.
+
+## 2026-09-05 — Place Daily Log before scan time
+
+- Reordered the Daily attendance table in the live teacher surface and Pattern Lab so Log appears before Time of scan and the Present/Late/Absent status bubbles. The mobile inline check-in time and existing sticky status/undo columns remain intact.
+- Added order regressions to component and browser verification. Focused tests, architecture/UI/design policy, TypeScript, lint, Pika audit, and the full Pattern Lab visual matrix pass across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or attendance behavior change.

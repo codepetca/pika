@@ -421,8 +421,8 @@ export function DailyMockup({
                 <colgroup>
                   <col className="w-24" />
                   <col className="w-28" />
-                  {hasQrCheckIn ? <col className="w-24" /> : null}
                   <col />
+                  {hasQrCheckIn ? <col className="w-24" /> : null}
                   <col className="w-11" />
                   <col className="w-11" />
                   <col className="w-11" />
@@ -432,6 +432,7 @@ export function DailyMockup({
                   <DataTableRow>
                     <SortableHeaderCell label="First" isActive={sort.key === 'first'} direction={sort.direction} onClick={() => toggleSort('first')} density="tight" />
                     <SortableHeaderCell label="Last" isActive={sort.key === 'last'} direction={sort.direction} onClick={() => toggleSort('last')} density="tight" />
+                    <DataTableHeaderCell density="tight">Log</DataTableHeaderCell>
                     {hasQrCheckIn ? (
                       <DataTableHeaderCell density="tight" align="center" aria-label="Time of scan">
                         <Tooltip content="Time of scan">
@@ -441,7 +442,6 @@ export function DailyMockup({
                         </Tooltip>
                       </DataTableHeaderCell>
                     ) : null}
-                    <DataTableHeaderCell density="tight">Log</DataTableHeaderCell>
                     {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                       <DataTableHeaderCell
                         key={status}
@@ -465,7 +465,7 @@ export function DailyMockup({
                         />
                       </DataTableHeaderCell>
                     ))}
-                    <DataTableHeaderCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface-3"><span className="sr-only">Undo manual change</span></DataTableHeaderCell>
+                    <DataTableHeaderCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface-3"><span className="sr-only">Undo override</span></DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -473,10 +473,10 @@ export function DailyMockup({
                     <DataTableRow key={student.id} className="group hover:bg-surface-hover">
                       <DataTableCell density="tight">{student.first}</DataTableCell>
                       <DataTableCell density="tight">{student.last}</DataTableCell>
+                      <DataTableCell density="tight"><span className="block truncate text-text-muted">{student.log ?? '—'}</span></DataTableCell>
                       {hasQrCheckIn ? (
                         <DataTableCell density="tight" className="text-text-muted">{checkIns[student.id] ?? <span aria-label="No QR check-in">—</span>}</DataTableCell>
                       ) : null}
-                      <DataTableCell density="tight"><span className="block truncate text-text-muted">{student.log ?? '—'}</span></DataTableCell>
                       {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                         <DataTableCell
                           key={status}
@@ -497,8 +497,8 @@ export function DailyMockup({
                       <DataTableCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover">
                         {manualChanges[student.id] ? (
                           <IconButton
-                            label={`Undo manual change for ${student.first} ${student.last}`}
-                            tooltip="Undo manual change"
+                            label={`Undo override for ${student.first} ${student.last}`}
+                            tooltip="Undo override"
                             icon={RotateCcw}
                             variant="ghost"
                             size="xs"
