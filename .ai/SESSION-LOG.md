@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Require class-day setup in the classroom wizard
-
-- Removed the blank-classroom deferral option from the creation wizard. All classroom creation paths now require the teacher to choose the actual first class day before Create is enabled.
-- Replaced the inferred Monday-Friday range label and warning block with the concise field guidance `You can modify class days later in Settings.` The existing post-creation reminder remains as failure recovery for classrooms that still have no calendar.
-- Component, TypeScript and browser checks pass; teacher light-desktop and dark-mobile screenshots confirm the simplified dialog, required/selected date states and responsive layout. Student creation remains unavailable by role. No migration, hosted data, deployment, commit or PR action was performed.
-
 ## 2026-09-04 — Open the native first-day picker from the wizard
 
 - Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
@@ -238,3 +232,10 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Added assessment type to override lookup keys while preserving the separate calculated-score maps.
 - Three API regressions failed before the fix and passed afterward: distinct overrides for both types and each one-sided override; assertions cover cells, student details, final grades, and class averages.
 - No schema or UI changes. Migration 157 remains a separately controlled rollout.
+
+## 2026-09-07 — Archive compatibility across migration157 rollout
+
+- Production promotion review identified an app/schema ordering gap in archive export, deletion inventory, and restore.
+- Read the deployed v2 resource contract and accept only the full table set or the exact pre157 set. Export manifests and completion counts preserve the database snapshot contract; deletion inventory avoids the absent override table.
+- Restore permits archives with empty override data on schema156 but rejects non-empty overrides before staging or storage reservations. Schema/catalog mismatches and contract-read errors still fail closed.
+- Added regression coverage for both schema versions, strict contract reads, archive export, inventory, and restore. No migration applied; schema157 remains separately authorized.
