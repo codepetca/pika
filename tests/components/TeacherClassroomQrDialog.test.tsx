@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomQrDialog } from '@/app/classrooms/[classroomId]/TeacherClassroomQrDialog'
@@ -38,35 +38,28 @@ describe('TeacherClassroomQrDialog', () => {
     delete document.body.dataset.printClassroomQr
   })
 
-  it('loads a printable stable poster and downloads the QR as SVG', async () => {
+  it('loads a monitor-shaped stable poster and prints from its settings menu', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => response(presentation)))
     const print = vi.fn()
     vi.stubGlobal('print', print)
-    const createObjectURL = vi.fn(() => 'blob:qr')
-    const revokeObjectURL = vi.fn()
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
-    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
-    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const user = userEvent.setup()
 
     renderDialog()
 
     const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
     const qr = within(dialog).getByLabelText('Physics 11 permanent attendance QR code')
     expect(qr).toBeVisible()
-    expect(qr).toHaveClass('p-[10%]')
-    expect(within(dialog).getByText('Print once and use every day')).toBeVisible()
+    expect(qr).toHaveClass('sm:h-full', 'p-[10%]')
+    expect(within(dialog).getByText('Physics 11')).toHaveClass('sm:text-4xl')
     expect(within(dialog).getByText('Stable until you rotate it')).toBeVisible()
+    expect(within(dialog).queryByRole('button', { name: 'Print poster' })).not.toBeInTheDocument()
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Print poster' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Print poster' }))
     expect(document.body.dataset.printClassroomQr).toBe('true')
     expect(print).toHaveBeenCalledOnce()
     window.dispatchEvent(new Event('afterprint'))
     expect(document.body.dataset.printClassroomQr).toBeUndefined()
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Download SVG' }))
-    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
-    expect(anchorClick).toHaveBeenCalledOnce()
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:qr')
   })
 
   it('warns that rotation invalidates the old poster and replaces it after confirmation', async () => {
@@ -126,11 +119,11 @@ describe('TeacherClassroomQrDialog', () => {
     await user.click(within(screen.getByRole('dialog', { name: 'Rotate classroom QR?' })).getByRole('button', { name: 'Rotate QR' }))
     await screen.findByText(/Reload the current QR before printing/)
     expect(within(dialog).queryByRole('button', { name: 'Print poster' })).not.toBeInTheDocument()
-    expect(within(dialog).queryByRole('button', { name: 'Download SVG' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Poster settings' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('img')).not.toBeInTheDocument()
     expect(document.querySelector('[data-classroom-qr-print]')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
-    await within(dialog).findByRole('button', { name: 'Print poster' })
+    await within(dialog).findByRole('button', { name: 'Poster settings' })
     await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
     await user.click(within(dialog).getByRole('menuitem', { name: 'Rotate QR' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Rotate classroom QR?' })).getByRole('button', { name: 'Rotate QR' }))

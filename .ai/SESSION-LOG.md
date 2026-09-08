@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-05 — Restore local development on Node 24
-
-- The local launcher initially exposed a Next dev-runtime failure while rendering `/login`: `tailwind.config.ts` used CommonJS `require` in an ESM-loaded config. Replaced it with the typed ESM import for `@tailwindcss/typography`, committed locally as `7b14f8c8`, and verified `/login` returns HTTP 200 on port 3001.
-- Focused checks pass 44 files / 616 tests plus architecture, UI/design policy, TypeScript and lint. The fix is intentionally unpushed; final PR rebase/review/CI/merge remains deferred until the model reset.
-
 ## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
 
 - Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
@@ -301,3 +296,9 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Reused the existing server-gated classroom QR APIs, authorization, stable handle, dialog contracts, and print portal. No API, database, migration, entitlement, or production configuration changed. Pattern Lab and the QR guidance now describe the adopted interaction.
 - Focused component coverage passes 84 tests. Browser verification passes teacher desktop/mobile light/dark for poster, print, download, rotation/recovery, closed/scheduled/unconfigured states and occurrence fallback, plus student desktop/mobile light/dark open/closed/revoked/roster/error outcomes. Visual inspection caught and fixed a dark-mode SVG rendering defect by inheriting the fixed semantic QR foreground over the QR background; refreshed dark captures show a scannable dark-on-white code.
 - The first ready-PR Test & Build run correctly rejected a fixed poster padding utility outside the registered QR geometry. Returned PR #1222 to draft, restored the governed 10% quiet zone with a semantic regression, and reran design policy, audit, 56 affected tests, and teacher desktop/mobile light/dark browser captures successfully. Targeted re-review and fresh exact-head CI remain.
+
+## 2026-09-08 — Refine the classroom QR for monitor display
+
+- Replaced the poster dialog's visible `Classroom QR` header with a responsive monitor-shaped composition: the large classroom name and one settings control occupy the left side while the scan-safe QR uses the maximum available height on the right. Compact screens stack the same content so the QR remains visible and contained.
+- Moved Print poster beside Rotate QR inside the existing settings menu and removed the separate SVG download action. The print-only view now mirrors the landscape label-left/code-right composition; rotation retains its invalidation warning and recovery behavior.
+- Focused component tests pass 29/29, TypeScript and UI/design policy pass, and the production Daily browser contract passes desktop/mobile in light/dark (4/4), including print and rotation recovery. QR-specific Pattern Lab checks passed; its full broad run retained one unrelated Gradebook raw-score failure. All four poster captures and the print capture were visually inspected.

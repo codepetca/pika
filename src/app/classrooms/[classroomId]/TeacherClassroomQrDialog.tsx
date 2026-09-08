@@ -1,13 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Download, Printer, RotateCcw, Settings } from 'lucide-react'
+import { Printer, RotateCcw, Settings, X } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { TeacherClassroomQrPresentation } from '@/lib/teacher-attendance'
 import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
-import { serializeQrSvg } from '@/lib/qr-svg'
-import { Button, ConfirmDialog, ContentDialog, PageState, QrCode } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, PageState, QrCode } from '@/ui'
 
 function classroomQrUrl(classroomId: string) {
   return `/api/teacher/attendance/classroom-qr?${new URLSearchParams({
@@ -46,7 +45,7 @@ export function TeacherClassroomQrDialog({
   const [rotateOpen, setRotateOpen] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [rotateError, setRotateError] = useState('')
-  const qrRef = useRef<HTMLDivElement | null>(null)
+  const titleId = useId()
   const requestVersion = useRef(0)
 
   const load = useCallback(async () => {
@@ -138,102 +137,101 @@ export function TeacherClassroomQrDialog({
     window.print()
   }
 
-  function downloadPoster() {
-    const svg = qrRef.current?.querySelector('svg')
-    if (!svg) return
-    const blob = new Blob([serializeQrSvg(svg)], {
-      type: 'image/svg+xml;charset=utf-8',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${classroomTitle.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'classroom'}-attendance-qr.svg`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
   const poster = entryUrl ? (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-qr-background p-8 text-center text-qr-foreground">
-      <p className="text-2xl font-semibold">{classroomTitle}</p>
-      <p className="mt-1 text-base">Scan to check in for attendance</p>
-      <div className="mt-6 w-[min(70vw,70vh)] max-w-[760px]">
+    <div className="flex h-full w-full items-center gap-8 bg-qr-background p-8 text-qr-foreground">
+      <div className="flex w-1/3 min-w-0 flex-col justify-center">
+        <p className="text-4xl font-semibold leading-tight">{classroomTitle}</p>
+        <p className="mt-3 text-lg">Scan to check in for attendance</p>
+        <p className="mt-6 text-sm">Sign in to Pika after scanning. Attendance must be open.</p>
+      </div>
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center">
         <QrCode
           value={entryUrl}
           label={`${classroomTitle} permanent attendance QR code`}
-          className="aspect-square w-full border-0 bg-qr-background p-[10%]"
-          codeClassName="max-w-none"
+          className="aspect-square h-full max-w-full border-0 bg-qr-background p-[10%]"
+          codeClassName="h-full max-w-none"
         />
       </div>
-      <p className="mt-5 text-sm">Sign in to Pika after scanning. Attendance must be open.</p>
     </div>
   ) : null
 
   return (
     <>
-      <ContentDialog
+      <DialogPanel
         isOpen={isOpen}
         onClose={onClose}
-        title="Classroom QR"
-        subtitle={`${classroomTitle} · Reusable poster`}
-        maxWidth="max-w-4xl"
-        panelClassName="w-full"
-        showFooterClose={false}
+        ariaLabelledBy={titleId}
+        maxWidth="max-w-6xl"
+        className="aspect-square overflow-hidden sm:aspect-video"
       >
+        <h2 id={titleId} className="sr-only">Classroom QR</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-3 top-3 z-local-menu h-11 w-11 p-0"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </Button>
         {loading ? (
-          <PageState kind="loading" title="Loading classroom QR" compact />
+          <div className="flex h-full items-center justify-center">
+            <PageState kind="loading" title="Loading classroom QR" compact />
+          </div>
         ) : error ? (
-          <PageState
-            kind="error"
-            title="Classroom QR unavailable"
-            description={error}
-            compact
-            action={<Button type="button" onClick={() => void load()}>Try again</Button>}
-          />
+          <div className="flex h-full items-center justify-center">
+            <PageState
+              kind="error"
+              title="Classroom QR unavailable"
+              description={error}
+              compact
+              action={<Button type="button" onClick={() => void load()}>Try again</Button>}
+            />
+          </div>
         ) : entryUrl && presentation ? (
-          <div className="grid items-center gap-5 md:grid-cols-2">
-            <div ref={qrRef} className="mx-auto w-full max-w-md rounded-card border border-border bg-qr-background p-3 shadow-sm">
-              <QrCode
-                value={entryUrl}
-                label={`${classroomTitle} permanent attendance QR code`}
-                className="aspect-square w-full border-0 bg-qr-background p-[10%]"
-                codeClassName="max-w-none"
-              />
-            </div>
-            <div className="flex flex-col gap-4 text-left">
-              <div>
-                <p className="text-lg font-semibold text-text-default">Print once and use every day</p>
-                <p className="mt-1 text-sm leading-5 text-text-muted">
-                  Students sign in to Pika after scanning. Check-in works only while attendance is open.
-                </p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
-                <Button type="button" variant="primary" className="w-full justify-center" onClick={printPoster}>
-                  <Printer className="h-4 w-4" aria-hidden="true" /> Print poster
-                </Button>
-                <Button type="button" variant="secondary" className="w-full justify-center" onClick={downloadPoster}>
-                  <Download className="h-4 w-4" aria-hidden="true" /> Download SVG
-                </Button>
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3">
-                <span className="text-xs text-text-muted">Stable until you rotate it</span>
+          <div className="flex h-full min-h-0 flex-col items-stretch gap-3 sm:flex-row sm:gap-6">
+            <div className="flex w-full min-w-0 flex-col justify-center pr-12 sm:w-1/3 sm:pl-3 sm:pr-0">
+              <p className="text-2xl font-semibold leading-tight text-text-default sm:text-4xl">{classroomTitle}</p>
+              <p className="mt-3 text-sm leading-5 text-text-muted">
+                Students scan to sign in to Pika. Check-in works while attendance is open.
+              </p>
+              <div className="mt-6 flex items-center gap-3">
                 <TeacherWorkSurfaceIconMenuButton
                   ariaLabel="Poster settings"
                   tooltip="Poster settings"
                   className="h-11 w-11"
-                  menuAlign="end"
-                  icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-                  items={[{
-                    id: 'rotate-qr',
-                    label: 'Rotate QR',
-                    icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-                    onSelect: () => setRotateOpen(true),
-                  }]}
+                  menuAlign="start"
+                  icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+                  items={[
+                    {
+                      id: 'print-poster',
+                      label: 'Print poster',
+                      icon: <Printer className="h-4 w-4" aria-hidden="true" />,
+                      onSelect: printPoster,
+                    },
+                    {
+                      id: 'rotate-qr',
+                      label: 'Rotate QR',
+                      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+                      onSelect: () => setRotateOpen(true),
+                    },
+                  ]}
                 />
+                <span className="text-xs text-text-muted">Stable until you rotate it</span>
               </div>
+            </div>
+            <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+              <QrCode
+                value={entryUrl}
+                label={`${classroomTitle} permanent attendance QR code`}
+                className="aspect-square w-full max-w-40 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
+                codeClassName="h-full max-w-none"
+              />
             </div>
           </div>
         ) : null}
-      </ContentDialog>
+      </DialogPanel>
       <ConfirmDialog
         isOpen={rotateOpen}
         title="Rotate classroom QR?"

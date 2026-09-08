@@ -324,17 +324,20 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.getByRole('button', { name: 'Classroom QR' }).click()
     const classroomQrDialog = page.getByRole('dialog', { name: 'Classroom QR' })
     checks.push({
-      name: 'Daily classroom QR opens one reusable poster from the primary control',
+      name: 'Daily classroom QR opens a monitor-shaped poster with side controls',
       passed: await classroomQrDialog.getByLabel('Environmental Science permanent attendance QR code').isVisible()
-        && await classroomQrDialog.getByText('Print once and use every day').isVisible()
-        && await classroomQrDialog.getByRole('button', { name: 'Print poster' }).isVisible()
-        && await classroomQrDialog.getByRole('button', { name: 'Download SVG' }).isVisible()
+        && await classroomQrDialog.getByText('Environmental Science').isVisible()
         && await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).isVisible(),
     })
     const classroomQrArtifact = path.join(artifactDir, 'desktop-light-daily-classroom-qr.png')
     await page.screenshot({ path: classroomQrArtifact })
     artifacts.push(classroomQrArtifact)
     await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).click()
+    checks.push({
+      name: 'QR poster settings contains printing and rotation',
+      passed: await classroomQrDialog.getByRole('menuitem', { name: 'Print poster' }).isVisible()
+        && await classroomQrDialog.getByRole('menuitem', { name: 'Rotate QR' }).isVisible(),
+    })
     await classroomQrDialog.getByRole('menuitem', { name: 'Rotate QR' }).click()
     const rotateQrDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
     checks.push({

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings } from 'lucide-react'
+import { Clock3, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
 import {
   ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
@@ -35,6 +35,7 @@ import {
   DataTableHead,
   DataTableHeaderCell,
   DataTableRow,
+  DialogPanel,
   FormField,
   IconButton,
   Input,
@@ -140,6 +141,7 @@ export function DailyMockup({
   attendanceMode?: DailyAttendanceMode
   onPrototypeAction: (action: string) => void
 }) {
+  const classroomQrTitleId = useId()
   const hasQrCheckIn = attendanceMode === 'qr'
   const [date, setDate] = useState('2026-09-16')
   const [showRelativeDate, setShowRelativeDate] = useState(true)
@@ -558,48 +560,44 @@ export function DailyMockup({
         </div>
       </ContentDialog>
 
-      <ContentDialog
+      <DialogPanel
         isOpen={isClassroomQrOpen}
         onClose={() => setIsClassroomQrOpen(false)}
-        title="Classroom QR"
-        subtitle="Environmental Science · Reusable poster"
-        maxWidth="max-w-4xl"
-        panelClassName="w-full"
-        showFooterClose={false}
+        ariaLabelledBy={classroomQrTitleId}
+        maxWidth="max-w-6xl"
+        className="aspect-square overflow-hidden sm:aspect-video"
       >
-        <div className="grid items-center gap-5 md:grid-cols-2">
-          <div className="mx-auto w-full max-w-md rounded-card border border-border bg-qr-background p-3 shadow-sm">
-            <QrCode
-              value="https://pika.codepet.ca/attendance/classroom/pattern-lab-stable-poster"
-              label="Environmental Science permanent attendance QR code"
-              className="aspect-square w-full bg-qr-background p-8"
-              codeClassName="max-w-none"
-            />
-          </div>
-          <div className="flex flex-col gap-4 text-left">
-            <div>
-              <p className="text-lg font-semibold text-text-default">Print once and use every day</p>
-              <p className="mt-1 text-sm leading-5 text-text-muted">
-                Students sign in to Pika after scanning. Check-in works only while attendance is open.
-              </p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
-              <Button type="button" variant="primary" className="w-full justify-center" onClick={() => onPrototypeAction('Print classroom QR poster')}>
-                <Printer className="h-4 w-4" aria-hidden="true" />
-                Print poster
-              </Button>
-              <Button type="button" variant="secondary" className="w-full justify-center" onClick={() => onPrototypeAction('Download classroom QR SVG')}>
-                <Download className="h-4 w-4" aria-hidden="true" />
-                Download SVG
-              </Button>
-            </div>
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-xs text-text-muted">Stable until you rotate it</span>
+        <h2 id={classroomQrTitleId} className="sr-only">Classroom QR</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-3 top-3 z-local-menu h-11 w-11 p-0"
+          aria-label="Close"
+          onClick={() => setIsClassroomQrOpen(false)}
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </Button>
+        <div className="flex h-full min-h-0 flex-col items-stretch gap-3 sm:flex-row sm:gap-6">
+          <div className="flex w-full min-w-0 flex-col justify-center pr-12 sm:w-1/3 sm:pl-3 sm:pr-0">
+            <p className="text-2xl font-semibold leading-tight text-text-default sm:text-4xl">Environmental Science</p>
+            <p className="mt-3 text-sm leading-5 text-text-muted">
+              Students scan to sign in to Pika. Check-in works while attendance is open.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
               <TeacherWorkSurfaceIconMenuButton
                 ariaLabel="Poster settings"
                 tooltip="Poster settings"
-                icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+                className="h-11 w-11"
+                menuAlign="start"
+                icon={<Settings className="h-5 w-5" aria-hidden="true" />}
                 items={[
+                  {
+                    id: 'print-poster',
+                    label: 'Print poster',
+                    icon: <Printer className="h-4 w-4" aria-hidden="true" />,
+                    onSelect: () => onPrototypeAction('Print classroom QR poster'),
+                  },
                   {
                     id: 'rotate-qr',
                     label: 'Rotate QR',
@@ -608,10 +606,19 @@ export function DailyMockup({
                   },
                 ]}
               />
+              <span className="text-xs text-text-muted">Stable until you rotate it</span>
             </div>
           </div>
+          <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+            <QrCode
+              value="https://pika.codepet.ca/attendance/classroom/pattern-lab-stable-poster"
+              label="Environmental Science permanent attendance QR code"
+              className="aspect-square w-full max-w-40 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
+              codeClassName="h-full max-w-none"
+            />
+          </div>
         </div>
-      </ContentDialog>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={isRotateQrOpen}

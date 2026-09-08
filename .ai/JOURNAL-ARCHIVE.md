@@ -31331,11 +31331,11 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Reordered the Daily attendance table in the live teacher surface and Pattern Lab so Log appears before Time of scan and the Present/Late/Absent status bubbles. The mobile inline check-in time and existing sticky status/undo columns remain intact.
 - Added order regressions to component and browser verification. Focused tests, architecture/UI/design policy, TypeScript, lint, Pika audit, and the full Pattern Lab visual matrix pass across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or attendance behavior change.
+<!-- pika-session-log-archive-batch:3672e9f41d722b0755c52cb79159d263038a1eacd5fe08c10e98779a5b9b2f48 -->
 ## 2026-09-05 — Restore local development on Node 24
 
 - The local launcher initially exposed a Next dev-runtime failure while rendering `/login`: `tailwind.config.ts` used CommonJS `require` in an ESM-loaded config. Replaced it with the typed ESM import for `@tailwindcss/typography`, committed locally as `7b14f8c8`, and verified `/login` returns HTTP 200 on port 3001.
 - Focused checks pass 44 files / 616 tests plus architecture, UI/design policy, TypeScript and lint. The fix is intentionally unpushed; final PR rebase/review/CI/merge remains deferred until the model reset.
-
 <!-- pika-session-log-archive-batch:3bd1a000d5699c1d0b1a334ba23c3095c9baddfed3e10710576078f2b6d7c396 -->
 ## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
 

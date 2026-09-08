@@ -1,8 +1,8 @@
 # Stable classroom attendance QR
 
 The teacher's Daily context bar exposes one `Classroom QR` action when the stable
-poster rollout is available. It opens the reusable poster for screen display,
-printing, and SVG download, including while attendance is closed. If stable posters
+poster rollout is available. It opens the reusable poster for landscape screen
+display and printing, including while attendance is closed. If stable posters
 are unavailable, the same position falls back to the existing occurrence-specific
 `Show QR` action. Rotation invalidates the previous poster; teachers must print and
 replace it.
@@ -44,7 +44,7 @@ replace it.
 - Teacher view/create and rotate routes require classroom ownership and attendance
   access. Rotation uses an expected generation to reject concurrent stale writes.
   A failed/uncertain rotation removes the old preview and requires a fresh read
-  before printing, downloading or rotating again.
+  before printing or rotating again.
 - Handles are explicitly classified as non-portable locator state, excluded from
   classroom archives and Gradex. Soft archive retains them but disables resolution;
   authorized classroom deletion cascades them. A recreated/restored classroom
@@ -65,29 +65,31 @@ replace it.
 
 ## UI acceptance and ownership
 
-Reference: Daily attendance, the shared ContentDialog/ConfirmDialog contracts,
-and Pattern Lab Controls. Primary signal: a large, square, dark-on-light code
-with a quiet zone; do not add new attendance statuses, raw theme colors, or new
-overlay behavior. No experimental shared pattern or human promotion is proposed.
+Reference: Daily attendance, the shared DialogPanel/ConfirmDialog contracts,
+and Pattern Lab Controls. Primary signal: a landscape, monitor-shaped panel with
+the classroom label and settings on the left and a maximum-height, square,
+dark-on-light code with a quiet zone on the right. Do not add new attendance
+statuses, raw theme colors, or new overlay behavior. No experimental shared
+pattern or human promotion is proposed.
 
 | Need | Candidate | Decision | Reason |
 |---|---|---|---|
-| Modal frame and rotation warning | ContentDialog / ConfirmDialog | reuse | Shared focus, Escape and dismissal |
+| Modal frame and rotation warning | DialogPanel / ConfirmDialog | reuse | Shared focus, Escape and dismissal |
 | Large QR rendering | QrCode | extend | Opt-in full-size SVG, unchanged default consumers |
-| Full display panel | ContentDialog | extend | Opt-in panel classes, unchanged default sizing |
+| Full display panel | DialogPanel | extend | Feature-owned landscape composition inside the shared modal shell |
 | Student feedback | StudentAttendanceCheckIn | reuse | Existing status and retry presentation |
 | Daily QR entry point | Context-bar primary action | extend | Stable poster when available, occurrence fallback otherwise |
 
 The print-only body portal is not an interactive overlay; it isolates the poster
-from the application during printing. Printable and downloaded codes resolve to
-dark-on-white independently of the active theme. Feature state stays outside
+from the application during printing. Printable codes resolve to dark-on-white
+independently of the active theme. Feature state stays outside
 `src/ui`. QR viewport geometry is registered under the attendance design owner.
 
 ## Verification scope
 
 Teacher and student fixtures cover desktop 1440×900 and mobile 390×844 in light
-and dark. Browser contracts cover live QR sizing, poster view, rotation warning,
-download, print isolation, and student loading/success/closed/revoked/roster/error
+and dark. Browser contracts cover live QR sizing, poster view, the settings menu,
+rotation warning, print isolation, and student loading/success/closed/revoked/roster/error
 states. Focus and Escape contracts are tested through shared dialog owners.
 Fixtures do not prove live Bara operation or real authenticated redirection;
 API/server tests cover authorization boundaries separately. A real-stack smoke
