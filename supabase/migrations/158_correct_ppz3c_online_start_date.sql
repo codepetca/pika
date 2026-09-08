@@ -34,7 +34,11 @@ create trigger guard_ppz3c_online_entry_158
 before insert or update on public.entries
 for each row execute function private.guard_ppz3c_online_prestart_write_158();
 
-do $migration$
+create function private.apply_ppz3c_online_start_date_correction_158()
+returns void
+language plpgsql
+set search_path = ''
+as $migration$
 declare
   v_classroom_id constant uuid := '7ed4c2e5-4418-4401-ae47-6c2e464db3ee';
   v_teacher_id constant uuid := 'a2440373-e98d-432d-92a2-03701ab7c369';
@@ -149,3 +153,8 @@ begin
   end if;
 end;
 $migration$;
+
+revoke all on function private.apply_ppz3c_online_start_date_correction_158()
+  from public, anon, authenticated, service_role;
+
+select private.apply_ppz3c_online_start_date_correction_158();
