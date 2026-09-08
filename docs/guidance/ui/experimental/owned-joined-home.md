@@ -17,14 +17,14 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 ## Brief
 
 - Surface: `/pattern-lab#owned-joined-home`, available in both reference roles.
-- Reference: PR #1179's accepted top-right classroom actions, extending the PR #1139
-  Classrooms mockup. The current reference is retained unchanged beside this proposal.
+- Reference: the current live teacher classroom index after PRs #1179 and #1183,
+  extending the PR #1139 Classrooms mockup. The earlier mockup remains beside this proposal.
 - Outcome: one account discovers classrooms it teaches and joins without changing account type.
 - Roles: teacher, student, and a mixed-relationship fixture; these are examples, not authorization.
 - Viewports: 1440×900 desktop and 390×844 mobile; light and dark.
 - States: All/Teaching/Joined, populated, new account, loading, error/retry, filtered empty,
   creation unavailable, join validation/confirmation, create, edit, archive/restore and classroom preview.
-- Primary signal: one top-right menu above the list, familiar classroom identity accents
+- Primary signal: one top-right menu above the list, live themed classroom cards
   and quiet Teaching/Joined grouping. Filters have their own row above list actions.
 - Exclusions: production routes, auth, API calls, persistence, schema, eligibility changes,
   subscription labels, payment UI, destructive deletion, broad visual redesign.
@@ -33,9 +33,10 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Classroom rows | PR #1139 Card/Button composition | reuse | Preserve compact title, term, dates and identity accent |
+| Classroom rows | Live themed classroom-card composition | extend | Preserve compact title, term and dates while matching the current gradient identity treatment |
 | Home filters | SegmentedControl | reuse | Filter one list with shared pressed/keyboard semantics |
 | Top-right menu | PageActionBar + TeacherWorkSurfaceIconMenuButton | reuse | Match PR #1179 placement, downward opening, checked edit state and archive divider |
+| Archived owner actions | Live archived-row Settings menu | reuse | Keep Reuse and Unarchive grouped; Delete is visible but disabled in this non-destructive fixture |
 | Back and list Escape | PageHeading | reuse | Return to Active/non-editing and focus the heading; nested menus/dialogs retain Escape |
 | Forms and previews | ContentDialog, FormField, Input, ConfirmDialog, PageState | reuse | Keep validation and focus in existing owners |
 | Review surface | Pattern Lab catalog | extend | Add a fixture-owned experiment; leave original Classrooms example intact |
@@ -56,6 +57,32 @@ No fake live-save success, network writes or persisted settings are introduced.
 Nearby refactor candidate: PR #1139 and this prototype share classroom-row structure. Keep the
 proposal local until human acceptance establishes a durable contract for a live adopter.
 Human promotion and separately reviewed server discovery/routing are required before adoption.
+
+## Current classroom-list visual alignment — 2026-09-08
+
+- The prototype now uses the live classroom theme gradient, compact title/term/date row,
+  owner edit grip, right-side archive action and archived owner Settings menu.
+- The page-level ellipsis remains at the classroom list's top-right edge and continues to
+  own New Classroom, Join classroom, checked Edit classrooms and Show Archived/Show Active.
+- Joined rows share the live visual frame but deliberately expose Hide/Unhide instead of
+  owner-only archive, reorder, reuse or delete behavior. This is a relationship extension,
+  not a change to the current live authorization model.
+- No shared primitive, production route, persistence, entitlement or lifecycle behavior changes.
+
+### Verification — 2026-09-08
+
+- The focused gate passes 14 files / 129 tests plus architecture, UI/design policy,
+  TypeScript and lint. The Pika pre-commit audit passes without violations.
+- Eight fixture-backed browser scenarios pass: teacher and student × desktop/mobile ×
+  light/dark. They cover the default grouped list, top-right menu, owner edit/archive,
+  joined Hide, archived Settings/Unarchive, Hidden/Unhide, empty/error and focus return.
+- Visual inspection covered the same role/viewport/theme matrix. An initial archived-row
+  capture exposed a clipped Settings menu; the row now uses the live local-menu stacking
+  treatment, and the complete matrix passed again with Reuse, Unarchive and disabled Delete
+  visible above adjacent cards. No horizontal overflow or clipped mobile controls remain.
+- Browser monitoring observed zero non-read API requests. Composite checklist reviewed:
+  keyboard behavior and semantic state are covered; no manual follow-up remains for this
+  fixture-only scope. Production behavior remains unchanged and unverified by this prototype.
 
 ## Hidden joined classrooms — approved prototype revision
 

@@ -77,7 +77,13 @@ describe('OwnedJoinedHomeMockup', () => {
     const archived = home.getByRole('region', { name: 'Archived classrooms' })
     const hidden = home.getByRole('region', { name: 'Hidden classrooms' })
     expect(archived.compareDocumentPosition(hidden) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(archived).getByRole('button', { name: 'Restore Earth and Space Science' })).toBeVisible()
+    const archivedSettings = within(archived).getByRole('button', { name: 'Settings for Earth and Space Science' })
+    await user.click(archivedSettings)
+    expect(screen.getByRole('menuitem', { name: 'Reuse' })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: 'Unarchive' })).toBeVisible()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeDisabled()
+    await user.keyboard('{Escape}')
+    expect(archivedSettings).toHaveFocus()
     expect(within(hidden).getByRole('button', { name: 'Unhide Learning Design' })).toBeVisible()
     expect(within(hidden).queryByRole('button', { name: /^Restore / })).not.toBeInTheDocument()
     await user.click(within(hidden).getByRole('button', { name: 'Open Learning Design' }))
@@ -89,6 +95,18 @@ describe('OwnedJoinedHomeMockup', () => {
     expect(home.getByRole('button', { name: 'Back to classrooms' })).toHaveFocus()
     await user.click(home.getByRole('button', { name: 'Back to classrooms' }))
     expect(home.getByRole('button', { name: 'Open Learning Design' })).toBeVisible()
+  })
+
+  it('uses current themed classroom cards and owner-only edit handles', async () => {
+    const { user, home } = setup()
+    const cards = home.getAllByTestId('home-classroom-card')
+    expect(cards[0]).toHaveClass('classroom-theme-card', 'classroom-theme-card-interactive')
+    expect(cards[0]).toHaveAttribute('data-classroom-theme-color', 'blue')
+    await user.click(home.getByRole('button', { name: 'Classroom actions' }))
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Edit classrooms' }))
+    expect(home.getByRole('button', { name: 'Move Grade 11 Biology up' })).toBeVisible()
+    expect(home.queryByRole('button', { name: 'Move Learning Design up' })).not.toBeInTheDocument()
+    expect(home.getByRole('button', { name: 'Hide Learning Design' })).toBeVisible()
   })
 
   it('lets a joined-only account hide its last class and find it again', async () => {
