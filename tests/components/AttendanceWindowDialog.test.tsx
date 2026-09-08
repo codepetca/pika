@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AttendanceWindowDialog } from '@/app/classrooms/[classroomId]/AttendanceWindowDialog'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
@@ -213,6 +214,39 @@ describe('AttendanceWindowDialog', () => {
     expect(grace).toHaveValue(30)
     expect(closes).toHaveValue(30)
     expect(absent).toHaveValue(0)
+  })
+
+  it('replaces the selected zero value and hides native number steppers', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    const user = userEvent.setup()
+    renderDialog()
+
+    const numericInputs = [
+      await screen.findByLabelText('QR opens before start (min)'),
+      screen.getByLabelText('Grace period before late (min)'),
+      screen.getByLabelText('QR closes before end (min)'),
+      screen.getByLabelText('Absent before end (min)'),
+    ]
+
+    for (const input of numericInputs) {
+      expect(input).toHaveClass(
+        '[appearance:textfield]',
+        '[&::-webkit-inner-spin-button]:appearance-none',
+        '[&::-webkit-outer-spin-button]:appearance-none',
+      )
+    }
+
+    const absent = numericInputs[3]
+    await user.tab()
+    while (document.activeElement !== absent) await user.tab()
+    await user.keyboard('5')
+
+    expect(absent).toHaveValue(5)
+    expect(absent).not.toHaveDisplayValue('05')
+
+    fireEvent.change(absent, { target: { value: '05' } })
+    expect(absent).toHaveValue(5)
+    expect(absent).not.toHaveDisplayValue('05')
   })
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {

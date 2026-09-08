@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
-
-- Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
-- Focused checks pass 14 files / 165 tests, plus architecture, UI/design policy, TypeScript and lint. Playwright visual verification covered teacher schedule-open desktop/mobile in light/dark and student desktop/mobile announcement states; all rendered within the viewport with no visible overflow.
-- Risk profile: none. No schema, data, API, dependency, deployment or merge action is included.
-
-## 2026-09-06 — Add centered roster Student Actions menu
-
-- Added the gradebook's shared centered `Student Actions` menu to the teacher roster. It stays disabled with no selection, changes to the selected count, and exposes only `Copy emails (primary)` and `Copy emails (secondary)`; secondary copy remains disabled when no selected student has a secondary address.
-- Removed primary-email, copy-all, Gmail, and Outlook commands from the roster More actions menu, leaving roster management actions there. Added focused coverage for menu placement, labels, clipboard behavior, selected-count state, and provider-command removal.
-- Focused checks pass 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes teacher desktop/mobile light/dark default states, selected/open menu states, and the student route redirects to the student Today surface because roster is teacher-only. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
-
 ## 2026-09-06 — Stabilize roster Student Actions width
 
 - Matched the roster Student Actions trigger to the existing fixed-width Tests/gradebook treatment with `w-36`, keeping the centered cluster stable when the label changes from `Student Actions` to a selected count.
@@ -249,3 +237,13 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
 - Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
+
+## 2026-09-08 — Normalize Attendance timing minute inputs
+
+- Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
+- Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
+
+## 2026-09-08 — Resolve the second privacy PR history conflict
+
+- Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
+- Scope is one documentation-only integration review and fresh exact-head CI before authorized main merge. Prior exact-head CI at `0339c5da` passed all lanes and PR Gate. No migration, production deployment, or new security implementation is included.
