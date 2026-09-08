@@ -324,23 +324,29 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.getByRole('button', { name: 'Classroom QR' }).click()
     const classroomQrDialog = page.getByRole('dialog', { name: 'Classroom QR' })
     checks.push({
-      name: 'Daily classroom QR opens a monitor-shaped poster with centered side controls',
+      name: 'Daily classroom QR opens a monitor-shaped poster with centered desktop information',
       passed: await classroomQrDialog.getByLabel('Environmental Science permanent attendance QR code').isVisible()
         && await classroomQrDialog.getByText('Environmental Science').isVisible()
         && await classroomQrDialog.getByText('Scan Attendance').isVisible()
         && await classroomQrDialog.getByText('2:00 PM - 3:00 PM').isVisible()
-        && await classroomQrDialog.getByRole('button', { name: 'Print poster' }).isVisible()
-        && await classroomQrDialog.getByRole('button', { name: 'Rotate QR' }).isVisible(),
+        && await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).isVisible(),
     })
     const classroomQrArtifact = path.join(artifactDir, 'desktop-light-daily-classroom-qr.png')
     await page.screenshot({ path: classroomQrArtifact })
     artifacts.push(classroomQrArtifact)
     checks.push({
-      name: 'QR poster shows printing and rotation without a settings menu',
-      passed: await classroomQrDialog.getByRole('button', { name: 'Print poster' }).isVisible()
-        && await classroomQrDialog.getByRole('button', { name: 'Rotate QR' }).isVisible(),
+      name: 'QR poster settings contain print, download, and rotation actions',
+      passed: await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).isVisible(),
     })
-    await classroomQrDialog.getByRole('button', { name: 'Rotate QR' }).click()
+    await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).click()
+    const posterSettings = page.getByRole('menu', { name: 'Poster settings' })
+    checks.push({
+      name: 'QR poster settings expose all export and lifecycle actions',
+      passed: await posterSettings.getByRole('menuitem', { name: 'Print poster' }).isVisible()
+        && await posterSettings.getByRole('menuitem', { name: 'Download SVG' }).isVisible()
+        && await posterSettings.getByRole('menuitem', { name: 'Rotate QR' }).isVisible(),
+    })
+    await posterSettings.getByRole('menuitem', { name: 'Rotate QR' }).click()
     const rotateQrDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
     checks.push({
       name: 'QR rotation stays behind a warning',

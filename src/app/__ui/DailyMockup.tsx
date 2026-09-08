@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Clock3, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, X } from 'lucide-react'
+import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
 import {
   ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
@@ -330,6 +330,26 @@ export function DailyMockup({
       onSelect: () => onPrototypeAction('Edit Daily logs in Markdown'),
     },
   ]
+  const posterActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'print-poster',
+      label: 'Print poster',
+      icon: <Printer className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onPrototypeAction('Print classroom QR poster'),
+    },
+    {
+      id: 'download-svg',
+      label: 'Download SVG',
+      icon: <Download className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onPrototypeAction('Download classroom QR SVG'),
+    },
+    {
+      id: 'rotate-qr',
+      label: 'Rotate QR',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsRotateQrOpen(true),
+    },
+  ]
 
   const actionBar = (
     <TeacherWorkSurfaceContextBar
@@ -578,38 +598,42 @@ export function DailyMockup({
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </Button>
-        <div className="flex h-full min-h-0 flex-col items-stretch gap-3 sm:flex-row sm:gap-6">
-          <div className="flex w-full min-w-0 flex-col items-center justify-center px-3 pt-6 text-center sm:w-1/3 sm:pt-0">
+        <div className="flex h-full min-h-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:gap-6">
+          <div className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center px-3 text-center sm:w-1/3">
             <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">Environmental Science</p>
-            <p className="mt-4 text-xl font-medium leading-tight text-text-default sm:mt-6 sm:text-3xl">
+            <p className="mt-4 hidden text-xl font-medium leading-tight text-text-default sm:mt-6 sm:block sm:text-3xl">
               Scan Attendance
             </p>
-            <p className="mt-2 text-lg font-medium text-text-muted sm:mt-3 sm:text-2xl">2:00 PM - 3:00 PM</p>
-            <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:mt-8 sm:flex-row sm:gap-3">
-              <Button
-                type="button"
+            <p className="mt-2 hidden text-lg font-medium text-text-muted sm:mt-3 sm:block sm:text-2xl">2:00 PM - 3:00 PM</p>
+            <div className="mt-8 hidden sm:block">
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Poster settings"
+                tooltip="Poster settings"
+                icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+                items={posterActions}
+                menuAriaLabel="Poster settings"
+                menuAlign="center"
                 variant="secondary"
-                className="min-h-11"
-                onClick={() => onPrototypeAction('Print classroom QR poster')}
-              >
-                <Printer className="h-4 w-4" aria-hidden="true" /> Print poster
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11"
-                onClick={() => setIsRotateQrOpen(true)}
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Rotate QR
-              </Button>
+                className="h-11 w-11"
+              />
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center sm:h-full">
+          <div className="flex min-h-0 flex-none items-center justify-center sm:h-full sm:flex-1">
             <QrCode
               value="https://pika.codepet.ca/attendance/classroom/pattern-lab-stable-poster"
               label="Environmental Science permanent attendance QR code"
-              className="aspect-square w-full max-w-40 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
+              className="aspect-square w-full max-w-64 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
               codeClassName="h-full max-w-none"
+            />
+          </div>
+          <div className="absolute left-3 top-3 sm:hidden">
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="QR options"
+              tooltip="QR options"
+              icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+              items={posterActions}
+              menuAlign="start"
+              className="h-11 w-11"
             />
           </div>
         </div>
