@@ -195,7 +195,7 @@ export function TeacherClassroomQrDialog({
               <QrCode
                 value={entryUrl}
                 label={`${classroomTitle} permanent attendance QR code`}
-                className="aspect-square w-full border-0 bg-qr-background p-8"
+                className="aspect-square w-full border-0 bg-qr-background p-[10%]"
                 codeClassName="max-w-none"
               />
             </div>

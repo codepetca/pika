@@ -51,7 +51,9 @@ describe('TeacherClassroomQrDialog', () => {
     renderDialog()
 
     const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
-    expect(within(dialog).getByLabelText('Physics 11 permanent attendance QR code')).toBeVisible()
+    const qr = within(dialog).getByLabelText('Physics 11 permanent attendance QR code')
+    expect(qr).toBeVisible()
+    expect(qr).toHaveClass('p-[10%]')
     expect(within(dialog).getByText('Print once and use every day')).toBeVisible()
     expect(within(dialog).getByText('Stable until you rotate it')).toBeVisible()
 
