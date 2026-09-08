@@ -2,7 +2,7 @@
 
 The teacher's Daily context bar exposes one `Classroom QR` action when the stable
 poster rollout is available. It opens the reusable poster for landscape screen
-display and printing, including while attendance is closed. If stable posters
+display and a separate portrait print layout, including while attendance is closed. If stable posters
 are unavailable, the same position falls back to the existing occurrence-specific
 `Show QR` action. Rotation invalidates the previous poster; teachers must print and
 replace it.
@@ -67,7 +67,7 @@ replace it.
 
 Reference: Daily attendance, the shared DialogPanel/ConfirmDialog contracts,
 and Pattern Lab Controls. Primary signal: a landscape, monitor-shaped panel with
-the classroom label and settings on the left and a maximum-height, square,
+the centered classroom label, “Scan Attendance”, attendance hours, and direct print/rotate actions on the left and a maximum-height, square,
 dark-on-light code with a quiet zone on the right. Do not add new attendance
 statuses, raw theme colors, or new overlay behavior. No experimental shared
 pattern or human promotion is proposed.
@@ -80,15 +80,23 @@ pattern or human promotion is proposed.
 | Student feedback | StudentAttendanceCheckIn | reuse | Existing status and retry presentation |
 | Daily QR entry point | Context-bar primary action | extend | Stable poster when available, occurrence fallback otherwise |
 
-The print-only body portal is not an interactive overlay; it isolates the poster
-from the application during printing. Printable codes resolve to dark-on-white
+The print-only body portal is not an interactive overlay; it isolates a portrait
+poster with the centered classroom name above the QR, followed by prominent attendance
+hours and a subordinate `Scan Attendance` label below the QR, from
+the application during printing. Printable codes resolve to dark-on-white
 independently of the active theme. Feature state stays outside
 `src/ui`. QR viewport geometry is registered under the attendance design owner.
+The visible Download SVG action exports only the standalone QR code with its
+scan-safe quiet zone; poster labels and controls are not included.
+At compact viewport widths, the screen presentation intentionally reduces to
+the classroom title and QR, centered together with a compact gap. Print poster, Download SVG, and Rotate QR move into
+the governed `QR options` menu; desktop retains the full information pane and
+places the same actions in its `Poster settings` menu.
 
 ## Verification scope
 
 Teacher and student fixtures cover desktop 1440×900 and mobile 390×844 in light
-and dark. Browser contracts cover live QR sizing, poster view, the settings menu,
+and dark. Browser contracts cover live QR sizing, poster view, direct poster actions,
 rotation warning, print isolation, and student loading/success/closed/revoked/roster/error
 states. Focus and Escape contracts are tested through shared dialog owners.
 Fixtures do not prove live Bara operation or real authenticated redirection;

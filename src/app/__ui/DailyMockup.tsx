@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Clock3, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
+import { Clock3, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, X } from 'lucide-react'
 import {
   ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
@@ -565,7 +565,7 @@ export function DailyMockup({
         onClose={() => setIsClassroomQrOpen(false)}
         ariaLabelledBy={classroomQrTitleId}
         maxWidth="max-w-6xl"
-        className="aspect-square overflow-hidden sm:aspect-video"
+        className="aspect-[2/3] overflow-hidden sm:aspect-video"
       >
         <h2 id={classroomQrTitleId} className="sr-only">Classroom QR</h2>
         <Button
@@ -579,37 +579,32 @@ export function DailyMockup({
           <X className="h-5 w-5" aria-hidden="true" />
         </Button>
         <div className="flex h-full min-h-0 flex-col items-stretch gap-3 sm:flex-row sm:gap-6">
-          <div className="flex w-full min-w-0 flex-col justify-center pr-12 sm:w-1/3 sm:pl-3 sm:pr-0">
-            <p className="text-2xl font-semibold leading-tight text-text-default sm:text-4xl">Environmental Science</p>
-            <p className="mt-3 text-sm leading-5 text-text-muted">
-              Students scan to sign in to Pika. Check-in works while attendance is open.
+          <div className="flex w-full min-w-0 flex-col items-center justify-center px-3 pt-6 text-center sm:w-1/3 sm:pt-0">
+            <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">Environmental Science</p>
+            <p className="mt-4 text-xl font-medium leading-tight text-text-default sm:mt-6 sm:text-3xl">
+              Scan Attendance
             </p>
-            <div className="mt-6 flex items-center gap-3">
-              <TeacherWorkSurfaceIconMenuButton
-                ariaLabel="Poster settings"
-                tooltip="Poster settings"
-                className="h-11 w-11"
-                menuAlign="start"
-                icon={<Settings className="h-5 w-5" aria-hidden="true" />}
-                items={[
-                  {
-                    id: 'print-poster',
-                    label: 'Print poster',
-                    icon: <Printer className="h-4 w-4" aria-hidden="true" />,
-                    onSelect: () => onPrototypeAction('Print classroom QR poster'),
-                  },
-                  {
-                    id: 'rotate-qr',
-                    label: 'Rotate QR',
-                    icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-                    onSelect: () => setIsRotateQrOpen(true),
-                  },
-                ]}
-              />
-              <span className="text-xs text-text-muted">Stable until you rotate it</span>
+            <p className="mt-2 text-lg font-medium text-text-muted sm:mt-3 sm:text-2xl">2:00 PM - 3:00 PM</p>
+            <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:mt-8 sm:flex-row sm:gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11"
+                onClick={() => onPrototypeAction('Print classroom QR poster')}
+              >
+                <Printer className="h-4 w-4" aria-hidden="true" /> Print poster
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11"
+                onClick={() => setIsRotateQrOpen(true)}
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Rotate QR
+              </Button>
             </div>
           </div>
-          <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+          <div className="flex min-h-0 flex-1 items-center justify-center sm:h-full">
             <QrCode
               value="https://pika.codepet.ca/attendance/classroom/pattern-lab-stable-poster"
               label="Environmental Science permanent attendance QR code"

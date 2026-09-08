@@ -685,39 +685,104 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(posterDialog.getByRole('img')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(posterPaths.nth(0)).toHaveCSS('fill', 'rgba(0, 0, 0, 0)')
   await expect(posterPaths.nth(1)).toHaveCSS('fill', 'rgb(17, 24, 39)')
-  await expect(posterDialog.getByText('Daily and Attendance Fixture')).toHaveClass(/text-4xl/)
+  await expect(posterDialog.getByText('Daily and Attendance Fixture')).toHaveClass(/text-5xl/)
+  await expect(posterDialog.getByText('Scan Attendance')).toHaveClass(/text-3xl/)
+  await expect(posterDialog.getByText('2:00 PM - 3:00 PM')).toHaveClass(/text-2xl/)
+  const compactOptionsButton = posterDialog.getByRole('button', { name: 'QR options' })
+  const desktopSettingsButton = posterDialog.getByRole('button', { name: 'Poster settings' })
+  const actionMenuButton = viewport === 'mobile' ? compactOptionsButton : desktopSettingsButton
+  const actionMenuName = viewport === 'mobile' ? 'QR options' : 'Poster settings'
+  const choosePosterAction = async (name: 'Print poster' | 'Download SVG' | 'Rotate QR') => {
+    await actionMenuButton.click()
+    await page.getByRole('menu', { name: actionMenuName }).getByRole('menuitem', { name }).click()
+  }
+  const [posterBox, posterTitleBox, posterQrBox] = await Promise.all([
+    posterDialog.boundingBox(),
+    posterDialog.getByText('Daily and Attendance Fixture').boundingBox(),
+    posterDialog.getByRole('img').boundingBox(),
+  ])
+  expect(posterBox).not.toBeNull()
+  expect(posterTitleBox).not.toBeNull()
+  expect(posterQrBox).not.toBeNull()
+  if (viewport === 'mobile') {
+    const titleToQrGap = posterQrBox!.y - (posterTitleBox!.y + posterTitleBox!.height)
+    expect(titleToQrGap).toBeGreaterThanOrEqual(8)
+    expect(titleToQrGap).toBeLessThanOrEqual(32)
+    await expect(compactOptionsButton).toBeVisible()
+    await expect(desktopSettingsButton).toBeHidden()
+    await expect(posterDialog.getByText('Scan Attendance')).toBeHidden()
+    await expect(posterDialog.getByText('2:00 PM - 3:00 PM')).toBeHidden()
+  } else {
+    await expect(compactOptionsButton).toBeHidden()
+    await expect(desktopSettingsButton).toBeVisible()
+  }
+  await expect(posterDialog.getByRole('button', { name: 'Print poster' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('button', { name: 'Download SVG' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('button', { name: 'Rotate QR' })).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-permanent-poster.png`),
     animations: 'disabled',
   })
-  await posterDialog.getByRole('button', { name: 'Poster settings' }).click()
-  await expect(posterDialog.getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
-  await posterDialog.getByRole('menuitem', { name: 'Rotate QR' }).click()
+  await actionMenuButton.click()
+  const optionsMenu = page.getByRole('menu', { name: actionMenuName })
+  await expect(optionsMenu.getByRole('menuitem')).toHaveText([
+    'Print poster',
+    'Download SVG',
+    'Rotate QR',
+  ])
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-poster-actions.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+  await expect(optionsMenu).toBeHidden()
+  const downloadPromise = page.waitForEvent('download')
+  await choosePosterAction('Download SVG')
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('daily-and-attendance-fixture-attendance-qr.svg')
+  await choosePosterAction('Rotate QR')
   const rotateDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
   await expect(rotateDialog).toContainText('current printed poster will stop working immediately')
   await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
   await expect(rotateDialog).toBeHidden()
   expect(classroomQrGeneration).toBe(2)
   loseNextRotationResponse = true
-  await posterDialog.getByRole('button', { name: 'Poster settings' }).click()
-  await posterDialog.getByRole('menuitem', { name: 'Rotate QR' }).click()
+  await choosePosterAction('Rotate QR')
   await rotateDialog.getByRole('button', { name: 'Rotate QR' }).click()
   await expect(posterDialog.getByText(/Reload the current QR before printing/)).toBeVisible()
+  await expect(posterDialog.getByRole('button', { name: 'Print poster' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('button', { name: 'Download SVG' })).toHaveCount(0)
+  await expect(posterDialog.getByRole('button', { name: 'QR options' })).toHaveCount(0)
   await expect(posterDialog.getByRole('button', { name: 'Poster settings' })).toHaveCount(0)
   await expect(posterDialog.getByRole('img')).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-rotation-recovery.png`) })
   await posterDialog.getByRole('button', { name: 'Try again' }).click()
-  await expect(posterDialog.getByRole('button', { name: 'Poster settings' })).toBeVisible()
+  await expect(actionMenuButton).toBeVisible()
   expect(classroomQrGeneration).toBe(3)
   await page.evaluate(() => {
     window.print = () => window.dispatchEvent(new Event('afterprint'))
   })
-  await posterDialog.getByRole('button', { name: 'Poster settings' }).click()
-  await posterDialog.getByRole('menuitem', { name: 'Print poster' }).click()
+  await choosePosterAction('Print poster')
   await expect.poll(() => page.evaluate(() => document.body.dataset.printClassroomQr ?? null))
     .toBeNull()
   await page.emulateMedia({ media: 'print' })
   await page.evaluate(() => { document.body.dataset.printClassroomQr = 'true' })
+  const printLayout = page.locator('[data-classroom-qr-print-layout]')
+  const [printHeadingBox, printHoursBox, printSubtitleBox, printQrBox] = await Promise.all([
+    printLayout.locator('[data-classroom-qr-print-heading]').boundingBox(),
+    printLayout.locator('[data-classroom-qr-print-hours]').boundingBox(),
+    printLayout.locator('[data-classroom-qr-print-subtitle]').boundingBox(),
+    printLayout.getByRole('img').boundingBox(),
+  ])
+  await expect(printLayout).toHaveCSS('flex-direction', 'column')
+  expect(await page.locator('style[media="print"]').textContent()).toContain('size: portrait')
+  expect(printHeadingBox).not.toBeNull()
+  expect(printHoursBox).not.toBeNull()
+  expect(printSubtitleBox).not.toBeNull()
+  expect(printQrBox).not.toBeNull()
+  expect(printHeadingBox!.y + printHeadingBox!.height).toBeLessThan(printQrBox!.y)
+  expect(printQrBox!.y + printQrBox!.height).toBeLessThan(printHoursBox!.y)
+  expect(printHoursBox!.y + printHoursBox!.height).toBeLessThan(printSubtitleBox!.y)
   await page.screenshot({ path: testInfo.outputPath(`attendance-${viewport}-print.png`) })
   await page.emulateMedia({ media: 'screen' })
   await page.evaluate(() => { delete document.body.dataset.printClassroomQr })

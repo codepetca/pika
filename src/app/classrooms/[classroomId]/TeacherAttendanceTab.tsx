@@ -1499,6 +1499,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         key={classroom.id}
         classroomId={classroom.id}
         classroomTitle={classroom.title}
+        attendanceHours={qrTimeLabel}
         isOpen={classroomQrOpen && classroomQrAvailable && attendanceEnabled && !classroom.archived_at}
         onClose={() => setClassroomQrOpen(false)}
       />

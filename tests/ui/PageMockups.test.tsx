@@ -110,7 +110,7 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('tabpanel', { name: 'Gradebook' })).toBeVisible()
   })
 
-  // DailyMockup composite contract: primary QR action, settings menu, dialog, and warning.
+  // DailyMockup composite contract: primary QR action, direct poster actions, dialog, and warning.
   it('renders the production-shaped Daily controls with deterministic attendance interactions', async () => {
     const user = userEvent.setup()
     renderMockups()
@@ -140,13 +140,14 @@ describe('PageMockups', () => {
     expect(openQr).toBeEnabled()
     await user.click(openQr)
     const qrDialog = screen.getByRole('dialog', { name: 'Classroom QR' })
+    expect(qrDialog).toHaveClass('aspect-[2/3]', 'sm:aspect-video')
     expect(within(qrDialog).getByLabelText('Environmental Science permanent attendance QR code')).toBeVisible()
-    expect(within(qrDialog).getByText('Environmental Science')).toHaveClass('sm:text-4xl')
-    expect(within(qrDialog).getByRole('button', { name: 'Poster settings' })).toBeVisible()
-    expect(within(qrDialog).queryByRole('button', { name: 'Rotate QR' })).not.toBeInTheDocument()
-    await user.click(within(qrDialog).getByRole('button', { name: 'Poster settings' }))
-    expect(within(qrDialog).getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
-    await user.click(within(qrDialog).getByRole('menuitem', { name: 'Rotate QR' }))
+    expect(within(qrDialog).getByText('Environmental Science')).toHaveClass('sm:text-5xl')
+    expect(within(qrDialog).getByText('Environmental Science').parentElement).toHaveClass('text-center', 'items-center')
+    expect(within(qrDialog).getByText('Scan Attendance')).toHaveClass('sm:text-3xl')
+    expect(within(qrDialog).getByText('2:00 PM - 3:00 PM')).toHaveClass('sm:text-2xl')
+    expect(within(qrDialog).getByRole('button', { name: 'Print poster' })).toBeVisible()
+    await user.click(within(qrDialog).getByRole('button', { name: 'Rotate QR' }))
     const rotateDialog = screen.getByRole('dialog', { name: 'Rotate classroom QR?' })
     expect(within(rotateDialog).getByText(/current printed poster will stop working immediately/)).toBeVisible()
     await user.click(within(rotateDialog).getByRole('button', { name: 'Cancel' }))

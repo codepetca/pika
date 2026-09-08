@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Printer, RotateCcw, Settings, X } from 'lucide-react'
+import { Download, MoreVertical, Printer, RotateCcw, Settings, X } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { TeacherClassroomQrPresentation } from '@/lib/teacher-attendance'
 import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
+import { serializeQrSvg } from '@/lib/qr-svg'
 import { Button, ConfirmDialog, DialogPanel, PageState, QrCode } from '@/ui'
 
 function classroomQrUrl(classroomId: string) {
@@ -31,11 +32,13 @@ function validatedUrl(presentation: TeacherClassroomQrPresentation) {
 export function TeacherClassroomQrDialog({
   classroomId,
   classroomTitle,
+  attendanceHours,
   isOpen,
   onClose,
 }: {
   classroomId: string
   classroomTitle: string
+  attendanceHours: string | null
   isOpen: boolean
   onClose: () => void
 }) {
@@ -47,6 +50,7 @@ export function TeacherClassroomQrDialog({
   const [rotateError, setRotateError] = useState('')
   const titleId = useId()
   const requestVersion = useRef(0)
+  const qrRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     const version = ++requestVersion.current
@@ -137,20 +141,60 @@ export function TeacherClassroomQrDialog({
     window.print()
   }
 
+  function downloadQr() {
+    const svg = qrRef.current?.querySelector('svg')
+    if (!svg) return
+    const blob = new Blob([serializeQrSvg(svg)], {
+      type: 'image/svg+xml;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${classroomTitle.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'classroom'}-attendance-qr.svg`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const posterActions = [
+    {
+      id: 'print-poster',
+      label: 'Print poster',
+      icon: <Printer className="h-4 w-4" aria-hidden="true" />,
+      onSelect: printPoster,
+    },
+    {
+      id: 'download-svg',
+      label: 'Download SVG',
+      icon: <Download className="h-4 w-4" aria-hidden="true" />,
+      onSelect: downloadQr,
+    },
+    {
+      id: 'rotate-qr',
+      label: 'Rotate QR',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setRotateOpen(true),
+    },
+  ]
+
   const poster = entryUrl ? (
-    <div className="flex h-full w-full items-center gap-8 bg-qr-background p-8 text-qr-foreground">
-      <div className="flex w-1/3 min-w-0 flex-col justify-center">
-        <p className="text-4xl font-semibold leading-tight">{classroomTitle}</p>
-        <p className="mt-3 text-lg">Scan to check in for attendance</p>
-        <p className="mt-6 text-sm">Sign in to Pika after scanning. Attendance must be open.</p>
+    <div
+      data-classroom-qr-print-layout
+      className="flex h-full w-full flex-col items-center bg-qr-background p-12 text-center text-qr-foreground"
+    >
+      <div className="shrink-0">
+        <p data-classroom-qr-print-heading className="text-5xl font-semibold leading-tight">{classroomTitle}</p>
       </div>
-      <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+      <div className="mt-8 flex min-h-0 w-full flex-1 items-center justify-center">
         <QrCode
           value={entryUrl}
           label={`${classroomTitle} permanent attendance QR code`}
-          className="aspect-square h-full max-w-full border-0 bg-qr-background p-[10%]"
+          className="aspect-square h-full max-h-full max-w-full border-0 bg-qr-background p-[10%]"
           codeClassName="h-full max-w-none"
         />
+      </div>
+      <div className="mt-8 shrink-0">
+        {attendanceHours ? <p data-classroom-qr-print-hours className="text-4xl font-semibold">{attendanceHours}</p> : null}
+        <p data-classroom-qr-print-subtitle className="mt-3 text-2xl font-medium">Scan Attendance</p>
       </div>
     </div>
   ) : null
@@ -162,7 +206,7 @@ export function TeacherClassroomQrDialog({
         onClose={onClose}
         ariaLabelledBy={titleId}
         maxWidth="max-w-6xl"
-        className="aspect-square overflow-hidden sm:aspect-video"
+        className="aspect-[2/3] overflow-hidden sm:aspect-video"
       >
         <h2 id={titleId} className="sr-only">Classroom QR</h2>
         <Button
@@ -190,43 +234,44 @@ export function TeacherClassroomQrDialog({
             />
           </div>
         ) : entryUrl && presentation ? (
-          <div className="flex h-full min-h-0 flex-col items-stretch gap-3 sm:flex-row sm:gap-6">
-            <div className="flex w-full min-w-0 flex-col justify-center pr-12 sm:w-1/3 sm:pl-3 sm:pr-0">
-              <p className="text-2xl font-semibold leading-tight text-text-default sm:text-4xl">{classroomTitle}</p>
-              <p className="mt-3 text-sm leading-5 text-text-muted">
-                Students scan to sign in to Pika. Check-in works while attendance is open.
+          <div className="flex h-full min-h-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:gap-6">
+            <div className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center px-3 text-center sm:w-1/3">
+              <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">{classroomTitle}</p>
+              <p className="mt-4 hidden text-xl font-medium leading-tight text-text-default sm:mt-6 sm:block sm:text-3xl">
+                Scan Attendance
               </p>
-              <div className="mt-6 flex items-center gap-3">
+              {attendanceHours ? (
+                <p className="mt-2 hidden text-lg font-medium text-text-muted sm:mt-3 sm:block sm:text-2xl">{attendanceHours}</p>
+              ) : null}
+              <div className="mt-8 hidden sm:block">
                 <TeacherWorkSurfaceIconMenuButton
                   ariaLabel="Poster settings"
                   tooltip="Poster settings"
-                  className="h-11 w-11"
-                  menuAlign="start"
                   icon={<Settings className="h-5 w-5" aria-hidden="true" />}
-                  items={[
-                    {
-                      id: 'print-poster',
-                      label: 'Print poster',
-                      icon: <Printer className="h-4 w-4" aria-hidden="true" />,
-                      onSelect: printPoster,
-                    },
-                    {
-                      id: 'rotate-qr',
-                      label: 'Rotate QR',
-                      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-                      onSelect: () => setRotateOpen(true),
-                    },
-                  ]}
+                  items={posterActions}
+                  menuAriaLabel="Poster settings"
+                  menuAlign="center"
+                  variant="secondary"
+                  className="h-11 w-11"
                 />
-                <span className="text-xs text-text-muted">Stable until you rotate it</span>
               </div>
             </div>
-            <div className="flex h-full min-h-0 flex-1 items-center justify-center">
+            <div ref={qrRef} className="flex min-h-0 flex-none items-center justify-center sm:h-full sm:flex-1">
               <QrCode
                 value={entryUrl}
                 label={`${classroomTitle} permanent attendance QR code`}
-                className="aspect-square w-full max-w-40 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
+                className="aspect-square w-full max-w-64 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
                 codeClassName="h-full max-w-none"
+              />
+            </div>
+            <div className="absolute left-3 top-3 sm:hidden">
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="QR options"
+                tooltip="QR options"
+                icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+                items={posterActions}
+                menuAlign="start"
+                className="h-11 w-11"
               />
             </div>
           </div>
@@ -247,7 +292,10 @@ export function TeacherClassroomQrDialog({
       />
       {poster && typeof document !== 'undefined'
         ? createPortal(
-            <div data-classroom-qr-print className="hidden h-screen w-screen">{poster}</div>,
+            <div data-classroom-qr-print className="hidden h-screen w-screen">
+              <style media="print">{'@page { size: portrait; margin: 0; }'}</style>
+              {poster}
+            </div>,
             document.body,
           )
         : null}
