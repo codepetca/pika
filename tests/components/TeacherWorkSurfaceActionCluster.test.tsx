@@ -153,6 +153,38 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(onHoverChange).toHaveBeenLastCalledWith(false)
   })
 
+  it('uses the current preview callback when items rerender before dismissal', () => {
+    const onHoverChange = vi.fn()
+
+    function Harness({ version }: { version: number }) {
+      return (
+        <TeacherWorkSurfaceMenuButton
+          label="Student actions"
+          items={[{
+            id: 'copy',
+            label: 'Copy grade',
+            onSelect: vi.fn(),
+            onHoverChange: (active) => onHoverChange(version, active),
+          }]}
+        />
+      )
+    }
+
+    const { rerender } = render(<Harness version={1} />)
+    const trigger = screen.getByRole('button', { name: 'Student actions' })
+    fireEvent.click(trigger)
+    const item = screen.getByRole('menuitem', { name: 'Copy grade' })
+    expect(onHoverChange).toHaveBeenLastCalledWith(1, true)
+
+    rerender(<Harness version={2} />)
+    fireEvent.keyDown(item, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onHoverChange).toHaveBeenLastCalledWith(2, false)
+    expect(onHoverChange).not.toHaveBeenCalledWith(1, false)
+  })
+
   it('uses one roving menu tab stop, skips disabled items, and closes on Tab', async () => {
     const user = userEvent.setup()
     render(
@@ -167,7 +199,8 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     )
 
     const trigger = screen.getByRole('button', { name: 'Classroom settings' })
-    await user.click(trigger)
+    trigger.focus()
+    await user.keyboard('{ArrowDown}')
     const reuse = screen.getByRole('menuitem', { name: 'Reuse' })
     const unarchive = screen.getByRole('menuitem', { name: 'Unarchive' })
     const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })

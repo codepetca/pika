@@ -74,7 +74,7 @@ Human promotion and separately reviewed server discovery/routing are required be
 
 ### Verification — 2026-09-08
 
-- The focused gate passes 44 files / 639 tests plus architecture, UI/design policy,
+- The focused gate passes 44 files / 640 tests plus architecture, UI/design policy,
   TypeScript and lint. The Pika pre-commit audit passes without violations. Direct
   component coverage includes the shared menu owner and this archived Settings instance.
 - Eight fixture-backed browser scenarios pass: teacher and student × desktop/mobile ×
@@ -87,7 +87,8 @@ Human promotion and separately reviewed server discovery/routing are required be
 - Browser monitoring observed zero non-read API requests. Composite checklist reviewed:
   keyboard behavior and semantic state are covered; no manual follow-up remains for this
   fixture-only scope. The prototype still changes no production feature availability; the
-  shared keyboard correction also passes its existing inspector-preview compatibility case.
+  shared keyboard correction also passes existing inspector-preview compatibility and
+  parent-rerender cleanup cases.
 
 ## Hidden joined classrooms — approved prototype revision
 

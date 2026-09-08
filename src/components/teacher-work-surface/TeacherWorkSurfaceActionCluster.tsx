@@ -121,6 +121,23 @@ function TeacherWorkSurfaceActionMenuButton({
     activePreviewRef.current?.onHoverChange?.(false)
   }, [])
 
+  useEffect(() => {
+    const activePreview = activePreviewRef.current
+    if (!activePreview) return
+
+    const currentItem = orderedItems.find((item) => item.id === activePreview.itemId)
+    if (!currentItem) {
+      activePreview.onHoverChange?.(false)
+      activePreviewRef.current = undefined
+      return
+    }
+
+    activePreviewRef.current = {
+      itemId: currentItem.id,
+      onHoverChange: currentItem.onHoverChange,
+    }
+  }, [orderedItems])
+
   function handleItemPreview(item: TeacherWorkSurfaceActionItem, active: boolean) {
     if (active) {
       if (activePreviewRef.current?.itemId === item.id) {
