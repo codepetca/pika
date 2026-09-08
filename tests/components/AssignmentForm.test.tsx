@@ -1,18 +1,19 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AssignmentForm } from '@/components/AssignmentForm'
+import { TooltipProvider } from '@/ui'
 
 describe('AssignmentForm', () => {
   it('uses placeholders while keeping Title and Instructions as accessible labels', async () => {
     render(
-      <AssignmentForm
+      <TooltipProvider><AssignmentForm
         title=""
         instructionsMarkdown=""
         dueAt=""
         onTitleChange={vi.fn()}
         onInstructionsMarkdownChange={vi.fn()}
         onDueAtChange={vi.fn()}
-      />,
+      /></TooltipProvider>,
     )
 
     const title = screen.getByRole('textbox', { name: 'Title' })
@@ -58,6 +59,39 @@ describe('AssignmentForm', () => {
     expect(body).not.toContainElement(screen.getByRole('button', { name: 'Post assignment' }))
     expect(body).not.toContainElement(screen.getByRole('textbox', { name: /Title/ }))
     expect(instructions.closest('.simple-editor-wrapper')).toHaveClass('simple-editor-wrapper--fill-height')
+  })
+
+  it('groups assignment details and content into separate panes in desktop split mode', async () => {
+    render(
+      <TooltipProvider><AssignmentForm
+        fillHeight
+        desktopSplit
+        title="Essay"
+        instructionsMarkdown="Explain why."
+        dueAt=""
+        onTitleChange={vi.fn()}
+        onInstructionsMarkdownChange={vi.fn()}
+        onDueAtChange={vi.fn()}
+        onPreviewInstructions={vi.fn()}
+        extraFields={<button>Configure required submissions</button>}
+        topRowActions={<button>Post assignment</button>}
+      /></TooltipProvider>,
+    )
+
+    const details = screen.getByTestId('assignment-editor-details-pane')
+    const content = screen.getByTestId('assignment-editor-content-pane')
+    const toolbar = await within(content).findByRole('toolbar', { name: 'Formatting options' })
+    const actions = screen.getByTestId('assignment-editor-primary-actions')
+
+    expect(details).toContainElement(screen.getByRole('textbox', { name: 'Title' }))
+    expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
+    expect(details).toContainElement(screen.getByRole('button', { name: 'Configure required submissions' }))
+    expect(details).toContainElement(screen.getByRole('button', { name: 'Post assignment' }))
+    expect(details.lastElementChild).toBe(actions)
+    expect(content).toContainElement(toolbar)
+    expect(content).toContainElement(screen.getByRole('textbox', { name: 'Instructions' }))
+    expect(content).not.toContainElement(screen.getByRole('button', { name: 'Preview' }))
+    expect(details).not.toHaveClass('lg:border-r')
   })
 
   it('places the relative due date inside the date button as a subtitle', () => {

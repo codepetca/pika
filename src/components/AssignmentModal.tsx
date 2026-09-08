@@ -788,13 +788,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
         closeDisabled={creating || saving || releasing || discarding}
+        maxWidth={isCreateMode ? '!max-w-4xl' : '!max-w-6xl'}
         tall
         showTitle
-        contentClassName="!pt-1"
+        contentClassName={isCreateMode ? '!pt-1' : '!overflow-hidden !p-0'}
         headerCenter={<SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />}
       >
         <AssignmentForm
           fillHeight
+          desktopSplit={!isCreateMode}
           title={title}
           instructionsMarkdown={instructionsMarkdown}
           instructionsMode={instructionsMode}
@@ -824,7 +826,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           ) : undefined}
           topRowActions={
             currentAssignment && !isLive ? (
-              <div className="flex items-end">
+              <div className="flex w-full items-end">
                 <SplitButton
                   label={primaryLabel}
                   onPrimaryClick={() => {
@@ -833,11 +835,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
                   variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
                   size="md"
                   disabled={creating || releasing || saving || !currentAssignment}
-                  className="shadow-sm"
+                  className="w-full shadow-sm"
                   toggleAriaLabel="Choose assignment action"
                   menuPlacement="down"
                   primaryButtonProps={{
-                    className: 'w-[3.5rem] justify-center font-semibold sm:w-[5.75rem]',
+                    className: 'flex-1 justify-center font-semibold',
                   }}
                   options={splitOptions.map((option) => ({
                     ...option,
