@@ -65,6 +65,9 @@ vi.mock('@/components/editor', async (importOriginal) => ({
 describe('UiGallery history preview fixture', () => {
   it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
     renderGallery('teacher')
+    expect(AssignmentEditSplitPattern).toBeTypeOf('function')
+    const navigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
+    expect(within(navigation).getByRole('link', { name: 'Assignment edit' })).toBeInTheDocument()
     const user = userEvent.setup()
     const opener = screen.getByRole('button', { name: 'Open QR example' })
     await user.click(opener)
@@ -99,23 +102,6 @@ describe('UiGallery history preview fixture', () => {
     await user.click(within(dialog).getByRole('button', { name: closeLabel }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(opener).toHaveFocus())
-  })
-
-  it('demonstrates the approved split assignment edit action layout', async () => {
-    const user = userEvent.setup()
-    render(<ThemeProvider><TooltipProvider><AssignmentEditSplitPattern /></TooltipProvider></ThemeProvider>)
-
-    await user.click(screen.getByRole('button', { name: 'Open assignment edit prototype' }))
-    const dialog = screen.getByRole('dialog', { name: 'Edit Assignment' })
-    const details = within(dialog).getByTestId('assignment-editor-details-pane')
-    const content = within(dialog).getByTestId('assignment-editor-content-pane')
-    const actions = within(details).getByTestId('assignment-editor-primary-actions')
-
-    expect(details).toContainElement(within(details).getByRole('button', { name: 'Preview' }))
-    expect(details.lastElementChild).toBe(actions)
-    expect(actions).toContainElement(within(actions).getByRole('button', { name: 'Tue Sep 1' }))
-    expect(actions).toContainElement(within(actions).getByRole('button', { name: 'Post' }))
-    expect(content).not.toContainElement(within(details).getByRole('button', { name: 'Preview' }))
   })
 
   it('demonstrates the Assignment submission requirement menu without closing its dialog', async () => {

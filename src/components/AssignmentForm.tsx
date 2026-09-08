@@ -146,7 +146,9 @@ export function AssignmentForm({
 
           <div
             data-testid="assignment-editor-primary-actions"
-            className="grid shrink-0 grid-cols-2 gap-2 lg:mt-auto"
+            className={topRowActions
+              ? 'grid shrink-0 grid-cols-2 gap-2 lg:mt-auto'
+              : 'grid shrink-0 grid-cols-1 gap-2 lg:mt-auto'}
           >
             <DateActionBar
               value={dueAt}

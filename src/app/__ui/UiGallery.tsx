@@ -94,6 +94,7 @@ const QUICK_LINK_LABELS: Record<string, string> = {
   'page-mockups': 'Page mockups',
   'page-actions': 'Page actions',
   'status-colors': 'Status colors',
+  'assignment-edit-split': 'Assignment edit',
   'assignment-creation': 'Assignment dialog',
   controls: 'Controls',
   'student-tests': 'Student tests',

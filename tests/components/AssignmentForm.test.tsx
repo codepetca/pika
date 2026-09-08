@@ -94,6 +94,23 @@ describe('AssignmentForm', () => {
     expect(details).not.toHaveClass('lg:border-r')
   })
 
+  it('lets Due fill the bottom row when an assignment has no Post action', async () => {
+    render(
+      <TooltipProvider><AssignmentForm
+        desktopSplit
+        title="Published assignment"
+        instructionsMarkdown="Read the chapter."
+        dueAt=""
+        onTitleChange={vi.fn()}
+        onInstructionsMarkdownChange={vi.fn()}
+        onDueAtChange={vi.fn()}
+        onPreviewInstructions={vi.fn()}
+      /></TooltipProvider>,
+    )
+
+    expect(await screen.findByTestId('assignment-editor-primary-actions')).toHaveClass('grid-cols-1')
+  })
+
   it('places the relative due date inside the date button as a subtitle', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-31T16:00:00.000Z'))
