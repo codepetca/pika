@@ -410,18 +410,6 @@
       ]
     },
     {
-      "file": "src/components/AssignmentModal.tsx",
-      "reviewBy": "phase-3-assignments",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "1e43ff6cdd353cfe",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/components/AssignmentSubmissionRequirementsEditor.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [

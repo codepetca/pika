@@ -79,6 +79,13 @@ describe('AssignmentModal', () => {
       expect(screen.queryByRole('button', { name: 'Previous day' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Next day' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
+      const details = screen.getByTestId('assignment-editor-details-pane')
+      const content = screen.getByTestId('assignment-editor-content-pane')
+      expect(details).toContainElement(screen.getByLabelText(/Title/))
+      expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
+      expect(details.lastElementChild).toBe(screen.getByTestId('assignment-editor-primary-actions'))
+      expect(content).toContainElement(screen.getByRole('textbox', { name: 'Instructions' }))
+      expect(content).not.toContainElement(screen.getByRole('button', { name: 'Preview' }))
     })
 
     it('renders WYSIWYG instructions with markdown-safe formatting and a preview modal', async () => {

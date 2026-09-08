@@ -246,3 +246,10 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
 - Integrated main `e9c6417d` and explicitly preserved both histories. No new privacy or incoming-main product edits; existing independent reviews apply to their unchanged content. Verify parent equality, history preservation, normal-text mergeability and fresh exact-head CI before authorized squash merge. No production deployment or migration application.
+
+## 2026-09-08 — Split-pane assignment editing
+
+- Implemented the Pattern Lab prototype in the production assignment edit modal: desktop uses one-third details and two-thirds assignment authoring panes, while mobile stacks the same controls. Assignment creation remains unchanged.
+- Reused the modal shell, title, Preview, Toronto due-date control, Post split action, submission-requirements editor, save status, and Markdown-safe editor. The formatting toolbar remains at the top of the right pane, and the panes use spacing instead of a vertical divider.
+- Promoted the approved Pattern Lab action layout into production: Preview occupies a full-width details row below Title, while the equal-width Due/Post controls anchor to the bottom of the left pane (and remain the last details row on mobile). Removed the rejected editor-pane Preview variation so Pattern Lab and production share one split-edit contract.
+- The focused gate passes 18 files / 266 tests plus architecture, UI/design policy, TypeScript, and lint; the Pika audit passes. Pattern Lab and the authenticated production edit modal were verified and visually inspected across desktop/mobile and light/dark, including Preview focus restoration. Student is not applicable because this is teacher-only editing. Risk profile: standard UI behavior.
