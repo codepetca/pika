@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Open the native first-day picker from the wizard
-
-- Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
-- A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.
-
 ## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
 
 - Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
@@ -260,6 +255,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Owner authorized final review, required CI and merge of #1202 to main. Rebased onto `daa70b88` without conflicts; no migrations were added or changed. This task remains sole writer of `codex/global-browser-security-headers`; the active merge-coordinator task owns a separate archive compatibility branch and production promotion.
 - Final integration review uses one Sol/high reviewer against a detached fixed commit while local focused checks run. Risk profile: runtime-platform. Earlier security/compatibility reviews and browser evidence remain applicable; final reviewed SHA, check results and merge evidence are recorded in the PR. Production rollout is separate.
+
 ## 2026-09-07 — Correct PPZ3C Online first class day
 
 - Production inventory resolved the exact active classroom and found four generated class days plus two lesson-plan mutation heads before the corrected September 8, 2026 start; no Daily logs, summaries, lesson plans, manual attendance marks, Bara occurrences, or PAL events exist in the affected range.
@@ -267,3 +263,4 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Initial high-risk review found the production branch lacked committed replay evidence and that already-validated class-day/Daily writes could recreate pre-start data after the correction. Added an exact owner assertion, production-shaped rollback harness, CI execution, and narrow database guards that reject future pre-September-8 class-day or Daily-entry writes only for the corrected classroom. The harness, database lint, and focused gate pass; production remains unchanged.
 - Targeted review found the first harness incorrectly depended on seeded users/classrooms that fresh CI does not provide. Replaced cloning with explicit minimal fixtures and exercised absent target, missing target, owner drift, success, and post-correction write rejection through the migration-owned private operation. The corrected rollback harness, database lint, and focused gate pass.
 - Final integration review found lesson-plan saves could still recreate pre-start plans or mutation heads. Extended the exact-classroom guard and rollback assertions to both tables, rebased onto current main, and reran the full correction harness successfully. This is the third and final remediation batch; production remains unchanged pending stable-head review and CI.
+- Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.

@@ -48,8 +48,8 @@ language plpgsql
 set search_path = ''
 as $migration$
 declare
-  v_classroom_id constant uuid := '7ed4c2e5-4418-4401-ae47-6c2e464db3ee';
-  v_teacher_id constant uuid := 'a2440373-e98d-432d-92a2-03701ab7c369';
+  v_classroom_id constant uuid := '7ed4c2e5-4418-4401-ae47-6c2e464db3ee'::uuid;
+  v_teacher_id constant uuid := 'a2440373-e98d-432d-92a2-03701ab7c369'::uuid;
   v_old_start constant date := date '2026-09-01';
   v_new_start constant date := date '2026-09-08';
   v_expected_class_days constant date[] := array[
