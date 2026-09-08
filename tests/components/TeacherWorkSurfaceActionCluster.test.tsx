@@ -115,16 +115,19 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     fireEvent.blur(columnControls)
     expect(onHoverChange.mock.calls).toEqual([[true], [false], [true], [false]])
 
+    expect(columnControls).toHaveFocus()
+    expect(columnControls).toHaveAttribute('tabindex', '0')
+    fireEvent.keyDown(columnControls, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
     expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'End' })
+    fireEvent.keyDown(document.activeElement!, { key: 'End' })
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
-    fireEvent.keyDown(window, { key: 'Home' })
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' })
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
     const outerEscapeHandler = vi.fn()
     window.addEventListener('keydown', outerEscapeHandler)
-    expect(fireEvent.keyDown(window, { key: 'Escape' })).toBe(false)
+    expect(fireEvent.keyDown(document.activeElement!, { key: 'Escape' })).toBe(false)
     window.removeEventListener('keydown', outerEscapeHandler)
 
     expect(outerEscapeHandler).not.toHaveBeenCalled()
@@ -144,10 +147,50 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     const item = screen.getByRole('menuitem', { name: 'Copy grade' })
     if (input === 'pointer') fireEvent.mouseEnter(item)
     expect(onHoverChange).toHaveBeenLastCalledWith(true)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(item, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
     expect(onHoverChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('uses one roving menu tab stop, skips disabled items, and closes on Tab', async () => {
+    const user = userEvent.setup()
+    render(
+      <TeacherWorkSurfaceMenuButton
+        label="Classroom settings"
+        items={[
+          { id: 'reuse', label: 'Reuse', onSelect: vi.fn() },
+          { id: 'unarchive', label: 'Unarchive', onSelect: vi.fn() },
+          { id: 'delete', label: 'Delete', disabled: true, destructive: true, onSelect: vi.fn() },
+        ]}
+      />,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Classroom settings' })
+    await user.click(trigger)
+    const reuse = screen.getByRole('menuitem', { name: 'Reuse' })
+    const unarchive = screen.getByRole('menuitem', { name: 'Unarchive' })
+    const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
+    expect(reuse).toHaveAttribute('tabindex', '0')
+    expect(unarchive).toHaveAttribute('tabindex', '-1')
+    expect(deleteItem).toHaveAttribute('tabindex', '-1')
+
+    await user.keyboard('{ArrowDown}')
+    expect(unarchive).toHaveFocus()
+    expect(unarchive).toHaveAttribute('tabindex', '0')
+    expect(reuse).toHaveAttribute('tabindex', '-1')
+    await user.keyboard('{ArrowDown}')
+    expect(reuse).toHaveFocus()
+    await user.keyboard('{End}')
+    expect(unarchive).toHaveFocus()
+    await user.keyboard('{Home}')
+    expect(reuse).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(trigger).toHaveFocus()
+
+    await user.click(trigger)
+    await user.keyboard('{Tab}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it('keeps a tooltip-wrapped icon menu trigger mounted through a modal focus round trip', async () => {

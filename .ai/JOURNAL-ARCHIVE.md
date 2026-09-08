@@ -31379,3 +31379,47 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Updated the visible secondary-email wording from `Email(2nd)` to `Email (2nd)` across the roster table, row editor, add-student preview, CSV guidance, and upload confirmation, with matching test fixtures and accessibility assertions.
 - Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Authenticated visual verification shows `Email (2nd)` in the teacher desktop and mobile roster views with no overflow; the student route correctly redirects to Today because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+<!-- pika-session-log-archive-batch:f1c317976fa8b0db55b4df2bc2995687b97ba5ab0db9646d01d65b3e44f56355 -->
+## 2026-09-06 — Stabilize roster Student Actions width
+
+- Matched the roster Student Actions trigger to the existing fixed-width Tests/gradebook treatment with `w-36`, keeping the centered cluster stable when the label changes from `Student Actions` to a selected count.
+- Added regression assertions for the fixed width in both no-selection and selected states. Focused roster tests pass 28 tests; the focused gate passes 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint.
+- Rechecked the live teacher roster at desktop and mobile widths in light and dark themes, including selected and open-menu states. Both trigger states measure 144px and the open menu remains contained. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Fix roster secondary-email imports
+
+- Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
+- The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
+- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Relaunch local Pika development server
+
+- Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
+- Fixed the existing Tailwind config's Node 24/ESM startup incompatibility by importing the typography plugin instead of calling CommonJS `require`. TypeScript and diff checks pass; no product behavior, schema, migration, hosted data, or deployment changed.
+
+## 2026-09-06 — Show Email(2nd) at medium roster widths
+
+- Fixed the roster `Email(2nd)` column's responsive `<colgroup>` definition so it is visible at the same medium breakpoint as the main email column. At the open 877px in-app roster view, the full header and secondary-email edit controls now appear instead of the column being collapsed by its remaining `lg` rule.
+- Added the responsive-column regression assertion. Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the in-app browser recheck shows the corrected column without layout overflow. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Space roster secondary-email label
+
+- Updated the visible secondary-email wording from `Email(2nd)` to `Email (2nd)` across the roster table, row editor, add-student preview, CSV guidance, and upload confirmation, with matching test fixtures and accessibility assertions.
+- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Authenticated visual verification shows `Email (2nd)` in the teacher desktop and mobile roster views with no overflow; the student route correctly redirects to Today because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Normalize omitted roster student numbers
+
+- Normalized missing or blank student numbers in CSV uploads to `null`, matching stored roster rows so an unchanged four-column CSV does not trigger a false overwrite confirmation.
+- Added a regression for an existing row with no student number and a matching secondary email. The focused gate passes 19 files / 225 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and diff checks pass. No schema, UI, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Improve Add Students roster guidance
+
+- Add Students now parses roster text as it is typed, shows the number of students ready to add, and presents malformed lines as compact warning guidance with actionable copy. Removed the redundant preview step so valid rows can be submitted directly. Added the requested example placeholder and moved format instructions into a shared question-mark tooltip beside the field label.
+- Reused the existing `IconButton`, `Tooltip`, Lucide `CircleHelp`, and semantic warning tokens; no new shared component or Pattern Lab pattern. Teacher-only surface; verified desktop/mobile and light/dark warning states, with student view n/a because the modal is teacher-only.
+- Focused component/parser tests pass 28/28; the focused gate passes 167 tests plus architecture, UI/design policy, TypeScript and lint. Add Students E2E and direct browser interaction checks pass. Visual captures were inspected for tooltip placement, responsive containment, and live warning/count states. Risk profile: none; no schema, data, API, dependency, deployment or merge action.
+
+## 2026-09-06 — Simplify Add Students format help
+
+- Removed the repeated example from the Add Students tooltip and formatted the remaining guidance as three lines: one student per line, `First Last Email [ID] [Email 2]`, and `ID and Email2 are optional`. The placeholder remains the concrete example.
+- Reused the existing `IconButton` and `Tooltip`; widened the shared tooltip prop to accept formatted React content without changing existing callers. Focused tests, the full focused gate, teacher/student route captures, and a direct desktop tooltip assertion pass. No schema, data, API, dependency, deployment or merge action.

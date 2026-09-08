@@ -5,16 +5,18 @@ import {
   Fragment,
   useCallback,
   useEffect,
-  useId,
+  useMemo,
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type Ref,
 } from 'react'
 import { Button, Tooltip, type ButtonProps } from '@/ui'
 import { cn } from '@/ui'
+import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 
 export interface TeacherWorkSurfaceActionItem {
   id: string
@@ -43,6 +45,7 @@ interface MenuButtonProps {
     isOpen: boolean
     disabled: boolean
     onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void
+    onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void
     menuId: string
   }) => ReactNode
 }
@@ -70,56 +73,68 @@ function TeacherWorkSurfaceActionMenuButton({
   menuClassName,
   children,
 }: MenuButtonProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-  const restoreTriggerFocusRef = useRef(false)
-  const activePreviewRef = useRef<TeacherWorkSurfaceActionItem['onHoverChange']>(undefined)
-  const triggerId = useId()
-  const menuId = useId()
-  const normalItems = items.filter((item) => !item.destructive)
-  const destructiveItems = items.filter((item) => item.destructive)
-  const orderedItems = [...normalItems, ...destructiveItems]
+  const activePreviewRef = useRef<{
+    itemId: TeacherWorkSurfaceActionItem['id']
+    onHoverChange: TeacherWorkSurfaceActionItem['onHoverChange']
+  }>(undefined)
+  const orderedItems = useMemo(() => {
+    const normalItems = items.filter((item) => !item.destructive)
+    const destructiveItems = items.filter((item) => item.destructive)
+    return [...normalItems, ...destructiveItems]
+  }, [items])
+  const destructiveItems = orderedItems.filter((item) => item.destructive)
   const firstDestructiveItem = destructiveItems[0] ?? null
   const hasLeadingVisual = items.some((item) => item.icon || item.checked !== undefined)
   const resolvedDisabled = disabled || items.length === 0
 
-  const getEnabledMenuItems = useCallback(() => {
-    return Array.from(
-      menuRef.current?.querySelectorAll<HTMLButtonElement>(
-        '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
-      ) ?? []
-    ).filter((item) => !item.disabled)
+  const clearActivePreview = useCallback(() => {
+    activePreviewRef.current?.onHoverChange?.(false)
+    activePreviewRef.current = undefined
   }, [])
 
-  const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
-    activePreviewRef.current?.(false)
-    activePreviewRef.current = undefined
-    if (options?.restoreFocus) {
-      restoreTriggerFocusRef.current = true
-    }
-    setIsOpen(false)
-  }, [])
+  const isItemDisabled = useCallback(
+    (index: number) => orderedItems[index] ? Boolean(orderedItems[index].disabled) : true,
+    [orderedItems],
+  )
+
+  const {
+    isOpen,
+    setIsOpen,
+    focusedIndex,
+    setFocusedIndex,
+    triggerId,
+    menuId,
+    getItemId,
+    handleItemKeyDown,
+    handleTriggerClick,
+    handleTriggerKeyDown,
+    triggerRef,
+    itemRefs,
+    containerRef,
+  } = useDropdownNav({
+    itemCount: orderedItems.length,
+    isItemDisabled,
+    onClose: clearActivePreview,
+  })
 
   useEffect(() => () => {
-    activePreviewRef.current?.(false)
+    activePreviewRef.current?.onHoverChange?.(false)
   }, [])
 
   function handleItemPreview(item: TeacherWorkSurfaceActionItem, active: boolean) {
     if (active) {
-      activePreviewRef.current = item.onHoverChange
-    } else if (activePreviewRef.current === item.onHoverChange) {
+      if (activePreviewRef.current?.itemId === item.id) {
+        activePreviewRef.current.onHoverChange = item.onHoverChange
+        return
+      }
+      activePreviewRef.current?.onHoverChange?.(false)
+      activePreviewRef.current = { itemId: item.id, onHoverChange: item.onHoverChange }
+      item.onHoverChange?.(true)
+    } else if (activePreviewRef.current?.itemId === item.id) {
       activePreviewRef.current = undefined
+      item.onHoverChange?.(false)
     }
-    item.onHoverChange?.(active)
   }
-
-  useEffect(() => {
-    if (isOpen || !restoreTriggerFocusRef.current) return
-    restoreTriggerFocusRef.current = false
-    triggerRef.current?.focus()
-  }, [isOpen])
 
   const restoreFocusIfNoNewModalOpened = useCallback((existingModals: Set<Element>) => {
     window.requestAnimationFrame(() => {
@@ -132,61 +147,11 @@ function TeacherWorkSurfaceActionMenuButton({
     })
   }, [])
 
-  useEffect(() => {
-    if (!isOpen) return
-
-    getEnabledMenuItems()[0]?.focus()
-
-    function handleClickOutside(event: MouseEvent) {
-      if (!containerRef.current) return
-      if (!containerRef.current.contains(event.target as Node)) {
-        closeMenu({ restoreFocus: true })
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopImmediatePropagation()
-        closeMenu({ restoreFocus: true })
-        return
-      }
-
-      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-
-      const enabledItems = getEnabledMenuItems()
-      if (enabledItems.length === 0) return
-
-      event.preventDefault()
-      const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
-      const lastIndex = enabledItems.length - 1
-      const nextIndex =
-        event.key === 'Home'
-          ? 0
-          : event.key === 'End'
-            ? lastIndex
-            : event.key === 'ArrowUp'
-              ? currentIndex <= 0
-                ? lastIndex
-                : currentIndex - 1
-              : currentIndex === -1 || currentIndex === lastIndex
-                ? 0
-                : currentIndex + 1
-
-      enabledItems[nextIndex]?.focus()
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [closeMenu, getEnabledMenuItems, isOpen])
-
   function handleItemSelect(item: TeacherWorkSurfaceActionItem) {
     const existingModals = new Set(document.querySelectorAll('[aria-modal="true"]'))
-    closeMenu()
+    clearActivePreview()
+    setIsOpen(false)
+    setFocusedIndex(-1)
     triggerRef.current?.focus()
     item.onSelect()
     restoreFocusIfNoNewModalOpened(existingModals)
@@ -194,11 +159,7 @@ function TeacherWorkSurfaceActionMenuButton({
 
   function toggleMenu(event: ReactMouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
-    if (isOpen) {
-      closeMenu({ restoreFocus: true })
-      return
-    }
-    setIsOpen(true)
+    handleTriggerClick()
   }
 
   return (
@@ -209,13 +170,13 @@ function TeacherWorkSurfaceActionMenuButton({
         isOpen,
         disabled: resolvedDisabled,
         onClick: toggleMenu,
+        onKeyDown: handleTriggerKeyDown,
         menuId,
       })}
 
       {isOpen && (
         <div
           id={menuId}
-          ref={menuRef}
           role="menu"
           aria-label={menuAriaLabel}
           aria-labelledby={menuAriaLabel ? undefined : triggerId}
@@ -231,23 +192,32 @@ function TeacherWorkSurfaceActionMenuButton({
             menuClassName,
           )}
         >
-          {orderedItems.map((item) => (
+          {orderedItems.map((item, index) => (
             <Fragment key={item.id}>
               {item.dividerBefore || item === firstDestructiveItem ? (
                 <div role="separator" className="my-1 border-t border-border" />
               ) : null}
               <button
+                ref={(element) => {
+                  itemRefs.current[index] = element
+                }}
+                id={getItemId(index)}
                 type="button"
                 role={item.checked === undefined ? 'menuitem' : item.checkedRole ?? 'menuitemcheckbox'}
                 aria-checked={item.checked === undefined ? undefined : item.checked}
+                tabIndex={index === focusedIndex ? 0 : -1}
                 disabled={item.disabled}
+                onKeyDown={handleItemKeyDown}
                 onClick={(event) => {
                   event.stopPropagation()
                   handleItemSelect(item)
                 }}
                 onMouseEnter={() => handleItemPreview(item, true)}
                 onMouseLeave={() => handleItemPreview(item, false)}
-                onFocus={() => handleItemPreview(item, true)}
+                onFocus={() => {
+                  setFocusedIndex(index)
+                  handleItemPreview(item, true)
+                }}
                 onBlur={() => handleItemPreview(item, false)}
                 className={cn(
                   'min-h-control w-full rounded-sm px-3 py-2 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
@@ -309,7 +279,11 @@ export function TeacherWorkSurfaceMenuButton({
   menuClassName,
   buttonProps,
 }: TeacherWorkSurfaceMenuButtonProps) {
-  const { className: buttonClassName, ...restButtonProps } = buttonProps ?? {}
+  const {
+    className: buttonClassName,
+    onKeyDown: buttonKeyDown,
+    ...restButtonProps
+  } = buttonProps ?? {}
 
   return (
     <TeacherWorkSurfaceActionMenuButton
@@ -320,7 +294,7 @@ export function TeacherWorkSurfaceMenuButton({
       menuAlign={menuAlign}
       menuClassName={menuClassName}
     >
-      {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, menuId }) => (
+      {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, onKeyDown, menuId }) => (
         <Button
           ref={ref}
           id={id}
@@ -331,6 +305,10 @@ export function TeacherWorkSurfaceMenuButton({
           aria-controls={menuId}
           aria-expanded={isOpen}
           onClick={onClick}
+          onKeyDown={(event) => {
+            buttonKeyDown?.(event)
+            if (!event.defaultPrevented) onKeyDown(event)
+          }}
           disabled={resolvedDisabled}
           className={cn(className, buttonClassName)}
           {...restButtonProps}
@@ -375,7 +353,11 @@ export function TeacherWorkSurfaceIconMenuButton({
 }: TeacherWorkSurfaceIconMenuButtonProps) {
   const [isTooltipSuppressed, setIsTooltipSuppressed] = useState(false)
   const isMenuOpenRef = useRef(false)
-  const { className: buttonClassName, ...restButtonProps } = buttonProps ?? {}
+  const {
+    className: buttonClassName,
+    onKeyDown: buttonKeyDown,
+    ...restButtonProps
+  } = buttonProps ?? {}
 
   return (
     <TeacherWorkSurfaceActionMenuButton
@@ -386,7 +368,7 @@ export function TeacherWorkSurfaceIconMenuButton({
       menuAlign={menuAlign}
       menuClassName={menuClassName}
     >
-      {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, menuId }) => {
+      {({ ref, id, isOpen, disabled: resolvedDisabled, onClick, onKeyDown, menuId }) => {
         isMenuOpenRef.current = isOpen
         const button = (
           <Button
@@ -402,6 +384,10 @@ export function TeacherWorkSurfaceIconMenuButton({
             onClick={(event) => {
               if (!isOpen) setIsTooltipSuppressed(true)
               onClick(event)
+            }}
+            onKeyDown={(event) => {
+              buttonKeyDown?.(event)
+              if (!event.defaultPrevented) onKeyDown(event)
             }}
             disabled={resolvedDisabled}
             className={cn('h-9 w-9 p-0', className, buttonClassName)}

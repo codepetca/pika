@@ -67,12 +67,16 @@ Human promotion and separately reviewed server discovery/routing are required be
 - Joined rows share the live visual frame but deliberately expose Hide/Unhide instead of
   owner-only archive, reorder, reuse or delete behavior. This is a relationship extension,
   not a change to the current live authorization model.
-- No shared primitive, production route, persistence, entitlement or lifecycle behavior changes.
+- No new shared primitive, production route, persistence, entitlement or lifecycle behavior changes.
+  Reusing the live Settings menu exposed and corrected a shared keyboard-navigation defect:
+  existing work-surface menus now use the repository's dropdown owner for roving focus,
+  disabled-item skipping, Arrow/Home/End navigation, Escape focus return and Tab dismissal.
 
 ### Verification — 2026-09-08
 
-- The focused gate passes 14 files / 129 tests plus architecture, UI/design policy,
-  TypeScript and lint. The Pika pre-commit audit passes without violations.
+- The focused gate passes 44 files / 639 tests plus architecture, UI/design policy,
+  TypeScript and lint. The Pika pre-commit audit passes without violations. Direct
+  component coverage includes the shared menu owner and this archived Settings instance.
 - Eight fixture-backed browser scenarios pass: teacher and student × desktop/mobile ×
   light/dark. They cover the default grouped list, top-right menu, owner edit/archive,
   joined Hide, archived Settings/Unarchive, Hidden/Unhide, empty/error and focus return.
@@ -82,7 +86,8 @@ Human promotion and separately reviewed server discovery/routing are required be
   visible above adjacent cards. No horizontal overflow or clipped mobile controls remain.
 - Browser monitoring observed zero non-read API requests. Composite checklist reviewed:
   keyboard behavior and semantic state are covered; no manual follow-up remains for this
-  fixture-only scope. Production behavior remains unchanged and unverified by this prototype.
+  fixture-only scope. The prototype still changes no production feature availability; the
+  shared keyboard correction also passes its existing inspector-preview compatibility case.
 
 ## Hidden joined classrooms — approved prototype revision
 

@@ -94,6 +94,7 @@ export function useDropdownNav({
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
+        e.stopPropagation()
         close({ restoreFocus: true })
         break
       case 'ArrowDown':
@@ -129,6 +130,7 @@ export function useDropdownNav({
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
+        e.stopPropagation()
         close({ restoreFocus: true })
         break
       case 'ArrowDown':
