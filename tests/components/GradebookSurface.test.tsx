@@ -36,12 +36,18 @@ describe('Gradebook surface owners', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('toggles score display with one button and keeps menu semantics in the toolbar', () => {
+  it('toggles percentage display with one pressed button and keeps menu semantics in the toolbar', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
     render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={onChange} selectedCount={1} isReadOnly={false} classAverage="84.6%" classMedian="86%" mobileStudentOptions={[{ value: 's1', label: 'Demo Student' }]} mobileStudentId="s1" onMobileStudentChange={vi.fn()} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} /></TooltipProvider>)
     expect(screen.getByLabelText('Class Average 84.6% · Median 86%')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Class summary' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Score display: %. Switch to x/y' }))
+    const percentToggle = screen.getByRole('button', { name: 'Show %' })
+    expect(percentToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(percentToggle).toHaveTextContent('%')
+    await user.hover(percentToggle)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show %')
+    await user.click(percentToggle)
     expect(onChange).toHaveBeenCalledWith({ scoreDisplayMode: 'raw' })
     expect(screen.getByRole('combobox', { name: 'Student' })).toHaveValue('s1')
     const dots = [...screen.getByRole('button', { name: 'Gradebook more actions' }).querySelectorAll('circle')]
