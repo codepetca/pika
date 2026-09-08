@@ -61,4 +61,21 @@ describe('CalendarChipDragPrototype', () => {
     expect(within(day).getByRole('button', { name: 'Move Assignment Field notes' })).toBeVisible()
     expect(screen.getAllByRole('group', { name: /September \d+, 2026/ })).toHaveLength(7)
   })
+
+  it('moves across repeated keyboard targets and cancels without moving', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><CalendarChipDragPrototype viewMode="week" currentDate={new Date('2026-09-14T12:00:00')} /></TooltipProvider>)
+
+    const fieldNotes = screen.getByRole('button', { name: 'Move Assignment Field notes' })
+    fieldNotes.focus()
+    await user.keyboard('[Space][ArrowRight][ArrowRight]')
+    expect(screen.getByRole('group', { name: 'Thursday, September 17, 2026' })).toHaveAttribute('data-drop-target', 'true')
+    await user.keyboard('[Space]')
+    expect(within(screen.getByRole('group', { name: 'Thursday, September 17, 2026' })).getByText('Field notes')).toBeVisible()
+
+    const labGroups = screen.getByRole('button', { name: 'Move Announcement Lab groups' })
+    labGroups.focus()
+    await user.keyboard('[Space][ArrowLeft][Escape]')
+    expect(within(screen.getByRole('group', { name: 'Tuesday, September 15, 2026' })).getByText('Lab groups')).toBeVisible()
+  })
 })
