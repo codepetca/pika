@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomQrDialog } from '@/app/classrooms/[classroomId]/TeacherClassroomQrDialog'
+import { TooltipProvider } from '@/ui'
 
 const token = 'a'.repeat(43)
 const presentation = {
@@ -15,6 +16,19 @@ function response(body: unknown, ok = true) {
     status: ok ? 200 : 503,
     headers: { 'Content-Type': 'application/json' },
   }))
+}
+
+function renderDialog() {
+  return render(
+    <TooltipProvider>
+      <TeacherClassroomQrDialog
+        classroomId="11111111-1111-4111-8111-111111111111"
+        classroomTitle="Physics 11"
+        isOpen
+        onClose={vi.fn()}
+      />
+    </TooltipProvider>,
+  )
 }
 
 describe('TeacherClassroomQrDialog', () => {
@@ -34,20 +48,14 @@ describe('TeacherClassroomQrDialog', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
 
-    render(
-      <TeacherClassroomQrDialog
-        classroomId="11111111-1111-4111-8111-111111111111"
-        classroomTitle="Physics 11"
-        isOpen
-        onClose={vi.fn()}
-      />,
-    )
+    renderDialog()
 
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR poster' })
+    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
     expect(within(dialog).getByLabelText('Physics 11 permanent attendance QR code')).toBeVisible()
-    expect(within(dialog).getByText('Print once and use for every class')).toBeVisible()
+    expect(within(dialog).getByText('Print once and use every day')).toBeVisible()
+    expect(within(dialog).getByText('Stable until you rotate it')).toBeVisible()
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Print' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Print poster' }))
     expect(document.body.dataset.printClassroomQr).toBe('true')
     expect(print).toHaveBeenCalledOnce()
     window.dispatchEvent(new Event('afterprint'))
@@ -71,19 +79,14 @@ describe('TeacherClassroomQrDialog', () => {
     vi.stubGlobal('fetch', fetcher)
     const user = userEvent.setup()
 
-    render(
-      <TeacherClassroomQrDialog
-        classroomId="11111111-1111-4111-8111-111111111111"
-        classroomTitle="Physics 11"
-        isOpen
-        onClose={vi.fn()}
-      />,
-    )
+    renderDialog()
 
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR poster' })
-    await user.click(within(dialog).getByRole('button', { name: 'Rotate QR' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+    expect(within(dialog).queryByRole('button', { name: 'Rotate QR' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Rotate QR' }))
     const confirm = screen.getByRole('dialog', { name: 'Rotate classroom QR?' })
-    expect(confirm).toHaveTextContent('current poster will stop working immediately')
+    expect(confirm).toHaveTextContent('current printed poster will stop working immediately')
     await user.click(within(confirm).getByRole('button', { name: 'Rotate QR' }))
 
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
@@ -98,14 +101,7 @@ describe('TeacherClassroomQrDialog', () => {
 
   it('shows a recoverable loading failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => response({ error: 'down' }, false)))
-    render(
-      <TeacherClassroomQrDialog
-        classroomId="11111111-1111-4111-8111-111111111111"
-        classroomTitle="Physics 11"
-        isOpen
-        onClose={vi.fn()}
-      />,
-    )
+    renderDialog()
     expect(await screen.findByRole('heading', { name: 'Classroom QR unavailable' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible()
   })
@@ -121,18 +117,20 @@ describe('TeacherClassroomQrDialog', () => {
       .mockImplementationOnce(() => response({ ...current, generation: 3 }))
     vi.stubGlobal('fetch', fetcher)
     const user = userEvent.setup()
-    render(<TeacherClassroomQrDialog classroomId="11111111-1111-4111-8111-111111111111" classroomTitle="Physics 11" isOpen onClose={vi.fn()} />)
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR poster' })
-    await user.click(within(dialog).getByRole('button', { name: 'Rotate QR' }))
+    renderDialog()
+    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+    await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Rotate QR' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Rotate classroom QR?' })).getByRole('button', { name: 'Rotate QR' }))
     await screen.findByText(/Reload the current QR before printing/)
-    expect(within(dialog).queryByRole('button', { name: 'Print' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Print poster' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('button', { name: 'Download SVG' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('img')).not.toBeInTheDocument()
     expect(document.querySelector('[data-classroom-qr-print]')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
-    await within(dialog).findByRole('button', { name: 'Print' })
-    await user.click(within(dialog).getByRole('button', { name: 'Rotate QR' }))
+    await within(dialog).findByRole('button', { name: 'Print poster' })
+    await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+    await user.click(within(dialog).getByRole('menuitem', { name: 'Rotate QR' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Rotate classroom QR?' })).getByRole('button', { name: 'Rotate QR' }))
     expect(JSON.parse(fetcher.mock.calls[3][1].body).expected_generation).toBe(2)
   })

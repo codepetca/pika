@@ -524,7 +524,7 @@ export function DailyMockup({
       />
       <p className="text-xs leading-5 text-text-muted">
         {hasQrCheckIn
-          ? 'Experimental: Daily uses one classroom QR entry point. The reusable poster opens from the middle control; session and class-wide attendance commands stay in More actions.'
+          ? 'Daily uses one classroom QR entry point. The reusable poster opens from the middle control; session and class-wide attendance commands stay in More actions.'
           : manualAttendanceMode === 'log'
             ? 'Attendance from log automatically marks students Present when they complete a log that day. Manual overrides can be reverted from the row.'
             : 'With Attendance from log off, the optional time stays passive and attendance changes only when a teacher marks it.'}

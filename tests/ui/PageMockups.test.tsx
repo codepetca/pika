@@ -110,6 +110,7 @@ describe('PageMockups', () => {
     expect(within(mockups).getByRole('tabpanel', { name: 'Gradebook' })).toBeVisible()
   })
 
+  // DailyMockup composite contract: primary QR action, settings menu, dialog, and warning.
   it('renders the production-shaped Daily controls with deterministic attendance interactions', async () => {
     const user = userEvent.setup()
     renderMockups()

@@ -1,8 +1,11 @@
 # Stable classroom attendance QR
 
-The teacher's Daily menu exposes a printable classroom QR, separate from the
-existing occurrence-specific display. Rotation invalidates the previous poster;
-teachers must print and replace it. The live display remains occurrence-specific.
+The teacher's Daily context bar exposes one `Classroom QR` action when the stable
+poster rollout is available. It opens the reusable poster for screen display,
+printing, and SVG download, including while attendance is closed. If stable posters
+are unavailable, the same position falls back to the existing occurrence-specific
+`Show QR` action. Rotation invalidates the previous poster; teachers must print and
+replace it.
 
 ## Security and rollout
 
@@ -13,7 +16,7 @@ teachers must print and replace it. The live display remains occurrence-specific
   authorized synthetic classroom and its teacher. These are separate from the
   existing Bara integration canary pair. The gate grants no ownership, enrollment,
   WorkOS identity, or attendance entitlement; all existing authorization remains.
-- The server controls menu visibility and rechecks the gate for poster creation,
+- The server controls action availability and rechecks the gate for poster creation,
   rotation, and every student scan (including previously printed posters).
   Existing occurrence QR, attendance hours, schedules, and teacher entitlements
   are unaffected by this switch. Stale page visibility cannot bypass the API gate.
@@ -73,6 +76,7 @@ overlay behavior. No experimental shared pattern or human promotion is proposed.
 | Large QR rendering | QrCode | extend | Opt-in full-size SVG, unchanged default consumers |
 | Full display panel | ContentDialog | extend | Opt-in panel classes, unchanged default sizing |
 | Student feedback | StudentAttendanceCheckIn | reuse | Existing status and retry presentation |
+| Daily QR entry point | Context-bar primary action | extend | Stable poster when available, occurrence fallback otherwise |
 
 The print-only body portal is not an interactive overlay; it isolates the poster
 from the application during printing. Printable and downloaded codes resolve to

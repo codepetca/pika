@@ -6,7 +6,10 @@ describe('QrCode', () => {
   it('retains its accessible name and default size', () => {
     render(<QrCode value="https://example.invalid" label="Attendance QR" />)
     const code = screen.getByRole('img', { name: 'Attendance QR' })
+    expect(code).toHaveClass('bg-qr-background', 'text-qr-foreground')
     expect(code.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(code.querySelectorAll('path')[0]).toHaveAttribute('fill', 'transparent')
+    expect(code.querySelectorAll('path')[1]).toHaveAttribute('fill', 'currentColor')
     expect(code.querySelector('svg')).toHaveClass('max-w-64')
   })
 

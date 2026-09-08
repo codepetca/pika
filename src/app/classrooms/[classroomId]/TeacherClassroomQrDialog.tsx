@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Download, Printer, RotateCcw } from 'lucide-react'
+import { Download, Printer, RotateCcw, Settings } from 'lucide-react'
+import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { TeacherClassroomQrPresentation } from '@/lib/teacher-attendance'
 import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import { serializeQrSvg } from '@/lib/qr-svg'
@@ -172,9 +173,11 @@ export function TeacherClassroomQrDialog({
       <ContentDialog
         isOpen={isOpen}
         onClose={onClose}
-        title="Classroom QR poster"
-        subtitle="Stable until you rotate it"
-        maxWidth="max-w-3xl"
+        title="Classroom QR"
+        subtitle={`${classroomTitle} · Reusable poster`}
+        maxWidth="max-w-4xl"
+        panelClassName="w-full"
+        showFooterClose={false}
       >
         {loading ? (
           <PageState kind="loading" title="Loading classroom QR" compact />
@@ -187,31 +190,46 @@ export function TeacherClassroomQrDialog({
             action={<Button type="button" onClick={() => void load()}>Try again</Button>}
           />
         ) : entryUrl && presentation ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div ref={qrRef} className="w-full max-w-md">
+          <div className="grid items-center gap-5 md:grid-cols-2">
+            <div ref={qrRef} className="mx-auto w-full max-w-md rounded-card border border-border bg-qr-background p-3 shadow-sm">
               <QrCode
                 value={entryUrl}
                 label={`${classroomTitle} permanent attendance QR code`}
-                className="aspect-square w-full bg-qr-background p-[10%]"
+                className="aspect-square w-full border-0 bg-qr-background p-8"
                 codeClassName="max-w-none"
               />
             </div>
-            <div>
-              <p className="font-medium text-text-default">Print once and use for every class</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Students sign in to Pika. The poster works only while this classroom has open attendance.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button type="button" variant="secondary" onClick={printPoster}>
-                <Printer className="h-4 w-4" aria-hidden="true" /> Print
-              </Button>
-              <Button type="button" variant="secondary" onClick={downloadPoster}>
-                <Download className="h-4 w-4" aria-hidden="true" /> Download SVG
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setRotateOpen(true)}>
-                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Rotate QR
-              </Button>
+            <div className="flex flex-col gap-4 text-left">
+              <div>
+                <p className="text-lg font-semibold text-text-default">Print once and use every day</p>
+                <p className="mt-1 text-sm leading-5 text-text-muted">
+                  Students sign in to Pika after scanning. Check-in works only while attendance is open.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
+                <Button type="button" variant="primary" className="w-full justify-center" onClick={printPoster}>
+                  <Printer className="h-4 w-4" aria-hidden="true" /> Print poster
+                </Button>
+                <Button type="button" variant="secondary" className="w-full justify-center" onClick={downloadPoster}>
+                  <Download className="h-4 w-4" aria-hidden="true" /> Download SVG
+                </Button>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <span className="text-xs text-text-muted">Stable until you rotate it</span>
+                <TeacherWorkSurfaceIconMenuButton
+                  ariaLabel="Poster settings"
+                  tooltip="Poster settings"
+                  className="h-11 w-11"
+                  menuAlign="end"
+                  icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+                  items={[{
+                    id: 'rotate-qr',
+                    label: 'Rotate QR',
+                    icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+                    onSelect: () => setRotateOpen(true),
+                  }]}
+                />
+              </div>
             </div>
           </div>
         ) : null}
@@ -219,7 +237,7 @@ export function TeacherClassroomQrDialog({
       <ConfirmDialog
         isOpen={rotateOpen}
         title="Rotate classroom QR?"
-        description="The current poster will stop working immediately. Print and replace it with the new QR."
+        description="The current printed poster will stop working immediately. Print and replace it after rotating."
         confirmLabel="Rotate QR"
         errorMessage={rotateError}
         isCancelDisabled={rotating}
