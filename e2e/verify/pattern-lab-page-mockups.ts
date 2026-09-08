@@ -131,7 +131,7 @@ export const patternLabPageMockups: VerificationScript = {
             const manualPresentCell = manualDaily.getByRole('button', { name: 'Mark Maya Chen present' }).locator('xpath=ancestor::td')
             checks.push({
               name: `${viewportName} ${theme} Manual Daily removes QR evidence and keeps time passive`,
-              passed: await manualDaily.getByRole('button', { name: 'Show QR' }).count() === 0
+              passed: await manualDaily.getByRole('button', { name: 'Classroom QR' }).count() === 0
                 && await manualDaily.getByRole('columnheader', { name: 'Time of scan' }).count() === 0
                 && (await manualTime.getAttribute('class'))?.includes('bg-surface') === true
                 && (await manualTime.getAttribute('class'))?.includes('bg-success-bg') === false
@@ -257,7 +257,7 @@ export const patternLabPageMockups: VerificationScript = {
     checks.push({
       name: 'Daily joins attendance time and QR beside the date without row selection',
       passed: await daily.getByRole('group', { name: 'Attendance time and QR check-in' }).isVisible()
-        && await daily.getByRole('button', { name: 'Show QR' }).isVisible()
+        && await daily.getByRole('button', { name: 'Classroom QR' }).isVisible()
         && Math.abs(dateControlHeight - attendanceControlHeight) <= 1
         && await daily.getByRole('checkbox').count() === 0
         && await daily.getByRole('button', { name: /Student actions/ }).count() === 0,
@@ -310,8 +310,8 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.screenshot({ path: dailyUndoTooltipArtifact })
     artifacts.push(dailyUndoTooltipArtifact)
     await page.mouse.move(0, 0)
-    await daily.getByRole('button', { name: 'Show QR' }).hover()
-    const qrTooltip = page.getByRole('tooltip').getByText('Show QR', { exact: true })
+    await daily.getByRole('button', { name: 'Classroom QR' }).hover()
+    const qrTooltip = page.getByRole('tooltip').getByText('Classroom QR', { exact: true })
     await qrTooltip.waitFor()
     checks.push({
       name: 'Daily QR icon explains its action on hover',
@@ -321,6 +321,39 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.screenshot({ path: dailyQrTooltipArtifact })
     artifacts.push(dailyQrTooltipArtifact)
     await page.mouse.move(0, 0)
+    await daily.getByRole('button', { name: 'Classroom QR' }).click()
+    const classroomQrDialog = page.getByRole('dialog', { name: 'Classroom QR' })
+    checks.push({
+      name: 'Daily classroom QR opens a monitor-shaped poster with centered desktop information',
+      passed: await classroomQrDialog.getByLabel('Environmental Science permanent attendance QR code').isVisible()
+        && await classroomQrDialog.getByText('Environmental Science').isVisible()
+        && await classroomQrDialog.getByText('Scan Attendance').isVisible()
+        && await classroomQrDialog.getByText('2:00 PM - 3:00 PM').isVisible()
+        && await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).isVisible(),
+    })
+    const classroomQrArtifact = path.join(artifactDir, 'desktop-light-daily-classroom-qr.png')
+    await page.screenshot({ path: classroomQrArtifact })
+    artifacts.push(classroomQrArtifact)
+    checks.push({
+      name: 'QR poster settings contain print, download, and rotation actions',
+      passed: await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).isVisible(),
+    })
+    await classroomQrDialog.getByRole('button', { name: 'Poster settings' }).click()
+    const posterSettings = page.getByRole('menu', { name: 'Poster settings' })
+    checks.push({
+      name: 'QR poster settings expose all export and lifecycle actions',
+      passed: await posterSettings.getByRole('menuitem', { name: 'Print poster' }).isVisible()
+        && await posterSettings.getByRole('menuitem', { name: 'Download SVG' }).isVisible()
+        && await posterSettings.getByRole('menuitem', { name: 'Rotate QR' }).isVisible(),
+    })
+    await posterSettings.getByRole('menuitem', { name: 'Rotate QR' }).click()
+    const rotateQrDialog = page.getByRole('dialog', { name: 'Rotate classroom QR?' })
+    checks.push({
+      name: 'QR rotation stays behind a warning',
+      passed: await rotateQrDialog.getByText(/current printed poster will stop working immediately/).isVisible(),
+    })
+    await rotateQrDialog.getByRole('button', { name: 'Cancel' }).click()
+    await classroomQrDialog.getByRole('button', { name: 'Close' }).click()
     await daily.getByRole('button', { name: 'Edit attendance time, attendance open, 9:00 - 10:00 AM' }).click()
     const timeDialog = page.getByRole('dialog', { name: 'Attendance time' })
     checks.push({
@@ -419,8 +452,8 @@ export const patternLabPageMockups: VerificationScript = {
     await daily.getByRole('button', { name: 'More actions' }).click()
     await daily.getByRole('menuitemcheckbox', { name: /Close attendance/ }).click()
     checks.push({
-      name: 'Closing attendance disables QR and updates the time state',
-      passed: await daily.getByRole('button', { name: 'Show QR' }).isDisabled()
+      name: 'Closing attendance keeps the reusable poster available and updates the time state',
+      passed: await daily.getByRole('button', { name: 'Classroom QR' }).isEnabled()
         && await daily.getByRole('button', { name: 'Edit attendance time, attendance closed, 9:00 - 10:00 AM' }).isVisible(),
     })
     const dailyClosedArtifact = path.join(artifactDir, 'desktop-light-daily-closed.png')

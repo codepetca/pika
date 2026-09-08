@@ -31326,17 +31326,18 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Updated the Daily attendance row undo affordance in the live teacher surface and Pattern Lab from “Undo manual change” to “Undo override,” including accessible labels and hover tooltips. Updated focused component and browser assertions; batch “Revert manual changes” wording remains unchanged.
 - Focused tests, architecture/UI/design policy, TypeScript, lint, and the full Pattern Lab visual matrix passed across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or layout change.
 
+<!-- pika-session-log-archive-batch:74a0760bc4e7075f48e1af1376b3c6a633e388aa5b9188088d34b631b58d58a0 -->
 ## 2026-09-05 — Place Daily Log before scan time
 
 - Reordered the Daily attendance table in the live teacher surface and Pattern Lab so Log appears before Time of scan and the Present/Late/Absent status bubbles. The mobile inline check-in time and existing sticky status/undo columns remain intact.
 - Added order regressions to component and browser verification. Focused tests, architecture/UI/design policy, TypeScript, lint, Pika audit, and the full Pattern Lab visual matrix pass across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or attendance behavior change.
-
+<!-- pika-session-log-archive-batch:3672e9f41d722b0755c52cb79159d263038a1eacd5fe08c10e98779a5b9b2f48 -->
 ## 2026-09-05 — Restore local development on Node 24
 
 - The local launcher initially exposed a Next dev-runtime failure while rendering `/login`: `tailwind.config.ts` used CommonJS `require` in an ESM-loaded config. Replaced it with the typed ESM import for `@tailwindcss/typography`, committed locally as `7b14f8c8`, and verified `/login` returns HTTP 200 on port 3001.
 - Focused checks pass 44 files / 616 tests plus architecture, UI/design policy, TypeScript and lint. The fix is intentionally unpushed; final PR rebase/review/CI/merge remains deferred until the model reset.
-
 <!-- pika-session-log-archive-batch:3bd1a000d5699c1d0b1a334ba23c3095c9baddfed3e10710576078f2b6d7c396 -->
+<!-- pika-session-log-archive-batch:57403e7fd6a27195fbf23d465bd39a4990de6701854abc479c863d31cd594c4a -->
 ## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
 
 - Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
@@ -31348,7 +31349,6 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Added the gradebook's shared centered `Student Actions` menu to the teacher roster. It stays disabled with no selection, changes to the selected count, and exposes only `Copy emails (primary)` and `Copy emails (secondary)`; secondary copy remains disabled when no selected student has a secondary address.
 - Removed primary-email, copy-all, Gmail, and Outlook commands from the roster More actions menu, leaving roster management actions there. Added focused coverage for menu placement, labels, clipboard behavior, selected-count state, and provider-command removal.
 - Focused checks pass 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes teacher desktop/mobile light/dark default states, selected/open menu states, and the student route redirects to the student Today surface because roster is teacher-only. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
-
 <!-- pika-session-log-archive-batch:ebda513c88b112f5defc5017fc6f5d59bace1b8c1c9c3ab3424c9f0e0c84e223 -->
 ## 2026-09-06 — Stabilize roster Student Actions width
 

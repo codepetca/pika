@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Clock3, MoreVertical, QrCode, RotateCcw } from 'lucide-react'
+import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
 import {
   ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
@@ -27,6 +27,7 @@ import type { TeacherAttendanceStatus } from '@/lib/teacher-attendance'
 import {
   Button,
   Card,
+  ConfirmDialog,
   ContentDialog,
   DataTable,
   DataTableBody,
@@ -34,9 +35,11 @@ import {
   DataTableHead,
   DataTableHeaderCell,
   DataTableRow,
+  DialogPanel,
   FormField,
   IconButton,
   Input,
+  QrCode,
   SegmentedControl,
   SortableHeaderCell,
   TableSelectionCheckbox,
@@ -138,10 +141,13 @@ export function DailyMockup({
   attendanceMode?: DailyAttendanceMode
   onPrototypeAction: (action: string) => void
 }) {
+  const classroomQrTitleId = useId()
   const hasQrCheckIn = attendanceMode === 'qr'
   const [date, setDate] = useState('2026-09-16')
   const [showRelativeDate, setShowRelativeDate] = useState(true)
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(true)
+  const [isClassroomQrOpen, setIsClassroomQrOpen] = useState(false)
+  const [isRotateQrOpen, setIsRotateQrOpen] = useState(false)
   const [manualAttendanceMode, setManualAttendanceMode] = useState<ManualAttendanceMode>('manual')
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false)
   const [isTimeDialogOpen, setIsTimeDialogOpen] = useState(false)
@@ -324,6 +330,26 @@ export function DailyMockup({
       onSelect: () => onPrototypeAction('Edit Daily logs in Markdown'),
     },
   ]
+  const posterActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'print-poster',
+      label: 'Print poster',
+      icon: <Printer className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onPrototypeAction('Print classroom QR poster'),
+    },
+    {
+      id: 'download-svg',
+      label: 'Download SVG',
+      icon: <Download className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => onPrototypeAction('Download classroom QR SVG'),
+    },
+    {
+      id: 'rotate-qr',
+      label: 'Rotate QR',
+      icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsRotateQrOpen(true),
+    },
+  ]
 
   const actionBar = (
     <TeacherWorkSurfaceContextBar
@@ -350,14 +376,13 @@ export function DailyMockup({
           >
             {hasQrCheckIn ? (
               <IconButton
-                label="Show QR"
-                tooltip={isAttendanceOpen ? 'Show QR' : 'QR unavailable until attendance is open'}
-                icon={QrCode}
+                label="Classroom QR"
+                tooltip="Classroom QR"
+                icon={QrCodeIcon}
                 variant="primary"
                 size="sm"
                 className="h-11 w-11 rounded-none border-0"
-                disabled={!isAttendanceOpen}
-                onClick={() => onPrototypeAction('Show attendance QR')}
+                onClick={() => setIsClassroomQrOpen(true)}
               />
             ) : null}
             <Button
@@ -521,7 +546,7 @@ export function DailyMockup({
       />
       <p className="text-xs leading-5 text-text-muted">
         {hasQrCheckIn
-          ? 'Daily centers the date and equal-height joined QR/time control. Session and class-wide attendance commands stay in More actions; per-student manual changes are reversible in the table.'
+          ? 'Daily uses one classroom QR entry point. The reusable poster opens from the middle control; session and class-wide attendance commands stay in More actions.'
           : manualAttendanceMode === 'log'
             ? 'Attendance from log automatically marks students Present when they complete a log that day. Manual overrides can be reverted from the row.'
             : 'With Attendance from log off, the optional time stays passive and attendance changes only when a teacher marks it.'}
@@ -548,12 +573,84 @@ export function DailyMockup({
           </Button>
           {hasQrCheckIn ? (
             <Button type="button" variant="danger" className="w-full justify-start" onClick={clearQrCheckIns}>
-              <QrCode className="h-4 w-4" aria-hidden="true" />
+              <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
               Clear QR check-ins
             </Button>
           ) : null}
         </div>
       </ContentDialog>
+
+      <DialogPanel
+        isOpen={isClassroomQrOpen}
+        onClose={() => setIsClassroomQrOpen(false)}
+        ariaLabelledBy={classroomQrTitleId}
+        maxWidth="max-w-6xl"
+        className="aspect-[2/3] overflow-hidden sm:aspect-video"
+      >
+        <h2 id={classroomQrTitleId} className="sr-only">Classroom QR</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="absolute right-3 top-3 z-local-menu h-11 w-11 p-0"
+          aria-label="Close"
+          onClick={() => setIsClassroomQrOpen(false)}
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </Button>
+        <div className="flex h-full min-h-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:gap-6">
+          <div className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center px-3 text-center sm:w-1/3">
+            <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">Environmental Science</p>
+            <p className="mt-4 hidden text-xl font-medium leading-tight text-text-default sm:mt-6 sm:block sm:text-3xl">
+              Scan Attendance
+            </p>
+            <p className="mt-2 hidden text-lg font-medium text-text-muted sm:mt-3 sm:block sm:text-2xl">2:00 PM - 3:00 PM</p>
+            <div className="mt-8 hidden sm:block">
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Poster settings"
+                tooltip="Poster settings"
+                icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+                items={posterActions}
+                menuAriaLabel="Poster settings"
+                menuAlign="center"
+                variant="secondary"
+                className="h-11 w-11"
+              />
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-none items-center justify-center sm:h-full sm:flex-1">
+            <QrCode
+              value="https://pika.codepet.ca/attendance/classroom/pattern-lab-stable-poster"
+              label="Environmental Science permanent attendance QR code"
+              className="aspect-square w-full max-w-64 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
+              codeClassName="h-full max-w-none"
+            />
+          </div>
+          <div className="absolute left-3 top-3 sm:hidden">
+            <TeacherWorkSurfaceIconMenuButton
+              ariaLabel="QR options"
+              tooltip="QR options"
+              icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
+              items={posterActions}
+              menuAlign="start"
+              className="h-11 w-11"
+            />
+          </div>
+        </div>
+      </DialogPanel>
+
+      <ConfirmDialog
+        isOpen={isRotateQrOpen}
+        onCancel={() => setIsRotateQrOpen(false)}
+        onConfirm={() => {
+          setIsRotateQrOpen(false)
+          onPrototypeAction('Rotate classroom QR')
+        }}
+        title="Rotate classroom QR?"
+        description="The current printed poster will stop working immediately. Print and replace it after rotating."
+        confirmLabel="Rotate QR"
+        confirmVariant="danger"
+      />
 
       <ContentDialog
         isOpen={isTimeDialogOpen}
