@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
+import { readBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
 const mockPush = vi.fn()
 
@@ -69,6 +70,7 @@ describe('CreateClassroomModal', () => {
     vi.mocked(fetchTeacherBlueprints).mockClear()
     vi.mocked(invalidateTeacherBlueprints).mockClear()
     mockPush.mockClear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -665,6 +667,7 @@ describe('CreateClassroomModal', () => {
       )
     })
     expect(screen.queryByRole('heading', { name: 'Classroom Created' })).not.toBeInTheDocument()
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual(['Final project workshop'])
   })
 
   it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {
@@ -704,6 +707,7 @@ describe('CreateClassroomModal', () => {
     expect((instantiateCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
       (instantiateCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
     )
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual([])
   })
 
   it('cannot dismiss the modal while blueprint instantiation is pending', async () => {

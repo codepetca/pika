@@ -15,6 +15,7 @@ import {
   resolveCourseBlueprintImportOperation,
   type CourseBlueprintImportOperation,
 } from '@/lib/course-blueprint-import-client'
+import { storeBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
 type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CreationMode = 'blank' | 'blueprint'
@@ -255,6 +256,10 @@ export function CreateClassroomModal({
         instantiateOperationRef.current = null
         invalidateTeacherBlueprints()
         invalidateTeacherClassrooms()
+        storeBlueprintClassroomOverflow(
+          classroom.id,
+          instantiateData.lesson_mapping?.overflow_lesson_templates,
+        )
         onBlueprintCreated?.(classroom)
         resetForm()
         onClose()

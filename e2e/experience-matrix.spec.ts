@@ -1610,6 +1610,8 @@ test.describe('teacher experience matrix', () => {
     )
     await expect(page.getByText('Draft', { exact: true }).first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Classroom Created' })).toHaveCount(0)
+    await expect(page.getByText(/1 blueprint lesson plan was not scheduled/i)).toBeVisible()
+    await expect(page.getByText('Final project workshop')).toBeVisible()
 
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(100)

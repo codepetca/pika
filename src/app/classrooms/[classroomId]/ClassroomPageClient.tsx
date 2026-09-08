@@ -77,6 +77,10 @@ import {
   normalizeClassroomFeatureVisibility,
   type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
+import {
+  clearBlueprintClassroomOverflow,
+  readBlueprintClassroomOverflow,
+} from '@/lib/blueprint-classroom-handoff'
 
 interface UserInfo {
   id: string
@@ -605,6 +609,7 @@ function ClassroomPageContent({
   const sectionParam = searchParams.get('section')
   const gradebookSectionParam = searchParams.get('gradebookSection')
   const reviewClassDaysAfterCreation = searchParams.get('reviewClassDays') === '1'
+  const [blueprintOverflowLessonTemplates, setBlueprintOverflowLessonTemplates] = useState<string[]>([])
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
@@ -635,6 +640,14 @@ function ClassroomPageContent({
     !isArchived &&
     !isViewingClassDaysSettings &&
     (classDaysNeedSetup || reviewClassDaysAfterCreation)
+
+  useEffect(() => {
+    setBlueprintOverflowLessonTemplates(
+      reviewClassDaysAfterCreation
+        ? readBlueprintClassroomOverflow(classroom.id)
+        : [],
+    )
+  }, [classroom.id, reviewClassDaysAfterCreation])
 
   const logStudentTestRouteExitAttempt = useCallback((
     source: string,
@@ -1808,24 +1821,39 @@ function ClassroomPageContent({
                     <p className="font-semibold text-text-default">
                       {classDaysNeedSetup ? 'Set up class days' : 'Review class days'}
                     </p>
-                    <p className="mt-0.5 text-sm text-text-muted">
-                      {classDaysNeedSetup
-                        ? 'Choose your first and last class days so Pika can build the classroom calendar.'
-                        : 'Review holidays, PA days, and other non-class days.'}
-                    </p>
+                    {blueprintOverflowLessonTemplates.length > 0 ? (
+                      <>
+                        <p className="mt-0.5 text-sm text-text-muted">
+                          {blueprintOverflowLessonTemplates.length} blueprint lesson {blueprintOverflowLessonTemplates.length === 1 ? 'plan was' : 'plans were'} not scheduled. Add class days or schedule manually:
+                        </p>
+                        <ul className="mt-1 list-disc pl-5 text-sm text-text-muted">
+                          {blueprintOverflowLessonTemplates.map((lessonTitle, index) => (
+                            <li key={`${lessonTitle}-${index}`}>{lessonTitle}</li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : (
+                      <p className="mt-0.5 text-sm text-text-muted">
+                        {classDaysNeedSetup
+                          ? 'Choose your first and last class days so Pika can build the classroom calendar.'
+                          : 'Review holidays, PA days, and other non-class days.'}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   className="shrink-0"
-                  onClick={() =>
+                  onClick={() => {
+                    clearBlueprintClassroomOverflow(classroom.id)
+                    setBlueprintOverflowLessonTemplates([])
                     navigateInClassroom((params) => {
                       params.set('tab', 'settings')
                       params.set('section', 'class-days')
                       params.delete('reviewClassDays')
                     })
-                  }
+                  }}
                 >
                   {classDaysNeedSetup ? 'Set up now' : 'Review now'}
                 </Button>
