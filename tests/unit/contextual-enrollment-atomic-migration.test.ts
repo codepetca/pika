@@ -57,6 +57,7 @@ describe('atomic contextual classroom enrollment migration', () => {
       `revoke all on function ${signature} from public, anon, authenticated, service_role`
     )
     expect(sql.replace(/\s+/g, ' ')).toContain(`grant execute on function ${signature} to service_role`)
+    expect(sql).toContain('no live route adopts it in migration 159')
   })
 
   it('limits guesses before resolving the actor or classroom', () => {

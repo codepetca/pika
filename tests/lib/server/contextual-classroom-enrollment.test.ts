@@ -73,6 +73,42 @@ describe('contextual classroom enrollment server adapter', () => {
     vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
     const unavailable = createClient({ data: null, error: { code: 'PGRST202' } })
     const malformed = createClient({ data: { ok: true }, error: null })
+    const wrongClassroom = createClient({
+      data: {
+        ok: true,
+        status: 201,
+        created: true,
+        already_enrolled: false,
+        classroom: {
+          id: '55555555-5555-4555-8555-555555555555',
+          title: 'Wrong classroom',
+          term_label: null,
+        },
+        enrollment: {
+          id: '44444444-4444-4444-8444-444444444444',
+          created_at: '2026-09-03T12:00:00.000Z',
+        },
+      },
+      error: null,
+    })
+    const inconsistentSuccess = createClient({
+      data: {
+        ok: true,
+        status: 200,
+        created: true,
+        already_enrolled: false,
+        classroom: {
+          id: '33333333-3333-4333-8333-333333333333',
+          title: 'Biology',
+          term_label: null,
+        },
+        enrollment: {
+          id: '44444444-4444-4444-8444-444444444444',
+          created_at: '2026-09-03T12:00:00.000Z',
+        },
+      },
+      error: null,
+    })
     const base = {
       actorId: '11111111-1111-4111-8111-111111111111',
       expectedClassroomId: '33333333-3333-4333-8333-333333333333',
@@ -85,6 +121,10 @@ describe('contextual classroom enrollment server adapter', () => {
     await expect(joinClassroomByCodeAtomic({ ...base, supabase: unavailable as never }))
       .rejects.toBeInstanceOf(ApiError)
     await expect(joinClassroomByCodeAtomic({ ...base, supabase: malformed as never }))
+      .rejects.toMatchObject({ statusCode: 503 })
+    await expect(joinClassroomByCodeAtomic({ ...base, supabase: wrongClassroom as never }))
+      .rejects.toMatchObject({ statusCode: 503 })
+    await expect(joinClassroomByCodeAtomic({ ...base, supabase: inconsistentSuccess as never }))
       .rejects.toMatchObject({ statusCode: 503 })
   })
 

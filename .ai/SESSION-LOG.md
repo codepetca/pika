@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Make class-day toggles respond immediately
-
-- Changed Settings > Class Days to update each clicked date optimistically instead of waiting for the PATCH response. Only the affected date is temporarily disabled while saving, preventing duplicate requests without blocking edits to other dates.
-- Successful saves replace the optimistic value with the server result and retain the existing cross-tab cache refresh. Failed or malformed saves restore the prior state and show the existing inline error feedback.
-- Added semantic component coverage for immediate `aria-pressed` state, per-date pending state, duplicate-click prevention and failure rollback. The full focused gate passes 43 files / 614 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Teacher desktop/mobile light and desktop dark screenshots were inspected; student settings are unavailable by role. Composite-widget checklist reviewed: keyboard behavior remains native-button behavior, semantic state is covered by tests, and no manual follow-up remains. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
-
 ## 2026-09-04 — Review classroom class-day setup draft
 
 - Rebased the complete classroom class-day setup change onto current main and opened draft PR #1203. The product diff remained equivalent across the rebase; only append-only session history required reconciliation.
@@ -263,3 +257,8 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Rebased PR #1193 onto current main after #1187 merged. Main now owns migrations 155–158, so the enrollment source migration moved from 157 to 159 with its SQL unchanged. The earlier exact local authorization was consumed by the former 157 filename; the current local history is therefore evidence of the SQL behavior, not a clean 159 lineage replay. No migration was reapplied, repaired, reset, or promoted.
 - Updated current enrollment guidance, harness messages, and static contracts to migration 159. A clean ephemeral replay, focused/type checks, the reserved fifth and final cumulative reviewer launch, and exact-head CI remain before readiness. Hosted application, route adoption, cohort activation, deployment, and production access remain unapproved.
+
+## 2026-09-07 — Bind atomic enrollment responses to the requested classroom
+
+- The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
+- Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.

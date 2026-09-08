@@ -31285,3 +31285,10 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Moved calendar-step entry focus from the hidden native date input to an accessible `Choose class dates` group, removing the premature blue input outline while preserving screen-reader context. The standard Pika focus treatment still appears when the teacher deliberately clicks or tabs into the date control.
 - Updated semantic coverage verifies group focus, neutral input state and deliberate picker invocation. Desktop and mobile states were visually inspected in dark mode; the existing light-theme input treatment is unchanged. Student creation is not applicable.
 - The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
+
+<!-- pika-session-log-archive-batch:72fd0b3f51d86a20d14f87e84b6e0fbd003048dda69cc06ab5279d97be69f259 -->
+## 2026-09-04 — Make class-day toggles respond immediately
+
+- Changed Settings > Class Days to update each clicked date optimistically instead of waiting for the PATCH response. Only the affected date is temporarily disabled while saving, preventing duplicate requests without blocking edits to other dates.
+- Successful saves replace the optimistic value with the server result and retain the existing cross-tab cache refresh. Failed or malformed saves restore the prior state and show the existing inline error feedback.
+- Added semantic component coverage for immediate `aria-pressed` state, per-date pending state, duplicate-click prevention and failure rollback. The full focused gate passes 43 files / 614 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Teacher desktop/mobile light and desktop dark screenshots were inspected; student settings are unavailable by role. Composite-widget checklist reviewed: keyboard behavior remains native-button behavior, semantic state is covered by tests, and no manual follow-up remains. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
