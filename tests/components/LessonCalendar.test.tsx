@@ -224,7 +224,7 @@ describe('LessonCalendar', () => {
     )
   })
 
-  it('moves a scheduled announcement to its published date at the publication boundary', () => {
+  it('keeps a scheduled announcement on its publication date after the publication boundary', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-17T13:59:59.900Z'))
     const scheduledAnnouncement: Announcement = {
@@ -254,19 +254,18 @@ describe('LessonCalendar', () => {
     expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
 
     act(() => vi.advanceTimersByTime(200))
-    expect(within(screen.getByRole('dialog')).queryByText('Publication boundary announcement')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
-    expect(within(screen.getByRole('dialog')).getByText('Publication boundary announcement')).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).queryByText('Publication boundary announcement')).not.toBeInTheDocument()
   })
 
-  it('re-arms bounded timers until a long-range announcement publication boundary', () => {
+  it('keeps a long-range scheduled announcement on its publication date', () => {
     vi.useFakeTimers()
     const start = new Date('2026-03-01T14:00:00.000Z')
     const publication = new Date('2026-04-15T14:00:00.000Z')
     vi.setSystemTime(start)
-    const timeoutSpy = vi.spyOn(window, 'setTimeout')
     const scheduledAnnouncement: Announcement = {
       ...markdownAnnouncement,
       id: 'long-range-announcement',
@@ -291,19 +290,14 @@ describe('LessonCalendar', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /open wednesday, april 15, 2026/i }))
     expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
-    expect(timeoutSpy.mock.calls.some(([, delay]) => delay === 2_147_483_647)).toBe(true)
 
-    act(() => vi.advanceTimersByTime(2_147_483_647))
+    act(() => vi.setSystemTime(new Date(publication.getTime() + 100)))
     expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
-    expect(timeoutSpy.mock.calls.every(([, delay]) => typeof delay !== 'number' || delay <= 2_147_483_647)).toBe(true)
-
-    act(() => vi.advanceTimersByTime(publication.getTime() - start.getTime() - 2_147_483_647 + 100))
-    expect(within(screen.getByRole('dialog')).queryByText('Long-range publication announcement')).not.toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
     view.rerender(<LessonCalendar {...props} currentDate={new Date('2026-03-01T12:00:00')} />)
     fireEvent.click(screen.getByRole('button', { name: /open sunday, march 1, 2026/i }))
-    expect(within(screen.getByRole('dialog')).getByText('Long-range publication announcement')).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).queryByText('Long-range publication announcement')).not.toBeInTheDocument()
   })
 
   it('allows inline editing in all view', () => {

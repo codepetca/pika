@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react'
-import { Trash2, Plus, Clock, Calendar, MoreVertical } from 'lucide-react'
+import { Trash2, Plus, Clock, Calendar, FileText, MoreVertical } from 'lucide-react'
 import { Button, IconButton, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
@@ -17,6 +17,7 @@ import { cn } from '@/ui'
 import {
   ANNOUNCEMENT_TITLE_MAX_LENGTH,
   formatAnnouncementTimestamp,
+  getAnnouncementPublicationTimestamp,
   normalizeAnnouncementTitle,
   sortAnnouncementsNewestFirst,
 } from '@/lib/announcements'
@@ -49,6 +50,7 @@ function autoResizeAnnouncementTextarea(textarea: HTMLTextAreaElement | null) {
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
+  if (announcement.is_draft) return false
   if (!announcement.scheduled_for) return false
   return new Date(announcement.scheduled_for) > new Date()
 }
@@ -250,7 +252,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     setShowEditScheduleDropdown(false)
   }
 
-  async function saveEdit() {
+  async function saveEdit(mode: 'preserve' | 'publish' | 'draft' | 'schedule' = 'preserve') {
     if (!editingId || !editContent.trim() || saving) return
     const classroomId = classroom.id
     const announcementId = editingId
@@ -261,18 +263,36 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     const normalizedEditTitle = normalizeAnnouncementTitle(editTitle)
     const contentChanged = editContent.trim() !== originalContent.trim()
     const titleChanged = normalizedEditTitle !== normalizeAnnouncementTitle(originalTitle)
-    const newScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
+    const existingAnnouncement = announcements.find((announcement) => announcement.id === announcementId)
+    if (!existingAnnouncement) return
+    const newIsDraft = mode === 'draft'
+      ? true
+      : mode === 'publish' || mode === 'schedule'
+        ? false
+        : !!existingAnnouncement.is_draft
+    const newScheduledFor = newIsDraft || mode === 'publish'
+      ? null
+      : editScheduleDateTime
+        ? new Date(editScheduleDateTime).toISOString()
+        : null
     const scheduleChanged = newScheduledFor !== originalScheduledFor
+    const draftChanged = newIsDraft !== !!existingAnnouncement.is_draft
 
     // Don't save if nothing changed
-    if (!contentChanged && !titleChanged && !scheduleChanged) {
+    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged) {
       cancelEditing()
       return
     }
 
     setSaving(true)
     const prevAnnouncements = announcements
-    const optimisticScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
+    const optimisticPublishedAt = newIsDraft
+      ? null
+      : newScheduledFor ?? (
+        draftChanged || scheduleChanged
+          ? new Date().toISOString()
+          : existingAnnouncement.published_at ?? existingAnnouncement.created_at
+      )
     setAnnouncements((prev) =>
       prev.map((a) =>
         a.id === announcementId
@@ -280,14 +300,21 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
               ...a,
               title: normalizedEditTitle,
               content: editContent.trim(),
-              scheduled_for: optimisticScheduledFor,
+              is_draft: newIsDraft,
+              published_at: optimisticPublishedAt,
+              scheduled_for: newScheduledFor,
               updated_at: new Date().toISOString(),
             }
           : a,
       ),
     )
     try {
-      const body: { content?: string; scheduled_for?: string | null; title?: string | null } = {}
+      const body: {
+        content?: string
+        is_draft?: boolean
+        scheduled_for?: string | null
+        title?: string | null
+      } = {}
       if (titleChanged) {
         body.title = normalizedEditTitle
       }
@@ -296,6 +323,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       }
       if (scheduleChanged) {
         body.scheduled_for = newScheduledFor
+      }
+      if (draftChanged) {
+        body.is_draft = newIsDraft
       }
 
       const res = await fetch(
@@ -326,7 +356,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     }
   }
 
-  async function createAnnouncement(scheduledFor?: string) {
+  async function createAnnouncement(
+    mode: 'publish' | 'draft' | 'schedule',
+    scheduledFor?: string,
+  ) {
     if (!newContent.trim() || saving) return
     const classroomId = classroom.id
     const requestId = saveRequestIdRef.current + 1
@@ -342,17 +375,33 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       title: normalizedNewTitle,
       content: newContent.trim(),
       created_by: classroom.teacher_id,
-      scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+      is_draft: mode === 'draft',
+      published_at: mode === 'draft'
+        ? null
+        : scheduledFor
+          ? new Date(scheduledFor).toISOString()
+          : now,
+      scheduled_for: mode === 'schedule' && scheduledFor
+        ? new Date(scheduledFor).toISOString()
+        : null,
       created_at: now,
       updated_at: now,
     }
     setAnnouncements((prev) => [optimisticAnnouncement, ...prev])
     try {
-      const body: { content: string; scheduled_for?: string; title?: string } = { content: newContent.trim() }
+      const body: {
+        content: string
+        is_draft?: boolean
+        scheduled_for?: string
+        title?: string
+      } = { content: newContent.trim() }
       if (normalizedNewTitle) {
         body.title = normalizedNewTitle
       }
-      if (scheduledFor) {
+      if (mode === 'draft') {
+        body.is_draft = true
+      }
+      if (mode === 'schedule' && scheduledFor) {
         body.scheduled_for = new Date(scheduledFor).toISOString()
       }
 
@@ -588,7 +637,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                   variant="primary"
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => createAnnouncement(scheduleDateTime)}
+                  onClick={() => createAnnouncement('schedule', scheduleDateTime)}
                   disabled={saving || !newContent.trim()}
                 >
                   {saving ? 'Scheduling...' : 'Schedule'}
@@ -596,9 +645,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
               ) : (
                 <SplitButton
                   label={saving ? 'Posting...' : 'Post'}
-                  onPrimaryClick={() => createAnnouncement()}
+                  onPrimaryClick={() => createAnnouncement('publish')}
                   disabled={saving || !newContent.trim()}
                   options={[
+                    {
+                      id: 'draft',
+                      label: 'Save draft',
+                      onSelect: () => createAnnouncement('draft'),
+                    },
                     {
                       id: 'schedule',
                       label: 'Schedule...',
@@ -652,6 +706,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         return (
         <div className="space-y-3">
           {displayedAnnouncements.map((announcement) => {
+            const draft = !!announcement.is_draft
             const scheduled = isScheduled(announcement)
             const title = normalizeAnnouncementTitle(announcement.title)
 
@@ -725,15 +780,37 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                             variant="primary"
                             size="sm"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => saveEdit()}
+                            onClick={() => saveEdit(announcement.is_draft ? 'schedule' : 'preserve')}
                             disabled={saving || !editContent.trim()}
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </Button>
+                        ) : announcement.is_draft ? (
+                          <SplitButton
+                            label={saving ? 'Posting...' : 'Post'}
+                            onPrimaryClick={() => saveEdit('publish')}
+                            disabled={saving || !editContent.trim()}
+                            options={[
+                              {
+                                id: 'draft',
+                                label: 'Save draft',
+                                onSelect: () => saveEdit('draft'),
+                              },
+                              {
+                                id: 'schedule',
+                                label: 'Schedule...',
+                                onSelect: openEditSchedulePicker,
+                              },
+                            ]}
+                            toggleAriaLabel="Choose announcement action"
+                            primaryButtonProps={{
+                              onMouseDown: (e) => e.preventDefault(),
+                            }}
+                          />
                         ) : (
                           <SplitButton
                             label={saving ? 'Saving...' : 'Post'}
-                            onPrimaryClick={() => saveEdit()}
+                            onPrimaryClick={() => saveEdit('preserve')}
                             disabled={saving || !editContent.trim()}
                             options={[
                               {
@@ -781,7 +858,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         startEditing(announcement)
                       }}
                     >
-                      {scheduled ? (
+                      {draft ? (
+                        <div className="mb-2 flex items-center gap-2 text-text-muted">
+                          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span className="text-xs font-medium">
+                            Draft · Saved {formatAnnouncementTimestamp(announcement.updated_at)}
+                          </span>
+                        </div>
+                      ) : scheduled ? (
                         <div className="flex items-center gap-2 mb-2">
                           <Clock className="h-3.5 w-3.5 text-amber-600" />
                           <span className="text-xs font-medium text-amber-600">
@@ -790,7 +874,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         </div>
                       ) : (
                         <p className="text-xs text-text-muted mb-2">
-                          {formatAnnouncementTimestamp(announcement.created_at)}
+                          {formatAnnouncementTimestamp(getAnnouncementPublicationTimestamp(announcement))}
                           {announcement.updated_at !== announcement.created_at && ' (edited)'}
                         </p>
                       )}
@@ -801,7 +885,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                       )}
                       <AnnouncementContent
                         content={announcement.content}
-                        tone={scheduled ? 'muted' : 'default'}
+                        tone={scheduled || draft ? 'muted' : 'default'}
                       />
                     </div>
                     {!isReadOnly && (

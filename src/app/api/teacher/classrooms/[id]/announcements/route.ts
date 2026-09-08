@@ -30,7 +30,7 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
     .from('announcements')
     .select('*')
     .eq('classroom_id', classroomId)
-    .order('created_at', { ascending: false })
+    .order('published_at', { ascending: false, nullsFirst: true })
 
   if (error) {
     console.error('Error fetching announcements:', error)
@@ -48,8 +48,9 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
-  const { content, scheduled_for, title } = body as {
+  const { content, is_draft, scheduled_for, title } = body as {
     content?: string
+    is_draft?: boolean
     scheduled_for?: string
     title?: unknown
   }
@@ -57,6 +58,20 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
   if (!content || !content.trim()) {
     return NextResponse.json(
       { error: 'Content is required' },
+      { status: 400 }
+    )
+  }
+
+  if (is_draft !== undefined && typeof is_draft !== 'boolean') {
+    return NextResponse.json(
+      { error: 'Draft state must be true or false' },
+      { status: 400 }
+    )
+  }
+
+  if (is_draft && scheduled_for) {
+    return NextResponse.json(
+      { error: 'A draft cannot also be scheduled' },
       { status: 400 }
     )
   }
@@ -99,13 +114,17 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
     classroom_id: string
     content: string
     created_by: string
+    is_draft: boolean
+    published_at: string | null
     scheduled_for: string | null
     title?: string
   } = {
     classroom_id: classroomId,
     content: content.trim(),
     created_by: user.id,
-    scheduled_for: scheduled_for || null,
+    is_draft: is_draft === true,
+    published_at: is_draft ? null : scheduled_for || new Date().toISOString(),
+    scheduled_for: is_draft ? null : scheduled_for || null,
   }
   if (parsedTitle.value) {
     insertData.title = parsedTitle.value

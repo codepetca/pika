@@ -1057,6 +1057,7 @@ describe('GET /api/student/notifications', () => {
       const announcements = Array.from({ length: 1001 }, (_, index) => ({
         id: `announcement-${index}`,
         classroom_id: 'classroom-1',
+        is_draft: false,
       }))
       const reads = [
         {

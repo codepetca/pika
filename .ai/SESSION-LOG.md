@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Relaunch local Pika development server
-
-- Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
-- Fixed the existing Tailwind config's Node 24/ESM startup incompatibility by importing the typography plugin instead of calling CommonJS `require`. TypeScript and diff checks pass; no product behavior, schema, migration, hosted data, or deployment changed.
-
 ## 2026-09-06 — Show Email(2nd) at medium roster widths
 
 - Fixed the roster `Email(2nd)` column's responsive `<colgroup>` definition so it is visible at the same medium breakpoint as the main email column. At the open 877px in-app roster view, the full header and secondary-email edit controls now appear instead of the column being collapsed by its remaining `lg` rule.
@@ -253,3 +248,8 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Reused the modal shell, title, Preview, Toronto due-date control, Post split action, submission-requirements editor, save status, and Markdown-safe editor. The formatting toolbar remains at the top of the right pane, and the panes use spacing instead of a vertical divider.
 - Promoted the approved Pattern Lab action layout into production: Preview occupies a full-width details row below Title, while the equal-width Due/Post controls anchor to the bottom of the left pane (and remain the last details row on mobile). Removed the rejected editor-pane Preview variation so Pattern Lab and production share one split-edit contract.
 - The focused gate passes 18 files / 266 tests plus architecture, UI/design policy, TypeScript, and lint; the Pika audit passes. Pattern Lab and the authenticated production edit modal were verified and visually inspected across desktop/mobile and light/dark, including Preview focus restoration. Student is not applicable because this is teacher-only editing. Risk profile: standard UI behavior.
+## 2026-09-08 — Add announcement drafts and publication timestamps
+
+- Added announcement draft persistence plus an explicit publication timestamp. Immediate posts record the posting time, scheduled announcements retain their scheduled publication boundary after going live, and drafts remain teacher-only across announcements, calendars, notifications and published course sites.
+- Reused the existing announcement editor and SplitButton with a `Save draft` option and quiet `Draft · Saved …` status. Focused announcement/API/calendar/course-site coverage passes 120 tests; generated types match local migrations, lint/type/architecture/UI/design policy and the Pika audit pass. Visual verification covers teacher/student, desktop/mobile, light/dark and the open menu; the student never sees the draft.
+- With explicit owner authorization, local migrations 159 and 160 were applied after a dry run showed exactly that set; hosted environments remain unchanged. The first full focused run exposed and fixed a course-site mock/defense-in-depth gap. Final focused coverage passed 437 of 438 tests; the same unrelated UiGallery test timed out only under the parallel suite and passed immediately in isolation. TypeScript, lint, architecture, UI/design policy, generated database types and the Pika audit all pass before draft PR publication and high-risk independent review.

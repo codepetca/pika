@@ -31361,3 +31361,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
 - The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
 - Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+<!-- pika-session-log-archive-batch:3e085d7099d0762f97f1595672ed2ac9e00bce076d2527ff18381a387e63d122 -->
+## 2026-09-06 — Relaunch local Pika development server
+
+- Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
+- Fixed the existing Tailwind config's Node 24/ESM startup incompatibility by importing the typography plugin instead of calling CommonJS `require`. TypeScript and diff checks pass; no product behavior, schema, migration, hosted data, or deployment changed.

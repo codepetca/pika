@@ -52,6 +52,8 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          is_draft: boolean
+          published_at: string | null
           scheduled_for: string | null
           title: string | null
           updated_at: string
@@ -62,6 +64,8 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          is_draft?: boolean
+          published_at?: string | null
           scheduled_for?: string | null
           title?: string | null
           updated_at?: string
@@ -72,6 +76,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          is_draft?: boolean
+          published_at?: string | null
           scheduled_for?: string | null
           title?: string | null
           updated_at?: string
