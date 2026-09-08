@@ -753,7 +753,7 @@ describe('PageMockups', () => {
     expect(within(calendar).queryByRole('button', { name: 'All' })).not.toBeInTheDocument()
     expect(within(calendar).queryByRole('button', { name: 'Year' })).not.toBeInTheDocument()
     expect(within(calendar).getByRole('button', { name: 'Move Assignment Field notes' })).toBeEnabled()
-    expect(within(calendar).getByRole('button', { name: 'Announcement Trip reminder, locked' })).toBeDisabled()
+    expect(within(calendar).getByRole('button', { name: /Announcement Trip reminder, locked: Published announcements/ })).toHaveAttribute('aria-disabled', 'true')
     expect(within(calendar).getByRole('group', { name: 'Wednesday, September 16, 2026' })).toBeVisible()
     await user.click(within(calendar).getByRole('button', { name: 'Term' }))
     expect(within(calendar).getByText('Semester 1')).toBeVisible()

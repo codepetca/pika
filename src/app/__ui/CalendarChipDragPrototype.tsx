@@ -95,6 +95,7 @@ function CalendarChipVisual({
   dragListeners,
   transform,
   isDragging = false,
+  interactionDisabled = false,
 }: {
   item: PrototypeCalendarItem
   overlay?: boolean
@@ -103,6 +104,7 @@ function CalendarChipVisual({
   dragListeners?: Record<string, unknown>
   transform?: string
   isDragging?: boolean
+  interactionDisabled?: boolean
 }) {
   const chip = (
     <Button
@@ -110,10 +112,11 @@ function CalendarChipVisual({
       type="button"
       variant="surface"
       size="xs"
-      disabled={!item.movable}
+      disabled={interactionDisabled}
+      aria-disabled={!item.movable || interactionDisabled}
       aria-label={item.movable
         ? `Move ${KIND_LABELS[item.kind]} ${item.label}`
-        : `${KIND_LABELS[item.kind]} ${item.label}, locked`}
+        : `${KIND_LABELS[item.kind]} ${item.label}, locked: ${item.lockedReason}`}
       className={cn(
         'min-h-8 w-full min-w-0 touch-none justify-start gap-1.5 overflow-hidden border px-2 py-1 text-left text-xs shadow-none',
         CHIP_TONES[item.kind],
@@ -133,10 +136,10 @@ function CalendarChipVisual({
   )
 
   if (!item.lockedReason || overlay) return chip
-  return <Tooltip content={item.lockedReason}><span className="block w-full">{chip}</span></Tooltip>
+  return <Tooltip content={item.lockedReason}>{chip}</Tooltip>
 }
 
-function CalendarChip({ item }: { item: PrototypeCalendarItem }) {
+function CalendarChip({ item, interactionDisabled }: { item: PrototypeCalendarItem; interactionDisabled: boolean }) {
   const {
     attributes,
     listeners,
@@ -145,7 +148,7 @@ function CalendarChip({ item }: { item: PrototypeCalendarItem }) {
     isDragging,
   } = useDraggable({
     id: item.id,
-    disabled: !item.movable,
+    disabled: !item.movable || interactionDisabled,
     data: { date: item.date, kind: item.kind },
   })
   return (
@@ -156,6 +159,7 @@ function CalendarChip({ item }: { item: PrototypeCalendarItem }) {
       dragListeners={item.movable ? listeners : undefined}
       transform={transform ? CSS.Translate.toString(transform) : undefined}
       isDragging={isDragging}
+      interactionDisabled={interactionDisabled}
     />
   )
 }
@@ -168,6 +172,7 @@ function CalendarDay({
   activeItem,
   overDate,
   compact,
+  interactionDisabled,
 }: {
   date: Date
   currentMonth: number | null
@@ -176,6 +181,7 @@ function CalendarDay({
   activeItem: PrototypeCalendarItem | null
   overDate: string | null
   compact: boolean
+  interactionDisabled: boolean
 }) {
   const dateString = format(date, 'yyyy-MM-dd')
   const { isOver, setNodeRef } = useDroppable({
@@ -206,7 +212,7 @@ function CalendarDay({
         {isTarget ? <span className="text-xs font-semibold text-info">Move here</span> : null}
       </div>
       <div className="space-y-1">
-        {items.map((item) => <CalendarChip key={item.id} item={item} />)}
+        {items.map((item) => <CalendarChip key={item.id} item={item} interactionDisabled={interactionDisabled} />)}
       </div>
     </div>
   )
@@ -241,32 +247,56 @@ export function movePrototypeCalendarItem(
   ))
 }
 
-const calendarKeyboardCoordinates: KeyboardCoordinateGetter = (event, { active, context }) => {
+export function getKeyboardTargetDate(
+  visibleDates: readonly string[],
+  currentDate: string,
+  code: KeyboardCode,
+): string | null {
+  const currentIndex = visibleDates.indexOf(currentDate)
+  if (currentIndex === -1) return null
+  const offset = code === KeyboardCode.Left
+    ? -1
+    : code === KeyboardCode.Right
+      ? 1
+      : code === KeyboardCode.Up
+        ? -7
+        : 7
+  return visibleDates[currentIndex + offset] ?? null
+}
+
+function getCalendarKeyboardCoordinates(
+  selectedDateRef: { current: string | null },
+): KeyboardCoordinateGetter {
+  return (event, { active, context }) => {
   if (![KeyboardCode.Left, KeyboardCode.Right, KeyboardCode.Up, KeyboardCode.Down].includes(event.code as KeyboardCode)) {
     return undefined
   }
   event.preventDefault()
+  const containers = context.droppableContainers.getEnabled()
+    .map((container) => ({
+      date: container.data.current?.date,
+      rect: context.droppableRects.get(container.id),
+    }))
+    .filter((entry): entry is { date: string; rect: NonNullable<typeof entry.rect> } => (
+      typeof entry.date === 'string' && Boolean(entry.rect)
+    ))
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const visibleDates = containers.map((entry) => entry.date)
   const originDate = context.draggableNodes.get(active)?.data.current?.date
-  const currentDate = context.over?.data.current?.date ?? originDate
+  const currentDate = selectedDateRef.current ?? originDate
   if (typeof currentDate !== 'string') return undefined
-
-  const visibleDates = context.droppableContainers.getEnabled()
-    .map((container) => container.data.current?.date)
-    .filter((date): date is string => typeof date === 'string')
-    .sort()
-  const currentIndex = visibleDates.indexOf(currentDate)
-  if (currentIndex === -1) return undefined
-  const offset = event.code === KeyboardCode.Left
-    ? -1
-    : event.code === KeyboardCode.Right
-      ? 1
-      : event.code === KeyboardCode.Up
-        ? -7
-        : 7
-  const targetDate = visibleDates[currentIndex + offset]
+  const targetDate = getKeyboardTargetDate(visibleDates, currentDate, event.code as KeyboardCode)
   if (!targetDate) return undefined
+  selectedDateRef.current = targetDate
   const targetRect = context.droppableRects.get(`calendar-day-${targetDate}`)
-  return targetRect ? { x: targetRect.left, y: targetRect.top } : undefined
+  return targetRect
+    ? { x: targetRect.left, y: targetRect.top }
+    : undefined
+  }
+}
+
+const SCREEN_READER_INSTRUCTIONS = {
+  draggable: 'To move a calendar item, press Space. Use Left and Right Arrow to move one day, or Up and Down Arrow to move one week. Press Space again to drop, or Escape to cancel.',
 }
 
 export function CalendarChipDragPrototype({
@@ -282,13 +312,15 @@ export function CalendarChipDragPrototype({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const [failNextMove, setFailNextMove] = useState(false)
   const saveTimerRef = useRef<number | null>(null)
+  const keyboardDateRef = useRef<string | null>(null)
   const visibleDays = useMemo(() => getVisibleDays(viewMode, currentDate), [currentDate, viewMode])
   const visibleDates = useMemo(() => new Set(visibleDays.map((day) => format(day, 'yyyy-MM-dd'))), [visibleDays])
   const activeItem = items.find((item) => item.id === activeId) ?? null
   const compact = viewMode !== 'week'
+  const keyboardCoordinates = useMemo(() => getCalendarKeyboardCoordinates(keyboardDateRef), [])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: calendarKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),
   )
 
   useEffect(() => () => {
@@ -298,11 +330,14 @@ export function CalendarChipDragPrototype({
   const resetDragState = useCallback(() => {
     setActiveId(null)
     setOverDate(null)
+    keyboardDateRef.current = null
   }, [])
 
   function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id))
-    setSaveStatus('saved')
+    if (saveStatus === 'saving') return
+    const itemId = String(event.active.id)
+    setActiveId(itemId)
+    keyboardDateRef.current = items.find((item) => item.id === itemId)?.date ?? null
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -370,6 +405,7 @@ export function CalendarChipDragPrototype({
       </div>
       <DndContext
         sensors={sensors}
+        accessibility={{ screenReaderInstructions: SCREEN_READER_INSTRUCTIONS }}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
@@ -398,6 +434,7 @@ export function CalendarChipDragPrototype({
                     activeItem={activeItem}
                     overDate={overDate}
                     compact={compact}
+                    interactionDisabled={saveStatus === 'saving'}
                   />
                 )
               })}
@@ -408,9 +445,6 @@ export function CalendarChipDragPrototype({
           {activeItem ? <div className="w-52"><CalendarChipVisual item={activeItem} overlay /></div> : null}
         </DragOverlay>
       </DndContext>
-      <p id="calendar-drag-instructions" className="sr-only">
-        Focus a movable chip, press Space to pick it up, use arrow keys to choose another day, then press Space to drop it. Press Escape to cancel.
-      </p>
     </div>
   )
 }

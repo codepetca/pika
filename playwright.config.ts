@@ -5,7 +5,7 @@ const resolvedBaseUrl = new URL(baseURL)
 const resolvedPort = resolvedBaseUrl.port || (resolvedBaseUrl.protocol === 'https:' ? '443' : '80')
 const webServerCommand = `ENABLE_UI_GALLERY=true PIKA_E2E_FIXTURES=true pnpm exec next dev --port ${resolvedPort}`
 const experienceMatrixSpec = /experience-matrix\.spec\.ts/
-const patternLabSpec = /ui-pattern-lab\.spec\.ts/
+const patternLabSpec = /(ui-pattern-lab|calendar-chip-drag-prototype)\.spec\.ts/
 
 const desktop = {
   ...devices['Desktop Chrome'],

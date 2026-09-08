@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest'
 import {
   CalendarChipDragPrototype,
   PROTOTYPE_CALENDAR_ITEMS,
+  getKeyboardTargetDate,
   movePrototypeCalendarItem,
 } from '@/app/__ui/CalendarChipDragPrototype'
+import { KeyboardCode } from '@dnd-kit/core'
 import { TooltipProvider } from '@/ui'
 
 describe('CalendarChipDragPrototype', () => {
@@ -17,11 +19,27 @@ describe('CalendarChipDragPrototype', () => {
     expect(locked.find((item) => item.id === 'announcement-posted')?.date).toBe('2026-09-17')
   })
 
-  it('exposes movable and locked chips with explicit accessible names', () => {
+  it('advances repeated keyboard moves by day or week and stops at the visible bounds', () => {
+    const dates = Array.from({ length: 14 }, (_, index) => `2026-09-${String(13 + index).padStart(2, '0')}`)
+    const firstMove = getKeyboardTargetDate(dates, '2026-09-15', KeyboardCode.Right)
+    expect(firstMove).toBe('2026-09-16')
+    expect(getKeyboardTargetDate(dates, firstMove!, KeyboardCode.Right)).toBe('2026-09-17')
+    expect(getKeyboardTargetDate(dates, '2026-09-15', KeyboardCode.Down)).toBe('2026-09-22')
+    expect(getKeyboardTargetDate(dates, dates[0], KeyboardCode.Left)).toBeNull()
+    expect(getKeyboardTargetDate(dates, dates[13], KeyboardCode.Right)).toBeNull()
+  })
+
+  it('exposes movable controls, keyboard instructions, and a focusable locked reason', async () => {
+    const user = userEvent.setup()
     render(<TooltipProvider><CalendarChipDragPrototype viewMode="week" currentDate={new Date('2026-09-14T12:00:00')} /></TooltipProvider>)
 
-    expect(screen.getByRole('button', { name: 'Move Assignment Field notes' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Announcement Trip reminder, locked' })).toBeDisabled()
+    const movable = screen.getByRole('button', { name: 'Move Assignment Field notes' })
+    expect(movable).toBeEnabled()
+    expect(movable).toHaveAccessibleDescription(/Left and Right Arrow to move one day/)
+    const locked = screen.getByRole('button', { name: /Announcement Trip reminder, locked: Published announcements/ })
+    expect(locked).toHaveAttribute('aria-disabled', 'true')
+    for (let index = 0; index < 12 && document.activeElement !== locked; index += 1) await user.tab()
+    expect(locked).toHaveFocus()
     expect(screen.getByRole('button', { name: 'Move Test Cell systems' })).toBeEnabled()
   })
 
