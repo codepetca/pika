@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Clock3, MoreVertical, QrCode, RotateCcw } from 'lucide-react'
 import {
+  ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
@@ -58,12 +59,6 @@ type AttendanceMark = (typeof SORTABLE_ATTENDANCE_STATUSES)[number]
 type AttendanceTime = { startsAt: string; endsAt: string }
 export type DailyAttendanceMode = 'qr' | 'manual'
 type ManualAttendanceMode = 'log' | 'manual'
-
-const STATUS_DOT_CLASSES: Record<AttendanceMark, string> = {
-  present: 'bg-attendance-present',
-  late: 'bg-attendance-late',
-  absent: 'bg-attendance-absent',
-}
 
 const STICKY_ATTENDANCE_OFFSETS: Record<AttendanceMark, string> = {
   present: 'right-attendance-three',
@@ -126,7 +121,7 @@ function AttendanceMarkButton({
         aria-hidden="true"
         className={cn(
           'h-5 w-5 rounded-full transition-opacity',
-          STATUS_DOT_CLASSES[mark],
+          ATTENDANCE_STATUS_DOT_CLASSES[mark],
           active
             ? 'opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-surface-2 shadow-sm'
             : 'opacity-[0.12] hover:opacity-40',
@@ -339,7 +334,7 @@ export function DailyMockup({
             joined
             label={format(parseISO(date), 'EEE MMM d')}
             subtitle={showRelativeDate ? getPastRelativeDateLabel(date, REFERENCE_TODAY) : null}
-            reserveSubtitleSpace
+            reserveSubtitleSpace={showRelativeDate}
             onPrev={() => setDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => setDate(REFERENCE_TODAY)}
@@ -426,8 +421,8 @@ export function DailyMockup({
                 <colgroup>
                   <col className="w-24" />
                   <col className="w-28" />
-                  {hasQrCheckIn ? <col className="w-24" /> : null}
                   <col />
+                  {hasQrCheckIn ? <col className="w-24" /> : null}
                   <col className="w-11" />
                   <col className="w-11" />
                   <col className="w-11" />
@@ -437,6 +432,7 @@ export function DailyMockup({
                   <DataTableRow>
                     <SortableHeaderCell label="First" isActive={sort.key === 'first'} direction={sort.direction} onClick={() => toggleSort('first')} density="tight" />
                     <SortableHeaderCell label="Last" isActive={sort.key === 'last'} direction={sort.direction} onClick={() => toggleSort('last')} density="tight" />
+                    <DataTableHeaderCell density="tight">Log</DataTableHeaderCell>
                     {hasQrCheckIn ? (
                       <DataTableHeaderCell density="tight" align="center" aria-label="Time of scan">
                         <Tooltip content="Time of scan">
@@ -446,7 +442,6 @@ export function DailyMockup({
                         </Tooltip>
                       </DataTableHeaderCell>
                     ) : null}
-                    <DataTableHeaderCell density="tight">Log</DataTableHeaderCell>
                     {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                       <DataTableHeaderCell
                         key={status}
@@ -470,7 +465,7 @@ export function DailyMockup({
                         />
                       </DataTableHeaderCell>
                     ))}
-                    <DataTableHeaderCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface-3"><span className="sr-only">Undo manual change</span></DataTableHeaderCell>
+                    <DataTableHeaderCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface-3"><span className="sr-only">Undo override</span></DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -478,10 +473,10 @@ export function DailyMockup({
                     <DataTableRow key={student.id} className="group hover:bg-surface-hover">
                       <DataTableCell density="tight">{student.first}</DataTableCell>
                       <DataTableCell density="tight">{student.last}</DataTableCell>
+                      <DataTableCell density="tight"><span className="block truncate text-text-muted">{student.log ?? '—'}</span></DataTableCell>
                       {hasQrCheckIn ? (
                         <DataTableCell density="tight" className="text-text-muted">{checkIns[student.id] ?? <span aria-label="No QR check-in">—</span>}</DataTableCell>
                       ) : null}
-                      <DataTableCell density="tight"><span className="block truncate text-text-muted">{student.log ?? '—'}</span></DataTableCell>
                       {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                         <DataTableCell
                           key={status}
@@ -502,8 +497,8 @@ export function DailyMockup({
                       <DataTableCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover">
                         {manualChanges[student.id] ? (
                           <IconButton
-                            label={`Undo manual change for ${student.first} ${student.last}`}
-                            tooltip="Undo manual change"
+                            label={`Undo override for ${student.first} ${student.last}`}
+                            tooltip="Undo override"
                             icon={RotateCcw}
                             variant="ghost"
                             size="xs"
@@ -543,7 +538,7 @@ export function DailyMockup({
         <div className="space-y-2">
           {SORTABLE_ATTENDANCE_STATUSES.map((status) => (
             <Button key={status} type="button" variant="secondary" className="w-full justify-start" onClick={() => markAll(status)}>
-              <span className={cn('h-3 w-3 rounded-full', STATUS_DOT_CLASSES[status])} aria-hidden="true" />
+              <span className={cn('h-3 w-3 shrink-0 rounded-full', ATTENDANCE_STATUS_DOT_CLASSES[status])} aria-hidden="true" />
               Mark all {status}
             </Button>
           ))}

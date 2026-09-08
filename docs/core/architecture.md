@@ -141,7 +141,7 @@ require their own resource checks, rollout gates and quota/transaction safeguard
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
 - `on_time` is computed on write using America/Toronto but UI aggregates to present/absent.
-- Class day generation respects weekends/holidays; deadlines use America/Toronto (date-fns-tz).
+- Initial class-day generation includes Monday–Friday without inferring holidays; teachers review holidays, PA days, and other exceptions in Settings. Deadlines use America/Toronto (date-fns-tz).
 
 ### Assignments
 - Tables: `assignments` (per classroom) and `assignment_docs` (per student/assignment).

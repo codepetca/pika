@@ -1,6 +1,8 @@
 import type { GradebookAssessmentCell, GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 
 export type ScoreDisplayMode = 'percent' | 'raw'
+
+export const GRADEBOOK_NUMBER_INPUT_CLASS = '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 export type GradebookIdentityColumn = 'first_name' | 'last_name' | 'id'
 export type GradebookSummaryKind = 'average' | 'median'
 

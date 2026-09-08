@@ -52,6 +52,12 @@ const titledAnnouncement: Announcement = {
   title: titledAnnouncementTitle,
 }
 
+const scheduledAnnouncement: Announcement = {
+  ...longAnnouncement,
+  id: 'announcement-5',
+  scheduled_for: '2099-03-14T12:00:00.000Z',
+}
+
 function renderWithTooltip(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
 }
@@ -229,6 +235,26 @@ describe('LessonDayCell', () => {
 
     const tooltip = await screen.findByRole('tooltip')
     expect(within(tooltip).getByText(longAnnouncement.content)).toBeInTheDocument()
+  })
+
+  it('keeps future scheduled announcements labeled and visually distinct', () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2099-03-14"
+        day={new Date('2099-03-14T12:00:00.000Z')}
+        lessonPlan={null}
+        announcements={[scheduledAnnouncement]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Scheduled' })).toHaveClass(
+      'bg-amber-500/40',
+      'hover:bg-amber-500/60',
+    )
   })
 
   it('uses the announcement title as the calendar label and keeps it truncated', async () => {

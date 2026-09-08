@@ -20,6 +20,7 @@ import { Check, Circle, GripVertical, Lock, Plus, Trash2, Unlock } from 'lucide-
 import { useEffect, useMemo, useState } from 'react'
 import type { GradebookCategory } from '@/types'
 import { Button, ContentDialog, FormField, IconButton, Input, cn } from '@/ui'
+import { GRADEBOOK_NUMBER_INPUT_CLASS } from '@/lib/gradebook-display'
 import {
   canDeleteGradebookCategory,
   convertGradebookPercentagesToHalfSteps,
@@ -123,7 +124,7 @@ function SortableCategoryRow({
           >
             <Input
               className={cn(
-                'w-28 rounded-r-none tabular-nums',
+                'w-28 rounded-r-none tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS,
                 category.percentageLocked && 'border-warning bg-warning-bg text-warning disabled:bg-warning-bg',
               )}
               type="number"

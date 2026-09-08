@@ -1,3 +1,5 @@
+import { StudentPalAmbientSurfaces } from '@/integrations/pal'
+import { getPalApiUrl } from '@/lib/server/pal-config'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -44,12 +46,14 @@ export default async function ClassroomsIndexPage() {
     getUserDisplayInfo(user, supabase),
   ])
 
+  const palAvailable = Boolean(getPalApiUrl())
   const classroomIds = enrollments?.map(e => e.classroom_id) || []
 
   if (classroomIds.length === 0) {
     return (
       <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <StudentClassroomsIndex initialClassrooms={[]} studentId={user.id} />
+        {palAvailable ? <StudentPalAmbientSurfaces scopeKey="classrooms-index" /> : null}
       </AppShell>
     )
   }
@@ -67,6 +71,7 @@ export default async function ClassroomsIndexPage() {
         initialClassrooms={hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
         studentId={user.id}
       />
+      {palAvailable ? <StudentPalAmbientSurfaces scopeKey="classrooms-index" /> : null}
     </AppShell>
   )
 }

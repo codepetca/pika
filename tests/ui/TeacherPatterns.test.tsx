@@ -32,8 +32,11 @@ describe('Pattern Lab teacher-family examples', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'false')
     expect(date).not.toHaveAttribute('aria-describedby')
     expect(screen.queryByText('2 days ago')).not.toBeInTheDocument()
+    expect(date.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(date).not.toHaveClass('flex-col')
     fireEvent.click(toggle)
     expect(date).toHaveAccessibleDescription('2 days ago')
+    expect(date).toHaveClass('flex-col')
   })
 
   it('keeps both attached panels mounted and delegates keyboard selection to the mode bar', () => {

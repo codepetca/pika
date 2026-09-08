@@ -122,7 +122,11 @@ const legacyQuizTables = new Set<string>(LEGACY_QUIZ_ARCHIVE_V1_RESOURCES)
 export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
   ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(0, 4),
   archiveResource('gradebook_categories'),
-  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4).filter((resource) =>
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4, 17).filter((resource) =>
+    !legacyQuizTables.has(resource.table),
+  ),
+  archiveResource('gradebook_score_overrides', ['student_id', 'created_by']),
+  ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(17).filter((resource) =>
     !legacyQuizTables.has(resource.table),
   ),
   archiveResource('classroom_retired_assessment_records'),
@@ -132,9 +136,26 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
 export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(0, 3),
   'gradebook_categories',
-  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(3).filter((table) =>
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(3, 6).filter((table) =>
+    !legacyQuizTables.has(table),
+  ),
+  'gradebook_score_overrides',
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(6).filter((table) =>
     !legacyQuizTables.has(table),
   ),
   'classroom_retired_assessment_records',
   'classroom_retired_assessment_record_actors',
 ] as const
+
+// Migration 157 is additive. Only its table may be absent during app-first rollout.
+export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
+  const actual = new Set(tableNames)
+  const selected = CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) =>
+    resource.table !== 'gradebook_score_overrides' || actual.has(resource.table),
+  )
+  if (actual.size !== tableNames.length || actual.size !== selected.length
+    || selected.some((resource) => !actual.has(resource.table))) {
+    throw new Error('Classroom archive resource contract is invalid')
+  }
+  return selected
+}

@@ -571,8 +571,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "288e2c335fcb9ab5",
+          "count": 4,
+          "fingerprint": "e067131724dede5b",
           "reason": "layout-geometry"
         },
         {

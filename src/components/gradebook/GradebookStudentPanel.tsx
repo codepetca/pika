@@ -15,7 +15,7 @@ export function GradebookStudentPanel({
   student: GradebookStudentSummary
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
-  onClose: () => void
+  onClose?: () => void
 }) {
   return (
     <aside
@@ -42,7 +42,7 @@ export function GradebookStudentPanel({
               {formatPercent(student.final_percent)}
             </div>
           </div>
-          <IconButton icon={X} label="Close student details" onClick={onClose} />
+          {onClose ? <IconButton icon={X} label="Close student details" onClick={onClose} /> : null}
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import {
@@ -371,8 +372,11 @@ export function buildClassroomArchiveBundle(
   if (!contract.exportEnabled) {
     throw new Error(`Classroom archive version ${input.version} is not enabled for export`)
   }
+  const exportResources = input.version === 2
+    ? resolveClassroomArchiveV2Resources(Object.keys(input.resources))
+    : contract.resources
   const expectedTables = new Set<string>(
-    contract.resources.map((resource) => resource.table),
+    exportResources.map((resource) => resource.table),
   )
   for (const table of expectedTables) {
     if (!Array.isArray(input.resources[table])) {
@@ -394,7 +398,7 @@ export function buildClassroomArchiveBundle(
   }
 
   const entries: Array<{ path: string; bytes: Uint8Array }> = []
-  const resources = contract.resources.map((resource) => {
+  const resources = exportResources.map((resource) => {
     const path = `data/${resource.table}.ndjson`
     const bytes = encodeNdjson(
       input.resources[resource.table] || [],
@@ -620,7 +624,11 @@ export function decodeClassroomArchiveData(
   for (const resource of contract.resources) {
     const descriptor = verified.manifest.resources.find((item) => item.table === resource.table)
     const bytes = descriptor ? verified.files.get(descriptor.path) : undefined
-    if (!descriptor && verified.manifest.version === 2 && resource.table === 'gradebook_categories') {
+    if (
+      !descriptor
+      && verified.manifest.version === 2
+      && ['gradebook_categories', 'gradebook_score_overrides'].includes(resource.table)
+    ) {
       resources[resource.table] = []
       continue
     }

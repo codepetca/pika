@@ -1,3 +1,5 @@
+import { readDeployedClassroomArchiveResources } from '@/lib/server/classroom-archive-deployed-contract'
+import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
 import { z } from 'zod'
 import {
   CLASSROOM_RELATIONAL_RESOURCES,
@@ -97,6 +99,7 @@ export interface ClassroomArchiveInventoryReader {
   readonly supabaseUrl: string
   readOpenApiSchema(): Promise<unknown>
   readArchiveResourceContract(): Promise<unknown>
+  readArchiveV2ResourceTables(): Promise<string[]>
   readGradexResourceContract(): Promise<unknown>
   readArchivedClassrooms(): Promise<unknown>
   readRevision(classroomId: string): Promise<unknown>
@@ -144,10 +147,11 @@ export async function collectExactReadPages<T>(
   return rows
 }
 
-function expectedArchiveContract() {
+function expectedArchiveContract(includeOverrides = false) {
   const v1Tables = new Set<string>(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
   )
+  if (includeOverrides) v1Tables.add('gradebook_score_overrides')
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
@@ -174,7 +178,7 @@ export function verifyRemoteClassroomContracts(
 ): void {
   const actualArchive = archiveContractSchema.parse(archiveContract)
   const actualGradex = gradexContractSchema.parse(gradexContract)
-  if (canonicalJsonStringify(actualArchive) !== canonicalJsonStringify(expectedArchiveContract())) {
+  if (canonicalJsonStringify(actualArchive) !== canonicalJsonStringify(expectedArchiveContract(actualArchive.some((row) => row.table_name === 'gradebook_score_overrides')))) {
     throw new Error('Remote archive resource contract does not match the checked-in contract')
   }
   const expectedGradex = GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table }))
@@ -183,7 +187,7 @@ export function verifyRemoteClassroomContracts(
   }
 }
 
-export function auditClassroomOpenApiSchema(document: unknown) {
+export function auditClassroomOpenApiSchema(document: unknown, includeOverrides = true) {
   const parsed = openApiSchema.parse(document)
   const relationships: Array<{
     child_table: string
@@ -207,7 +211,7 @@ export function auditClassroomOpenApiSchema(document: unknown) {
     }
     if (keyColumns.length > 0) primaryKeys.push({ table_name: table, columns: keyColumns })
   }
-  return auditClassroomResourceSchema(relationships, primaryKeys)
+  return auditClassroomResourceSchema(relationships, primaryKeys, includeOverrides)
 }
 
 function comparePrimaryKey(left: Record<string, unknown>, right: Record<string, unknown>, key: string) {
@@ -220,11 +224,14 @@ export async function readClassroomArchiveResourceGraph(
   reader: ClassroomArchiveInventoryReader,
   classroomId: string,
 ) {
+  const deployed = resolveClassroomArchiveV2Resources(await reader.readArchiveV2ResourceTables())
+  const includeOverrides = deployed.some((resource) => resource.table === 'gradebook_score_overrides')
   const resources: Record<string, Array<Record<string, unknown>>> = {}
   const contractByTable = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
   for (const table of getClassroomResourceOrder('export')) {
+    if (table === 'gradebook_score_overrides' && !includeOverrides) continue
     const resource = contractByTable.get(table)
     if (!resource || resource.primary_key.length !== 1) {
       throw new Error(`Inventory adapter is unavailable for classroom resource ${table}`)
@@ -350,7 +357,8 @@ export async function inventoryArchivedClassrooms(
     reader.readGradexResourceContract(),
   ])
   verifyRemoteClassroomContracts(archiveContract, gradexContract)
-  const catalogAudit = auditClassroomOpenApiSchema(openApi)
+  const deployed = resolveClassroomArchiveV2Resources(await reader.readArchiveV2ResourceTables())
+  const catalogAudit = auditClassroomOpenApiSchema(openApi, deployed.some((resource) => resource.table === 'gradebook_score_overrides'))
   if (!catalogAudit.ok) throw new Error('Remote classroom catalog does not match the checked-in contract')
 
   let archivedHot: Array<z.infer<typeof classroomInventorySchema>> | null = null
@@ -451,6 +459,9 @@ export function createSupabaseClassroomArchiveInventoryReader(args: {
       })
       if (!response.ok) throw new Error(`Read-only inventory failed for PostgREST schema (${response.status})`)
       return response.json()
+    },
+    async readArchiveV2ResourceTables() {
+      return (await readDeployedClassroomArchiveResources(args.supabase)).map((resource) => resource.table)
     },
     async readArchiveResourceContract() {
       return collectExactReadPages(async (offset, requestedPageSize) => {

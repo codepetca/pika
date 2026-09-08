@@ -125,9 +125,9 @@ describe('classroom data inventory', () => {
     expect(CLASSROOM_ARCHIVE_V2_RESOURCES.some(row => row.table === relation.child_table)).toBe(false)
     expect(GRADEX_RESOURCE_TABLES).not.toContain(relation.child_table)
   })
-  it('is a valid, complete 41-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(41)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(41)
+  it('is a valid, complete 42-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(42)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(42)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'assignments')?.restore_after)
       .toContain('gradebook_categories')

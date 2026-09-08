@@ -4,6 +4,7 @@ import {
   collectExactReadPages,
   createSupabaseClassroomArchiveInventoryReader,
   inventoryArchivedClassrooms,
+  readClassroomArchiveResourceGraph,
   verifySupabaseInventoryTarget,
   verifyRemoteClassroomContracts,
   type ClassroomArchiveInventoryReader,
@@ -14,7 +15,7 @@ import {
   GRADEX_RESOURCE_TABLES,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES, CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   createTargetBoundFetch,
   hostedSupabasePsqlEnvironment,
@@ -26,10 +27,11 @@ import { getServiceRoleClient } from '@/lib/supabase'
 const CLASSROOM_ID = '11111111-1111-4111-8111-111111111111'
 const ASSIGNMENT_ID = '22222222-2222-4222-8222-222222222222'
 
-function remoteArchiveContract() {
+function remoteArchiveContract(includeOverrides = false) {
   const v1Tables = new Set<string>(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
   )
+  if (includeOverrides) v1Tables.add('gradebook_score_overrides')
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
@@ -109,6 +111,7 @@ function reader(overrides: Partial<ClassroomArchiveInventoryReader> = {}): Class
     supabaseUrl: 'http://inventory.invalid',
     readOpenApiSchema: async () => openApiDocument(),
     readArchiveResourceContract: async () => remoteArchiveContract(),
+    readArchiveV2ResourceTables: async () => CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
     readGradexResourceContract: async () => GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table })),
     readArchivedClassrooms: async () => [{ id: CLASSROOM_ID }],
     readRevision: async () => {
@@ -529,4 +532,46 @@ describe('classroom archive production inventory', () => {
       readArchivedClassrooms: async () => [{ id: 'not-a-uuid' }],
     }))).rejects.toThrow()
   })
+})
+
+
+describe('schema156 inventory compatibility', () => {
+  it('does not query the absent override table in the graph used by deletion impact', async () => {
+    const base = reader()
+    const readResourceRows = vi.fn(base.readResourceRows)
+    const graph = await readClassroomArchiveResourceGraph({
+      ...base,
+      readArchiveV2ResourceTables: async () => CLASSROOM_ARCHIVE_V2_RESOURCES
+        .filter((resource) => resource.table !== 'gradebook_score_overrides').map((resource) => resource.table),
+      readResourceRows,
+    }, CLASSROOM_ID)
+    expect(graph).not.toHaveProperty('gradebook_score_overrides')
+    expect(readResourceRows.mock.calls.some(([query]) => query.table === 'gradebook_score_overrides')).toBe(false)
+    expect(graph.classrooms).toHaveLength(1)
+  })
+
+  it('audits and inventories schema156 without relaxing other resource checks', async () => {
+    const document = openApiDocument()
+    delete document.definitions.gradebook_score_overrides
+    const base = reader()
+    const result = await inventoryArchivedClassrooms({
+      ...base,
+      readOpenApiSchema: async () => document,
+      readArchiveV2ResourceTables: async () => CLASSROOM_ARCHIVE_V2_RESOURCES
+        .filter((resource) => resource.table !== 'gradebook_score_overrides').map((resource) => resource.table),
+    })
+    expect(result).toBeTruthy()
+    delete document.definitions.assignments
+    expect(auditClassroomOpenApiSchema(document, false).ok).toBe(false)
+  })
+})
+
+
+it('validates the post157 legacy catalog including override identity', () => {
+  const contract = remoteArchiveContract(true)
+  const gradex = GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table }))
+  expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+  const override = contract.find((row) => row.table_name === 'gradebook_score_overrides')!
+  override.actor_columns = []
+  expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow()
 })

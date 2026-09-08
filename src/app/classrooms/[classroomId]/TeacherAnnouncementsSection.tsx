@@ -614,7 +614,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
               {showScheduleDropdown && (
                 <ScheduleDateTimePicker
-                  className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
+                  className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
                   date={pendingScheduleDate}
                   time={pendingScheduleTime}
                   minDate={getTodayDate()}
@@ -752,7 +752,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         {/* Schedule dropdown */}
                         {showEditScheduleDropdown && (
                           <ScheduleDateTimePicker
-                            className="absolute right-0 top-full mt-1 z-10 min-w-[220px]"
+                            className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
                             date={pendingEditScheduleDate}
                             time={pendingEditScheduleTime}
                             minDate={getTodayDate()}

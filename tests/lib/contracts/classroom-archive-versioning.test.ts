@@ -64,7 +64,7 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
-    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(41)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(42)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
@@ -117,6 +117,8 @@ describe('versioned classroom archive contracts', () => {
       .toBeLessThan(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('assignments'))
     expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('gradebook_categories'))
       .toBeLessThan(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('tests'))
+    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('classroom_enrollments'))
+      .toBeLessThan(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.indexOf('gradebook_score_overrides'))
     for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
       const childPosition = restorePositions.get(resource.table)
       if (childPosition === undefined) continue
@@ -135,7 +137,10 @@ describe('versioned classroom archive contracts', () => {
     const v2 = manifest(2, CLASSROOM_ARCHIVE_V2_RESOURCES)
     const legacyV2 = manifest(
       2,
-      CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) => resource.table !== 'gradebook_categories'),
+      CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) => (
+        resource.table !== 'gradebook_categories'
+        && resource.table !== 'gradebook_score_overrides'
+      )),
     )
 
     expect(parseClassroomArchiveManifest(v1).version).toBe(1)

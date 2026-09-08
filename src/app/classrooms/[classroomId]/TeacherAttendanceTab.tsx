@@ -73,6 +73,7 @@ import { AttendanceWindowDialog } from './AttendanceWindowDialog'
 import { TeacherClassroomQrDialog } from './TeacherClassroomQrDialog'
 import { useTeacherAttendancePolicy } from '@/hooks/useTeacherAttendancePolicy'
 import {
+  ATTENDANCE_STATUS_DOT_CLASSES,
   AttendanceMarkButton,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
@@ -858,7 +859,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           <DateNavigator
             label={selectedDateLabel}
             subtitle={showRelativeDate ? relativeDateLabel : null}
-            reserveSubtitleSpace
+            reserveSubtitleSpace={showRelativeDate}
             onPrev={() => setSelectedDate((current) => addDaysToDateString(current, -1))}
             onNext={() => setSelectedDate((current) => addDaysToDateString(current, 1))}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -956,13 +957,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   style={{ width: `${columnWidths.id}px` }}
                 />
               ) : null}
+              <col />
               {attendanceEnabled ? (
                 <col
                   className="hidden md:table-column"
                   style={{ width: `${columnWidths.checkIn}px` }}
                 />
               ) : null}
-              <col />
               {showAttendance ? (
                 <>
                   <col className="w-11" />
@@ -1019,6 +1020,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     }}
                   />
                 ) : null}
+                <SortableHeaderCell
+                  label="Log"
+                  isActive={sortColumn === 'log'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('log')}
+                  density="tight"
+                  align={showLogColumn ? 'left' : 'center'}
+                  className={showLogColumn ? 'min-w-0' : ''}
+                />
                 {attendanceEnabled ? (
                   <SortableHeaderCell
                     label="Time of scan"
@@ -1038,15 +1048,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     }}
                   />
                 ) : null}
-                <SortableHeaderCell
-                  label="Log"
-                  isActive={sortColumn === 'log'}
-                  direction={sortDirection}
-                  onClick={() => handleSort('log')}
-                  density="tight"
-                  align={showLogColumn ? 'left' : 'center'}
-                  className={showLogColumn ? 'min-w-0' : ''}
-                />
                 {showAttendance ? SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                   <DataTableHeaderCell
                     key={status}
@@ -1073,7 +1074,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     density="tight"
                     className="sticky right-0 z-sticky-table !p-0 bg-surface-3"
                   >
-                    <span className="sr-only">Undo manual change</span>
+                    <span className="sr-only">Undo override</span>
                   </DataTableHeaderCell>
                 ) : null}
               </DataTableRow>
@@ -1132,11 +1133,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                         </span>
                       </DataTableCell>
                     ) : null}
-                    {attendanceEnabled ? (
-                      <DataTableCell density="tight" className="hidden min-w-0 text-text-muted md:table-cell">
-                        {checkInTime ? <span>{checkInTime}</span> : <span className="sr-only">No QR check-in</span>}
-                      </DataTableCell>
-                    ) : null}
                     <DataTableCell
                       density="tight"
                       align={showLogColumn ? 'left' : 'center'}
@@ -1148,6 +1144,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                         <span aria-label={hasLog ? completionLabel : 'No log for this date'}>—</span>
                       )}
                     </DataTableCell>
+                    {attendanceEnabled ? (
+                      <DataTableCell density="tight" className="hidden min-w-0 text-text-muted md:table-cell">
+                        {checkInTime ? <span>{checkInTime}</span> : <span className="sr-only">No QR check-in</span>}
+                      </DataTableCell>
+                    ) : null}
                     {showAttendance ? SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                       <DataTableCell
                         key={status}
@@ -1186,8 +1187,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       {attendanceStudent?.hasManualOverride ? (
                         <span onClick={(event) => event.stopPropagation()}>
                           <IconButton
-                            label={`Undo manual change for ${studentName}`}
-                            tooltip="Undo manual change"
+                            label={`Undo override for ${studentName}`}
+                            tooltip="Undo override"
                             icon={RotateCcw}
                             variant="ghost"
                             size="xs"
@@ -1538,6 +1539,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 void submitAttendanceMarks(visibleStudentIds, status)
               }}
             >
+              <span className={cn('h-3 w-3 shrink-0 rounded-full', ATTENDANCE_STATUS_DOT_CLASSES[status])} aria-hidden="true" />
               Mark all {status}
             </Button>
           ))}

@@ -14,12 +14,13 @@ vi.mock('@/lib/server/pal-config', () => ({
   getPalApiUrl: mockGetPalApiUrl,
 }))
 vi.mock('@/integrations/pal', () => ({
-  StudentPalExperience: ({ apiBaseUrl, children, scopeKey }: {
+  StudentPalExperience: ({ apiBaseUrl, children, scopeKey, showAmbientSurfaces }: {
     apiBaseUrl: string
     children: React.ReactNode
     scopeKey: string
+    showAmbientSurfaces: boolean
   }) => (
-    <div data-testid="student-pal-shell" data-api-base-url={apiBaseUrl} data-scope-key={scopeKey}>
+    <div data-testid="student-pal-shell" data-api-base-url={apiBaseUrl} data-scope-key={scopeKey} data-ambient={showAmbientSurfaces}>
       {children}
     </div>
   ),
@@ -43,6 +44,7 @@ describe('authenticated classrooms Pal shell', () => {
     render(await ClassroomsLayout({ children: <div>Student work</div> }))
 
     const shell = screen.getByTestId('student-pal-shell')
+    expect(shell).toHaveAttribute('data-ambient', 'false')
     expect(shell).toHaveAttribute('data-api-base-url', 'https://pal.example.test')
     expect(shell.getAttribute('data-scope-key')).toMatch(/^[0-9a-f-]{36}$/)
     expect(shell.getAttribute('data-scope-key')).not.toContain('student-raw-id')

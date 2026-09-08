@@ -8,19 +8,19 @@ import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 const modalCallbacks = vi.hoisted(() => ({
-  add: null as ((classroomId: string) => void) | null,
-  upload: null as ((classroomId: string) => void) | null,
+  add: null as ((classroomId: string) => void | Promise<void>) | null,
+  upload: null as ((classroomId: string) => void | Promise<void>) | null,
 }))
 
 vi.mock('@/components/AddStudentsModal', () => ({
-  AddStudentsModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void }) => {
+  AddStudentsModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void | Promise<void> }) => {
     modalCallbacks.add = onSuccess
     return null
   },
 }))
 
 vi.mock('@/components/UploadRosterModal', () => ({
-  UploadRosterModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void }) => {
+  UploadRosterModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void | Promise<void> }) => {
     modalCallbacks.upload = onSuccess
     return null
   },
@@ -312,7 +312,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     expect(input).toHaveAttribute('placeholder', 'secondary@example.com')
     await user.clear(input)
     await user.type(input, 'updated@example.com')
@@ -566,8 +566,15 @@ describe('TeacherRosterTab', () => {
       '96',
     )
     expect(screen.getByRole('separator', { name: 'Resize Email (main) column' })).toBeInTheDocument()
-    expect(screen.getByRole('separator', { name: 'Resize Email (secondary) column' })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'Email (secondary)' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Email (2nd) column' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Email (2nd)' })).toHaveClass(
+      'hidden',
+      'md:table-cell',
+    )
+    expect(screen.getByRole('table').querySelectorAll('col')[4]).toHaveClass(
+      'hidden',
+      'md:table-column',
+    )
 
     fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize First column' }), { key: 'Home' })
     expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
@@ -648,7 +655,7 @@ describe('TeacherRosterTab', () => {
       name: 'Edit secondary email for Ada Lovelace',
     }))
 
-    const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     expect(input).toHaveClass('min-h-control')
     await user.clear(input)
     await user.type(input, 'new-counselor@example.com')
@@ -656,7 +663,7 @@ describe('TeacherRosterTab', () => {
 
     const editorAlert = await screen.findByRole('alert')
     expect(editorAlert).toHaveTextContent('Counselor save failed')
-    const failedInput = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const failedInput = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     expect(failedInput).toHaveValue('new-counselor@example.com')
     expect(failedInput).toHaveAttribute('aria-describedby', editorAlert.id)
     expect(failedInput).toHaveAttribute('aria-invalid', 'true')
@@ -716,13 +723,13 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'attempted@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Secondary email changed elsewhere.')
-    expect(screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' }))
+    expect(screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' }))
       .toHaveValue('attempted@example.com')
     expect(rosterLoads).toBe(2)
 
@@ -862,7 +869,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const adaInput = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const adaInput = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(adaInput)
     await user.type(adaInput, 'ada-new@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -870,13 +877,13 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', {
       name: 'Edit secondary email for Grace Hopper',
     }))
-    expect(screen.getByRole('textbox', { name: 'Email (secondary) for Grace Hopper' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Email (2nd) for Grace Hopper' })).toBeInTheDocument()
 
     await act(async () => {
       resolveAdaSave?.()
     })
 
-    expect(screen.getByRole('textbox', { name: 'Email (secondary) for Grace Hopper' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Email (2nd) for Grace Hopper' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit secondary email for Ada Lovelace' }))
       .toHaveTextContent('ada-new@example.com')
   })
@@ -909,7 +916,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const adaInput = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const adaInput = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(adaInput)
     await user.type(adaInput, 'pending@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -922,7 +929,7 @@ describe('TeacherRosterTab', () => {
     })
     expect(pendingAdaEdit).toBeDisabled()
     await user.click(pendingAdaEdit)
-    expect(screen.queryByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' }))
+    expect(screen.queryByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' }))
       .not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input, init]) => (
       String(input) === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}`
@@ -974,7 +981,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'newest@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -1029,7 +1036,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'stale@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -1106,7 +1113,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    let input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    let input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'old-request@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -1118,7 +1125,7 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'newest@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -1129,7 +1136,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', {
       name: 'Edit secondary email for Ada Lovelace',
     }))
-    input = screen.getByRole('textbox', { name: 'Email (secondary) for Ada Lovelace' })
+    input = screen.getByRole('textbox', { name: 'Email (2nd) for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'final@example.com')
     await user.click(screen.getByRole('button', { name: 'Save secondary email for Ada Lovelace' }))
@@ -1158,6 +1165,40 @@ describe('TeacherRosterTab', () => {
     view.rerender(renderRosterElement(classroom))
     expect(await screen.findByText('final@example.com')).toBeInTheDocument()
   })
+
+  it.each(['add', 'upload'] as const)(
+    'refreshes the roster after a %s success so the secondary email is visible',
+    async (callbackName) => {
+      let rosterLoads = 0
+      const importedRow = {
+        ...secondRosterRow,
+        counselor_email: 'secondary@example.com',
+      }
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const method = init?.method ?? 'GET'
+        if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+          rosterLoads += 1
+          return mockJson({ roster: rosterLoads === 1 ? [rosterRow] : [rosterRow, importedRow] })
+        }
+        throw new Error(`Unhandled fetch: ${method} ${url}`)
+      }))
+
+      renderRoster()
+      await screen.findByText('Ada')
+      const onSuccess = modalCallbacks[callbackName]
+      expect(onSuccess).toEqual(expect.any(Function))
+
+      await act(async () => {
+        await onSuccess?.(classroom.id)
+      })
+
+      expect(await screen.findByRole('button', {
+        name: 'Edit secondary email for Grace Hopper',
+      })).toHaveTextContent('secondary@example.com')
+      expect(rosterLoads).toBe(2)
+    },
+  )
 
   it('opens single-student removal from the roster actions menu with confirmation', async () => {
     const user = userEvent.setup()
@@ -1279,26 +1320,51 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('keeps roster management separate from selected-student email actions', async () => {
+  it('keeps student email actions in the centered selection menu', async () => {
     const user = userEvent.setup()
     mockRosterFetch()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
 
     renderRoster()
 
     await screen.findByText('Ada')
 
+    const studentActionsButton = screen.getByRole('button', { name: 'Student Actions' })
+    expect(studentActionsButton).toBeDisabled()
+    expect(studentActionsButton).toHaveClass('w-36')
+    expect(screen.getByRole('region', { name: 'Roster controls' }).children[1].contains(studentActionsButton)).toBe(true)
+
     await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
 
     expect(screen.getByRole('button', { name: 'Add students' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Email \(2\)/ })).not.toBeInTheDocument()
+    const selectedStudentActionsButton = screen.getByRole('button', { name: '2 selected' })
+    expect(selectedStudentActionsButton).toBeEnabled()
+    expect(selectedStudentActionsButton).toHaveClass('w-36')
+
+    await user.click(selectedStudentActionsButton)
+    const studentActionsMenu = screen.getByRole('menu', { name: 'Student actions' })
+    expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' })).toBeEnabled()
+    expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (secondary)' })).toBeEnabled()
+
+    await user.click(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' }))
+    expect(writeText).toHaveBeenCalledWith('grace@example.com, ada@example.com')
+    expect(await screen.findByText('Primary emails copied')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '2 selected' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Copy emails (secondary)' }))
+    expect(writeText).toHaveBeenLastCalledWith('counselor@example.com')
+    expect(await screen.findByText('Secondary emails copied')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     expect(screen.getByRole('menuitem', { name: 'Add from CSV' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Remove students' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Copy main emails (2)' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Gmail' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Outlook' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Copy emails (primary)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Copy emails (secondary)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Copy main emails (2)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Gmail' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Outlook' })).not.toBeInTheDocument()
   })
 
   it('keeps the full selected set pending when bulk removal fails', async () => {

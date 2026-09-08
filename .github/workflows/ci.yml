@@ -130,6 +130,9 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify Gradebook score override deletion lifecycle
+        run: bash scripts/check-gradebook-score-overrides-database.sh
+
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 

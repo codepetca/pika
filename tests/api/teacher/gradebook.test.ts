@@ -30,6 +30,8 @@ type GradebookFixture = {
   settingsError?: SupabaseReadError | null
   categories?: Array<any>
   categoriesError?: SupabaseReadError | null
+  scoreOverrides?: Array<any>
+  scoreOverridesError?: SupabaseReadError | null
 }
 
 function buildMockFrom(fixture: GradebookFixture) {
@@ -70,6 +72,17 @@ function buildMockFrom(fixture: GradebookFixture) {
               error: fixture.categoriesError ?? (fixture.categories === undefined ? { code: '42P01' } : null),
             }),
           })),
+        })),
+      }
+    }
+
+    if (table === 'gradebook_score_overrides') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: fixture.scoreOverridesError ? null : fixture.scoreOverrides ?? [],
+            error: fixture.scoreOverridesError ?? null,
+          }),
         })),
       }
     }
@@ -369,6 +382,89 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.selected_student.tests).toEqual([])
   })
 
+  it('uses a manual mark in the student row, final, and class summary', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: 27 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.score_overrides_available).toBe(true)
+    expect(body.students[0].assessment_scores[0]).toMatchObject({
+      earned: 27,
+      possible: 30,
+      percent: 90,
+      is_manual_override: true,
+      calculated_earned: 24,
+    })
+    expect(body.students[0].assignments_percent).toBe(90)
+    expect(body.students[0].final_percent).toBe(90)
+    expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: 90, median_percent: 90 })
+    expect(body.selected_student.assignments[0]).toMatchObject({
+      assignment_id: 'a1',
+      earned: 27,
+      possible: 30,
+      percent: 90,
+      is_manual_override: true,
+      calculated_earned: 24,
+    })
+  })
+
+  it.each([
+    { assignmentOverride: 27, testOverride: 5, assignmentEarned: 27, testEarned: 5, finalPercent: 70 },
+    { assignmentOverride: 27, testOverride: null, assignmentEarned: 27, testEarned: 8, finalPercent: 85 },
+    { assignmentOverride: null, testOverride: 5, assignmentEarned: 24, testEarned: 5, finalPercent: 65 },
+  ])('isolates assignment and test overrides sharing an ID: $assignmentOverride / $testOverride', async ({
+    assignmentOverride, testOverride, assignmentEarned, testEarned, finalPercent,
+  }) => {
+    const sharedId = '15700000-0000-4000-8000-000000000020'
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: sharedId, title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: sharedId, student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      tests: [{ id: sharedId, title: 'Test', status: 'closed', include_in_final: true }],
+      testQuestions: [{ id: 'q1', test_id: sharedId, points: 10 }],
+      testResponses: [{ test_id: sharedId, question_id: 'q1', student_id: 'student-1', score: 8 }],
+      testAttempts: [{ test_id: sharedId, student_id: 'student-1', is_submitted: true }],
+      scoreOverrides: [
+        ...(assignmentOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: sharedId, earned: assignmentOverride }]),
+        ...(testOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'test', assessment_id: sharedId, earned: testOverride }]),
+      ],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores).toEqual(expect.arrayContaining([
+      expect.objectContaining({ assessment_type: 'assignment', assessment_id: sharedId, earned: assignmentEarned }),
+      expect.objectContaining({ assessment_type: 'test', assessment_id: sharedId, earned: testEarned }),
+    ]))
+    expect(body.selected_student.assignments[0].earned).toBe(assignmentEarned)
+    expect(body.selected_student.tests[0].earned).toBe(testEarned)
+    expect(body.students[0].final_percent).toBe(finalPercent)
+    expect(body.class_summary.average_final_percent).toBe(finalPercent)
+  })
+
+  it('uses a final override in the student row and class average without changing assessment marks', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'final', assessment_id: 'c1', earned: 49.5 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores[0].percent).toBe(80)
+    expect(body.students[0]).toMatchObject({ final_percent: 49.5, is_final_override: true, calculated_final_percent: 80 })
+    expect(body.class_summary.average_final_percent).toBe(49.5)
+  })
+
   it('includes fully scored tests in grade calculations and class summary', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
@@ -411,6 +507,39 @@ describe('GET /api/teacher/gradebook', () => {
       },
     ])
     expect(body.totals.tests).toBe(1)
+  })
+
+  it('includes test override metadata in selected student details', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
+      testQuestions: [
+        { id: 'tq1', test_id: 't1', points: 5 },
+        { id: 'tq2', test_id: 't1', points: 5 },
+      ],
+      testResponses: [
+        { test_id: 't1', question_id: 'tq1', student_id: 'student-1', score: 5 },
+        { test_id: 't1', question_id: 'tq2', student_id: 'student-1', score: 3 },
+      ],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 9.5 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.selected_student.tests).toEqual([
+      {
+        test_id: 't1',
+        title: 'Unit Test',
+        earned: 9.5,
+        possible: 10,
+        percent: 95,
+        status: 'closed',
+        is_manual_override: true,
+        calculated_earned: 8,
+      },
+    ])
   })
 
   it('adds sparse per-student assessment statuses for the inspector', async () => {
@@ -1155,6 +1284,14 @@ describe('GET /api/teacher/gradebook', () => {
             in: vi.fn(() => ({
               in: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+          })),
+        }
+      }
+
+      if (table === 'gradebook_score_overrides') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
           })),
         }
       }

@@ -211,6 +211,10 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(textarea, { target: { value: 'Announcement draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
     expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+
+    const scheduleDateInput = screen.getByLabelText('Date (Toronto)')
+    expect(scheduleDateInput.closest('div.absolute')).toHaveClass('bottom-full', 'mb-1')
   })
 
   it('keeps announcement creation in the shared action surface menu', async () => {
@@ -234,7 +238,7 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('menuitem', { name: 'Announcement' })).toBeInTheDocument()
   })
 
-  it('labels the edit announcement textarea', async () => {
+  it('labels the edit announcement textarea and keeps its schedule picker above the trigger', async () => {
     render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
@@ -243,6 +247,12 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue(
       markdownAnnouncement.content,
     )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+
+    const scheduleDateInput = screen.getByLabelText('Date (Toronto)')
+    expect(scheduleDateInput.closest('div.absolute')).toHaveClass('bottom-full', 'mb-1')
   })
 
   it('shows the newest teacher announcements first', async () => {

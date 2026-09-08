@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
+test.setTimeout(120_000)
+
 const CLASSROOM_ID = '20000000-0000-4000-8000-000000000099'
 
 const archivedClassroom = {
@@ -44,7 +46,7 @@ async function mockTeacherArchive(page: Page) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        classrooms: [archivedClassroom],
+        classrooms: [archivedClassroom, { ...archivedClassroom, id: '20000000-0000-4000-8000-000000000098', title: 'Archived Chemistry', term_label: 'Fall 2025', theme_color: 'blue', start_date: null, end_date: null }],
         cold_archives: [],
         cold_archive_restore_enabled: false,
         hot_classroom_purge_enabled_ids: [CLASSROOM_ID],
@@ -124,24 +126,38 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     await page.getByRole('button', { name: 'Classroom actions' }).click()
     await page.getByRole('menuitem', { name: 'Show Archived' }).click()
 
-    await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
+    const settings = page.getByRole('button', { name: 'Settings for Archived Biology' })
+    await expect(settings).toBeVisible()
+    await expect(settings).toHaveAttribute('aria-expanded', 'false')
     await expect(page.getByText('Sept 2025 - Jan 2026')).toBeVisible()
     await expect(page.getByText(archivedClassroom.class_code)).toHaveCount(0)
-    const unarchiveButton = page.getByRole('button', { name: 'Unarchive' })
-    await expect(unarchiveButton).toBeVisible()
-    const deleteButton = page.getByRole('button', { name: 'Delete permanently' })
-    await expect(deleteButton).toBeVisible()
-    await expect(deleteButton.locator('svg.lucide-trash-2')).toBeVisible()
+    const bounds = (await settings.boundingBox())!
+    expect(bounds.width).toBeGreaterThanOrEqual(44)
+    expect(bounds.height).toBeGreaterThanOrEqual(44)
+    await settings.hover()
+    await expect(page.getByRole('tooltip')).toHaveText('Settings')
+    await page.screenshot({ path: `/tmp/pika-archive-actions-closed-${entry.name}.png`, fullPage: true, animations: 'disabled' })
+    await settings.click()
+    const menu = page.getByRole('menu', { name: 'Settings for Archived Biology' })
+    const reuse = menu.getByRole('menuitem', { name: 'Reuse' })
+    const unarchive = menu.getByRole('menuitem', { name: 'Unarchive' })
+    const remove = menu.getByRole('menuitem', { name: 'Delete', exact: true })
+    await expect(reuse).toBeFocused()
+    await expect(settings).toHaveAttribute('aria-expanded', 'true')
+    await expect(unarchive).toBeVisible()
+    await expect(remove).toBeEnabled()
     await expectNoHorizontalOverflow(page)
-    await page.evaluate(() => document.fonts.ready)
-    await page.waitForTimeout(100)
-    await page.screenshot({
-      path: `/tmp/pika-archive-actions-${entry.name}.png`,
-      fullPage: true,
-      animations: 'disabled',
-    })
+    await page.keyboard.press('End')
+    await expect(remove).toBeFocused()
+    await remove.click({ trial: true })
+    await page.screenshot({ path: `/tmp/pika-archive-actions-${entry.name}.png`, fullPage: true, animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    await expect(settings).toBeFocused()
+    await expect(page.getByRole('heading', { name: 'Archived classrooms' })).toBeVisible()
+    await expect(menu).toBeHidden()
 
-    await deleteButton.click()
+    await settings.click()
+    await remove.click()
     const deleteDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
     await expect(deleteDialog.getByText('This cannot be undone.')).toBeVisible()
     await expect(deleteDialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
@@ -157,7 +173,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     await deleteDialog.getByRole('button', { name: 'Cancel' }).click()
 
     deletionFixture.setAttendanceState('fenced')
-    await deleteButton.click()
+    await settings.click()
+    await remove.click()
     const progressDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
     await expect(progressDialog.getByText('Removing linked attendance…')).toBeVisible()
     await expect(progressDialog.getByRole('button', { name: 'Continue deletion' })).toBeEnabled()
@@ -171,7 +188,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     await closeProgressButton.click()
 
     deletionFixture.setAttendanceState('completed')
-    await deleteButton.click()
+    await settings.click()
+    await remove.click()
     const finalConfirmationDialog = page.getByRole('dialog', { name: 'Delete classroom permanently?' })
     await expect(finalConfirmationDialog.getByText('Linked attendance removed')).toBeVisible()
     await expect(finalConfirmationDialog.getByRole('textbox')).toBeVisible()
@@ -203,9 +221,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
 
     await page.getByRole('button', { name: 'Classroom actions' }).click()
     await page.getByRole('menuitem', { name: 'Show Archived' }).click()
-    await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
-
-    await unarchiveButton.click()
+    await settings.click()
+    await unarchive.click()
     const dialog = page.getByRole('dialog', { name: 'Unarchive Archived Biology?' })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('button', { name: 'Unarchive' })).toBeVisible()
@@ -214,6 +231,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       fullPage: true,
       animations: 'disabled',
     })
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(settings).toBeFocused()
     await context.close()
   }
 
@@ -226,7 +245,7 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
       entry.theme,
     )
     await page.goto('/classrooms')
-    await expect(page.getByRole('button', { name: 'Reuse' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Settings for / })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Unarchive' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Delete permanently' })).toHaveCount(0)
     await expectNoHorizontalOverflow(page)

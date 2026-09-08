@@ -140,6 +140,11 @@ async function mockBlueprintRollover(page: Page) {
     expect(route.request().headers()['idempotency-key']).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     )
+    expect(route.request().postDataJSON()).toEqual({
+      title: 'Computer Science 11 - Period 2',
+      start_date: '2026-09-08',
+      end_date: '2027-01-31',
+    })
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
@@ -744,7 +749,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
-    name: 'Undo manual change for Student 03 Alpha03',
+    name: 'Undo override for Student 03 Alpha03',
   })
   await expect(overrideUndo).toBeVisible()
   const overrideCell = overrideUndo.locator('xpath=ancestor::td')
@@ -774,7 +779,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
 
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Hide ID column' }).click()
-  await expect(page.getByRole('columnheader', { name: 'ID' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'ID', exact: true })).toHaveCount(0)
   await expect(page.getByRole('separator', { name: 'Resize ID column' })).toHaveCount(0)
 
   await page.screenshot({
@@ -831,7 +836,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'Time of scan' })).toHaveCount(0)
   await expect(page.getByRole('group', { name: 'Sort attendance by status' })).toHaveCount(0)
-  await expect(page.getByRole('columnheader', { name: 'ID' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'ID', exact: true })).toBeVisible()
 
   await dailyOnlyContextBar.getByRole('button', { name: 'More actions' }).click()
   await expect(page.getByRole('menuitem')).toHaveCount(2)
@@ -1110,7 +1115,12 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await expect(contextBar).not.toContainText(/Draft|Active|Closed/)
   await expect(primaryControl.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(primaryControl.getByRole('button', { name: 'Close All' })).toBeVisible()
-  await expect(primaryControl.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+  const defaultStudentActionsButton = primaryControl.getByRole('button', {
+    name: 'Student actions (select students to enable)',
+  })
+  await expect(defaultStudentActionsButton).toBeDisabled()
+  const defaultStudentActionsBox = await defaultStudentActionsButton.boundingBox()
+  expect(defaultStudentActionsBox).not.toBeNull()
   await expect(trailingActions).toBeVisible()
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
@@ -1185,6 +1195,9 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const gradingToolbar = page.getByRole('toolbar', { name: 'Test grading actions' })
   const studentActionsButton = gradingToolbar.getByRole('button', { name: 'Student actions for 1 selected' })
   await expect(studentActionsButton).toContainText('1 selected')
+  const selectedStudentActionsBox = await studentActionsButton.boundingBox()
+  expect(selectedStudentActionsBox).not.toBeNull()
+  expect(selectedStudentActionsBox!.width).toBeCloseTo(defaultStudentActionsBox!.width, 1)
   await expect(gradingToolbar.getByRole('button', { name: 'Open All' })).toBeVisible()
   await expect(gradingToolbar.getByRole('button', { name: 'Close All' })).toBeVisible()
   const selectionBarBox = await gradingToolbar.boundingBox()
@@ -1547,7 +1560,14 @@ test.describe('teacher experience matrix', () => {
     await enterSeededClassroom(page, 'teacher')
 
     await expect(page.getByRole('table')).toBeVisible()
-    await expect(page.getByRole('row', { name: /Student1 Test/ })).toBeVisible()
+    const studentRow = page.getByRole('row', { name: /Student1 Test/ })
+    // The seeded semester can start after the runner's current date (for
+    // example, when CI runs on a weekend). Advance to the next class day so
+    // this contract remains independent of the calendar date.
+    for (let attempt = 0; attempt < 10 && !(await studentRow.isVisible().catch(() => false)); attempt += 1) {
+      await page.getByRole('button', { name: 'Next day' }).click()
+    }
+    await expect(studentRow).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
   })
@@ -1571,6 +1591,8 @@ test.describe('teacher experience matrix', () => {
     await page.getByRole('menuitem', { name: 'From Course Blueprint' }).click()
     await page.getByRole('combobox', { name: 'Course Blueprint' }).selectOption(BLUEPRINT_ID)
     await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByLabel('First day of class').fill('2026-09-08')
+    await expect(page.getByLabel('Last day of class')).toHaveValue('2027-01-31')
     await page.getByRole('button', { name: 'Create' }).click()
 
     await expect(page.getByRole('heading', { name: 'Classroom Created' })).toBeFocused()
@@ -1588,7 +1610,9 @@ test.describe('teacher experience matrix', () => {
       animations: 'disabled',
     })
     await reviewButton.click()
-    await expect(page).toHaveURL(/\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments$/)
+    await expect(page).toHaveURL(
+      /\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments&reviewClassDays=1$/,
+    )
   })
 
   test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {

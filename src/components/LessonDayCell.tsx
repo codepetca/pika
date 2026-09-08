@@ -6,6 +6,7 @@ import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/announcements'
+import { isCalendarAnnouncementScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Tooltip } from '@/ui'
@@ -13,13 +14,12 @@ import type { Announcement, Assignment, LessonPlan } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
-  if (!announcement.scheduled_for) return false
-  return new Date(announcement.scheduled_for) > new Date()
+  return isCalendarAnnouncementScheduled(announcement)
 }
 
 function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
   return (
-    <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 break-words">
+    <div className="w-[min(14rem,calc(100vw-2rem))] md:w-[28rem] text-left text-sm leading-5 break-words">
       {announcements.map((announcement, index) => {
         const title = normalizeAnnouncementTitle(announcement.title)
 
@@ -165,6 +165,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           <div className="px-0.5 mt-0.5 flex items-start justify-center">
             <Tooltip
               content={<AnnouncementTooltipContent announcements={announcements} />}
+              className="md:max-w-none"
               side="right"
               align="start"
               interactive
@@ -254,6 +255,7 @@ export const LessonDayCell = memo(function LessonDayCell({
               <Tooltip
                 key={announcement.id}
                 content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                className="md:max-w-none"
                 align="start"
                 interactive
               >

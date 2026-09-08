@@ -134,6 +134,15 @@ function StudentPalRefreshListener() {
   return null
 }
 
+/** Render only where the current page permits ambient achievements. */
+export function StudentPalAmbientSurfaces({ scopeKey }: { scopeKey: string }) {
+  return (
+    <PalFailureBoundary fallback={null} resetKey={`${scopeKey}:ambient`}>
+      <StudentPalHostLayers />
+    </PalFailureBoundary>
+  )
+}
+
 export function StudentPalExperience({
   apiBaseUrl,
   children,
@@ -169,9 +178,7 @@ export function StudentPalExperience({
       <StudentPalRefreshListener />
       {children}
       {showAmbientSurfaces ? (
-        <PalFailureBoundary fallback={null} resetKey={`${scopeKey}:ambient`}>
-          <StudentPalHostLayers />
-        </PalFailureBoundary>
+        <StudentPalAmbientSurfaces scopeKey={scopeKey} />
       ) : null}
     </PalProvider>
   )
