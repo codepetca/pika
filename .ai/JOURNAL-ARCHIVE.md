@@ -31237,8 +31237,14 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - The first exact-head CI run exposed an existing rollout-doc assertion that still expected production migrations through 151 after the active context advanced to 156. Updated that test-only expectation to the current production record; application behavior remains unchanged. PR returned to draft before the correction and requires targeted re-review plus fresh exact-head CI.
 
 <!-- pika-session-log-archive-batch:0d508bcb2662d4765b8cac97440b3a7c7e86b6913d4272f256dbb925323593ac -->
+<!-- pika-session-log-archive-batch:5e9befa2dc1c978260e7184e6680b5b4996b05d09ecf8ce8e2d6869357e9970a -->
 ## 2026-09-04 — Require class-day setup in the classroom wizard
 
 - Removed the blank-classroom deferral option from the creation wizard. All classroom creation paths now require the teacher to choose the actual first class day before Create is enabled.
 - Replaced the inferred Monday-Friday range label and warning block with the concise field guidance `You can modify class days later in Settings.` The existing post-creation reminder remains as failure recovery for classrooms that still have no calendar.
 - Component, TypeScript and browser checks pass; teacher light-desktop and dark-mobile screenshots confirm the simplified dialog, required/selected date states and responsive layout. Student creation remains unavailable by role. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Open the native first-day picker from the wizard
+
+- Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
+- A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.

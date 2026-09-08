@@ -24,10 +24,11 @@ import { POST } from '@/app/api/auth/workos/logout/route'
 function request(
   origin = 'https://pika.example.test',
   requestOrigin = 'https://pika.example.test',
+  extraHeaders: Record<string, string> = {},
 ) {
   return new NextRequest(`${requestOrigin}/api/auth/workos/logout`, {
     method: 'POST',
-    headers: { origin },
+    headers: { origin, ...extraHeaders },
   })
 }
 
@@ -94,6 +95,32 @@ describe('POST /api/auth/workos/logout', () => {
     expect(mocks.deleteCookie).not.toHaveBeenCalled()
     expect(mocks.withAuth).not.toHaveBeenCalled()
   })
+
+  it('accepts a privacy-preserving same-origin browser form post', async () => {
+    const response = await POST(request(
+      'null',
+      'https://pika.example.test',
+      { 'sec-fetch-site': 'same-origin' },
+    ), { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(303)
+    expect(mocks.destroySession).toHaveBeenCalledOnce()
+  })
+
+  it.each(['cross-site', 'same-site', 'none'])(
+    'rejects a private-origin form post marked %s',
+    async (site) => {
+      const response = await POST(request(
+        'null',
+        'https://pika.example.test',
+        { 'sec-fetch-site': site },
+      ), { params: Promise.resolve({}) })
+
+      expect(response.status).toBe(403)
+      expect(mocks.destroySession).not.toHaveBeenCalled()
+      expect(mocks.withAuth).not.toHaveBeenCalled()
+    },
+  )
 
   it('accepts a Preview request while keeping the canonical provider return URL', async () => {
     const response = await POST(request(
