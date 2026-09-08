@@ -15,8 +15,9 @@ import {
   resolveCourseBlueprintImportOperation,
   type CourseBlueprintImportOperation,
 } from '@/lib/course-blueprint-import-client'
+import { storeBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
-type WizardStep = 'name' | 'blueprint' | 'calendar' | 'review'
+type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CreationMode = 'blank' | 'blueprint'
 
 const CHOOSE_FILE_OPTION = '__choose-file__'
@@ -76,11 +77,6 @@ const ReadableCalendarInput = forwardRef<HTMLInputElement, ReadableCalendarInput
 
 ReadableCalendarInput.displayName = 'ReadableCalendarInput'
 
-type BlueprintCreationResult = {
-  classroom: any
-  overflowLessonTemplates: string[]
-}
-
 interface CreateClassroomModalProps {
   isOpen: boolean
   onClose: () => void
@@ -98,7 +94,6 @@ export function CreateClassroomModal({
 }: CreateClassroomModalProps) {
   const router = useRouter()
   const importInputRef = useRef<HTMLInputElement | null>(null)
-  const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const calendarStepRef = useRef<HTMLDivElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
@@ -117,7 +112,6 @@ export function CreateClassroomModal({
   const [loading, setLoading] = useState(false)
   const [importingBlueprint, setImportingBlueprint] = useState(false)
   const [error, setError] = useState('')
-  const [blueprintCreationResult, setBlueprintCreationResult] = useState<BlueprintCreationResult | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -139,7 +133,6 @@ export function CreateClassroomModal({
   }, [initialBlueprintId, isOpen])
 
   useEffect(() => {
-    if (step === 'review') reviewHeadingRef.current?.focus()
     if (step === 'name') nameInputRef.current?.focus()
     if (step === 'calendar') calendarStepRef.current?.focus()
   }, [step])
@@ -152,7 +145,6 @@ export function CreateClassroomModal({
     setFirstClassDate('')
     setLastClassDate('')
     setError('')
-    setBlueprintCreationResult(null)
     importOperationRef.current = null
     instantiateOperationRef.current = null
   }
@@ -264,14 +256,14 @@ export function CreateClassroomModal({
         instantiateOperationRef.current = null
         invalidateTeacherBlueprints()
         invalidateTeacherClassrooms()
+        storeBlueprintClassroomOverflow(
+          classroom.id,
+          instantiateData.lesson_mapping?.overflow_lesson_templates,
+        )
         onBlueprintCreated?.(classroom)
-        setBlueprintCreationResult({
-          classroom,
-          overflowLessonTemplates: Array.isArray(instantiateData.lesson_mapping?.overflow_lesson_templates)
-            ? instantiateData.lesson_mapping.overflow_lesson_templates
-            : [],
-        })
-        setStep('review')
+        resetForm()
+        onClose()
+        router.push(`/classrooms/${classroom.id}?tab=assignments&reviewClassDays=1`)
         return
       } else {
         const createResponse = await fetch('/api/teacher/classrooms', {
@@ -316,19 +308,8 @@ export function CreateClassroomModal({
     }
   }
 
-  function finishBlueprintCreation(openForReview: boolean) {
-    if (!blueprintCreationResult) return
-    const { classroom } = blueprintCreationResult
-    resetForm()
-    onClose()
-    if (openForReview) {
-      router.push(`/classrooms/${classroom.id}?tab=assignments&reviewClassDays=1`)
-    }
-  }
-
   function handleClose() {
     if (loading || importingBlueprint) return
-    if (blueprintCreationResult) return finishBlueprintCreation(false)
     resetForm()
     onClose()
   }
@@ -338,7 +319,7 @@ export function CreateClassroomModal({
     requiresBlueprintSelection || step === 'blueprint'
       ? ['name', 'blueprint', 'calendar']
       : ['name', 'calendar']
-  const currentProgressIndex = step === 'review' ? progressSteps.length : progressSteps.indexOf(step)
+  const currentProgressIndex = progressSteps.indexOf(step)
   const canContinueFromBlueprintStep = !!selectedBlueprintId
   const isBusy = loading || importingBlueprint
   const minimumLastClassDate = firstClassDate
@@ -359,13 +340,8 @@ export function CreateClassroomModal({
       className="p-6"
       ariaLabelledBy="create-classroom-title"
     >
-      <h2
-        ref={reviewHeadingRef}
-        id="create-classroom-title"
-        tabIndex={step === 'review' ? -1 : undefined}
-        className="text-xl font-bold text-text-default mb-4 flex-shrink-0 focus:outline-none"
-      >
-        {step === 'review' ? 'Classroom Created' : 'Create Classroom'}
+      <h2 id="create-classroom-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">
+        Create Classroom
       </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -489,37 +465,6 @@ export function CreateClassroomModal({
           </div>
         )}
 
-        {step === 'review' && blueprintCreationResult && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-text-default">Classroom ready for review</h3>
-              <p className="mt-1 text-sm text-text-muted">
-                Assignments and tests are unpublished. Review their due dates and release settings before sharing classwork with students.
-              </p>
-            </div>
-
-            {blueprintCreationResult.overflowLessonTemplates.length > 0 ? (
-              <div className="rounded-md border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default">
-                <p className="font-medium">
-                  {blueprintCreationResult.overflowLessonTemplates.length} lesson {blueprintCreationResult.overflowLessonTemplates.length === 1 ? 'plan was' : 'plans were'} not scheduled
-                </p>
-                <p className="mt-1 text-text-muted">
-                  The selected calendar did not have enough class days. Add dates or schedule these lesson plans manually:
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {blueprintCreationResult.overflowLessonTemplates.map((lessonTitle, index) => (
-                    <li key={`${lessonTitle}-${index}`}>{lessonTitle}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
-                All blueprint lesson plans fit within the selected classroom calendar.
-              </div>
-            )}
-          </div>
-        )}
-
         {error && (
           <div className="mt-4 text-sm text-danger">
             {error}
@@ -529,28 +474,26 @@ export function CreateClassroomModal({
 
       {/* Navigation Buttons */}
       <div className="flex gap-3 mt-6 flex-shrink-0">
-        {step !== 'review' ? (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={
-              step === 'name'
-                ? handleClose
-                : () => {
-                    if (step === 'calendar') {
-                      setStep(requiresBlueprintSelection ? 'blueprint' : 'name')
-                    } else {
-                      setStep('name')
-                    }
-                    setError('')
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={
+            step === 'name'
+              ? handleClose
+              : () => {
+                  if (step === 'calendar') {
+                    setStep(requiresBlueprintSelection ? 'blueprint' : 'name')
+                  } else {
+                    setStep('name')
                   }
-            }
-            disabled={isBusy}
-            className="flex-1"
-          >
-            {step === 'name' ? 'Cancel' : 'Back'}
-          </Button>
-        ) : null}
+                  setError('')
+                }
+          }
+          disabled={isBusy}
+          className="flex-1"
+        >
+          {step === 'name' ? 'Cancel' : 'Back'}
+        </Button>
         {step === 'name' ? (
           <SplitButton
             label="Next"
@@ -603,15 +546,7 @@ export function CreateClassroomModal({
           >
             {loading ? 'Creating...' : 'Create'}
           </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={() => finishBlueprintCreation(true)}
-            className="flex-1"
-          >
-            Review Classroom
-          </Button>
-        )}
+        ) : null}
       </div>
     </DialogPanel>
   )
