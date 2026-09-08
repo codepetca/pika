@@ -1293,7 +1293,9 @@ describe('TeacherAttendanceTab', () => {
     if (available) {
       await user.click(qrButton)
       const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
-      expect(within(dialog).getByRole('button', { name: 'Print poster' })).toBeVisible()
+      await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+      expect(within(dialog).getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
+      await user.keyboard('{Escape}')
       await user.click(within(dialog).getByRole('button', { name: 'Close' }))
     }
     await user.click(screen.getByRole('button', { name: 'More actions' }))
