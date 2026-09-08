@@ -34,6 +34,14 @@ create trigger guard_ppz3c_online_entry_158
 before insert or update on public.entries
 for each row execute function private.guard_ppz3c_online_prestart_write_158();
 
+create trigger guard_ppz3c_online_lesson_plan_158
+before insert or update on public.lesson_plans
+for each row execute function private.guard_ppz3c_online_prestart_write_158();
+
+create trigger guard_ppz3c_online_lesson_plan_head_158
+before insert or update on public.lesson_plan_mutation_heads
+for each row execute function private.guard_ppz3c_online_prestart_write_158();
+
 create function private.apply_ppz3c_online_start_date_correction_158()
 returns void
 language plpgsql

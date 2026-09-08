@@ -6,6 +6,8 @@ begin;
 -- guards so this rollback-only fixture can exercise the production branch.
 drop trigger guard_ppz3c_online_class_day_158 on public.class_days;
 drop trigger guard_ppz3c_online_entry_158 on public.entries;
+drop trigger guard_ppz3c_online_lesson_plan_158 on public.lesson_plans;
+drop trigger guard_ppz3c_online_lesson_plan_head_158 on public.lesson_plan_mutation_heads;
 drop function private.guard_ppz3c_online_prestart_write_158();
 drop function if exists private.apply_ppz3c_online_start_date_correction_158();
 
@@ -71,6 +73,8 @@ set teacher_id = 'a2440373-e98d-432d-92a2-03701ab7c369'
 where id = '7ed4c2e5-4418-4401-ae47-6c2e464db3ee';
 
 alter table public.class_days disable trigger guard_ppz3c_online_class_day_158;
+alter table public.lesson_plan_mutation_heads
+  disable trigger guard_ppz3c_online_lesson_plan_head_158;
 
 insert into public.class_days (classroom_id, date, is_class_day, prompt_text)
 select
@@ -91,6 +95,9 @@ insert into public.lesson_plan_mutation_heads (
 values
   ('7ed4c2e5-4418-4401-ae47-6c2e464db3ee', date '2026-09-01', gen_random_uuid(), 2),
   ('7ed4c2e5-4418-4401-ae47-6c2e464db3ee', date '2026-09-02', gen_random_uuid(), 1);
+
+alter table public.lesson_plan_mutation_heads
+  enable trigger guard_ppz3c_online_lesson_plan_head_158;
 
 select private.apply_ppz3c_online_start_date_correction_158();
 
@@ -131,6 +138,28 @@ begin
       true
     );
     raise exception 'PPZ3C pre-start entry guard did not reject the write';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    insert into public.lesson_plans (classroom_id, date)
+    values ('7ed4c2e5-4418-4401-ae47-6c2e464db3ee', date '2026-09-07');
+    raise exception 'PPZ3C pre-start lesson-plan guard did not reject the write';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    insert into public.lesson_plan_mutation_heads (
+      classroom_id, date, client_id, last_sequence
+    ) values (
+      '7ed4c2e5-4418-4401-ae47-6c2e464db3ee',
+      date '2026-09-07',
+      gen_random_uuid(),
+      1
+    );
+    raise exception 'PPZ3C pre-start lesson-plan head guard did not reject the write';
   exception
     when check_violation then null;
   end;
