@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { DateNavigator } from '@/components/DateNavigator'
-import { LessonCalendar, type CalendarViewMode } from '@/components/LessonCalendar'
+import type { CalendarViewMode } from '@/components/LessonCalendar'
 import {
   TeacherWorkSurfaceActionCluster,
   TeacherWorkSurfaceIconMenuButton,
@@ -53,6 +53,7 @@ import type {
 import { DailyMockup, type DailyAttendanceMode } from './DailyMockup'
 import { SettingsMockup } from './SettingsMockup'
 import { STUDENT_PAGE_ITEMS, StudentPageMockup, type StudentPageId } from './StudentPageMockups'
+import { CalendarChipDragPrototype } from './CalendarChipDragPrototype'
 import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import { GradebookAssessmentEditorMockup } from './GradebookAssessmentEditorMockup'
 import { GradebookCategoryEditorMockup } from './GradebookCategoryEditorMockup'
@@ -1144,9 +1145,9 @@ function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: str
       actions={<MoreMenu label="Calendar" items={menuItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} lessonPlans={LESSON_PLANS} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={false} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
+      <CalendarChipDragPrototype viewMode={view} currentDate={date} />
     </div>
-    <Description>The date and Week, Month, Term toggle share the center cluster. More actions owns Markdown editing.</Description>
+    <Description>Drag a movable chip to another day. Keyboard: focus a chip, press Space, use arrow keys, then press Space again. Published items stay locked. “Fail next move” demonstrates optimistic rollback; the example never writes live data.</Description>
   </div>
 }
 
