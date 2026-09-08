@@ -5,7 +5,6 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
-import { isClassroomQrRolloutAllowed } from '@/lib/server/classroom-qr-rollout'
 import {
   ClassroomAttendanceQrError,
   loadTeacherClassroomQrPresentation,
@@ -40,9 +39,6 @@ function mapError(error: unknown): never {
 async function authorize(userId: string, classroomId: string, supabase: any) {
   const ownership = await assertTeacherCanMutateClassroom(userId, classroomId, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
-  if (!isClassroomQrRolloutAllowed({ teacherId: userId, classroomId })) {
-    throw new ApiError(404, 'Classroom QR is not enabled for this classroom')
-  }
   await assertBaraAttendanceClassroomAccess({
     supabase,
     teacherId: userId,

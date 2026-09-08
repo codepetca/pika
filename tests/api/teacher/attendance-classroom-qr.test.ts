@@ -39,7 +39,6 @@ describe('/api/teacher/attendance/classroom-qr', () => {
   afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'enabled')
     mocks.requireRole.mockResolvedValue({ id: teacherId, role: 'teacher' })
     mocks.owns.mockResolvedValue({ ok: true })
     mocks.assertAccess.mockResolvedValue({ state: 'ready' })
@@ -93,28 +92,4 @@ describe('/api/teacher/attendance/classroom-qr', () => {
     })
   })
 
-  it.each(['disabled', 'canary'])('blocks both issuance and rotation outside rollout scope (%s)', async (mode) => {
-    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', mode)
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', teacherId)
-    const get = await GET(new NextRequest(`https://pika.codepet.ca/api/teacher/attendance/classroom-qr?classroom_id=${classroomId}`))
-    const post = await POST(new NextRequest('https://pika.codepet.ca/api/teacher/attendance/classroom-qr', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ classroom_id: classroomId, expected_generation: 2 }),
-    }))
-    expect(get.status).toBe(404)
-    expect(post.status).toBe(404)
-    expect(mocks.load).not.toHaveBeenCalled()
-    expect(mocks.rotate).not.toHaveBeenCalled()
-  })
-
-  it('admits the exact canary without bypassing ownership or attendance authorization', async () => {
-    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'canary')
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', classroomId)
-    const response = await GET(new NextRequest(`https://pika.codepet.ca/api/teacher/attendance/classroom-qr?classroom_id=${classroomId}`))
-    expect(response.status).toBe(200)
-    expect(mocks.owns).toHaveBeenCalled()
-    expect(mocks.assertAccess).toHaveBeenCalled()
-  })
 })

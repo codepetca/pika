@@ -13,7 +13,6 @@ import {
   normalizeClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 import { getBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
-import { isClassroomQrRolloutAllowed } from '@/lib/server/classroom-qr-rollout'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -107,7 +106,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         initialSearchParams={initialSearchParams}
         palEnabled={palEnabled}
         attendanceAvailable={attendanceAvailable}
-        classroomQrAvailable={attendanceAvailable && isClassroomQrRolloutAllowed({ teacherId: user.id, classroomId })}
+        classroomQrAvailable={attendanceAvailable}
       />
     )
   }

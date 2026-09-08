@@ -787,6 +787,19 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await page.emulateMedia({ media: 'screen' })
   await page.evaluate(() => { delete document.body.dataset.printClassroomQr })
   await posterDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'closed'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const closedSessionQrButton = page.getByRole('button', { name: 'Classroom QR' })
+  await expect(closedSessionQrButton).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-closed-qr-enabled.png`),
+    animations: 'disabled',
+  })
+  await closedSessionQrButton.click()
+  await expect(page.getByRole('dialog', { name: 'Classroom QR' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'Classroom QR' })
+    .getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'open'
   await page.goto('/e2e-fixtures/teacher-daily-attendance?classroomQr=off')
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
   await contextBar.getByRole('button', { name: 'More actions' }).click()

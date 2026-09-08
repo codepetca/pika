@@ -1,32 +1,18 @@
 # Stable classroom attendance QR
 
-The teacher's Daily context bar exposes one `Classroom QR` action when the stable
-poster rollout is available. It opens the reusable poster for landscape screen
-display and a separate portrait print layout, including while attendance is closed. If stable posters
-are unavailable, the same position falls back to the existing occurrence-specific
-`Show QR` action. Rotation invalidates the previous poster; teachers must print and
-replace it.
+The teacher's Daily context bar exposes one `Classroom QR` action whenever QR
+attendance is available for the classroom. It opens the reusable poster for
+landscape screen display and a separate portrait print layout, including while
+attendance is scheduled or closed. Rotation invalidates the previous poster;
+teachers must print and replace it.
 
-## Security and rollout
+## Security and availability
 
-- Stable classroom posters have a separate server-only rollout gate:
-  `PIKA_CLASSROOM_QR_MODE=disabled|canary|enabled`. Unset or invalid means disabled.
-  In `canary` mode, both `PIKA_CLASSROOM_QR_CANARY_TEACHER_ID` and
-  `PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID` must be valid UUIDs matching the exact
-  authorized synthetic classroom and its teacher. These are separate from the
-  existing Bara integration canary pair. The gate grants no ownership, enrollment,
-  WorkOS identity, or attendance entitlement; all existing authorization remains.
-- The server controls action availability and rechecks the gate for poster creation,
-  rotation, and every student scan (including previously printed posters).
-  Existing occurrence QR, attendance hours, schedules, and teacher entitlements
-  are unaffected by this switch. Stale page visibility cannot bypass the API gate.
-- Release with the new poster gate disabled. Create only the explicitly authorized
-  dedicated synthetic fixture, set its exact teacher/classroom pair and canary
-  mode, then redeploy. Verify real teacher poster issuance/rotation and an
-  authenticated enrolled student scan through Bara, plus out-of-scope denial.
-  Only after that evidence passes may an authorized rollout set `enabled` and
-  redeploy for wider use. If blocked, leave the poster gate disabled or canary;
-  do not disable or narrow existing attendance to work around the gate.
+- Stable classroom posters use the same server-checked attendance entitlement as
+  the Daily attendance surface. Poster display does not depend on the selected
+  occurrence state; student scans still require an eligible scheduled window,
+  enabled attendance policy, active class day, open Bara session projection,
+  current enrollment, and active attendance participant mapping.
 - Preview must not use production Supabase. Fixture screenshots are not live
   integration evidence. Production fixture and configuration changes still require
   the named owner-approved scope. Clean up synthetic Pika/Bara data through the
@@ -101,7 +87,8 @@ rotation warning, print isolation, and student loading/success/closed/revoked/ro
 states. Focus and Escape contracts are tested through shared dialog owners.
 Fixtures do not prove live Bara operation or real authenticated redirection;
 API/server tests cover authorization boundaries separately. A real-stack smoke
-test remains required after rollout. No new animation is introduced.
+test remains required after material attendance or QR boundary changes. No new
+animation is introduced.
 
 Screenshot provenance: 2026-09-02, feature worktree on main `cb797436`,
 `test-results/experience-matrix-*` (fixture routes) and
