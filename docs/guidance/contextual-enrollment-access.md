@@ -1,8 +1,10 @@
 # Contextual enrollment access foundation
 
-Status: dormant foundation; no live imports, rollout or new access. Migration 157 was
-applied to local Pika only on 2026-09-03 under one-time exact permission and passed its
-database contracts. Hosted application remains unapproved.
+Status: dormant foundation; no live imports, rollout or new access. The enrollment SQL was
+applied to local Pika only on 2026-09-03 under one-time exact permission, when it was numbered
+157, and passed its database contracts. It is now source migration 159 after rebasing behind
+main's migrations 157–158; a clean 159 replay remains required. Hosted application remains
+unapproved.
 This is the first bounded part of compatibility batch C in the
 [classroom access roadmap](classroom-access-and-entitlements-roadmap.md).
 It does not complete phase 2 or authorize the Owned/Joined home.
@@ -29,7 +31,7 @@ This slice adds two contracts with no production adopters:
   server-trusted evidence. It rejects malformed evidence, archived classrooms, owner
   self-join, direct-ID admission, closed enrollment, roster mismatch and incomplete
   open-join profiles. Existing active membership is idempotent and grants no new access.
-- Migration 157 adds a service-only atomic join RPC and a private schema-backed guess
+- Migration 159 adds a service-only atomic join RPC and a private schema-backed guess
   limiter. The transaction locks and revalidates the exact expected classroom plus code,
   rejects owner self-join and archive/policy changes, and commits roster, stable roster
   binding, enrollment, profile and optional Pal outbox evidence together. No browser role
@@ -51,7 +53,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 
 1. Authenticate the server session before reading a code or classroom.
 2. Keep student-role users on the legacy path. Reject a wrong-role user with no configured
-   pair before reading the request body or looking up a code, then use the migration 157
+   pair before reading the request body or looking up a code, then use the migration 159
    transaction to rate-limit both the authenticated actor and actor-invitation guesses.
 3. For a contextual candidate, resolve a normalized verified code only in a query scoped
    to the authenticated result's `allowedClassroomIds`; a valid code outside that exact
@@ -61,7 +63,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 4. Load exact classroom, relationship and roster/profile evidence on the server.
 5. Evaluate the pure policy. Never accept request-asserted relationship, owner, roster,
    profile, lifecycle or plan data.
-6. For a new membership, use the migration 157 transaction that locks and revalidates the
+6. For a new membership, use the migration 159 transaction that locks and revalidates the
    classroom, owner, archive state, enrollment toggle, join policy, invitation, roster
    and existing enrollment; then writes roster/binding, enrollment, profile and any
    transactional outbox fact together. Duplicate concurrent joins must return one
@@ -82,7 +84,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 - Guess-limit availability, disable procedure, compatible application floor and mixed-role
   canaries are rehearsed before a real cohort. The controlling flag remains unset.
 
-## Migration 157 operational boundary
+## Migration 159 operational boundary
 
 - The provisional fixed window is 10 minutes: 12 attempts per actor and 3 attempts for
   the same actor plus normalized invitation. These values are database-owned so a caller
@@ -104,8 +106,9 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
   proves duplicate serialization, archive/ownership/enrollment-toggle ordering, join-first
   linearization and the exact concurrent guess budget, then removes its fixtures. It never
   applies the migration or reads hosted credentials.
-- Local migration application and generated-type verification do not authorize a cohort,
-  route adoption, hosted application or deployment; each remains a distinct gate.
+- The earlier local migration application and generated-type verification do not prove the
+  resequenced 159 lineage and do not authorize a cohort, route adoption, hosted application
+  or deployment; each remains a distinct gate.
 
 ## Verification
 

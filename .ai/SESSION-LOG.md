@@ -11,44 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
-
-- Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
-- Selected dates display in long form such as `September 9, 2026`; the underlying ISO values still drive the API. The existing immediate native-picker opening and progressive last-day reveal remain. Focus rings transfer to the readable control and a Lucide calendar icon preserves the familiar affordance.
-- Component, TypeScript, UI/design policy and the eight-check browser flow pass. Teacher desktop light and mobile dark selected-date states were visually inspected, including the open native calendar; the browser console has no errors. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Progressively reveal the last class day
-## 2026-09-01 — Adopted the approved Daily attendance design in production Pika
-
-- Simplified the calendar step to begin with only `First day of class`; removed its heading, subtitle and helper text. Selecting the first day now reveals an editable, five-month-prefilled `Last day of class` with `You can modify this later in Settings.`
-- The chosen last day is sent through blank and Blueprint classroom creation, and Create remains disabled until both dates are present. Semantic component coverage and the eight-check classroom-creation browser contract verify the hidden/revealed states, generated default and required fields.
-- Focused gate passes 42 files / 608 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile light/dark states were visually inspected and the browser console had no errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Default class end dates to fixed term boundaries
-
-- Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
-- The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
-- The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Restore the post-creation class-day review notice
-
-- Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
-- The existing missing-calendar recovery state remains stronger: it continues to show `Set up class days` when no dates exist. Normal classroom opens are unchanged, and blueprint review navigation carries the same class-day review reminder.
-- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check creation flow also pass. The live notice and destination were exercised at desktop/light and mobile/dark with no browser-console errors. Student view is not applicable because students cannot create classrooms. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Wait for a click before opening the first-day picker
-## 2026-09-02 — Rebase Markdown actions after Classwork #1121
-
-- Removed the programmatic native-calendar launch when the classroom wizard enters the First day of class step. The full-control date input remains focused for keyboard accessibility and opens its native picker only after a deliberate click.
-- Component coverage verifies that step entry does not call `showPicker()` and that clicking the field does. Desktop/light and mobile/dark entry states were visually inspected with no picker overlay and no browser-console errors; student creation is not applicable.
-- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check classroom wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
-
-## 2026-09-04 — Keep the first-day selector neutral on step entry
-
-- Moved calendar-step entry focus from the hidden native date input to an accessible `Choose class dates` group, removing the premature blue input outline while preserving screen-reader context. The standard Pika focus treatment still appears when the teacher deliberately clicks or tabs into the date control.
-- Updated semantic coverage verifies group focus, neutral input state and deliberate picker invocation. Desktop and mobile states were visually inspected in dark mode; the existing light-theme input treatment is unchanged. Student creation is not applicable.
-- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
-
 ## 2026-09-04 — Make class-day toggles respond immediately
 
 - Changed Settings > Class Days to update each clicked date optimistically instead of waiting for the PATCH response. Only the affected date is temporarily disabled while saving, preventing duplicate requests without blocking edits to other dates.
@@ -261,13 +223,11 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
 - Targeted independent review found one non-blocking role-boundary gap in the student matrix: it still excluded the retired direct buttons instead of the new More trigger. The corrected assertion excludes More actions and the removed Resources heading for students. One correction batch is in use; a final integration check and fresh focused/exact-head CI are required before readiness or merge. No production or database action was taken.
 
-## 2026-09-03 — Begin the dormant contextual enrollment foundation
+## 2026-09-07 — Preserve the dormant contextual enrollment foundation handoff
 
 - After user-authorized merge of dev-only prototype PR #1178 at `f4f6ba32`, started compatibility batch C on `codex/contextual-enrollment-access`. Added dormant exact-pair identity selection and a pure join policy covering owner self-join, existing membership, verified-code-only admission, archive/enrollment/roster/open-join rules and malformed evidence. Contextual pair selection is explicitly a candidate, never final authorization.
 - No live route imports the new modules. Existing join/list/roster behavior and role guards are unchanged; no migration, cohort, environment setting, production rollout or new access exists. Adoption is blocked on a schema-backed guess limiter, one atomic revalidating membership transaction, concurrency/failure evidence and separately migrated list/roster consumers.
 - Red-first contract tests pass. Focused gate passes 13 files / 123 tests plus architecture, UI/design policy, TypeScript and lint. No specialized runtime profile; independent review risk high because this defines a future authorization boundary. Use Sol/high security plus Terra/high compatibility review before any merge decision; full access epic remains incomplete.
-
-## 2026-09-03 — Refine Roster actions and email labels
 
 ## 2026-09-07 — Correct PPZ3C Online first class day
 
@@ -283,11 +243,13 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
 - Updated the live Gradebook and Pattern Lab semantic coverage. Focused checks pass 21 files / 232 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and 67 directly affected tests pass. Teacher desktop/mobile light/dark and on/off/hover states were visually inspected. Student view is not applicable because Gradebook is teacher-only.
 - Composite-widget checklist reviewed: native button keyboard behavior is preserved, semantic pressed state is covered by tests, and no manual follow-up remains. Risk profile: none; no schema, data, API, dependency, or new shared component.
+## 2026-09-07 — Preserve the Roster actions and email labels handoff
+
 - Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
 - Renamed the roster contact columns and related UI copy to Email (main) and Email (secondary), including manual-add/CSV dialogs, edit labels, copy actions and conflict feedback. Data contracts remain unchanged; the legacy `counselor_email` field still stores the secondary address.
 - Focused component/API coverage passes 52 tests; type, design/UI policy and the Pika audit pass. Browser verification covers teacher desktop/mobile, light/dark, default/open/focus states plus student-route exclusion; menu focus, Escape return and viewport containment were inspected. Risk profile none; use one Terra/high reviewer for the standard-risk UI/state diff. No schema, migration, dependency, hosted data or deployment changes.
 
-## 2026-09-03 — Build atomic contextual enrollment and guess-limit slice
+## 2026-09-07 — Preserve the atomic enrollment and guess-limit handoff
 
 - Began the next dormant compatibility-C slice from merged main on `codex/atomic-enrollment-foundation`. Authored unapplied migration 157 after shared local history revealed another active branch owns 155–156: a private schema-backed 10-minute limiter (12 actor attempts, 3 actor-plus-invitation attempts) and a service-only code-join transaction that locks/revalidates the exact classroom, denies self/archive/closed/roster conflicts, and atomically writes roster lineage, enrollment, profile and optional verified Pal evidence.
 - Added a dormant server adapter that normalizes invitation codes, derives opaque HMAC keys with `SESSION_SECRET`, validates least-data RPC results and fails unavailable on migration/contract drift. No live route imports it; current authentication, join/list/roster behavior, UI, cohorts, flags and production access remain unchanged.
@@ -296,3 +258,8 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Targeted Sol/high remediation review (launch 3) found three additional blockers in batch 1: unsupported `jsonb_object_length`, a cleanup/request lock cycle, and rejoin rejection when a legitimate same-source Pal event has a new occurrence timestamp. Correction batch 2 uses supported exact-object comparisons, moves stale cleanup to a separate bounded service-only `SKIP LOCKED` function, and verifies stable Pal identity/source fields while allowing timestamp drift. The rollback fixture now covers valid-event rejoin plus cross-source collision. Static/adapter/guidance tests pass 11; migration execution and generated types remain pending the same dependency/authorization gate.
 - Targeted Sol/high remediation review launch 4 cleared those three corrections and found one P2: explicit NULL bypassed the cleanup batch bound because `LIMIT NULL` is unbounded. Correction batch 3 rejects NULL and adds rollback assertions for NULL/zero/oversized inputs plus exact small-batch behavior. This reaches the default three-batch limit; reserve launch 5 for cumulative integration after #1187, authorized local migration 157, generated types and database harnesses are complete.
 - Owner then authorized local application of the exact migration 157. Because #1187 is still open but local history already contains its 155–156, created an unpushed temporary integration worktree containing exact #1187 head plus #1193; checksum `482f9a99f6315ed4013cb33ddb01a0abe1232d5eb57bb281853989217c7692b5` matched the reviewed 157 file. Verified target `supabase_db_pika`/54322 and a 157-only dry run, then applied 157 once; authorization is consumed. Local history is 001–157, database lint has zero findings, rollback and concurrency harnesses pass with all synthetic fixtures removed, and generated types match. Integrated only 157's generated entries into #1193 and removed the temporary RPC cast. No hosted migration, route adoption, cohort, deployment or production change occurred.
+
+## 2026-09-07 — Rebase atomic enrollment after prerequisite merge
+
+- Rebased PR #1193 onto current main after #1187 merged. Main now owns migrations 155–158, so the enrollment source migration moved from 157 to 159 with its SQL unchanged. The earlier exact local authorization was consumed by the former 157 filename; the current local history is therefore evidence of the SQL behavior, not a clean 159 lineage replay. No migration was reapplied, repaired, reset, or promoted.
+- Updated current enrollment guidance, harness messages, and static contracts to migration 159. A clean ephemeral replay, focused/type checks, the reserved fifth and final cumulative reviewer launch, and exact-head CI remain before readiness. Hosted application, route adoption, cohort activation, deployment, and production access remain unapproved.

@@ -31250,6 +31250,7 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.
 
 <!-- pika-session-log-archive-batch:d4cf42ec146fcabfe404399857c0157cdfb4bfe3e2c9768d0726283ee2587446 -->
+<!-- pika-session-log-archive-batch:7a37ef183010707948cf91ce1efeba174043d2c98ff2986fb968dd00580ebcee -->
 ## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
 
 - Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
@@ -31267,3 +31268,20 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
 - The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
 - The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
+## 2026-09-04 — Restore the post-creation class-day review notice
+
+- Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
+- The existing missing-calendar recovery state remains stronger: it continues to show `Set up class days` when no dates exist. Normal classroom opens are unchanged, and blueprint review navigation carries the same class-day review reminder.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check creation flow also pass. The live notice and destination were exercised at desktop/light and mobile/dark with no browser-console errors. Student view is not applicable because students cannot create classrooms. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Wait for a click before opening the first-day picker
+
+- Removed the programmatic native-calendar launch when the classroom wizard enters the First day of class step. The full-control date input remains focused for keyboard accessibility and opens its native picker only after a deliberate click.
+- Component coverage verifies that step entry does not call `showPicker()` and that clicking the field does. Desktop/light and mobile/dark entry states were visually inspected with no picker overlay and no browser-console errors; student creation is not applicable.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check classroom wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
+
+## 2026-09-04 — Keep the first-day selector neutral on step entry
+
+- Moved calendar-step entry focus from the hidden native date input to an accessible `Choose class dates` group, removing the premature blue input outline while preserving screen-reader context. The standard Pika focus treatment still appears when the teacher deliberately clicks or tabs into the date control.
+- Updated semantic coverage verifies group focus, neutral input state and deliberate picker invocation. Desktop and mobile states were visually inspected in dark mode; the existing light-theme input treatment is unchanged. Student creation is not applicable.
+- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check wizard flow also pass. No schema, data, API, dependency, hosted action, deployment, commit or PR is included.
