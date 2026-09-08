@@ -185,6 +185,37 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(onHoverChange).not.toHaveBeenCalledWith(1, false)
   })
 
+  it('clears an active preview when its rerendered item removes the preview callback', () => {
+    const onHoverChange = vi.fn()
+
+    function Harness({ previewEnabled }: { previewEnabled: boolean }) {
+      return (
+        <TeacherWorkSurfaceMenuButton
+          label="Student actions"
+          items={[{
+            id: 'copy',
+            label: 'Copy grade',
+            onSelect: vi.fn(),
+            onHoverChange: previewEnabled ? onHoverChange : undefined,
+          }]}
+        />
+      )
+    }
+
+    const { rerender } = render(<Harness previewEnabled />)
+    const trigger = screen.getByRole('button', { name: 'Student actions' })
+    fireEvent.click(trigger)
+    expect(onHoverChange).toHaveBeenLastCalledWith(true)
+
+    rerender(<Harness previewEnabled={false} />)
+    expect(onHoverChange).toHaveBeenLastCalledWith(false)
+
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Copy grade' }), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onHoverChange.mock.calls).toEqual([[true], [false]])
+  })
+
   it('uses one roving menu tab stop, skips disabled items, and closes on Tab', async () => {
     const user = userEvent.setup()
     render(

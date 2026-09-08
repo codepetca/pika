@@ -132,6 +132,12 @@ function TeacherWorkSurfaceActionMenuButton({
       return
     }
 
+    if (!currentItem.onHoverChange) {
+      activePreview.onHoverChange?.(false)
+      activePreviewRef.current = undefined
+      return
+    }
+
     activePreviewRef.current = {
       itemId: currentItem.id,
       onHoverChange: currentItem.onHoverChange,
@@ -145,7 +151,9 @@ function TeacherWorkSurfaceActionMenuButton({
         return
       }
       activePreviewRef.current?.onHoverChange?.(false)
-      activePreviewRef.current = { itemId: item.id, onHoverChange: item.onHoverChange }
+      activePreviewRef.current = item.onHoverChange
+        ? { itemId: item.id, onHoverChange: item.onHoverChange }
+        : undefined
       item.onHoverChange?.(true)
     } else if (activePreviewRef.current?.itemId === item.id) {
       activePreviewRef.current = undefined
