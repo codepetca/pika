@@ -72,3 +72,29 @@ test('teacher can evaluate calendar chip movement without live writes', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   expect(writes).toEqual([])
 })
+
+test('teacher can move a calendar chip in the configured mobile viewport', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.metadata.viewport !== 'mobile' || testInfo.project.metadata.theme !== 'dark')
+
+  await page.goto('/pattern-lab?role=teacher', { waitUntil: 'networkidle' })
+  if (page.url().includes('/login')) {
+    await page.getByRole('button', { name: 'Teacher', exact: true }).click()
+    await page.getByRole('button', { name: 'Login', exact: true }).click()
+    await page.waitForURL(/\/pattern-lab/)
+  }
+  await page.getByRole('combobox', { name: 'Find a pattern' }).selectOption('mockup-calendar-panel')
+  const prototype = page.getByTestId('calendar-chip-drag-prototype')
+  const fieldNotes = prototype.getByRole('button', { name: 'Move Assignment Field notes' })
+
+  await fieldNotes.focus()
+  await page.keyboard.press('Space')
+  await page.waitForTimeout(100)
+  await page.keyboard.press('ArrowRight')
+  await page.waitForTimeout(100)
+  await page.keyboard.press('Space')
+
+  await expect(prototype.getByRole('group', { name: 'Wednesday, September 16, 2026' })).toContainText('Field notes')
+  await expect(prototype.getByTestId('calendar-prototype-save-status')).toHaveText('Saved')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await prototype.locator('.overflow-x-auto').evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+})
