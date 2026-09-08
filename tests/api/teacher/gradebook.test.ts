@@ -414,6 +414,41 @@ describe('GET /api/teacher/gradebook', () => {
     })
   })
 
+  it.each([
+    { assignmentOverride: 27, testOverride: 5, assignmentEarned: 27, testEarned: 5, finalPercent: 70 },
+    { assignmentOverride: 27, testOverride: null, assignmentEarned: 27, testEarned: 8, finalPercent: 85 },
+    { assignmentOverride: null, testOverride: 5, assignmentEarned: 24, testEarned: 5, finalPercent: 65 },
+  ])('isolates assignment and test overrides sharing an ID: $assignmentOverride / $testOverride', async ({
+    assignmentOverride, testOverride, assignmentEarned, testEarned, finalPercent,
+  }) => {
+    const sharedId = '15700000-0000-4000-8000-000000000020'
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: sharedId, title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: sharedId, student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+      tests: [{ id: sharedId, title: 'Test', status: 'closed', include_in_final: true }],
+      testQuestions: [{ id: 'q1', test_id: sharedId, points: 10 }],
+      testResponses: [{ test_id: sharedId, question_id: 'q1', student_id: 'student-1', score: 8 }],
+      testAttempts: [{ test_id: sharedId, student_id: 'student-1', is_submitted: true }],
+      scoreOverrides: [
+        ...(assignmentOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: sharedId, earned: assignmentOverride }]),
+        ...(testOverride === null ? [] : [{ student_id: 'student-1', assessment_type: 'test', assessment_id: sharedId, earned: testOverride }]),
+      ],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores).toEqual(expect.arrayContaining([
+      expect.objectContaining({ assessment_type: 'assignment', assessment_id: sharedId, earned: assignmentEarned }),
+      expect.objectContaining({ assessment_type: 'test', assessment_id: sharedId, earned: testEarned }),
+    ]))
+    expect(body.selected_student.assignments[0].earned).toBe(assignmentEarned)
+    expect(body.selected_student.tests[0].earned).toBe(testEarned)
+    expect(body.students[0].final_percent).toBe(finalPercent)
+    expect(body.class_summary.average_final_percent).toBe(finalPercent)
+  })
+
   it('uses a final override in the student row and class average without changing assessment marks', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
