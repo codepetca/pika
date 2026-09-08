@@ -133,6 +133,9 @@ jobs:
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
+      - name: Verify PPZ3C start-date correction lifecycle
+        run: bash scripts/check-ppz3c-start-date-correction-database.sh
+
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 
