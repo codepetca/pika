@@ -4,9 +4,40 @@
 -- official first day is September 8. Fail closed if the classroom identity or
 -- the previously inventoried, empty pre-start range has changed.
 
+-- Keep an already-validated browser request from recreating a pre-start class
+-- day or Daily entry after this migration commits. These narrow guards apply
+-- only to the corrected production classroom.
+create function private.guard_ppz3c_online_prestart_write_158()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if new.classroom_id = '7ed4c2e5-4418-4401-ae47-6c2e464db3ee'::uuid
+    and new.date < date '2026-09-08'
+  then
+    raise exception 'PPZ3C Online date precedes its corrected first class day'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$function$;
+
+revoke all on function private.guard_ppz3c_online_prestart_write_158()
+  from public, anon, authenticated, service_role;
+
+create trigger guard_ppz3c_online_class_day_158
+before insert or update on public.class_days
+for each row execute function private.guard_ppz3c_online_prestart_write_158();
+
+create trigger guard_ppz3c_online_entry_158
+before insert or update on public.entries
+for each row execute function private.guard_ppz3c_online_prestart_write_158();
+
 do $migration$
 declare
   v_classroom_id constant uuid := '7ed4c2e5-4418-4401-ae47-6c2e464db3ee';
+  v_teacher_id constant uuid := 'a2440373-e98d-432d-92a2-03701ab7c369';
   v_old_start constant date := date '2026-09-01';
   v_new_start constant date := date '2026-09-08';
   v_expected_class_days constant date[] := array[
@@ -26,12 +57,17 @@ begin
   for update;
 
   -- Other environments do not contain this production row. Keep the migration
-  -- replayable there; production verification separately asserts the outcome.
+  -- replayable there. If the inventoried owner exists, however, a missing
+  -- classroom is production-shaped drift and must fail closed.
   if not found then
+    if exists (select 1 from public.users where id = v_teacher_id) then
+      raise exception 'PPZ3C Online target classroom is missing; correction aborted';
+    end if;
     return;
   end if;
 
   if v_classroom.title is distinct from 'PPZ3C Online'
+    or v_classroom.teacher_id is distinct from v_teacher_id
     or v_classroom.start_date is distinct from v_old_start
     or v_classroom.end_date is distinct from date '2027-01-31'
     or v_classroom.archived_at is not null
