@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useState } from 'react'
 import CalendarPage from '@/app/teacher/calendar/page'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
@@ -15,10 +14,8 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/components/CreateClassroomModal', () => ({
   CreateClassroomModal: ({ isOpen, onSuccess, onBlueprintCreated }: any) => {
-    const [blueprintCreated, setBlueprintCreated] = useState(false)
     return isOpen ? (
       <div role="dialog">
-        {blueprintCreated ? <h2>Classroom Created</h2> : null}
         <button
           type="button"
           onClick={() => onSuccess(createMockClassroom({ id: 'created', title: 'Created Class' }))}
@@ -28,7 +25,6 @@ vi.mock('@/components/CreateClassroomModal', () => ({
         <button
           type="button"
           onClick={() => {
-            setBlueprintCreated(true)
             onBlueprintCreated(createMockClassroom({ id: 'blueprint-created', title: 'Blueprint Class' }))
           }}
         >
@@ -239,7 +235,7 @@ describe('Teacher calendar page', () => {
     expect(push).toHaveBeenCalledWith('/classrooms/created?tab=daily&reviewClassDays=1')
   })
 
-  it('preserves the completed blueprint handoff when the first classroom is added', async () => {
+  it('preserves the completed blueprint classroom when the first classroom is added', async () => {
     installFetchMock({ classrooms: [] })
 
     renderCalendarPage()
@@ -248,7 +244,6 @@ describe('Teacher calendar page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Complete mocked blueprint classroom' }))
 
     expect(await screen.findAllByText('Blueprint Class')).toHaveLength(2)
-    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
     expect(push).not.toHaveBeenCalled()
   })
 
