@@ -121,9 +121,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   permission; hosted application remains unapproved. Other guards stay legacy. UI,
   sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
 - The first enrollment foundation slice is also dormant: it preserves the legacy student
-  guard when disabled and defines fail-closed exact-pair/admission decisions. The live join
-  route cannot adopt it until atomic writes, invitation guess limits and database race
-  evidence exist. It adds no migration, cohort or production configuration.
+  guard when disabled and defines fail-closed exact-pair/admission decisions. The follow-up
+  authors migration 159 with a service-only atomic write, private actor/actor-invitation
+  guess limits and rollback/concurrency harnesses. The same SQL was behaviorally verified
+  locally before resequencing, when it was migration 157; the current 159 source must still
+  pass a clean replay after main's migrations 157–158. Hosted application remains unapproved
+  and the RPC remains uncalled by live code. Neither slice adds a cohort or changes production
+  configuration; the live join route remains legacy-only.
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
