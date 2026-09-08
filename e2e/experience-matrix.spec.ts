@@ -127,7 +127,7 @@ async function enterSeededClassroom(page: Page, role: 'teacher' | 'student') {
   return seededClassroom.id
 }
 
-async function mockBlueprintRollover(page: Page) {
+async function mockBlueprintRollover(page: Page, classroomId: string) {
   await page.route('**/api/teacher/course-blueprints', async (route) => {
     if (route.request().method() !== 'GET') return route.continue()
     await route.fulfill({
@@ -150,7 +150,7 @@ async function mockBlueprintRollover(page: Page) {
       contentType: 'application/json',
       body: JSON.stringify({
         classroom: {
-          id: '20000000-0000-4000-8000-000000000101',
+          id: classroomId,
           title: 'Computer Science 11 - Period 2',
         },
         lesson_mapping: {
@@ -160,6 +160,15 @@ async function mockBlueprintRollover(page: Page) {
       }),
     })
   })
+}
+
+async function getSeededTeacherClassroomId(page: Page) {
+  const response = await page.request.get('/api/teacher/classrooms', { timeout: 60_000 })
+  expect(response.ok()).toBe(true)
+  const payload = await response.json() as { classrooms?: Array<{ id: string; title: string }> }
+  const classroom = payload.classrooms?.find((item) => item.title === 'Test Classroom')
+  if (!classroom) throw new Error('Teacher browser fixture is missing Test Classroom')
+  return classroom.id
 }
 
 test('keeps the Attendance roster compact with inline status controls', async ({ page }, testInfo) => {
@@ -1580,8 +1589,9 @@ test.describe('teacher experience matrix', () => {
     await verifyProjectContract(page, testInfo)
   })
 
-  test('reviews a classroom created from a blueprint', async ({ page }, testInfo) => {
-    await mockBlueprintRollover(page)
+  test('opens a classroom created from a blueprint directly', async ({ page }, testInfo) => {
+    const classroomId = await getSeededTeacherClassroomId(page)
+    await mockBlueprintRollover(page, classroomId)
     await page.goto('/classrooms')
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Classroom actions' }).click()
@@ -1595,24 +1605,20 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('Last day of class')).toHaveValue('2027-01-31')
     await page.getByRole('button', { name: 'Create' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Classroom Created' })).toBeFocused()
-    await expect(page.getByText(/assignments and tests are unpublished/i)).toBeVisible()
-    await expect(page.getByText('Final project workshop')).toBeVisible()
-    const reviewButton = page.getByRole('button', { name: 'Review Classroom' })
-    await expect(reviewButton).toBeVisible()
-    await verifyProjectContract(page, testInfo)
+    await expect(page).toHaveURL(
+      `/classrooms/${classroomId}?tab=assignments&reviewClassDays=1`,
+    )
+    await expect(page.getByText('Draft', { exact: true }).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Classroom Created' })).toHaveCount(0)
 
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(100)
     await page.screenshot({
-      path: testInfo.outputPath('blueprint-rollover-review.png'),
+      path: testInfo.outputPath('blueprint-classroom-destination.png'),
       fullPage: true,
       animations: 'disabled',
     })
-    await reviewButton.click()
-    await expect(page).toHaveURL(
-      /\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments&reviewClassDays=1$/,
-    )
+    await verifyProjectContract(page, testInfo)
   })
 
   test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {
