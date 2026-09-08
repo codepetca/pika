@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-05 — Place Daily Log before scan time
-
-- Reordered the Daily attendance table in the live teacher surface and Pattern Lab so Log appears before Time of scan and the Present/Late/Absent status bubbles. The mobile inline check-in time and existing sticky status/undo columns remain intact.
-- Added order regressions to component and browser verification. Focused tests, architecture/UI/design policy, TypeScript, lint, Pika audit, and the full Pattern Lab visual matrix pass across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or attendance behavior change.
-
-## 2026-09-05 — Restore local development on Node 24
-
-- The local launcher initially exposed a Next dev-runtime failure while rendering `/login`: `tailwind.config.ts` used CommonJS `require` in an ESM-loaded config. Replaced it with the typed ESM import for `@tailwindcss/typography`, committed locally as `7b14f8c8`, and verified `/login` returns HTTP 200 on port 3001.
-- Focused checks pass 44 files / 616 tests plus architecture, UI/design policy, TypeScript and lint. The fix is intentionally unpushed; final PR rebase/review/CI/merge remains deferred until the model reset.
-
-## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
-
-- Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
-- Focused checks pass 14 files / 165 tests, plus architecture, UI/design policy, TypeScript and lint. Playwright visual verification covered teacher schedule-open desktop/mobile in light/dark and student desktop/mobile announcement states; all rendered within the viewport with no visible overflow.
-- Risk profile: none. No schema, data, API, dependency, deployment or merge action is included.
-
-## 2026-09-06 — Add centered roster Student Actions menu
-
-- Added the gradebook's shared centered `Student Actions` menu to the teacher roster. It stays disabled with no selection, changes to the selected count, and exposes only `Copy emails (primary)` and `Copy emails (secondary)`; secondary copy remains disabled when no selected student has a secondary address.
-- Removed primary-email, copy-all, Gmail, and Outlook commands from the roster More actions menu, leaving roster management actions there. Added focused coverage for menu placement, labels, clipboard behavior, selected-count state, and provider-command removal.
-- Focused checks pass 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes teacher desktop/mobile light/dark default states, selected/open menu states, and the student route redirects to the student Today surface because roster is teacher-only. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Stabilize roster Student Actions width
-
-- Matched the roster Student Actions trigger to the existing fixed-width Tests/gradebook treatment with `w-36`, keeping the centered cluster stable when the label changes from `Student Actions` to a selected count.
-- Added regression assertions for the fixed width in both no-selection and selected states. Focused roster tests pass 28 tests; the focused gate passes 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint.
-- Rechecked the live teacher roster at desktop and mobile widths in light and dark themes, including selected and open-menu states. Both trigger states measure 144px and the open menu remains contained. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Fix roster secondary-email imports
-
-- Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
-- The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
-- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
-
 ## 2026-09-06 — Relaunch local Pika development server
 
 - Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
@@ -206,6 +172,13 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Final integration review found lesson-plan saves could still recreate pre-start plans or mutation heads. Extended the exact-classroom guard and rollback assertions to both tables, rebased onto current main, and reran the full correction harness successfully. This is the third and final remediation batch; production remains unchanged pending stable-head review and CI.
 - Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.
 
+## 2026-09-07 — Audit third-party student-data egress
+
+- User deferred the embedded exam PDF-viewer check and continued the security goal. Created isolated `codex/student-data-egress-audit` on current main; audited paths match production source. Recorded data destinations, existing safeguards, retention unknowns and remediation sequence in `docs/guidance/student-data-egress-audit.md`.
+- Local synthetic probes against actual sanitizer/provider code confirmed standalone accented-name leakage and raw provider-body retention in grading errors. Reviewed the downstream persistence path, Brevo error logging, nightly second-use journal extraction and inconsistent outbound redirect/Gradex URL controls. No live student data or paid/provider calls were used.
+- Next: approve the narrow name-redaction/error-diagnostic implementation, then environment verification, regressions, focused checks and draft-first independent review. Product-feedback scope and remote retention/deletion remain separate decisions. No product code, migration, production configuration, PR or deployment changed.
+- User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
+
 ## 2026-09-07 — Preserve the Roster actions and email labels handoff
 
 - Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
@@ -232,6 +205,11 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
 - Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
 
+## 2026-09-08 — Resume privacy fix review for PR 1218
+
+- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
+- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
+
 ## 2026-09-08 — Make the Gradebook percent control a true toggle
 
 - Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
@@ -243,12 +221,28 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Rebased PR #1193 onto main `6dbc2fcf` after #1219 merged. Preserved main's Gradebook toggle and resolved only the shared continuity journal; migration 159, the enrollment adapter, generated types, database harnesses, CI wiring, and their tests are unchanged by range comparison.
 - The previously reviewed exact-head CI was green before main advanced. Focused verification and fresh ready-PR CI must pass on the rebased head before merge. No reviewer launch, migration application, hosted change, route adoption, cohort, deployment, or production rollout occurred.
 
+## 2026-09-08 — Sync privacy PR 1218 for authorized merge
+
+- User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
+- Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
+
 ## 2026-09-08 — Normalize Attendance timing minute inputs
 
 - Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
 - Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
+
+## 2026-09-08 — Resolve the second privacy PR history conflict
+
+- Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
+- Scope is one documentation-only integration review and fresh exact-head CI before authorized main merge. Prior exact-head CI at `0339c5da` passed all lanes and PR Gate. No migration, production deployment, or new security implementation is included.
+
 ## 2026-09-08 — Open blueprint-created classrooms directly
 
 - Removed the post-instantiation “Classroom Created” review step. Successful Blueprint creation now closes the wizard and opens the new classroom's Assignments tab immediately while preserving the class-day review prompt and parent-list refresh.
 - Updated component and browser coverage to assert the direct destination and absence of the old modal. Independent review caught that the removed modal had also named lesson plans that could not fit the calendar; remediation batch 1 now carries those titles into the classroom's existing review notice through a session-scoped handoff, while the no-overflow path retains the generic notice.
 - Focused checks pass 18 files / 260 tests plus architecture, UI/design policy, TypeScript, and lint; the pre-commit audit passes. Visual verification passed for the teacher destination and overflow notice on desktop/mobile in light/dark themes. Student is not applicable because classroom creation is teacher-only. Composite checklist reviewed: pending-operation Escape protection remains covered, the removed dialog state adds no semantic or keyboard obligation, and no manual follow-up remains. Risk profile: none.
+
+## 2026-09-08 — Diagnose and resolve the privacy PR merge disagreement
+
+- Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
+- Integrated main `e9c6417d` and explicitly preserved both histories. No new privacy or incoming-main product edits; existing independent reviews apply to their unchanged content. Verify parent equality, history preservation, normal-text mergeability and fresh exact-head CI before authorized squash merge. No production deployment or migration application.

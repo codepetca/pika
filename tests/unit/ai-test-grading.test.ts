@@ -580,7 +580,7 @@ describe('suggestTestOpenResponseGrade', () => {
         answerKey: 'Use a counted loop from 1 through 10 and print each value.',
       })
     ).rejects.toThrow(
-      'OpenAI returned invalid JSON (status 200, text/plain; charset=utf-8): An error occurred while processing your request.'
+      'OpenAI returned invalid JSON (status 200)'
     )
   })
 })
@@ -796,7 +796,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
           { responseId: 'response-1', responseText: 'A method is reusable code.' },
         ],
       }),
-    ).rejects.toThrow('AI batch grade suggestion returned unknown response response_99')
+    ).rejects.toThrow(/^AI batch grade suggestion returned unknown response$/)
   })
 
   it('rejects duplicate provider refs in batch output', async () => {
@@ -819,7 +819,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
           { responseId: 'response-1', responseText: 'A method is reusable code.' },
         ],
       }),
-    ).rejects.toThrow('AI batch grade suggestion returned duplicate response response_1')
+    ).rejects.toThrow(/^AI batch grade suggestion returned duplicate response$/)
   })
 })
 

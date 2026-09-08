@@ -58,8 +58,8 @@ export function buildInitialsMap(
   const counts: Record<string, number> = {}
 
   for (const student of students) {
-    const fi = (student.firstName[0] || '?').toUpperCase()
-    const li = (student.lastName[0] || '?').toUpperCase()
+    const fi = ([...student.firstName.normalize('NFC')][0] || '?').toUpperCase()
+    const li = ([...student.lastName.normalize('NFC')][0] || '?').toUpperCase()
     const base = `${fi}.${li}.`
     const fullName = `${student.firstName} ${student.lastName}`
 
@@ -154,43 +154,70 @@ function replaceStudentNames(
 ): { text: string; replacementCount: number } {
   const nameToInitials: Record<string, string> = {}
   for (const [initials, fullName] of Object.entries(initialsMap)) {
-    nameToInitials[fullName] = initials
+    nameToInitials[fullName.normalize('NFC')] = initials
   }
 
-  let result = text
   let replacementCount = 0
-
-  const fullNames = students
-    .map((s) => `${s.firstName} ${s.lastName}`)
-    .filter((name) => name.trim().length > 1)
-    .sort((a, b) => b.length - a.length)
-
-  for (const fullName of fullNames) {
-    const initials = nameToInitials[fullName]
-    if (!initials) continue
-    const escaped = escapeRegExp(fullName)
-    result = result.replace(new RegExp(escaped, 'gi'), () => {
-      replacementCount += 1
-      return initials
-    })
-  }
-
+  const replacements = new Map<string, string>()
   for (const student of students) {
-    const fullName = `${student.firstName} ${student.lastName}`
+    const fullName = `${student.firstName} ${student.lastName}`.normalize('NFC')
     const initials = nameToInitials[fullName]
     if (!initials) continue
 
-    for (const name of [student.firstName, student.lastName]) {
-      if (!name || name.length < 2) continue
-      const escaped = escapeRegExp(name)
-      result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), () => {
-        replacementCount += 1
-        return initials
-      })
+    for (const rawName of [fullName, student.firstName, student.lastName]) {
+      const name = rawName.normalize('NFC').trim()
+      // Preserve prose such as "I agree", but support one-character non-Latin names.
+      if (!name || /^[a-z]$/i.test(name)) continue
+      const foldedName = foldNameForMatching(name)
+      if (!replacements.has(foldedName)) replacements.set(foldedName, initials)
     }
   }
 
+  if (replacements.size === 0) return { text, replacementCount }
+
+  const names = [...replacements.entries()].sort(([a], [b]) => b.length - a.length)
+  // Unicode letters, marks, numbers and connector punctuation are word constituents.
+  // One pass avoids matching a student's name again inside generated initials.
+  const word = '[\\p{L}\\p{M}\\p{N}\\p{Pc}]'
+  const pattern = new RegExp(
+    `(?<!${word})(?:${names.map(([name]) => `(${escapeRegExp(name)})`).join('|')})(?!${word})`,
+    'gu',
+  )
+  // Case folds can change length (ß → ss, İ → i). Map only whole grapheme
+  // boundaries back to the untouched outbound text, never slice a folded letter.
+  const boundaries = new Map<number, number>([[0, 0]])
+  let foldedText = ''
+  for (const { segment, index } of NAME_SEGMENTER.segment(text)) {
+    foldedText += foldNameForMatching(segment)
+    boundaries.set(foldedText.length, index + segment.length)
+  }
+  const parts: string[] = []
+  let cursor = 0
+  for (const match of foldedText.matchAll(pattern)) {
+    const start = boundaries.get(match.index)
+    const end = boundaries.get(match.index + match[0].length)
+    if (start === undefined || end === undefined) continue
+    const index = match.slice(1).findIndex((group) => group !== undefined)
+    parts.push(text.slice(cursor, start), names[index][1])
+    cursor = end
+    replacementCount += 1
+  }
+  const result = parts.join('') + text.slice(cursor)
+
   return { text: result, replacementCount }
+}
+
+const NAME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+function foldNameForMatching(text: string): string {
+  // Per-code-point casing avoids context-sensitive final sigma. Explicit ß
+  // expansion also covers capital ẞ. Conservatively equate dotted/dotless I
+  // for roster masking without guessing the student's language or changing data.
+  return [...text.normalize('NFC')]
+    .map((character) => character.toUpperCase().toLowerCase().replace(/ß/g, 'ss'))
+    .join('')
+    .replace(/i\u0307/g, 'i')
+    .normalize('NFC')
 }
 
 function escapeRegExp(str: string): string {

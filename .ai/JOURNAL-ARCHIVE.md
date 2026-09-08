@@ -31249,6 +31249,7 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
 - A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.
 
+<!-- pika-session-log-archive-batch:f1a6fa5d427b65c27ce4f28526cd52d16e9bb80370c86c31d28137c4c51d5a02 -->
 <!-- pika-session-log-archive-batch:d4cf42ec146fcabfe404399857c0157cdfb4bfe3e2c9768d0726283ee2587446 -->
 <!-- pika-session-log-archive-batch:7a37ef183010707948cf91ce1efeba174043d2c98ff2986fb968dd00580ebcee -->
 ## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
@@ -31268,6 +31269,8 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
 - The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
 - The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
+
+<!-- pika-session-log-archive-batch:37e82b341bed8261082b425a7c3a45d005ba1ad4904f1740815af1e8fac457eb -->
 ## 2026-09-04 — Restore the post-creation class-day review notice
 
 - Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
@@ -31316,8 +31319,45 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - The first exact-head CI run exposed one pre-existing stale full-suite assertion that still expected production migration 151 after the production context advanced to migration 156; the PR returned to draft and aligns that assertion with the recorded deletion rollout. Final cumulative review then found that global `no-referrer` made Chromium send `Origin: null` on logout. A route-exception remediation preserved logout but targeted review showed that document policy persists across SPA navigation and could either expose attendance entry tokens or break later logout. The structural remediation restores global `no-referrer` and updates logout CSRF validation to accept literal `Origin: null` only with browser-controlled `Sec-Fetch-Site: same-origin`; exact origins remain accepted, while missing, same-site, cross-site, and direct-navigation signals fail closed. The second CI candidate passed the full application and database lanes plus 150 browser tests, but its four Attendance matrix variants caught React's expected nonce hydration comparison; the explicit bootstrap script now suppresses hydration comparison for that browser-hidden nonce only. Targeted browser verification, final review, and exact-head PR Gate must rerun. Model recommendation: GPT-5.6 Sol/high — security-sensitive runtime-platform review. No schema, migration, hosted data, dependency or user-facing workflow change; production header and teacher/student workflow canaries remain a separate rollout gate.
 - The first exact-head CI run exposed one pre-existing stale full-suite assertion that still expected production migration 151 after the production context advanced to migration 156; the PR returned to draft and aligned that assertion with the then-current deletion rollout. Final cumulative review then found that global `no-referrer` made Chromium send `Origin: null` on logout. A route-exception remediation preserved logout but targeted review showed that document policy persists across SPA navigation and could either expose attendance entry tokens or break later logout. The structural remediation restores global `no-referrer` and updates logout CSRF validation to accept literal `Origin: null` only with browser-controlled `Sec-Fetch-Site: same-origin`; exact origins remain accepted, while missing, same-site, cross-site, and direct-navigation signals fail closed. The second CI candidate passed the full application and database lanes plus 150 browser tests, but its four Attendance matrix variants caught React's expected nonce hydration comparison; the explicit bootstrap script now suppresses hydration comparison for that browser-hidden nonce only. Targeted browser verification passed; targeted review accepted the runtime correction and required its static regression assertion to bind both properties to the same script, which is now enforced. Rebased onto current main `6b03c60d`; retained main's newer rollout guidance and dropped the now-obsolete assertion-only patch. The shared archive delta was removed so unrelated main merges no longer manufacture conflicts. Final review then found that a configured Pal origin remained in `connect-src` while Pal was disabled; the policy now gates that origin on `PAL_ENABLED`, with a disabled/configured regression test. Cumulative re-review found reserved-prefix 404 HTML could bypass CSP; matcher exclusions now cover only actual `/_next/static/*` assets and the exact image optimizer endpoint, with protected fallback regressions. The focused gate and exact-head PR Gate must rerun. Model recommendation: GPT-5.6 Sol/high — security-sensitive runtime-platform review. No schema, migration, hosted data, dependency or user-facing workflow change; production header and teacher/student workflow canaries remain a separate rollout gate.
 
+<!-- pika-session-log-archive-batch:92ed1e940c98151808703d10dcf5f9273084e237137a497072dcf43e1f2c5074 -->
 <!-- pika-session-log-archive-batch:d4622e75fa765894114be6cc1e8d817af292a38ec1d262504a4b223af6beb797 -->
 ## 2026-09-05 — Use override terminology in Daily attendance
 
 - Updated the Daily attendance row undo affordance in the live teacher surface and Pattern Lab from “Undo manual change” to “Undo override,” including accessible labels and hover tooltips. Updated focused component and browser assertions; batch “Revert manual changes” wording remains unchanged.
 - Focused tests, architecture/UI/design policy, TypeScript, lint, and the full Pattern Lab visual matrix passed across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or layout change.
+
+## 2026-09-05 — Place Daily Log before scan time
+
+- Reordered the Daily attendance table in the live teacher surface and Pattern Lab so Log appears before Time of scan and the Present/Late/Absent status bubbles. The mobile inline check-in time and existing sticky status/undo columns remain intact.
+- Added order regressions to component and browser verification. Focused tests, architecture/UI/design policy, TypeScript, lint, Pika audit, and the full Pattern Lab visual matrix pass across teacher/student, desktop/mobile, and light/dark states. Risk profile: none; no schema, data, API, dependency, or attendance behavior change.
+
+## 2026-09-05 — Restore local development on Node 24
+
+- The local launcher initially exposed a Next dev-runtime failure while rendering `/login`: `tailwind.config.ts` used CommonJS `require` in an ESM-loaded config. Replaced it with the typed ESM import for `@tailwindcss/typography`, committed locally as `7b14f8c8`, and verified `/login` returns HTTP 200 on port 3001.
+- Focused checks pass 44 files / 616 tests plus architecture, UI/design policy, TypeScript and lint. The fix is intentionally unpushed; final PR rebase/review/CI/merge remains deferred until the model reset.
+
+<!-- pika-session-log-archive-batch:3bd1a000d5699c1d0b1a334ba23c3095c9baddfed3e10710576078f2b6d7c396 -->
+## 2026-09-06 — Keep announcement scheduling visible near the viewport bottom
+
+- Changed the teacher announcement create and edit schedule pickers to open above their Post/Save action row, preventing the date/time panel from falling below the viewport. Added component regressions asserting both pickers use upward placement.
+- Focused checks pass 14 files / 165 tests, plus architecture, UI/design policy, TypeScript and lint. Playwright visual verification covered teacher schedule-open desktop/mobile in light/dark and student desktop/mobile announcement states; all rendered within the viewport with no visible overflow.
+- Risk profile: none. No schema, data, API, dependency, deployment or merge action is included.
+
+## 2026-09-06 — Add centered roster Student Actions menu
+
+- Added the gradebook's shared centered `Student Actions` menu to the teacher roster. It stays disabled with no selection, changes to the selected count, and exposes only `Copy emails (primary)` and `Copy emails (secondary)`; secondary copy remains disabled when no selected student has a secondary address.
+- Removed primary-email, copy-all, Gmail, and Outlook commands from the roster More actions menu, leaving roster management actions there. Added focused coverage for menu placement, labels, clipboard behavior, selected-count state, and provider-command removal.
+- Focused checks pass 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes teacher desktop/mobile light/dark default states, selected/open menu states, and the student route redirects to the student Today surface because roster is teacher-only. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
+
+<!-- pika-session-log-archive-batch:ebda513c88b112f5defc5017fc6f5d59bace1b8c1c9c3ab3424c9f0e0c84e223 -->
+## 2026-09-06 — Stabilize roster Student Actions width
+
+- Matched the roster Student Actions trigger to the existing fixed-width Tests/gradebook treatment with `w-36`, keeping the centered cluster stable when the label changes from `Student Actions` to a selected count.
+- Added regression assertions for the fixed width in both no-selection and selected states. Focused roster tests pass 28 tests; the focused gate passes 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint.
+- Rechecked the live teacher roster at desktop and mobile widths in light and dark themes, including selected and open-menu states. Both trigger states measure 144px and the open menu remains contained. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
+
+## 2026-09-06 — Fix roster secondary-email imports
+
+- Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
+- The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
+- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
