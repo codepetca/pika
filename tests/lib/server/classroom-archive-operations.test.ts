@@ -34,6 +34,7 @@ function createSupabaseMock(options: {
   completionFailure?: boolean
   sourceRows?: Record<string, Array<Record<string, unknown>>>
   v2BeginError?: { code?: string; message?: string }
+  omittedTable?: string
   v2Unavailable?: boolean
 } = {}) {
   const sourceRows: Record<string, Array<Record<string, unknown>>> = {
@@ -46,6 +47,7 @@ function createSupabaseMock(options: {
     ...options.sourceRows,
   }
   const counts = v2ResourceCounts(sourceRows)
+  if (options.omittedTable) delete counts[options.omittedTable]
   const stored = new Map<string, Uint8Array>()
   const removed: string[] = []
   const queriedTables: string[] = []
@@ -435,4 +437,23 @@ describe('classroom archive export coordinator', () => {
       'fail_classroom_archive_export',
     ])
   })
+})
+
+
+it.each(['gradebook_score_overrides', 'assignments'])('handles omitted snapshot resource %s strictly', async (omittedTable) => {
+  const mock = createSupabaseMock({ omittedTable })
+  const result = await exportClassroomArchive({
+    supabase: mock.client, operationId: OPERATION_ID, teacherId: TEACHER_ID,
+    classroomId: CLASSROOM_ID, expectedSourceRevision: 7,
+    retention: { mode: 'teacher_managed', delete_after: null },
+    sourceAppCommit: 'abcdef1234567890', supabaseUrl: 'https://project.supabase.co',
+  })
+  expect(result.ok).toBe(omittedTable === 'gradebook_score_overrides')
+  if (result.ok) {
+    expect(result.resource_counts).not.toHaveProperty(omittedTable)
+    expect(mock.queriedTables).not.toContain(omittedTable)
+    const verification = verifyClassroomArchiveBundle([...mock.stored.values()][0])
+    expect(verification.ok).toBe(true)
+    if (verification.ok) expect(verification.manifest.resources.some((resource) => resource.table === omittedTable)).toBe(false)
+  } else expect(result.error_code).toBe('archive_snapshot_contract_invalid')
 })

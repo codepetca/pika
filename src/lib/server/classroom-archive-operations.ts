@@ -7,7 +7,7 @@ import {
 import {
   type ClassroomResourceTable,
 } from '@/lib/contracts/classroom-data'
-import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -159,12 +159,9 @@ class ClassroomArchiveExportError extends Error {
 }
 
 function assertExactResourceCounts(counts: Record<string, number>) {
-  const expectedTables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
-  const actualTables = Object.keys(counts).sort()
-  if (
-    actualTables.length !== expectedTables.length ||
-    expectedTables.some((table) => !Object.hasOwn(counts, table))
-  ) {
+  try {
+    resolveClassroomArchiveV2Resources(Object.keys(counts))
+  } catch {
     throw new ClassroomArchiveExportError(
       'archive_snapshot_contract_invalid',
       'Archive snapshot does not match the classroom resource contract',
@@ -325,7 +322,7 @@ async function loadClassroomResources(
   resourceCounts: Record<string, number>,
 ): Promise<Record<string, Record<string, unknown>[]>> {
   const resources: Record<string, Record<string, unknown>[]> = {}
-  for (const resource of CLASSROOM_ARCHIVE_V2_RESOURCES) {
+  for (const resource of resolveClassroomArchiveV2Resources(Object.keys(resourceCounts))) {
     if (resource.primary_key.length !== 1) {
       throw new ClassroomArchiveExportError(
         'archive_composite_key_adapter_required',

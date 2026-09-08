@@ -1,7 +1,8 @@
+import { readDeployedClassroomArchiveResources } from '@/lib/server/classroom-archive-deployed-contract'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
-  CLASSROOM_ARCHIVE_V2_RESOURCES,
+  type ClassroomArchiveResourceDefinition,
   CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
 } from '@/lib/contracts/classroom-archive-resources'
 import { CLASSROOM_ARCHIVE_V2_VERSION } from '@/lib/contracts/classroom-artifacts'
@@ -219,9 +220,9 @@ function hashRestoreRequest(args: {
   })).digest('hex')
 }
 
-function exactResourceCounts(plan: ClassroomArchiveV2RestorePlan): Record<string, number> {
+function exactResourceCounts(plan: ClassroomArchiveV2RestorePlan, resources: readonly ClassroomArchiveResourceDefinition[]): Record<string, number> {
   return Object.fromEntries(
-    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
+    resources.map((resource) => [
       resource.table,
       plan.resources[resource.table]?.length || 0,
     ]),
@@ -540,6 +541,16 @@ export async function restoreClassroomArchive(args: {
       currentActors,
       supabaseUrl: args.supabaseUrl,
     })
+    const targetResources = await readDeployedClassroomArchiveResources(args.supabase)
+    if (!targetResources.some((resource) => resource.table === 'gradebook_score_overrides')
+      && (plan.resources.gradebook_score_overrides?.length || 0) > 0) {
+      throw new ClassroomArchiveRestoreError(
+        'classroom_archive_restore_migration_required',
+        'Restoring Gradebook overrides requires migration 157',
+        409,
+        false,
+      )
+    }
     managedStorageEnabled = true
     for (const object of plan.storageObjects) {
       const reservation = await reserveManagedStorageUpload({
@@ -577,7 +588,7 @@ export async function restoreClassroomArchive(args: {
         Record<string, unknown>[]
       >
     }
-    const resourceCounts = exactResourceCounts(plan)
+    const resourceCounts = exactResourceCounts(plan, targetResources)
     const storageObjects = plan.storageObjects.map((object) => ({
       storage_bucket: object.bucket,
       storage_path: object.restorePath,

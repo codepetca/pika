@@ -1,3 +1,4 @@
+import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import {
@@ -371,8 +372,11 @@ export function buildClassroomArchiveBundle(
   if (!contract.exportEnabled) {
     throw new Error(`Classroom archive version ${input.version} is not enabled for export`)
   }
+  const exportResources = input.version === 2
+    ? resolveClassroomArchiveV2Resources(Object.keys(input.resources))
+    : contract.resources
   const expectedTables = new Set<string>(
-    contract.resources.map((resource) => resource.table),
+    exportResources.map((resource) => resource.table),
   )
   for (const table of expectedTables) {
     if (!Array.isArray(input.resources[table])) {
@@ -394,7 +398,7 @@ export function buildClassroomArchiveBundle(
   }
 
   const entries: Array<{ path: string; bytes: Uint8Array }> = []
-  const resources = contract.resources.map((resource) => {
+  const resources = exportResources.map((resource) => {
     const path = `data/${resource.table}.ndjson`
     const bytes = encodeNdjson(
       input.resources[resource.table] || [],

@@ -31235,3 +31235,10 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Reused the shared `DateNavigator` and existing Daily preference/menu behavior in the live teacher surface and Pattern Lab references. Arrow controls, date-picker behavior, accessible labels, focus behavior and hit targets are unchanged; student surfaces are not affected.
 - Component and Pattern Lab regressions cover hidden, restored and persisted states. The focused gate passes 18 files / 229 tests plus architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark browser interactions pass and their hidden-state captures were inspected. Risk profile: none; no schema, data, API, dependency or deployment change.
 - The first exact-head CI run exposed an existing rollout-doc assertion that still expected production migrations through 151 after the active context advanced to 156. Updated that test-only expectation to the current production record; application behavior remains unchanged. PR returned to draft before the correction and requires targeted re-review plus fresh exact-head CI.
+
+<!-- pika-session-log-archive-batch:0d508bcb2662d4765b8cac97440b3a7c7e86b6913d4272f256dbb925323593ac -->
+## 2026-09-04 — Require class-day setup in the classroom wizard
+
+- Removed the blank-classroom deferral option from the creation wizard. All classroom creation paths now require the teacher to choose the actual first class day before Create is enabled.
+- Replaced the inferred Monday-Friday range label and warning block with the concise field guidance `You can modify class days later in Settings.` The existing post-creation reminder remains as failure recovery for classrooms that still have no calendar.
+- Component, TypeScript and browser checks pass; teacher light-desktop and dark-mobile screenshots confirm the simplified dialog, required/selected date states and responsive layout. Student creation remains unavailable by role. No migration, hosted data, deployment, commit or PR action was performed.

@@ -146,3 +146,16 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   'classroom_retired_assessment_records',
   'classroom_retired_assessment_record_actors',
 ] as const
+
+// Migration 157 is additive. Only its table may be absent during app-first rollout.
+export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
+  const actual = new Set(tableNames)
+  const selected = CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) =>
+    resource.table !== 'gradebook_score_overrides' || actual.has(resource.table),
+  )
+  if (actual.size !== tableNames.length || actual.size !== selected.length
+    || selected.some((resource) => !actual.has(resource.table))) {
+    throw new Error('Classroom archive resource contract is invalid')
+  }
+  return selected
+}
