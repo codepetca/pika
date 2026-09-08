@@ -505,7 +505,7 @@ describe('PageMockups', () => {
     expect(within(gradebook).getByRole('combobox', { name: 'Student' })).toHaveValue('maya')
     expect(within(gradebook).getByRole('region', { name: 'Maya Chen assessment details' })).toBeInTheDocument()
 
-    await user.click(within(gradebook).getByRole('button', { name: 'Score display: %. Switch to x/y' }))
+    await user.click(within(gradebook).getByRole('button', { name: 'Show %' }))
     expect(within(gradebook).getByRole('region', { name: 'Maya Chen assessment details' })).toHaveTextContent('18/20')
     await user.selectOptions(within(gradebook).getByRole('combobox', { name: 'Student' }), 'noah')
     expect(within(gradebook).getByRole('region', { name: 'Noah Williams-Montgomery assessment details' })).toBeInTheDocument()

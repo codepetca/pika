@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown, Dumbbell, MoreVertical, RotateCcw } from 'lucide-react'
-import { Button, FormField, IconButton, Select } from '@/ui'
+import { Button, FormField, IconButton, Select, Tooltip } from '@/ui'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceActionCluster, TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { ScoreDisplayMode } from '@/lib/gradebook-display'
@@ -16,21 +16,25 @@ export function GradebookScoreDisplayToggle({
   value: ScoreDisplayMode
   onChange: (value: ScoreDisplayMode) => void
 }) {
-  const label = value === 'percent' ? '%' : 'x/y'
-  const nextLabel = value === 'percent' ? 'x/y' : '%'
+  const showPercent = value === 'percent'
 
   return (
     <div role="group" aria-label="Score display">
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="min-w-control px-3 font-semibold tabular-nums"
-        aria-label={`Score display: ${label}. Switch to ${nextLabel}`}
-        onClick={() => onChange(value === 'percent' ? 'raw' : 'percent')}
-      >
-        {label}
-      </Button>
+      <Tooltip content="Show %">
+        <span className="inline-flex shrink-0">
+          <Button
+            type="button"
+            variant={showPercent ? 'subtle' : 'ghost'}
+            size="sm"
+            className="min-w-control px-3 font-semibold tabular-nums"
+            aria-label="Show %"
+            aria-pressed={showPercent}
+            onClick={() => onChange(showPercent ? 'raw' : 'percent')}
+          >
+            %
+          </Button>
+        </span>
+      </Tooltip>
     </div>
   )
 }
