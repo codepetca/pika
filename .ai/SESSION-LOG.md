@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Restore the post-creation class-day review notice
-
-- Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
-- The existing missing-calendar recovery state remains stronger: it continues to show `Set up class days` when no dates exist. Normal classroom opens are unchanged, and blueprint review navigation carries the same class-day review reminder.
-- The full focused gate passes 42 files / 612 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check creation flow also pass. The live notice and destination were exercised at desktop/light and mobile/dark with no browser-console errors. Student view is not applicable because students cannot create classrooms. No migration, hosted data, deployment, commit or PR action was performed.
-
 ## 2026-09-04 — Wait for a click before opening the first-day picker
 
 - Removed the programmatic native-calendar launch when the classroom wizard enters the First day of class step. The full-control date input remains focused for keyboard accessibility and opens its native picker only after a deliberate click.
@@ -253,3 +247,8 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Local synthetic probes against actual sanitizer/provider code confirmed standalone accented-name leakage and raw provider-body retention in grading errors. Reviewed the downstream persistence path, Brevo error logging, nightly second-use journal extraction and inconsistent outbound redirect/Gradex URL controls. No live student data or paid/provider calls were used.
 - Next: approve the narrow name-redaction/error-diagnostic implementation, then environment verification, regressions, focused checks and draft-first independent review. Product-feedback scope and remote retention/deletion remain separate decisions. No product code, migration, production configuration, PR or deployment changed.
 - User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
+
+## 2026-09-08 — Resume privacy fix review for PR 1218
+
+- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
+- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.

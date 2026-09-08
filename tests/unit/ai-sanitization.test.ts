@@ -74,7 +74,32 @@ describe('ai-sanitization', () => {
     const decomposedRoster = buildAiSanitizationContext([
       { firstName: 'E\u0301lodie', lastName: 'Gagne\u0301' },
     ])
-    expect(sanitizeAiText('Élodie Gagné; Élodie', decomposedRoster)).toBe('E.G.; E.G.')
+    expect(sanitizeAiText('Élodie Gagné; Élodie', decomposedRoster)).toBe('É.G.; É.G.')
+  })
+
+  it.each([
+    ['İpek', 'Yılmaz', 'ipek YILMAZ; İPEK; i\u0307pek; IPEK'],
+    ['Straße', 'Müller', 'STRASSE MÜLLER; straße; STRAẞE; Strasse'],
+    ['STRASSE', 'Müller', 'Straße Müller; STRAẞE; STRASSE; straße'],
+    ['Σίσυφος', 'Μαρία', 'Σίσυφος Μαρία; ΣΊΣΥΦΟΣ; σίσυφοσ; Σίσυφος'],
+  ])('redacts length-changing and Turkish case variants for %s', (firstName, lastName, input) => {
+    const context = buildAiSanitizationContext([{ firstName, lastName }])
+    const before = structuredClone(context)
+    const initials = Object.keys(context.initialsMap)[0]
+    expect(sanitizeAiText(input, context)).toBe([initials, initials, initials, initials].join('; '))
+    expect(context).toEqual(before)
+  })
+
+  it('preserves original non-name text and offsets around length-changing folds', () => {
+    const context = buildAiSanitizationContext([{ firstName: 'İpek', lastName: 'Straße' }])
+    const input = 'ß ﬃ 🎓 ipek, STRASSE! STRASSE2 ipek_id strasse_extra. Cafe\u0301.'
+    expect(sanitizeAiText(input, context)).toBe('ß ﬃ 🎓 İ.S., İ.S.! STRASSE2 ipek_id strasse_extra. Cafe\u0301.')
+  })
+
+  it('uses whole Unicode code points for astral initials', () => {
+    const context = buildAiSanitizationContext([{ firstName: '\u{10400}na', lastName: '\u{10401}en' }])
+    expect(sanitizeAiText('\u{10428}na \u{10429}en; \u{10428}na', context))
+      .toBe('\u{10400}.\u{10401}.; \u{10400}.\u{10401}.')
   })
 
   it('preserves larger Unicode words and identifiers while matching punctuation-delimited names', () => {

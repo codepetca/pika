@@ -13,7 +13,10 @@ that sanitized copy to the provider.
 - Load classroom roster/profile names for grading paths and replace known
   student names with initials before provider egress.
 - Match names using Unicode word boundaries and canonical NFC equivalence on
-  the outbound copy only. Initials remain linkable pseudonyms, not guaranteed
+  a matching copy, including length-changing case folds and conservative
+  dotted/dotless-I equivalence. Apply substitutions at original grapheme offsets
+  so other outbound text remains unchanged. Initials use whole Unicode code
+  points and remain linkable pseudonyms, not guaranteed
   anonymity; names embedded in larger words or absent from the roster and
   sensitive personal narratives are not comprehensively deidentified.
 - If classroom roster/profile names cannot be loaded, fail closed before the

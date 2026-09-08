@@ -58,8 +58,8 @@ export function buildInitialsMap(
   const counts: Record<string, number> = {}
 
   for (const student of students) {
-    const fi = (student.firstName[0] || '?').toUpperCase()
-    const li = (student.lastName[0] || '?').toUpperCase()
+    const fi = ([...student.firstName.normalize('NFC')][0] || '?').toUpperCase()
+    const li = ([...student.lastName.normalize('NFC')][0] || '?').toUpperCase()
     const base = `${fi}.${li}.`
     const fullName = `${student.firstName} ${student.lastName}`
 
@@ -168,7 +168,8 @@ function replaceStudentNames(
       const name = rawName.normalize('NFC').trim()
       // Preserve prose such as "I agree", but support one-character non-Latin names.
       if (!name || /^[a-z]$/i.test(name)) continue
-      if (!replacements.has(name)) replacements.set(name, initials)
+      const foldedName = foldNameForMatching(name)
+      if (!replacements.has(foldedName)) replacements.set(foldedName, initials)
     }
   }
 
@@ -180,15 +181,43 @@ function replaceStudentNames(
   const word = '[\\p{L}\\p{M}\\p{N}\\p{Pc}]'
   const pattern = new RegExp(
     `(?<!${word})(?:${names.map(([name]) => `(${escapeRegExp(name)})`).join('|')})(?!${word})`,
-    'giu',
+    'gu',
   )
-  const result = text.normalize('NFC').replace(pattern, (_match, ...args: unknown[]) => {
-    const index = args.slice(0, names.length).findIndex((group) => group !== undefined)
+  // Case folds can change length (ß → ss, İ → i). Map only whole grapheme
+  // boundaries back to the untouched outbound text, never slice a folded letter.
+  const boundaries = new Map<number, number>([[0, 0]])
+  let foldedText = ''
+  for (const { segment, index } of NAME_SEGMENTER.segment(text)) {
+    foldedText += foldNameForMatching(segment)
+    boundaries.set(foldedText.length, index + segment.length)
+  }
+  const parts: string[] = []
+  let cursor = 0
+  for (const match of foldedText.matchAll(pattern)) {
+    const start = boundaries.get(match.index)
+    const end = boundaries.get(match.index + match[0].length)
+    if (start === undefined || end === undefined) continue
+    const index = match.slice(1).findIndex((group) => group !== undefined)
+    parts.push(text.slice(cursor, start), names[index][1])
+    cursor = end
     replacementCount += 1
-    return names[index][1]
-  })
+  }
+  const result = parts.join('') + text.slice(cursor)
 
   return { text: result, replacementCount }
+}
+
+const NAME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+function foldNameForMatching(text: string): string {
+  // Per-code-point casing avoids context-sensitive final sigma. Explicit ß
+  // expansion also covers capital ẞ. Conservatively equate dotted/dotless I
+  // for roster masking without guessing the student's language or changing data.
+  return [...text.normalize('NFC')]
+    .map((character) => character.toUpperCase().toLowerCase().replace(/ß/g, 'ss'))
+    .join('')
+    .replace(/i\u0307/g, 'i')
+    .normalize('NFC')
 }
 
 function escapeRegExp(str: string): string {

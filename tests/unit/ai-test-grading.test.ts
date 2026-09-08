@@ -796,7 +796,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
           { responseId: 'response-1', responseText: 'A method is reusable code.' },
         ],
       }),
-    ).rejects.toThrow('AI batch grade suggestion returned unknown response response_99')
+    ).rejects.toThrow(/^AI batch grade suggestion returned unknown response$/)
   })
 
   it('rejects duplicate provider refs in batch output', async () => {
@@ -819,7 +819,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
           { responseId: 'response-1', responseText: 'A method is reusable code.' },
         ],
       }),
-    ).rejects.toThrow('AI batch grade suggestion returned duplicate response response_1')
+    ).rejects.toThrow(/^AI batch grade suggestion returned duplicate response$/)
   })
 })
 

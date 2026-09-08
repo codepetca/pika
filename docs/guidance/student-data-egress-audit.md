@@ -127,15 +127,19 @@ and safe error categories.
 ## First fix package (2026-09-07)
 
 User approved implementation of findings 1 and 2. The branch now uses Unicode
-boundaries and canonical NFC matching, with a single replacement pass so generated
-initials are not processed again. Single ASCII initials remain excluded from
-partial-name matching to preserve prose. Canonical records are unchanged.
+boundaries and canonical NFC/case-folded matching, with a single replacement pass
+so generated initials are not processed again. Length-changing case folds and
+Turkish-I variants map back to original grapheme offsets; initials use whole
+Unicode code points. Single ASCII initials remain excluded from partial-name
+matching to preserve prose. Canonical records and unmatched text are unchanged.
 
 OpenAI HTTP/network/JSON errors and Brevo delivery errors now discard untrusted
 content; grading parser, normalization and final schema errors also discard raw
-messages and causes. Status/category/retry behavior is preserved. Synthetic tests
+messages and causes. Unknown/duplicate batch-grading refs also produce fixed
+content-free errors, with their prior non-retryable/internal classification
+preserved. Synthetic tests
 cover standalone accented/non-Latin names, normalization, punctuation, compound
-names, error bodies/headers/causes, and saved assignment-run failure diagnostics.
+names, error bodies/headers/causes, and saved assignment/test-run failure diagnostics.
 
 This is not completion of the broad security goal. Transport hardening, optional
 Gradex failure diagnostics, other application/database logs, product-feedback
