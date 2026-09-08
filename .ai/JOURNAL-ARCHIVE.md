@@ -31361,3 +31361,15 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
 - The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
 - Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
+
+<!-- pika-session-log-archive-batch:3e085d7099d0762f97f1595672ed2ac9e00bce076d2527ff18381a387e63d122 -->
+## 2026-09-06 — Relaunch local Pika development server
+
+- Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
+- Fixed the existing Tailwind config's Node 24/ESM startup incompatibility by importing the typography plugin instead of calling CommonJS `require`. TypeScript and diff checks pass; no product behavior, schema, migration, hosted data, or deployment changed.
+
+<!-- pika-session-log-archive-batch:9a42cb8292366afb4587dc1ac6171503419697820a1523c3f69e7efecb8b61f1 -->
+## 2026-09-06 — Show Email(2nd) at medium roster widths
+
+- Fixed the roster `Email(2nd)` column's responsive `<colgroup>` definition so it is visible at the same medium breakpoint as the main email column. At the open 877px in-app roster view, the full header and secondary-email edit controls now appear instead of the column being collapsed by its remaining `lg` rule.
+- Added the responsive-column regression assertion. Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the in-app browser recheck shows the corrected column without layout overflow. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.

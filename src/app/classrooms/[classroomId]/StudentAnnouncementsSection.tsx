@@ -9,6 +9,7 @@ import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui'
 import {
   formatAnnouncementTimestamp,
+  getAnnouncementPublicationTimestamp,
   normalizeAnnouncementTitle,
   sortAnnouncementsNewestFirst,
 } from '@/lib/announcements'
@@ -171,7 +172,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
             className="bg-surface rounded-lg border border-border p-4"
           >
             <p className="text-[11px] text-text-muted mb-2">
-              {formatAnnouncementTimestamp(announcement.created_at)}
+              {formatAnnouncementTimestamp(getAnnouncementPublicationTimestamp(announcement))}
               {announcement.updated_at !== announcement.created_at && ' (edited)'}
             </p>
             {title && (

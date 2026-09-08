@@ -451,7 +451,9 @@ async function buildActualCourseSite(
         return !match || match[1] <= maxLessonDate
       }),
       announcements: sourceResult.source.announcements.filter(
-        (announcement) => !announcement.scheduled_for || announcement.scheduled_for <= nowIso
+        (announcement) => !announcement.is_draft && (
+          !announcement.scheduled_for || announcement.scheduled_for <= nowIso
+        )
       ),
     },
   }

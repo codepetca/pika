@@ -48,7 +48,6 @@ const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 const MONTH_ROW_MIN_HEIGHT = '4.5rem'
 const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
-const MAX_BROWSER_TIMEOUT_MS = 2_147_483_647
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -97,29 +96,6 @@ export function LessonCalendar({
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [currentTorontoDate])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
-  const [announcementNowMs, setAnnouncementNowMs] = useState(Date.now)
-  const announcementReferenceMs = useMemo(
-    () => Math.max(announcementNowMs, Date.now()),
-    [announcementNowMs, announcements],
-  )
-
-  useEffect(() => {
-    const nowMs = Date.now()
-    const nextPublicationMs = announcements.reduce<number | null>((nearest, announcement) => {
-      if (!announcement.scheduled_for) return nearest
-      const scheduledMs = new Date(announcement.scheduled_for).getTime()
-      if (!Number.isFinite(scheduledMs) || scheduledMs <= nowMs) return nearest
-      return nearest === null || scheduledMs < nearest ? scheduledMs : nearest
-    }, null)
-    if (nextPublicationMs === null) return
-
-    const timeoutId = window.setTimeout(
-      () => setAnnouncementNowMs(Date.now()),
-      Math.min(MAX_BROWSER_TIMEOUT_MS, Math.max(1, nextPublicationMs - nowMs + 50)),
-    )
-    return () => window.clearTimeout(timeoutId)
-  }, [announcementNowMs, announcements])
-
   const handlePresentedDayPrev = useCallback(() => {
     setPresentedDay((d) => (d ? addDays(d, -1) : d))
   }, [])
@@ -166,13 +142,12 @@ export function LessonCalendar({
   }, [assignments])
 
   // Build a map of date -> announcements for quick lookup
-  // Scheduled announcements appear on their scheduled_for date
-  // Published announcements appear on their created_at date
+  // Announcements stay on the date they are published, including after a
+  // scheduled publication boundary passes. Drafts are excluded.
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
-    const now = new Date(announcementReferenceMs)
     announcements.forEach((announcement) => {
-      const dateString = getCalendarAnnouncementDate(announcement, now)
+      const dateString = getCalendarAnnouncementDate(announcement)
       if (!dateString) return
       const existing = map.get(dateString)
       if (existing) {
@@ -182,7 +157,7 @@ export function LessonCalendar({
       }
     })
     return map
-  }, [announcementReferenceMs, announcements])
+  }, [announcements])
 
   // Build a set of class day dates for quick lookup
   const classDayDates = useMemo(() => {

@@ -46,16 +46,31 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
   const user = await requireRole('teacher')
   const { id: classroomId, announcementId } = await context.params
   const body = await request.json()
-  const { content, scheduled_for, title } = body as {
+  const { content, is_draft, scheduled_for, title } = body as {
     content?: string
+    is_draft?: boolean
     scheduled_for?: string | null
     title?: unknown
   }
 
   // Require at least one field to update
-  if (content === undefined && scheduled_for === undefined && title === undefined) {
+  if (content === undefined && is_draft === undefined && scheduled_for === undefined && title === undefined) {
     return NextResponse.json(
       { error: 'Content is required' },
+      { status: 400 }
+    )
+  }
+
+  if (is_draft !== undefined && typeof is_draft !== 'boolean') {
+    return NextResponse.json(
+      { error: 'Draft state must be true or false' },
+      { status: 400 }
+    )
+  }
+
+  if (is_draft && scheduled_for) {
+    return NextResponse.json(
+      { error: 'A draft cannot also be scheduled' },
       { status: 400 }
     )
   }
@@ -111,12 +126,28 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
   const supabase = getServiceRoleClient()
 
   // Build update object with only provided fields
-  const updateData: { content?: string; scheduled_for?: string | null; title?: string | null } = {}
+  const updateData: {
+    content?: string
+    is_draft?: boolean
+    published_at?: string | null
+    scheduled_for?: string | null
+    title?: string | null
+  } = {}
   if (content !== undefined) {
     updateData.content = content.trim()
   }
-  if (scheduled_for !== undefined) {
+  if (is_draft === true) {
+    updateData.is_draft = true
+    updateData.published_at = null
+    updateData.scheduled_for = null
+  } else if (scheduled_for !== undefined) {
+    updateData.is_draft = false
+    updateData.published_at = scheduled_for ?? new Date().toISOString()
     updateData.scheduled_for = scheduled_for
+  } else if (is_draft === false && ownership.announcement.is_draft) {
+    updateData.is_draft = false
+    updateData.published_at = new Date().toISOString()
+    updateData.scheduled_for = null
   }
   if (title !== undefined) {
     updateData.title = parsedTitle.value ?? null
