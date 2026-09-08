@@ -61,11 +61,9 @@ export async function executeStructuredOutput<TOutput>(opts: {
   let output: TOutput
   try {
     output = opts.parseOutput(providerResponse.outputText)
-  } catch (error) {
-    throw new GradingOutputError(
-      error instanceof Error ? error.message : 'Grading provider returned invalid output',
-      { cause: error },
-    )
+  } catch {
+    // JSON/schema errors and their causes can contain provider-supplied student text.
+    throw new GradingOutputError('Grading provider returned invalid output')
   }
 
   return {
@@ -99,11 +97,8 @@ export async function executeGrading<TInput, TOutput>(opts: {
   let normalized: ReturnType<typeof opts.profile.normalizeOutput>
   try {
     normalized = opts.profile.normalizeOutput(structured.output)
-  } catch (error) {
-    throw new GradingOutputError(
-      error instanceof Error ? error.message : 'Grading provider returned invalid output',
-      { cause: error },
-    )
+  } catch {
+    throw new GradingOutputError('Grading provider returned invalid output')
   }
 
   if (!normalized.feedback.student.trim()) {
@@ -114,10 +109,10 @@ export async function executeGrading<TInput, TOutput>(opts: {
   const seen = new Set<string>()
   for (const result of normalized.criteria) {
     if (!criteriaById.has(result.criterionId)) {
-      throw new GradingOutputError(`Unknown grading criterion: ${result.criterionId}`)
+      throw new GradingOutputError('Unknown grading criterion')
     }
     if (seen.has(result.criterionId)) {
-      throw new GradingOutputError(`Duplicate grading criterion result: ${result.criterionId}`)
+      throw new GradingOutputError('Duplicate grading criterion result')
     }
     seen.add(result.criterionId)
   }
@@ -148,7 +143,7 @@ export async function executeGrading<TInput, TOutput>(opts: {
   const overallScore = round2(criteriaResults.reduce((sum, result) => sum + result.weightedScore, 0))
   const maxScore = round2(criteriaResults.reduce((sum, result) => sum + result.weightedMaxScore, 0))
 
-  return gradingResultSchema.parse({
+  const result = gradingResultSchema.safeParse({
     overallScore,
     maxScore,
     percent: maxScore > 0 ? round2((overallScore / maxScore) * 100) : 0,
@@ -166,6 +161,10 @@ export async function executeGrading<TInput, TOutput>(opts: {
     tokenUsage: structured.execution.tokenUsage,
     providerRequestCount: structured.execution.providerRequestCount,
   })
+  if (!result.success) {
+    throw new GradingOutputError('Grading provider returned invalid result')
+  }
+  return result.data
 }
 
 function round2(value: number): number {

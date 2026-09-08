@@ -154,41 +154,39 @@ function replaceStudentNames(
 ): { text: string; replacementCount: number } {
   const nameToInitials: Record<string, string> = {}
   for (const [initials, fullName] of Object.entries(initialsMap)) {
-    nameToInitials[fullName] = initials
+    nameToInitials[fullName.normalize('NFC')] = initials
   }
 
-  let result = text
   let replacementCount = 0
-
-  const fullNames = students
-    .map((s) => `${s.firstName} ${s.lastName}`)
-    .filter((name) => name.trim().length > 1)
-    .sort((a, b) => b.length - a.length)
-
-  for (const fullName of fullNames) {
-    const initials = nameToInitials[fullName]
-    if (!initials) continue
-    const escaped = escapeRegExp(fullName)
-    result = result.replace(new RegExp(escaped, 'gi'), () => {
-      replacementCount += 1
-      return initials
-    })
-  }
-
+  const replacements = new Map<string, string>()
   for (const student of students) {
-    const fullName = `${student.firstName} ${student.lastName}`
+    const fullName = `${student.firstName} ${student.lastName}`.normalize('NFC')
     const initials = nameToInitials[fullName]
     if (!initials) continue
 
-    for (const name of [student.firstName, student.lastName]) {
-      if (!name || name.length < 2) continue
-      const escaped = escapeRegExp(name)
-      result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), () => {
-        replacementCount += 1
-        return initials
-      })
+    for (const rawName of [fullName, student.firstName, student.lastName]) {
+      const name = rawName.normalize('NFC').trim()
+      // Preserve prose such as "I agree", but support one-character non-Latin names.
+      if (!name || /^[a-z]$/i.test(name)) continue
+      if (!replacements.has(name)) replacements.set(name, initials)
     }
   }
+
+  if (replacements.size === 0) return { text, replacementCount }
+
+  const names = [...replacements.entries()].sort(([a], [b]) => b.length - a.length)
+  // Unicode letters, marks, numbers and connector punctuation are word constituents.
+  // One pass avoids matching a student's name again inside generated initials.
+  const word = '[\\p{L}\\p{M}\\p{N}\\p{Pc}]'
+  const pattern = new RegExp(
+    `(?<!${word})(?:${names.map(([name]) => `(${escapeRegExp(name)})`).join('|')})(?!${word})`,
+    'giu',
+  )
+  const result = text.normalize('NFC').replace(pattern, (_match, ...args: unknown[]) => {
+    const index = args.slice(0, names.length).findIndex((group) => group !== undefined)
+    replacementCount += 1
+    return names[index][1]
+  })
 
   return { text: result, replacementCount }
 }

@@ -760,6 +760,45 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
     }))
   })
 
+  it.each(['http', 'json', 'output', 'network'])('does not persist private provider content on %s failure', async (stage) => {
+    const originalApiKey = process.env.OPENAI_API_KEY
+    process.env.OPENAI_API_KEY = 'synthetic-key'
+    const privateMarker = 'PRIVATE synthetic@example.invalid code-123456 student-work'
+    const fetchMock = vi.fn()
+    if (stage === 'network') fetchMock.mockRejectedValue(new Error(privateMarker))
+    else fetchMock.mockResolvedValue(new Response(
+      stage === 'output' ? JSON.stringify({ output_text: privateMarker }) : privateMarker,
+      { status: stage === 'http' ? 400 : 200 },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const harness = buildTickHarness({
+        skipReason: null,
+        assignmentDoc: {
+          id: 'doc-1', student_id: 'student-1',
+          content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph',
+            content: [{ type: 'text', text: 'Synthetic submission' }] }] }),
+          feedback: null, authenticity_score: null, updated_at: '2026-04-21T12:00:00.000Z',
+        },
+        upsertError: null,
+      })
+      const result = await tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
+      expect(result.claimed).toBe(true)
+      expect(harness.items[0]).toMatchObject({
+        status: stage === 'network' ? 'queued' : 'failed',
+        last_error_code: stage === 'output' ? 'invalid_output' : stage === 'network' ? 'network' : 'bad_response',
+        last_error_message: stage === 'http' ? 'OpenAI request failed (400)'
+          : stage === 'json' ? 'OpenAI returned invalid JSON (status 200)'
+            : stage === 'output' ? 'Grading provider returned invalid output' : 'OpenAI request failed',
+      })
+      expect(JSON.stringify(harness.items)).not.toContain(privateMarker)
+      expect(JSON.stringify(result)).not.toContain(privateMarker)
+    } finally {
+      process.env.OPENAI_API_KEY = originalApiKey
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('requeues an item when the provider response body times out', async () => {
     const originalApiKey = process.env.OPENAI_API_KEY
     process.env.OPENAI_API_KEY = 'test-key'

@@ -12,6 +12,10 @@ that sanitized copy to the provider.
   student numbers, UUIDs, and street-like addresses.
 - Load classroom roster/profile names for grading paths and replace known
   student names with initials before provider egress.
+- Match names using Unicode word boundaries and canonical NFC equivalence on
+  the outbound copy only. Initials remain linkable pseudonyms, not guaranteed
+  anonymity; names embedded in larger words or absent from the roster and
+  sensitive personal narratives are not comprehensively deidentified.
 - If classroom roster/profile names cannot be loaded, fail closed before the
   provider call instead of sending grading text with only direct-identifier
   redaction.
@@ -23,6 +27,11 @@ that sanitized copy to the provider.
   sending. Unexpected fields should fail closed.
 - Set provider retention controls such as `store: false` where supported.
 - Sanitize provider output before saving feedback locally.
+- Keep grading-provider and output-validation failures content-free: bounded
+  category, status and retryability may reach logs or saved run errors, but not
+  raw response bodies, arbitrary headers/messages or parser/transport causes.
+  Brevo delivery failures follow the same content-free diagnostic rule. This
+  does not certify other application/database/integration logging paths.
 
 ## Current Paths
 

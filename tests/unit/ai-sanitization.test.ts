@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildInitialsMap,
+  buildAiSanitizationContext,
   createProviderRefMap,
   mapProviderRefToLocalId,
   redactDirectIdentifiers,
@@ -51,6 +52,43 @@ describe('ai-sanitization', () => {
 
   it('falls back to direct identifier redaction without a roster map', () => {
     expect(sanitizeAiText('Contact me at alex@example.com.')).toBe('Contact me at [email redacted].')
+  })
+
+  it.each([
+    ['Élodie', 'Gagné'],
+    ['Мария', 'Иванова'],
+    ['عائشة', 'محمود'],
+    ['小明', '王'],
+  ])('redacts standalone Unicode names for %s %s in one pass', (firstName, lastName) => {
+    const context = buildAiSanitizationContext([{ firstName, lastName }])
+    const initials = Object.keys(context.initialsMap)[0]
+    expect(sanitizeAiText(`${firstName} wrote with ${lastName}. ${firstName} ${lastName}!`, context))
+      .toBe(`${initials} wrote with ${initials}. ${initials}!`)
+  })
+
+  it('matches canonically equivalent accents and case without mutating the roster', () => {
+    const context = buildAiSanitizationContext([{ firstName: 'Élodie', lastName: 'Gagné' }])
+    const before = structuredClone(context)
+    expect(sanitizeAiText('E\u0301LODIE and gagne\u0301.', context)).toBe('É.G. and É.G..')
+    expect(context).toEqual(before)
+    const decomposedRoster = buildAiSanitizationContext([
+      { firstName: 'E\u0301lodie', lastName: 'Gagne\u0301' },
+    ])
+    expect(sanitizeAiText('Élodie Gagné; Élodie', decomposedRoster)).toBe('E.G.; E.G.')
+  })
+
+  it('preserves larger Unicode words and identifiers while matching punctuation-delimited names', () => {
+    const context = buildAiSanitizationContext([{ firstName: 'Élodie', lastName: 'Gagné' }])
+    expect(sanitizeAiText('préÉlodie ÉlodieX Élodie2 Élodie_id Élodie\u203fname (Élodie), «Gagné».', context))
+      .toBe('préÉlodie ÉlodieX Élodie2 Élodie_id Élodie\u203fname (É.G.), «É.G.».')
+  })
+
+  it('handles compound names and keeps single ASCII initials from replacing prose', () => {
+    const context = buildAiSanitizationContext([
+      { firstName: 'Anne-Marie', lastName: "O'Neill" },
+      { firstName: 'I', lastName: 'Smith' },
+    ])
+    expect(sanitizeAiText("Anne-Marie and O'Neill: I agree.", context)).toBe('A.O. and A.O.: I agree.')
   })
 
   it('sanitizes provider output before local persistence', () => {

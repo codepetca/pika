@@ -31248,3 +31248,22 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Entering the classroom calendar step now immediately invokes the browser's native picker for First day of class from the originating Next-button gesture. Unsupported or restricted browsers retain the focused native date input as the fallback; no custom embedded calendar was introduced.
 - A semantic component regression verifies picker invocation and focus. The full focused gate passes 42 files / 609 tests plus architecture, UI/design policy, TypeScript and lint; the eight-check browser flow, cross-role screenshot pass and Pika audit pass. Existing teacher desktop/mobile light/dark layouts remain unchanged. No migration, hosted data, deployment, commit or PR action was performed.
+
+<!-- pika-session-log-archive-batch:f1a6fa5d427b65c27ce4f28526cd52d16e9bb80370c86c31d28137c4c51d5a02 -->
+## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
+
+- Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
+- Selected dates display in long form such as `September 9, 2026`; the underlying ISO values still drive the API. The existing immediate native-picker opening and progressive last-day reveal remain. Focus rings transfer to the readable control and a Lucide calendar icon preserves the familiar affordance.
+- Component, TypeScript, UI/design policy and the eight-check browser flow pass. Teacher desktop light and mobile dark selected-date states were visually inspected, including the open native calendar; the browser console has no errors. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Progressively reveal the last class day
+
+- Simplified the calendar step to begin with only `First day of class`; removed its heading, subtitle and helper text. Selecting the first day now reveals an editable, five-month-prefilled `Last day of class` with `You can modify this later in Settings.`
+- The chosen last day is sent through blank and Blueprint classroom creation, and Create remains disabled until both dates are present. Semantic component coverage and the eight-check classroom-creation browser contract verify the hidden/revealed states, generated default and required fields.
+- Focused gate passes 42 files / 608 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile light/dark states were visually inspected and the browser console had no errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
+
+## 2026-09-04 — Default class end dates to fixed term boundaries
+
+- Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
+- The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
+- The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.

@@ -98,13 +98,14 @@ async function fetchPayload(
       kind: timedOut ? 'timeout' : 'network',
       message: timedOut
         ? 'OpenAI grading request timed out'
-        : error instanceof Error ? error.message : 'OpenAI request failed',
+        : 'OpenAI request failed',
       retryable: true,
     })
   }
 
   if (!response.ok) {
-    const bodyText = await response.text().catch(() => '')
+    // Provider bodies may echo prompts or credentials. Never retain them in diagnostics.
+    await response.body?.cancel().catch(() => {})
     const retryable = RETRYABLE_STATUS_CODES.has(response.status)
     throw new GradingProviderError({
       kind: response.status === 429
@@ -114,39 +115,25 @@ async function fetchPayload(
           : response.status === 401 || response.status === 403
             ? 'config'
             : 'bad_response',
-      message: `OpenAI request failed (${response.status}): ${bodyText}`,
+      message: `OpenAI request failed (${response.status})`,
       retryable,
       statusCode: response.status,
     })
   }
 
-  const fallbackBodyTextPromise = typeof response.clone === 'function'
-    ? response.clone().text().catch(() => '')
-    : Promise.resolve('')
-
   try {
     return await response.json()
   } catch (error) {
     const timedOut = isTimeoutError(error)
-    const bodyText = timedOut ? '' : await fallbackBodyTextPromise
     throw new GradingProviderError({
       kind: timedOut ? 'timeout' : 'bad_response',
       message: timedOut
         ? 'OpenAI grading response timed out'
-        : buildInvalidJsonMessage(response, bodyText),
+        : `OpenAI returned invalid JSON (status ${response.status})`,
       retryable: timedOut,
       statusCode: response.status,
     })
   }
-}
-
-function buildInvalidJsonMessage(response: Response, bodyText: string): string {
-  const contentType = response.headers.get('content-type')?.trim() || 'unknown content-type'
-  const normalized = bodyText.replace(/\s+/g, ' ').trim()
-  const summary = normalized.length > 240 ? `${normalized.slice(0, 237)}...` : normalized
-  return summary
-    ? `OpenAI returned invalid JSON (status ${response.status}, ${contentType}): ${summary}`
-    : `OpenAI returned invalid JSON (status ${response.status}, ${contentType})`
 }
 
 function extractOutputText(payload: unknown): string | null {

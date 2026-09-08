@@ -580,7 +580,7 @@ describe('suggestTestOpenResponseGrade', () => {
         answerKey: 'Use a counted loop from 1 through 10 and print each value.',
       })
     ).rejects.toThrow(
-      'OpenAI returned invalid JSON (status 200, text/plain; charset=utf-8): An error occurred while processing your request.'
+      'OpenAI returned invalid JSON (status 200)'
     )
   })
 })

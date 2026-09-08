@@ -14,11 +14,13 @@ describe('sendBrevoEmail', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     process.env = { ...originalEnv }
   })
 
   afterEach(() => {
     process.env = originalEnv
+    vi.restoreAllMocks()
   })
 
   it('should throw error when BREVO_API_KEY is not configured', async () => {
@@ -141,7 +143,29 @@ describe('sendBrevoEmail', () => {
         to: 'user@example.com',
         templateParams: { code: 'ABC123' },
       })
-    ).rejects.toThrow('Failed to send email via Brevo (401): Unauthorized')
+    ).rejects.toThrow(/^Failed to send email via Brevo \(401\)$/)
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it.each(['http', 'network', 'body'])('does not retain private data from a %s failure', async (failure) => {
+    process.env.BREVO_API_KEY = 'synthetic-key'
+    process.env.BREVO_TEMPLATE_ID = '2'
+    const privateMarker = 'PRIVATE student@example.invalid code-123456'
+    const readBody = vi.fn().mockRejectedValue(new Error(privateMarker))
+    const cancel = vi.fn().mockRejectedValue(new Error(privateMarker))
+    if (failure === 'network') mockFetch.mockRejectedValueOnce(new Error(privateMarker))
+    else mockFetch.mockResolvedValueOnce({ ok: failure !== 'http', status: failure === 'http' ? 400 : 201,
+      text: readBody, body: { cancel } })
+    const error = await sendBrevoEmail({ to: 'student@example.invalid', templateParams: { code: '123456' } })
+      .catch((error: unknown) => error)
+    expect(error).toBeInstanceOf(Error)
+    expect(String(error)).not.toContain(privateMarker)
+    expect(error).not.toHaveProperty('cause')
+    expect(console.error).not.toHaveBeenCalled()
+    if (failure === 'http') {
+      expect(readBody).not.toHaveBeenCalled()
+      expect(cancel).toHaveBeenCalledOnce()
+    }
   })
 
   it('should return messageId undefined when response is not JSON', async () => {

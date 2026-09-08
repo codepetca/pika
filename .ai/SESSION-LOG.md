@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-04 — Make wizard calendar inputs fully clickable and readable
-
-- Removed the visible required stars from First day of class and Last day of class while retaining semantic required state and Create-button validation. Each field now layers the native date input across the complete control, so clicking anywhere opens the calendar and typing directly is unavailable.
-- Selected dates display in long form such as `September 9, 2026`; the underlying ISO values still drive the API. The existing immediate native-picker opening and progressive last-day reveal remain. Focus rings transfer to the readable control and a Lucide calendar icon preserves the familiar affordance.
-- Component, TypeScript, UI/design policy and the eight-check browser flow pass. Teacher desktop light and mobile dark selected-date states were visually inspected, including the open native calendar; the browser console has no errors. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Progressively reveal the last class day
-
-- Simplified the calendar step to begin with only `First day of class`; removed its heading, subtitle and helper text. Selecting the first day now reveals an editable, five-month-prefilled `Last day of class` with `You can modify this later in Settings.`
-- The chosen last day is sent through blank and Blueprint classroom creation, and Create remains disabled until both dates are present. Semantic component coverage and the eight-check classroom-creation browser contract verify the hidden/revealed states, generated default and required fields.
-- Focused gate passes 42 files / 608 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile light/dark states were visually inspected and the browser console had no errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
-
-## 2026-09-04 — Default class end dates to fixed term boundaries
-
-- Replaced the rolling five-month end-date estimate with fixed school-term boundaries based on the teacher-selected first class day: January through June defaults to June 30, while July through December defaults to January 31 of the following year. A June 30 start advances to the following January 31 so the editable range remains valid.
-- The shared helper keeps classroom creation and the matching Settings setup aligned. Component and browser coverage explicitly verify January 1, 2027 → June 30, 2027 and November 30, 2026 → January 31, 2027.
-- The full focused gate passes 42 files / 610 tests plus architecture, UI/design policy, TypeScript and lint; the audit and eight-check browser flow also pass. Teacher desktop light and mobile dark selected-date states were visually inspected with no console errors; student creation is not applicable. No migration, hosted data, deployment, commit or PR action was performed.
-
 ## 2026-09-04 — Restore the post-creation class-day review notice
 
 - Newly created classrooms now open with a teacher-only `Review class days` warning even when weekday generation succeeded. Its guidance reads `Review holidays, PA days, and other non-class days.`; `Review now` opens Settings > Class Days and clears the one-time URL flag.
@@ -264,3 +246,10 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Targeted review found the first harness incorrectly depended on seeded users/classrooms that fresh CI does not provide. Replaced cloning with explicit minimal fixtures and exercised absent target, missing target, owner drift, success, and post-correction write rejection through the migration-owned private operation. The corrected rollback harness, database lint, and focused gate pass.
 - Final integration review found lesson-plan saves could still recreate pre-start plans or mutation heads. Extended the exact-classroom guard and rollback assertions to both tables, rebased onto current main, and reran the full correction harness successfully. This is the third and final remediation batch; production remains unchanged pending stable-head review and CI.
 - Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.
+
+## 2026-09-07 — Audit third-party student-data egress
+
+- User deferred the embedded exam PDF-viewer check and continued the security goal. Created isolated `codex/student-data-egress-audit` on current main; audited paths match production source. Recorded data destinations, existing safeguards, retention unknowns and remediation sequence in `docs/guidance/student-data-egress-audit.md`.
+- Local synthetic probes against actual sanitizer/provider code confirmed standalone accented-name leakage and raw provider-body retention in grading errors. Reviewed the downstream persistence path, Brevo error logging, nightly second-use journal extraction and inconsistent outbound redirect/Gradex URL controls. No live student data or paid/provider calls were used.
+- Next: approve the narrow name-redaction/error-diagnostic implementation, then environment verification, regressions, focused checks and draft-first independent review. Product-feedback scope and remote retention/deletion remain separate decisions. No product code, migration, production configuration, PR or deployment changed.
+- User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
