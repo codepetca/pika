@@ -34,9 +34,17 @@ interface AttendanceWindowDialogProps {
   onSaved: (policy: TeacherAttendancePolicy, scheduleSynced: boolean) => void
 }
 
+const NUMBER_INPUT_CLASS = '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+
 function clampMinutes(value: number, maximum: number) {
   if (!Number.isFinite(value)) return 0
   return Math.min(Math.max(value, 0), maximum)
+}
+
+function readClampedMinutes(input: HTMLInputElement, maximum: number) {
+  const value = clampMinutes(Number(input.value), maximum)
+  input.value = String(value)
+  return value
 }
 
 export function AttendanceWindowDialog(props: AttendanceWindowDialogProps) {
@@ -257,8 +265,10 @@ function AttendanceWindowDialogContent({
                   min={0}
                   max={120}
                   value={entryOpensMinutesBefore}
+                  className={NUMBER_INPUT_CLASS}
                   disabled={saving}
-                  onChange={(event) => setEntryOpensMinutesBefore(clampMinutes(Number(event.target.value), 120))}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setEntryOpensMinutesBefore(readClampedMinutes(event.currentTarget, 120))}
                 />
               </FormField>
               <FormField label="Grace period before late (min)">
@@ -267,8 +277,10 @@ function AttendanceWindowDialogContent({
                   min={0}
                   max={timingRuleMaximum}
                   value={presentGraceMinutes}
+                  className={NUMBER_INPUT_CLASS}
                   disabled={saving}
-                  onChange={(event) => setPresentGraceMinutes(clampMinutes(Number(event.target.value), timingRuleMaximum))}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setPresentGraceMinutes(readClampedMinutes(event.currentTarget, timingRuleMaximum))}
                 />
               </FormField>
               <FormField label="QR closes before end (min)">
@@ -277,8 +289,10 @@ function AttendanceWindowDialogContent({
                   min={0}
                   max={timingRuleMaximum}
                   value={entryClosesMinutesBeforeEnd}
+                  className={NUMBER_INPUT_CLASS}
                   disabled={saving}
-                  onChange={(event) => setEntryClosesMinutesBeforeEnd(clampMinutes(Number(event.target.value), timingRuleMaximum))}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setEntryClosesMinutesBeforeEnd(readClampedMinutes(event.currentTarget, timingRuleMaximum))}
                 />
               </FormField>
               <FormField label="Absent before end (min)">
@@ -287,8 +301,10 @@ function AttendanceWindowDialogContent({
                   min={0}
                   max={timingRuleMaximum}
                   value={absentMinutesBeforeEnd}
+                  className={NUMBER_INPUT_CLASS}
                   disabled={saving}
-                  onChange={(event) => setAbsentMinutesBeforeEnd(clampMinutes(Number(event.target.value), timingRuleMaximum))}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setAbsentMinutesBeforeEnd(readClampedMinutes(event.currentTarget, timingRuleMaximum))}
                 />
               </FormField>
             </div>
