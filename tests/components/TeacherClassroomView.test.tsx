@@ -2042,6 +2042,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
     const assignmentActions = screen.getByRole('region', { name: 'Assignment actions' })
     expect(assignmentActions).toHaveTextContent('Assignment One')
+    expect(within(assignmentActions).getByTitle('Assignment One')).toBeVisible()
     expect(within(assignmentActions).queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Edit classwork' })).not.toBeInTheDocument()

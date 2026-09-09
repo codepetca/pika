@@ -2653,13 +2653,13 @@ export function TeacherTestsTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Test grading controls"
       testId="test-grading-context-bar"
-      className="grid-cols-[minmax(0,1fr)_auto] py-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:py-1"
+      className="py-2 sm:py-1"
       context={selectedTestContext}
-      contextClassName="col-span-2 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
+      contextClassName="col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
       primary={selectedTestControls}
-      primaryClassName="col-start-1 row-start-2 justify-self-start sm:col-start-2 sm:row-start-1 sm:justify-self-center"
+      primaryClassName="col-start-2 row-start-2 sm:row-start-1"
       actions={selectedTestUtilities}
-      trailingClassName="col-start-2 row-start-2 overflow-visible sm:col-start-3 sm:row-start-1"
+      trailingClassName="col-start-3 row-start-2 overflow-visible sm:row-start-1"
     />
   ) : (
     <TeacherWorkSurfaceContextBar

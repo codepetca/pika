@@ -1909,6 +1909,7 @@ describe('TeacherTestsTab', () => {
 
     const contextBar = screen.getByTestId('test-grading-context-bar')
     expect(contextBar).toHaveTextContent('Unit Test')
+    expect(within(contextBar).getByTitle('Unit Test')).toBeVisible()
     expect(within(contextBar).queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
     expect(contextBar).not.toHaveTextContent(/Draft|Active|Closed/)
     expect(within(contextBar).getByRole('button', { name: 'Close All' })).toBeEnabled()

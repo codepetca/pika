@@ -128,13 +128,13 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
   const workspaceBar = selectedItem ? (
     <TeacherWorkSurfaceContextBar
       ariaLabel={`${selectedItem.kind} workspace actions`}
-      className="grid-cols-[minmax(0,1fr)_auto] py-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:py-1"
+      className="py-2 sm:py-1"
       context={(
         <span className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64" title={selectedItem.title}>
           {selectedItem.title}
         </span>
       )}
-      contextClassName="col-span-2 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
+      contextClassName="col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
       primary={(
         <TeacherWorkSurfaceModeBar<WorkspaceMode>
           ariaLabel="Selected work modes"
@@ -162,7 +162,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           ) : undefined}
         />
       )}
-      primaryClassName="col-start-1 row-start-2 justify-self-start sm:col-start-2 sm:row-start-1 sm:justify-self-center"
+      primaryClassName="col-start-2 row-start-2 sm:row-start-1"
       actions={(
         <TeacherWorkSurfaceIconMenuButton
           ariaLabel="More actions"
@@ -177,7 +177,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           ]}
         />
       )}
-      trailingClassName="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1"
+      trailingClassName="col-start-3 row-start-2 sm:row-start-1"
     />
   ) : summaryBar
 
