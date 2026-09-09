@@ -488,7 +488,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   // Keep the fixture's relative "Today" timestamp stable across calendar days.
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
   let attendanceConfigured = true
-  let attendanceSessionState: 'open' | 'closed' | 'scheduled' = 'open'
+  let attendanceSessionState: 'open' | 'closed' | 'scheduled' | 'cancelled' = 'open'
   let classroomQrGeneration = 1
   let classroomQrToken = 'a'.repeat(43)
   let loseNextRotationResponse = false
@@ -906,7 +906,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
 
   attendanceSessionState = 'closed'
   await page.evaluate(() => window.localStorage.setItem('teacher-daily:show-id', 'true'))
-  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto(page.url(), { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Classroom QR' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
   await page.screenshot({
@@ -915,10 +915,10 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   })
 
   attendanceSessionState = 'scheduled'
-  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto(page.url(), { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Classroom QR' })).toBeEnabled()
   await contextBar.getByRole('button', { name: 'More actions' }).click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Open attendance' })).toBeVisible()
@@ -928,8 +928,19 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     animations: 'disabled',
   })
 
+  attendanceSessionState = 'cancelled'
+  await page.goto(page.url(), { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Edit attendance' })).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-cancelled-manual-enabled.png`),
+    animations: 'disabled',
+  })
+  await page.keyboard.press('Escape')
+
   attendanceConfigured = false
-  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto(page.url(), { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Attendance hours are not configured.', { exact: false })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Select Student/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Student actions/ })).toHaveCount(0)

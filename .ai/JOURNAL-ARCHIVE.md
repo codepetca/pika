@@ -31435,3 +31435,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
 - Focused checks pass 1,552 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile, student route, and a direct mobile modal capture were inspected; no overflow or spacing regression was visible. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:82bb3c17b8f150fe4c7dca0ebc9efe3a7aec393467a474c48b2db681b5da32ea -->
+## 2026-09-06 — Space and emphasize roster tooltip format
+
+- Added vertical spacing between the three roster-help lines and emphasized `First Last Email [ID] [Email 2]` with semibold text. The optional-fields note remains on its own line.
+- Reused the existing tooltip content owner and shared spacing/type tokens. Focused tests, the full focused gate, and direct desktop/mobile browser assertions for line separation, font weight, and containment pass. No schema, data, API, dependency, deployment or merge action.

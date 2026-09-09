@@ -808,7 +808,7 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
-  it('disables row attendance controls and QR while the selected session is scheduled', async () => {
+  it('keeps manual corrections available while QR is not yet open', async () => {
     mockCombinedFetch(combinedAttendanceView({
       session: {
         ...combinedAttendanceView().session,
@@ -828,30 +828,36 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test present' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeDisabled()
-  })
-
-  it('keeps row corrections available for a closed attendance session', async () => {
-    mockCombinedFetch(combinedAttendanceView({
-      session: {
-        ...combinedAttendanceView().session,
-        state: 'closed',
-      },
-    }))
-    render(
-      <TooltipProvider>
-        <AppMessageProvider>
-          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
-        </AppMessageProvider>
-      </TooltipProvider>,
-    )
-
-    expect(await screen.findByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test present' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeEnabled()
   })
+
+  it.each(['closed', 'cancelled'] as const)(
+    'keeps row and class-wide corrections available for a %s attendance session',
+    async (state) => {
+      mockCombinedFetch(combinedAttendanceView({
+        session: {
+          ...combinedAttendanceView().session,
+          state,
+        },
+      }))
+      const user = userEvent.setup()
+      render(
+        <TooltipProvider>
+          <AppMessageProvider>
+            <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+          </AppMessageProvider>
+        </TooltipProvider>,
+      )
+
+      expect(await screen.findByRole('button', { name: 'Show QR' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeEnabled()
+    },
+  )
 
   it('hides and restores the relative date from Daily More actions', async () => {
     mockLogsFetch()
