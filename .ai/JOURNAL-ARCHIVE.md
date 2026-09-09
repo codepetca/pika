@@ -31423,3 +31423,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Removed the repeated example from the Add Students tooltip and formatted the remaining guidance as three lines: one student per line, `First Last Email [ID] [Email 2]`, and `ID and Email2 are optional`. The placeholder remains the concrete example.
 - Reused the existing `IconButton` and `Tooltip`; widened the shared tooltip prop to accept formatted React content without changing existing callers. Focused tests, the full focused gate, teacher/student route captures, and a direct desktop tooltip assertion pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:7a7236ab7960b2f7eec560f2e6c07311a8a2004dd9f3964d968a16bee908c0ab -->
+## 2026-09-06 — Soften Add Students live warnings
+
+- Removed the warning summary sentence and promoted each line-level roster message to readable body size. Reserved a compact warning slot below the textarea so the ready count and action buttons remain stable when guidance appears or clears.
+- Reused the existing semantic warning treatment and live status behavior. Component tests, the full focused gate, teacher/student route captures, and desktop/mobile warning and valid-state browser checks pass. No schema, data, API, dependency, deployment or merge action.

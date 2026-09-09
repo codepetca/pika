@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Soften Add Students live warnings
-
-- Removed the warning summary sentence and promoted each line-level roster message to readable body size. Reserved a compact warning slot below the textarea so the ready count and action buttons remain stable when guidance appears or clears.
-- Reused the existing semantic warning treatment and live status behavior. Component tests, the full focused gate, teacher/student route captures, and desktop/mobile warning and valid-state browser checks pass. No schema, data, API, dependency, deployment or merge action.
-
 ## 2026-09-06 — Remove Add Students action divider
 
 - Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
@@ -269,9 +264,11 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Targeted re-review found that preview cleanup could retain a callback from before a parent rerender or drop a removed handler before clearing it. Active previews now refresh their callback by stable action ID and clear before a handler disappears; both regressions and the existing inspector compatibility case pass.
 - Focused checks pass 44 files / 641 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Eight browser scenarios pass across teacher/student, desktop/mobile and light/dark with zero API writes. Visual inspection found and fixed a clipped archived Settings menu, then confirmed the corrected menu and classroom cards across the matrix. Exact-head review/CI are recorded on PR #1225.
 - No production route, authorization, persistence, API, schema, entitlement, dependency or rollout availability changed. The prototype remains gated off in production and still requires later adoption approval; only the shared menu's existing keyboard behavior is corrected in live consumers.
+
 ## 2026-09-08 — Keep the classroom QR available when attendance is closed
 
 - Promoted the stable classroom poster from its separate canary gate to every classroom with server-confirmed QR attendance access. The Daily center `Classroom QR` action now remains enabled while attendance is scheduled or closed; archived classrooms remain excluded.
 - Preserved scan-time enforcement: Pika still requires an eligible occurrence, enabled attendance policy, active class day, open Bara session projection, current enrollment, and an active participant mapping before submitting a check-in.
 - Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
 - Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
+- Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
