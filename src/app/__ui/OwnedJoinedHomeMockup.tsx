@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, ArrowUp, CircleDot, Eye, EyeOff, GripVertical, LogIn, MoreVertical, Plus, RotateCw } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, CircleDot, CopyPlus, Eye, EyeOff, GripVertical, LogIn, MoreVertical, Plus, RotateCw, Settings, Trash2 } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs, cn } from '@/ui'
+import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs } from '@/ui'
+import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { activeClassroomsForExample, classroomsForExample, JOIN_EXAMPLE, type HomeClassroomExample, type HomeExampleAccount, type HomeRelationship } from './owned-joined-home-fixtures'
 
 type HomeFilter = 'all' | HomeRelationship
@@ -103,10 +104,10 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     })
     setMessage(`${classroom.title} ${hidden ? 'hidden' : 'unhidden'} in this example only. You’re still a member.`)
   }
-  function reorder(id: string, direction: -1 | 1) {
+  function moveEarlier(id: string) {
     const teaching = classrooms.filter((classroom) => classroom.relationship === 'teaching' && !classroom.archived)
     const index = teaching.findIndex((classroom) => classroom.id === id)
-    const neighbor = teaching[index + direction]
+    const neighbor = teaching[index - 1]
     if (!neighbor) return
     setClassrooms((current) => {
       const result = [...current]
@@ -168,29 +169,58 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
                 {description && <p className="mb-3 text-xs text-text-muted">{description}</p>}
                 {!rows.length && <p className="text-sm text-text-muted">No {label.toLowerCase()} classrooms</p>}
                 <div className="space-y-2">
-                  {rows.map((classroom, index) => (
-                    <Card key={classroom.id} tone="panel" padding="none" interactive>
-                      <div className="flex min-h-20 items-center gap-2 px-3 py-3 sm:gap-4 sm:px-4">
-                        <div className="flex min-w-8 justify-center"><span className={cn('h-8 w-1.5 rounded-full', classroom.accent)} aria-hidden="true" /></div>
-                        <Button variant="ghost" size="sm" className="h-auto min-h-control min-w-0 flex-1 justify-start px-1 text-left" aria-label={`Open ${classroom.title}`} onClick={() => { setPreview(classroom); setPreviewTab(classroom.relationship === 'teaching' ? 'Daily' : 'Today') }}>
-                          <span className="min-w-0">
-                            <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="break-words font-semibold text-text-default">{classroom.title}</span><span className="text-sm font-normal text-text-muted">{classroom.term}</span></span>
-                            <span className="mt-1 block text-sm font-normal text-text-muted">{classroom.dates}</span>
-                            <span className={cn('mt-1 block text-xs font-normal text-text-muted', !archived && 'sm:hidden')}>{archived ? `${classroom.relationship === 'joined' ? 'Joined' : 'Teaching'} · ` : ''}{classroom.detail}</span>
-                          </span>
-                        </Button>
-                        {!editing && !archived && <span className="hidden shrink-0 text-xs text-text-muted sm:block">{classroom.detail}</span>}
-                        {editing && classroom.relationship === 'teaching' && <div className="flex shrink-0 flex-col sm:flex-row">
-                          <IconButton icon={ArrowUp} label={`Move ${classroom.title} up`} disabled={index === 0} variant="ghost" onClick={() => reorder(classroom.id, -1)} />
-                          <IconButton icon={ArrowDown} label={`Move ${classroom.title} down`} disabled={index === rows.length - 1} variant="ghost" onClick={() => reorder(classroom.id, 1)} />
-                          <IconButton icon={Archive} label={`Archive ${classroom.title}`} variant="ghost" onClick={() => setArchiveTarget(classroom)} />
-                        </div>}
-                        {editing && classroom.relationship === 'joined' && <IconButton icon={EyeOff} label={`Hide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, true)} />}
-                        {archived && classroom.relationship === 'teaching' && <IconButton icon={ArchiveRestore} label={`Restore ${classroom.title}`} variant="ghost" onClick={() => { pendingFocus.current = 'back'; setClassrooms((current) => current.map((row) => row.id === classroom.id ? { ...row, archived: false } : row)); setMessage(`${classroom.title} restored in this example only.`) }} />}
-                        {archived && classroom.relationship === 'joined' && <IconButton icon={Eye} label={`Unhide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, false)} />}
+                  {rows.map((classroom, index) => {
+                    const theme = getClassroomThemeDefinition(classroom.themeColor)
+                    return (
+                      <div
+                        key={classroom.id}
+                        data-testid="home-classroom-card"
+                        data-classroom-theme-color={theme.value}
+                        style={getClassroomThemeStyle(theme.value)}
+                        className="classroom-theme classroom-theme-card classroom-theme-card-interactive relative rounded-card border border-border bg-surface shadow-elevated focus-within:z-local-menu"
+                      >
+                        <div className="flex min-h-20 items-center gap-2.5 py-4 pr-4 sm:gap-4 sm:pr-5">
+                          <div className="flex h-full items-center justify-center pl-1">
+                            {editing && classroom.relationship === 'teaching' ? (
+                              <IconButton
+                                icon={GripVertical}
+                                label={`Move ${classroom.title} up`}
+                                disabled={index === 0}
+                                variant="ghost"
+                                onClick={() => moveEarlier(classroom.id)}
+                              />
+                            ) : null}
+                          </div>
+                          <Button variant="ghost" size="sm" className="-m-1.5 ml-1 h-auto min-h-control min-w-0 flex-1 justify-start p-1.5 text-left sm:ml-2" aria-label={`Open ${classroom.title}`} onClick={() => { setPreview(classroom); setPreviewTab(classroom.relationship === 'teaching' ? 'Daily' : 'Today') }}>
+                            <span className="min-w-0">
+                              <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><span className="break-words font-semibold text-text-default">{classroom.title}</span><span className="text-sm font-normal text-text-muted">{classroom.term}</span></span>
+                              <span className="mt-1 block text-sm font-normal text-text-muted">{classroom.dates}</span>
+                              <span className="mt-1 block text-xs font-normal text-text-muted">{archived ? `${classroom.relationship === 'joined' ? 'Joined' : 'Teaching'} · ` : ''}{classroom.detail}</span>
+                            </span>
+                          </Button>
+                          <div className="flex shrink-0 items-center justify-end">
+                            {editing && classroom.relationship === 'teaching' && (
+                              <IconButton icon={Archive} label={`Archive ${classroom.title}`} variant="ghost" onClick={() => setArchiveTarget(classroom)} />
+                            )}
+                            {editing && classroom.relationship === 'joined' && <IconButton icon={EyeOff} label={`Hide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, true)} />}
+                            {archived && classroom.relationship === 'teaching' && (
+                              <TeacherWorkSurfaceIconMenuButton
+                                ariaLabel={`Settings for ${classroom.title}`}
+                                tooltip="Settings"
+                                icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+                                items={[
+                                  { id: 'reuse', label: 'Reuse', icon: <CopyPlus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setMessage(`${classroom.title} reuse selected in this example only.`) },
+                                  { id: 'unarchive', label: 'Unarchive', icon: <ArchiveRestore className="h-4 w-4" aria-hidden="true" />, onSelect: () => { pendingFocus.current = 'back'; setClassrooms((current) => current.map((row) => row.id === classroom.id ? { ...row, archived: false } : row)); setMessage(`${classroom.title} restored in this example only.`) } },
+                                  { id: 'delete', label: 'Delete', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: true, onSelect: () => undefined },
+                                ]}
+                              />
+                            )}
+                            {archived && classroom.relationship === 'joined' && <IconButton icon={Eye} label={`Unhide ${classroom.title}`} variant="ghost" onClick={() => setHidden(classroom, false)} />}
+                          </div>
+                        </div>
                       </div>
-                    </Card>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             })}
@@ -204,7 +234,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
           event.preventDefault()
           if (!canCreate) { setError('Classroom creation is not available in this example.'); return }
           if (!name.trim()) { setError('Enter a classroom name.'); return }
-          setClassrooms((current) => [...current, { id: `new-example-${nextId.current++}`, title: name.trim(), term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', detail: '0 students', accent: 'bg-info', relationship: 'teaching', archived: false }])
+          setClassrooms((current) => [...current, { id: `new-example-${nextId.current++}`, title: name.trim(), term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', detail: '0 students', themeColor: 'blue', relationship: 'teaching', archived: false }])
           pendingFocus.current = 'filters'; resetView(); setFilter('teaching'); setDialog(null); setMessage('Classroom created in this example only.')
         }}>
           <FormField label="Classroom name" error={error || undefined}><Input value={name} maxLength={100} onChange={(event) => { setName(event.target.value); setError('') }} /></FormField>
