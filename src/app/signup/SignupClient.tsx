@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { Input, Button, FormField } from '@/ui'
+import { buildAuthContinuationPath } from '@/lib/auth-redirect'
+import { getSafeInternalPath } from '@/lib/navigation-safety'
 
 export function SignupClient({
   magicAuthEnabled = false,
@@ -18,6 +20,7 @@ export function SignupClient({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const nextPath = getSafeInternalPath(searchParams.get('next'))
 
   useEffect(() => {
     const emailParam = searchParams.get('email')
@@ -40,7 +43,7 @@ export function SignupClient({
 
       setSuccess(true)
       setTimeout(() => {
-        router.push(`/verify-signup?email=${encodeURIComponent(email)}`)
+        router.push(buildAuthContinuationPath('/verify-signup', { email, next: nextPath }))
       }, 1000)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'An error occurred')
@@ -65,6 +68,7 @@ export function SignupClient({
             intent="sign-up"
             initialEmail={email}
             hasPendingChallenge={hasPendingMagicAuthChallenge}
+            nextPath={nextPath}
           />
         ) : success ? (
           <div className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
@@ -95,7 +99,7 @@ export function SignupClient({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/login')}
+              onClick={() => router.push(buildAuthContinuationPath('/login', { next: nextPath }))}
               className="min-h-0 p-0 text-primary hover:bg-transparent hover:underline"
             >
               Login

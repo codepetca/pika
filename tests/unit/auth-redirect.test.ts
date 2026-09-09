@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildLoginRedirectPath, getRequestPath } from '@/lib/auth-redirect'
+import {
+  buildAuthContinuationPath,
+  buildLoginRedirectPath,
+  getRequestPath,
+} from '@/lib/auth-redirect'
 
 describe('auth redirect paths', () => {
   it('preserves a safe interrupted path and query without inventing an expiry reason', () => {
@@ -28,5 +32,22 @@ describe('auth redirect paths', () => {
   it('derives only the pathname and query from a request URL', () => {
     expect(getRequestPath(new URL('https://pika.example/teacher/calendar?view=month#ignored')))
       .toBe('/teacher/calendar?view=month')
+  })
+
+  it('encodes email and a safe internal continuation', () => {
+    expect(buildAuthContinuationPath('/verify-signup', {
+      email: 'student@example.com',
+      next: '/attendance/classroom/qr-token?source=poster',
+    })).toBe(
+      '/verify-signup?email=student%40example.com&next=%2Fattendance%2Fclassroom%2Fqr-token%3Fsource%3Dposter',
+    )
+  })
+
+  it.each([
+    '//evil.example/steal',
+    '/\\evil.example/steal',
+    'https://evil.example/steal',
+  ])('drops unsafe continuation %s', (next) => {
+    expect(buildAuthContinuationPath('/signup', { next })).toBe('/signup')
   })
 })

@@ -6,6 +6,7 @@ import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
 import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import { PikaLogo } from '@/components/PikaLogo'
+import { buildAuthContinuationPath } from '@/lib/auth-redirect'
 import {
   getSafeInternalPath,
   SESSION_CHANGED_MESSAGE,
@@ -245,7 +246,10 @@ export function LoginClient({
             Don&apos;t have an account?{' '}
             <button
               type="button"
-              onClick={() => router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ''}`)}
+              onClick={() => router.push(buildAuthContinuationPath('/signup', {
+                email,
+                next: searchParams.get('next'),
+              }))}
               className="text-primary hover:underline font-medium"
             >
               Sign up
