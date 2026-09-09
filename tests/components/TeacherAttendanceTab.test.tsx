@@ -279,6 +279,13 @@ function mockCombinedFetch(attendanceView = combinedAttendanceView()) {
     if (url.startsWith('/api/teacher/attendance/policy?')) {
       return mockJson({ policy: classroomPolicy() })
     }
+    if (url.startsWith('/api/teacher/attendance/classroom-qr?')) {
+      return mockJson({
+        entryPath: `/attendance/classroom/${'a'.repeat(43)}`,
+        generation: 1,
+        rotatedAt: '2026-05-05T12:00:00.000Z',
+      })
+    }
     throw new Error(`Unhandled fetch: ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -1321,7 +1328,8 @@ describe('TeacherAttendanceTab', () => {
       const qrButton = await screen.findByRole('button', { name: 'Classroom QR' })
       expect(qrButton).toBeEnabled()
       await user.click(qrButton)
-      expect(await screen.findByRole('dialog', { name: 'Classroom QR' })).toBeVisible()
+      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      expect(await within(dialog).findByLabelText(`${classroom.title} permanent attendance QR code`)).toBeVisible()
     },
   )
 

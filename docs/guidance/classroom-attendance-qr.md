@@ -65,7 +65,7 @@ pattern or human promotion is proposed.
 | Large QR rendering | QrCode | extend | Opt-in full-size SVG, unchanged default consumers |
 | Full display panel | DialogPanel | extend | Feature-owned landscape composition inside the shared modal shell |
 | Student feedback | StudentAttendanceCheckIn | reuse | Existing status and retry presentation |
-| Daily QR entry point | Context-bar primary action | extend | Stable poster when available, occurrence fallback otherwise |
+| Daily QR entry point | Context-bar primary action | extend | Attendance-entitled classrooms use the stable poster; legacy occurrence routes remain protocol compatibility only |
 
 The print-only body portal is not an interactive overlay; it isolates a portrait
 poster with the centered classroom name above the QR, followed by prominent attendance
