@@ -858,6 +858,24 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     animations: 'disabled',
   })
 
+  const firstStudentCell = page.getByRole('cell', { name: 'Student 01', exact: true })
+  await firstStudentCell.click()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`daily-attendance-${viewport}-student-selected.png`),
+    animations: 'disabled',
+  })
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: /^Log/ })).toBeVisible()
+
+  await firstStudentCell.click()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+  await contextBar.getByRole('button', { name: 'More actions' }).click()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
   const scrollPane = page.getByTestId('daily-student-scroll-pane')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await scrollPane.evaluate((element) => {

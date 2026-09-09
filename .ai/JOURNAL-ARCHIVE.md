@@ -31429,3 +31429,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Removed the warning summary sentence and promoted each line-level roster message to readable body size. Reserved a compact warning slot below the textarea so the ready count and action buttons remain stable when guidance appears or clears.
 - Reused the existing semantic warning treatment and live status behavior. Component tests, the full focused gate, teacher/student route captures, and desktop/mobile warning and valid-state browser checks pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:772d328d62bb5fa7e4d9b240fb2773570f78b1743d68c8a1ad6b8f25e6d84801 -->
+## 2026-09-06 — Remove Add Students action divider
+
+- Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
+- Focused checks pass 1,552 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile, student route, and a direct mobile modal capture were inspected; no overflow or spacing regression was visible. No schema, data, API, dependency, deployment or merge action.

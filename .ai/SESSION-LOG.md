@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Remove Add Students action divider
-
-- Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
-- Focused checks pass 1,552 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile, student route, and a direct mobile modal capture were inspected; no overflow or spacing regression was visible. No schema, data, API, dependency, deployment or merge action.
-
 ## 2026-09-06 — Space and emphasize roster tooltip format
 
 - Added vertical spacing between the three roster-help lines and emphasized `First Last Email [ID] [Email 2]` with semibold text. The optional-fields note remains on its own line.
@@ -272,3 +267,9 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
 - Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
 - Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
+
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
