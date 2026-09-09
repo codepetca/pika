@@ -31,7 +31,7 @@ describe('announcement helpers', () => {
     expect(getAnnouncementCalendarLabel({ title: '  ' }, true)).toBe('Scheduled')
   })
 
-  it('sorts announcements newest first by creation date', () => {
+  it('sorts announcements newest first by publication date', () => {
     const sorted = sortAnnouncementsNewestFirst([
       {
         id: 'older-scheduled',
@@ -42,7 +42,7 @@ describe('announcement helpers', () => {
       { id: 'older', created_at: '2026-05-13T12:00:00.000Z', scheduled_for: null },
     ])
 
-    expect(sorted.map((announcement) => announcement.id)).toEqual(['newest', 'older', 'older-scheduled'])
+    expect(sorted.map((announcement) => announcement.id)).toEqual(['older-scheduled', 'newest', 'older'])
   })
 
   it('formats announcement timestamps in Toronto across standard and daylight time', () => {

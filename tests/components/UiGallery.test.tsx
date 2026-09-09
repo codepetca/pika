@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
 import { MaterialCreationPattern } from '@/app/__ui/MaterialCreationPattern'
@@ -64,6 +65,9 @@ vi.mock('@/components/editor', async (importOriginal) => ({
 describe('UiGallery history preview fixture', () => {
   it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
     renderGallery('teacher')
+    expect(AssignmentEditSplitPattern).toBeTypeOf('function')
+    const navigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
+    expect(within(navigation).getByRole('link', { name: 'Assignment edit' })).toBeInTheDocument()
     const user = userEvent.setup()
     const opener = screen.getByRole('button', { name: 'Open QR example' })
     await user.click(opener)

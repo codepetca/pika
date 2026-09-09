@@ -828,12 +828,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       label: showRelativeDate ? 'Hide relative date' : 'Show relative date',
       onSelect: () => setShowRelativeDate((visible) => !visible),
     },
-    ...(classroomQrAvailable && attendanceEnabled && attendance.attendanceReady && !classroom.archived_at ? [{
-      id: 'classroom-qr-poster',
-      label: 'Classroom QR poster',
-      icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => setClassroomQrOpen(true),
-    }] : []),
   ]
   const qrAvailable = attendanceEnabled
     && attendance.attendanceReady
@@ -877,14 +871,20 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             >
             {attendanceEnabled ? (
               <IconButton
-                label="Show QR"
-                tooltip={qrAvailable ? 'Show QR' : 'QR unavailable until attendance is open'}
+                label={classroomQrAvailable ? 'Classroom QR' : 'Show QR'}
+                tooltip={classroomQrAvailable
+                  ? 'Classroom QR'
+                  : qrAvailable
+                    ? 'Show QR'
+                    : 'QR unavailable until attendance is open'}
                 icon={QrCodeIcon}
                 variant="primary"
                 size="sm"
                 className="h-11 w-11 rounded-none border-0"
-                disabled={!qrAvailable}
-                onClick={attendance.openQrPresentation}
+                disabled={classroomQrAvailable ? Boolean(classroom.archived_at) : !qrAvailable}
+                onClick={classroomQrAvailable
+                  ? () => setClassroomQrOpen(true)
+                  : attendance.openQrPresentation}
               />
             ) : null}
             <Button
@@ -1499,6 +1499,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         key={classroom.id}
         classroomId={classroom.id}
         classroomTitle={classroom.title}
+        attendanceHours={qrTimeLabel}
         isOpen={classroomQrOpen && classroomQrAvailable && attendanceEnabled && !classroom.archived_at}
         onClose={() => setClassroomQrOpen(false)}
       />

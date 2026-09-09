@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
+import { readBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
 const mockPush = vi.fn()
 
@@ -69,6 +70,7 @@ describe('CreateClassroomModal', () => {
     vi.mocked(fetchTeacherBlueprints).mockClear()
     vi.mocked(invalidateTeacherBlueprints).mockClear()
     mockPush.mockClear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -606,7 +608,8 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByRole('option', { name: 'Import course package...' })).toBeInTheDocument()
   })
 
-  it('shows the rollover review before completing a classroom created from a blueprint', async () => {
+  it('opens a classroom created from a blueprint without an intermediate review modal', async () => {
+    const onClose = vi.fn()
     const onSuccess = vi.fn()
     const onBlueprintCreated = vi.fn()
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -627,7 +630,7 @@ describe('CreateClassroomModal', () => {
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess, onBlueprintCreated })
+    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess, onBlueprintCreated })
 
     fireEvent.change(getClassroomNameInput(), {
       target: { value: 'Computer Science 11 - Period 2' },
@@ -657,15 +660,14 @@ describe('CreateClassroomModal', () => {
       id: 'classroom-1',
       title: 'Computer Science 11 - Period 2',
     })
-    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toHaveFocus()
-    expect(screen.getByText(/assignments and tests are unpublished/i)).toBeInTheDocument()
-    expect(screen.getByText('Final project workshop')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Review Classroom' }))
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith(
-      '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
-    )
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(mockPush).toHaveBeenCalledWith(
+        '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+      )
+    })
+    expect(screen.queryByRole('heading', { name: 'Classroom Created' })).not.toBeInTheDocument()
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual(['Final project workshop'])
   })
 
   it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {
@@ -693,7 +695,9 @@ describe('CreateClassroomModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('Temporary failure')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    await screen.findByRole('heading', { name: 'Classroom Created' })
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith(
+      '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+    ))
 
     const instantiateCalls = fetchMock.mock.calls.filter(([url, init]) => (
       String(url) === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`
@@ -703,39 +707,7 @@ describe('CreateClassroomModal', () => {
     expect((instantiateCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
       (instantiateCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
     )
-  })
-
-  it('commits the created classroom without navigating when the review is dismissed', async () => {
-    const onClose = vi.fn()
-    const onSuccess = vi.fn()
-    const onBlueprintCreated = vi.fn()
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
-        lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
-      }),
-    })
-
-    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess, onBlueprintCreated })
-    fireEvent.change(getClassroomNameInput(), {
-      target: { value: 'Computer Science 11 - Period 2' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByLabelText(/First day of class/i)
-    chooseFirstClassDay()
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    await screen.findByRole('heading', { name: 'Classroom Created' })
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
-    expect(onBlueprintCreated).toHaveBeenCalledWith({
-      id: 'classroom-1',
-      title: 'Computer Science 11 - Period 2',
-    })
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual([])
   })
 
   it('cannot dismiss the modal while blueprint instantiation is pending', async () => {
@@ -775,8 +747,14 @@ describe('CreateClassroomModal', () => {
       })
     })
 
-    expect(await screen.findByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
-    expect(onBlueprintCreated).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(onBlueprintCreated).toHaveBeenCalledOnce()
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(mockPush).toHaveBeenCalledWith(
+        '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+      )
+    })
+    expect(screen.queryByRole('heading', { name: 'Classroom Created' })).not.toBeInTheDocument()
   })
 
   it('moves a preselected blueprint directly from classroom name to calendar', async () => {

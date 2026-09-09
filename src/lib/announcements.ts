@@ -37,11 +37,35 @@ export function getAnnouncementCalendarLabel(
   return normalizeAnnouncementTitle(announcement.title) ?? (scheduled ? 'Scheduled' : 'Announcement')
 }
 
-export function sortAnnouncementsNewestFirst<T extends { created_at: string }>(
+export function getAnnouncementPublicationTimestamp(
+  announcement: {
+    created_at: string
+    published_at?: string | null
+    scheduled_for?: string | null
+  },
+): string {
+  return announcement.published_at ?? announcement.scheduled_for ?? announcement.created_at
+}
+
+export function sortAnnouncementsNewestFirst<T extends {
+  created_at: string
+  is_draft?: boolean
+  published_at?: string | null
+  scheduled_for?: string | null
+  updated_at?: string
+}>(
   announcements: readonly T[],
 ): T[] {
   return [...announcements].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    (a, b) => {
+      const aTimestamp = a.is_draft
+        ? a.updated_at ?? a.created_at
+        : getAnnouncementPublicationTimestamp(a)
+      const bTimestamp = b.is_draft
+        ? b.updated_at ?? b.created_at
+        : getAnnouncementPublicationTimestamp(b)
+      return new Date(bTimestamp).getTime() - new Date(aTimestamp).getTime()
+    },
   )
 }
 

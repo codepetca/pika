@@ -2,6 +2,18 @@
   "version": 1,
   "entries": [
     {
+      "file": "src/app/__ui/DailyMockup.tsx",
+      "reviewBy": "phase-3-attendance-printable-qr-geometry",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "a717a0e9267cce49",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
       "file": "src/app/__ui/UiGallery.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
@@ -127,8 +139,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 4,
-          "fingerprint": "6e55a4bac5611b78",
+          "count": 2,
+          "fingerprint": "9efb10c59e18ec8b",
           "reason": "layout-geometry"
         }
       ]
@@ -405,18 +417,6 @@
           "kind": "arbitrary-spacing",
           "count": 1,
           "fingerprint": "314bf12bd9d6ab8f",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
-      "file": "src/components/AssignmentModal.tsx",
-      "reviewBy": "phase-3-assignments",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "1e43ff6cdd353cfe",
           "reason": "layout-geometry"
         }
       ]

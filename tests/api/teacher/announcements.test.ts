@@ -157,8 +157,64 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       expect.objectContaining({
         title: 'Test reminder',
         content: 'Test Content',
+        is_draft: false,
+        published_at: expect.any(String),
       }),
     )
+  })
+
+  it('should save a draft without publishing or scheduling it', async () => {
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'draft-1', content: 'Draft content', is_draft: true },
+          error: null,
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert }))
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
+      {
+        method: 'POST',
+        body: JSON.stringify({ content: 'Draft content', is_draft: true }),
+      }
+    )
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(201)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      is_draft: true,
+      published_at: null,
+      scheduled_for: null,
+    }))
+  })
+
+  it('uses the scheduled boundary as the publication timestamp', async () => {
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: { id: 'scheduled-1' }, error: null }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert }))
+    const scheduledFor = '2099-05-20T15:30:00.000Z'
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
+      {
+        method: 'POST',
+        body: JSON.stringify({ content: 'Scheduled content', scheduled_for: scheduledFor }),
+      }
+    )
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(201)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      is_draft: false,
+      published_at: scheduledFor,
+      scheduled_for: scheduledFor,
+    }))
   })
 
   it('should reject titles that are too long', async () => {

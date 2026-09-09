@@ -432,6 +432,75 @@ test.describe('teacher Pattern Lab', () => {
     expect(writes).toEqual([])
   })
 
+  test('prototypes assignment editing as split desktop panes and a stacked mobile flow', async ({ page }, testInfo) => {
+    await page.clock.setFixedTime(new Date('2026-08-31T16:00:00Z'))
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())
+    })
+
+    await openPatternLab(page, testInfo, 'teacher')
+    await page.getByRole('button', { name: 'Open assignment edit prototype' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit Assignment', exact: true })
+    const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
+    const contentPane = dialog.getByTestId('assignment-editor-content-pane')
+    const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
+    const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
+    const editor = contentPane.getByRole('textbox', { name: 'Instructions' })
+
+    await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
+    await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
+    await expect(detailsPane.getByRole('button', { name: 'Tue Sep 1' })).toBeVisible()
+    await expect(detailsPane.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
+    await expect(detailsPane.getByRole('group', { name: 'Submission Requirement' })).toBeVisible()
+    await expect(toolbar).toBeVisible()
+    await expect(editor).toContainText('Read the field guide before our next class.')
+
+    const detailsBounds = (await detailsPane.boundingBox())!
+    const contentBounds = (await contentPane.boundingBox())!
+    const toolbarBounds = (await toolbar.boundingBox())!
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
+      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
+      expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
+      expect(toolbarBounds.x).toBeGreaterThanOrEqual(contentBounds.x)
+      expect(toolbarBounds.y).toBeGreaterThanOrEqual(contentBounds.y)
+      expect(await detailsPane.evaluate((element) => getComputedStyle(element).borderRightWidth)).toBe('0px')
+    } else {
+      expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
+      expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
+    }
+
+    await testInfo.attach('assignment-edit-split-prototype', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('assignment-edit-split-prototype.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+
+    await editor.fill('Updated assignment instructions.')
+    await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Unsaved')
+    await detailsPane.getByRole('button', { name: 'Post', exact: true }).click()
+    await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
+
+    const preview = detailsPane.getByRole('button', { name: 'Preview', exact: true })
+    const previewBounds = (await preview.boundingBox())!
+    const detailsBoundsAfterLayout = (await detailsPane.boundingBox())!
+    const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
+    const primaryActionBounds = (await primaryActions.boundingBox())!
+    expect(Math.abs(primaryActionBounds.y + primaryActionBounds.height - (detailsBoundsAfterLayout.y + detailsBoundsAfterLayout.height - detailsPaddingBottom))).toBeLessThanOrEqual(2)
+    expect(Math.abs(previewBounds.x - primaryActionBounds.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(previewBounds.width - primaryActionBounds.width)).toBeLessThanOrEqual(1)
+    const dateBounds = (await primaryActions.getByRole('button', { name: 'Tue Sep 1' }).boundingBox())!
+    const postControlBounds = (await primaryActions.getByRole('button', { name: 'Post', exact: true }).locator('..').boundingBox())!
+    expect(Math.abs(dateBounds.width - postControlBounds.width)).toBeLessThanOrEqual(2)
+    expect(Math.abs(postControlBounds.x + postControlBounds.width - (primaryActionBounds.x + primaryActionBounds.width))).toBeLessThanOrEqual(1)
+    await preview.click()
+    const reading = page.getByRole('dialog', { name: 'Instructions', exact: true })
+    await expect(reading).toContainText('Updated assignment instructions.')
+    await page.keyboard.press('Escape')
+    await expect(preview).toBeFocused()
+    expect(writes).toEqual([])
+  })
+
   test('previews material with a pinned creation bar and explicit draft action', async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, 'teacher')
     const open = page.getByRole('button', { name: 'Open material example' })

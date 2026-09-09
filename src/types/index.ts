@@ -1200,6 +1200,8 @@ export interface Announcement {
   title?: string | null
   content: string
   created_by: string
+  is_draft: boolean
+  published_at: string | null
   scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled
   created_at: string
   updated_at: string

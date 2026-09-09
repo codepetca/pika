@@ -353,6 +353,13 @@ function mockCombinedCommandFetch() {
         revision: 4,
       })
     }
+    if (url.startsWith('/api/teacher/attendance/classroom-qr?')) {
+      return mockJson({
+        entryPath: `/attendance/classroom/${'a'.repeat(43)}`,
+        generation: 1,
+        rotatedAt: '2026-05-05T12:00:00.000Z',
+      })
+    }
     throw new Error(`Unhandled fetch: ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -1274,18 +1281,41 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show QR' })).toHaveFocus()
   })
 
-  it.each([false, true])('limits the poster menu to rollout availability %s while keeping occurrence QR', async (available) => {
+  it.each([false, true])('uses the unified classroom poster when rollout availability is %s', async (available) => {
     mockCombinedCommandFetch()
     const user = userEvent.setup()
     render(<TooltipProvider><AppMessageProvider>
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable={available} />
     </AppMessageProvider></TooltipProvider>)
     await screen.findByRole('columnheader', { name: 'Time of scan' })
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeInTheDocument()
+    const qrButton = screen.getByRole('button', { name: available ? 'Classroom QR' : 'Show QR' })
+    expect(qrButton).toBeInTheDocument()
+    if (available) {
+      await user.click(qrButton)
+      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+      const settingsMenu = screen.getByRole('menu', { name: 'Poster settings' })
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Download SVG' })).toBeVisible()
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Rotate QR' })).toBeVisible()
+      await user.keyboard('{Escape}')
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    }
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' }) !== null).toBe(available)
+    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
+  })
+
+  it('keeps the unified classroom poster available while attendance is closed', async () => {
+    mockCombinedFetch(combinedAttendanceView({
+      session: { ...combinedAttendanceView().session, state: 'closed' },
+    }))
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
+    </AppMessageProvider></TooltipProvider>)
+
+    expect(await screen.findByRole('button', { name: 'Classroom QR' })).toBeEnabled()
   })
 
   it('keeps class-wide Attendance actions in the More actions batch dialog', async () => {

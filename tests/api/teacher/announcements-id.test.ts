@@ -12,9 +12,9 @@ vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1'
 const mockSupabaseClient = { from: vi.fn() }
 
 // Helper to create ownership check mock
-function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?: boolean } = {}) {
-  const { found = true, owned = true, archived = false } = opts
-  const update = vi.fn((updateData: Record<string, string | null>) => ({
+function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?: boolean; draft?: boolean } = {}) {
+  const { found = true, owned = true, archived = false, draft = false } = opts
+  const update = vi.fn((updateData: Record<string, string | boolean | null>) => ({
     eq: vi.fn(() => ({
       select: vi.fn(() => ({
         single: vi.fn().mockResolvedValue({
@@ -39,6 +39,7 @@ function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?:
               id: 'a-1',
               classroom_id: 'c-1',
               content: 'Content',
+              is_draft: draft,
               classrooms: {
                 id: 'c-1',
                 teacher_id: owned ? 'teacher-1' : 'other-teacher',
@@ -103,6 +104,29 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
     const data = await response.json()
     expect(data.announcement.title).toBe('Calendar note')
     expect(mockFrom.update).toHaveBeenCalledWith({ title: 'Calendar note' })
+  })
+
+  it('publishes a saved draft at the time it is posted', async () => {
+    const mockFrom = mockOwnershipCheck({ draft: true })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ is_draft: false }),
+      }
+    )
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockFrom.update).toHaveBeenCalledWith({
+      is_draft: false,
+      published_at: expect.any(String),
+      scheduled_for: null,
+    })
   })
 
   it('should clear the optional announcement title with a blank value', async () => {

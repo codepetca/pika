@@ -17,20 +17,20 @@ export function getCalendarAssignmentDate(
 }
 
 export function isCalendarAnnouncementScheduled(
-  announcement: Pick<Announcement, 'scheduled_for'>,
+  announcement: Pick<Announcement, 'is_draft' | 'scheduled_for'>,
   now: Date = new Date(),
 ): boolean {
+  if (announcement.is_draft) return false
   if (!announcement.scheduled_for) return false
   return new Date(announcement.scheduled_for) > now
 }
 
 export function getCalendarAnnouncementDate(
-  announcement: Pick<Announcement, 'scheduled_for' | 'created_at'>,
-  now: Date = new Date(),
+  announcement: Pick<Announcement, 'is_draft' | 'published_at' | 'scheduled_for' | 'created_at'>,
+  _now: Date = new Date(),
 ): string | null {
-  const dateToUse = isCalendarAnnouncementScheduled(announcement, now)
-    ? announcement.scheduled_for!
-    : announcement.created_at
+  if (announcement.is_draft) return null
+  const dateToUse = announcement.published_at ?? announcement.scheduled_for ?? announcement.created_at
   const date = new Date(dateToUse)
   if (Number.isNaN(date.getTime())) return null
 

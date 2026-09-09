@@ -133,6 +133,9 @@ jobs:
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
+      - name: Verify PPZ3C start-date correction lifecycle
+        run: bash scripts/check-ppz3c-start-date-correction-database.sh
+
       - name: Lint all database functions at error level
         run: supabase db lint --local --level error --fail-on error
 
@@ -168,6 +171,12 @@ jobs:
 
       - name: Verify contextual calendar concurrent writers
         run: node scripts/check-contextual-calendar-concurrency.mjs
+
+      - name: Verify contextual enrollment atomicity and privileges
+        run: bash scripts/check-contextual-enrollment-database.sh
+
+      - name: Verify contextual enrollment concurrent writers and guess limits
+        run: node scripts/check-contextual-enrollment-concurrency.mjs
 
       - name: Verify atomic assignment draft and submission integrity
         run: bash scripts/check-atomic-assignment-submissions.sh
