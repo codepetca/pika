@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { FormField, Input } from '@/ui'
+import { FormField, Input, cn } from '@/ui'
+import { GRADEBOOK_NUMBER_INPUT_CLASS } from '@/lib/gradebook-display'
 import { isValidGradebookMockupWeight } from './gradebook-mockup-state'
 
 export function GradebookWeightInputMockup({
@@ -20,7 +21,7 @@ export function GradebookWeightInputMockup({
   return (
     <FormField label={`Category weight for ${title}`} hideLabel collapseHiddenLabel>
       <Input
-        className="px-1 text-center text-sm tabular-nums"
+        className={cn('px-1 text-center text-sm tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)}
         type="number"
         min={1}
         max={999}

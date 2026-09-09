@@ -308,7 +308,7 @@ export function useTeacherAttendanceController({
   const attendanceReady = enabled && view?.integration === 'ready'
   const canMark = Boolean(
     attendanceReady &&
-    (sessionState === 'open' || sessionState === 'closed') &&
+    sessionState !== 'not_scheduled' &&
     !isArchived,
   )
   const pendingStudentIds = useMemo(() => {

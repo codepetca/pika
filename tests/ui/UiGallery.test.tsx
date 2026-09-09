@@ -25,6 +25,16 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('demonstrates explicitly activated formatted help', async () => {
+    renderGallery()
+    const help = screen.getByRole('button', { name: 'Formatting help' })
+    fireEvent.click(help)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Use plain text.')
+    expect(help).toHaveAccessibleDescription(/Use plain text/)
+    fireEvent.click(help)
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('locates the separate Owned / Joined home for %s reviewers', async (role) => {
     const user = userEvent.setup()
     const scrollIntoView = vi.fn()
@@ -186,14 +196,17 @@ describe('UiGallery accessibility contracts', () => {
     expect(mockups.getByRole('columnheader', { name: 'ID' })).toBeInTheDocument()
     expect(mockups.getByRole('cell', { name: '1004832' })).toBeInTheDocument()
     const scoreDisplay = within(mockups.getByRole('group', { name: 'Score display' }))
-    expect(scoreDisplay.getAllByRole('button')).toHaveLength(1)
-    await user.click(scoreDisplay.getByRole('button', { name: 'Score display: %. Switch to x/y' }))
+    const percentToggle = scoreDisplay.getByRole('button', { name: 'Show %' })
+    expect(percentToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(percentToggle).toHaveTextContent('%')
+    await user.click(percentToggle)
     const mayaRow = mockups.getByRole('row', { name: /Maya Chen/ })
     expect(within(mayaRow).getByRole('cell', { name: '18/20' })).toBeInTheDocument()
     expect(within(mayaRow).getByRole('cell', { name: '42/50' })).toBeInTheDocument()
-    expect(scoreDisplay.getByRole('button', { name: 'Score display: x/y. Switch to %' })).toHaveTextContent('x/y')
-    await user.click(scoreDisplay.getByRole('button', { name: 'Score display: x/y. Switch to %' }))
-    expect(scoreDisplay.getByRole('button', { name: 'Score display: %. Switch to x/y' })).toHaveTextContent('%')
+    expect(percentToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(percentToggle).toHaveTextContent('%')
+    await user.click(percentToggle)
+    expect(percentToggle).toHaveAttribute('aria-pressed', 'true')
     for (const name of ['Daily', 'Classrooms', 'Gradebook', 'Calendar', 'Announcements', 'Roster', 'Settings', 'Workspaces']) {
       const tab = mockups.getByRole('tab', { name })
       expect(document.getElementById(tab.getAttribute('aria-controls')!)).toBeInTheDocument()

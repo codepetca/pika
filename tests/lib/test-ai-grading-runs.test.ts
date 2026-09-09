@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { inspect } from 'node:util'
 
 const {
   mockLoadClassroomAiSanitizationContext,
@@ -530,6 +531,48 @@ describe('tickTestAiGradingRun', () => {
     }))
     expect(items[0].status).not.toBe('processing')
     expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['unknown', 'duplicate'])('keeps actual batch adapter %s-ref errors content-free in saved run items', async (failure) => {
+    const actual = await vi.importActual<typeof import('@/lib/ai-test-grading')>('@/lib/ai-test-grading')
+    const privateMarker = 'PRIVATE student@example.invalid code-123456 student-work'
+    const originalApiKey = process.env.OPENAI_API_KEY
+    process.env.OPENAI_API_KEY = 'synthetic-key'
+    const rows = failure === 'unknown'
+      ? [{ response_id: privateMarker, score: 5, feedback: 'Synthetic feedback' }]
+      : [1, 2].map(() => ({ response_id: 'response_1', score: 5, feedback: privateMarker }))
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+      output_text: JSON.stringify({ results: rows }),
+    }))))
+    const originalImplementation = suggestTestOpenResponseGradesBatchWithContext.getMockImplementation()
+    try {
+      const error = await actual.suggestTestOpenResponseGradesBatchWithContext(buildPreparedContext(), [
+        { responseId: 'response-1', responseText: 'Synthetic answer' },
+      ]).catch((error: unknown) => error)
+      expect(error).toBeInstanceOf(Error)
+      expect(inspect(error, { depth: null })).not.toContain(privateMarker)
+      expect(error).not.toHaveProperty('cause')
+      expect(actual.isRetryableTestAiGradingError(error)).toBe(false)
+
+      const { items } = buildTickHarness({ responseRows: [
+        { id: 'response-1', response_text: 'Synthetic answer one' },
+        { id: 'response-2', response_text: 'Synthetic answer two' },
+      ] })
+      suggestTestOpenResponseGradesBatchWithContext.mockImplementation(actual.suggestTestOpenResponseGradesBatchWithContext)
+      const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(result.claimed).toBe(true)
+      for (const item of items) {
+        expect(item).toMatchObject({ status: 'failed', last_error_code: 'internal',
+          last_error_message: `AI batch grade suggestion returned ${failure} response` })
+      }
+      expect(JSON.stringify(items)).not.toContain(privateMarker)
+      expect(JSON.stringify(result)).not.toContain(privateMarker)
+    } finally {
+      process.env.OPENAI_API_KEY = originalApiKey
+      suggestTestOpenResponseGradesBatchWithContext.mockReset()
+      if (originalImplementation) suggestTestOpenResponseGradesBatchWithContext.mockImplementation(originalImplementation)
+      vi.unstubAllGlobals()
+    }
   })
 
   it('retries only the response omitted from a batch suggestion', async () => {

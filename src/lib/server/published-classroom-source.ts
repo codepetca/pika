@@ -44,9 +44,10 @@ export async function loadPublishedClassroomSource(
       .order('date', { ascending: true }),
     supabase
       .from('announcements')
-      .select('id, classroom_id, title, content, created_by, scheduled_for, created_at, updated_at')
+      .select('id, classroom_id, title, content, created_by, is_draft, published_at, scheduled_for, created_at, updated_at')
       .eq('classroom_id', classroomId)
-      .order('created_at', { ascending: false }),
+      .eq('is_draft', false)
+      .order('published_at', { ascending: false }),
   ])
 
   const loadError = resourcesResult.error || assignmentsResult.error || testsResult.error || lessonPlansResult.error || announcementsResult.error

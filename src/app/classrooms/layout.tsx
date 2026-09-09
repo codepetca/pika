@@ -24,7 +24,7 @@ export default async function ClassroomsLayout({
 
   if (palApiUrl) {
     return (
-      <StudentPalExperience apiBaseUrl={palApiUrl} scopeKey={randomUUID()}>
+      <StudentPalExperience apiBaseUrl={palApiUrl} scopeKey={randomUUID()} showAmbientSurfaces={false}>
         {children}
       </StudentPalExperience>
     )

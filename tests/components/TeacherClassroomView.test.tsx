@@ -2040,7 +2040,10 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('group', { name: 'Assignment workspace view' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
-    expect(screen.getByRole('region', { name: 'Assignment actions' })).toBeInTheDocument()
+    const assignmentActions = screen.getByRole('region', { name: 'Assignment actions' })
+    expect(assignmentActions).toHaveTextContent('Assignment One')
+    expect(within(assignmentActions).getByTitle('Assignment One')).toBeVisible()
+    expect(within(assignmentActions).queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).not.toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Edit classwork' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
@@ -2094,8 +2097,9 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(getAssignmentUtilityAction('Delete Assignment'))
 
-    expect(await screen.findByText('Delete assignment?')).toBeInTheDocument()
-    expect(screen.getByText(/Assignment One/)).toBeInTheDocument()
+    const deleteDialog = (await screen.findByText('Delete assignment?')).parentElement
+    expect(deleteDialog).not.toBeNull()
+    expect(deleteDialog).toHaveTextContent('Assignment One')
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => {

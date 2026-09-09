@@ -28,12 +28,9 @@ function database(results: Result[]) {
   return { from: vi.fn(() => query), query }
 }
 
-describe('classroom QR persistence and rollout restrictions', () => {
+describe('classroom QR persistence', () => {
   beforeEach(() => {
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', 'classroom-qr-persistence-test-secret-1234567890')
-    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'canary')
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', classroomId)
   })
   afterEach(() => vi.unstubAllEnvs())
 
@@ -76,14 +73,5 @@ describe('classroom QR persistence and rollout restrictions', () => {
     await expect(loadTeacherClassroomQrPresentation({ supabase, teacherId, classroomId }))
       .rejects.toMatchObject({ code: 'migration_required' })
     expect(supabase.query.insert).not.toHaveBeenCalled()
-  })
-
-  it('denies direct helper access outside the canary before any read or write', async () => {
-    const supabase = database([])
-    await expect(loadTeacherClassroomQrPresentation({ supabase, teacherId, classroomId: teacherId }))
-      .rejects.toMatchObject({ code: 'not_open' })
-    await expect(rotateTeacherClassroomQrPresentation({ supabase, teacherId, classroomId: teacherId, expectedGeneration: 1 }))
-      .rejects.toMatchObject({ code: 'not_open' })
-    expect(supabase.from).not.toHaveBeenCalled()
   })
 })

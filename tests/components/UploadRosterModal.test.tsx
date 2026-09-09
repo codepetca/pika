@@ -17,7 +17,7 @@ describe('UploadRosterModal', () => {
     )
 
     expect(screen.getByText('Email (main)')).toBeInTheDocument()
-    expect(screen.getByText('Email (secondary)')).toBeInTheDocument()
+    expect(screen.getByText('Email (2nd)')).toBeInTheDocument()
     expect(screen.queryByText(/Counselor Email/i)).not.toBeInTheDocument()
   })
 

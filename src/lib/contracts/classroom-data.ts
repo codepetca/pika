@@ -57,6 +57,7 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   classrooms: ['teacher_id'],
   classwork_materials: ['created_by'],
   entries: ['student_id'],
+  gradebook_score_overrides: ['student_id', 'created_by'],
   report_card_rows: ['student_id'],
   report_cards: ['created_by'],
   survey_responses: ['student_id'],
@@ -402,6 +403,7 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('assignment_submission_artifacts', 'assignment_docs', 'assignment_doc_id', ['student_identity', 'student_work', 'external_reference'], 'exclude', ['assignment_submission_requirements']),
   resource('class_days', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
   resource('classroom_enrollments', 'classrooms', 'classroom_id', ['student_identity']),
+  resource('gradebook_score_overrides', 'classrooms', 'classroom_id', ['student_identity', 'grades_and_feedback'], 'exclude', ['classroom_enrollments']),
   resource('classroom_resources', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('classroom_roster', 'classrooms', 'classroom_id', ['student_identity']),
   resource('classwork_materials', 'classrooms', 'classroom_id', ['teacher_content']),
@@ -497,7 +499,11 @@ export type ClassroomResourceSchemaAudit = {
 export function auditClassroomResourceSchema(
   relationships: ClassroomSchemaRelationship[],
   primaryKeys: ClassroomSchemaPrimaryKey[],
+  includeGradebookOverrides = true,
 ): ClassroomResourceSchemaAudit {
+  const relationalResources = CLASSROOM_RELATIONAL_RESOURCES.filter((resource) =>
+    resource.table !== 'gradebook_score_overrides' || includeGradebookOverrides,
+  )
   const nonOwningReferenceKeys = new Set(
     CLASSROOM_NON_OWNING_REFERENCES.flatMap((relationship) =>
       relationship.child_columns.map((column) =>
@@ -530,7 +536,7 @@ export function auditClassroomResourceSchema(
   }
 
   const resourcesByTable = new Map<string, ClassroomResource>(
-    CLASSROOM_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
+    relationalResources.map((item) => [item.table, item]),
   )
   const purgeOnlyResourcesByTable = new Map(
     CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
@@ -569,7 +575,7 @@ export function auditClassroomResourceSchema(
     }
   }
 
-  const invalidSelectionScopes = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+  const invalidSelectionScopes = relationalResources.flatMap((resource) => {
     const scope = resource.scope
     if (scope.kind === 'root') return []
 
@@ -603,7 +609,7 @@ export function auditClassroomResourceSchema(
     primaryKeys.map((primaryKey) => [primaryKey.table_name, primaryKey.columns]),
   )
   const invalidPrimaryKeys = [
-    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...relationalResources,
     ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   ].flatMap((resource) => {
     if (purgeOnlyTables.has(resource.table) && !descendants.has(resource.table)) {
@@ -626,7 +632,7 @@ export function auditClassroomResourceSchema(
       ),
   )
   const expectedActorReferences = new Set(
-    CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) =>
+    relationalResources.flatMap((resource) =>
       resource.actor_columns.map((column) => `${resource.table}.${column}`),
     ),
   )

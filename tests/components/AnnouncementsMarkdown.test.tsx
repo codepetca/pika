@@ -49,6 +49,8 @@ const markdownAnnouncement: Announcement = {
   title: 'Unit update',
   content: 'Read the [course outline](https://example.com/outline) and **bring notes**.',
   created_by: classroom.teacher_id,
+  is_draft: false,
+  published_at: '2026-05-13T12:00:00.000Z',
   scheduled_for: null,
   created_at: '2026-05-13T12:00:00.000Z',
   updated_at: '2026-05-13T12:00:00.000Z',
@@ -210,7 +212,53 @@ describe('announcement markdown rendering', () => {
 
     fireEvent.change(textarea, { target: { value: 'Announcement draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    expect(screen.getByRole('menuitem', { name: 'Save draft' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+
+    const scheduleDateInput = screen.getByLabelText('Date (Toronto)')
+    expect(scheduleDateInput.closest('div.absolute')).toHaveClass('bottom-full', 'mb-1')
+  })
+
+  it('saves a teacher draft without posting or scheduling it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          const body = JSON.parse(String(init.body))
+          return new Response(JSON.stringify({
+            announcement: {
+              ...markdownAnnouncement,
+              id: 'draft-announcement',
+              content: body.content,
+              is_draft: true,
+              published_at: null,
+            },
+          }), { status: 201 })
+        }
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+      }),
+    )
+
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), {
+      target: { value: 'Private draft content' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save draft' }))
+
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2))
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(screen.getByText(/Draft · Saved/)).toBeInTheDocument()
+    const postCall = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
+      content: 'Private draft content',
+      is_draft: true,
+    })
+    consoleError.mockRestore()
   })
 
   it('keeps announcement creation in the shared action surface menu', async () => {
@@ -234,7 +282,7 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('menuitem', { name: 'Announcement' })).toBeInTheDocument()
   })
 
-  it('labels the edit announcement textarea', async () => {
+  it('labels the edit announcement textarea and keeps its schedule picker above the trigger', async () => {
     render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
@@ -243,15 +291,22 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue(
       markdownAnnouncement.content,
     )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+
+    const scheduleDateInput = screen.getByLabelText('Date (Toronto)')
+    expect(scheduleDateInput.closest('div.absolute')).toHaveClass('bottom-full', 'mb-1')
   })
 
-  it('shows the newest teacher announcements first', async () => {
+  it('shows teacher announcements in publication order', async () => {
     mockAnnouncementFetch([
       {
         ...markdownAnnouncement,
         id: 'older-scheduled-announcement',
         title: 'Older scheduled update',
-        scheduled_for: '2026-05-20T12:00:00.000Z',
+        published_at: '2099-05-20T12:00:00.000Z',
+        scheduled_for: '2099-05-20T12:00:00.000Z',
         created_at: '2026-05-12T12:00:00.000Z',
         updated_at: '2026-05-12T12:00:00.000Z',
       },
@@ -279,8 +334,8 @@ describe('announcement markdown rendering', () => {
     const middle = screen.getByText('Middle update')
     const scheduled = screen.getByText('Older scheduled update')
 
+    expect(scheduled.compareDocumentPosition(newest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(newest.compareDocumentPosition(middle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(middle.compareDocumentPosition(scheduled) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders student announcements as markdown links', async () => {

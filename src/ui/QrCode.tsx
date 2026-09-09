@@ -15,13 +15,16 @@ export function QrCode({ value, label, className, codeClassName }: QrCodeProps) 
     <div
       role="img"
       aria-label={label}
-      className={cn('inline-flex overflow-hidden rounded-card border border-border p-4', className)}
+      className={cn(
+        'inline-flex overflow-hidden rounded-card border border-border bg-qr-background p-4 text-qr-foreground',
+        className,
+      )}
     >
       <QRCode
         value={value}
         size={256}
-        bgColor="var(--color-qr-background)"
-        fgColor="var(--color-qr-foreground)"
+        bgColor="transparent"
+        fgColor="currentColor"
         className={cn('h-auto w-full max-w-64', codeClassName)}
         aria-hidden="true"
       />

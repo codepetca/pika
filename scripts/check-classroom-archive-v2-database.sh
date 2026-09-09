@@ -130,7 +130,10 @@ declare
   v_result jsonb;
   v_rows jsonb;
   v_resource record;
+  v_expected_v2_resource_count integer;
 begin
+  v_expected_v2_resource_count := 40
+    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end;
   if (
     select count(*)
     from public.classroom_archive_resource_contract_versions
@@ -142,8 +145,19 @@ begin
     select count(*)
     from public.classroom_archive_resource_contract_versions
     where format_version = 2
-  ) <> 40 then
+  ) <> v_expected_v2_resource_count then
     raise exception 'Archive-v2 version registry is incomplete';
+  end if;
+  if to_regclass('public.gradebook_score_overrides') is not null and not exists (
+    select 1
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 2
+      and table_name = 'gradebook_score_overrides'
+      and primary_key_columns = array['id']
+      and actor_columns = array['student_id', 'created_by']
+      and restore_after = array['classrooms', 'classroom_enrollments']
+  ) then
+    raise exception 'Archive-v2 Gradebook score override contract is stale';
   end if;
   if exists (
     select 1

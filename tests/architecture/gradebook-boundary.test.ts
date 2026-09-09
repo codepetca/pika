@@ -41,6 +41,7 @@ describe('gradebook feature boundary', () => {
       '@/lib/server/query-chunks',
       '@/lib/supabase',
       '@/lib/validations/gradebook',
+      '@/lib/validations/gradebook-score-overrides',
       '@/types',
     ])
     expect(serverSource).not.toMatch(/\bimport\s*\(/)

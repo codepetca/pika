@@ -217,8 +217,9 @@ function seedActualSiteSupabase(
     announcements: [
       makeQueryBuilder({
         data: [
-          { id: 'ann-1', title: 'Visible', scheduled_for: '2026-04-14T12:00:00Z' },
-          { id: 'ann-2', title: 'Future', scheduled_for: '2099-01-01T00:00:00Z' },
+          { id: 'ann-1', title: 'Visible', is_draft: false, scheduled_for: '2026-04-14T12:00:00Z' },
+          { id: 'ann-2', title: 'Future', is_draft: false, scheduled_for: '2099-01-01T00:00:00Z' },
+          { id: 'ann-3', title: 'Private Draft', is_draft: true, scheduled_for: null },
         ],
         error: null,
       }),

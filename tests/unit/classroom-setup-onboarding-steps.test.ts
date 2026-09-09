@@ -28,6 +28,14 @@ function stepById(id: string) {
 }
 
 describe('CLASSROOM_SETUP_STEPS', () => {
+  it('covers exactly attendance-hours and invite-students', () => {
+    // Class-day review is deliberately not a step here: ClassroomPageClient
+    // already shows its own persistent setup/review banner for that, driven
+    // by a real classDaysNeedSetup signal. This chain only covers what that
+    // banner doesn't.
+    expect(CLASSROOM_SETUP_STEPS.map((step) => step.id)).toEqual(['attendance-hours', 'invite-students'])
+  })
+
   it('has exactly one derived step: attendance hours', () => {
     const derived = CLASSROOM_SETUP_STEPS.filter((step) => step.isDone)
     expect(derived.map((step) => step.id)).toEqual(['attendance-hours'])
@@ -40,23 +48,19 @@ describe('CLASSROOM_SETUP_STEPS', () => {
     expect(step.isDone!({ attendancePolicy: policy({ enabled: true }) })).toBe(true)
   })
 
-  it('leaves class-days and invite-students acknowledgment-only', () => {
-    // These can't be derived from data: class days already have a default
-    // calendar at creation, and "invited" has no reliable signal.
-    expect(stepById('class-days').isDone).toBeUndefined()
+  it('leaves invite-students acknowledgment-only', () => {
+    // No reliable signal that a join code was actually shared.
     expect(stepById('invite-students').isDone).toBeUndefined()
   })
 
   it('targets the same DOM ids the settings/attendance UI actually renders', () => {
-    expect(stepById('class-days').targetSelector).toBe(`#${ONBOARDING_TARGET_IDS.settingsClassDaysTab}`)
     expect(stepById('attendance-hours').targetSelector).toBe(`#${ONBOARDING_TARGET_IDS.attendanceWindow}`)
     expect(stepById('invite-students').targetSelector).toBe(`#${ONBOARDING_TARGET_IDS.joinCodeCard}`)
   })
 
   it('also rings the left-rail entry point that leads to each step', () => {
-    // class-days and invite-students both live under the Settings tab;
-    // attendance-hours lives on the Daily/Attendance tab.
-    expect(stepById('class-days').pathTargetSelector).toBe('[data-nav-item="settings"]')
+    // invite-students lives under the Settings tab; attendance-hours lives
+    // on the Daily/Attendance tab.
     expect(stepById('attendance-hours').pathTargetSelector).toBe('[data-nav-item="daily"]')
     expect(stepById('invite-students').pathTargetSelector).toBe('[data-nav-item="settings"]')
   })

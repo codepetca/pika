@@ -39,6 +39,7 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleAlert,
+  CircleHelp,
   Clock3,
   ExternalLink,
   Eye,
@@ -63,6 +64,7 @@ import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
+import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { PageMockups } from './PageMockups'
 import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
@@ -92,6 +94,7 @@ const QUICK_LINK_LABELS: Record<string, string> = {
   'page-mockups': 'Page mockups',
   'page-actions': 'Page actions',
   'status-colors': 'Status colors',
+  'assignment-edit-split': 'Assignment edit',
   'assignment-creation': 'Assignment dialog',
   controls: 'Controls',
   'student-tests': 'Student tests',
@@ -110,7 +113,7 @@ export function UiGallery({ role }: Props) {
   const referenceRoutes = REFERENCE_ROUTES[role]
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
-    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-creation']
+    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-edit-split', 'assignment-creation']
     : ['page-mockups', 'controls', 'student-tests', 'history-preview']
   const quickLinks = quickLinkIds
     .map((id) => navigationDestinations.find((destination) => destination.value === id))
@@ -324,6 +327,12 @@ export function UiGallery({ role }: Props) {
                 <Button size="sm" variant="ghost">Ghost</Button>
                 <Button size="sm" loading>Saving</Button>
                 <Button size="sm" disabled>Disabled</Button>
+                <IconButton
+                  icon={CircleHelp}
+                  label="Formatting help"
+                  tooltipOnClick
+                  tooltip={<div>Use <strong>plain text</strong>.<p>Tap again or press Escape to dismiss.</p></div>}
+                />
                 <Tooltip content="Edit example" side="top">
                   <Button type="button" size="sm" variant="surface" className="px-0" aria-label="Edit example">
                     <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -578,6 +587,7 @@ export function UiGallery({ role }: Props) {
         >
           <div className="space-y-6 [&>section]:scroll-mt-28">
             {role === 'teacher' && <MaterialCreationPattern />}
+            {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <StudentGradesPattern />
@@ -664,6 +674,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'mockup-workspaces-panel', label: 'Page mockups — Classwork and Tests workspaces' },
       { value: 'material-creation', label: 'Creation dialogs — Material' },
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
+      { value: 'assignment-edit-split', label: 'Assignment edit — Split prototype' },
     ] : [
       { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, calendar, announcements, and resources' },
       { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },

@@ -57,8 +57,11 @@ function archiveV2ResourceCounts() {
   )
 }
 
-function fixture(version: 1 | 2 = 1) {
+function fixture(version: 1 | 2 = 1, withOverrides = false) {
   const sourceResources = resources()
+  if (withOverrides) Object.assign(sourceResources, {
+    gradebook_score_overrides: [{ id: '15700000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, student_id: STUDENT_ID, created_by: TEACHER_ID, assessment_id: ASSIGNMENT_ID, assessment_type: 'assignment', earned: 8 }],
+  })
   const archiveResources = version === 2
     ? Object.fromEntries(
         CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
@@ -120,8 +123,10 @@ function createSupabaseMock(options: {
   v2Unavailable?: boolean
   v2BeginError?: { code?: string; message?: string }
   archiveVersion?: 1 | 2
+  pre157?: boolean
+  withOverrides?: boolean
 } = {}) {
-  const bundle = fixture(options.archiveVersion)
+  const bundle = fixture(options.archiveVersion, options.withOverrides)
   const counts = Object.fromEntries(
     bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
   )
@@ -249,6 +254,16 @@ function createSupabaseMock(options: {
   })
 
   function from(table: string) {
+    if (table === 'classroom_archive_resource_contract_versions') {
+      const data = CLASSROOM_ARCHIVE_V2_RESOURCES
+        .filter((resource) => !options.pre157 || resource.table !== 'gradebook_score_overrides')
+        .map((resource) => ({ table_name: resource.table }))
+      const query = {
+        select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
+        range: vi.fn(async () => ({ data, error: null, count: data.length })),
+      }
+      return query
+    }
     if (table === 'classroom_archives') {
       const query = {
         select: vi.fn(() => query),
@@ -655,4 +670,22 @@ describe('classroom archive restore coordinator', () => {
       operation_id: OPERATION_ID,
     }))
   })
+})
+
+
+it.each([false, true])('restores against schema156 only when override rows are absent: %s', async (withOverrides) => {
+  const mock = createSupabaseMock({ pre157: true, archiveVersion: 2, withOverrides })
+  const result = await restoreClassroomArchive({
+    supabase: mock.client, operationId: OPERATION_ID, archiveId: ARCHIVE_ID,
+    teacherId: TEACHER_ID, classroomId: CLASSROOM_ID,
+    databaseBudgetBytes: 524288000, supabaseUrl: 'https://project.supabase.co',
+  })
+  expect(result.ok).toBe(!withOverrides)
+  const begin = mock.rpc.mock.calls.find(([name]) => name === 'begin_classroom_archive_restore_v2')
+  if (withOverrides) {
+    expect(begin).toBeUndefined()
+    expect(result).toMatchObject({ error_code: 'classroom_archive_restore_migration_required' })
+  } else {
+    expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_score_overrides')
+  }
 })

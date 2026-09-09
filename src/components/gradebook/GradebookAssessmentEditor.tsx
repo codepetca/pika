@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import type { GradebookAssessmentColumn, GradebookCategory } from '@/types'
-import { Button, ContentDialog, FormField, Input, Select } from '@/ui'
+import { Button, ContentDialog, FormField, Input, Select, cn } from '@/ui'
+import { GRADEBOOK_NUMBER_INPUT_CLASS } from '@/lib/gradebook-display'
 import { editedAssessmentCourseWeight, isValidGradebookWeight } from '@/lib/gradebook-editor'
 
 export function GradebookAssessmentEditor({
@@ -83,6 +84,7 @@ export function GradebookAssessmentEditor({
               min={1}
               max={999}
               step={1}
+              className={cn(GRADEBOOK_NUMBER_INPUT_CLASS)}
               aria-invalid={!weightIsValid}
               value={Number.isFinite(weight) ? weight : ''}
               onChange={(event) => setWeight(

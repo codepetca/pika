@@ -226,11 +226,16 @@ export default function TeacherDashboardPage() {
     window.location.href = `/api/teacher/export-csv?classroom_id=${selectedClassroom.id}`
   }
 
-  function handleClassroomCreated(classroom: Classroom) {
+  function rememberCreatedClassroom(classroom: Classroom) {
     invalidateTeacherClassrooms()
     invalidateTeacherDashboardAttendance(classroom.id)
     setClassrooms((current) => [classroom, ...current.filter((item) => item.id !== classroom.id)])
     setSelectedClassroom(classroom)
+  }
+
+  function handleClassroomCreated(classroom: Classroom) {
+    rememberCreatedClassroom(classroom)
+    router.push(`/classrooms/${classroom.id}?tab=daily&reviewClassDays=1`)
   }
 
   function handleCopyJoinLink() {
@@ -338,7 +343,7 @@ export default function TeacherDashboardPage() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleClassroomCreated}
-          onBlueprintCreated={handleClassroomCreated}
+          onBlueprintCreated={rememberCreatedClassroom}
         />
       </>
     )
@@ -664,7 +669,7 @@ export default function TeacherDashboardPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
-        onBlueprintCreated={handleClassroomCreated}
+        onBlueprintCreated={rememberCreatedClassroom}
       />
     </>
   )

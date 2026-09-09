@@ -56,6 +56,20 @@ describe('parseRosterInput', () => {
       expect(result.errors).toHaveLength(0)
     })
 
+    it('parses a secondary email without a student number', () => {
+      const input = 'John Doe john@example.com secondary@example.com'
+      const result = parseRosterInput(input)
+
+      expect(result.students).toHaveLength(1)
+      expect(result.students[0]).toEqual({
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        counselorEmail: 'secondary@example.com',
+      })
+      expect(result.errors).toHaveLength(0)
+    })
+
     it('parses comma-separated with student number', () => {
       const input = 'John, Doe, john@example.com, 123456'
       const result = parseRosterInput(input)

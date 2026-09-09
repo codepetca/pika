@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
+import { readBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
 const mockPush = vi.fn()
 
@@ -69,6 +70,7 @@ describe('CreateClassroomModal', () => {
     vi.mocked(fetchTeacherBlueprints).mockClear()
     vi.mocked(invalidateTeacherBlueprints).mockClear()
     mockPush.mockClear()
+    window.sessionStorage.clear()
   })
 
   afterEach(() => {
@@ -108,6 +110,12 @@ describe('CreateClassroomModal', () => {
     return screen.getByRole('combobox', { name: /course blueprint/i })
   }
 
+  function chooseFirstClassDay(date = '2026-09-08') {
+    fireEvent.change(screen.getByLabelText(/First day of class/i), {
+      target: { value: date },
+    })
+  }
+
   async function openBlueprintSourceStep(title = 'Career Studies - Period 1') {
     fireEvent.change(getClassroomNameInput(), {
       target: { value: title },
@@ -130,8 +138,113 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.getByLabelText(/First day of class/i)).toHaveValue('')
+    expect(screen.queryByLabelText(/Last day of class/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    expect(screen.queryByText('You can modify class days later in Settings.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Every Monday-Friday/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Set up class days later' })).not.toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
+  })
+
+  it('waits for a deliberate click before opening the native first-day picker', async () => {
+    const originalShowPicker = HTMLInputElement.prototype.showPicker
+    const showPicker = vi.fn()
+    HTMLInputElement.prototype.showPicker = showPicker
+
+    try {
+      renderModal()
+      fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+      const firstDayInput = await screen.findByLabelText(/First day of class/i)
+      expect(screen.getByRole('group', { name: 'Choose class dates' })).toHaveFocus()
+      expect(firstDayInput).not.toHaveFocus()
+      expect(showPicker).not.toHaveBeenCalled()
+
+      fireEvent.click(firstDayInput)
+      expect(showPicker).toHaveBeenCalledOnce()
+    } finally {
+      if (originalShowPicker) HTMLInputElement.prototype.showPicker = originalShowPicker
+      else Reflect.deleteProperty(HTMLInputElement.prototype, 'showPicker')
+    }
+  })
+
+  it('creates weekday class days from the teacher-selected first day', async () => {
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ classroom: { id: 'classroom-1', title: 'Career Studies' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ count: 105, class_days: [] }),
+      })
+
+    renderModal({ onSuccess, onClose })
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay('2027-01-01')
+    expect(screen.getByLabelText(/Last day of class/i)).toHaveValue('2027-06-30')
+    expect(screen.getByDisplayValue('January 1, 2027')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('June 30, 2027')).toBeInTheDocument()
+    expect(screen.getByText('You can modify this later in Settings.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Career Studies' }))
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/class-days', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'classroom-1',
+        start_date: '2027-01-01',
+        end_date: '2027-06-30',
+      }),
+    }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('requires the last day of class to be after the first day', async () => {
+    renderModal()
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay('2026-09-08')
+
+    const lastDayInput = screen.getByLabelText(/Last day of class/i)
+    expect(lastDayInput).toHaveAttribute('min', '2026-09-09')
+    fireEvent.change(lastDayInput, { target: { value: '2026-09-08' } })
+
+    expect(screen.getByText('Last day of class must be after the first day.')).toBeInTheDocument()
+    expect(lastDayInput).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/classrooms', expect.anything())
+  })
+
+  it('opens the created classroom when class-day setup returns an error', async () => {
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ classroom: { id: 'classroom-1', title: 'Career Studies' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary class-day failure' }),
+      })
+
+    renderModal({ onSuccess, onClose })
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Career Studies' }))
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('routes From Blueprint through a separate source step before calendar selection', async () => {
@@ -149,7 +262,13 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.getByLabelText(/First day of class/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Set up class days later' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Last day of class/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
+    chooseFirstClassDay()
+    expect(screen.getByLabelText(/Last day of class/i)).toHaveValue('2027-01-31')
+    expect(screen.getByText('You can modify this later in Settings.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).not.toBeDisabled()
   })
 
@@ -264,7 +383,7 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(await screen.findByLabelText(/First day of class/i)).toBeInTheDocument()
   })
 
   it('sends a caller idempotency key when importing a JSON course package', async () => {
@@ -489,7 +608,8 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByRole('option', { name: 'Import course package...' })).toBeInTheDocument()
   })
 
-  it('shows the rollover review before completing a classroom created from a blueprint', async () => {
+  it('opens a classroom created from a blueprint without an intermediate review modal', async () => {
+    const onClose = vi.fn()
     const onSuccess = vi.fn()
     const onBlueprintCreated = vi.fn()
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -510,16 +630,17 @@ describe('CreateClassroomModal', () => {
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess, onBlueprintCreated })
+    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess, onBlueprintCreated })
 
     fireEvent.change(getClassroomNameInput(), {
       target: { value: 'Computer Science 11 - Period 2' },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(await screen.findByLabelText(/First day of class/i)).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
 
+    chooseFirstClassDay()
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
@@ -539,13 +660,14 @@ describe('CreateClassroomModal', () => {
       id: 'classroom-1',
       title: 'Computer Science 11 - Period 2',
     })
-    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toHaveFocus()
-    expect(screen.getByText(/assignments and tests are unpublished/i)).toBeInTheDocument()
-    expect(screen.getByText('Final project workshop')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Review Classroom' }))
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=assignments')
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(mockPush).toHaveBeenCalledWith(
+        '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+      )
+    })
+    expect(screen.queryByRole('heading', { name: 'Classroom Created' })).not.toBeInTheDocument()
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual(['Final project workshop'])
   })
 
   it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {
@@ -567,12 +689,15 @@ describe('CreateClassroomModal', () => {
       target: { value: 'Computer Science 11 - Period 2' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Choose Calendar')
+    await screen.findByLabelText(/First day of class/i)
 
+    chooseFirstClassDay()
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('Temporary failure')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    await screen.findByRole('heading', { name: 'Classroom Created' })
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith(
+      '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+    ))
 
     const instantiateCalls = fetchMock.mock.calls.filter(([url, init]) => (
       String(url) === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`
@@ -582,38 +707,7 @@ describe('CreateClassroomModal', () => {
     expect((instantiateCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
       (instantiateCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
     )
-  })
-
-  it('commits the created classroom without navigating when the review is dismissed', async () => {
-    const onClose = vi.fn()
-    const onSuccess = vi.fn()
-    const onBlueprintCreated = vi.fn()
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
-        lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
-      }),
-    })
-
-    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess, onBlueprintCreated })
-    fireEvent.change(getClassroomNameInput(), {
-      target: { value: 'Computer Science 11 - Period 2' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Choose Calendar')
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
-    await screen.findByRole('heading', { name: 'Classroom Created' })
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
-    expect(onBlueprintCreated).toHaveBeenCalledWith({
-      id: 'classroom-1',
-      title: 'Computer Science 11 - Period 2',
-    })
-    expect(onSuccess).not.toHaveBeenCalled()
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(readBlueprintClassroomOverflow('classroom-1')).toEqual([])
   })
 
   it('cannot dismiss the modal while blueprint instantiation is pending', async () => {
@@ -633,7 +727,8 @@ describe('CreateClassroomModal', () => {
       target: { value: 'Computer Science 11 - Period 2' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Choose Calendar')
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay()
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(await screen.findByRole('button', { name: 'Creating...' })).toBeDisabled()
@@ -652,8 +747,14 @@ describe('CreateClassroomModal', () => {
       })
     })
 
-    expect(await screen.findByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
-    expect(onBlueprintCreated).toHaveBeenCalledOnce()
+    await waitFor(() => {
+      expect(onBlueprintCreated).toHaveBeenCalledOnce()
+      expect(onClose).toHaveBeenCalledOnce()
+      expect(mockPush).toHaveBeenCalledWith(
+        '/classrooms/classroom-1?tab=assignments&reviewClassDays=1',
+      )
+    })
+    expect(screen.queryByRole('heading', { name: 'Classroom Created' })).not.toBeInTheDocument()
   })
 
   it('moves a preselected blueprint directly from classroom name to calendar', async () => {
@@ -665,9 +766,9 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(await screen.findByLabelText(/First day of class/i)).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(getClassroomNameInput()).toHaveValue('Computer Science 11 - Period 2')

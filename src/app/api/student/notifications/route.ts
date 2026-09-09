@@ -259,6 +259,7 @@ async function loadAnnouncementIds(
       .from('announcements')
       .select('id')
       .eq('classroom_id', classroomId)
+      .eq('is_draft', false)
       .or('scheduled_for.is.null,scheduled_for.lte.now()'),
     STUDENT_NOTIFICATIONS_PAGE_SIZE
   )

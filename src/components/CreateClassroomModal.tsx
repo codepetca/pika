@@ -1,29 +1,81 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState, type InputHTMLAttributes } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import { CalendarDays } from 'lucide-react'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import { getDefaultClassroomEndDate } from '@/lib/calendar'
+import { addDaysToDateString } from '@/lib/date-string'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import {
   courseBlueprintImportRequestInit,
   resolveCourseBlueprintImportOperation,
   type CourseBlueprintImportOperation,
 } from '@/lib/course-blueprint-import-client'
+import { storeBlueprintClassroomOverflow } from '@/lib/blueprint-classroom-handoff'
 
-type WizardStep = 'name' | 'blueprint' | 'calendar' | 'review'
-type CalendarMode = 'preset' | 'custom'
-type Semester = 'semester1' | 'semester2'
+type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CreationMode = 'blank' | 'blueprint'
 
 const CHOOSE_FILE_OPTION = '__choose-file__'
 
-type BlueprintCreationResult = {
-  classroom: any
-  overflowLessonTemplates: string[]
-}
+type ReadableCalendarInputProps = {
+  value: string
+  min?: string
+  disabled?: boolean
+  onChange: (value: string) => void
+} & Pick<
+  InputHTMLAttributes<HTMLInputElement>,
+  'id' | 'required' | 'aria-required' | 'aria-invalid' | 'aria-describedby' | 'aria-errormessage' | 'aria-labelledby'
+>
+
+const ReadableCalendarInput = forwardRef<HTMLInputElement, ReadableCalendarInputProps>(
+  ({ value, min, disabled, onChange, ...accessibilityProps }, ref) => {
+    const readableValue = value ? format(parseISO(value), 'MMMM d, yyyy') : ''
+
+    return (
+      <div className="relative">
+        <Input
+          {...accessibilityProps}
+          ref={ref}
+          type="date"
+          value={value}
+          min={min}
+          onChange={(event) => onChange(event.target.value)}
+          onClick={(event) => {
+            try {
+              event.currentTarget.showPicker?.()
+            } catch {
+              // The native input remains the full-size click target even when a
+              // browser does not allow showPicker to be called explicitly.
+            }
+          }}
+          disabled={disabled}
+          className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        />
+        <Input
+          type="text"
+          value={readableValue}
+          placeholder="Choose a date"
+          readOnly
+          disabled={disabled}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="pointer-events-none pr-10 peer-focus-visible:border-primary peer-focus-visible:ring-foundation peer-focus-visible:ring-focus"
+        />
+        <CalendarDays
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+          aria-hidden="true"
+        />
+      </div>
+    )
+  },
+)
+
+ReadableCalendarInput.displayName = 'ReadableCalendarInput'
 
 interface CreateClassroomModalProps {
   isOpen: boolean
@@ -41,11 +93,9 @@ export function CreateClassroomModal({
   initialBlueprintId = null,
 }: CreateClassroomModalProps) {
   const router = useRouter()
-  const startMonthId = useId()
-  const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
-  const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const calendarStepRef = useRef<HTMLDivElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
   const importInFlightRef = useRef(false)
   const importOperationRef = useRef<CourseBlueprintImportOperation | null>(null)
@@ -56,20 +106,12 @@ export function CreateClassroomModal({
   const [availableBlueprints, setAvailableBlueprints] = useState<CourseBlueprint[]>([])
   const [creationMode, setCreationMode] = useState<CreationMode>(initialBlueprintId ? 'blueprint' : 'blank')
   const [selectedBlueprintId, setSelectedBlueprintId] = useState(initialBlueprintId || '')
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
-  const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
-
-  // Custom date state
-  const currentYear = new Date().getFullYear()
-  const [startMonth, setStartMonth] = useState(9) // September
-  const [startYear, setStartYear] = useState(currentYear)
-  const [endMonth, setEndMonth] = useState(1) // January
-  const [endYear, setEndYear] = useState(currentYear + 1)
+  const [firstClassDate, setFirstClassDate] = useState('')
+  const [lastClassDate, setLastClassDate] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [importingBlueprint, setImportingBlueprint] = useState(false)
   const [error, setError] = useState('')
-  const [blueprintCreationResult, setBlueprintCreationResult] = useState<BlueprintCreationResult | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -91,57 +133,33 @@ export function CreateClassroomModal({
   }, [initialBlueprintId, isOpen])
 
   useEffect(() => {
-    if (step === 'review') reviewHeadingRef.current?.focus()
     if (step === 'name') nameInputRef.current?.focus()
+    if (step === 'calendar') calendarStepRef.current?.focus()
   }, [step])
-
-  function getSemesterYears() {
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
-
-    let semester1Year: number
-    let semester2Year: number
-
-    if (currentMonth >= 9 || currentMonth <= 1) {
-      if (currentMonth >= 9) {
-        semester1Year = currentYear
-        semester2Year = currentYear + 1
-      } else {
-        semester1Year = currentYear - 1
-        semester2Year = currentYear
-      }
-    } else if (currentMonth >= 2 && currentMonth <= 6) {
-      semester1Year = currentYear
-      semester2Year = currentYear
-    } else {
-      semester1Year = currentYear
-      semester2Year = currentYear + 1
-    }
-
-    return { semester1Year, semester2Year }
-  }
 
   function resetForm() {
     setStep('name')
     setTitle('')
     setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
     setSelectedBlueprintId(initialBlueprintId || '')
-    setCalendarMode('preset')
-    setSelectedSemester('semester1')
+    setFirstClassDate('')
+    setLastClassDate('')
     setError('')
-    setBlueprintCreationResult(null)
     importOperationRef.current = null
     instantiateOperationRef.current = null
+  }
+
+  function showCalendarStep() {
+    setStep('calendar')
   }
 
   function proceedFromName(nextMode: CreationMode) {
     setCreationMode(nextMode)
     if (nextMode === 'blank' && !initialBlueprintId) {
       setSelectedBlueprintId('')
-      setStep('calendar')
+      showCalendarStep()
     } else if (initialBlueprintId) {
-      setStep('calendar')
+      showCalendarStep()
     } else {
       setStep('blueprint')
     }
@@ -149,7 +167,7 @@ export function CreateClassroomModal({
   }
 
   function proceedFromBlueprintSource() {
-    setStep('calendar')
+    showCalendarStep()
     setError('')
   }
 
@@ -200,19 +218,14 @@ export function CreateClassroomModal({
     setLoading(true)
 
     try {
-      let calendarBody: any = { classroom_id: undefined }
+      const calendarBody = {
+        classroom_id: undefined as string | undefined,
+        start_date: firstClassDate,
+        end_date: lastClassDate,
+      }
 
-      if (calendarMode === 'preset') {
-        const { semester1Year, semester2Year } = getSemesterYears()
-        const year = selectedSemester === 'semester1' ? semester1Year : semester2Year
-        calendarBody.semester = selectedSemester
-        calendarBody.year = year
-      } else {
-        const startDate = `${startYear}-${String(startMonth).padStart(2, '0')}-01`
-        const endDay = new Date(endYear, endMonth, 0).getDate()
-        const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
-        calendarBody.start_date = startDate
-        calendarBody.end_date = endDate
+      if (!firstClassDate || !lastClassDate || lastClassDate <= firstClassDate) {
+        throw new Error('Choose a last day of class after the first day')
       }
 
       let classroom: any
@@ -220,10 +233,8 @@ export function CreateClassroomModal({
       if (selectedBlueprintId) {
         const requestBody = {
           title,
-          semester: calendarMode === 'preset' ? calendarBody.semester : undefined,
-          year: calendarMode === 'preset' ? calendarBody.year : undefined,
-          start_date: calendarMode === 'custom' ? calendarBody.start_date : undefined,
-          end_date: calendarMode === 'custom' ? calendarBody.end_date : undefined,
+          start_date: calendarBody.start_date,
+          end_date: calendarBody.end_date,
         }
         const fingerprint = JSON.stringify({ blueprintId: selectedBlueprintId, requestBody })
         if (instantiateOperationRef.current?.fingerprint !== fingerprint) {
@@ -245,14 +256,14 @@ export function CreateClassroomModal({
         instantiateOperationRef.current = null
         invalidateTeacherBlueprints()
         invalidateTeacherClassrooms()
+        storeBlueprintClassroomOverflow(
+          classroom.id,
+          instantiateData.lesson_mapping?.overflow_lesson_templates,
+        )
         onBlueprintCreated?.(classroom)
-        setBlueprintCreationResult({
-          classroom,
-          overflowLessonTemplates: Array.isArray(instantiateData.lesson_mapping?.overflow_lesson_templates)
-            ? instantiateData.lesson_mapping.overflow_lesson_templates
-            : [],
-        })
-        setStep('review')
+        resetForm()
+        onClose()
+        router.push(`/classrooms/${classroom.id}?tab=assignments&reviewClassDays=1`)
         return
       } else {
         const createResponse = await fetch('/api/teacher/classrooms', {
@@ -269,12 +280,21 @@ export function CreateClassroomModal({
 
         classroom = createData.classroom
         calendarBody.classroom_id = classroom.id
-
-        await fetch('/api/teacher/class-days', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(calendarBody),
-        })
+        try {
+          const calendarResponse = await fetch('/api/teacher/class-days', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(calendarBody),
+          })
+          if (!calendarResponse.ok) {
+            const calendarData = await calendarResponse.json().catch(() => ({}))
+            throw new Error(calendarData.error || 'Failed to set up class days')
+          }
+        } catch {
+          // The classroom already exists. Finish opening it so the persistent
+          // setup prompt can safely guide the teacher to retry without creating
+          // a duplicate classroom.
+        }
       }
 
       invalidateTeacherClassrooms()
@@ -288,30 +308,29 @@ export function CreateClassroomModal({
     }
   }
 
-  function finishBlueprintCreation(openForReview: boolean) {
-    if (!blueprintCreationResult) return
-    const { classroom } = blueprintCreationResult
-    resetForm()
-    onClose()
-    if (openForReview) router.push(`/classrooms/${classroom.id}?tab=assignments`)
-  }
-
   function handleClose() {
     if (loading || importingBlueprint) return
-    if (blueprintCreationResult) return finishBlueprintCreation(false)
     resetForm()
     onClose()
   }
 
-  const { semester1Year, semester2Year } = getSemesterYears()
   const requiresBlueprintSelection = creationMode === 'blueprint' && !initialBlueprintId
   const progressSteps: WizardStep[] =
     requiresBlueprintSelection || step === 'blueprint'
       ? ['name', 'blueprint', 'calendar']
       : ['name', 'calendar']
-  const currentProgressIndex = step === 'review' ? progressSteps.length : progressSteps.indexOf(step)
+  const currentProgressIndex = progressSteps.indexOf(step)
   const canContinueFromBlueprintStep = !!selectedBlueprintId
   const isBusy = loading || importingBlueprint
+  const minimumLastClassDate = firstClassDate
+    ? addDaysToDateString(firstClassDate, 1)
+    : undefined
+  const hasValidClassDateRange = Boolean(
+    firstClassDate && lastClassDate && lastClassDate > firstClassDate,
+  )
+  const lastClassDateError = firstClassDate && lastClassDate && !hasValidClassDateRange
+    ? 'Last day of class must be after the first day.'
+    : undefined
 
   return (
     <DialogPanel
@@ -321,13 +340,8 @@ export function CreateClassroomModal({
       className="p-6"
       ariaLabelledBy="create-classroom-title"
     >
-      <h2
-        ref={reviewHeadingRef}
-        id="create-classroom-title"
-        tabIndex={step === 'review' ? -1 : undefined}
-        className="text-xl font-bold text-text-default mb-4 flex-shrink-0 focus:outline-none"
-      >
-        {step === 'review' ? 'Classroom Created' : 'Create Classroom'}
+      <h2 id="create-classroom-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">
+        Create Classroom
       </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -408,152 +422,46 @@ export function CreateClassroomModal({
           </div>
         )}
 
-        {/* Final Step: Calendar */}
+        {/* Final Step: Class days */}
         {step === 'calendar' && (
-          <div>
-            <label className="block text-sm font-medium text-text-muted mb-3">
-              Choose Calendar
-            </label>
-
-            <div className="space-y-3 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setCalendarMode('preset')
-                  setSelectedSemester('semester1')
+          <div
+            ref={calendarStepRef}
+            role="group"
+            aria-label="Choose class dates"
+            tabIndex={-1}
+            className="space-y-4 focus:outline-none"
+          >
+            <FormField label="First day of class">
+              <ReadableCalendarInput
+                value={firstClassDate}
+                aria-required="true"
+                onChange={(nextFirstClassDate) => {
+                  setFirstClassDate(nextFirstClassDate)
+                  setLastClassDate(getDefaultClassroomEndDate(nextFirstClassDate))
+                  setError('')
                 }}
-                className={`w-full p-4 rounded-lg border-2 transition text-left ${
-                  calendarMode === 'preset' && selectedSemester === 'semester1'
-                    ? 'border-primary bg-info-bg'
-                    : 'border-border-strong hover:border-border-strong'
-                }`}
+                disabled={isBusy}
+              />
+            </FormField>
+
+            {firstClassDate ? (
+              <FormField
+                label="Last day of class"
+                hint="You can modify this later in Settings."
+                error={lastClassDateError}
               >
-                <div className="font-medium text-text-default">Semester 1</div>
-                <div className="text-sm text-text-muted mt-1">
-                  Sep {semester1Year} - Jan {semester1Year + 1}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCalendarMode('preset')
-                  setSelectedSemester('semester2')
-                }}
-                className={`w-full p-4 rounded-lg border-2 transition text-left ${
-                  calendarMode === 'preset' && selectedSemester === 'semester2'
-                    ? 'border-primary bg-info-bg'
-                    : 'border-border-strong hover:border-border-strong'
-                }`}
-              >
-                <div className="font-medium text-text-default">Semester 2</div>
-                <div className="text-sm text-text-muted mt-1">
-                  Feb {semester2Year} - Jun {semester2Year}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCalendarMode('custom')}
-                className={`w-full p-4 rounded-lg border-2 transition ${
-                  calendarMode === 'custom'
-                    ? 'border-primary bg-info-bg'
-                    : 'border-border-strong hover:border-border-strong'
-                }`}
-              >
-                <div className="font-medium text-text-default">Custom Date Range</div>
-              </button>
-            </div>
-
-            {calendarMode === 'custom' && (
-              <div className="p-4 bg-surface-2 rounded-lg mb-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor={startMonthId} className="block text-sm font-medium text-text-muted mb-2">Start</label>
-                    <div className="flex gap-2">
-                      <select
-                        id={startMonthId}
-                        value={startMonth}
-                        onChange={(e) => setStartMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
-                      >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                          <option key={month} value={month}>
-                            {format(new Date(2024, month - 1), 'MMM')}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        value={startYear}
-                        onChange={(e) => setStartYear(parseInt(e.target.value))}
-                        min={2020}
-                        max={2030}
-                        aria-label="Start year"
-                        className="w-20 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor={endMonthId} className="block text-sm font-medium text-text-muted mb-2">End</label>
-                    <div className="flex gap-2">
-                      <select
-                        id={endMonthId}
-                        value={endMonth}
-                        onChange={(e) => setEndMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
-                      >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                          <option key={month} value={month}>
-                            {format(new Date(2024, month - 1), 'MMM')}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        value={endYear}
-                        onChange={(e) => setEndYear(parseInt(e.target.value))}
-                        min={2020}
-                        max={2030}
-                        aria-label="End year"
-                        className="w-20 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 'review' && blueprintCreationResult && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-text-default">Classroom ready for review</h3>
-              <p className="mt-1 text-sm text-text-muted">
-                Assignments and tests are unpublished. Review their due dates and release settings before sharing classwork with students.
-              </p>
-            </div>
-
-            {blueprintCreationResult.overflowLessonTemplates.length > 0 ? (
-              <div className="rounded-md border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default">
-                <p className="font-medium">
-                  {blueprintCreationResult.overflowLessonTemplates.length} lesson {blueprintCreationResult.overflowLessonTemplates.length === 1 ? 'plan was' : 'plans were'} not scheduled
-                </p>
-                <p className="mt-1 text-text-muted">
-                  The selected calendar did not have enough class days. Add dates or schedule these lesson plans manually:
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {blueprintCreationResult.overflowLessonTemplates.map((lessonTitle, index) => (
-                    <li key={`${lessonTitle}-${index}`}>{lessonTitle}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
-                All blueprint lesson plans fit within the selected classroom calendar.
-              </div>
-            )}
+                <ReadableCalendarInput
+                  value={lastClassDate}
+                  min={minimumLastClassDate}
+                  aria-required="true"
+                  onChange={(nextLastClassDate) => {
+                    setLastClassDate(nextLastClassDate)
+                    setError('')
+                  }}
+                  disabled={isBusy}
+                />
+              </FormField>
+            ) : null}
           </div>
         )}
 
@@ -566,28 +474,26 @@ export function CreateClassroomModal({
 
       {/* Navigation Buttons */}
       <div className="flex gap-3 mt-6 flex-shrink-0">
-        {step !== 'review' ? (
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={
-              step === 'name'
-                ? handleClose
-                : () => {
-                    if (step === 'calendar') {
-                      setStep(requiresBlueprintSelection ? 'blueprint' : 'name')
-                    } else {
-                      setStep('name')
-                    }
-                    setError('')
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={
+            step === 'name'
+              ? handleClose
+              : () => {
+                  if (step === 'calendar') {
+                    setStep(requiresBlueprintSelection ? 'blueprint' : 'name')
+                  } else {
+                    setStep('name')
                   }
-            }
-            disabled={isBusy}
-            className="flex-1"
-          >
-            {step === 'name' ? 'Cancel' : 'Back'}
-          </Button>
-        ) : null}
+                  setError('')
+                }
+          }
+          disabled={isBusy}
+          className="flex-1"
+        >
+          {step === 'name' ? 'Cancel' : 'Back'}
+        </Button>
         {step === 'name' ? (
           <SplitButton
             label="Next"
@@ -631,20 +537,16 @@ export function CreateClassroomModal({
                 handleCreate()
               }
             }}
-            disabled={isBusy || (creationMode === 'blueprint' && !selectedBlueprintId)}
+            disabled={
+              isBusy ||
+              (creationMode === 'blueprint' && !selectedBlueprintId) ||
+              !hasValidClassDateRange
+            }
             className="flex-1"
           >
             {loading ? 'Creating...' : 'Create'}
           </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={() => finishBlueprintCreation(true)}
-            className="flex-1"
-          >
-            Review Classroom
-          </Button>
-        )}
+        ) : null}
       </div>
     </DialogPanel>
   )

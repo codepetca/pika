@@ -22,13 +22,14 @@ export const GET = withErrorHandler('GetStudentAnnouncements', async (request, c
 
   const supabase = getServiceRoleClient()
 
-  // Only return published announcements (scheduled_for is null or in the past)
+  // Only return published announcements. Drafts remain teacher-only.
   const { data: announcements, error } = await supabase
     .from('announcements')
     .select('*')
     .eq('classroom_id', classroomId)
+    .eq('is_draft', false)
     .or('scheduled_for.is.null,scheduled_for.lte.now()')
-    .order('created_at', { ascending: false })
+    .order('published_at', { ascending: false })
 
   if (error) {
     console.error('Error fetching announcements:', error)
@@ -61,6 +62,7 @@ export const POST = withErrorHandler('PostStudentAnnouncementsRead', async (requ
     .from('announcements')
     .select('id')
     .eq('classroom_id', classroomId)
+    .eq('is_draft', false)
     .or('scheduled_for.is.null,scheduled_for.lte.now()')
 
   if (fetchError) {

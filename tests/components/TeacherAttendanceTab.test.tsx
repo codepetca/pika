@@ -279,6 +279,13 @@ function mockCombinedFetch(attendanceView = combinedAttendanceView()) {
     if (url.startsWith('/api/teacher/attendance/policy?')) {
       return mockJson({ policy: classroomPolicy() })
     }
+    if (url.startsWith('/api/teacher/attendance/classroom-qr?')) {
+      return mockJson({
+        entryPath: `/attendance/classroom/${'a'.repeat(43)}`,
+        generation: 1,
+        rotatedAt: '2026-05-05T12:00:00.000Z',
+      })
+    }
     throw new Error(`Unhandled fetch: ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -351,6 +358,13 @@ function mockCombinedCommandFetch() {
         entryPath: `/attendance/check-in/${'a'.repeat(80)}`,
         expiresAt: '2099-05-05T14:00:00.000Z',
         revision: 4,
+      })
+    }
+    if (url.startsWith('/api/teacher/attendance/classroom-qr?')) {
+      return mockJson({
+        entryPath: `/attendance/classroom/${'a'.repeat(43)}`,
+        generation: 1,
+        rotatedAt: '2026-05-05T12:00:00.000Z',
       })
     }
     throw new Error(`Unhandled fetch: ${url}`)
@@ -642,7 +656,7 @@ describe('TeacherAttendanceTab', () => {
       .toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Mark Student2 Test late' }))
       .toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Undo manual change for Student2 Test' }))
+    expect(screen.getByRole('button', { name: 'Undo override for Student2 Test' }))
       .toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Time of scan' })).not.toBeInTheDocument()
@@ -722,7 +736,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('closes the Daily More menu with Escape without closing the selected log workspace', async () => {
+  it('dismisses the selected log workspace before opening the Daily More menu', async () => {
     mockLogsFetch()
     const user = userEvent.setup()
 
@@ -734,11 +748,12 @@ describe('TeacherAttendanceTab', () => {
     const trigger = screen.getByRole('button', { name: 'More actions' })
     await user.click(trigger)
     expect(screen.getByRole('menuitem', { name: 'Hide ID column' })).toHaveFocus()
+    expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
 
     await user.keyboard('{Escape}')
 
     expect(screen.queryByRole('menuitem', { name: 'Hide ID column' })).not.toBeInTheDocument()
-    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
     })
@@ -757,9 +772,13 @@ describe('TeacherAttendanceTab', () => {
     )
 
     const scanHeader = await screen.findByRole('columnheader', { name: 'Time of scan' })
+    const logHeader = screen.getByRole('columnheader', { name: /^Log/ })
+    const presentHeader = screen.getByRole('columnheader', { name: /present/i })
     const scanSort = within(scanHeader).getByRole('button', { name: 'Time of scan' })
     expect(scanSort).not.toHaveTextContent('Time of scan')
     expect(scanSort.querySelector('svg')).toBeInTheDocument()
+    expect(scanHeader.cellIndex).toBe(logHeader.cellIndex + 1)
+    expect(scanHeader.cellIndex).toBeLessThan(presentHeader.cellIndex)
     await user.hover(scanSort)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Time of scan')
     await user.unhover(scanSort)
@@ -789,7 +808,7 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
-  it('disables row attendance controls and QR while the selected session is scheduled', async () => {
+  it('keeps manual corrections available while QR is not yet open', async () => {
     mockCombinedFetch(combinedAttendanceView({
       session: {
         ...combinedAttendanceView().session,
@@ -809,30 +828,36 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test present' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeDisabled()
-  })
-
-  it('keeps row corrections available for a closed attendance session', async () => {
-    mockCombinedFetch(combinedAttendanceView({
-      session: {
-        ...combinedAttendanceView().session,
-        state: 'closed',
-      },
-    }))
-    render(
-      <TooltipProvider>
-        <AppMessageProvider>
-          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
-        </AppMessageProvider>
-      </TooltipProvider>,
-    )
-
-    expect(await screen.findByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test present' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeEnabled()
   })
+
+  it.each(['closed', 'cancelled'] as const)(
+    'keeps row and class-wide corrections available for a %s attendance session',
+    async (state) => {
+      mockCombinedFetch(combinedAttendanceView({
+        session: {
+          ...combinedAttendanceView().session,
+          state,
+        },
+      }))
+      const user = userEvent.setup()
+      render(
+        <TooltipProvider>
+          <AppMessageProvider>
+            <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+          </AppMessageProvider>
+        </TooltipProvider>,
+      )
+
+      expect(await screen.findByRole('button', { name: 'Show QR' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'More actions' }))
+      expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeEnabled()
+    },
+  )
 
   it('hides and restores the relative date from Daily More actions', async () => {
     mockLogsFetch()
@@ -848,7 +873,8 @@ describe('TeacherAttendanceTab', () => {
 
     expect(dateButton).toHaveTextContent('Wed May 6')
     expect(within(dateButton).queryByText('Today')).not.toBeInTheDocument()
-    expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('text-xs', 'leading-4')
+    expect(dateButton.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(dateButton).not.toHaveClass('flex-col')
     expect(window.localStorage.getItem('teacher-daily:show-relative-date')).toBe('false')
 
     view.unmount()
@@ -858,6 +884,8 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(within(restoredDateButton).queryByText('Today')).not.toBeInTheDocument()
     })
+    expect(restoredDateButton.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(restoredDateButton).not.toHaveClass('flex-col')
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Show relative date' }))
@@ -908,7 +936,7 @@ describe('TeacherAttendanceTab', () => {
 
     const late = await screen.findByRole('button', { name: 'Mark Student1 Test late' })
     const undo = screen.getByRole('button', {
-      name: 'Undo manual change for Student1 Test',
+      name: 'Undo override for Student1 Test',
     })
     expect(late).toHaveAttribute('aria-pressed', 'true')
     expect(undo).toBeInTheDocument()
@@ -980,7 +1008,7 @@ describe('TeacherAttendanceTab', () => {
     expect(await screen.findByLabelText('Session starts*')).toHaveValue('09:00')
   })
 
-  it('closes the attendance batch dialog with Escape without closing the selected log workspace', async () => {
+  it('dismisses the selected log workspace before opening the attendance batch dialog', async () => {
     mockCombinedFetch()
     const user = userEvent.setup()
 
@@ -998,11 +1026,12 @@ describe('TeacherAttendanceTab', () => {
     await user.click(trigger)
     await user.click(screen.getByRole('menuitem', { name: /Edit attendance/ }))
     expect(screen.getByRole('dialog', { name: 'Edit attendance' })).toBeInTheDocument()
+    expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
 
     await user.keyboard('{Escape}')
 
     expect(screen.queryByRole('dialog', { name: 'Edit attendance' })).not.toBeInTheDocument()
-    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
   })
 
   it('sends row and session commands through the authoritative Attendance routes', async () => {
@@ -1267,19 +1296,50 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Show QR' })).toHaveFocus()
   })
 
-  it.each([false, true])('limits the poster menu to rollout availability %s while keeping occurrence QR', async (available) => {
+  it.each([false, true])('uses the unified classroom poster when rollout availability is %s', async (available) => {
     mockCombinedCommandFetch()
     const user = userEvent.setup()
     render(<TooltipProvider><AppMessageProvider>
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable={available} />
     </AppMessageProvider></TooltipProvider>)
     await screen.findByRole('columnheader', { name: 'Time of scan' })
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeInTheDocument()
+    const qrButton = screen.getByRole('button', { name: available ? 'Classroom QR' : 'Show QR' })
+    expect(qrButton).toBeInTheDocument()
+    if (available) {
+      await user.click(qrButton)
+      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
+      const settingsMenu = screen.getByRole('menu', { name: 'Poster settings' })
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Download SVG' })).toBeVisible()
+      expect(within(settingsMenu).getByRole('menuitem', { name: 'Rotate QR' })).toBeVisible()
+      await user.keyboard('{Escape}')
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    }
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' }) !== null).toBe(available)
+    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
   })
+
+  it.each(['scheduled', 'closed'] as const)(
+    'keeps the unified classroom poster available while attendance is %s',
+    async (state) => {
+      mockCombinedFetch(combinedAttendanceView({
+        session: { ...combinedAttendanceView().session, state },
+      }))
+      const user = userEvent.setup()
+      render(<TooltipProvider><AppMessageProvider>
+        <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
+      </AppMessageProvider></TooltipProvider>)
+
+      const qrButton = await screen.findByRole('button', { name: 'Classroom QR' })
+      expect(qrButton).toBeEnabled()
+      await user.click(qrButton)
+      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      expect(await within(dialog).findByLabelText(`${classroom.title} permanent attendance QR code`)).toBeVisible()
+    },
+  )
 
   it('keeps class-wide Attendance actions in the More actions batch dialog', async () => {
     const fetchMock = mockCombinedCommandFetch()
@@ -1894,6 +1954,23 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
 
     fireEvent.pointerDown(document.body)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
+  })
+
+  it('deselects the selected student when using Daily controls outside the student table', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
+
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Previous day' }))
 
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()

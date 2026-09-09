@@ -83,7 +83,7 @@ type RosterRemovalCounts = {
 }
 
 type TableOverrides = {
-  // Hand-authored: migration 157 has not been applied/regenerated into
+  // Hand-authored: migration 161 has not been applied/regenerated into
   // database.generated.ts yet. Replace with a TableContract<'teacher_ui_state', ...>
   // override once `pnpm run db:types:generate` picks up the new table.
   teacher_ui_state: {

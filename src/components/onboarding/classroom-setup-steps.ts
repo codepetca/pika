@@ -13,22 +13,19 @@ export function classroomSetupOnboardingKey(classroomId: string) {
 }
 
 /**
- * The 3-step chain shown right after a teacher creates a classroom. The
- * first and third steps are acknowledgment-only — class days already have a
- * default calendar by then, and "invited" isn't something the app can
- * detect from data alone — while the middle step reflects real state.
+ * The step chain shown right after a teacher creates a classroom.
+ *
+ * Class-day review is deliberately NOT a step here: ClassroomPageClient
+ * already shows its own persistent "Set up now" / "Review now" banner
+ * (classDaysNeedSetup || reviewClassDays=1), driven by a real derived
+ * signal. Duplicating that as a coachmark would just be two affordances
+ * pointing at the same task — this chain covers what that banner doesn't.
+ *
+ * "Invite students" is acknowledgment-only — there's no reliable signal
+ * that a join code was actually shared — while attendance hours reflects
+ * real state.
  */
 export const CLASSROOM_SETUP_STEPS: Array<OnboardingStep<ClassroomSetupContext>> = [
-  {
-    id: 'class-days',
-    tab: 'settings',
-    section: 'class-days',
-    targetSelector: `#${ONBOARDING_TARGET_IDS.settingsClassDaysTab}`,
-    pathTargetSelector: ONBOARDING_RAIL_SELECTORS.settings,
-    label: 'Review your class days',
-    title: 'Review your class days',
-    body: 'A default calendar is already set. Add holidays, PA days, and any other days off here.',
-  },
   {
     id: 'attendance-hours',
     tab: 'daily',

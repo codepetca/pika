@@ -1200,6 +1200,8 @@ export interface Announcement {
   title?: string | null
   content: string
   created_by: string
+  is_draft: boolean
+  published_at: string | null
   scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled
   created_at: string
   updated_at: string
@@ -1326,6 +1328,7 @@ export interface GradebookAssessmentCell {
   percent: number | null
   is_graded: boolean
   is_manual_override?: boolean
+  calculated_earned?: number | null
   status?: GradebookAssessmentStatus | null
 }
 
@@ -1342,6 +1345,8 @@ export interface GradebookStudentSummary {
   tests_possible: number | null
   tests_percent: number | null
   final_percent: number | null
+  is_final_override?: boolean
+  calculated_final_percent?: number | null
   assessment_scores?: GradebookAssessmentCell[]
 }
 
@@ -1354,6 +1359,8 @@ export interface GradebookAssignmentDetail {
   possible: number
   percent: number | null
   is_graded: boolean
+  is_manual_override?: boolean
+  calculated_earned?: number | null
 }
 
 export interface GradebookTestDetail {
@@ -1363,6 +1370,8 @@ export interface GradebookTestDetail {
   possible: number
   percent: number
   status: 'draft' | 'active' | 'closed' | null
+  is_manual_override?: boolean
+  calculated_earned?: number | null
 }
 
 export interface GradebookStudentDetail extends GradebookStudentSummary {

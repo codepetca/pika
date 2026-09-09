@@ -12,10 +12,15 @@ export function getPikaLoginUrl(request: NextRequest): string {
 
 export function requireSameOriginPost(request: NextRequest): void {
   const expectedOrigin = request.nextUrl.origin
+  const origin = request.headers.get('origin')
 
-  if (request.headers.get('origin') !== expectedOrigin) {
-    throw new ApiError(403, 'Invalid request origin')
-  }
+  if (origin === expectedOrigin) return
+
+  const isPrivateSameOriginBrowserRequest = origin === 'null'
+    && request.headers.get('sec-fetch-site') === 'same-origin'
+  if (isPrivateSameOriginBrowserRequest) return
+
+  throw new ApiError(403, 'Invalid request origin')
 }
 
 export async function clearLocalAuthenticationState(): Promise<void> {

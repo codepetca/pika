@@ -1391,25 +1391,18 @@ export const blueprintRollover: VerificationScript = {
       }
       const instantiated = instantiateResponseSchema.parse(instantiatePayload)
       classroomId = instantiated.classroom.id
-      await page.getByRole('heading', { name: 'Classroom Created' })
-        .waitFor({ state: 'visible', timeout: TIMEOUTS.NAVIGATION })
-      addRequiredCheck(
-        checks,
-        'Teacher receives release review handoff',
-        await page.getByText(/assignments and tests are unpublished/i).isVisible(),
-        'The classroom-created review did not explain the release review requirement',
-      )
-      const handoffScreenshot = path.join(artifactDir, '02-release-review-handoff.png')
-      await page.screenshot({ path: handoffScreenshot, fullPage: true })
-      artifacts.push(handoffScreenshot)
-
-      await page.getByRole('button', { name: 'Review Classroom' }).click()
       await page.waitForURL(new RegExp(`/classrooms/${classroomId}\\?tab=assignments`), {
         timeout: TIMEOUTS.NAVIGATION,
       })
       await page.getByText('Draft', { exact: true }).first()
         .waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
-      const reviewScreenshot = path.join(artifactDir, '03-assignment-review.png')
+      addRequiredCheck(
+        checks,
+        'Teacher opens the created classroom directly',
+        await page.getByRole('heading', { name: 'Classroom Created' }).count() === 0,
+        'The classroom-created review modal still interrupted the navigation',
+      )
+      const reviewScreenshot = path.join(artifactDir, '02-assignment-review.png')
       await page.screenshot({ path: reviewScreenshot, fullPage: true })
       artifacts.push(reviewScreenshot)
 

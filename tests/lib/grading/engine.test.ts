@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { inspect } from 'node:util'
 import { executeGrading, executeStructuredOutput } from '@/lib/grading/engine'
 import type { GradingProfile } from '@/lib/grading/profiles/types'
 import type { StructuredOutputProvider } from '@/lib/grading/providers/types'
@@ -110,7 +111,28 @@ describe('executeGrading', () => {
         requestTimeoutMs: 25_000,
         reasoningEffort: 'minimal',
       },
-    })).rejects.toThrow('Unknown grading criterion: invented')
+    })).rejects.toThrow(/^Unknown grading criterion$/)
+  })
+
+  it.each(['parse', 'normalize', 'criterion', 'result-schema'])('keeps %s failure diagnostics content-free', async (stage) => {
+    const privateMarker = 'PRIVATE synthetic@example.invalid code-123456'
+    const invalidProfile: GradingProfile<ExampleInput, ExampleOutput> = {
+      ...profile,
+      parseOutput: stage === 'parse' ? () => { throw new Error(privateMarker) } : profile.parseOutput,
+      normalizeOutput: stage === 'normalize' ? () => { throw new Error(privateMarker) } : () => ({
+        criteria: [{ criterionId: stage === 'criterion' ? privateMarker : 'completion', score: 8,
+          rationale: stage === 'result-schema' ? JSON.parse(`{"${privateMarker}":true}`) : null }],
+        feedback: { student: 'Feedback', teacherNotes: null },
+      }),
+    }
+    const error = await executeGrading({
+      input: { submission: 'Synthetic response' }, profile: invalidProfile,
+      provider: providerReturning('{"completion":8,"feedback":"Feedback"}'),
+      policy: { version: 'test', model: 'test', reasoningEffort: 'minimal' },
+    }).catch((error: unknown) => error)
+    expect(error).toMatchObject({ name: 'GradingOutputError' })
+    expect(inspect(error, { depth: null })).not.toContain(privateMarker)
+    expect(error).not.toHaveProperty('cause')
   })
 })
 

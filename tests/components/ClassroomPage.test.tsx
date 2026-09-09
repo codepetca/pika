@@ -97,17 +97,14 @@ describe('ClassroomPage feature visibility redirects', () => {
     })
   })
 
-  it.each([false, true])('supplies server-checked poster availability for an entitled teacher: %s', async (allowed) => {
+  it('supplies stable poster availability for an attendance-enabled teacher', async () => {
     const classroomId = '11111111-1111-4111-8111-111111111111'
     const teacherId = '22222222-2222-4222-8222-222222222222'
-    vi.stubEnv('PIKA_CLASSROOM_QR_MODE', 'canary')
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_TEACHER_ID', teacherId)
-    vi.stubEnv('PIKA_CLASSROOM_QR_CANARY_CLASSROOM_ID', allowed ? classroomId : teacherId)
     mocks.getCurrentUser.mockResolvedValue({ id: teacherId, email: 'teacher@example.test', role: 'teacher' })
     mocks.getAttendanceAccess.mockResolvedValue({ state: 'ready', scheduleThrough: null })
     mocks.singleResults.push({ data: { ...classroom(), id: classroomId, teacher_id: teacherId }, error: null })
     render(await ClassroomPage({ params: Promise.resolve({ classroomId }), searchParams: Promise.resolve({ tab: 'daily' }) }))
-    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-qr', String(allowed))
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-qr', 'true')
   })
 
   it.each([

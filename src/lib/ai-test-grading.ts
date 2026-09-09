@@ -893,10 +893,10 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
 
     const localResponseId = providerRefToLocalId.get(responseId)
     if (!localResponseId) {
-      throw new Error(`AI batch grade suggestion returned unknown response ${responseId}`)
+      throw new Error('AI batch grade suggestion returned unknown response')
     }
     if (resultsById.has(localResponseId)) {
-      throw new Error(`AI batch grade suggestion returned duplicate response ${responseId}`)
+      throw new Error('AI batch grade suggestion returned duplicate response')
     }
 
     resultsById.set(localResponseId, {

@@ -31,29 +31,40 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   }
 
   // Send email via Brevo API
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      'api-key': apiKey,
-    },
-    body: JSON.stringify({
-      sender: {
-        email: fromEmail,
-        name: fromName,
+  let response: Response
+  try {
+    response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'api-key': apiKey,
       },
-      to: [{ email: opts.to }],
-      templateId,
-      params: opts.templateParams,
-    }),
-  })
-
-  const responseText = await response.text()
+      body: JSON.stringify({
+        sender: {
+          email: fromEmail,
+          name: fromName,
+        },
+        to: [{ email: opts.to }],
+        templateId,
+        params: opts.templateParams,
+      }),
+    })
+  } catch {
+    // Transport errors can contain recipient/template data; do not retain a raw cause.
+    throw new Error('Failed to send email via Brevo (network error)')
+  }
 
   if (!response.ok) {
-    console.error('Brevo API error:', responseText)
-    throw new Error(`Failed to send email via Brevo (${response.status}): ${responseText}`)
+    await response.body?.cancel().catch(() => {})
+    throw new Error(`Failed to send email via Brevo (${response.status})`)
+  }
+
+  let responseText: string
+  try {
+    responseText = await response.text()
+  } catch {
+    throw new Error(`Failed to read Brevo response (${response.status})`)
   }
 
   // Parse response to get messageId
