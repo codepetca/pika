@@ -858,7 +858,11 @@ describe('PageMockups', () => {
     await user.keyboard('{ArrowLeft}')
     expect(divider).toHaveAttribute('aria-valuenow', '45')
 
-    await user.click(within(workspace).getByRole('button', { name: 'Back to item list' }))
+    const assignmentActions = within(workspace).getByRole('region', { name: 'Assignment workspace actions' })
+    expect(within(assignmentActions).getByText('Field observations')).toBeVisible()
+    expect(within(assignmentActions).queryByRole('button', { name: 'Back to item list' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
+    await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     expect(within(workspace).queryByRole('tab', { name: 'Students' })).not.toBeInTheDocument()
     expect(within(workspace).getByRole('button', { name: /^Field observations/ })).toBeVisible()
   })

@@ -2660,10 +2660,25 @@ export function TeacherClassroomView({
     ) : (
       <TeacherWorkSurfaceContextBar
         ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
-        context={selection.mode === 'assignment' ? workspaceStatus : null}
+        className={selection.mode === 'assignment' ? 'grid-cols-[minmax(0,1fr)_auto] py-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:py-1' : undefined}
+        context={selection.mode === 'assignment' ? (
+          <div className="flex min-w-0 items-center gap-2">
+            {selectedAssignmentSummary ? (
+              <span
+                className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64"
+                title={selectedAssignmentSummary.title}
+              >
+                {selectedAssignmentSummary.title}
+              </span>
+            ) : null}
+            {workspaceStatus}
+          </div>
+        ) : null}
+        contextClassName={selection.mode === 'assignment' ? 'col-span-2 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1' : undefined}
         primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
+        primaryClassName={selection.mode === 'assignment' ? 'col-start-1 row-start-2 justify-self-start sm:col-start-2 sm:row-start-1 sm:justify-self-center' : undefined}
         actions={selection.mode === 'assignment' ? assignmentWorkspaceUtilities : null}
-        trailingClassName="overflow-visible"
+        trailingClassName={selection.mode === 'assignment' ? 'col-start-2 row-start-2 overflow-visible sm:col-start-3 sm:row-start-1' : 'overflow-visible'}
       />
     )
 

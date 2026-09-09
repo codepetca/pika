@@ -1908,6 +1908,8 @@ describe('TeacherTestsTab', () => {
     expect(firstResize).toHaveAttribute('aria-valuenow', '72')
 
     const contextBar = screen.getByTestId('test-grading-context-bar')
+    expect(contextBar).toHaveTextContent('Unit Test')
+    expect(within(contextBar).queryByRole('button', { name: /back/i })).not.toBeInTheDocument()
     expect(contextBar).not.toHaveTextContent(/Draft|Active|Closed/)
     expect(within(contextBar).getByRole('button', { name: 'Close All' })).toBeEnabled()
     expect(within(contextBar).queryByRole('button', { name: 'Edit Test' })).not.toBeInTheDocument()
