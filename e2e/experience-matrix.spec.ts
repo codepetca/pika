@@ -787,6 +787,35 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await page.emulateMedia({ media: 'screen' })
   await page.evaluate(() => { delete document.body.dataset.printClassroomQr })
   await posterDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'closed'
+  const closedSessionResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/teacher/attendance/session?') && response.request().method() === 'GET')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await closedSessionResponse
+  const closedSessionQrButton = page.getByRole('button', { name: 'Classroom QR' })
+  await expect(closedSessionQrButton).toBeEnabled()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-closed-qr-enabled.png`),
+    animations: 'disabled',
+  })
+  await closedSessionQrButton.click()
+  const closedPosterDialog = page.getByRole('dialog', { name: 'Classroom QR' })
+  await expect(closedPosterDialog.getByLabel('Daily and Attendance Fixture permanent attendance QR code')).toBeVisible()
+  await closedPosterDialog
+    .getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'scheduled'
+  const scheduledSessionResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/teacher/attendance/session?') && response.request().method() === 'GET')
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await scheduledSessionResponse
+  const scheduledSessionQrButton = page.getByRole('button', { name: 'Classroom QR' })
+  await expect(scheduledSessionQrButton).toBeEnabled()
+  await scheduledSessionQrButton.click()
+  const scheduledPosterDialog = page.getByRole('dialog', { name: 'Classroom QR' })
+  await expect(scheduledPosterDialog.getByLabel('Daily and Attendance Fixture permanent attendance QR code')).toBeVisible()
+  await scheduledPosterDialog
+    .getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'open'
   await page.goto('/e2e-fixtures/teacher-daily-attendance?classroomQr=off')
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
   await contextBar.getByRole('button', { name: 'More actions' }).click()

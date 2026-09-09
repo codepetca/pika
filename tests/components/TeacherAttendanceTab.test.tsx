@@ -279,6 +279,13 @@ function mockCombinedFetch(attendanceView = combinedAttendanceView()) {
     if (url.startsWith('/api/teacher/attendance/policy?')) {
       return mockJson({ policy: classroomPolicy() })
     }
+    if (url.startsWith('/api/teacher/attendance/classroom-qr?')) {
+      return mockJson({
+        entryPath: `/attendance/classroom/${'a'.repeat(43)}`,
+        generation: 1,
+        rotatedAt: '2026-05-05T12:00:00.000Z',
+      })
+    }
     throw new Error(`Unhandled fetch: ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -1307,16 +1314,24 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
   })
 
-  it('keeps the unified classroom poster available while attendance is closed', async () => {
-    mockCombinedFetch(combinedAttendanceView({
-      session: { ...combinedAttendanceView().session, state: 'closed' },
-    }))
-    render(<TooltipProvider><AppMessageProvider>
-      <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
-    </AppMessageProvider></TooltipProvider>)
+  it.each(['scheduled', 'closed'] as const)(
+    'keeps the unified classroom poster available while attendance is %s',
+    async (state) => {
+      mockCombinedFetch(combinedAttendanceView({
+        session: { ...combinedAttendanceView().session, state },
+      }))
+      const user = userEvent.setup()
+      render(<TooltipProvider><AppMessageProvider>
+        <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
+      </AppMessageProvider></TooltipProvider>)
 
-    expect(await screen.findByRole('button', { name: 'Classroom QR' })).toBeEnabled()
-  })
+      const qrButton = await screen.findByRole('button', { name: 'Classroom QR' })
+      expect(qrButton).toBeEnabled()
+      await user.click(qrButton)
+      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      expect(await within(dialog).findByLabelText(`${classroom.title} permanent attendance QR code`)).toBeVisible()
+    },
+  )
 
   it('keeps class-wide Attendance actions in the More actions batch dialog', async () => {
     const fetchMock = mockCombinedCommandFetch()
