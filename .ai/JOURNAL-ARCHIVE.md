@@ -31441,3 +31441,9 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Added vertical spacing between the three roster-help lines and emphasized `First Last Email [ID] [Email 2]` with semibold text. The optional-fields note remains on its own line.
 - Reused the existing tooltip content owner and shared spacing/type tokens. Focused tests, the full focused gate, and direct desktop/mobile browser assertions for line separation, font weight, and containment pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:f99e3378bf168ba6f10e419c3a8c0ce61f8ae10c0ede89aa0852b3ee08f35d77 -->
+## 2026-09-06 — Label roster tooltip fields
+
+- Updated the emphasized roster format line to `[First name] [Last name] [Email] [ID] [Email 2]`, italicizing only `ID` and `Email 2` while retaining the existing line spacing and optional-fields note.
+- Focused tests, the full focused gate, route-level teacher/student captures, and direct desktop/mobile browser assertions for exact labels, italic styling, and containment pass. No schema, data, API, dependency, deployment or merge action.

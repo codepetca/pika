@@ -170,6 +170,32 @@ describe('LoginClient', () => {
     })
   })
 
+  it('preserves a safe next path when moving from login to signup', async () => {
+    mockGet.mockImplementation((key: string) => (
+      key === 'next' ? '/attendance/classroom/qr-token' : null
+    ))
+    const user = userEvent.setup()
+
+    render(<LoginClient />)
+    await user.click(screen.getByRole('button', { name: 'Sign up' }))
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/signup?next=%2Fattendance%2Fclassroom%2Fqr-token',
+    )
+  })
+
+  it('drops an unsafe next path when moving from login to signup', async () => {
+    mockGet.mockImplementation((key: string) => (
+      key === 'next' ? '//evil.example/steal' : null
+    ))
+    const user = userEvent.setup()
+
+    render(<LoginClient />)
+    await user.click(screen.getByRole('button', { name: 'Sign up' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/signup')
+  })
+
   it('announces session expiry and focuses the email field', () => {
     mockGet.mockImplementation((key: string) => (
       key === 'reason' ? 'session-expired' : '/teacher/calendar'

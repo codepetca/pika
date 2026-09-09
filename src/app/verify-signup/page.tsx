@@ -3,6 +3,8 @@
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField, useAppMessage } from '@/ui'
+import { buildAuthContinuationPath } from '@/lib/auth-redirect'
+import { getSafeInternalPath } from '@/lib/navigation-safety'
 
 const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
 
@@ -10,6 +12,7 @@ function VerifySignupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const emailFromUrl = searchParams.get('email') || ''
+  const nextPath = getSafeInternalPath(searchParams.get('next'))
 
   const [email, setEmail] = useState(emailFromUrl)
   const [code, setCode] = useState('')
@@ -40,7 +43,7 @@ function VerifySignupForm() {
         JSON.stringify({ email, token: data.handoffToken }),
       )
 
-      router.push(`/create-password?email=${encodeURIComponent(email)}`)
+      router.push(buildAuthContinuationPath('/create-password', { email, next: nextPath }))
     } catch (err: any) {
       setError(err.message || 'An error occurred')
       setLoading(false)
