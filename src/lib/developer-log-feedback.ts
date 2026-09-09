@@ -126,6 +126,7 @@ export async function callOpenAIForDeveloperFeedback(
   const model = getDeveloperFeedbackModel()
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
+    redirect: 'error',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',

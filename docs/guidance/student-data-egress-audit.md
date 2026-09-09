@@ -146,3 +146,74 @@ Gradex failure diagnostics, other application/database logs, product-feedback
 scope and vendor retention remain follow-ups. Existing stored errors/logs are not
 retroactively purged. No migration or production change is included. Focused
 checks, independent review and exact-head CI gate the PR; deployment is separate.
+
+## Transport package preparation (2026-09-09)
+
+Privacy fix #1218 was released through production PR #1227. Teacher and
+anonymous-access smoke checks passed. The user reported student checks with no
+issues on September 9 and requested continuing to the next security item. This
+is user-reported acceptance, not agent-run evidence for the unexecuted synthetic
+draft/scheduled-announcement visibility scenarios.
+
+Current main `6173d863` still has the outbound transport gaps. The isolated
+implementation branch is `codex/outbound-transport-hardening`; environment
+verification passed after a frozen-lockfile dependency installation. No source
+implementation or hosted mutation occurred during preparation. Risk:
+runtime-platform and async-grading. The user subsequently approved this plan:
+
+1. Reject automatic redirects on authenticated runtime OpenAI calls (grading,
+   log summaries, developer feedback and curriculum import), Brevo delivery,
+   Pal event/read-token requests and optional Gradex grading. Preserve Bara's
+   existing rejection. Do not change public-document redirect handling, signed
+   Storage delivery, authentication navigation or vendor SDKs in this package.
+2. Validate the optional Gradex base URL before any request: HTTPS, no embedded
+   credentials/query/fragment, and an explicit path policy verified against the
+   existing endpoint contract. Permit loopback HTTP only in development. Do not
+   enable Gradex or change production configuration.
+3. Keep Gradex transport/HTTP/parse diagnostics content-free, including saved
+   run errors, while preserving bounded retries and timeout behavior. Do not
+   expand this into a general application-log rewrite.
+4. Add synthetic regressions for URL rejection, redirect rejection without a
+   second destination receiving the body/key, safe failures and successful
+   existing request contracts. No real provider calls or student records.
+5. Run focused checks, publish draft, complete independent security and
+   compatibility review, batch fixes and pass exact-head CI. Main merge and
+   production rollout remain subject to their normal authority gates.
+
+No new dependency, migration, schedule or user-interface change is planned.
+Broader logging, product-feedback purpose, vendor retention/deletion and live
+enablement reconciliation remain separately tracked work, not certified here.
+
+### Implemented transport contract
+
+The eight runtime call sites above now use `redirect: 'error'`. Automatic
+redirects fail through the existing error/retry paths; they never forward the
+request to a second destination. This does not block Pika's authorized signed
+Storage redirects or public-document fetching. SDK-managed traffic and operator
+Gradex smoke scripts are outside this runtime package.
+
+Gradex configuration must be an origin, not an API-path prefix. The adapter owns
+the `/api/v1/grading-runs` paths. HTTPS permits an explicit port; credentials,
+query strings and fragments (including empty delimiters) are rejected. HTTP is
+permitted only with `NODE_ENV=development` and a canonical `localhost`,
+`127.0.0.1` or `[::1]` hostname. Validation happens before loading grading work.
+This is trusted operator configuration validation, not a general arbitrary-URL
+SSRF guard or DNS/IP allow-list.
+
+Gradex HTTP errors discard bodies, successful-response JSON/schema failures use
+fixed messages, and result-mapping failure diagnostics no longer persist raw
+exceptions. The timeout remains active through response-body consumption.
+Existing bounded retry/backoff and idempotency behavior is retained.
+
+Loopback-only tests exercise real fetch behavior for redirect statuses, verify
+one initial request and zero destination requests, and use synthetic payloads
+and credentials only. Additional tests cover unsafe URL rejection before fetch,
+development-only HTTP, status-based retries, response timeout and content-free
+saved diagnostics. Existing successful-request suites remain regression gates.
+
+Rollout requires no migration or new environment variable. If an operator has
+configured Gradex with an API-path prefix or a plaintext non-development URL,
+that integration will fail closed until its canonical HTTPS origin is used.
+If a vendor intentionally redirects an endpoint, configure/use its reviewed
+canonical endpoint; do not restore automatic forwarding. Live Gradex enablement
+and endpoint configuration have not been checked or changed by this package.

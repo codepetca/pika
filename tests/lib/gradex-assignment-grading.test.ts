@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { withRedirectCanary } from '../helpers/redirect-canary'
 
 const {
   mockBuildPikaAssignmentGradexRunPayload,
@@ -37,6 +38,7 @@ import {
 } from '@/lib/server/gradex-assignment-grading'
 
 describe('Gradex assignment grading processor', () => {
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
@@ -87,11 +89,129 @@ describe('Gradex assignment grading processor', () => {
     expect(isGradexAssignmentGradingEnabled()).toBe(false)
   })
 
+  it.each([307, 308])('rejects HTTP %i without forwarding a submission, preserving retry state', async (status) => {
+    await withRedirectCanary(status, 'https://gradex.example.test/api/v1/grading-runs', async (canary) => {
+      vi.stubGlobal('fetch', canary.fetchImpl)
+      const supabase = buildSupabase()
+      await submitOrPollGradexAssignmentRun({
+        supabase: supabase.client, assignment: assignment(), run: run(), items: [item()],
+      })
+      expect(canary.sourceRequests()).toBe(1)
+      expect(canary.targetRequests()).toBe(0)
+      expect(supabase.itemUpdates.at(-1)?.payload).toMatchObject({
+        status: 'queued', last_error_code: 'gradex_network_error', attempt_count: 1,
+        last_error_message: 'Gradex request failed before a response was received',
+      })
+    })
+  })
+
+  it.each([
+    'http://gradex.example.test', 'http://localhost:3001', 'ftp://gradex.example.test',
+    'https://private-key@gradex.example.test', 'https://gradex.example.test?key=private',
+    'https://gradex.example.test#private', 'https://gradex.example.test/api',
+    'https://gradex.example.test?', 'https://gradex.example.test#', 'not a URL',
+  ])('rejects unsafe production configuration before loading work or sending: %s', async (url) => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('GRADEX_API_URL', url)
+    const fetchImpl = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchImpl)
+    await expect(submitOrPollGradexAssignmentRun({
+      supabase: buildSupabase().client, assignment: assignment(), run: run(), items: [item()],
+    })).rejects.toThrow('Gradex API URL must be an HTTPS origin')
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(mockBuildPikaAssignmentGradexRunPayload).not.toHaveBeenCalled()
+  })
+
+  it.each(['localhost', '127.0.0.1', '[::1]'])('permits development loopback HTTP on %s', async (host) => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('GRADEX_API_URL', `http://${host}:3001/`)
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 503 }))
+    vi.stubGlobal('fetch', fetchImpl)
+    await submitOrPollGradexAssignmentRun({
+      supabase: buildSupabase().client, assignment: assignment(), run: run(), items: [item()],
+    })
+    expect(fetchImpl).toHaveBeenCalledWith(`http://${host}:3001/api/v1/grading-runs`,
+      expect.objectContaining({ redirect: 'error' }))
+  })
+
+  it.each(['test', 'production', ''])('rejects loopback HTTP outside explicit development (%s)', async (mode) => {
+    vi.stubEnv('NODE_ENV', mode)
+    vi.stubEnv('GRADEX_API_URL', 'http://127.0.0.1:3001')
+    const fetchImpl = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchImpl)
+    await expect(submitOrPollGradexAssignmentRun({
+      supabase: buildSupabase().client, assignment: assignment(), run: run(), items: [item()],
+    })).rejects.toThrow('Gradex API URL must be an HTTPS origin')
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('rejects remote HTTP even in development', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('GRADEX_API_URL', 'http://localhost.example.test')
+    const fetchImpl = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchImpl)
+    await expect(submitOrPollGradexAssignmentRun({
+      supabase: buildSupabase().client, assignment: assignment(), run: run(), items: [item()],
+    })).rejects.toThrow('Gradex API URL must be an HTTPS origin')
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('keeps the request timeout active through response-body consumption', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      const response = new Response('{}', { status: 202 })
+      vi.spyOn(response, 'json').mockImplementation(() => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('PRIVATE', 'AbortError')), { once: true })
+      }))
+      return response
+    }))
+    const supabase = buildSupabase()
+    const pending = submitOrPollGradexAssignmentRun({
+      supabase: supabase.client, assignment: assignment(), run: run(), items: [item()],
+    })
+    await vi.advanceTimersByTimeAsync(25_001)
+    await pending
+    expect(supabase.itemUpdates.at(-1)?.payload).toMatchObject({
+      status: 'queued', last_error_code: 'gradex_timeout', last_error_message: 'Gradex request timed out',
+    })
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([400, 307, 308, 503])('discards private HTTP %i body without reading it', async (status) => {
+    const marker = 'PRIVATE synthetic-student-work api-key'
+    const response = new Response(JSON.stringify({ error: { message: marker, details: marker } }), { status })
+    const read = vi.spyOn(response, 'json')
+    const cancel = vi.spyOn(response.body!, 'cancel')
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(response))
+    const supabase = buildSupabase()
+    const failure = await submitOrPollGradexAssignmentRun({
+      supabase: supabase.client, assignment: assignment(), run: run(), items: [item()],
+    }).catch((error: Error) => error)
+    expect(JSON.stringify(supabase.itemUpdates)).not.toContain(marker)
+    if (status === 503) {
+      expect(supabase.itemUpdates.at(-1)?.payload.last_error_message).toBe('Gradex request failed with status 503')
+    } else {
+      expect(failure).toMatchObject({ message: `Gradex request failed with status ${status}` })
+    }
+    expect(read).not.toHaveBeenCalled()
+    expect(cancel).toHaveBeenCalledOnce()
+  })
+
+  it.each(['invalid JSON PRIVATE', JSON.stringify({ status: 'PRIVATE unknown enum' })])(
+    'does not expose JSON or schema errors from successful HTTP responses', async (body) => {
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 202 })))
+      await expect(submitOrPollGradexAssignmentRun({
+        supabase: buildSupabase().client, assignment: assignment(), run: run(), items: [item()],
+      })).rejects.toThrow('Gradex returned an invalid response')
+    },
+  )
+
   it('submits a sanitized Gradex run and stores remote run metadata', async () => {
     const supabase = buildSupabase()
     const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
       expect(String(input)).toBe('https://gradex.example.test/api/v1/grading-runs')
       expect(init?.method).toBe('POST')
+      expect(init?.redirect).toBe('error')
       expect(init?.headers).toMatchObject({ Authorization: 'Bearer gx_test_key' })
       expect(JSON.parse(String(init?.body))).toEqual(
         expect.objectContaining({
@@ -180,6 +300,7 @@ describe('Gradex assignment grading processor', () => {
     const supabase = buildSupabase()
     const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input)
+      expect(init?.redirect).toBe('error')
       expect(init?.headers).toMatchObject({ Authorization: 'Bearer gx_test_key' })
       if (url === 'https://gradex.example.test/api/v1/grading-runs/gradex-run-1') {
         return jsonResponse(200, {
@@ -287,7 +408,7 @@ describe('Gradex assignment grading processor', () => {
           status: 'queued',
           attempt_count: 1,
           last_error_code: 'gradex_retryable_http_error',
-          last_error_message: 'Gradex temporarily unavailable',
+          last_error_message: 'Gradex request failed with status 503',
           next_retry_at: expect.any(String),
           completed_at: null,
         }),
@@ -343,7 +464,7 @@ describe('Gradex assignment grading processor', () => {
           status: 'queued',
           attempt_count: 1,
           last_error_code: 'gradex_retryable_http_error',
-          last_error_message: 'Rate limited',
+          last_error_message: 'Gradex request failed with status 429',
           next_retry_at: expect.any(String),
           completed_at: null,
         }),
@@ -423,6 +544,26 @@ describe('Gradex assignment grading processor', () => {
         }),
       }),
     ])
+  })
+
+  it('does not persist provider-controlled mapping failure messages or causes', async () => {
+    const supabase = buildSupabase()
+    mockMapGradexItemsToPikaGradeRecords.mockImplementation(() => {
+      throw new Error('PRIVATE provider reference', { cause: new Error('PRIVATE student text') })
+    })
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(200, {
+      id: 'gradex-run-1', status: 'completed',
+      counts: { requested: 1, processed: 1, completed: 1, failed: 0, skipped: 0, pending: 0 },
+      provider: null, model: null, tier: null, policy_version: null, prompt_version: null, items: [],
+    })))
+    await submitOrPollGradexAssignmentRun({
+      supabase: supabase.client, assignment: assignment(),
+      run: run({ gradex_run_id: 'gradex-run-1' }), items: [item({ status: 'processing' })],
+    })
+    expect(supabase.itemUpdates.at(-1)?.payload).toMatchObject({
+      last_error_code: 'gradex_mapping_failed', last_error_message: 'Failed to map Gradex results to Pika records',
+    })
+    expect(JSON.stringify(supabase.itemUpdates)).not.toContain('PRIVATE')
   })
 })
 
