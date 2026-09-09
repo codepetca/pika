@@ -41,7 +41,8 @@ teachers must print and replace it.
   confirm migration 151. Preserve its applied filename and version during rebases;
   any future numbering collision requires coordinated history handling, not a rename.
   Without it, poster requests return a setup-unavailable error; there is no
-  alternate storage fallback. Existing occurrence QR behavior remains available.
+  alternate storage fallback. Legacy occurrence entry routes remain protocol
+  compatibility paths, not a Daily UI fallback.
 - The generated database contract was regenerated from local migration 151 and
   verified on 2026-09-02. Read-only database checks confirmed the table, constraints,
   row-level security and service-role-only application grants. Migration history

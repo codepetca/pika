@@ -799,6 +799,10 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('dialog', { name: 'Classroom QR' })).toBeVisible()
   await page.getByRole('dialog', { name: 'Classroom QR' })
     .getByRole('button', { name: 'Close', exact: true }).first().click()
+  attendanceSessionState = 'scheduled'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const scheduledSessionQrButton = page.getByRole('button', { name: 'Classroom QR' })
+  await expect(scheduledSessionQrButton).toBeEnabled()
   attendanceSessionState = 'open'
   await page.goto('/e2e-fixtures/teacher-daily-attendance?classroomQr=off')
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()

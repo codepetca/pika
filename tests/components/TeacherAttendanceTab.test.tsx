@@ -1307,16 +1307,23 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
   })
 
-  it('keeps the unified classroom poster available while attendance is closed', async () => {
-    mockCombinedFetch(combinedAttendanceView({
-      session: { ...combinedAttendanceView().session, state: 'closed' },
-    }))
-    render(<TooltipProvider><AppMessageProvider>
-      <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
-    </AppMessageProvider></TooltipProvider>)
+  it.each(['scheduled', 'closed'] as const)(
+    'keeps the unified classroom poster available while attendance is %s',
+    async (state) => {
+      mockCombinedFetch(combinedAttendanceView({
+        session: { ...combinedAttendanceView().session, state },
+      }))
+      const user = userEvent.setup()
+      render(<TooltipProvider><AppMessageProvider>
+        <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
+      </AppMessageProvider></TooltipProvider>)
 
-    expect(await screen.findByRole('button', { name: 'Classroom QR' })).toBeEnabled()
-  })
+      const qrButton = await screen.findByRole('button', { name: 'Classroom QR' })
+      expect(qrButton).toBeEnabled()
+      await user.click(qrButton)
+      expect(await screen.findByRole('dialog', { name: 'Classroom QR' })).toBeVisible()
+    },
+  )
 
   it('keeps class-wide Attendance actions in the More actions batch dialog', async () => {
     const fetchMock = mockCombinedCommandFetch()
