@@ -1,5 +1,10 @@
 # Stable classroom QR canary gate
 
+> Status: retired on 2026-09-08. Stable classroom posters now follow the
+> server-checked attendance entitlement documented in
+> [`classroom-attendance-qr.md`](../../classroom-attendance-qr.md). This file is
+> retained only as historical design evidence and is not an active control.
+
 - Surface/reference: existing teacher Daily More actions and classroom poster
   dialog, plus Pattern Lab Controls QR example. This is conditional availability,
   not a redesign or new shared pattern.
@@ -13,7 +18,7 @@
 - Composite checklist reviewed: shared menu keyboard navigation and Escape/focus
   return remain; semantic tests cover availability, and browser checks cover gated
   menu Escape/focus. No experimental pattern or human design promotion is needed.
-- Gate is authoritative server-side. The UI receives only a boolean, not configured
-  canary identifiers or credentials. Existing attendance remains unchanged.
+- Historical behavior: the gate was authoritative server-side and the UI received
+  only a boolean, not configured canary identifiers or credentials.
 - Capture provenance and verification results belong in the correction PR. Local
   fixture evidence does not satisfy the live Pika-to-Bara production canary gate.

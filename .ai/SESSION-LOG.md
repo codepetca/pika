@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Stabilize roster Student Actions width
-
-- Matched the roster Student Actions trigger to the existing fixed-width Tests/gradebook treatment with `w-36`, keeping the centered cluster stable when the label changes from `Student Actions` to a selected count.
-- Added regression assertions for the fixed width in both no-selection and selected states. Focused roster tests pass 28 tests; the focused gate passes 13 files / 158 tests plus architecture, UI/design policy, TypeScript and lint.
-- Rechecked the live teacher roster at desktop and mobile widths in light and dark themes, including selected and open-menu states. Both trigger states measure 144px and the open menu remains contained. No schema, API, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Fix roster secondary-email imports
-
-- Renamed the visible roster secondary-email column and import previews to `Email(2nd)`. Manual Add Students entries now recognize a fourth email as the secondary address when no student number is supplied; CSV uploads accept both the five-column student-number format and the four-column format without one, persisting `counselor_email` in both cases.
-- The Add Students and CSV success flows now return the active roster refresh promise so the newly saved secondary address is visible after the modal completes, while stale classroom callbacks remain fenced. Added parser, modal, API, and roster refresh regressions.
-- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification covers the teacher roster at desktop/mobile light/dark, direct secondary-email preview, selected Student Actions, and the reduced More actions menu; student view is n/a because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Relaunch local Pika development server
-
-- Relaunched the current Pika worktree with the governed local-dev launcher. Port 3000 remains occupied by another local app, so Pika is running at `http://localhost:3001`; `/login` returns HTTP 200 and the server remains running.
-- Fixed the existing Tailwind config's Node 24/ESM startup incompatibility by importing the typography plugin instead of calling CommonJS `require`. TypeScript and diff checks pass; no product behavior, schema, migration, hosted data, or deployment changed.
-
-## 2026-09-06 — Show Email(2nd) at medium roster widths
-
-- Fixed the roster `Email(2nd)` column's responsive `<colgroup>` definition so it is visible at the same medium breakpoint as the main email column. At the open 877px in-app roster view, the full header and secondary-email edit controls now appear instead of the column being collapsed by its remaining `lg` rule.
-- Added the responsive-column regression assertion. Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the in-app browser recheck shows the corrected column without layout overflow. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Space roster secondary-email label
-
-- Updated the visible secondary-email wording from `Email(2nd)` to `Email (2nd)` across the roster table, row editor, add-student preview, CSV guidance, and upload confirmation, with matching test fixtures and accessibility assertions.
-- Focused checks pass 19 files / 224 tests plus architecture, UI/design policy, TypeScript and lint. Authenticated visual verification shows `Email (2nd)` in the teacher desktop and mobile roster views with no overflow; the student route correctly redirects to Today because roster management is teacher-only. No schema, migration, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Normalize omitted roster student numbers
-
-- Normalized missing or blank student numbers in CSV uploads to `null`, matching stored roster rows so an unchanged four-column CSV does not trigger a false overwrite confirmation.
-- Added a regression for an existing row with no student number and a matching secondary email. The focused gate passes 19 files / 225 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and diff checks pass. No schema, UI, dependency, hosted data, deployment, or feature-inventory change.
-
-## 2026-09-06 — Improve Add Students roster guidance
-
-- Add Students now parses roster text as it is typed, shows the number of students ready to add, and presents malformed lines as compact warning guidance with actionable copy. Removed the redundant preview step so valid rows can be submitted directly. Added the requested example placeholder and moved format instructions into a shared question-mark tooltip beside the field label.
-- Reused the existing `IconButton`, `Tooltip`, Lucide `CircleHelp`, and semantic warning tokens; no new shared component or Pattern Lab pattern. Teacher-only surface; verified desktop/mobile and light/dark warning states, with student view n/a because the modal is teacher-only.
-- Focused component/parser tests pass 28/28; the focused gate passes 167 tests plus architecture, UI/design policy, TypeScript and lint. Add Students E2E and direct browser interaction checks pass. Visual captures were inspected for tooltip placement, responsive containment, and live warning/count states. Risk profile: none; no schema, data, API, dependency, deployment or merge action.
-
-## 2026-09-06 — Simplify Add Students format help
-
-- Removed the repeated example from the Add Students tooltip and formatted the remaining guidance as three lines: one student per line, `First Last Email [ID] [Email 2]`, and `ID and Email2 are optional`. The placeholder remains the concrete example.
-- Reused the existing `IconButton` and `Tooltip`; widened the shared tooltip prop to accept formatted React content without changing existing callers. Focused tests, the full focused gate, teacher/student route captures, and a direct desktop tooltip assertion pass. No schema, data, API, dependency, deployment or merge action.
-
-## 2026-09-06 — Soften Add Students live warnings
-
-- Removed the warning summary sentence and promoted each line-level roster message to readable body size. Reserved a compact warning slot below the textarea so the ready count and action buttons remain stable when guidance appears or clears.
-- Reused the existing semantic warning treatment and live status behavior. Component tests, the full focused gate, teacher/student route captures, and desktop/mobile warning and valid-state browser checks pass. No schema, data, API, dependency, deployment or merge action.
-
 ## 2026-09-06 — Remove Add Students action divider
 
 - Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
@@ -304,3 +256,19 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Simplified compact screen mode to the classroom title and a larger QR, with Print poster, Download SVG, and Rotate QR in the governed `QR options` menu. Desktop keeps Scan Attendance, hours, and visible actions in its left pane. The production browser matrix passes desktop/mobile in light/dark and covers the compact menu-open state; student is n/a because this is a teacher-only poster.
 - Tightened compact screen spacing by centering the classroom title and QR as one group with a small fixed gap; browser geometry now constrains the visible title-to-QR gap to 8–32px. Mobile light/dark pass and were visually inspected; desktop and portrait print compositions remain unchanged.
 - Returned the desktop Print poster, Download SVG, and Rotate QR actions to one governed `Poster settings` menu beneath the left-pane information. Compact mode retains its separate `QR options` menu; action handlers and export/print outputs are unchanged. Desktop light/dark closed and menu-open states were visually inspected, and both desktop themes plus compact dark pass the production browser flow.
+
+## 2026-09-08 — Align the Owned / Joined home prototype with the live classroom list
+
+- Updated only the development-only Pattern Lab Owned / Joined home: classroom rows now use the live themed gradient cards, current owner edit grip/archive treatment, the top-right classroom actions menu, and the archived owner Settings menu. Joined rows retain relationship-correct Hide/Unhide actions and never gain owner operations.
+- Independent review found that the reused shared work-surface menu did not honor the repository's roving-focus and Tab-dismissal contract. The shared owner now handles Arrow/Home/End navigation, disabled-item skipping, Escape focus return and Tab dismissal; direct component and archived Settings regressions pass.
+- Targeted re-review found that preview cleanup could retain a callback from before a parent rerender or drop a removed handler before clearing it. Active previews now refresh their callback by stable action ID and clear before a handler disappears; both regressions and the existing inspector compatibility case pass.
+- Focused checks pass 44 files / 641 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Eight browser scenarios pass across teacher/student, desktop/mobile and light/dark with zero API writes. Visual inspection found and fixed a clipped archived Settings menu, then confirmed the corrected menu and classroom cards across the matrix. Exact-head review/CI are recorded on PR #1225.
+- No production route, authorization, persistence, API, schema, entitlement, dependency or rollout availability changed. The prototype remains gated off in production and still requires later adoption approval; only the shared menu's existing keyboard behavior is corrected in live consumers.
+
+## 2026-09-08 — Keep the classroom QR available when attendance is closed
+
+- Promoted the stable classroom poster from its separate canary gate to every classroom with server-confirmed QR attendance access. The Daily center `Classroom QR` action now remains enabled while attendance is scheduled or closed; archived classrooms remain excluded.
+- Preserved scan-time enforcement: Pika still requires an eligible occurrence, enabled attendance policy, active class day, open Bara session projection, current enrollment, and an active participant mapping before submitting a check-in.
+- Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
+- Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
+- Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
