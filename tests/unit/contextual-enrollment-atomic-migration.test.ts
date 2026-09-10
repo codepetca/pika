@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -39,8 +40,12 @@ function readPublicGuessFunction(): string {
 
 describe('atomic contextual classroom enrollment migration', () => {
   it('keeps the deployed migration 159 definition immutable', () => {
-    const sql = readAtomicMigration()
+    const migration = readFileSync(atomicMigrationPath)
+    const sql = migration.toString('utf8').toLowerCase()
 
+    expect(createHash('sha256').update(migration).digest('hex')).toBe(
+      '3d0379dd38b2b8f7365898004ba60b531b519ebb31f19106bf4c39da645770d3'
+    )
     expect(sql).toContain('create table public.classroom_join_rate_limits')
     expect(sql).toContain('alter table public.classroom_join_rate_limits enable row level security')
     expect(sql).toContain(
