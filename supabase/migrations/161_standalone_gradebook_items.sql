@@ -194,7 +194,9 @@ begin
   end if;
   insert into public.gradebook_item_scores(classroom_id,item_id,student_id,earned)
   values(p_classroom_id,p_item_id,p_student_id,p_earned)
-  on conflict(item_id,student_id) do update set earned=excluded.earned,returned_at=null
+  on conflict(item_id,student_id) do update set earned=excluded.earned,
+    returned_at=case when gradebook_item_scores.earned is not distinct from excluded.earned
+      then gradebook_item_scores.returned_at else null end
   returning * into v_score;
   return jsonb_build_object('ok',true,'score',to_jsonb(v_score));
 end;

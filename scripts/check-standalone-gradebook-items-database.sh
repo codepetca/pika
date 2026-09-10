@@ -90,6 +90,10 @@ begin
   end if;
   r := public.mutate_gradebook_item(t,c,'return_marks',i);
   if (r->>'returned_count')::int <> 1 then raise exception 'Return did not publish current scored rows'; end if;
+  r := public.set_gradebook_item_score(t,c,i,s,18.5);
+  if r#>>'{score,returned_at}' is null or (select returned_at from public.gradebook_item_scores where item_id=i) is null then
+    raise exception 'No-op score save retracted returned mark';
+  end if;
   perform public.mutate_gradebook_item(t,c,'update',i,'Attendance – Term 1',20,cat,10,true);
   if (select returned_at from public.gradebook_item_scores where item_id=i) is null then raise exception 'No-op details retracted marks'; end if;
   perform public.mutate_gradebook_item(t,c,'update',i,'Attendance – Term 2',20,cat,10,true);
