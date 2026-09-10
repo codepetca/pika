@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after separately authorized migration 159.
+# leaves no durable rows. Run only after separately authorized migrations 159 and 161.
 JOIN_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$JOIN_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -26,7 +26,7 @@ begin
     or to_regprocedure(v_signature) is null
     or to_regprocedure(v_guess_signature) is null
     or to_regprocedure('public.cleanup_classroom_join_rate_limits_v1(integer)') is null then
-    raise exception 'Migration 159 is required; this harness never applies it';
+    raise exception 'Migrations 159 and 161 are required; this harness never applies them';
   end if;
   if has_table_privilege('anon', 'public.classroom_join_rate_limits', 'select')
     or has_table_privilege('authenticated', 'public.classroom_join_rate_limits', 'select')
