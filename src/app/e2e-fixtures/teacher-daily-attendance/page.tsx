@@ -37,7 +37,7 @@ const classroom: Classroom = {
 export default async function TeacherDailyAttendanceFixturePage({
   searchParams,
 }: {
-  searchParams: Promise<{ attendance?: string; classroomQr?: string }>
+  searchParams: Promise<{ attendance?: 'off' | 'manual'; classroomQr?: string }>
 }) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
@@ -52,7 +52,9 @@ export default async function TeacherDailyAttendanceFixturePage({
           <ClassDaysProvider classroomId={classroom.id}>
             <TeacherAttendanceTab
               classroom={classroom}
-              attendanceEnabled={resolvedSearchParams.attendance !== 'off'}
+              attendanceEnabled={resolvedSearchParams.attendance !== 'off'
+                && resolvedSearchParams.attendance !== 'manual'}
+              manualAttendanceEnabled={resolvedSearchParams.attendance === 'manual'}
               classroomQrAvailable={resolvedSearchParams.classroomQr !== 'off'}
               isActive
             />

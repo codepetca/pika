@@ -977,6 +977,89 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await verifyProjectContract(page, testInfo)
 })
 
+test('shows manual attendance marks optimistically', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+  const studentId = '40000000-0000-4000-8000-000000000001'
+  let finishSave!: () => void
+  const saveGate = new Promise<void>((resolve) => { finishSave = resolve })
+
+  await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        class_days: [{
+          id: '50000000-0000-4000-8000-000000000001',
+          classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          date: '2026-08-29',
+          prompt_text: null,
+          is_class_day: true,
+        }],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/logs?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        logs: [{
+          student_id: studentId,
+          student_email: 'student01@example.com',
+          student_first_name: 'Student 01',
+          student_last_name: 'Alpha01',
+          entry: null,
+          history_preview: [],
+        }],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/log-summary?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ summary_status: 'no_logs', summary: null }),
+    })
+  })
+  await page.route('**/api/teacher/manual-attendance**', async (route) => {
+    if (route.request().method() === 'POST') await saveGate
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(route.request().method() === 'POST' ? { ok: true } : {
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classDate: '2026-08-29',
+        settings: {
+          sourceMode: 'manual',
+          sessionStartsLocal: '09:00',
+          sessionEndsLocal: '10:00',
+          revision: 1,
+        },
+        overrides: [{ studentId, status: 'late' }],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-daily-attendance?attendance=manual', {
+    waitUntil: 'domcontentloaded',
+  })
+  const absent = page.getByRole('button', { name: 'Mark Student 01 Alpha01 absent' })
+  await expect(absent).toHaveAttribute('aria-pressed', 'false')
+  await absent.click()
+  await expect(absent).toHaveAttribute('aria-pressed', 'true')
+  await expect(absent).toBeDisabled()
+  await verifyProjectContract(page, testInfo)
+  const { theme, viewport } = getExperienceMetadata(testInfo)
+  await page.screenshot({
+    path: `/tmp/pika-manual-attendance-${viewport}-${theme}-optimistic.png`,
+    animations: 'disabled',
+  })
+
+  finishSave()
+  await expect(page.getByText('Attendance updated')).toBeVisible()
+})
+
 test('shows saved classroom hours across dates and delivery failures', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)

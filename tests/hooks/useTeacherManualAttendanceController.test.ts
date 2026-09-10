@@ -184,6 +184,80 @@ describe('useTeacherManualAttendanceController', () => {
     expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
   })
 
+  it('applies a manual attendance mark before the request completes', async () => {
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      if (init.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: [studentId],
+    }))
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'absent')
+    })
+
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
+    expect(appMessageMock.showMessage).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolvePost(response({ ok: true }))
+      await command
+    })
+  })
+
+  it('rolls back an optimistic mark when the request fails', async () => {
+    let rejectPost!: (reason: Error) => void
+    const post = new Promise<Response>((_resolve, reject) => { rejectPost = reject })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      if (init.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: [studentId],
+    }))
+
+    await waitFor(() => expect(result.current.overridesByStudentId.get(studentId)).toBe('late'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'absent')
+    })
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
+
+    await act(async () => {
+      rejectPost(new Error('Write failed'))
+      await command
+    })
+
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('late')
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Write failed',
+      tone: 'warning',
+    })
+  })
+
   it('chunks class-wide marks into bounded requests', async () => {
     const roster = studentIds(201)
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
