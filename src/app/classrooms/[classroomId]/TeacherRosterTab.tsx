@@ -75,7 +75,6 @@ interface RemovalTarget {
   email: string
   firstName: string | null
   lastName: string | null
-  joined: boolean
 }
 
 interface Props {
@@ -340,6 +339,23 @@ export function TeacherRosterTab({ classroom }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (data.code === 'joined_students_require_comprehensive_removal') {
+          invalidateCachedJSON(`teacher-roster:${classroomId}`)
+          if (
+            currentClassroomIdRef.current === classroomId
+            && classroomEpochRef.current === classroomEpoch
+          ) {
+            rosterMutationVersionRef.current += 1
+            setPendingRemoval(null)
+            setRemovalError('')
+            showMessage({
+              text: 'This student just joined the class. Review the updated roster and remove them again.',
+              tone: 'warning',
+            })
+            await loadRoster({ preserveRoster: true })
+          }
+          return
+        }
         throw new Error(data.error || fallbackError)
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
@@ -374,14 +390,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   // Get emails for selected students
   const selectedRows = sortedRoster.filter((r) => selectedIds.has(r.id))
-  const hasSelectedRows = selectedRows.length > 0
-  const selectedStudentEmails = selectedRows.map((r) => r.email)
-  const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
   const counselorErrorRow = counselorError
     ? sortedRoster.find((row) => row.id === counselorError.rosterId) ?? null
     : null
   const removalTargetRows = selectedRows.length > 0 ? selectedRows : selectedRosterRow ? [selectedRosterRow] : []
+  const hasStudentActionRows = removalTargetRows.length > 0
+  const selectedStudentEmails = removalTargetRows.map((r) => r.email)
+  const selectedCounselorEmails = removalTargetRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const {
     scrollRef: rosterTableScrollRef,
     preserveScrollPosition: preserveRosterTableScrollPosition,
@@ -535,12 +551,11 @@ export function TeacherRosterTab({ classroom }: Props) {
       email: row.email,
       firstName: row.first_name,
       lastName: row.last_name,
-      joined: row.joined,
     }
   }
 
   function openRemoveStudentDialog(rows: RosterRow[]) {
-    if (rows.length === 0 || isReadOnly) return
+    if (rows.length === 0 || rows.some((row) => row.joined) || isReadOnly) return
     setRemovalError('')
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
@@ -583,23 +598,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\n${
-        row.joined
-          ? 'They are currently joined. This removes roster membership, logs, and assignment documents. Use the separate purge action for comprehensive permanent deletion.'
-          : 'They are not joined yet.'
-      }`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThis removes their invitation from this class roster. They have not joined the class, so there is no classroom data to delete.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
-    const joinedCount = rows.filter((row) => row.joined).length
 
-    return `${preview}${remaining}\n\n${
-      joinedCount > 0
-        ? `${joinedCount} ${joinedCount === 1 ? 'student is' : 'students are'} currently joined. This removes roster membership, logs, and assignment documents; it is not a comprehensive purge.`
-        : 'These students are not joined yet.'
-    }`
+    return `${preview}${remaining}\n\nThis removes the selected invitations from this class roster. These students have not joined the class, so there is no classroom data to delete.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
@@ -612,34 +618,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     },
   ]
 
-  if (removalTargetRows.length > 0) {
-    rosterActionOptions.push({
-      id: 'remove-student',
-      label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
-      onSelect: () => openRemoveStudentDialog(removalTargetRows),
-      disabled: isReadOnly || isRosterLoading || isRemoving || removalTargetRows.length === 0,
-      destructive: true,
-    })
-  }
-
-  const purgeTarget = removalTargetRows.length === 1
-    && removalTargetRows[0].joined
-    && removalTargetRows[0].student_id
-    && studentPurgeEnabledIds.has(removalTargetRows[0].student_id)
-    ? removalTargetRows[0]
-    : null
-
-  if (purgeTarget) {
-    rosterActionOptions.push({
-      id: 'purge-student',
-      label: <span className="text-danger">Purge classroom data</span>,
-      onSelect: () => setPendingPurge(purgeTarget),
-      disabled: isRosterLoading,
-      destructive: true,
-    })
-  }
-
-  const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
+  const studentActionOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-student-emails',
       label: 'Copy emails (primary)',
@@ -655,6 +634,41 @@ export function TeacherRosterTab({ classroom }: Props) {
       disabled: selectedCounselorEmails.length === 0,
     },
   ]
+
+  const purgeTarget = removalTargetRows.length === 1
+    && removalTargetRows[0].joined
+    && removalTargetRows[0].student_id
+    && studentPurgeEnabledIds.has(removalTargetRows[0].student_id)
+    ? removalTargetRows[0]
+    : null
+
+  if (hasStudentActionRows) {
+    const containsJoinedStudent = removalTargetRows.some((row) => row.joined)
+    const unavailableReason = removalTargetRows.length > 1 && containsJoinedStudent
+      ? 'Remove joined students one at a time so each deletion can be confirmed.'
+      : removalTargetRows.length === 1 && containsJoinedStudent && !purgeTarget
+        ? 'Comprehensive removal is not available for this student right now.'
+        : undefined
+
+    studentActionOptions.push({
+      id: 'remove-student',
+      label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
+      description: unavailableReason,
+      onSelect: () => {
+        if (purgeTarget) {
+          setPendingPurge(purgeTarget)
+          return
+        }
+        openRemoveStudentDialog(removalTargetRows)
+      },
+      disabled: isRosterLoading
+        || isRemoving
+        || removalTargetRows.length === 0
+        || Boolean(unavailableReason)
+        || (!purgeTarget && isReadOnly),
+      destructive: true,
+    })
+  }
 
   const actionBar = (
     <TeacherWorkSurfaceContextBar
@@ -672,14 +686,14 @@ export function TeacherRosterTab({ classroom }: Props) {
             disabled={isReadOnly || isRosterLoading}
           />
           <TeacherWorkSurfaceMenuButton
-            buttonProps={{ 'aria-label': hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions' }}
+            buttonProps={{ 'aria-label': hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions' }}
             label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions'}</span>
+              <span>{hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions'}</span>
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </span>}
-            items={selectedEmailOptions}
-            disabled={isRosterLoading || !hasSelectedRows}
-            variant={hasSelectedRows ? 'primary' : 'secondary'}
+            items={studentActionOptions}
+            disabled={isRosterLoading || !hasStudentActionRows}
+            variant={hasStudentActionRows ? 'primary' : 'secondary'}
             className="w-36"
             menuAriaLabel="Student actions"
             menuAlign="start"

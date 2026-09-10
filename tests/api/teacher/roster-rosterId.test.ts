@@ -247,6 +247,24 @@ describe('DELETE /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
     expect(data.error).toBe('One or more roster entries not found in classroom')
   })
 
+  it('rejects lightweight removal when the roster entry has joined', async () => {
+    mockSupabaseClient.rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'joined_students_require_comprehensive_removal' },
+    })
+
+    const response = await DELETE(
+      new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', { method: 'DELETE' }),
+      { params: { id: 'c-1', rosterId: 'r-1' } },
+    )
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      code: 'joined_students_require_comprehensive_removal',
+      error: 'This student has joined the class. Remove them individually to delete all of their classroom data.',
+    })
+  })
+
   it('returns migration guidance when the atomic removal RPC is missing', async () => {
     mockSupabaseClient.rpc = vi.fn().mockResolvedValue({
       data: null,

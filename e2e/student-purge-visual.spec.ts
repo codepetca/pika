@@ -126,10 +126,19 @@ for (const entry of matrix) {
     await mockTeacherStudentPurge(page, classroomId!)
     await page.goto(`/classrooms/${classroomId}?tab=roster`)
     await page.getByText('Student1', { exact: true }).click()
-    await page.getByRole('button', { name: 'More actions' }).click()
-    await page.getByRole('menuitem', { name: 'Purge classroom data' }).click()
+    await page.getByRole('button', { name: '1 selected' }).click()
+    const studentActionsMenu = page.getByRole('menu', { name: 'Student actions' })
+    await expect(studentActionsMenu.getByRole('menuitem', { name: 'Remove student' })).toBeVisible()
+    await expect(studentActionsMenu.getByRole('menuitem', { name: 'Purge classroom data' })).toHaveCount(0)
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({
+      path: testInfo.outputPath(`student-actions-${entry.name}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
 
-    const dialog = page.getByRole('dialog', { name: 'Purge this student’s classroom data?' })
+    await studentActionsMenu.getByRole('menuitem', { name: 'Remove student' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Remove this student?' })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
     await expect(dialog).toContainText('user account and data in other classrooms are kept')
@@ -141,7 +150,7 @@ for (const entry of matrix) {
     })
 
     await dialog.getByRole('textbox').fill(STUDENT_EMAIL)
-    await dialog.getByRole('button', { name: 'Purge classroom data' }).click()
+    await dialog.getByRole('button', { name: 'Remove student' }).click()
     await expect(dialog.getByRole('alert')).toContainText('waiting safely')
     await expect(dialog).toContainText('Deleting files 2 of 6')
     await page.screenshot({

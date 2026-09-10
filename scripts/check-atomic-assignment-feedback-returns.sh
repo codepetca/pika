@@ -1386,115 +1386,43 @@ end;
 $contract$;
 SQL
 
-docker exec -e PGAPPNAME=atomic-roster-removal-holder -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
-begin;
-select public.remove_classroom_roster_entries_atomic(
-  'd0000000-0000-4000-8000-000000000010',
-  array['d0000000-0000-4000-8000-000000000008']::uuid[]
-);
-select pg_sleep(3);
-commit;
-SQL
-ROSTER_REMOVAL_PID=$!
-wait_for_application_event atomic-roster-removal-holder PgSleep
-
 set +e
-ROSTER_RACE_OUTPUT="$(docker exec -e PGAPPNAME=atomic-roster-ai-run-worker -i "$DB_CONTAINER" \
+JOINED_ROSTER_REMOVAL_OUTPUT="$(docker exec -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select public.create_assignment_ai_grading_run_atomic(
-    'd0000000-0000-4000-8000-000000000018',
-    'd0000000-0000-4000-8000-000000000001',
-    'test-model',
-    array['d0000000-0000-4000-8000-000000000006']::uuid[],
-    'roster-race', 1, 0, 0,
-    jsonb_build_array(jsonb_build_object(
-      'student_id', 'd0000000-0000-4000-8000-000000000006',
-      'assignment_doc_updated_at', null,
-      'assignment_doc_revision_provided', true,
-      'queue_position', 0, 'status', 'queued', 'attempt_count', 0
-    )), now()
+  "select public.remove_classroom_roster_entries_atomic(
+    'd0000000-0000-4000-8000-000000000010',
+    array[
+      'd0000000-0000-4000-8000-000000000008',
+      'd0000000-0000-4000-8000-000000000009'
+    ]::uuid[]
   );" 2>&1)"
-ROSTER_RACE_STATUS=$?
-set -e
-wait "$ROSTER_REMOVAL_PID"
-
-if [[ "$ROSTER_RACE_STATUS" -eq 0 ]] || [[ "$ROSTER_RACE_OUTPUT" != *"Student is not enrolled"* ]]; then
-  echo "AI-run creation was not serialized with roster removal: $ROSTER_RACE_OUTPUT" >&2
-  exit 1
-fi
-
-ROSTER_RACE_WRITES="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select
-    (select count(*) from public.assignment_ai_grading_runs where assignment_id = 'd0000000-0000-4000-8000-000000000018')
-    +
-    (select count(*) from public.assignment_docs where assignment_id = 'd0000000-0000-4000-8000-000000000018');")"
-if [[ "$ROSTER_RACE_WRITES" != "0" ]]; then
-  echo "Roster-removal race left orphaned AI-run data." >&2
-  exit 1
-fi
-
-docker exec -e PGAPPNAME=atomic-roster-classroom-lock-holder -i "$DB_CONTAINER" \
-  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
-begin;
-select public.remove_classroom_roster_entries_atomic(
-  'd0000000-0000-4000-8000-000000000010',
-  array['d0000000-0000-4000-8000-000000000009']::uuid[]
-);
-select pg_sleep(3);
-commit;
-SQL
-ROSTER_CLASSROOM_LOCK_PID=$!
-wait_for_application_event atomic-roster-classroom-lock-holder PgSleep
-
-ASSIGNMENT_INSERT_STARTED_AT="$(date +%s)"
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "insert into public.assignments (id, classroom_id, title, due_at, created_by)
-   values (
-     'd0000000-0000-4000-8000-000000000022',
-     'd0000000-0000-4000-8000-000000000010',
-     'Assignment created during roster removal',
-     now() + interval '1 day',
-     'd0000000-0000-4000-8000-000000000001'
-   );" >/dev/null
-ASSIGNMENT_INSERT_ELAPSED="$(( $(date +%s) - ASSIGNMENT_INSERT_STARTED_AT ))"
-wait "$ROSTER_CLASSROOM_LOCK_PID"
-
-if (( ASSIGNMENT_INSERT_ELAPSED < 2 )); then
-  echo "Assignment creation did not wait for the roster-removal classroom lock." >&2
-  exit 1
-fi
-
-set +e
-ASSIGNMENT_RACE_OUTPUT="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
-  "select public.create_assignment_ai_grading_run_atomic(
-    'd0000000-0000-4000-8000-000000000022',
-    'd0000000-0000-4000-8000-000000000001',
-    'test-model',
-    array['d0000000-0000-4000-8000-000000000009']::uuid[],
-    'assignment-create-race', 1, 0, 0,
-    jsonb_build_array(jsonb_build_object(
-      'student_id', 'd0000000-0000-4000-8000-000000000009',
-      'assignment_doc_updated_at', null,
-      'assignment_doc_revision_provided', true,
-      'queue_position', 0, 'status', 'queued', 'attempt_count', 0
-    )), now()
-  );" 2>&1)"
-ASSIGNMENT_RACE_STATUS=$?
+JOINED_ROSTER_REMOVAL_STATUS=$?
 set -e
 
-if [[ "$ASSIGNMENT_RACE_STATUS" -eq 0 ]] || [[ "$ASSIGNMENT_RACE_OUTPUT" != *"Student is not enrolled"* ]]; then
-  echo "Assignment creation bypassed roster-removal enrollment cleanup: $ASSIGNMENT_RACE_OUTPUT" >&2
+if [[ "$JOINED_ROSTER_REMOVAL_STATUS" -eq 0 ]] \
+  || [[ "$JOINED_ROSTER_REMOVAL_OUTPUT" != *"joined_students_require_comprehensive_removal"* ]]
+then
+  echo "Joined roster removal did not require comprehensive purge: $JOINED_ROSTER_REMOVAL_OUTPUT" >&2
   exit 1
 fi
 
-ASSIGNMENT_RACE_WRITES="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+JOINED_ROSTER_ROWS_PRESERVED="$(docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "select
-    (select count(*) from public.assignment_ai_grading_runs where assignment_id = 'd0000000-0000-4000-8000-000000000022')
+    (select count(*) from public.classroom_roster
+      where id in (
+        'd0000000-0000-4000-8000-000000000008',
+        'd0000000-0000-4000-8000-000000000009'
+      ))
     +
-    (select count(*) from public.assignment_docs where assignment_id = 'd0000000-0000-4000-8000-000000000022');")"
-if [[ "$ASSIGNMENT_RACE_WRITES" != "0" ]]; then
-  echo "Concurrent assignment creation left orphaned grading data after roster removal." >&2
+    (select count(*) from public.classroom_enrollments
+      where classroom_id = 'd0000000-0000-4000-8000-000000000010'
+        and student_id in (
+          'd0000000-0000-4000-8000-000000000006',
+          'd0000000-0000-4000-8000-000000000009'
+        ));")"
+if [[ "$JOINED_ROSTER_ROWS_PRESERVED" != "4" ]]; then
+  echo "Rejected joined roster removal changed membership state." >&2
   exit 1
 fi
 
