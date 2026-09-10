@@ -12,8 +12,8 @@ import { studentClassroomAttendanceCheckInSchema } from '@/lib/validations/stude
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function result(state: 'invalid' | 'closed' | 'needs_staff', title: string, description: string) {
-  return NextResponse.json({ state, title, description }, {
+function result(state: 'invalid' | 'closed' | 'needs_staff', title: string, description?: string) {
+  return NextResponse.json({ state, title, ...(description ? { description } : {}) }, {
     headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
   })
 }
@@ -39,7 +39,6 @@ export const POST = withErrorHandler('PostStudentClassroomAttendanceCheckIn', as
         return result(
           'invalid',
           'This classroom QR is no longer valid',
-          'Ask your teacher for the current classroom attendance poster.',
         )
       }
       if (error.code === 'not_open') {
@@ -52,29 +51,22 @@ export const POST = withErrorHandler('PostStudentClassroomAttendanceCheckIn', as
       if (error.code === 'not_enrolled') {
         return result(
           'needs_staff',
-          'Your teacher needs to help',
-          'This signed-in account is not on the attendance roster for this classroom.',
+          'You haven’t joined this classroom yet',
+          'Use the separate classroom join link from your teacher, then scan this attendance QR again.',
         )
       }
       if (error.code === 'not_on_roster') {
         return result(
           'needs_staff',
-          'This account is not on the class roster',
-          'Sign in with the email your teacher added, or ask them to update the roster.',
+          'You’re not on this class roster',
+          'Check that you scanned the QR for the right classroom and signed in with your school account.',
         )
       }
-      if (error.code === 'enrollment_closed') {
+      if (error.code === 'roster_ambiguous') {
         return result(
           'needs_staff',
-          'Joining this classroom is closed',
-          'Your teacher needs to open enrollment before you can join from this QR code.',
-        )
-      }
-      if (error.code === 'identity_not_linked') {
-        return result(
-          'needs_staff',
-          'Use your verified school account',
-          'Sign in with the email your teacher added to the class roster.',
+          'We couldn’t safely match your account',
+          'Ask your teacher for help before trying attendance again.',
         )
       }
       throw new ApiError(503, 'Attendance is temporarily unavailable')

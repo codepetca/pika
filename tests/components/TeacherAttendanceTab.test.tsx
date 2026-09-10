@@ -658,7 +658,7 @@ describe('TeacherAttendanceTab', () => {
       .toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Undo override for Student2 Test' }))
       .toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Show QR' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show attendance QR' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Time of scan' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' }))
       .toHaveTextContent('9:00 - 10:00 AM')
@@ -787,8 +787,8 @@ describe('TeacherAttendanceTab', () => {
       'top-0',
     )
     expect(screen.getByText(longLogText)).toHaveAttribute('title', longLogText)
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Refresh attendance' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sort Present first, 1 student' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sort Absent first, 1 student' })).toBeInTheDocument()
@@ -825,7 +825,7 @@ describe('TeacherAttendanceTab', () => {
     )
 
     expect(await screen.findByRole('columnheader', { name: 'Time of scan' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mark Student1 Test present' })).toBeEnabled()
@@ -851,7 +851,7 @@ describe('TeacherAttendanceTab', () => {
         </TooltipProvider>,
       )
 
-      expect(await screen.findByRole('button', { name: 'Show QR' })).toBeDisabled()
+      expect(await screen.findByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Mark Student1 Test late' })).toBeEnabled()
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'More actions' }))
@@ -995,7 +995,7 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: /Sort Late first/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Sort Absent first/ })).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Student actions/ })).not.toBeInTheDocument()
     const timingTrigger = screen.getByRole('button', { name: 'Set attendance hours' })
     expect(timingTrigger).toBeEnabled()
@@ -1068,7 +1068,7 @@ describe('TeacherAttendanceTab', () => {
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ }))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
     })
     const sessionCall = fetchMock.mock.calls.find(([input, init]) => (
       String(input) === '/api/teacher/attendance/session' && init?.method === 'POST'
@@ -1215,7 +1215,7 @@ describe('TeacherAttendanceTab', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_250)
     })
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000)
@@ -1265,7 +1265,7 @@ describe('TeacherAttendanceTab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     expect(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
   })
 
@@ -1281,9 +1281,9 @@ describe('TeacherAttendanceTab', () => {
       </TooltipProvider>,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'Show QR' }))
+    await user.click(await screen.findByRole('button', { name: 'Show attendance QR' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'Attendance QR' })
+    const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
     const qr = within(dialog).getByLabelText('Student attendance check-in QR code')
     expect(qr).toBeInTheDocument()
     expect(qr).toHaveClass('aspect-square', 'w-[min(80vw,70vh)]', 'shrink-0', 'max-w-full')
@@ -1292,8 +1292,8 @@ describe('TeacherAttendanceTab', () => {
     expect(within(dialog).getAllByRole('button', { name: 'Close' })[0]).toHaveFocus()
 
     await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog', { name: 'Attendance QR' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toHaveFocus()
+    expect(screen.queryByRole('dialog', { name: 'Check in for attendance' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toHaveFocus()
   })
 
   it.each([false, true])('uses the unified classroom poster when rollout availability is %s', async (available) => {
@@ -1303,11 +1303,11 @@ describe('TeacherAttendanceTab', () => {
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable={available} />
     </AppMessageProvider></TooltipProvider>)
     await screen.findByRole('columnheader', { name: 'Time of scan' })
-    const qrButton = screen.getByRole('button', { name: available ? 'Classroom QR' : 'Show QR' })
+    const qrButton = screen.getByRole('button', { name: available ? 'Check in for attendance' : 'Show attendance QR' })
     expect(qrButton).toBeInTheDocument()
     if (available) {
       await user.click(qrButton)
-      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+      const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
       await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
       const settingsMenu = screen.getByRole('menu', { name: 'Poster settings' })
       expect(within(settingsMenu).getByRole('menuitem', { name: 'Print poster' })).toBeVisible()
@@ -1317,7 +1317,7 @@ describe('TeacherAttendanceTab', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Close' }))
     }
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.queryByRole('menuitem', { name: 'Classroom QR poster' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Check in for attendance poster' })).not.toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
   })
@@ -1333,11 +1333,11 @@ describe('TeacherAttendanceTab', () => {
         <TeacherAttendanceTab classroom={classroom} attendanceEnabled classroomQrAvailable />
       </AppMessageProvider></TooltipProvider>)
 
-      const qrButton = await screen.findByRole('button', { name: 'Classroom QR' })
+      const qrButton = await screen.findByRole('button', { name: 'Check in for attendance' })
       expect(qrButton).toBeEnabled()
       await user.click(qrButton)
-      const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
-      expect(await within(dialog).findByLabelText(`${classroom.title} permanent attendance QR code`)).toBeVisible()
+      const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
+      expect(await within(dialog).findByLabelText(`${classroom.title} check in for attendance QR code`)).toBeVisible()
     },
   )
 
