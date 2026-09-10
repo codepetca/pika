@@ -70,6 +70,20 @@ const secondRosterRow = {
   joined_at: '2026-01-03T00:00:00.000Z',
 }
 
+const invitedRosterRow = {
+  ...rosterRow,
+  joined: false,
+  student_id: null,
+  joined_at: null,
+}
+
+const secondInvitedRosterRow = {
+  ...secondRosterRow,
+  joined: false,
+  student_id: null,
+  joined_at: null,
+}
+
 function mockJson(data: unknown, ok = true) {
   return Promise.resolve({
     ok,
@@ -85,6 +99,25 @@ function mockRosterFetch() {
 
     if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
       return mockJson({ roster: [rosterRow, secondRosterRow] })
+    }
+
+    if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+      return mockJson({ success: true })
+    }
+
+    throw new Error(`Unhandled fetch: ${method} ${url}`)
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+function mockInvitationRosterFetch() {
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    const method = init?.method ?? 'GET'
+
+    if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+      return mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
     }
 
     if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
@@ -951,12 +984,12 @@ describe('TeacherRosterTab', () => {
 
       if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
         rosterLoads += 1
-        if (rosterLoads === 1) return mockJson({ roster: [rosterRow, secondRosterRow] })
+        if (rosterLoads === 1) return mockJson({ roster: [rosterRow, secondInvitedRosterRow] })
         return new Promise((resolve) => {
           resolveRefresh = () => resolve({
             ok: true,
             status: 200,
-            json: () => Promise.resolve({ roster: [rosterRow, secondRosterRow] }),
+            json: () => Promise.resolve({ roster: [rosterRow, secondInvitedRosterRow] }),
           })
         })
       }
@@ -1200,9 +1233,9 @@ describe('TeacherRosterTab', () => {
     },
   )
 
-  it('opens single-student removal from Student Actions with clear deletion scope', async () => {
+  it('removes an unjoined invitation from Student Actions without opening the purge flow', async () => {
     const user = userEvent.setup()
-    const fetchMock = mockRosterFetch()
+    const fetchMock = mockInvitationRosterFetch()
 
     renderRoster()
 
@@ -1220,8 +1253,8 @@ describe('TeacherRosterTab', () => {
     const dialog = screen.getByRole('dialog', { name: 'Remove student?' })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
-    expect(dialog).toHaveTextContent(/permanently deletes their Pika Log entries, assignment documents, and grade overrides for this class/i)
-    expect(dialog).toHaveTextContent(/does not delete their Pika account or all of their data for this class/i)
+    expect(dialog).toHaveTextContent(/removes their invitation from this class roster/i)
+    expect(dialog).toHaveTextContent(/there is no classroom data to delete/i)
 
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
@@ -1232,7 +1265,7 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('shows comprehensive purge only for one rollout-enabled joined student', async () => {
+  it('uses comprehensive removal for one rollout-enabled joined student', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -1269,12 +1302,28 @@ describe('TeacherRosterTab', () => {
     renderRoster()
     await user.click(await screen.findByText('Ada'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Purge classroom data' }))
-    expect(await screen.findByRole('dialog', { name: 'Purge this student’s classroom data?' }))
-      .toHaveTextContent(/data in other classrooms are kept/i)
+    expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove this student?' })
+    expect(dialog).toHaveTextContent(/removes the student from this class and permanently deletes/i)
+    expect(dialog).toHaveTextContent(/data in other classrooms are kept/i)
+    expect(within(dialog).getByRole('button', { name: 'Remove student' })).toBeDisabled()
   })
 
-  it('keeps purge available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
+  it('does not fall back to partial deletion when comprehensive removal is unavailable', async () => {
+    const user = userEvent.setup()
+    mockRosterFetch()
+
+    renderRoster()
+    await user.click(await screen.findByText('Ada'))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
+
+    const removeStudent = screen.getByRole('menuitem', { name: /Remove student/ })
+    expect(removeStudent).toBeDisabled()
+    expect(removeStudent).toHaveTextContent(/comprehensive removal is not available/i)
+  })
+
+  it('keeps comprehensive removal available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
@@ -1287,13 +1336,13 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Ada'))
     expect(screen.getByRole('button', { name: 'Add students' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeDisabled()
-    expect(screen.getByRole('menuitem', { name: 'Purge classroom data' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeEnabled()
+    expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
   })
 
-  it('shows and confirms removal for multiple checked students from Student Actions', async () => {
+  it('shows and confirms removal for multiple unjoined invitations from Student Actions', async () => {
     const user = userEvent.setup()
-    const fetchMock = mockRosterFetch()
+    const fetchMock = mockInvitationRosterFetch()
 
     renderRoster()
 
@@ -1320,6 +1369,21 @@ describe('TeacherRosterTab', () => {
       expect.arrayContaining([rosterRow.id, secondRosterRow.id])
     )
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
+  })
+
+  it('requires joined students to be removed one at a time', async () => {
+    const user = userEvent.setup()
+    mockRosterFetch()
+
+    renderRoster()
+    await screen.findByText('Ada')
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
+    await user.click(screen.getByRole('button', { name: '2 selected' }))
+
+    const removeStudents = screen.getByRole('menuitem', { name: /Remove students/ })
+    expect(removeStudents).toBeDisabled()
+    expect(removeStudents).toHaveTextContent(/one at a time so each deletion can be confirmed/i)
   })
 
   it('keeps student-scoped actions in the centered Student Actions menu', async () => {
@@ -1349,7 +1413,7 @@ describe('TeacherRosterTab', () => {
     const studentActionsMenu = screen.getByRole('menu', { name: 'Student actions' })
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' })).toBeEnabled()
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (secondary)' })).toBeEnabled()
-    expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Remove students' })).toBeEnabled()
+    expect(within(studentActionsMenu).getByRole('menuitem', { name: /Remove students/ })).toBeDisabled()
 
     await user.click(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' }))
     expect(writeText).toHaveBeenCalledWith('grace@example.com, ada@example.com')
@@ -1378,7 +1442,7 @@ describe('TeacherRosterTab', () => {
       const method = init?.method ?? 'GET'
 
       if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
-        return mockJson({ roster: [rosterRow, secondRosterRow] })
+        return mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
       }
 
       if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
@@ -1435,7 +1499,7 @@ describe('TeacherRosterTab', () => {
       if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
         rosterLoads += 1
         return rosterLoads === 1
-          ? mockJson({ roster: [rosterRow, secondRosterRow] })
+          ? mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
           : mockJson({ error: 'Roster refresh failed' }, false)
       }
       if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {

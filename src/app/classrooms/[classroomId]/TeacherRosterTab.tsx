@@ -75,7 +75,6 @@ interface RemovalTarget {
   email: string
   firstName: string | null
   lastName: string | null
-  joined: boolean
 }
 
 interface Props {
@@ -535,12 +534,11 @@ export function TeacherRosterTab({ classroom }: Props) {
       email: row.email,
       firstName: row.first_name,
       lastName: row.last_name,
-      joined: row.joined,
     }
   }
 
   function openRemoveStudentDialog(rows: RosterRow[]) {
-    if (rows.length === 0 || isReadOnly) return
+    if (rows.length === 0 || rows.some((row) => row.joined) || isReadOnly) return
     setRemovalError('')
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
@@ -583,23 +581,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\n${
-        row.joined
-          ? 'This removes them from this class and permanently deletes their Pika Log entries, assignment documents, and grade overrides for this class. It does not delete their Pika account or all of their data for this class. Use Purge classroom data for that.'
-          : 'This removes them from this class roster. They have not joined the class, so no classroom account data will be deleted.'
-      }`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThis removes their invitation from this class roster. They have not joined the class, so there is no classroom data to delete.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
-    const joinedCount = rows.filter((row) => row.joined).length
 
-    return `${preview}${remaining}\n\n${
-      joinedCount > 0
-        ? `This removes the selected students from this class and permanently deletes Pika Log entries, assignment documents, and grade overrides for the ${joinedCount} ${joinedCount === 1 ? 'student who has' : 'students who have'} joined. It does not delete their Pika accounts or all of their data for this class.`
-        : 'This removes the selected students from this class roster. They have not joined the class, so no classroom account data will be deleted.'
-    }`
+    return `${preview}${remaining}\n\nThis removes the selected invitations from this class roster. These students have not joined the class, so there is no classroom data to delete.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
@@ -629,16 +618,6 @@ export function TeacherRosterTab({ classroom }: Props) {
     },
   ]
 
-  if (hasStudentActionRows) {
-    studentActionOptions.push({
-      id: 'remove-student',
-      label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
-      onSelect: () => openRemoveStudentDialog(removalTargetRows),
-      disabled: isReadOnly || isRosterLoading || isRemoving || removalTargetRows.length === 0,
-      destructive: true,
-    })
-  }
-
   const purgeTarget = removalTargetRows.length === 1
     && removalTargetRows[0].joined
     && removalTargetRows[0].student_id
@@ -646,12 +625,30 @@ export function TeacherRosterTab({ classroom }: Props) {
     ? removalTargetRows[0]
     : null
 
-  if (purgeTarget) {
+  if (hasStudentActionRows) {
+    const containsJoinedStudent = removalTargetRows.some((row) => row.joined)
+    const unavailableReason = removalTargetRows.length > 1 && containsJoinedStudent
+      ? 'Remove joined students one at a time so each deletion can be confirmed.'
+      : removalTargetRows.length === 1 && containsJoinedStudent && !purgeTarget
+        ? 'Comprehensive removal is not available for this student right now.'
+        : undefined
+
     studentActionOptions.push({
-      id: 'purge-student',
-      label: <span className="text-danger">Purge classroom data</span>,
-      onSelect: () => setPendingPurge(purgeTarget),
-      disabled: isRosterLoading,
+      id: 'remove-student',
+      label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
+      description: unavailableReason,
+      onSelect: () => {
+        if (purgeTarget) {
+          setPendingPurge(purgeTarget)
+          return
+        }
+        openRemoveStudentDialog(removalTargetRows)
+      },
+      disabled: isRosterLoading
+        || isRemoving
+        || removalTargetRows.length === 0
+        || Boolean(unavailableReason)
+        || (!purgeTarget && isReadOnly),
       destructive: true,
     })
   }
