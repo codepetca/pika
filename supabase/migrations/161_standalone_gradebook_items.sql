@@ -37,6 +37,17 @@ begin
     or new.created_by is distinct from old.created_by then
     raise exception using errcode = '55000', message = 'gradebook_item_identity_immutable';
   end if;
+  -- Own retraction at the row boundary: FK-driven category removal and any
+  -- future item writer must follow the same disclosure contract as the RPC.
+  -- Maintenance must preserve the archived returned-score snapshot exactly.
+  if public.is_classroom_archive_maintenance_mode('restore') is not true
+    and public.is_classroom_archive_maintenance_mode('compaction') is not true
+    and row(new.title,new.points_possible,new.gradebook_category_id,new.gradebook_weight,new.include_in_final)
+      is distinct from row(old.title,old.points_possible,old.gradebook_category_id,old.gradebook_weight,old.include_in_final)
+  then
+    update public.gradebook_item_scores set returned_at=null
+    where item_id=old.id and returned_at is not null;
+  end if;
   new.updated_at := now();
   return new;
 end;
@@ -142,13 +153,11 @@ begin
     return jsonb_build_object('ok',true,'returned_count',v_returned);
   elsif p_action = 'weight' then
     if v_item.gradebook_weight is distinct from p_gradebook_weight then
-      update public.gradebook_item_scores set returned_at = null where item_id = p_item_id and returned_at is not null;
       update public.gradebook_items set gradebook_weight = p_gradebook_weight where id = p_item_id returning * into v_item;
     end if;
   elsif p_action = 'update' then
     if row(v_item.title,v_item.points_possible,v_item.gradebook_category_id,v_item.gradebook_weight,v_item.include_in_final)
       is distinct from row(btrim(p_title),p_points_possible,p_gradebook_category_id,p_gradebook_weight,p_include_in_final) then
-      update public.gradebook_item_scores set returned_at = null where item_id = p_item_id and returned_at is not null;
       update public.gradebook_items set title=btrim(p_title),points_possible=p_points_possible,
         gradebook_category_id=p_gradebook_category_id,gradebook_weight=p_gradebook_weight,include_in_final=p_include_in_final
       where id = p_item_id returning * into v_item;

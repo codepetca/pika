@@ -36,7 +36,7 @@ projects only their returned records, never the teacher payload or peer records.
 Excluded, uncategorized, and zero-percent-category items show **Not counted**.
 
 Changing an original mark withdraws that mark until returned again. Changing
-item details withdraws its marks until returned again, so altered meaning or
+item details (including removal of its category) withdraws its marks until returned again, so altered meaning or
 points are never silently released. Re-saving identical details preserves
 return state. This is a live returned record, not an immutable report card.
 

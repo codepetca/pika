@@ -98,6 +98,29 @@ begin
   perform public.mutate_gradebook_item(t,c,'weight',i,p_gradebook_weight=>25);
   if (select returned_at from public.gradebook_item_scores where item_id=i) is not null then raise exception 'Weight change retained disclosure'; end if;
   perform public.mutate_gradebook_item(t,c,'return_marks',i);
+  -- Removing the selected category updates items through the FK, outside item RPCs.
+  perform public.replace_gradebook_categories(c, (
+    select jsonb_agg(to_jsonb(category) || jsonb_build_object('percentage',
+      category.percentage + case when category.is_default then
+        (select percentage from public.gradebook_categories where id=cat) else 0 end
+    ) order by category.position)
+    from public.gradebook_categories category where category.classroom_id=c and category.id<>cat
+  ));
+  if exists (
+    select 1 from public.gradebook_item_scores score
+    join public.gradebook_items item on item.id=score.item_id and item.classroom_id=score.classroom_id
+    where score.classroom_id=c and score.student_id=s and score.returned_at is not null
+  ) then raise exception 'Category removal retained student disclosure'; end if;
+  if (select gradebook_category_id from public.gradebook_items where id=i) is not null then
+    raise exception 'Deleted category was not cleared';
+  end if;
+  perform public.mutate_gradebook_item(t,c,'return_marks',i);
+  if (select returned_at from public.gradebook_item_scores where item_id=i) is null then
+    raise exception 'Uncategorized item could not be deliberately returned again';
+  end if;
+  select id into cat from public.gradebook_categories where classroom_id=c and is_default;
+  perform public.mutate_gradebook_item(t,c,'update',i,'Attendance – Term 2',20,cat,25,true);
+  perform public.mutate_gradebook_item(t,c,'return_marks',i);
   perform public.set_gradebook_item_score(t,c,i,s,19);
   if (select returned_at from public.gradebook_item_scores where item_id=i) is not null then raise exception 'Score edit retained disclosure'; end if;
   insert into public.gradebook_score_overrides(classroom_id,student_id,assessment_type,assessment_id,earned,created_by)
