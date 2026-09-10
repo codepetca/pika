@@ -71,6 +71,30 @@ describe('POST /api/student/classrooms/join', () => {
       expect(response.status).toBe(400)
       expect(data.error).toBe('Class code or classroom ID is required')
     })
+
+    it('should reject non-string join fields at the request boundary', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({ classCode: { value: 'MATH101' } }),
+      })
+
+      const response = await POST(request)
+
+      expect(response.status).toBe(400)
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    })
+
+    it('should reject oversized profile fields at the request boundary', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({ classCode: 'MATH101', firstName: 'a'.repeat(101) }),
+      })
+
+      const response = await POST(request)
+
+      expect(response.status).toBe(400)
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    })
   })
 
   describe('joining by class code', () => {

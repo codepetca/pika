@@ -50,6 +50,7 @@ function contextualClassroom(overrides: Record<string, unknown> = {}) {
   return {
     id: classroomId,
     title: 'Biology',
+    class_code: 'BIO-101',
     term_label: 'Fall 2026',
     teacher_id: ownerId,
     allow_enrollment: true,
@@ -69,8 +70,11 @@ function installContextualQueries(args: {
     error: args.classroom ? null : { code: 'PGRST116' },
   })
   const classroomEq = vi.fn(() => ({ single: classroomSingle }))
-  const classroomIlike = vi.fn(() => ({ single: classroomSingle }))
-  const classroomIn = vi.fn(() => ({ eq: classroomEq, ilike: classroomIlike }))
+  const scopedResult = Promise.resolve({
+    data: args.classroom ? [args.classroom] : [],
+    error: null,
+  })
+  const classroomIn = vi.fn(() => Object.assign(scopedResult, { eq: classroomEq }))
 
   mockSupabaseClient.from.mockImplementation((table: string) => {
     if (table === 'classrooms') {
@@ -101,7 +105,7 @@ function installContextualQueries(args: {
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { classroomEq, classroomIlike, classroomIn }
+  return { classroomEq, classroomIn }
 }
 
 describe('POST /api/student/classrooms/join contextual pilot', () => {
@@ -140,7 +144,7 @@ describe('POST /api/student/classrooms/join contextual pilot', () => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-that-is-at-least-32-characters')
     vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-that-is-at-least-32-characters')
-    const { classroomIlike, classroomIn } = installContextualQueries({
+    const { classroomIn } = installContextualQueries({
       classroom: contextualClassroom(),
       roster: { id: '55555555-5555-4555-8555-555555555555' },
     })
@@ -172,7 +176,6 @@ describe('POST /api/student/classrooms/join contextual pilot', () => {
     expect(data.classroom).not.toHaveProperty('class_code')
     expect(data.classroom).not.toHaveProperty('teacher_id')
     expect(classroomIn).toHaveBeenCalledWith('id', [classroomId])
-    expect(classroomIlike).toHaveBeenCalledWith('class_code', 'BIO-101')
     expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
       'join_classroom_by_code_atomic_v1',
       expect.objectContaining({
@@ -221,6 +224,53 @@ describe('POST /api/student/classrooms/join contextual pilot', () => {
     expect(response.status).toBe(429)
     expect(response.headers.get('Retry-After')).toBe('30')
     expect(data.code).toBe('rate_limited')
+  })
+
+  it('treats wildcard and prefix patterns as missing rather than verified codes', async () => {
+    installContextualQueries({ classroom: contextualClassroom() })
+
+    const response = await POST(request({ classCode: 'BIO*' }))
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data).toEqual({ error: 'Classroom not found' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'consume_classroom_join_guess_v1',
+      expect.any(Object),
+    )
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.any(Object),
+    )
+  })
+
+  it('does not reveal a matching code through a policy denial after lockout', async () => {
+    installContextualQueries({
+      classroom: contextualClassroom({ join_policy: 'open_join' }),
+    })
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        ok: false,
+        status: 429,
+        error_code: 'rate_limited',
+        retry_after_seconds: 20,
+      },
+      error: null,
+    })
+
+    const response = await POST(request({ classCode: 'BIO-101' }))
+    const data = await response.json()
+
+    expect(response.status).toBe(429)
+    expect(data.code).toBe('rate_limited')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'consume_classroom_join_guess_v1',
+      expect.any(Object),
+    )
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.any(Object),
+    )
   })
 
   it('does not create membership from a direct classroom ID', async () => {

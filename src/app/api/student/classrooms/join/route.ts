@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { withErrorHandler } from '@/lib/api-handler'
 import { decideClassroomJoin, type ClassroomJoinDecision } from '@/lib/access/classroom-enrollment-policy'
@@ -21,20 +20,15 @@ import {
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import { createClassroomEnrollmentWithPalEvent } from '@/lib/server/pal-source-writes'
+import {
+  classroomJoinRequestSchema,
+  type ClassroomJoinRequest,
+} from '@/lib/validations/classroom-enrollment'
 import type { AuthenticatedUser } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const classroomJoinRequestSchema = z.object({
-  classCode: z.unknown().optional(),
-  classroomId: z.unknown().optional(),
-  firstName: z.unknown().optional(),
-  lastName: z.unknown().optional(),
-  studentNumber: z.unknown().optional(),
-}).passthrough()
-
-type ClassroomJoinRequest = z.infer<typeof classroomJoinRequestSchema>
 type ContextualAuthentication = Extract<
   Awaited<ReturnType<typeof authenticateClassroomEnrollmentRequest>>,
   { mode: 'contextual_lookup' }
@@ -43,6 +37,7 @@ type ContextualAuthentication = Extract<
 type ContextualClassroom = {
   id: string
   title: string
+  class_code: string
   term_label: string | null
   teacher_id: string
   allow_enrollment: boolean
@@ -57,10 +52,6 @@ function cleanOptionalString(value: unknown): string | null {
 function looksLikeUuid(value: unknown): value is string {
   return typeof value === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-}
-
-function escapePostgresLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&')
 }
 
 function contextualClassroomResponse(classroom: Pick<ContextualClassroom, 'id' | 'title' | 'term_label'>) {
@@ -184,32 +175,42 @@ async function joinClassroomContextually(args: {
   }
 
   const supabase = getServiceRoleClient()
-  let query = supabase
+  const chargeRejectedCode = async () => {
+    const guessResult = await consumeClassroomJoinGuess({
+      actorId: user.id,
+      classCode: normalizedCode!,
+      supabase,
+    })
+    return guessResult.ok ? null : contextualRateLimitResponse(guessResult)
+  }
+  const query = supabase
     .from('classrooms')
-    .select('id, title, term_label, teacher_id, allow_enrollment, join_policy, archived_at')
+    .select('id, title, class_code, term_label, teacher_id, allow_enrollment, join_policy, archived_at')
     .in('id', [...allowedClassroomIds])
-
-  query = isDirectId
-    ? query.eq('id', classroomId)
-    : query.ilike(
-      'class_code',
-      escapePostgresLikePattern(normalizeClassroomJoinCode(normalizedCode!)),
+  let classroom: ContextualClassroom | null
+  if (isDirectId) {
+    const result = await query.eq('id', classroomId).single()
+    if (result.error && result.error.code !== 'PGRST116') {
+      console.error('Error resolving contextual classroom ID:', result.error)
+      return NextResponse.json({ error: 'Failed to join classroom' }, { status: 500 })
+    }
+    classroom = result.data as ContextualClassroom | null
+  } else {
+    const result = await query
+    if (result.error) {
+      console.error('Error resolving contextual classroom invitation:', result.error)
+      return NextResponse.json({ error: 'Failed to join classroom' }, { status: 500 })
+    }
+    const matchingClassrooms = ((result.data ?? []) as ContextualClassroom[]).filter(
+      (candidate) => normalizeClassroomJoinCode(candidate.class_code) ===
+        normalizeClassroomJoinCode(normalizedCode!),
     )
-
-  const { data, error: classroomError } = await query.single()
-  const classroom = data as ContextualClassroom | null
-  if (classroomError && classroomError.code !== 'PGRST116') {
-    console.error('Error resolving contextual classroom invitation:', classroomError)
-    return NextResponse.json({ error: 'Failed to join classroom' }, { status: 500 })
+    classroom = matchingClassrooms.length === 1 ? matchingClassrooms[0] : null
   }
   if (!classroom) {
     if (!isDirectId && normalizedCode) {
-      const guessResult = await consumeClassroomJoinGuess({
-        actorId: user.id,
-        classCode: normalizedCode,
-        supabase,
-      })
-      if (!guessResult.ok) return contextualRateLimitResponse(guessResult)
+      const rateLimitResponse = await chargeRejectedCode()
+      if (rateLimitResponse) return rateLimitResponse
     }
     return NextResponse.json({ error: 'Classroom not found' }, { status: 404 })
   }
@@ -288,7 +289,11 @@ async function joinClassroomContextually(args: {
     rosterMatch: Boolean(rosterEntry),
     profileComplete: Boolean(firstName && lastName),
   })
-  if (!decision.allowed) return contextualPolicyDenial(decision)
+  if (!decision.allowed) {
+    const rateLimitResponse = await chargeRejectedCode()
+    if (rateLimitResponse) return rateLimitResponse
+    return contextualPolicyDenial(decision)
+  }
 
   const occurredAt = new Date()
   const result = await joinClassroomByCodeAtomic({

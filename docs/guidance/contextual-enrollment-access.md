@@ -44,7 +44,8 @@ This foundation now has one disabled-by-default route adopter:
   budget for everyone else.
 - `/api/student/classrooms/join` calls the gate before parsing its body. Student-role and
   unflagged requests stay on the legacy implementation. Only a wrong-role user in an exact
-  configured pair reaches a pair-scoped lookup, pure-policy check and atomic join. Direct
+  configured pair reaches a bounded pair-scoped lookup, exact normalized code comparison,
+  pure-policy check and atomic join. No pattern operator treats invitation input as a wildcard. Direct
   classroom IDs can recognize an existing membership but cannot create one. Contextual
   responses omit class codes and owner data. A non-empty code that misses the exact scoped
   lookup is charged through the rejected-guess RPC before the generic not-found response.
@@ -61,7 +62,8 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 2. Keep student-role users on the legacy path. Reject a wrong-role user with no configured
    pair before reading the request body or looking up a code, then use migration 159 to
    rate-limit both the authenticated actor and actor-invitation guesses. Scoped lookup
-   misses use the service-only rejected-guess RPC; matched codes use the atomic transaction.
+   misses and pre-atomic policy denials use the service-only rejected-guess RPC; admission
+   candidates use the atomic transaction so every observable attempt is charged once.
 3. For a contextual candidate, resolve a normalized verified code only in a query scoped
    to the authenticated result's `allowedClassroomIds`; a valid code outside that exact
    scope must be indistinguishable from an invalid code. Carry the server-resolved
