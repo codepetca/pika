@@ -49,7 +49,7 @@ is the dominant complexity, while the current observation slice is comparatively
 - `src/app/api/student/classrooms/join/route.ts` retains its student-gated UUID/code path
   by default. Its off-by-default exact-pair branch requires a scoped code for creation,
   recognizes but never creates membership from a UUID, charges invalid guesses and uses
-  the atomic roster/profile/Pal transaction. It remains unavailable until migration 159,
+  the atomic roster/profile/Pal transaction. It remains unavailable until migrations 159 and 161,
   operational gates and the broader mixed-role classroom surfaces are ready.
 - `src/app/api/storage/submission-images/route.ts` branches on global role as well
   as object ownership. A contextual page without contextual file authorization is

@@ -16,19 +16,10 @@ MIGRATION_STATUS="$(supabase migration list --local 2>&1)" || {
   echo "$MIGRATION_STATUS" >&2
   exit 1
 }
-MIGRATION_DRIFT="$(printf '%s\n' "$MIGRATION_STATUS" | awk -F '|' '
-  {
-    local_version = $1
-    database_version = $2
-    gsub(/[[:space:]]/, "", local_version)
-    gsub(/[[:space:]]/, "", database_version)
-    if ((local_version ~ /^[0-9]+$/ || database_version ~ /^[0-9]+$/) && local_version != database_version) {
-      local_display = local_version == "" ? "missing" : local_version
-      database_display = database_version == "" ? "missing" : database_version
-      printf "  files=%s database=%s\n", local_display, database_display
-    }
-  }
-')"
+if ! MIGRATION_DRIFT="$(printf '%s\n' "$MIGRATION_STATUS" | node "$ROOT/scripts/parse-supabase-migration-list.mjs")"; then
+  echo "Failed to parse the local Supabase migration history." >&2
+  exit 1
+fi
 
 if [[ -n "$MIGRATION_DRIFT" ]]; then
   echo "Local database migration history does not match this worktree:" >&2

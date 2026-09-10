@@ -1,10 +1,10 @@
 # Contextual enrollment access foundation
 
-Status: guarded route adopter; no rollout or newly enabled production access. The enrollment SQL was
-applied to local Pika only on 2026-09-03 under one-time exact permission, when it was numbered
-157, and passed its database contracts. It is now source migration 159 after rebasing behind
-main's migrations 157–158; a clean 159 replay remains required. Hosted application remains
-unapproved.
+Status: guarded route adopter; no rollout or newly enabled production access. The atomic
+enrollment foundation is migration 159 and was applied locally and to production before
+migration 160. Its deployed definition is immutable. Migration 161 adds the service-only
+rejected-guess adopter required by the guarded route and remains unapplied. The production
+pilot configuration remains unset.
 This is the first bounded part of compatibility batch C in the
 [classroom access roadmap](classroom-access-and-entitlements-roadmap.md).
 It does not complete phase 2 or authorize the Owned/Joined home.
@@ -31,8 +31,9 @@ This foundation now has one disabled-by-default route adopter:
   server-trusted evidence. It rejects malformed evidence, archived classrooms, owner
   self-join, direct-ID admission, closed enrollment, roster mismatch and incomplete
   open-join profiles. Existing active membership is idempotent and grants no new access.
-- Migration 159 adds a service-only atomic join RPC, a service-only rejected-guess RPC and
-  a private schema-backed guess limiter. The transaction locks and revalidates the exact expected classroom plus code,
+- Migration 159 adds a service-only atomic join RPC and a private schema-backed guess limiter.
+  Migration 161 exposes a service-only rejected-guess RPC over that private limiter so attempts
+  rejected before atomic admission consume the same budgets. The transaction locks and revalidates the exact expected classroom plus code,
   rejects owner self-join and archive/policy changes, and commits roster, stable roster
   binding, enrollment, profile and optional Pal outbox evidence together. No browser role
   can execute the RPC or read limiter state.
@@ -94,7 +95,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 - Guess-limit availability, disable procedure, compatible application floor and mixed-role
   canaries are rehearsed before a real cohort. The controlling flag remains unset.
 
-## Migration 159 operational boundary
+## Migrations 159 and 161 operational boundary
 
 - The provisional fixed window is 10 minutes: 12 attempts per actor and 3 attempts for
   the same actor plus normalized invitation. These values are database-owned so a caller
@@ -116,9 +117,9 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
   proves duplicate serialization, archive/ownership/enrollment-toggle ordering, join-first
   linearization and the exact concurrent guess budget, then removes its fixtures. It never
   applies the migration or reads hosted credentials.
-- The earlier local migration application and generated-type verification do not prove the
-  resequenced 159 lineage and do not authorize a cohort, route adoption, hosted application
-  or deployment; each remains a distinct gate.
+- Production and local migration 159 history predates the rejected-guess adopter. Migration 161
+  must be separately reviewed, authorized and applied to each target before any pilot cohort is
+  enabled. Applying it does not authorize a cohort or production configuration change.
 
 ## Verification
 
@@ -132,4 +133,4 @@ The regular join route imports the guarded adapter but the controlling flag rema
 Production login, signup, legacy student join behavior, roster, classroom lists, navigation,
 entitlements and the development-only home reference remain unchanged. Contextual Pal delivery
 uses the same event instant as its transactional outbox fact. Local verification does not
-authorize hosted migration application or a pilot cohort.
+authorize migration 161 application or a pilot cohort.

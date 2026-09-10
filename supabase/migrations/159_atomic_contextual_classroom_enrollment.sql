@@ -1,6 +1,4 @@
--- Guarded mixed-role enrollment foundation. The regular join route can call
--- this function only for an exact configured pilot pair while its controlling
--- flag is enabled.
+-- Dormant mixed-role enrollment foundation. No live route calls this function.
 -- The service-only RPC rate-limits invitation guesses, revalidates the exact
 -- classroom/code pair under lock, and commits every membership side effect as
 -- one transaction.
@@ -150,34 +148,6 @@ begin
   );
   get diagnostics v_deleted = row_count;
   return v_deleted;
-end;
-$$;
-
-create function public.consume_classroom_join_guess_v1(
-  p_actor_key_hash text,
-  p_invitation_key_hash text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  v_rate_limit jsonb;
-begin
-  v_rate_limit := private.consume_classroom_join_rate_limits_v1(
-    p_actor_key_hash,
-    p_invitation_key_hash
-  );
-  if not coalesce((v_rate_limit->>'ok')::boolean, false) then
-    return jsonb_build_object(
-      'ok', false,
-      'status', 429,
-      'error_code', 'rate_limited',
-      'retry_after_seconds', (v_rate_limit->>'retry_after_seconds')::integer
-    );
-  end if;
-  return jsonb_build_object('ok', true);
 end;
 $$;
 
@@ -495,20 +465,14 @@ revoke all on function private.consume_classroom_join_rate_limits_v1(text, text)
   from public, anon, authenticated, service_role;
 revoke all on function public.cleanup_classroom_join_rate_limits_v1(integer)
   from public, anon, authenticated, service_role;
-revoke all on function public.consume_classroom_join_guess_v1(text, text)
-  from public, anon, authenticated, service_role;
 revoke all on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)
   from public, anon, authenticated, service_role;
 grant execute on function public.cleanup_classroom_join_rate_limits_v1(integer)
-  to service_role;
-grant execute on function public.consume_classroom_join_guess_v1(text, text)
   to service_role;
 grant execute on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)
   to service_role;
 
 comment on table public.classroom_join_rate_limits is
   'Private rolling windows for contextual classroom join actor and actor-invitation guesses.';
-comment on function public.consume_classroom_join_guess_v1(text, text) is
-  'Service-only limiter for contextual join guesses rejected before atomic admission.';
 comment on function public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb) is
-  'Service-only atomic classroom join primitive for the disabled-by-default contextual pilot path.';
+  'Dormant service-only atomic classroom join primitive; no live route adopts it in migration 159.';
