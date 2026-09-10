@@ -22,6 +22,10 @@ describe('OwnedJoinedHomeMockup', () => {
   })
   it('shows both relationships and filters without changing account type', async () => {
     const { user, home } = setup()
+    const teaching = within(home.getByRole('region', { name: 'Teaching classrooms' }))
+    const joined = within(home.getByRole('region', { name: 'Joined classrooms' }))
+    expect(teaching.getByRole('heading', { name: 'Teaching' }).parentElement).toHaveTextContent(/^Teaching$/)
+    expect(joined.getByRole('heading', { name: 'Joined' }).parentElement).toHaveTextContent(/^Joined$/)
     expect(home.getByRole('button', { name: 'Open Grade 10 Science' })).toBeVisible()
     expect(home.getByRole('button', { name: 'Open Learning Design' })).toBeVisible()
     await user.click(home.getByRole('button', { name: 'Joined', exact: true }))
