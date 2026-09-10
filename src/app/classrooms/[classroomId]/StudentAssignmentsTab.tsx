@@ -20,6 +20,7 @@ import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/c
 import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { StudentSurveyPanel } from '@/components/surveys/StudentSurveyPanel'
+import { StudentReturnedMarks } from '@/components/gradebook/StudentReturnedMarks'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
 import { getStudentSurveyStatus, getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
@@ -338,7 +339,8 @@ export function StudentAssignmentsTab({
               action={<Button onClick={retryLoadAssignments}>Retry</Button>}
             />
           ) : view === 'summary' ? (
-              currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
+            <PageStack>
+              {currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
                 <PageState
                   kind="empty"
                   title="No classwork yet"
@@ -436,7 +438,9 @@ export function StudentAssignmentsTab({
                     )
                   })}
                 </PageStack>
-              )
+              )}
+              <StudentReturnedMarks classroomId={classroom.id} isActive={isActive} />
+            </PageStack>
             ) : view === 'material' && selectedMaterial ? (
               <Card tone="panel" padding="lg">
                 <div className="mb-4">

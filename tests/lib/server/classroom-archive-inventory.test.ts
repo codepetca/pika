@@ -575,3 +575,24 @@ it('validates the post157 legacy catalog including override identity', () => {
   override.actor_columns = []
   expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow()
 })
+
+it('inventories pre161 schemas without querying either standalone resource', async () => {
+  const base = reader()
+  const readResourceRows = vi.fn(base.readResourceRows)
+  const document = openApiDocument()
+  delete document.definitions.gradebook_items
+  delete document.definitions.gradebook_item_scores
+  const compatibleReader = {
+    ...base,
+    readOpenApiSchema: async () => document,
+    readArchiveV2ResourceTables: async () => CLASSROOM_ARCHIVE_V2_RESOURCES
+      .filter((resource) => !['gradebook_items', 'gradebook_item_scores'].includes(resource.table))
+      .map((resource) => resource.table),
+    readResourceRows,
+  }
+  const graph = await readClassroomArchiveResourceGraph(compatibleReader, CLASSROOM_ID)
+  expect(graph).not.toHaveProperty('gradebook_items')
+  expect(graph).not.toHaveProperty('gradebook_item_scores')
+  expect(readResourceRows.mock.calls.some(([query]) => query.table.startsWith('gradebook_item'))).toBe(false)
+  await expect(inventoryArchivedClassrooms(compatibleReader)).resolves.toBeTruthy()
+})

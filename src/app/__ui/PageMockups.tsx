@@ -35,6 +35,7 @@ import {
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceTableFrame } from '@/components/teacher-work-surface/TeacherWorkSurfaceTableFrame'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
+import { GradebookItemEditor } from '@/components/gradebook/GradebookItemEditor'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { GradebookScoreDisplayToggle } from '@/components/gradebook/GradebookToolbar'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
@@ -565,6 +566,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   const startsWithoutCategories = fixtureState === 'empty-categories'
   const [categories, setCategories] = useState<GradebookCategory[]>(() => startsWithoutCategories ? [] : GRADEBOOK_CATEGORY_FIXTURES)
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(startsWithoutCategories)
+  const [itemEditorOpen, setItemEditorOpen] = useState(false)
   const [selectedAssessmentTitle, setSelectedAssessmentTitle] = useState<string | null>(null)
   const [manualScores, setManualScores] = useState<Record<string, number>>({})
   const [scoreEditTarget, setScoreEditTarget] = useState<{ studentId: string; assessmentIndex: number | 'final' } | null>(null)
@@ -732,6 +734,8 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
       <TeacherWorkSurfaceContextBar
         ariaLabel="Gradebook mockup controls"
         primaryClassName="max-w-44 sm:max-w-none"
+        className="grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"
+        contextClassName="col-span-2 lg:col-span-1"
         context={<>
           <span className="hidden whitespace-nowrap lg:inline" aria-label={`Class Average ${formatGradebookFinalSummary(rows, 'average')} · Median ${formatGradebookFinalSummary(rows, 'median')}`}>
             Class Average <strong className="font-semibold tabular-nums text-text-default">{formatGradebookFinalSummary(rows, 'average')}</strong>
@@ -783,14 +787,14 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             /></span>
           </div>
         </TeacherWorkSurfaceActionCluster>}
-        actions={<div className="hidden lg:block"><MoreMenu label="Gradebook" items={[
+        actions={<><Button type="button" size="sm" className="whitespace-nowrap" onClick={() => setItemEditorOpen(true)}><Plus className="h-4 w-4" aria-hidden="true" />Add item</Button><div className="hidden lg:block"><MoreMenu label="Gradebook" items={[
           { id: 'edit-gradebook', label: 'Edit categories', onSelect: () => setGradebookEditorOpen(true) },
           { id: 'name-order', label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
           { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
           { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
           ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
           { id: 'export', label: 'Export gradebook', onSelect: () => onPrototypeAction('Export gradebook') },
-        ]} /></div>}
+        ]} /></div></>}
       />
       <TeacherWorkSurfaceTableFrame
         data-testid="gradebook-scroll-frame"
@@ -1040,6 +1044,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           setGradebookEditorOpen(false)
         }}
       />
+      <GradebookItemEditor isOpen={itemEditorOpen} item={null} categories={categories} onClose={() => setItemEditorOpen(false)} onSave={() => { setItemEditorOpen(false); onPrototypeAction('Add Gradebook item') }} />
       <GradebookAssessmentEditorMockup
         isOpen={Boolean(selectedAssessment)}
         assessment={selectedAssessment}

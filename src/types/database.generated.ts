@@ -5255,6 +5255,129 @@ export type Database = {
           },
         ]
       }
+      gradebook_item_scores: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          earned: number
+          id: string
+          item_id: string
+          returned_at: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          earned: number
+          id?: string
+          item_id: string
+          returned_at?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          earned?: number
+          id?: string
+          item_id?: string
+          returned_at?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gradebook_item_scores_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_item_scores_classroom_id_student_id_fkey"
+            columns: ["classroom_id", "student_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_enrollments"
+            referencedColumns: ["classroom_id", "student_id"]
+          },
+          {
+            foreignKeyName: "gradebook_item_scores_item_id_classroom_id_fkey"
+            columns: ["item_id", "classroom_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_items"
+            referencedColumns: ["id", "classroom_id"]
+          },
+          {
+            foreignKeyName: "gradebook_item_scores_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gradebook_items: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          created_by: string
+          gradebook_category_id: string | null
+          gradebook_weight: number
+          id: string
+          include_in_final: boolean
+          points_possible: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          created_by: string
+          gradebook_category_id?: string | null
+          gradebook_weight?: number
+          id?: string
+          include_in_final?: boolean
+          points_possible: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          created_by?: string
+          gradebook_category_id?: string | null
+          gradebook_weight?: number
+          id?: string
+          include_in_final?: boolean
+          points_possible?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gradebook_items_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gradebook_items_gradebook_category_id_fkey"
+            columns: ["gradebook_category_id"]
+            isOneToOne: false
+            referencedRelation: "gradebook_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_score_overrides: {
         Row: {
           assessment_id: string
@@ -9857,6 +9980,20 @@ export type Database = {
           storage_path: string
         }[]
       }
+      mutate_gradebook_item: {
+        Args: {
+          p_action: string
+          p_classroom_id: string
+          p_gradebook_category_id?: string
+          p_gradebook_weight?: number
+          p_include_in_final?: boolean
+          p_item_id?: string
+          p_points_possible?: number
+          p_teacher_id: string
+          p_title?: string
+        }
+        Returns: Json
+      }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -10434,6 +10571,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      set_gradebook_item_score: {
+        Args: {
+          p_classroom_id: string
+          p_earned: number
+          p_item_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       set_pika_manual_attendance_marks: {
         Args: {

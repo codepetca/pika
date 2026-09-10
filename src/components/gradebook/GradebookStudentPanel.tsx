@@ -2,7 +2,7 @@
 
 import { X } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
-import { IconButton } from '@/ui'
+import { Button, IconButton } from '@/ui'
 import { AssessmentStatusIndicator, getGradebookAssessmentStatusDisplay } from '@/components/AssessmentStatusIndicator'
 import { getStudentName, getStudentDisplayId, formatPercent, getGradePercentTextClass, getAssessmentCell, formatCompactPercent, formatAssessmentRawScore, getAssessmentColumnKey, getAssessmentCellPercent, getAssessmentMeta, type ScoreDisplayMode } from '@/lib/gradebook-display'
 
@@ -11,11 +11,17 @@ export function GradebookStudentPanel({
   columns,
   displayMode,
   onClose,
+  onItemOpen,
+  onItemScoreOpen,
+  isReadOnly = false,
 }: {
   student: GradebookStudentSummary
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
   onClose?: () => void
+  onItemOpen?: (column: GradebookAssessmentColumn) => void
+  onItemScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
+  isReadOnly?: boolean
 }) {
   return (
     <aside
@@ -68,9 +74,18 @@ export function GradebookStudentPanel({
                         <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-normal tabular-nums text-text-default">
                           {column.code}
                         </span>
-                        <span className="truncate text-sm font-normal text-text-default" title={column.title}>
-                          {column.title}
-                        </span>
+                        {column.assessment_type === 'item' && onItemOpen ? (
+                          <Button
+                            type="button" variant="ghost" size="sm"
+                            className="min-w-0 truncate px-1 text-left font-normal"
+                            disabled={isReadOnly} aria-label={`Edit item: ${column.title}`}
+                            onClick={() => onItemOpen(column)}
+                          >
+                            {column.title}
+                          </Button>
+                        ) : (
+                          <span className="truncate text-sm font-normal text-text-default" title={column.title}>{column.title}</span>
+                        )}
                       </div>
                       <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
                         {statusDisplay ? (
@@ -86,12 +101,19 @@ export function GradebookStudentPanel({
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className={[
-                        'text-sm font-normal tabular-nums',
-                        scoreTextClass,
-                      ].join(' ')}>
-                        {primaryScore}
-                      </div>
+                      {column.assessment_type === 'item' && onItemScoreOpen ? (
+                        <Button
+                          type="button" variant="ghost" size="sm"
+                          className={`px-1 font-normal tabular-nums ${scoreTextClass}`}
+                          disabled={isReadOnly}
+                          aria-label={`Edit ${getStudentName(student)} item mark for ${column.title}: ${primaryScore}`}
+                          onClick={() => onItemScoreOpen(student, column)}
+                        >
+                          {primaryScore}
+                        </Button>
+                      ) : (
+                        <div className={`text-sm font-normal tabular-nums ${scoreTextClass}`}>{primaryScore}</div>
+                      )}
                       <div className={['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
                         {secondaryScore}
                       </div>

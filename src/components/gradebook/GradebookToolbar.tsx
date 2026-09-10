@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Dumbbell, MoreVertical, RotateCcw } from 'lucide-react'
+import { ChevronDown, Dumbbell, MoreVertical, Plus, RotateCcw } from 'lucide-react'
 import { Button, FormField, IconButton, Select, Tooltip } from '@/ui'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceActionCluster, TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
@@ -39,7 +39,7 @@ export function GradebookScoreDisplayToggle({
   )
 }
 
-export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onCopyEmails, onCopySecondaryEmails, onExport }: {
+export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport }: {
   preferences: GradebookDisplayPreferences
   onChange: (changes: Partial<GradebookDisplayPreferences>) => void
   selectedCount: number
@@ -52,12 +52,14 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
   hasManualChanges?: boolean
   undoingManualChanges?: boolean
   onUndoManualChanges?: () => void
+  onAddItem?: () => void
+  itemsAvailable?: boolean
   onEditCategories: () => void
   onCopyEmails: () => void
   onCopySecondaryEmails?: () => void
   onExport: () => void
 }) {
-  return <TeacherWorkSurfaceContextBar ariaLabel="Gradebook controls" primaryClassName="max-w-44 sm:max-w-none"
+  return <TeacherWorkSurfaceContextBar ariaLabel="Gradebook controls" primaryClassName="max-w-44 sm:max-w-none" className="grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" contextClassName="col-span-2 lg:col-span-1"
     context={<>
       <span className="hidden whitespace-nowrap lg:inline" aria-label={`Class Average ${classAverage} · Median ${classMedian}`}>
         Class Average <strong className="font-semibold tabular-nums text-text-default">{classAverage}</strong>
@@ -93,13 +95,13 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         <span className="hidden lg:inline-flex"><IconButton icon={Dumbbell} label="Show weights" variant={preferences.showWeights ? 'subtle' : 'ghost'} aria-pressed={preferences.showWeights} onClick={() => onChange({ showWeights: !preferences.showWeights })} /></span>
       </div>
     </TeacherWorkSurfaceActionCluster>}
-    actions={<div className="hidden lg:block"><TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
+    actions={<><Button type="button" variant="primary" size="sm" disabled={isReadOnly || !itemsAvailable || !onAddItem} onClick={onAddItem} className="whitespace-nowrap"><Plus className="h-4 w-4" aria-hidden="true" />Add item</Button><div className="hidden lg:block"><TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
       { id: 'edit-categories', label: 'Edit categories', disabled: isReadOnly, onSelect: onEditCategories },
       { id: 'name-order', label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
       { id: 'export', label: 'Export gradebook', onSelect: onExport },
-    ]} /></div>}
+     ]} /></div></>}
   />
 }

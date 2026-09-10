@@ -3,9 +3,12 @@ import { CLASSROOM_ARCHIVE_V2_RESOURCES, resolveClassroomArchiveV2Resources } fr
 
 const tables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
 describe('deployed archive contracts', () => {
-  it('accepts only the full contract and the pre157 contract', () => {
+  it('accepts complete additive migrations and older contracts', () => {
     expect(resolveClassroomArchiveV2Resources(tables)).toHaveLength(tables.length)
     expect(resolveClassroomArchiveV2Resources(tables.filter((table) => table !== 'gradebook_score_overrides'))).toHaveLength(tables.length - 1)
+    expect(resolveClassroomArchiveV2Resources(tables.filter((table) => !['gradebook_items', 'gradebook_item_scores'].includes(table)))).toHaveLength(tables.length - 2)
+    expect(() => resolveClassroomArchiveV2Resources(tables.filter((table) => table !== 'gradebook_items'))).toThrow()
+    expect(() => resolveClassroomArchiveV2Resources(tables.filter((table) => table !== 'gradebook_item_scores'))).toThrow()
     expect(() => resolveClassroomArchiveV2Resources(tables.filter((table) => table !== 'assignments'))).toThrow()
     expect(() => resolveClassroomArchiveV2Resources([...tables, 'unknown'])).toThrow()
     expect(() => resolveClassroomArchiveV2Resources([...tables, tables[0]])).toThrow()

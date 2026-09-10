@@ -174,3 +174,27 @@ describe('Gradebook surface owners', () => {
     expect(onUndoManualChanges).toHaveBeenCalledOnce()
   })
 })
+
+describe('standalone Gradebook controls', () => {
+  const item = { assessment_id: 'item1', assessment_type: 'item' as const, code: 'I1', title: 'Attendance', possible: 20, weight: 10, include_in_final: true }
+  it('opens item details and original marks from the mobile student panel', () => {
+    const onItemOpen = vi.fn(), onItemScoreOpen = vi.fn()
+    render(<GradebookStudentPanel student={student} columns={[item]} displayMode="percent" onItemOpen={onItemOpen} onItemScoreOpen={onItemScoreOpen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit item: Attendance' }))
+    fireEvent.click(screen.getByRole('button', { name: /Edit Demo Student item mark for Attendance/ }))
+    expect(onItemOpen).toHaveBeenCalledWith(item)
+    expect(onItemScoreOpen).toHaveBeenCalledWith(student, item)
+  })
+  it('uses the original item editing gate independently of override availability', () => {
+    const onScoreOpen = vi.fn()
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [item], onScoreOpen, scoreEditingDisabled: true, itemScoreEditingDisabled: false })} /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: /Edit Demo Student mark for Attendance/ }))
+    expect(onScoreOpen).toHaveBeenCalledWith(student, item)
+  })
+  it('exposes a visible Add item action and disables it in read-only classrooms', () => {
+    const onAddItem = vi.fn()
+    render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={vi.fn()} selectedCount={0} isReadOnly onAddItem={onAddItem} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add item' })).toHaveTextContent('Add item')
+  })
+})

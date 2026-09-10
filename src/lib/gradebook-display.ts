@@ -116,6 +116,7 @@ export function formatAssessmentRawScore(cell: GradebookAssessmentCell | null, p
 }
 
 export function formatAssessmentTypeLabel(type: GradebookAssessmentColumn['assessment_type']): string {
+  if (type === 'item') return 'Item'
   if (type === 'assignment') return 'Assignment'
   return 'Test'
 }

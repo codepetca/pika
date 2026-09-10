@@ -64,7 +64,7 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
-    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(42)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
@@ -140,6 +140,8 @@ describe('versioned classroom archive contracts', () => {
       CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) => (
         resource.table !== 'gradebook_categories'
         && resource.table !== 'gradebook_score_overrides'
+        && resource.table !== 'gradebook_items'
+        && resource.table !== 'gradebook_item_scores'
       )),
     )
 

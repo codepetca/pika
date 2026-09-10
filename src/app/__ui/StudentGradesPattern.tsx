@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { StudentReturnedMarksList } from '@/components/gradebook/StudentReturnedMarks'
 import { Card } from '@/ui'
 
 const RETURNED_GRADES = [
@@ -130,6 +131,20 @@ export function StudentGradesPattern() {
             )}
           </div>
         </Card>
+      </div>
+
+      <div className="space-y-3" data-testid="standalone-returned-marks-preview">
+        <div>
+          <h4 className="font-semibold text-text-default">Standalone marks in Classwork</h4>
+          <p className="mt-1 text-sm text-text-muted">
+            The current student integration shows explicitly returned standalone marks in Classwork. The aggregate Grades view above remains a prototype.
+          </p>
+        </div>
+        <StudentReturnedMarksList items={[
+          { id: 'standalone-attendance', title: 'Attendance – Term 1', earned: 18, possible: 20, percent: 90, categoryName: 'Term Work', included: true },
+          { id: 'standalone-zero', title: 'Participation check', earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: true },
+          { id: 'standalone-practice', title: 'Practice conference', earned: 8, possible: 10, percent: 80, categoryName: null, included: false },
+        ]} />
       </div>
     </section>
   )

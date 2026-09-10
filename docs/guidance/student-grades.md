@@ -86,3 +86,14 @@ The product contract is approved. The paired teacher/student composition is
 currently experimental and is rendered with deterministic fixtures in Pattern
 Lab. See
 [`docs/guidance/ui/experimental/student-grades-visibility.md`](./ui/experimental/student-grades-visibility.md).
+
+## Current standalone-item integration
+
+The aggregate Grades surface above is still a prototype. Standalone Gradebook
+items use an explicit **Return marks** action and a returned-only section inside
+the existing student Classwork summary. A future live Grades surface must
+include these records in its returned-only list and calculation. This does not
+add attendance automation to Grades: an Attendance item is manually scored like
+any other standalone item. See
+[standalone Gradebook items](./standalone-gradebook-items.md) for the implemented
+release, retraction, and lifecycle contract.
