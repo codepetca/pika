@@ -164,7 +164,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
               if (!rows.length && !archived) return null
               return <section key={label} aria-label={`${label} classrooms`}>
                 <div className="mb-2 flex items-center gap-2 text-xs text-text-muted">
-                  <h4 className="font-medium">{label}</h4><span>{rows.length}</span>
+                  <h4 className="font-medium">{label}</h4>
                 </div>
                 {description && <p className="mb-3 text-xs text-text-muted">{description}</p>}
                 {!rows.length && <p className="text-sm text-text-muted">No {label.toLowerCase()} classrooms</p>}
