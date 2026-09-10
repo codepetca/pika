@@ -972,7 +972,7 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByText('Grace'))
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
       .getByRole('button', { name: 'Remove' }))
@@ -1200,7 +1200,7 @@ describe('TeacherRosterTab', () => {
     },
   )
 
-  it('opens single-student removal from the roster actions menu with confirmation', async () => {
+  it('opens single-student removal from Student Actions with clear deletion scope', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()
 
@@ -1212,7 +1212,7 @@ describe('TeacherRosterTab', () => {
 
     expect(screen.queryByRole('button', { name: /^Remove$/ })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
 
     expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
@@ -1220,6 +1220,8 @@ describe('TeacherRosterTab', () => {
     const dialog = screen.getByRole('dialog', { name: 'Remove student?' })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
+    expect(dialog).toHaveTextContent(/permanently deletes their Pika Log entries, assignment documents, and grade overrides for this class/i)
+    expect(dialog).toHaveTextContent(/does not delete their Pika account or all of their data for this class/i)
 
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
@@ -1266,7 +1268,7 @@ describe('TeacherRosterTab', () => {
     }))
     renderRoster()
     await user.click(await screen.findByText('Ada'))
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Purge classroom data' }))
     expect(await screen.findByRole('dialog', { name: 'Purge this student’s classroom data?' }))
       .toHaveTextContent(/data in other classrooms are kept/i)
@@ -1284,12 +1286,12 @@ describe('TeacherRosterTab', () => {
     renderRoster({ ...classroom, archived_at: '2026-08-01T00:00:00.000Z' })
     await user.click(await screen.findByText('Ada'))
     expect(screen.getByRole('button', { name: 'Add students' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
     expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Purge classroom data' })).toBeEnabled()
   })
 
-  it('shows and confirms removal for multiple checked students from the roster actions menu', async () => {
+  it('shows and confirms removal for multiple checked students from Student Actions', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()
 
@@ -1299,7 +1301,7 @@ describe('TeacherRosterTab', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '2 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
 
     expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
@@ -1320,7 +1322,7 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('keeps student email actions in the centered selection menu', async () => {
+  it('keeps student-scoped actions in the centered Student Actions menu', async () => {
     const user = userEvent.setup()
     mockRosterFetch()
     const writeText = vi.fn().mockResolvedValue(undefined)
@@ -1347,6 +1349,7 @@ describe('TeacherRosterTab', () => {
     const studentActionsMenu = screen.getByRole('menu', { name: 'Student actions' })
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' })).toBeEnabled()
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (secondary)' })).toBeEnabled()
+    expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Remove students' })).toBeEnabled()
 
     await user.click(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' }))
     expect(writeText).toHaveBeenCalledWith('grace@example.com, ada@example.com')
@@ -1359,7 +1362,7 @@ describe('TeacherRosterTab', () => {
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
     expect(screen.getByRole('menuitem', { name: 'Add from CSV' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Remove students' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Remove students' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Copy emails (primary)' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Copy emails (secondary)' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Copy main emails (2)' })).not.toBeInTheDocument()
@@ -1396,7 +1399,7 @@ describe('TeacherRosterTab', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '2 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
 
     const multiDialog = screen.getByRole('dialog', { name: 'Remove students?' })
@@ -1444,7 +1447,7 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByText('Ada'))
-    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
       .getByRole('button', { name: 'Remove' }))

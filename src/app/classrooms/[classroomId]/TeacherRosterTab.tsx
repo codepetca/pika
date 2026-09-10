@@ -374,14 +374,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   // Get emails for selected students
   const selectedRows = sortedRoster.filter((r) => selectedIds.has(r.id))
-  const hasSelectedRows = selectedRows.length > 0
-  const selectedStudentEmails = selectedRows.map((r) => r.email)
-  const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
   const counselorErrorRow = counselorError
     ? sortedRoster.find((row) => row.id === counselorError.rosterId) ?? null
     : null
   const removalTargetRows = selectedRows.length > 0 ? selectedRows : selectedRosterRow ? [selectedRosterRow] : []
+  const hasStudentActionRows = removalTargetRows.length > 0
+  const selectedStudentEmails = removalTargetRows.map((r) => r.email)
+  const selectedCounselorEmails = removalTargetRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const {
     scrollRef: rosterTableScrollRef,
     preserveScrollPosition: preserveRosterTableScrollPosition,
@@ -585,8 +585,8 @@ export function TeacherRosterTab({ classroom }: Props) {
       const row = rows[0]
       return `${formatRemovalTargetName(row)}\n${row.email}\n\n${
         row.joined
-          ? 'They are currently joined. This removes roster membership, logs, and assignment documents. Use the separate purge action for comprehensive permanent deletion.'
-          : 'They are not joined yet.'
+          ? 'This removes them from this class and permanently deletes their Pika Log entries, assignment documents, and grade overrides for this class. It does not delete their Pika account or all of their data for this class. Use Purge classroom data for that.'
+          : 'This removes them from this class roster. They have not joined the class, so no classroom account data will be deleted.'
       }`
     }
 
@@ -597,8 +597,8 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     return `${preview}${remaining}\n\n${
       joinedCount > 0
-        ? `${joinedCount} ${joinedCount === 1 ? 'student is' : 'students are'} currently joined. This removes roster membership, logs, and assignment documents; it is not a comprehensive purge.`
-        : 'These students are not joined yet.'
+        ? `This removes the selected students from this class and permanently deletes Pika Log entries, assignment documents, and grade overrides for the ${joinedCount} ${joinedCount === 1 ? 'student who has' : 'students who have'} joined. It does not delete their Pika accounts or all of their data for this class.`
+        : 'This removes the selected students from this class roster. They have not joined the class, so no classroom account data will be deleted.'
     }`
   }
 
@@ -612,8 +612,25 @@ export function TeacherRosterTab({ classroom }: Props) {
     },
   ]
 
-  if (removalTargetRows.length > 0) {
-    rosterActionOptions.push({
+  const studentActionOptions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'copy-student-emails',
+      label: 'Copy emails (primary)',
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => copyToClipboard(selectedStudentEmails, 'Primary emails'),
+      disabled: selectedStudentEmails.length === 0,
+    },
+    {
+      id: 'copy-counselor-emails',
+      label: 'Copy emails (secondary)',
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => copyToClipboard(selectedCounselorEmails, 'Secondary emails'),
+      disabled: selectedCounselorEmails.length === 0,
+    },
+  ]
+
+  if (hasStudentActionRows) {
+    studentActionOptions.push({
       id: 'remove-student',
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
       onSelect: () => openRemoveStudentDialog(removalTargetRows),
@@ -630,7 +647,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     : null
 
   if (purgeTarget) {
-    rosterActionOptions.push({
+    studentActionOptions.push({
       id: 'purge-student',
       label: <span className="text-danger">Purge classroom data</span>,
       onSelect: () => setPendingPurge(purgeTarget),
@@ -638,23 +655,6 @@ export function TeacherRosterTab({ classroom }: Props) {
       destructive: true,
     })
   }
-
-  const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
-    {
-      id: 'copy-student-emails',
-      label: 'Copy emails (primary)',
-      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => copyToClipboard(selectedStudentEmails, 'Primary emails'),
-      disabled: selectedStudentEmails.length === 0,
-    },
-    {
-      id: 'copy-counselor-emails',
-      label: 'Copy emails (secondary)',
-      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => copyToClipboard(selectedCounselorEmails, 'Secondary emails'),
-      disabled: selectedCounselorEmails.length === 0,
-    },
-  ]
 
   const actionBar = (
     <TeacherWorkSurfaceContextBar
@@ -672,14 +672,14 @@ export function TeacherRosterTab({ classroom }: Props) {
             disabled={isReadOnly || isRosterLoading}
           />
           <TeacherWorkSurfaceMenuButton
-            buttonProps={{ 'aria-label': hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions' }}
+            buttonProps={{ 'aria-label': hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions' }}
             label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{hasSelectedRows ? `${selectedRows.length} selected` : 'Student Actions'}</span>
+              <span>{hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions'}</span>
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </span>}
-            items={selectedEmailOptions}
-            disabled={isRosterLoading || !hasSelectedRows}
-            variant={hasSelectedRows ? 'primary' : 'secondary'}
+            items={studentActionOptions}
+            disabled={isRosterLoading || !hasStudentActionRows}
+            variant={hasStudentActionRows ? 'primary' : 'secondary'}
             className="w-36"
             menuAriaLabel="Student actions"
             menuAlign="start"

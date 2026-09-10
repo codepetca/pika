@@ -126,7 +126,30 @@ for (const entry of matrix) {
     await mockTeacherStudentPurge(page, classroomId!)
     await page.goto(`/classrooms/${classroomId}?tab=roster`)
     await page.getByText('Student1', { exact: true }).click()
-    await page.getByRole('button', { name: 'More actions' }).click()
+    await page.getByRole('button', { name: '1 selected' }).click()
+    const studentActionsMenu = page.getByRole('menu', { name: 'Student actions' })
+    await expect(studentActionsMenu.getByRole('menuitem', { name: 'Remove student' })).toBeVisible()
+    await expect(studentActionsMenu.getByRole('menuitem', { name: 'Purge classroom data' })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({
+      path: testInfo.outputPath(`student-actions-${entry.name}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+
+    await studentActionsMenu.getByRole('menuitem', { name: 'Remove student' }).click()
+    const removalDialog = page.getByRole('dialog', { name: 'Remove student?' })
+    await expect(removalDialog).toContainText('permanently deletes their Pika Log entries, assignment documents, and grade overrides for this class')
+    await expect(removalDialog).toContainText('It does not delete their Pika account or all of their data for this class')
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({
+      path: testInfo.outputPath(`remove-dialog-${entry.name}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await removalDialog.getByRole('button', { name: 'Cancel' }).click()
+
+    await page.getByRole('button', { name: '1 selected' }).click()
     await page.getByRole('menuitem', { name: 'Purge classroom data' }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Purge this student’s classroom data?' })
