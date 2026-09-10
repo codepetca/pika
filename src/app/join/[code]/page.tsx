@@ -20,19 +20,19 @@ type JoinView =
 export default function JoinClassroomPage() {
   const { push } = useRouter()
   const params = useParams()
-  const code = String(params.code || '').trim()
+  const code = String(params.code || '')
   const [view, setView] = useState<JoinView>({ kind: 'loading' })
 
   const joinClassroom = useCallback(async () => {
     setView({ kind: 'loading' })
     try {
       const isLegacyClassroomId =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(code)
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(code.trim())
       const response = await fetch('/api/student/classrooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isLegacyClassroomId
-          ? { classroomId: code }
+          ? { classroomId: code.trim() }
           : { classCode: code }),
       })
       if (response.status === 401) {

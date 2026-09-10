@@ -45,9 +45,24 @@ function fakeSupabase({
       const query: any = {
         select() { return query },
         eq(column: string, value: unknown) { filters[column] = value; return query },
+        ilike(column: string, value: unknown) { filters[`ilike:${column}`] = value; return query },
         lte(column: string, value: unknown) { filters[column] = value; return query },
         gt(column: string, value: unknown) { filters[column] = value; return query },
-        limit() {
+        limit(count: number) {
+          if (table === 'classroom_roster') {
+            expect(filters.classroom_id).toBe(classroomId)
+            expect(filters['ilike:email']).toBe('student@example.com')
+            return Promise.resolve({
+              data: rosterEmails
+                .filter((email) => email.trim().toLowerCase() === 'student@example.com')
+                .slice(0, count)
+                .map((email, index) => ({
+                  id: `77777777-7777-4777-8777-77777777777${index}`,
+                  email,
+                })),
+              error: null,
+            })
+          }
           if (table !== 'attendance_occurrence_mappings') throw new Error(`Unexpected limit ${table}`)
           expect(filters.classroom_id).toBe(classroomId)
           expect(filters.desired_state).toBe('scheduled')
@@ -59,16 +74,6 @@ function fakeSupabase({
           })
         },
         then(resolve: (value: unknown) => unknown) {
-          if (table === 'classroom_roster') {
-            expect(filters.classroom_id).toBe(classroomId)
-            return Promise.resolve({
-              data: rosterEmails.map((email, index) => ({
-                id: `77777777-7777-4777-8777-77777777777${index}`,
-                email,
-              })),
-              error: null,
-            }).then(resolve)
-          }
           return Promise.reject(new Error(`Unexpected awaited query ${table}`)).then(resolve)
         },
         maybeSingle() {

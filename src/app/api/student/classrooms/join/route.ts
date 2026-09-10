@@ -8,6 +8,7 @@ import {
 } from '@/lib/server/classroom-enrollment-access'
 import {
   consumeClassroomJoinGuess,
+  escapePostgrestLikePattern,
   joinClassroomByCodeAtomic,
   normalizeClassroomJoinCode,
   type ContextualClassroomJoinGuessResult,
@@ -332,15 +333,32 @@ async function joinClassroomContextually(args: {
 async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCode: string) {
   const supabase = getServiceRoleClient()
   const normalizedCode = normalizeClassroomJoinCode(classCode)
-  const { data: classroom, error } = await supabase
-    .from('classrooms')
-    .select('id')
-    .eq('class_code', normalizedCode)
-    .single()
-  if (error && error.code !== 'PGRST116') {
+  const lookupCandidates = async (candidateCode: string) => {
+    const { data, error } = await supabase
+      .from('classrooms')
+      .select('id')
+      .ilike('class_code', escapePostgrestLikePattern(candidateCode))
+      .limit(2)
+    if (error) throw error
+    return (data ?? []).filter(
+      (candidate: { id: string }) => typeof candidate.id === 'string',
+    )
+  }
+
+  let matchingClassrooms: Array<{ id: string }>
+  try {
+    matchingClassrooms = await lookupCandidates(normalizedCode)
+    // Existing custom codes may predate normalized writes. A teacher-generated
+    // link retains that stored whitespace, so make one additional bounded exact
+    // lookup while the atomic RPC still validates the canonical pair under lock.
+    if (matchingClassrooms.length === 0 && classCode !== classCode.trim()) {
+      matchingClassrooms = await lookupCandidates(classCode)
+    }
+  } catch (error) {
     console.error('Error resolving roster-matched classroom invitation:', error)
     return NextResponse.json({ error: 'Failed to join classroom' }, { status: 500 })
   }
+  const classroom = matchingClassrooms.length === 1 ? matchingClassrooms[0] : null
   if (!classroom) {
     const guessResult = await consumeClassroomJoinGuess({
       actorId: user.id,

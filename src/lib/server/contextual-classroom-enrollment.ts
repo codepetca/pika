@@ -151,6 +151,10 @@ export function normalizeClassroomJoinCode(classCode: string): string {
   return classCode.trim().toUpperCase()
 }
 
+export function escapePostgrestLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
+
 export function buildClassroomJoinRateLimitKeys(actorId: string, classCode: string): {
   actorKeyHash: string
   invitationKeyHash: string

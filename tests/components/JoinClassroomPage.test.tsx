@@ -102,4 +102,17 @@ describe('JoinClassroomPage', () => {
     expect(await screen.findByRole('heading', { name: 'You’re already in this classroom' })).toBeVisible()
     expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ classroomId })
   })
+
+  it('retains a legacy stored code exactly for the bounded server fallback', async () => {
+    navigation.code = ' bio101 '
+    const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(jsonResponse({
+      classroom: { id: 'classroom-1', title: 'Biology' },
+    })))
+    vi.stubGlobal('fetch', fetcher as any)
+
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+    expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ classCode: ' bio101 ' })
+  })
 })

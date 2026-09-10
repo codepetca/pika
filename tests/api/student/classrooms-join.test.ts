@@ -35,25 +35,26 @@ function request(body: unknown) {
 }
 
 function installClassroomLookup() {
-  const single = vi.fn().mockResolvedValue({ data: { id: classroomId }, error: null })
+  const limit = vi.fn().mockResolvedValue({ data: [{ id: classroomId }], error: null })
+  const ilike = vi.fn(() => ({ limit }))
   mocks.from.mockImplementation((table: string) => {
     if (table !== 'classrooms') throw new Error(`Unexpected table: ${table}`)
     return {
       select: vi.fn(() => ({
-        eq: vi.fn(() => ({ single })),
+        ilike,
       })),
     }
   })
-  return single
+  return { ilike, limit }
 }
 
 function installMissingClassroomLookup(error: { code: string } | null = { code: 'PGRST116' }) {
-  const single = vi.fn().mockResolvedValue({ data: null, error })
+  const limit = vi.fn().mockResolvedValue({ data: [], error: error?.code === 'PGRST116' ? null : error })
   mocks.from.mockImplementation((table: string) => {
     if (table !== 'classrooms') throw new Error(`Unexpected table: ${table}`)
     return {
       select: vi.fn(() => ({
-        eq: vi.fn(() => ({ single })),
+        ilike: vi.fn(() => ({ limit })),
       })),
     }
   })
@@ -133,8 +134,9 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
   })
 
   it('joins through the existing atomic roster-matched contract without attendance writes', async () => {
+    const lookup = installClassroomLookup()
     const response = await POST(request({
-      classCode: ' bio101 ',
+      classCode: ' bio_101% ',
       firstName: 'Ignored',
       lastName: 'Profile',
     }))
@@ -149,13 +151,35 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
       expect.objectContaining({
         p_actor_id: studentId,
         p_expected_classroom_id: classroomId,
-        p_class_code: 'BIO101',
+        p_class_code: 'BIO_101%',
         p_first_name: undefined,
         p_last_name: undefined,
         p_student_number: undefined,
       }),
     )
+    expect(lookup.ilike).toHaveBeenCalledWith('class_code', 'BIO\\_101\\%')
+    expect(lookup.limit).toHaveBeenCalledWith(2)
     expect(mocks.from.mock.calls.map(([table]) => table)).toEqual(['classrooms'])
+  })
+
+  it('resolves a legacy space-padded stored code with one bounded fallback lookup', async () => {
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ id: classroomId }], error: null })
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ ilike })) })
+
+    const response = await POST(request({ classCode: ' bio101 ' }))
+
+    expect(response.status).toBe(201)
+    expect(ilike).toHaveBeenNthCalledWith(1, 'class_code', 'BIO101')
+    expect(ilike).toHaveBeenNthCalledWith(2, 'class_code', ' bio101 ')
+    expect(limit).toHaveBeenNthCalledWith(1, 2)
+    expect(limit).toHaveBeenNthCalledWith(2, 2)
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.objectContaining({ p_class_code: 'BIO101' }),
+    )
   })
 
   it('returns an explicit already-enrolled result', async () => {

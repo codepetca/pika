@@ -14,6 +14,7 @@ import {
   type StudentAttendanceCheckInView,
 } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
+import { escapePostgrestLikePattern } from '@/lib/server/contextual-classroom-enrollment'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -289,14 +290,17 @@ async function assertStudentRosterBoundary(input: {
     return
   }
 
-  // Read every classroom-scoped email so legacy case variants cannot turn an
-  // ambiguous identity into a match. Attendance never writes enrollment here.
+  // Bound the case-insensitive exact match so a scan never loads the classroom's
+  // roster into the app process. Escaping keeps valid email punctuation from
+  // becoming an ILIKE wildcard. Attendance never writes enrollment here.
+  const normalizedEmail = input.studentEmail.trim().toLowerCase()
   const roster = await input.supabase.from('classroom_roster').select('id, email')
     .eq('classroom_id', input.classroomId)
+    .ilike('email', escapePostgrestLikePattern(normalizedEmail))
+    .limit(2)
   if (roster.error) throw new ClassroomAttendanceQrError('unavailable')
   const parsedRoster = z.array(rosterRowSchema).safeParse(roster.data)
   if (!parsedRoster.success) throw new ClassroomAttendanceQrError('unavailable')
-  const normalizedEmail = input.studentEmail.trim().toLowerCase()
   const matches = parsedRoster.data.filter((row) => row.email.trim().toLowerCase() === normalizedEmail)
   if (matches.length === 0) throw new ClassroomAttendanceQrError('not_on_roster')
   if (matches.length !== 1) throw new ClassroomAttendanceQrError('roster_ambiguous')
