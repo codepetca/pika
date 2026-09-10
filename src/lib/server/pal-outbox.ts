@@ -226,6 +226,7 @@ async function deliverClaimedPalOutboxRow(input: {
   try {
     response = await input.fetchImpl(`${input.apiUrl}/api/v1/events`, {
       method: 'POST',
+      redirect: 'error',
       headers: {
         Authorization: `Bearer ${input.integrationSecret}`,
         'Content-Type': 'application/json',

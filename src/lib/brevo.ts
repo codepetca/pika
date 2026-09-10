@@ -35,6 +35,7 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   try {
     response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
+      redirect: 'error',
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
