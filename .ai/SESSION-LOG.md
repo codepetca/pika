@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Remediate student Daily calendar and history review findings
-
-- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
-- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
-- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.
-- The cumulative integration pass found four additional boundaries. Added a reactive Toronto-day clock so midnight reloads the editor, history, Today and Last class without carrying content; lesson-plan sources now preserve snapshots and expose retry; scheduled announcements remap when publication time arrives; and successful retries restore focus to the active Daily plan region.
-- Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
-- The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
-- Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.
-
 ## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
 
 - Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
@@ -279,6 +269,15 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Classroom attendance QR is read-only for nonmembers: an existing enrollment plus active participant can check in, while a rostered nonmember, roster miss, conflicting identity, closed window, or revoked token receives a distinct non-writing result. Attendance never enrolls, binds, synchronizes sources, or offers an inline join action.
 - Updated Daily/live/poster wording to `Check in for attendance`, added governed join/attendance guidance and a teacher access fixture, and visually inspected desktop/mobile light/dark join QR and student result captures. Browser contracts pass 10/10 across the two focused scenarios; focused checks pass 35 files / 431 tests plus architecture, UI/design policy, TypeScript and lint, and the Pika audit is clean. No migration was added or applied; no hosted data, configuration, dependency, deployment, or production state changed. Independent fixed-head review and exact-head CI still gate readiness.
 - Initial independent review found an existing Dashboard UUID-link compatibility break, an unbounded attendance roster read, and a case-sensitive join prelookup. Remediation preserves issued UUID links while making all new teacher links code-based, and uses wildcard-safe maximum-two server-side candidate reads for join and attendance identity classification. Targeted compatibility re-review approved the first fix; targeted security re-review and fresh exact-head gates remain.
+
+## 2026-09-10 — Make manual attendance optimistic
+
+- Manual attendance status changes now render immediately while the existing API write completes. A failed first write restores the exact prior overrides; a partially saved class-wide batch retains the existing authoritative refresh and warning behavior.
+- Added hook regressions for pre-response projection and rollback, plus a browser scenario that holds the write open and verifies the selected status across teacher desktop/mobile and light/dark. Student is n/a because this interaction exists only on the teacher Daily surface.
+- Focused verification passes 199 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit is clean, and all four optimistic-state captures were visually inspected; one desktop-light Playwright teardown timed out after the body passed and then passed cleanly alone.
+- Independent review found that a partial-save recovery refresh could finish after a date switch and show the old date's warning in the new scope. Remediation rechecks mount and scope after the awaited refresh; the delayed-refresh/date-switch regression passes with the hook suite 8/8.
+- Final cumulative review found two remaining recovery edges: an A-to-B-to-A scope cycle could reuse the same value key, and a failed recovery read could leave the unsaved optimistic tail visible. Remediation binds rollback/notification to the original command ID and reconstructs only server-acknowledged chunks when refresh fails, with focused regressions for both scope cycles and failed reconciliation.
+- Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
 
 ## 2026-09-10 — Put roster removal in Student Actions
 
