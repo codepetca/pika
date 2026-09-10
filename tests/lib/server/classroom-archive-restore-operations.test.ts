@@ -129,7 +129,7 @@ function createSupabaseMock(options: {
   archiveVersion?: 1 | 2
   pre157?: boolean
   withOverrides?: boolean
-  pre161?: boolean
+  pre162?: boolean
   withItems?: boolean
 } = {}) {
   const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems)
@@ -263,7 +263,7 @@ function createSupabaseMock(options: {
     if (table === 'classroom_archive_resource_contract_versions') {
       const data = CLASSROOM_ARCHIVE_V2_RESOURCES
         .filter((resource) => !options.pre157 || resource.table !== 'gradebook_score_overrides')
-        .filter((resource) => !options.pre161 || !['gradebook_items', 'gradebook_item_scores'].includes(resource.table))
+        .filter((resource) => !options.pre162 || !['gradebook_items', 'gradebook_item_scores'].includes(resource.table))
         .map((resource) => ({ table_name: resource.table }))
       const query = {
         select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
@@ -698,8 +698,8 @@ it.each([false, true])('restores against schema156 only when override rows are a
 })
 
 
-it.each([false, true])('restores against schema160 only when original standalone rows are absent: %s', async (withItems) => {
-  const mock = createSupabaseMock({ pre161: true, archiveVersion: 2, withItems })
+it.each([false, true])('restores against schema161 only when original standalone rows are absent: %s', async (withItems) => {
+  const mock = createSupabaseMock({ pre162: true, archiveVersion: 2, withItems })
   const result = await restoreClassroomArchive({
     supabase: mock.client, operationId: OPERATION_ID, archiveId: ARCHIVE_ID,
     teacherId: TEACHER_ID, classroomId: CLASSROOM_ID,
@@ -709,7 +709,10 @@ it.each([false, true])('restores against schema160 only when original standalone
   const begin = mock.rpc.mock.calls.find(([name]) => name === 'begin_classroom_archive_restore_v2')
   if (withItems) {
     expect(begin).toBeUndefined()
-    expect(result).toMatchObject({ error_code: 'classroom_archive_restore_migration_required' })
+    expect(result).toMatchObject({
+      error_code: 'classroom_archive_restore_migration_required',
+      error: 'Restoring standalone Gradebook items requires migration 162',
+    })
   } else {
     expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_items')
     expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_item_scores')
