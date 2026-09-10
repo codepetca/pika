@@ -16,7 +16,8 @@ Enrollment authority must therefore come from the target classroom and a verifie
 invitation, not the permanent `users.role` value. Existing production behavior stays
 authoritative until the whole reachable mixed-role foundation and recovery floor pass.
 
-This foundation now has one disabled-by-default route adopter:
+This foundation now owns roster-matched class-code joining and one disabled-by-default
+mixed-role route adopter:
 
 - `classroom-enrollment-access.ts` preserves `requireRole('student')` while disabled.
   When explicitly enabled for a pilot, it authenticates before reading the request
@@ -43,8 +44,11 @@ This foundation now has one disabled-by-default route adopter:
   enabled, and fails unavailable on schema or response drift. Scoping the
   invitation budget to the actor prevents one attacker from exhausting a valid classroom's
   budget for everyone else.
-- `/api/student/classrooms/join` calls the gate before parsing its body. Student-role and
-  unflagged requests stay on the legacy implementation. Only a wrong-role user in an exact
+- `/api/student/classrooms/join` calls the gate before parsing its body. Authenticated
+  student class-code requests use the atomic service contract with no scanner-supplied
+  profile fields, so exactly one normalized roster identity must already exist. Existing
+  membership remains idempotent. Direct-ID compatibility requests stay on the legacy
+  implementation. Only a wrong-role user in an exact
   configured pair reaches a bounded pair-scoped lookup, exact normalized code comparison,
   pure-policy check and atomic join. No pattern operator treats invitation input as a wildcard. Direct
   classroom IDs can recognize an existing membership but cannot create one. Contextual
@@ -60,8 +64,9 @@ spellings and separately admitted users/classes from becoming a cross-product.
 A future adopter must preserve this sequence; these contracts alone are insufficient:
 
 1. Authenticate the server session before reading a code or classroom.
-2. Keep student-role users on the legacy path. Reject a wrong-role user with no configured
-   pair before reading the request body or looking up a code, then use migration 159 to
+2. Send authenticated student class-code requests through migration 159. Reject a wrong-role
+   user with no configured pair before reading the request body or looking up a code, then
+   use migration 159 to
    rate-limit both the authenticated actor and actor-invitation guesses. Scoped lookup
    misses and pre-atomic policy denials use the service-only rejected-guess RPC; admission
    candidates use the atomic transaction so every observable attempt is charged once.
@@ -86,8 +91,8 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 - A separately reviewed service-only atomic RPC and schema-backed guess limiter exist.
 - Rollback-only database tests prove duplicate races, archive/ownership/enrollment-policy
   races, self-join denial, exact invitation binding and all-or-nothing side effects.
-- The current `/api/student/classrooms/join` response contract remains unchanged outside
-  an exact pilot pair, including authentication-before-body behavior and legacy ID use.
+- The `/api/student/classrooms/join` route preserves authentication-before-body behavior
+  and legacy direct-ID compatibility while class-code joins require one roster match.
 - Pal enabled/disabled behavior uses the same atomic source of truth and does not publish
   a membership fact for a rolled-back or pre-existing enrollment.
 - Teacher roster reads/writes and student classroom lists are migrated as separate,
@@ -129,8 +134,9 @@ immutable exact pair-scoped lookup, canonical UUIDs, empty/noncohort behavior an
 cross-product. Policy coverage validates every admission/denial state and fails closed on
 malformed, cross-class invitation or internally inconsistent relationship evidence.
 
-The regular join route imports the guarded adapter but the controlling flag remains unset.
-Production login, signup, legacy student join behavior, roster, classroom lists, navigation,
-entitlements and the development-only home reference remain unchanged. Contextual Pal delivery
+The regular join route uses the guarded adapter for roster-matched student class-code joins;
+the controlling flag still limits only mixed-role access. Production login, signup, direct-ID
+compatibility, roster, classroom lists, navigation, entitlements and the development-only home
+reference otherwise remain unchanged. Contextual Pal delivery
 uses the same event instant as its transactional outbox fact. Local verification does not
 authorize migration 161 application or a pilot cohort.

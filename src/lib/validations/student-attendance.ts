@@ -10,7 +10,7 @@ export const studentClassroomAttendanceCheckInSchema = z.object({
   attemptId: z.string().uuid(),
 }).strict()
 
-export const studentAttendanceCheckInViewSchema = z.object({
+const detailedStudentAttendanceCheckInViewSchema = z.object({
   state: z.enum(['checked_in', 'already_checked_in', 'needs_staff', 'closed', 'invalid']),
   title: z.string().min(1).max(120),
   description: z.string().min(1).max(240),
@@ -20,6 +20,18 @@ export const studentAttendanceCheckInViewSchema = z.object({
   studentId: z.string().uuid().optional(),
   occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
 }).strict()
+
+const revokedClassroomQrViewSchema = z.object({
+  state: z.literal('invalid'),
+  title: z.literal('This classroom QR is no longer valid'),
+  description: z.undefined().optional(),
+  recordedAt: z.undefined().optional(),
+}).strict()
+
+export const studentAttendanceCheckInViewSchema = z.union([
+  revokedClassroomQrViewSchema,
+  detailedStudentAttendanceCheckInViewSchema,
+])
 
 export type StudentAttendanceCheckInView = z.infer<typeof studentAttendanceCheckInViewSchema>
 

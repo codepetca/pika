@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   useId,
@@ -10,7 +9,7 @@ import {
 } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info, RefreshCw } from 'lucide-react'
+import { ClipboardCopy, Info, QrCode as QrCodeIcon, RefreshCw } from 'lucide-react'
 import {
   Button,
   Card,
@@ -34,8 +33,9 @@ import {
   type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
+import { TeacherClassroomJoinQrDialog } from './TeacherClassroomJoinQrDialog'
 import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
-import type { Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
+import type { Classroom, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -122,11 +122,11 @@ export function TeacherSettingsTab({
   const [titleError, setTitleError] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
-  const [joinPolicy, setJoinPolicy] = useState<ClassroomJoinPolicy>(classroom.join_policy || 'roster')
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [showJoinQr, setShowJoinQr] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [lessonPlanVisibility, setLessonPlanVisibility] = useState<LessonPlanVisibility>(
     classroom.lesson_plan_visibility || 'current_week'
@@ -147,10 +147,7 @@ export function TeacherSettingsTab({
   const [blueprintBusy, setBlueprintBusy] = useState(false)
   const [blueprintError, setBlueprintError] = useState('')
 
-  const origin = useMemo(() => {
-    if (typeof window === 'undefined') return ''
-    return window.location.origin
-  }, [])
+  const [origin, setOrigin] = useState('')
   const { showMessage } = useAppMessage()
   const formStateReady = formClassroomIdRef.current === classroom.id
   const displayedTitle = formStateReady ? title : classroom.title
@@ -158,7 +155,6 @@ export function TeacherSettingsTab({
   const displayedTitleError = formStateReady ? titleError : ''
   const displayedJoinCode = formStateReady ? joinCode : classroom.class_code
   const displayedAllowEnrollment = formStateReady ? allowEnrollment : classroom.allow_enrollment
-  const displayedJoinPolicy = formStateReady ? joinPolicy : classroom.join_policy || 'roster'
   const displayedSaving = formStateReady && saving
   const displayedEnrollmentError = formStateReady ? enrollmentError : ''
   const displayedJoinCodeError = formStateReady ? joinCodeError : ''
@@ -184,6 +180,10 @@ export function TeacherSettingsTab({
   const joinLink = `${origin}/join/${displayedJoinCode}`
 
   useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
+
+  useEffect(() => {
     const activeSection = sectionNavigationRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
     activeSection?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [section])
@@ -196,11 +196,11 @@ export function TeacherSettingsTab({
     setTitleError('')
     setJoinCode(classroom.class_code)
     setAllowEnrollment(classroom.allow_enrollment)
-    setJoinPolicy(classroom.join_policy || 'roster')
     setSaving(false)
     setEnrollmentError('')
     setJoinCodeError('')
     setShowRegenerateConfirm(false)
+    setShowJoinQr(false)
     setIsRegenerating(false)
     setLessonPlanVisibility(classroom.lesson_plan_visibility || 'current_week')
     setVisibilityError('')
@@ -309,40 +309,6 @@ export function TeacherSettingsTab({
         onClassroomUpdated?.(data.classroom)
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
-      showMessage({ text: 'Settings saved', tone: 'success' })
-    } catch (err: any) {
-      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
-      setEnrollmentError(err.message || 'Failed to update settings')
-    } finally {
-      if (isCurrentFormGeneration(classroomId, formGeneration)) {
-        setSaving(false)
-      }
-    }
-  }
-
-  async function saveJoinPolicy(nextValue: ClassroomJoinPolicy) {
-    if (isReadOnly || nextValue === joinPolicy) return
-    const classroomId = classroom.id
-    if (!hasCurrentFormState(classroomId)) return
-    const formGeneration = formGenerationRef.current
-    setSaving(true)
-    setEnrollmentError('')
-    try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ joinPolicy: nextValue }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update settings')
-      }
-      invalidateTeacherClassrooms()
-      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
-      if (data.classroom) {
-        onClassroomUpdated?.(data.classroom)
-      }
-      setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
@@ -594,34 +560,39 @@ export function TeacherSettingsTab({
           {section === 'access' ? (
             <SettingsPanel>
             <SettingsHeading
-              title="Joining"
-              tooltip="Control new joins and whether students must be on the roster."
+              title="Student access"
+              tooltip="Share the classroom join link or QR with students already listed on the roster."
             />
+
+            <div>
+              <div className="text-base font-semibold text-text-default">Join this classroom</div>
+              <p className="mt-1 text-sm text-text-muted">
+                Students must sign in with a school account that safely matches one roster entry.
+              </p>
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <Button
                 type="button"
-                variant="subtle"
+                variant="secondary"
                 size="md"
-                onClick={() => copyWithNotice('Join code', displayedJoinCode)}
-                aria-label="Copy join code"
-                disabled={!formStateReady}
-                className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
+                onClick={() => setShowJoinQr(true)}
+                disabled={!formStateReady || isReadOnly || !displayedAllowEnrollment}
               >
-                {displayedJoinCode}
+                <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+                Show QR
               </Button>
 
               <Button
                 type="button"
-                variant="subtle"
+                variant="secondary"
                 size="md"
                 onClick={() => copyWithNotice('Join link', joinLink)}
-                aria-label="Copy join link"
                 title={joinLink}
-                disabled={!formStateReady}
-                className="w-full min-w-0 justify-start font-mono text-xs sm:w-[30rem] sm:max-w-[45vw]"
+                disabled={!formStateReady || isReadOnly || !displayedAllowEnrollment}
               >
-                <span className="min-w-0 truncate">{joinLink}</span>
+                <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+                Copy link
               </Button>
 
               <Button
@@ -652,30 +623,11 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-border pt-3">
-              <SettingsSwitchRow
-                checked={displayedJoinPolicy === 'roster'}
-                onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
-                disabled={displayedSaving || isReadOnly || !displayedAllowEnrollment || !formStateReady}
-                ariaLabel="Join mode"
-              >
-                {displayedJoinPolicy === 'roster' ? (
-                  <>
-                    <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
-                    <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
-                      view roster
-                    </Link>
-                  </>
-                ) : (
-                  <span className="font-medium text-text-default">Open join via code/link.</span>
-                )}
-              </SettingsSwitchRow>
-
-              {displayedAllowEnrollment && displayedJoinPolicy === 'open_join' ? (
-                <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-                  Anyone with this code or link can join after entering their name.
-                </div>
-              ) : null}
+            <div className="border-t border-border pt-3 text-sm text-text-muted">
+              Only students on the roster can use this link.{' '}
+              <Link href={`/classrooms/${classroom.id}?tab=roster`} className="font-medium text-primary underline">
+                View roster
+              </Link>
             </div>
 
             {displayedJoinCodeError && <div className="text-sm text-danger">{displayedJoinCodeError}</div>}
@@ -853,6 +805,14 @@ export function TeacherSettingsTab({
               isCancelDisabled={displayedIsRegenerating || isReadOnly}
               onCancel={() => (displayedIsRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
               onConfirm={regenerateJoinCode}
+            />
+
+            <TeacherClassroomJoinQrDialog
+              classroomTitle={displayedTitle}
+              joinUrl={joinLink}
+              isOpen={showJoinQr && formStateReady && displayedAllowEnrollment && !isReadOnly}
+              onClose={() => setShowJoinQr(false)}
+              onCopyLink={() => void copyWithNotice('Join link', joinLink)}
             />
 
             <DialogPanel

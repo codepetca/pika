@@ -8,6 +8,7 @@ import {
 } from '@/lib/server/classroom-enrollment-access'
 import {
   consumeClassroomJoinGuess,
+  buildPostgrestExactTextFilter,
   joinClassroomByCodeAtomic,
   normalizeClassroomJoinCode,
   type ContextualClassroomJoinGuessResult,
@@ -329,6 +330,96 @@ async function joinClassroomContextually(args: {
   }, { status: result.status })
 }
 
+async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCode: string) {
+  const supabase = getServiceRoleClient()
+  const normalizedCode = normalizeClassroomJoinCode(classCode)
+  const lookupCandidates = async (candidateCode: string) => {
+    const filter = buildPostgrestExactTextFilter(candidateCode)
+    const query = supabase
+      .from('classrooms')
+      .select('id')
+    const filteredQuery = filter.operator === 'eq'
+      ? query.eq('class_code', filter.value)
+      : query.ilike('class_code', filter.value)
+    const { data, error } = await filteredQuery.limit(2)
+    if (error) throw error
+    return (data ?? []).filter(
+      (candidate: { id: string }) => typeof candidate.id === 'string',
+    )
+  }
+
+  let matchingClassrooms: Array<{ id: string }>
+  try {
+    matchingClassrooms = await lookupCandidates(normalizedCode)
+    // Existing custom codes may predate normalized writes. A teacher-generated
+    // link retains that stored whitespace, so make one additional bounded exact
+    // lookup while the atomic RPC still validates the canonical pair under lock.
+    if (classCode !== normalizedCode) {
+      const rawMatches = await lookupCandidates(classCode)
+      matchingClassrooms = [...new Map(
+        [...matchingClassrooms, ...rawMatches].map((candidate) => [candidate.id, candidate]),
+      ).values()]
+    }
+  } catch (error) {
+    console.error('Error resolving roster-matched classroom invitation:', error)
+    return NextResponse.json({ error: 'Failed to join classroom' }, { status: 500 })
+  }
+  const classroom = matchingClassrooms.length === 1 ? matchingClassrooms[0] : null
+  if (!classroom) {
+    const guessResult = await consumeClassroomJoinGuess({
+      actorId: user.id,
+      classCode: normalizedCode,
+      supabase,
+    })
+    if (!guessResult.ok) return contextualRateLimitResponse(guessResult)
+    return NextResponse.json({ error: 'Classroom not found' }, { status: 404 })
+  }
+
+  const occurredAt = new Date()
+  const result = await joinClassroomByCodeAtomic({
+    actorId: user.id,
+    expectedClassroomId: classroom.id,
+    classCode: normalizedCode,
+    firstName: null,
+    lastName: null,
+    studentNumber: null,
+    occurredAt,
+    supabase,
+  })
+  if (!result.ok) {
+    // A roster-only join deliberately supplies no profile fields. In an
+    // open-join classroom, profile_required therefore means there was no
+    // existing roster identity match.
+    if (result.error_code === 'profile_required') {
+      return NextResponse.json(
+        { error: 'Your account is not on the roster for this classroom.', code: 'not_on_roster' },
+        { status: 403 },
+      )
+    }
+    return contextualRpcFailure(result)
+  }
+
+  let palDelivery: PalImmediateDeliveryStatus | undefined
+  if (result.created && isPalEnabled()) {
+    palDelivery = await attemptImmediatePalEventDelivery({
+      event: buildClassroomJoinedEvent({
+        learnerId: user.id,
+        classroomId: result.classroom.id,
+        occurredAt,
+      }),
+      supabase,
+    })
+  }
+
+  return NextResponse.json({
+    success: true,
+    classroom: result.classroom,
+    enrollment: result.enrollment,
+    ...(result.already_enrolled ? { alreadyEnrolled: true } : {}),
+    pal_delivery: palDelivery,
+  }, { status: result.status })
+}
+
 async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinRequest) {
   const { classCode, classroomId } = body
   const firstName = cleanOptionalString(body.firstName)
@@ -340,6 +431,10 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
       { error: 'Class code or classroom ID is required' },
       { status: 400 }
     )
+  }
+
+  if (classCode && !looksLikeUuid(classroomId)) {
+    return joinClassroomByRosterMatchedCode(user, classCode)
   }
 
   const supabase = getServiceRoleClient()

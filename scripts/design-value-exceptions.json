@@ -182,18 +182,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx",
-      "reviewBy": "phase-3-settings",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "95a99c56df25a72c",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/TeacherTestsTab.tsx",
       "reviewBy": "phase-3-tests",
       "values": [

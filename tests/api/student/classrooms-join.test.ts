@@ -1,777 +1,289 @@
-/**
- * API tests for POST /api/student/classrooms/join
- * Tests joining classrooms by code or ID
- */
-
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST } from '@/app/api/student/classrooms/join/route'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError } from '../setup'
 
-const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
-  mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
-}))
+const classroomId = '33333333-3333-4333-8333-333333333333'
+const studentId = '11111111-1111-4111-8111-111111111111'
+const enrollmentId = '44444444-4444-4444-8444-444444444444'
 
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+const mocks = vi.hoisted(() => ({
+  requireRole: vi.fn(),
+  from: vi.fn(),
+  rpc: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
-  requireRole: vi.fn(async (role: string) => {
-    if (role === 'student') {
-      return { id: 'student-1', email: 'test@student.com', role: 'student' }
-    }
-    throw new Error('Unauthorized')
-  }),
+  requireRole: mocks.requireRole,
+  requireAuth: vi.fn(),
+  AuthorizationError: class AuthorizationError extends Error {},
+}))
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: () => ({ from: mocks.from, rpc: mocks.rpc }),
 }))
 vi.mock('@/lib/server/pal-outbox', () => ({
-  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
+  attemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+import { POST } from '@/app/api/student/classrooms/join/route'
 
-afterEach(() => {
-  vi.unstubAllEnvs()
-  delete (mockSupabaseClient as any).rpc
-})
+function request(body: unknown) {
+  return new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
 
-describe('POST /api/student/classrooms/join', () => {
+function installClassroomLookup() {
+  const limit = vi.fn().mockResolvedValue({ data: [{ id: classroomId }], error: null })
+  const ilike = vi.fn(() => ({ limit }))
+  mocks.from.mockImplementation((table: string) => {
+    if (table !== 'classrooms') throw new Error(`Unexpected table: ${table}`)
+    return {
+      select: vi.fn(() => ({
+        ilike,
+      })),
+    }
+  })
+  return { ilike, limit }
+}
+
+function installMissingClassroomLookup(error: { code: string } | null = { code: 'PGRST116' }) {
+  const limit = vi.fn().mockResolvedValue({ data: [], error: error?.code === 'PGRST116' ? null : error })
+  mocks.from.mockImplementation((table: string) => {
+    if (table !== 'classrooms') throw new Error(`Unexpected table: ${table}`)
+    return {
+      select: vi.fn(() => ({
+        ilike: vi.fn(() => ({ limit })),
+      })),
+    }
+  })
+}
+
+function installExistingDirectIdLookup() {
+  function query(data: unknown, error: unknown = null) {
+    const builder: any = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      single: vi.fn().mockResolvedValue({ data, error }),
+    }
+    return builder
+  }
+  mocks.from.mockImplementation((table: string) => {
+    if (table === 'classrooms') {
+      return query({
+        id: classroomId,
+        title: 'Biology',
+        class_code: 'BIO101',
+        term_label: 'Fall 2026',
+        allow_enrollment: true,
+        join_policy: 'roster',
+        archived_at: null,
+      })
+    }
+    if (table === 'classroom_enrollments') return query({ id: enrollmentId })
+    if (table === 'classroom_roster') return query(null, { code: 'PGRST116' })
+    throw new Error(`Unexpected table: ${table}`)
+  })
+}
+
+function rpcSuccess(alreadyEnrolled = false) {
+  return {
+    ok: true,
+    status: alreadyEnrolled ? 200 : 201,
+    created: !alreadyEnrolled,
+    already_enrolled: alreadyEnrolled,
+    classroom: { id: classroomId, title: 'Biology', term_label: 'Fall 2026' },
+    enrollment: {
+      id: enrollmentId,
+      created_at: '2026-09-10T12:00:00.000Z',
+    },
+  }
+}
+
+describe('POST /api/student/classrooms/join roster-matched link', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    mocks.requireRole.mockResolvedValue({
+      id: studentId,
+      email: 'student@example.com',
+      role: 'student',
+      authSource: 'password',
+    })
+    installClassroomLookup()
+    mocks.rpc.mockResolvedValue({ data: rpcSuccess(), error: null })
   })
 
-  describe('authorization', () => {
-    it('should return 401 when user is not authenticated', async () => {
-      const { requireRole } = await import('@/lib/auth')
-      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(401)
-      expect(data.error).toBe('Unauthorized')
-    })
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
-  describe('validation', () => {
-    it('should return 400 when both classCode and classroomId are missing', async () => {
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({}),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Class code or classroom ID is required')
-    })
-
-    it('should reject non-string join fields at the request boundary', async () => {
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: { value: 'MATH101' } }),
-      })
-
-      const response = await POST(request)
-
-      expect(response.status).toBe(400)
-      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-    })
-
-    it('should reject oversized profile fields at the request boundary', async () => {
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101', firstName: 'a'.repeat(101) }),
-      })
-
-      const response = await POST(request)
-
-      expect(response.status).toBe(400)
-      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-    })
+  it('authenticates before reading the join request', async () => {
+    mocks.requireRole.mockRejectedValueOnce(mockAuthenticationError())
+    const response = await POST(request({ classCode: 'BIO101' }))
+    expect(response.status).toBe(401)
+    expect(mocks.from).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
-  describe('joining by class code', () => {
-    it('should return 404 when classroom with code does not exist', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { code: 'PGRST116' },
-            }),
-          })),
-        })),
-      }))
-      ;(mockSupabaseClient.from as any) = mockFrom
+  it('rejects a request without a code or classroom identifier', async () => {
+    const response = await POST(request({}))
+    expect(response.status).toBe(400)
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'INVALID' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(404)
-      expect(data.error).toBe('Classroom not found')
+  it('joins through the existing atomic roster-matched contract without attendance writes', async () => {
+    const lookup = installClassroomLookup()
+    const response = await POST(request({
+      classCode: ' bio_101% ',
+      firstName: 'Ignored',
+      lastName: 'Profile',
+    }))
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({
+      success: true,
+      classroom: { id: classroomId, title: 'Biology' },
+      enrollment: { id: enrollmentId },
     })
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.objectContaining({
+        p_actor_id: studentId,
+        p_expected_classroom_id: classroomId,
+        p_class_code: 'BIO_101%',
+        p_first_name: undefined,
+        p_last_name: undefined,
+        p_student_number: undefined,
+      }),
+    )
+    expect(lookup.ilike).toHaveBeenCalledWith('class_code', 'BIO\\_101\\%')
+    expect(lookup.limit).toHaveBeenCalledWith(2)
+    expect(mocks.from.mock.calls.map(([table]) => table)).toEqual(['classrooms', 'classrooms'])
+  })
 
-    it('should return 403 when enrollment is closed', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    theme_color: 'blue',
-                    term_label: 'Fall 2024',
-                    allow_enrollment: false,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
+  it('resolves a legacy space-padded stored code with one bounded fallback lookup', async () => {
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ id: classroomId }], error: null })
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ ilike })) })
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
+    const response = await POST(request({ classCode: ' bio101 ' }))
 
-      const response = await POST(request)
-      const data = await response.json()
+    expect(response.status).toBe(201)
+    expect(ilike).toHaveBeenNthCalledWith(1, 'class_code', 'BIO101')
+    expect(ilike).toHaveBeenNthCalledWith(2, 'class_code', ' bio101 ')
+    expect(limit).toHaveBeenNthCalledWith(1, 2)
+    expect(limit).toHaveBeenNthCalledWith(2, 2)
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.objectContaining({ p_class_code: 'BIO101' }),
+    )
+  })
 
-      expect(response.status).toBe(403)
-      expect(data.code).toBe('enrollment_closed')
-    })
+  it('fails closed when normalized and raw legacy lookups resolve different classrooms', async () => {
+    const otherClassroomId = '55555555-5555-4555-8555-555555555555'
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: [{ id: classroomId }], error: null })
+      .mockResolvedValueOnce({ data: [{ id: otherClassroomId }], error: null })
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ ilike })) })
+    mocks.rpc.mockResolvedValueOnce({ data: { ok: true }, error: null })
 
-    it('should return 403 when student email is not on the roster', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    theme_color: 'blue',
-                    term_label: 'Fall 2024',
-                    allow_enrollment: true,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-          }
-        }
-        if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-                })),
-              })),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
+    const response = await POST(request({ classCode: ' bio101 ' }))
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
+    expect(response.status).toBe(404)
+    expect(mocks.rpc).toHaveBeenCalledWith('consume_classroom_join_guess_v1', expect.any(Object))
+    expect(mocks.rpc).not.toHaveBeenCalledWith('join_classroom_by_code_atomic_v1', expect.any(Object))
+  })
 
-      const response = await POST(request)
-      const data = await response.json()
+  it('uses equality rather than PostgREST pattern matching for literal-star codes', async () => {
+    const limit = vi.fn().mockResolvedValue({ data: [{ id: classroomId }], error: null })
+    const eq = vi.fn(() => ({ limit }))
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ eq, ilike })) })
 
-      expect(response.status).toBe(403)
-      expect(data.code).toBe('not_on_roster')
-    })
+    const response = await POST(request({ classCode: 'BIO*101' }))
 
-    it('should ask for profile details when open join has no roster row', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    theme_color: 'blue',
-                    term_label: 'Fall 2024',
-                    allow_enrollment: true,
-                    join_policy: 'open_join',
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-          }
-        }
-        if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-                })),
-              })),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
+    expect(response.status).toBe(201)
+    expect(eq).toHaveBeenCalledWith('class_code', 'BIO*101')
+    expect(ilike).not.toHaveBeenCalled()
+    expect(limit).toHaveBeenCalledWith(2)
+  })
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.code).toBe('profile_required')
-      expect(data.requiredFields).toEqual(['firstName', 'lastName'])
-    })
-
-    it('should self-roster and enroll student for open join with profile details', async () => {
-      const rosterUpsert = vi.fn().mockResolvedValue({ error: null })
-      const profileUpsert = vi.fn().mockResolvedValue({ error: null })
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'enrollment-new-1' },
-            error: null,
-          }),
-        })),
-      }))
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    theme_color: 'blue',
-                    term_label: 'Fall 2024',
-                    allow_enrollment: true,
-                    join_policy: 'open_join',
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-            insert: mockInsert,
-          }
-        }
-        if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-                })),
-              })),
-            })),
-            upsert: rosterUpsert,
-          }
-        }
-        if (table === 'student_profiles') {
-          return { upsert: profileUpsert }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({
-          classCode: 'MATH101',
-          firstName: ' Ada ',
-          lastName: ' Lovelace ',
-          studentNumber: '',
-        }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(201)
-      expect(data.success).toBe(true)
-      expect(rosterUpsert).toHaveBeenCalledWith({
-        classroom_id: 'classroom-1',
-        email: 'test@student.com',
-        student_number: null,
-        first_name: 'Ada',
-        last_name: 'Lovelace',
-        counselor_email: null,
-        join_source: 'open_join',
-      }, { onConflict: 'classroom_id,email' })
-      expect(profileUpsert).toHaveBeenCalledWith({
-        user_id: 'student-1',
-        student_number: null,
-        first_name: 'Ada',
-        last_name: 'Lovelace',
-      }, { onConflict: 'user_id' })
-      expect(mockInsert).toHaveBeenCalledWith({
-        classroom_id: 'classroom-1',
-        student_id: 'student-1',
-      })
-    })
-
-    it('atomically enrolls and immediately delivers the classroom fact', async () => {
-      vi.stubEnv('PAL_ENABLED', 'true')
-      vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-      vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
-      vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'enrollment-new-1' },
-            error: null,
-          }),
-        })),
-      }))
-      const mockRpc = vi.fn().mockResolvedValue({
-        data: {
-          ok: true,
-          created: true,
-          enrollment: { id: 'enrollment-new-1' },
-        },
-        error: null,
-      })
-      ;(mockSupabaseClient as any).rpc = mockRpc
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    theme_color: 'blue',
-                    term_label: 'Fall 2024',
-                    allow_enrollment: true,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: null,
-                error: null,
-              }),
-            })),
-            insert: mockInsert,
-          }
-        } else if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: '123', first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        } else if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(201)
-      expect(data.success).toBe(true)
-      expect(data.classroom.id).toBe('classroom-1')
-      expect(data.pal_delivery).toBe('delivered')
-      expect(mockInsert).not.toHaveBeenCalled()
-      expect(mockRpc).toHaveBeenCalledWith(
-        'create_classroom_enrollment_with_pal_event_atomic',
-        expect.objectContaining({
-          p_classroom_id: 'classroom-1',
-          p_student_id: 'student-1',
-          p_pal_event: expect.objectContaining({ event_type: 'classroom.joined' }),
-        }),
-      )
-      expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
-        event: expect.objectContaining({ event_type: 'classroom.joined' }),
-        supabase: mockSupabaseClient,
-      })
-    })
-
-    it('should use classCode when both classCode and non-UUID classroomId are provided', async () => {
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'enrollment-new-1' },
-            error: null,
-          }),
-        })),
-      }))
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn((_field: string, value: string) => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: value,
-                    term_label: 'Fall 2024',
-                    allow_enrollment: true,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-            insert: mockInsert,
-          }
-        }
-        if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: null, first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        }
-        if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'GLD2O1', classroomId: 'GLD2O1' }),
-      })
-
-      const response = await POST(request)
-      expect(response.status).toBe(201)
+  it('returns an explicit already-enrolled result', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: rpcSuccess(true), error: null })
+    const response = await POST(request({ classCode: 'BIO101' }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      success: true,
+      alreadyEnrolled: true,
     })
   })
 
-  describe('joining by classroom ID', () => {
-    it('should find classroom by ID when provided', async () => {
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'enrollment-new-1' },
-            error: null,
-          }),
-        })),
-      }))
+  it('preserves an already-issued direct-ID link even when the request also contains a classCode', async () => {
+    installExistingDirectIdLookup()
 
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'classroom-1', title: 'Math 101', allow_enrollment: true },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-            insert: mockInsert,
-          }
-        } else if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: null, first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        } else if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
+    const response = await POST(request({ classCode: classroomId, classroomId }))
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classroomId: 'classroom-1' }),
-      })
-
-      const response = await POST(request)
-
-      expect(response.status).toBe(201)
-    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ success: true, alreadyEnrolled: true })
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
-  describe('already enrolled', () => {
-    it('should return success when already enrolled', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'classroom-1', title: 'Math 101', allow_enrollment: false },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'enrollment-existing-1' },
-                error: null,
-              }),
-            })),
-          }
-        } else if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: '123', first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        } else if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
+  it('charges a rejected invitation guess before returning not found', async () => {
+    installMissingClassroomLookup()
+    mocks.rpc.mockResolvedValueOnce({ data: { ok: true }, error: null })
 
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
+    const response = await POST(request({ classCode: 'UNKNOWN' }))
 
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-      expect(data.alreadyEnrolled).toBe(true)
-    })
-
-    it('should not create duplicate enrollment when already enrolled', async () => {
-      const mockInsert = vi.fn()
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'classroom-1', title: 'Math 101', allow_enrollment: true },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'enrollment-1' },
-                error: null,
-              }),
-            })),
-            insert: mockInsert,
-          }
-        } else if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: '123', first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        } else if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
-
-      await POST(request)
-
-      expect(mockInsert).not.toHaveBeenCalled()
-    })
+    expect(response.status).toBe(404)
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'consume_classroom_join_guess_v1',
+      expect.objectContaining({
+        p_actor_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        p_invitation_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
+    )
   })
 
-  describe('error handling', () => {
-    it('should return 500 when enrollment creation fails', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'classrooms') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'classroom-1', title: 'Math 101', allow_enrollment: true },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_roster') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: { student_number: '123', first_name: 'Test', last_name: 'Student' },
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          }
-        } else if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-            insert: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { message: 'Insert failed' },
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'student_profiles') {
-          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+  it('fails unavailable when invitation resolution has a database error', async () => {
+    installMissingClassroomLookup({ code: 'XX000' })
+
+    const response = await POST(request({ classCode: 'BIO101' }))
+
+    expect(response.status).toBe(500)
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['not_on_roster', 403, 'not_on_roster'],
+    ['profile_required', 400, 'not_on_roster'],
+    ['roster_ambiguous', 409, 'roster_ambiguous'],
+    ['roster_binding_conflict', 409, 'roster_binding_conflict'],
+  ] as const)('projects %s without creating membership or attendance', async (errorCode, status, expectedCode) => {
+    mocks.rpc.mockResolvedValueOnce({
+      data: errorCode === 'profile_required'
+        ? {
+          ok: false,
+          status,
+          error_code: errorCode,
+          required_fields: ['firstName', 'lastName'],
         }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
-        method: 'POST',
-        body: JSON.stringify({ classCode: 'MATH101' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to join classroom')
+        : { ok: false, status, error_code: errorCode },
+      error: null,
     })
+    const response = await POST(request({ classCode: 'BIO101' }))
+    expect(response.status).toBe(errorCode === 'profile_required' ? 403 : status)
+    expect(await response.json()).toMatchObject({ code: expectedCode })
+    expect(mocks.from.mock.calls.map(([table]) => table)).not.toContain('attendance_check_ins')
+  })
+
+  it('fails unavailable on a malformed atomic result rather than falling back to multi-step writes', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: { ok: true }, error: null })
+    const response = await POST(request({ classCode: 'BIO101' }))
+    expect(response.status).toBe(503)
+    expect(mocks.from).toHaveBeenCalledTimes(1)
   })
 })

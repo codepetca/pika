@@ -870,11 +870,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             >
             {attendanceEnabled ? (
               <IconButton
-                label={classroomQrAvailable ? 'Classroom QR' : 'Show QR'}
+                label={classroomQrAvailable ? 'Check in for attendance' : 'Show attendance QR'}
                 tooltip={classroomQrAvailable
-                  ? 'Classroom QR'
+                  ? 'Check in for attendance'
                   : qrAvailable
-                    ? 'Show QR'
+                    ? 'Show attendance QR'
                     : 'QR unavailable until attendance is open'}
                 icon={QrCodeIcon}
                 variant="primary"
@@ -1462,8 +1462,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       <ContentDialog
         isOpen={attendance.qrOpen}
         onClose={() => attendance.setQrOpen(false)}
-        title="Attendance QR"
-        subtitle={selectedDate ? format(parseISO(selectedDate), 'EEEE, MMMM d') : undefined}
+        title="Check in for attendance"
+        subtitle={selectedDate ? `${classroom.title} · ${format(parseISO(selectedDate), 'EEEE, MMMM d')}` : classroom.title}
         maxWidth="max-w-none"
         panelClassName="!h-[96vh] !max-h-[96vh] !max-w-[96vw]"
         showFooterClose={false}
