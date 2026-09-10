@@ -339,6 +339,23 @@ export function TeacherRosterTab({ classroom }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (data.code === 'joined_students_require_comprehensive_removal') {
+          invalidateCachedJSON(`teacher-roster:${classroomId}`)
+          if (
+            currentClassroomIdRef.current === classroomId
+            && classroomEpochRef.current === classroomEpoch
+          ) {
+            rosterMutationVersionRef.current += 1
+            setPendingRemoval(null)
+            setRemovalError('')
+            showMessage({
+              text: 'This student just joined the class. Review the updated roster and remove them again.',
+              tone: 'warning',
+            })
+            await loadRoster({ preserveRoster: true })
+          }
+          return
+        }
         throw new Error(data.error || fallbackError)
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)

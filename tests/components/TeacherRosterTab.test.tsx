@@ -1323,6 +1323,68 @@ describe('TeacherRosterTab', () => {
     expect(removeStudent).toHaveTextContent(/comprehensive removal is not available/i)
   })
 
+  it('refreshes into comprehensive removal when an invitation joins before confirmation', async () => {
+    const user = userEvent.setup()
+    let rosterLoads = 0
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        rosterLoads += 1
+        return mockJson(rosterLoads === 1
+          ? { roster: [invitedRosterRow], student_purge_enabled_ids: [] }
+          : { roster: [rosterRow], student_purge_enabled_ids: [rosterRow.student_id] })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({
+            code: 'joined_students_require_comprehensive_removal',
+            error: 'This student has joined the class.',
+          }),
+        }) as any
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/students/${rosterRow.student_id}/purge`) {
+        return mockJson({ impact: {
+          classroom_id: '10000000-0000-4000-8000-000000000001',
+          classroom_title: classroom.title,
+          student_id: '20000000-0000-4000-8000-000000000001',
+          student_email: rosterRow.email,
+          source_revision: 1,
+          storage_inventory_sha256: 'a'.repeat(64),
+          relational_inventory_sha256: 'b'.repeat(64),
+          relational_row_count: 2,
+          managed_file_count: 0,
+          managed_file_bytes: 0,
+          archive_count: 0,
+          gradex_extract_count: 0,
+          resource_counts: {},
+          storage_counts: {},
+          conflicting_operation: null,
+          deletion_available: true,
+          unavailable_reason: null,
+        }, operation: null })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+
+    renderRoster()
+    await user.click(await screen.findByText('Ada'))
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
+      .getByRole('button', { name: 'Remove' }))
+
+    expect(await screen.findByText(/student just joined the class/i)).toBeInTheDocument()
+    await waitFor(() => expect(rosterLoads).toBe(2))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '1 selected' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
+    expect(await screen.findByRole('dialog', { name: 'Remove this student?' })).toBeInTheDocument()
+  })
+
   it('keeps comprehensive removal available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
