@@ -24,13 +24,21 @@ export function getKnownRosterRemovalRpcError(error: {
   message?: string
   details?: string | null
   hint?: string | null
-} | null | undefined): { status: number; message: string } | null {
+} | null | undefined): { status: number; message: string; code?: string } | null {
   if (!error) return null
 
   const message = (error.message || '').toLowerCase()
 
   if (error.message === 'One or more roster entries not found in classroom') {
     return { status: 400, message: error.message }
+  }
+
+  if (error.message === 'joined_students_require_comprehensive_removal') {
+    return {
+      status: 409,
+      code: 'joined_students_require_comprehensive_removal',
+      message: 'This student has joined the class. Remove them individually to delete all of their classroom data.',
+    }
   }
 
   if (

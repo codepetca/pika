@@ -106,6 +106,21 @@ describe('POST /api/teacher/classrooms/[id]/roster/bulk-delete', () => {
     })
   })
 
+  it('rejects lightweight removal when a target has joined', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'joined_students_require_comprehensive_removal' },
+    })
+
+    const response = await POST(makeRequest({ roster_ids: ['r-1'] }), params)
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      code: 'joined_students_require_comprehensive_removal',
+      error: 'This student has joined the class. Remove them individually to delete all of their classroom data.',
+    })
+  })
+
   it('returns migration guidance when the atomic removal RPC is missing', async () => {
     mockSupabaseClient.rpc.mockResolvedValueOnce({
       data: null,

@@ -131,7 +131,7 @@ export const DELETE = withErrorHandler('DeleteRosterEntry', async (_request, con
       const status = knownError.message === 'One or more roster entries not found in classroom'
         ? 404
         : knownError.status
-      return NextResponse.json({ error: knownError.message }, { status })
+      return NextResponse.json({ error: knownError.message, code: knownError.code }, { status })
     }
 
     console.error('Error removing roster entry:', error)

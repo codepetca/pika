@@ -112,13 +112,13 @@ export function StudentPurgeDialog({
       current = body.operation
       if (mountedRef.current) setOperation(current)
       if (body.advanced === false) {
-        throw new Error('Deletion is waiting safely. Select Continue deletion shortly.')
+        throw new Error('Removal is waiting safely. Select Continue removal shortly.')
       }
       if ((current.storage_object_counts.failed || 0) > 0) {
-        throw new Error('A storage request failed safely. Progress was saved; select Continue deletion to retry.')
+        throw new Error('A storage request failed safely. Progress was saved; select Continue removal to retry.')
       }
     }
-    throw new Error('Deletion is still in progress. Select Continue deletion to resume.')
+    throw new Error('Removal is still in progress. Select Continue removal to resume.')
   }
 
   async function startOrContinue() {
@@ -164,7 +164,7 @@ export function StudentPurgeDialog({
     <ContentDialog
       isOpen={isOpen}
       onClose={close}
-      title="Purge this student’s classroom data?"
+      title="Remove this student?"
       subtitle={`${studentName} · ${classroomTitle}`}
       maxWidth="max-w-xl"
       showHeaderClose={!isWorking}
@@ -180,8 +180,8 @@ export function StudentPurgeDialog({
               <div>
                 <p className="font-semibold text-danger">This cannot be undone.</p>
                 <p className="mt-1 text-sm text-text-default">
-                  This permanently removes this student’s submissions, tests, grades, attendance,
-                  logs, feedback, roster records, and uploaded files from this classroom.
+                  This removes the student from this class and permanently deletes their submissions,
+                  tests, grades, attendance, logs, feedback, and uploaded files from this classroom.
                 </p>
                 <p className="mt-2 text-sm text-text-muted">
                   Their user account and data in other classrooms are kept. Retained archive copies
@@ -260,7 +260,7 @@ export function StudentPurgeDialog({
                 || operation?.status === 'completed'
               }
             >
-              {operation ? 'Continue deletion' : 'Purge classroom data'}
+              {operation ? 'Continue removal' : 'Remove student'}
             </Button>
           </div>
         </div>

@@ -46,7 +46,10 @@ export const POST = withErrorHandler('PostTeacherRosterBulkDelete', async (reque
   if (error) {
     const knownError = getKnownRosterRemovalRpcError(error)
     if (knownError) {
-      return NextResponse.json({ error: knownError.message }, { status: knownError.status })
+      return NextResponse.json(
+        { error: knownError.message, code: knownError.code },
+        { status: knownError.status },
+      )
     }
 
     console.error('Error bulk deleting roster entries:', error)
