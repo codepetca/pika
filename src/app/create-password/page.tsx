@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState, FormEvent, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+import { navigateTo } from '@/lib/client-navigation'
+import { getSafeInternalPath } from '@/lib/navigation-safety'
 
 const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
 
 function CreatePasswordForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const emailFromUrl = searchParams.get('email') || ''
+  const nextPath = getSafeInternalPath(searchParams.get('next'))
 
   const [email] = useState(emailFromUrl)
   const [handoffToken, setHandoffToken] = useState('')
@@ -51,7 +53,7 @@ function CreatePasswordForm() {
       }
 
       window.sessionStorage.removeItem(SIGNUP_HANDOFF_TOKEN_STORAGE_KEY)
-      router.push(data.redirectUrl)
+      navigateTo(nextPath ?? data.redirectUrl)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
       setLoading(false)

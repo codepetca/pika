@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Remove Add Students action divider
-
-- Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
-- Focused checks pass 1,552 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile, student route, and a direct mobile modal capture were inspected; no overflow or spacing regression was visible. No schema, data, API, dependency, deployment or merge action.
-
-## 2026-09-06 — Space and emphasize roster tooltip format
-
-- Added vertical spacing between the three roster-help lines and emphasized `First Last Email [ID] [Email 2]` with semibold text. The optional-fields note remains on its own line.
-- Reused the existing tooltip content owner and shared spacing/type tokens. Focused tests, the full focused gate, and direct desktop/mobile browser assertions for line separation, font weight, and containment pass. No schema, data, API, dependency, deployment or merge action.
-
-## 2026-09-06 — Label roster tooltip fields
-
-- Updated the emphasized roster format line to `[First name] [Last name] [Email] [ID] [Email 2]`, italicizing only `ID` and `Email 2` while retaining the existing line spacing and optional-fields note.
-- Focused tests, the full focused gate, route-level teacher/student captures, and direct desktop/mobile browser assertions for exact labels, italic styling, and containment pass. No schema, data, API, dependency, deployment or merge action.
-
-## 2026-09-06 — Highlight Add Students problem lines
-
-- Replaced per-line validation advice with one generic guidance line, `Use this format: Jane Doe email@example.com`, removed the `Line 1:`/`Line 2:` warning rows, and made each invalid input line amber in the textarea. Valid rows and the live ready count remain unchanged.
-- Reused the existing semantic warning tokens and native textarea behavior with a scroll-synced visual text layer. Focused tests, the full focused gate, route-level captures, and direct desktop/mobile browser checks pass. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
-
-## 2026-09-06 — Remove Add Students ready-count copy
-
-- Removed the `x students ready to add` status line from the Add Students modal while keeping live roster parsing, amber invalid-line highlighting, and the enabled/disabled Add button behavior unchanged.
-- Focused tests, the full focused gate, the refreshed-session live modal check, and teacher/student route captures pass. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
-
-## 2026-09-06 — Resize Add Students input area
-
-- Increased the student-information textarea from 8 to 12 visible lines and tightened the existing action-area spacing from `mt-6 pt-4` to `mt-4 pt-2`. The reserved validation area and button behavior remain unchanged.
-- Focused tests, the full focused gate, refreshed-session desktop/mobile modal checks, and teacher/student route captures pass with no overflow. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
-
-## 2026-09-06 — Review roster live-validation PR
-
-- Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
-- Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.
-
 ## 2026-09-06 — Mirror calendar items in student Daily panels
 
 - Added shared Toronto date mapping for assignments and announcements so the student Daily Today and Last class panels use the same dates as Calendar. Published announcements use `created_at`; future scheduled announcements use `scheduled_for` when applicable.
@@ -272,3 +237,45 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
 - Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
 - Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
+
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
+
+## 2026-09-09 — Keep manual attendance available for existing occurrences
+
+- Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
+- Extended the existing attendance controller and reused the current row status buttons and Edit attendance dialog; no new component, API, schema, migration, dependency, entitlement, or hosted-data change.
+- Focused component coverage passes 60 tests; the full focused gate passes 200 tests plus architecture, UI/design policy, TypeScript, and lint, and the Pika audit is clean. The teacher attendance browser flow passes desktop/mobile in light/dark, including the cancelled-state correction controls, and all four captures were visually inspected. The related student attendance matrix also passes across the same four view/theme combinations.
+
+## 2026-09-09 — Show selected work titles in teacher action bars
+
+- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
+- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
+- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
+- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
+
+## 2026-09-09 — Preserve attendance QR signup handoff
+
+- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
+- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
+- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
+
+## 2026-09-09 — Prepare outbound transport hardening
+
+- User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
+- Created isolated `codex/outbound-transport-hardening` from main `6173d863`, checked active tasks/PRs for overlap, installed locked dependencies and passed environment verification. Confirmed existing redirect-policy and optional Gradex URL/error-boundary gaps; documented the scoped next package in the student-data egress audit.
+- Paused at the session-start concrete-plan approval gate. No source implementation, tests, new PR, migration, feature-flag or production change in this preparation step.
+
+## 2026-09-09 — Implement approved outbound transport hardening
+
+- User approved the scoped package. Eight authenticated runtime OpenAI/Brevo/Pal/Gradex request sites reject redirects. Optional Gradex requires an HTTPS origin, with loopback HTTP allowed only in explicit development; its HTTP/parser/mapping diagnostics discard provider-controlled content, and request timeouts cover response-body consumption.
+- Synthetic loopback regressions first reproduced redirect forwarding and now prove no second-destination requests. URL, safe-error, retry and timeout regressions added; full focused checks and independent review gate publication/readiness. No real provider requests, student records, migration, feature flag or production change.
+- Initial fixed-head Sol/security and Terra/compatibility reviews approved without findings; bounded local checks passed 1,758 tests and all CI jobs passed (two browser cases passed on retry). After owner merge approval, main advanced through #1231 and conflicted only in this shared log. Rebased while draft, preserving both tasks and unchanged transport implementation; targeted integration review and fresh exact-head CI gate the merge. No migration files changed or stash created.
+
+## 2026-09-09 — Resume final outbound transport merge sync
+
+- The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
+- Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.

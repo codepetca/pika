@@ -110,14 +110,31 @@ export function isGradexAssignmentRun(run: Pick<AssignmentAiGradingRun, 'model'>
 }
 
 function getGradexConfig(): GradexConfig {
-  const baseUrl = process.env.GRADEX_API_URL?.trim().replace(/\/+$/, '')
+  const baseUrl = process.env.GRADEX_API_URL?.trim()
   const apiKey = process.env.GRADEX_API_KEY?.trim()
 
   if (!baseUrl || !apiKey) {
     throw new Error('Gradex assignment grading is enabled but GRADEX_API_URL or GRADEX_API_KEY is missing')
   }
 
-  return { baseUrl, apiKey }
+  const invalidUrl = () => new Error('Gradex API URL must be an HTTPS origin (loopback HTTP is allowed only in development)')
+  let url: URL
+  try {
+    url = new URL(baseUrl)
+  } catch {
+    throw invalidUrl()
+  }
+  const localHttp = process.env.NODE_ENV === 'development'
+    && url.protocol === 'http:'
+    && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (
+    (url.protocol !== 'https:' && !localHttp)
+    || url.username || url.password || url.pathname !== '/'
+    || baseUrl.includes('?') || baseUrl.includes('#')
+  ) {
+    throw invalidUrl()
+  }
+  return { baseUrl: url.origin, apiKey }
 }
 
 function isAssignmentGradexMetadataSchemaError(error: unknown): boolean {
@@ -157,49 +174,49 @@ async function requestGradexJson<T>(
   let response: Response
 
   try {
-    response = await fetch(`${config.baseUrl}${opts.path}`, {
-      method: opts.method,
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }),
-    })
-  } catch (error) {
-    const aborted = error instanceof Error && error.name === 'AbortError'
-    throw new GradexRetryableRequestError(
-      aborted ? 'Gradex request timed out' : 'Gradex request failed before a response was received',
-      aborted ? 'gradex_timeout' : 'gradex_network_error',
-    )
+    try {
+      response = await fetch(`${config.baseUrl}${opts.path}`, {
+        method: opts.method,
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        ...(opts.body === undefined ? {} : { body: JSON.stringify(opts.body) }),
+      })
+    } catch (error) {
+      const aborted = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')
+      throw new GradexRetryableRequestError(
+        aborted ? 'Gradex request timed out' : 'Gradex request failed before a response was received',
+        aborted ? 'gradex_timeout' : 'gradex_network_error',
+      )
+    }
+
+    if (!response.ok || response.status !== opts.expectedStatus) {
+      await response.body?.cancel().catch(() => {})
+      const message = `Gradex request failed with status ${response.status}`
+      if (RETRYABLE_GRADEX_STATUS_CODES.has(response.status)) {
+        throw new GradexRetryableRequestError(message, 'gradex_retryable_http_error', response.status)
+      }
+      throw new Error(message)
+    }
+    try {
+      return opts.schema.parse(await response.json())
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+        throw new GradexRetryableRequestError('Gradex request timed out', 'gradex_timeout')
+      }
+      // JSON/schema errors can contain provider text, including echoed student work.
+      throw new Error('Gradex returned an invalid response')
+    }
   } finally {
     clearTimeout(timeout)
   }
-
-  const body = await response.json().catch(() => null)
-  if (!response.ok || response.status !== opts.expectedStatus) {
-    if (RETRYABLE_GRADEX_STATUS_CODES.has(response.status)) {
-      throw new GradexRetryableRequestError(formatGradexError(body, response.status), 'gradex_retryable_http_error', response.status)
-    }
-    throw new Error(formatGradexError(body, response.status))
-  }
-  return opts.schema.parse(body)
 }
 
 function isGradexRetryableRequestError(error: unknown): error is GradexRetryableRequestError {
   return error instanceof GradexRetryableRequestError
-}
-
-function formatGradexError(body: unknown, status: number): string {
-  if (body && typeof body === 'object') {
-    const error = (body as { error?: { message?: unknown; details?: unknown } }).error
-    if (typeof error?.message === 'string') {
-      return error.details === undefined
-        ? error.message
-        : `${error.message}: ${JSON.stringify(error.details)}`
-    }
-  }
-  return `Gradex request failed with status ${status}`
 }
 
 async function loadGradexRunInputs(opts: {
@@ -609,12 +626,12 @@ async function pollGradexAssignmentRun(opts: {
   let records: ReturnType<typeof mapGradexItemsToPikaGradeRecords>
   try {
     records = mapGradexItemsToPikaGradeRecords(mappings, itemDetails)
-  } catch (error) {
+  } catch {
     await markGradexItemsForRetryOrFailure({
       supabase: opts.supabase,
       items: dueItems,
       errorCode: 'gradex_mapping_failed',
-      errorMessage: error instanceof Error ? error.message : 'Failed to map Gradex results to Pika records',
+      errorMessage: 'Failed to map Gradex results to Pika records',
       now,
     })
     return

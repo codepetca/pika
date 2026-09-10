@@ -84,4 +84,25 @@ describe('pending WorkOS Magic Auth challenge', () => {
     }
     await expect(hasActivePendingWorkOSMagicAuth('sign-in', now)).resolves.toBe(false)
   })
+
+  it('does not restore a challenge bound to a different continuation', async () => {
+    const now = Date.now()
+    mocks.session.challenge = {
+      email: 'student@example.com',
+      expiresAt: new Date(now + 60_000).toISOString(),
+      intent: 'sign-up',
+      nextPath: '/attendance/classroom/classroom-a',
+    }
+
+    await expect(hasActivePendingWorkOSMagicAuth(
+      'sign-up',
+      now,
+      '/attendance/classroom/classroom-a',
+    )).resolves.toBe(true)
+    await expect(hasActivePendingWorkOSMagicAuth(
+      'sign-up',
+      now,
+      '/attendance/classroom/classroom-b',
+    )).resolves.toBe(false)
+  })
 })

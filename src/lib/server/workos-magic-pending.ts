@@ -53,9 +53,11 @@ export async function readPendingWorkOSMagicAuth(): Promise<PendingWorkOSMagicAu
 export async function hasActivePendingWorkOSMagicAuth(
   intent: WorkOSMagicIntent,
   now = Date.now(),
+  expectedNextPath?: string,
 ): Promise<boolean> {
   const challenge = await readPendingWorkOSMagicAuth()
   if (!challenge || challenge.intent !== intent) return false
+  if (expectedNextPath !== undefined && challenge.nextPath !== expectedNextPath) return false
   const expiresAt = Date.parse(challenge.expiresAt)
   return Number.isFinite(expiresAt) && expiresAt > now
 }

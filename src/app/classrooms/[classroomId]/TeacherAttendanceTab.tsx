@@ -598,7 +598,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
       if (!selectedWorkspace) return
-      if (event.target instanceof Element && event.target.closest('[aria-label="Daily controls"]')) return
       if (event.target instanceof Node && selectedWorkspace.contains(event.target)) return
       handleDeselect()
     }
@@ -1271,7 +1270,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     />
   ) : (
     selectedRow ? (
-      <div ref={selectedWorkspaceRef} className="daily-workspace-enter flex min-h-0 flex-1">
+      <div
+        ref={selectedWorkspaceRef}
+        className="daily-workspace-enter flex min-h-0 flex-1"
+        data-testid="daily-selected-student-workspace"
+      >
         <TeacherWorkspaceSplit
           className="flex-1"
           splitVariant="gapped"

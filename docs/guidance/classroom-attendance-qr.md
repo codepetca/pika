@@ -25,6 +25,10 @@ teachers must print and replace it.
   window and its open projection, verifies enabled attendance policy and an active
   class day even while provider cancellation is syncing, then uses Bara presentation/check-in
   operations entirely server-side. Bara remains authoritative for check-in.
+- A signed-out scan carries its safe opaque attendance path through login and
+  both supported signup flows, including verification and password creation,
+  before returning to the existing check-in boundary. Signup does not enroll a
+  student or weaken the enrollment and participant checks above.
 - No raw classroom UUID or reusable Bara token appears in the poster URL. Existing
   occurrence entry routes and their authorization contracts remain in place.
 - Teacher view/create and rotate routes require classroom ownership and attendance

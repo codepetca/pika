@@ -844,6 +844,9 @@ describe('PageMockups', () => {
     await user.keyboard('{Escape}')
     await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     await user.click(within(workspace).getByRole('button', { name: /^Field observations/ }))
+    const selectedAssignmentActions = within(workspace).getByRole('region', { name: 'Assignment workspace actions' })
+    expect(selectedAssignmentActions).toHaveTextContent('Field observations')
+    expect(within(selectedAssignmentActions).getByRole('tablist', { name: 'Selected work modes' })).toBeVisible()
     expect(within(workspace).getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true')
     expect(document.getElementById('work-pattern-students-panel')).toBeInTheDocument()
 
@@ -858,7 +861,9 @@ describe('PageMockups', () => {
     await user.keyboard('{ArrowLeft}')
     expect(divider).toHaveAttribute('aria-valuenow', '45')
 
-    await user.click(within(workspace).getByRole('button', { name: 'Back to item list' }))
+    expect(within(selectedAssignmentActions).queryByRole('button', { name: 'Back to item list' })).not.toBeInTheDocument()
+    await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
+    await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     expect(within(workspace).queryByRole('tab', { name: 'Students' })).not.toBeInTheDocument()
     expect(within(workspace).getByRole('button', { name: /^Field observations/ })).toBeVisible()
   })

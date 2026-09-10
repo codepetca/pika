@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { withRedirectCanary } from '../../helpers/redirect-canary'
 
 import {
   buildDailyLogWeekConfiguredEvent,
@@ -195,6 +196,7 @@ describe('Pal outbox adapter', () => {
       'https://pal.example.test/api/v1/events',
       expect.objectContaining({
         method: 'POST',
+        redirect: 'error',
         headers: expect.objectContaining({
           Authorization: 'Bearer pal-integration-secret-32-characters',
         }),
@@ -207,6 +209,17 @@ describe('Pal outbox adapter', () => {
         p_outbox_id: rowId,
         p_lease_token: leaseToken,
       },
+    })
+  })
+
+  it.each([307, 308])('does not forward a Pal event on HTTP %i and retains its retry lease transition', async (status) => {
+    await withRedirectCanary(status, 'https://pal.example.test/api/v1/events', async (canary) => {
+      const supabase = buildSupabase([claimedRow()])
+      await expect(deliverPalOutboxBatch({
+        supabase: supabase.client, fetchImpl: canary.fetchImpl, now: occurredAt,
+      })).resolves.toMatchObject({ delivered: 0, retrying: 1 })
+      expect(canary.sourceRequests()).toBe(1)
+      expect(canary.targetRequests()).toBe(0)
     })
   })
 

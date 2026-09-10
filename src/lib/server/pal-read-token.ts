@@ -43,6 +43,7 @@ export async function mintPalReadToken(input: {
     `${apiUrl}/api/v1/integration/read-token`,
     {
       method: 'POST',
+      redirect: 'error',
       headers: {
         Authorization: `Bearer ${integrationSecret}`,
         'Content-Type': 'application/json',

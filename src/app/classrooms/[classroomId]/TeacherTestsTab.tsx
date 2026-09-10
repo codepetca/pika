@@ -46,7 +46,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
-import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
+import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import {
@@ -2581,7 +2581,17 @@ export function TeacherTestsTab({
     </div>
   ) : null
 
-  const selectedTestContext = workspaceModeStatus
+  const selectedTestContext = selectedTestWorkspace ? (
+    <div className="flex min-w-0 items-center gap-2">
+      <span
+        className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64"
+        title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
+      >
+        {getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
+      </span>
+      {workspaceModeStatus}
+    </div>
+  ) : workspaceModeStatus
 
   const selectedTestUtilities = deleteTestAction ? (
     <div className="flex items-center" data-testid="test-workspace-trailing-actions">
@@ -2643,10 +2653,13 @@ export function TeacherTestsTab({
     <TeacherWorkSurfaceContextBar
       ariaLabel="Test grading controls"
       testId="test-grading-context-bar"
+      className="py-2 sm:py-1"
       context={selectedTestContext}
+      contextClassName="col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
       primary={selectedTestControls}
+      primaryClassName="col-start-2 row-start-2 sm:row-start-1"
       actions={selectedTestUtilities}
-      trailingClassName="overflow-visible"
+      trailingClassName="col-start-3 row-start-2 overflow-visible sm:row-start-1"
     />
   ) : (
     <TeacherWorkSurfaceContextBar

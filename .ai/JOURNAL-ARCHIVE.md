@@ -31429,3 +31429,42 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Removed the warning summary sentence and promoted each line-level roster message to readable body size. Reserved a compact warning slot below the textarea so the ready count and action buttons remain stable when guidance appears or clears.
 - Reused the existing semantic warning treatment and live status behavior. Component tests, the full focused gate, teacher/student route captures, and desktop/mobile warning and valid-state browser checks pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:772d328d62bb5fa7e4d9b240fb2773570f78b1743d68c8a1ad6b8f25e6d84801 -->
+## 2026-09-06 — Remove Add Students action divider
+
+- Removed the horizontal divider above the Add Students modal action buttons while preserving the existing button spacing, labels, focus behavior, and submit/cancel semantics.
+- Focused checks pass 1,552 tests plus architecture, UI/design policy, TypeScript and lint. Teacher desktop/mobile, student route, and a direct mobile modal capture were inspected; no overflow or spacing regression was visible. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:82bb3c17b8f150fe4c7dca0ebc9efe3a7aec393467a474c48b2db681b5da32ea -->
+## 2026-09-06 — Space and emphasize roster tooltip format
+
+- Added vertical spacing between the three roster-help lines and emphasized `First Last Email [ID] [Email 2]` with semibold text. The optional-fields note remains on its own line.
+- Reused the existing tooltip content owner and shared spacing/type tokens. Focused tests, the full focused gate, and direct desktop/mobile browser assertions for line separation, font weight, and containment pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:f99e3378bf168ba6f10e419c3a8c0ce61f8ae10c0ede89aa0852b3ee08f35d77 -->
+## 2026-09-06 — Label roster tooltip fields
+
+- Updated the emphasized roster format line to `[First name] [Last name] [Email] [ID] [Email 2]`, italicizing only `ID` and `Email 2` while retaining the existing line spacing and optional-fields note.
+- Focused tests, the full focused gate, route-level teacher/student captures, and direct desktop/mobile browser assertions for exact labels, italic styling, and containment pass. No schema, data, API, dependency, deployment or merge action.
+
+<!-- pika-session-log-archive-batch:2b2a13c8235c1c8e7c2ff1e04b2ad0a2b7b58e8493a7b5c363144ec95385bdcc -->
+## 2026-09-06 — Highlight Add Students problem lines
+
+- Replaced per-line validation advice with one generic guidance line, `Use this format: Jane Doe email@example.com`, removed the `Line 1:`/`Line 2:` warning rows, and made each invalid input line amber in the textarea. Valid rows and the live ready count remain unchanged.
+- Reused the existing semantic warning tokens and native textarea behavior with a scroll-synced visual text layer. Focused tests, the full focused gate, route-level captures, and direct desktop/mobile browser checks pass. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
+
+## 2026-09-06 — Remove Add Students ready-count copy
+
+- Removed the `x students ready to add` status line from the Add Students modal while keeping live roster parsing, amber invalid-line highlighting, and the enabled/disabled Add button behavior unchanged.
+- Focused tests, the full focused gate, the refreshed-session live modal check, and teacher/student route captures pass. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
+
+## 2026-09-06 — Resize Add Students input area
+
+- Increased the student-information textarea from 8 to 12 visible lines and tightened the existing action-area spacing from `mt-6 pt-4` to `mt-4 pt-2`. The reserved validation area and button behavior remain unchanged.
+- Focused tests, the full focused gate, refreshed-session desktop/mobile modal checks, and teacher/student route captures pass with no overflow. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
+
+## 2026-09-06 — Review roster live-validation PR
+
+- Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
+- Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.

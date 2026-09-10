@@ -66,6 +66,7 @@ async function fetchPayload(
   try {
     response = await fetchImpl(OPENAI_RESPONSES_URL, {
       method: 'POST',
+      redirect: 'error',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
