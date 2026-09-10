@@ -17,12 +17,14 @@ set local statement_timeout = '20s';
 do $check$
 declare
   v_signature text := 'public.join_classroom_by_code_atomic_v1(uuid,uuid,text,text,text,text,text,text,jsonb)';
+  v_guess_signature text := 'public.consume_classroom_join_guess_v1(text,text)';
   v_security_definer boolean;
   v_config text[];
   v_owner text;
 begin
   if to_regclass('public.classroom_join_rate_limits') is null
     or to_regprocedure(v_signature) is null
+    or to_regprocedure(v_guess_signature) is null
     or to_regprocedure('public.cleanup_classroom_join_rate_limits_v1(integer)') is null then
     raise exception 'Migration 159 is required; this harness never applies it';
   end if;
@@ -32,6 +34,9 @@ begin
     or has_function_privilege('anon', v_signature, 'execute')
     or has_function_privilege('authenticated', v_signature, 'execute')
     or not has_function_privilege('service_role', v_signature, 'execute')
+    or has_function_privilege('anon', v_guess_signature, 'execute')
+    or has_function_privilege('authenticated', v_guess_signature, 'execute')
+    or not has_function_privilege('service_role', v_guess_signature, 'execute')
     or has_function_privilege('anon', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
     or has_function_privilege('authenticated', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute')
     or not has_function_privilege('service_role', 'public.cleanup_classroom_join_rate_limits_v1(integer)', 'execute') then
@@ -48,6 +53,19 @@ begin
     or not (v_config @> array['search_path=""']::text[])
     or v_owner <> 'postgres' then
     raise exception 'Contextual enrollment function security metadata is incorrect';
+  end if;
+  if not exists (
+    select 1
+    from pg_proc procedure
+    join pg_namespace namespace on namespace.oid = procedure.pronamespace
+    join pg_roles owner on owner.oid = procedure.proowner
+    where namespace.nspname = 'public'
+      and procedure.oid = to_regprocedure(v_guess_signature)
+      and procedure.prosecdef
+      and procedure.proconfig @> array['search_path=""']::text[]
+      and owner.rolname = 'postgres'
+  ) then
+    raise exception 'Contextual rejected-guess function security metadata is incorrect';
   end if;
 end;
 $check$;
@@ -104,6 +122,18 @@ declare
     )
   );
 begin
+  v_result := public.consume_classroom_join_guess_v1(repeat('9', 64), repeat('a', 64));
+  if not (v_result->>'ok')::boolean then
+    raise exception 'First rejected guess was unexpectedly blocked: %', v_result;
+  end if;
+  perform public.consume_classroom_join_guess_v1(repeat('9', 64), repeat('a', 64));
+  perform public.consume_classroom_join_guess_v1(repeat('9', 64), repeat('a', 64));
+  v_result := public.consume_classroom_join_guess_v1(repeat('9', 64), repeat('a', 64));
+  if (v_result->>'error_code') is distinct from 'rate_limited'
+    or (v_result->>'status')::integer <> 429
+    or (v_result->>'retry_after_seconds')::integer < 1 then
+    raise exception 'Rejected guesses did not preserve the invitation budget: %', v_result;
+  end if;
   begin
     perform public.cleanup_classroom_join_rate_limits_v1(null);
     raise exception 'Expected null cleanup batch denial';

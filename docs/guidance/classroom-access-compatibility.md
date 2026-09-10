@@ -46,9 +46,11 @@ is the dominant complexity, while the current observation slice is comparatively
 - `src/app/classrooms/[classroomId]/page.tsx` branches on `user.role`, so a teacher
   enrolled in someone else's class cannot use the student branch; the inverse owner
   also cannot use the teacher branch. Helper parity alone cannot repair that routing.
-- `src/app/api/student/classrooms/join/route.ts` accepts a classroom UUID as an
-  alternative to a code, is student-gated, and has roster/profile/Pal side effects.
-  Resolve the intended invitation boundary and race/error behavior before opening it.
+- `src/app/api/student/classrooms/join/route.ts` retains its student-gated UUID/code path
+  by default. Its off-by-default exact-pair branch requires a scoped code for creation,
+  recognizes but never creates membership from a UUID, charges invalid guesses and uses
+  the atomic roster/profile/Pal transaction. It remains unavailable until migration 159,
+  operational gates and the broader mixed-role classroom surfaces are ready.
 - `src/app/api/storage/submission-images/route.ts` branches on global role as well
   as object ownership. A contextual page without contextual file authorization is
   not a complete vertical slice.

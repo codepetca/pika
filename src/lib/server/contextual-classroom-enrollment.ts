@@ -44,15 +44,17 @@ const existingSuccessSchema = z
   })
   .strict()
 
+const rateLimitedFailureSchema = z
+  .object({
+    ok: z.literal(false),
+    status: z.literal(429),
+    error_code: z.literal('rate_limited'),
+    retry_after_seconds: z.number().int().positive(),
+  })
+  .strict()
+
 const failureSchema = z.discriminatedUnion('error_code', [
-  z
-    .object({
-      ok: z.literal(false),
-      status: z.literal(429),
-      error_code: z.literal('rate_limited'),
-      retry_after_seconds: z.number().int().positive(),
-    })
-    .strict(),
+  rateLimitedFailureSchema,
   z
     .object({
       ok: z.literal(false),
@@ -120,8 +122,13 @@ const failureSchema = z.discriminatedUnion('error_code', [
 ])
 
 const resultSchema = z.union([createdSuccessSchema, existingSuccessSchema, failureSchema])
+const guessResultSchema = z.union([
+  z.object({ ok: z.literal(true) }).strict(),
+  rateLimitedFailureSchema,
+])
 
 export type ContextualClassroomJoinResult = z.infer<typeof resultSchema>
+export type ContextualClassroomJoinGuessResult = z.infer<typeof guessResultSchema>
 
 export type ContextualClassroomJoinRpcClient = Pick<
   ReturnType<typeof getServiceRoleClient>,
@@ -156,6 +163,24 @@ export function buildClassroomJoinRateLimitKeys(actorId: string, classCode: stri
       `classroom_join_invitation\0${normalizedActorId}\0${normalizedCode}`
     ),
   }
+}
+
+export async function consumeClassroomJoinGuess(args: {
+  actorId: string
+  classCode: string
+  supabase?: ContextualClassroomJoinRpcClient
+}): Promise<ContextualClassroomJoinGuessResult> {
+  const keys = buildClassroomJoinRateLimitKeys(args.actorId, args.classCode)
+  const supabase = args.supabase ?? getServiceRoleClient()
+  const { data, error } = await supabase.rpc('consume_classroom_join_guess_v1', {
+    p_actor_key_hash: keys.actorKeyHash,
+    p_invitation_key_hash: keys.invitationKeyHash,
+  })
+  const parsed = guessResultSchema.safeParse(data)
+  if (error || !parsed.success) {
+    throw new ApiError(503, 'Classroom enrollment is temporarily unavailable')
+  }
+  return parsed.data
 }
 
 export async function joinClassroomByCodeAtomic(args: {

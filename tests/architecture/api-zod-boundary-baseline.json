@@ -1,7 +1,6 @@
 [
   "src/app/api/account/github-identity/route.ts",
   "src/app/api/feedback/route.ts",
-  "src/app/api/student/classrooms/join/route.ts",
   "src/app/api/student/entries/route.ts",
   "src/app/api/student/surveys/[id]/respond/route.ts",
   "src/app/api/teacher/assignments/[id]/release/route.ts",

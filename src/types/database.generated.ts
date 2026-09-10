@@ -8881,6 +8881,10 @@ export type Database = {
         }
         Returns: Json
       }
+      consume_classroom_join_guess_v1: {
+        Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
+        Returns: Json
+      }
       consume_password_reset_and_revoke_sessions: {
         Args: {
           p_handoff_token_hash: string
