@@ -38,4 +38,13 @@ describe('Supabase migration-list parser', () => {
       'Unrecognized Supabase migration-list output'
     )
   })
+
+  it.each([
+    '{"migrations":[]}',
+    '{"migrations":[{}]}',
+    '{"migrations":[{"version":"161","applied":false}]}',
+    '{"migrations":[{"local":161,"remote":""}]}',
+  ])('fails closed on malformed JSON history: %s', (output) => {
+    expect(() => parseSupabaseMigrationDrift(output)).toThrow()
+  })
 })
