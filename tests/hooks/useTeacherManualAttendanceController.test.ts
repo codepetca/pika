@@ -336,4 +336,70 @@ describe('useTeacherManualAttendanceController', () => {
       tone: 'warning',
     })
   })
+
+  it('does not show a stale partial-save warning after switching dates during refresh', async () => {
+    const roster = studentIds(201)
+    let resolveRefresh!: (value: Response) => void
+    const refresh = new Promise<Response>((resolve) => { resolveRefresh = resolve })
+    let dateAGetCount = 0
+    let postCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        const date = url.searchParams.get('date')!
+        if (date === '2026-05-06') {
+          dateAGetCount += 1
+          return dateAGetCount === 1 ? Promise.resolve(response(view(date))) : refresh
+        }
+        return Promise.resolve(response(view(date)))
+      }
+      if (init.method === 'POST') {
+        postCount += 1
+        return Promise.resolve(postCount === 1
+          ? response({ ok: true })
+          : new Response(JSON.stringify({ error: 'Write failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result, rerender } = renderHook(
+      ({ selectedDate }) => useTeacherManualAttendanceController({
+        classroomId,
+        selectedDate,
+        enabled: true,
+        isActive: true,
+        archived: false,
+        visibleStudentIds: roster,
+      }),
+      { initialProps: { selectedDate: '2026-05-06' } },
+    )
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks(roster, 'present')
+    })
+    await waitFor(() => expect(dateAGetCount).toBe(2))
+
+    rerender({ selectedDate: '2026-05-07' })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
+
+    await act(async () => {
+      resolveRefresh(response(view('2026-05-06')))
+      await command
+    })
+
+    expect(result.current.view).toMatchObject({
+      classDate: '2026-05-07',
+      overrides: [],
+    })
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'Some attendance changes were saved; the current attendance has been refreshed',
+      tone: 'warning',
+    })
+  })
 })

@@ -211,6 +211,7 @@ export function useTeacherManualAttendanceController(input: {
       if (mountedRef.current && scopeRef.current.key === commandScope.key) {
         if (completedChunks > 0) {
           await loadScope(commandScope, true)
+          if (!mountedRef.current || scopeRef.current.key !== commandScope.key) return
         } else {
           setView((current) => {
             if (
