@@ -155,6 +155,17 @@ export function escapePostgrestLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&')
 }
 
+export function buildPostgrestExactTextFilter(value: string): {
+  operator: 'eq' | 'ilike'
+  value: string
+} {
+  // PostgREST rewrites every `*` in like/ilike values to `%` before PostgreSQL
+  // evaluates escapes. Equality is the only safe literal-star representation.
+  return value.includes('*')
+    ? { operator: 'eq', value }
+    : { operator: 'ilike', value: escapePostgrestLikePattern(value) }
+}
+
 export function buildClassroomJoinRateLimitKeys(actorId: string, classCode: string): {
   actorKeyHash: string
   invitationKeyHash: string

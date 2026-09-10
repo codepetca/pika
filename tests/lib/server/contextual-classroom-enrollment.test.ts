@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api-handler'
 import {
   buildClassroomJoinRateLimitKeys,
+  buildPostgrestExactTextFilter,
   consumeClassroomJoinGuess,
   escapePostgrestLikePattern,
   joinClassroomByCodeAtomic,
@@ -35,6 +36,14 @@ describe('contextual classroom enrollment server adapter', () => {
 
   it('escapes PostgREST pattern metacharacters for exact case-insensitive lookups', () => {
     expect(escapePostgrestLikePattern('STU_DENT%\\01')).toBe('STU\\_DENT\\%\\\\01')
+    expect(buildPostgrestExactTextFilter('STU_DENT%\\01')).toEqual({
+      operator: 'ilike',
+      value: 'STU\\_DENT\\%\\\\01',
+    })
+    expect(buildPostgrestExactTextFilter('STU*DENT')).toEqual({
+      operator: 'eq',
+      value: 'STU*DENT',
+    })
   })
 
   it('charges rejected invitation guesses through the service-only limiter', async () => {

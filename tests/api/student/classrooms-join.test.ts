@@ -159,7 +159,7 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
     )
     expect(lookup.ilike).toHaveBeenCalledWith('class_code', 'BIO\\_101\\%')
     expect(lookup.limit).toHaveBeenCalledWith(2)
-    expect(mocks.from.mock.calls.map(([table]) => table)).toEqual(['classrooms'])
+    expect(mocks.from.mock.calls.map(([table]) => table)).toEqual(['classrooms', 'classrooms'])
   })
 
   it('resolves a legacy space-padded stored code with one bounded fallback lookup', async () => {
@@ -180,6 +180,36 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
       'join_classroom_by_code_atomic_v1',
       expect.objectContaining({ p_class_code: 'BIO101' }),
     )
+  })
+
+  it('fails closed when normalized and raw legacy lookups resolve different classrooms', async () => {
+    const otherClassroomId = '55555555-5555-4555-8555-555555555555'
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: [{ id: classroomId }], error: null })
+      .mockResolvedValueOnce({ data: [{ id: otherClassroomId }], error: null })
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ ilike })) })
+    mocks.rpc.mockResolvedValueOnce({ data: { ok: true }, error: null })
+
+    const response = await POST(request({ classCode: ' bio101 ' }))
+
+    expect(response.status).toBe(404)
+    expect(mocks.rpc).toHaveBeenCalledWith('consume_classroom_join_guess_v1', expect.any(Object))
+    expect(mocks.rpc).not.toHaveBeenCalledWith('join_classroom_by_code_atomic_v1', expect.any(Object))
+  })
+
+  it('uses equality rather than PostgREST pattern matching for literal-star codes', async () => {
+    const limit = vi.fn().mockResolvedValue({ data: [{ id: classroomId }], error: null })
+    const eq = vi.fn(() => ({ limit }))
+    const ilike = vi.fn(() => ({ limit }))
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ eq, ilike })) })
+
+    const response = await POST(request({ classCode: 'BIO*101' }))
+
+    expect(response.status).toBe(201)
+    expect(eq).toHaveBeenCalledWith('class_code', 'BIO*101')
+    expect(ilike).not.toHaveBeenCalled()
+    expect(limit).toHaveBeenCalledWith(2)
   })
 
   it('returns an explicit already-enrolled result', async () => {

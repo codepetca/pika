@@ -8,7 +8,7 @@ import {
 } from '@/lib/server/classroom-enrollment-access'
 import {
   consumeClassroomJoinGuess,
-  escapePostgrestLikePattern,
+  buildPostgrestExactTextFilter,
   joinClassroomByCodeAtomic,
   normalizeClassroomJoinCode,
   type ContextualClassroomJoinGuessResult,
@@ -334,11 +334,14 @@ async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCo
   const supabase = getServiceRoleClient()
   const normalizedCode = normalizeClassroomJoinCode(classCode)
   const lookupCandidates = async (candidateCode: string) => {
-    const { data, error } = await supabase
+    const filter = buildPostgrestExactTextFilter(candidateCode)
+    const query = supabase
       .from('classrooms')
       .select('id')
-      .ilike('class_code', escapePostgrestLikePattern(candidateCode))
-      .limit(2)
+    const filteredQuery = filter.operator === 'eq'
+      ? query.eq('class_code', filter.value)
+      : query.ilike('class_code', filter.value)
+    const { data, error } = await filteredQuery.limit(2)
     if (error) throw error
     return (data ?? []).filter(
       (candidate: { id: string }) => typeof candidate.id === 'string',
@@ -351,8 +354,11 @@ async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCo
     // Existing custom codes may predate normalized writes. A teacher-generated
     // link retains that stored whitespace, so make one additional bounded exact
     // lookup while the atomic RPC still validates the canonical pair under lock.
-    if (matchingClassrooms.length === 0 && classCode !== classCode.trim()) {
-      matchingClassrooms = await lookupCandidates(classCode)
+    if (classCode !== normalizedCode) {
+      const rawMatches = await lookupCandidates(classCode)
+      matchingClassrooms = [...new Map(
+        [...matchingClassrooms, ...rawMatches].map((candidate) => [candidate.id, candidate]),
+      ).values()]
     }
   } catch (error) {
     console.error('Error resolving roster-matched classroom invitation:', error)

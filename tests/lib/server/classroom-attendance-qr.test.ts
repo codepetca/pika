@@ -51,10 +51,15 @@ function fakeSupabase({
         limit(count: number) {
           if (table === 'classroom_roster') {
             expect(filters.classroom_id).toBe(classroomId)
-            expect(filters['ilike:email']).toBe('student@example.com')
+            const rawLookup = String(filters.email ?? filters['ilike:email'])
+            const lookupEmail = rawLookup.replace(/\\([\\%_])/g, '$1').toLowerCase()
+            if (rawLookup.includes('*')) {
+              expect(filters.email).toBe(rawLookup)
+              expect(filters['ilike:email']).toBeUndefined()
+            }
             return Promise.resolve({
               data: rosterEmails
-                .filter((email) => email.trim().toLowerCase() === 'student@example.com')
+                .filter((email) => email.trim().toLowerCase() === lookupEmail)
                 .slice(0, count)
                 .map((email, index) => ({
                   id: `77777777-7777-4777-8777-77777777777${index}`,
@@ -256,6 +261,15 @@ describe('stable classroom attendance QR', () => {
     })).rejects.toMatchObject({ code: 'not_on_roster' })
     expect(loadPresentation).not.toHaveBeenCalled()
     expect(executeCheckIn).not.toHaveBeenCalled()
+  })
+
+  it('treats a literal star in a roster email as data rather than a wildcard', async () => {
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, rosterEmails: ['student*tag@example.com'] }),
+      pikaUser: { id: studentId, email: 'student*tag@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+    })).rejects.toMatchObject({ code: 'not_enrolled' })
   })
 
   it('fails neutrally when case-normalized roster identity is ambiguous', async () => {

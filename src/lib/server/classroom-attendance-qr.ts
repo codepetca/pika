@@ -14,7 +14,7 @@ import {
   type StudentAttendanceCheckInView,
 } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
-import { escapePostgrestLikePattern } from '@/lib/server/contextual-classroom-enrollment'
+import { buildPostgrestExactTextFilter } from '@/lib/server/contextual-classroom-enrollment'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -294,10 +294,13 @@ async function assertStudentRosterBoundary(input: {
   // roster into the app process. Escaping keeps valid email punctuation from
   // becoming an ILIKE wildcard. Attendance never writes enrollment here.
   const normalizedEmail = input.studentEmail.trim().toLowerCase()
-  const roster = await input.supabase.from('classroom_roster').select('id, email')
+  const rosterFilter = buildPostgrestExactTextFilter(normalizedEmail)
+  const rosterQuery = input.supabase.from('classroom_roster').select('id, email')
     .eq('classroom_id', input.classroomId)
-    .ilike('email', escapePostgrestLikePattern(normalizedEmail))
-    .limit(2)
+  const roster = await (rosterFilter.operator === 'eq'
+    ? rosterQuery.eq('email', rosterFilter.value)
+    : rosterQuery.ilike('email', rosterFilter.value)
+  ).limit(2)
   if (roster.error) throw new ClassroomAttendanceQrError('unavailable')
   const parsedRoster = z.array(rosterRowSchema).safeParse(roster.data)
   if (!parsedRoster.success) throw new ClassroomAttendanceQrError('unavailable')
