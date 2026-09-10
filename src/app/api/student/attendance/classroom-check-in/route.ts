@@ -56,6 +56,27 @@ export const POST = withErrorHandler('PostStudentClassroomAttendanceCheckIn', as
           'This signed-in account is not on the attendance roster for this classroom.',
         )
       }
+      if (error.code === 'not_on_roster') {
+        return result(
+          'needs_staff',
+          'This account is not on the class roster',
+          'Sign in with the email your teacher added, or ask them to update the roster.',
+        )
+      }
+      if (error.code === 'enrollment_closed') {
+        return result(
+          'needs_staff',
+          'Joining this classroom is closed',
+          'Your teacher needs to open enrollment before you can join from this QR code.',
+        )
+      }
+      if (error.code === 'identity_not_linked') {
+        return result(
+          'needs_staff',
+          'Use your verified school account',
+          'Sign in with the email your teacher added to the class roster.',
+        )
+      }
       throw new ApiError(503, 'Attendance is temporarily unavailable')
     }
     if (error instanceof StudentAttendanceCheckInError) {

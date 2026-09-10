@@ -23,6 +23,9 @@ const occurrenceRef = 'occurrence_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 type Scenario = {
   currentHandle?: string | null
   enrolled?: boolean
+  enrollmentReads?: boolean[]
+  participant?: boolean
+  participantReads?: boolean[]
   open?: boolean
   enabled?: boolean | null
   isClassDay?: boolean | null
@@ -31,10 +34,15 @@ type Scenario = {
 function fakeSupabase({
   currentHandle = handleId,
   enrolled = true,
+  enrollmentReads,
+  participant = enrolled,
+  participantReads,
   open = true,
   enabled = true,
   isClassDay = true,
 }: Scenario = {}) {
+  let enrollmentRead = 0
+  let participantRead = 0
   return {
     from(table: string) {
       const filters: Record<string, unknown> = {}
@@ -76,11 +84,13 @@ function fakeSupabase({
             })
           }
           if (table === 'classroom_enrollments') {
-            return Promise.resolve({ data: enrolled ? { id: 'enrollment-1' } : null, error: null })
+            const present = enrollmentReads?.[enrollmentRead++] ?? enrolled
+            return Promise.resolve({ data: present ? { id: 'enrollment-1' } : null, error: null })
           }
           if (table === 'attendance_participant_mappings') {
+            const present = participantReads?.[participantRead++] ?? participant
             return Promise.resolve({
-              data: enrolled ? { student_id: studentId, active: true } : null,
+              data: present ? { student_id: studentId, active: true } : null,
               error: null,
             })
           }
@@ -94,7 +104,13 @@ function fakeSupabase({
           }
           if (table === 'classrooms') {
             return Promise.resolve({
-              data: { teacher_id: teacherId, title: 'Physics', archived_at: null }, error: null,
+              data: {
+                teacher_id: teacherId,
+                title: 'Physics',
+                class_code: 'PHYSICS1',
+                archived_at: null,
+              },
+              error: null,
             })
           }
           if (table === 'users') {
@@ -126,6 +142,8 @@ describe('stable classroom attendance QR', () => {
   })
 
   it('resolves one currently open occurrence and keeps the Bara entry token server-side', async () => {
+    const joinClassroom = vi.fn()
+    const syncSources = vi.fn()
     const loadPresentation = vi.fn().mockResolvedValue({
       entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
       expiresAt: '2026-09-01T13:00:00.000Z',
@@ -141,11 +159,15 @@ describe('stable classroom attendance QR', () => {
       classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
       attemptId: '55555555-5555-4555-8555-555555555555',
       now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+      syncSources,
       loadPresentation,
       executeCheckIn,
     })
 
     expect(result.state).toBe('checked_in')
+    expect(joinClassroom).not.toHaveBeenCalled()
+    expect(syncSources).not.toHaveBeenCalled()
     expect(loadPresentation).toHaveBeenCalledWith(expect.objectContaining({
       teacherId,
       classroomId,
@@ -201,15 +223,211 @@ describe('stable classroom attendance QR', () => {
     expect(executeCheckIn).not.toHaveBeenCalled()
   })
 
-  it('blocks a student from another classroom before occurrence or Bara resolution', async () => {
+  it('blocks an authenticated student who is not on this classroom roster', async () => {
+    const joinClassroom = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      error_code: 'not_on_roster',
+    })
     const loadPresentation = vi.fn()
     await expect(executeClassroomQrStudentCheckIn({
       supabase: fakeSupabase({ enrolled: false }),
-      pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
+      pikaUser: {
+        id: studentId,
+        email: 'student@example.com',
+        role: 'student',
+        authSource: 'workos',
+        workosUserId: 'user_student',
+      },
       classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
       attemptId: '55555555-5555-4555-8555-555555555555',
+      joinClassroom,
       loadPresentation,
-    })).rejects.toMatchObject({ code: 'not_enrolled' })
+    })).rejects.toMatchObject({ code: 'not_on_roster' })
     expect(loadPresentation).not.toHaveBeenCalled()
+  })
+
+  it('atomically enrolls a verified roster match, syncs attendance, and checks them in', async () => {
+    const joinClassroom = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      created: true,
+      already_enrolled: false,
+      classroom: { id: classroomId, title: 'Physics', term_label: null },
+      enrollment: { id: '77777777-7777-4777-8777-777777777777', created_at: '2026-09-01T12:30:00.000Z' },
+    })
+    const syncSources = vi.fn().mockResolvedValue({
+      roster: { outcome: 'delivered', revision: 2 },
+      schedule: { outcome: 'delivered', revision: 2 },
+    })
+    const loadPresentation = vi.fn().mockResolvedValue({
+      entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
+      expiresAt: '2026-09-01T13:00:00.000Z',
+      revision: 3,
+    })
+    const executeCheckIn = vi.fn().mockResolvedValue({
+      state: 'checked_in', title: 'You are checked in', description: 'Recorded',
+    })
+
+    const result = await executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({
+        enrolled: false,
+        participant: false,
+        enrollmentReads: [false, true],
+        participantReads: [false, true],
+      }),
+      pikaUser: {
+        id: studentId,
+        email: 'Student@Example.com',
+        role: 'student',
+        authSource: 'workos',
+        workosUserId: 'user_student',
+      },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+      syncSources,
+      loadPresentation,
+      executeCheckIn,
+    })
+
+    expect(joinClassroom).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: studentId,
+      expectedClassroomId: classroomId,
+      classCode: 'PHYSICS1',
+      firstName: null,
+      lastName: null,
+      studentNumber: null,
+    }))
+    expect(syncSources).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId,
+      classroomId,
+      windowStart: '2026-09-01',
+      windowEnd: '2026-11-30',
+      integrationState: 'ready',
+      scheduleThrough: '2026-09-30',
+    }))
+    expect(result).toMatchObject({
+      state: 'checked_in',
+      description: 'You joined the classroom and your attendance was recorded.',
+    })
+  })
+
+  it.each([
+    ['not_on_roster', 'not_on_roster'],
+    ['profile_required', 'not_on_roster'],
+    ['enrollment_closed', 'enrollment_closed'],
+  ] as const)('does not join when atomic admission returns %s', async (errorCode, expectedCode) => {
+    const joinClassroom = vi.fn().mockResolvedValue({
+      ok: false,
+      status: errorCode === 'profile_required' ? 400 : 403,
+      error_code: errorCode,
+      ...(errorCode === 'profile_required' ? { required_fields: ['firstName', 'lastName'] } : {}),
+    })
+    const syncSources = vi.fn()
+    const loadPresentation = vi.fn()
+
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, participant: false }),
+      pikaUser: {
+        id: studentId,
+        email: 'student@example.com',
+        role: 'student',
+        authSource: 'workos',
+        workosUserId: 'user_student',
+      },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+      syncSources,
+      loadPresentation,
+    })).rejects.toMatchObject({ code: expectedCode })
+    expect(syncSources).not.toHaveBeenCalled()
+    expect(loadPresentation).not.toHaveBeenCalled()
+  })
+
+  it('does not auto-enroll a password session that cannot satisfy attendance identity', async () => {
+    const joinClassroom = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, participant: false }),
+      pikaUser: {
+        id: studentId,
+        email: 'student@example.com',
+        role: 'student',
+        authSource: 'password',
+      },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+    })).rejects.toMatchObject({ code: 'identity_not_linked' })
+    expect(joinClassroom).not.toHaveBeenCalled()
+  })
+
+  it('does not auto-enroll from the stable poster while attendance is closed', async () => {
+    const joinClassroom = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, participant: false, open: false }),
+      pikaUser: {
+        id: studentId,
+        email: 'student@example.com',
+        role: 'student',
+        authSource: 'workos',
+        workosUserId: 'user_student',
+      },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+    })).rejects.toMatchObject({ code: 'not_open' })
+    expect(joinClassroom).not.toHaveBeenCalled()
+  })
+
+  it('returns a retryable failure when a newly joined student is not yet accepted upstream', async () => {
+    const joinClassroom = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      created: true,
+      already_enrolled: false,
+      classroom: { id: classroomId, title: 'Physics', term_label: null },
+      enrollment: { id: '77777777-7777-4777-8777-777777777777', created_at: '2026-09-01T12:30:00.000Z' },
+    })
+    const syncSources = vi.fn().mockResolvedValue({
+      roster: { outcome: 'delivered', revision: 2 },
+      schedule: { outcome: 'delivered', revision: 2 },
+    })
+    const loadPresentation = vi.fn().mockResolvedValue({
+      entryPath: `/attendance/check-in/${'e'.repeat(100)}`,
+      expiresAt: '2026-09-01T13:00:00.000Z',
+      revision: 3,
+    })
+    const executeCheckIn = vi.fn().mockResolvedValue({
+      state: 'needs_staff', title: 'Your teacher needs to help', description: 'Not on roster',
+    })
+
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({
+        enrolled: false,
+        participant: false,
+        enrollmentReads: [false, true],
+        participantReads: [false, true],
+      }),
+      pikaUser: {
+        id: studentId,
+        email: 'student@example.com',
+        role: 'student',
+        authSource: 'workos',
+        workosUserId: 'user_student',
+      },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      now: new Date('2026-09-01T12:30:00.000Z'),
+      joinClassroom,
+      syncSources,
+      loadPresentation,
+      executeCheckIn,
+    })).rejects.toMatchObject({ code: 'unavailable' })
   })
 })

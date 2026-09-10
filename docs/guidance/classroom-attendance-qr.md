@@ -20,15 +20,24 @@ teachers must print and replace it.
 - The public URL contains a random handle authenticated with a domain-separated
   MAC using `BARA_ATTENDANCE_ENTRY_TOKEN_SECRET`. It is a locator, not authorization.
   Rotating that environment secret also invalidates existing posters.
-- Pika requires a student session, an enabled classroom, current enrollment and
-  an active attendance participant mapping. It resolves an eligible scheduled
+- Pika requires a student session and an enabled classroom. Existing members still
+  require current enrollment and an active attendance participant mapping. During an
+  open attendance window, a verified WorkOS student who is not yet enrolled may join
+  only when classroom enrollment is open and their normalized account email matches
+  exactly one existing roster row. The QR path never uses `open_join`, never creates a
+  roster row, and never accepts profile fields from the scanner. The existing atomic
+  roster-join transaction revalidates the classroom, enrollment policy, class code,
+  roster row and binding before creating membership; attendance sources are then
+  synchronized before check-in continues.
+- Pika resolves an eligible scheduled
   window and its open projection, verifies enabled attendance policy and an active
   class day even while provider cancellation is syncing, then uses Bara presentation/check-in
   operations entirely server-side. Bara remains authoritative for check-in.
 - A signed-out scan carries its safe opaque attendance path through login and
   both supported signup flows, including verification and password creation,
-  before returning to the existing check-in boundary. Signup does not enroll a
-  student or weaken the enrollment and participant checks above.
+  before returning to the existing check-in boundary. Authentication alone does not
+  enroll a student; roster-matched joining happens only at the server check-in boundary
+  after all conditions above pass.
 - No raw classroom UUID or reusable Bara token appears in the poster URL. Existing
   occurrence entry routes and their authorization contracts remain in place.
 - Teacher view/create and rotate routes require classroom ownership and attendance
@@ -53,6 +62,11 @@ teachers must print and replace it.
   was independently checked because the current CLI's formatted/JSON output is
   not reliably recognized by the existing pipe-table drift guard. A fresh full
   migration replay and real-stack smoke remain final PR verification requirements.
+- Roster-matched QR joining also requires the service-only
+  `join_classroom_by_code_atomic_v1` contract from migration
+  `159_atomic_contextual_classroom_enrollment.sql`. Missing or malformed RPC responses
+  fail unavailable and do not fall back to multi-step enrollment writes. Applying that
+  migration remains a separately authorized environment rollout.
 
 ## UI acceptance and ownership
 
@@ -89,7 +103,10 @@ places the same actions in its `Poster settings` menu.
 Teacher and student fixtures cover desktop 1440×900 and mobile 390×844 in light
 and dark. Browser contracts cover live QR sizing, poster view, direct poster actions,
 rotation warning, print isolation, and student loading/success/closed/revoked/roster/error
-states. Focus and Escape contracts are tested through shared dialog owners.
+states. Roster-matched joining reuses the student success surface; its description confirms
+both classroom joining and recorded attendance. Non-matches and closed enrollment use
+specific existing `needs_staff` presentation states. Focus and Escape contracts are tested
+through shared dialog owners.
 Fixtures do not prove live Bara operation or real authenticated redirection;
 API/server tests cover authorization boundaries separately. A real-stack smoke
 test remains required after material attendance or QR boundary changes. No new

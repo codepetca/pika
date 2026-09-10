@@ -1075,10 +1075,18 @@ test('shows student attendance states without exposing derived status labels', a
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
-  let state: 'open' | 'closed' | 'revoked' | 'cross_classroom' | 'error' = 'open'
+  let state: 'joined' | 'open' | 'closed' | 'revoked' | 'not_on_roster' | 'enrollment_closed' | 'error' = 'joined'
   await page.route('**/api/student/attendance/classroom-check-in', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const bodies = {
+      joined: {
+        state: 'checked_in', title: 'You are checked in',
+        description: 'You joined the classroom and your attendance was recorded.',
+        attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        studentId: '40000000-0000-4000-8000-000000000001',
+        occurrenceBinding: 'a'.repeat(32),
+      },
       open: {
         state: 'checked_in', title: 'You are checked in', description: 'Your attendance was recorded.',
         attendanceStatus: 'present', recordedAt: '2026-08-29T13:05:00.000Z',
@@ -1094,9 +1102,13 @@ test('resolves permanent classroom attendance QR states after student authentica
         state: 'invalid', title: 'This classroom QR is no longer valid',
         description: 'Ask your teacher for the current classroom attendance poster.',
       },
-      cross_classroom: {
-        state: 'needs_staff', title: 'Your teacher needs to help',
-        description: 'This signed-in account is not on the attendance roster for this classroom.',
+      not_on_roster: {
+        state: 'needs_staff', title: 'This account is not on the class roster',
+        description: 'Sign in with the email your teacher added, or ask them to update the roster.',
+      },
+      enrollment_closed: {
+        state: 'needs_staff', title: 'Joining this classroom is closed',
+        description: 'Your teacher needs to open enrollment before you can join from this QR code.',
       },
       error: { error: 'Attendance is temporarily unavailable' },
     }
@@ -1110,6 +1122,11 @@ test('resolves permanent classroom attendance QR states after student authentica
   await page.goto('/e2e-fixtures/student-classroom-attendance', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Checking you in…' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'You are checked in' })).toBeVisible()
+  await expect(page.getByText('You joined the classroom and your attendance was recorded.')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-joined.png`),
+    animations: 'disabled',
+  })
 
   state = 'closed'
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -1123,9 +1140,17 @@ test('resolves permanent classroom attendance QR states after student authentica
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'This classroom QR is no longer valid' })).toBeVisible()
 
-  state = 'cross_classroom'
+  state = 'not_on_roster'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('not on the attendance roster for this classroom')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'This account is not on the class roster' })).toBeVisible()
+
+  state = 'enrollment_closed'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Joining this classroom is closed' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`student-classroom-qr-${getExperienceMetadata(testInfo).viewport}-enrollment-closed.png`),
+    animations: 'disabled',
+  })
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })

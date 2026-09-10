@@ -11,6 +11,35 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-06 — Resize Add Students input area
+
+- Increased the student-information textarea from 8 to 12 visible lines and tightened the existing action-area spacing from `mt-6 pt-4` to `mt-4 pt-2`. The reserved validation area and button behavior remain unchanged.
+- Focused tests, the full focused gate, refreshed-session desktop/mobile modal checks, and teacher/student route captures pass with no overflow. No schema, data, API, dependency, deployment or merge action; changes remain saved in the feature worktree and are not committed.
+
+## 2026-09-06 — Review roster live-validation PR
+
+- Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
+- Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.
+
+## 2026-09-06 — Mirror calendar items in student Daily panels
+
+- Added shared Toronto date mapping for assignments and announcements so the student Daily Today and Last class panels use the same dates as Calendar. Published announcements use `created_at`; future scheduled announcements use `scheduled_for` when applicable.
+- Reused the existing student lesson-plan viewer and announcement renderer, adding date-matched assignment cards, announcement content and navigation back to Classwork or all Announcements. Teacher Daily behavior is unchanged; empty and loading states remain intact.
+- Added focused coverage for calendar date mapping and both student date panels. Focused tests pass 5 files / 64 tests; TypeScript, lint, design policy and production build pass. Lint retains one pre-existing `TestDetailPanel` hook warning. Browser verification covered student desktop/mobile light/dark populated states and the existing teacher/student classroom surfaces; no schema, dependency, hosted-data or deployment change.
+
+## 2026-09-06 — Limit student Daily history to five past logs
+
+- Student Daily now requests a six-entry history window and renders at most five entries before today, preserving today’s log plus the five most recent past logs. The broader student History page and API behavior remain unchanged.
+- Added a regression covering an overfilled response so stale cache data cannot surface a sixth past log. Focused checks pass 24 files / 278 tests plus architecture, UI policy, design policy, TypeScript and lint. The UI verification script passes on the current classroom-list fixture; the local auth fixture no longer has a classroom for populated-route verification.
+- Excluded entries dated on non-class days from that same list, with a regression covering a weekend entry. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+- Added class-day-driven empty placeholders: the latest five prior class days now appear in history, with “No log submitted” for missed logs; non-class days remain excluded. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+
+## 2026-09-06 — Show ten past class-day logs in student Daily history
+
+- Expanded student Daily history from five to ten prior class days, still excluding non-class days and preserving empty “No log submitted” rows for missed class days. Today remains the separate current-day editor.
+- Updated the history boundary regression and all request/cache fixtures to use today plus ten past entries. Focused checks pass 24 files / 280 tests plus architecture, UI policy, design policy, TypeScript and lint; the Pika audit passes.
+- Playwright verification passed student desktop/mobile light/dark captures and teacher desktop/mobile unchanged-state captures. The current seeded classroom has only five past class days, so the ten-row boundary is covered by the focused fixture. Composite-widget checklist reviewed: keyboard behavior remains covered, scheduled semantics have a role/name regression, and no manual follow-up remains. No schema, dependency, hosted-data or deployment change.
+
 ## 2026-09-07 — Integrate class-day setup for the sequential merge queue
 
 - Coordinator released PR #1203 after #1209 merged. Rebased onto main `68b3a58c`; class-day source and concurrency remediation remain patch-equivalent. Current main already supplies the typography ESM fix; removed the duplicate import produced by replay and retained main's configuration exactly. Updated the architecture summary to match weekday-only generation and compacted combined session history after the focused gate identified its cap.
@@ -282,3 +311,9 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Initial high-risk review found no security or migration-design defect, but identified two verification gaps. Remediation pins migration 159's deployed SHA-256 and makes the database-type preflight parse both current JSON and legacy table migration-list output, with fixtures proving pending migration 161 fails before type generation. Targeted coverage passes 13 tests; focused revalidation and targeted compatibility review remain.
 - Targeted compatibility review cleared that batch. Final cumulative review then found recognized but empty/malformed JSON could still pass as matching history; remediation batch 2 now requires a nonempty migration array and strict string `local`/`remote` fields with at least one numeric side. Malformed, renamed, empty and non-string fixture coverage passes; the focused gate passes 106 tests plus all static checks.
 - The approved extended final review and targeted parser re-review cleared the cumulative diff. Exact-head CI then found one stale attendance contract still pinned `.ai/CURRENT.md` to production migration 156; remediation batch 3 updates that assertion to the independently verified 160 boundary. The affected 47 tests and focused 110-test/static gate pass. The PR remains draft pending an additional targeted review authorization and fresh CI.
+## 2026-09-09 — Join roster-matched students through an open attendance QR
+
+- Extended the authenticated classroom attendance check-in boundary so a verified WorkOS student who is not enrolled can join and check in only during an open attendance window, when the existing atomic enrollment transaction finds exactly one matching roster row and enrollment is open. The QR path passes no profile fields, so it cannot use open self-join or create a roster row.
+- Reuses `join_classroom_by_code_atomic_v1`, then synchronizes Bara attendance sources and rechecks local enrollment/participant state before submitting check-in. Existing enrolled students retain the original path. Wrong roster accounts, closed enrollment and password-only identities receive specific guidance; incomplete provider propagation remains retryable rather than showing a misleading success.
+- Focused verification passes 14 files / 124 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean. The student success and enrollment-closed states pass and were visually inspected on desktop/mobile in light/dark. Teacher is not applicable because no teacher surface changed. Composite widgets are unchanged.
+- No migration was applied. The feature depends on `159_atomic_contextual_classroom_enrollment.sql`; applying that migration to any environment remains a separately authorized rollout. The exact local database harness was not run because the current local stack's resequenced migration state needs that explicit authorization; isolated CI replay remains required.

@@ -3,6 +3,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from 'node:crypto'
+import { addDays, format, parseISO } from 'date-fns'
 import { z } from 'zod'
 import {
   loadTeacherAttendanceQrPresentation,
@@ -13,7 +14,12 @@ import {
   StudentAttendanceCheckInError,
   type StudentAttendanceCheckInView,
 } from '@/lib/server/bara-attendance-student'
+import { syncTeacherAttendanceSources } from '@/lib/server/bara-attendance-sync'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
+import {
+  joinClassroomByCodeAtomic,
+  type ContextualClassroomJoinResult,
+} from '@/lib/server/contextual-classroom-enrollment'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -34,6 +40,7 @@ const occurrenceRowSchema = z.object({
 const classroomRowSchema = z.object({
   teacher_id: z.string().uuid(),
   title: z.string().min(1).max(200),
+  class_code: z.string().min(1).max(64),
   archived_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()
 const teacherRowSchema = z.object({
@@ -53,6 +60,9 @@ export class ClassroomAttendanceQrError extends Error {
     | 'invalid_or_revoked'
     | 'not_open'
     | 'not_enrolled'
+    | 'not_on_roster'
+    | 'enrollment_closed'
+    | 'identity_not_linked'
     | 'conflict'
     | 'unavailable',
   ) {
@@ -259,7 +269,7 @@ async function loadCurrentOpenOccurrence(input: {
   return occurrence
 }
 
-async function assertStudentRosterBoundary(input: {
+async function loadStudentRosterBoundary(input: {
   supabase: any
   classroomId: string
   studentId: string
@@ -271,12 +281,16 @@ async function assertStudentRosterBoundary(input: {
       .eq('classroom_id', input.classroomId).eq('student_id', input.studentId).eq('active', true).maybeSingle(),
   ])
   if (enrollment.error || participant.error) throw new ClassroomAttendanceQrError('unavailable')
-  if (!enrollment.data || !participant.data) throw new ClassroomAttendanceQrError('not_enrolled')
+  return {
+    enrolled: Boolean(enrollment.data),
+    activeParticipant: Boolean(participant.data),
+  }
 }
 
 async function loadClassroomActor(input: { supabase: any; classroomId: string }) {
   const { data, error } = await input.supabase.from('classrooms')
-    .select('teacher_id, title, archived_at').eq('id', input.classroomId).maybeSingle()
+    .select('teacher_id, title, class_code, archived_at')
+    .eq('id', input.classroomId).maybeSingle()
   if (error) throw new ClassroomAttendanceQrError('unavailable')
   const classroom = classroomRowSchema.safeParse(data)
   if (!classroom.success || classroom.data.archived_at) {
@@ -289,6 +303,7 @@ async function loadClassroomActor(input: { supabase: any; classroomId: string })
   if (!teacher.success) throw new ClassroomAttendanceQrError('unavailable')
   return {
     teacherId: classroom.data.teacher_id,
+    classCode: classroom.data.class_code,
     actor: {
       workosSubject: teacher.data.workos_user_id,
       displayName: `${classroom.data.title} attendance`.slice(0, 200),
@@ -296,14 +311,39 @@ async function loadClassroomActor(input: { supabase: any; classroomId: string })
   }
 }
 
+function mapJoinFailure(result: Exclude<ContextualClassroomJoinResult, { ok: true }>): never {
+  if (result.error_code === 'not_on_roster' || result.error_code === 'profile_required') {
+    throw new ClassroomAttendanceQrError('not_on_roster')
+  }
+  if (result.error_code === 'enrollment_closed') {
+    throw new ClassroomAttendanceQrError('enrollment_closed')
+  }
+  if (
+    result.error_code === 'owner_self_join'
+    || result.error_code === 'roster_ambiguous'
+    || result.error_code === 'roster_binding_conflict'
+  ) {
+    throw new ClassroomAttendanceQrError('not_enrolled')
+  }
+  throw new ClassroomAttendanceQrError('unavailable')
+}
+
 export async function executeClassroomQrStudentCheckIn(input: {
   supabase: any
-  pikaUser: { id: string; email: string; role: string }
+  pikaUser: {
+    id: string
+    email: string
+    role: string
+    authSource?: 'password' | 'workos'
+    workosUserId?: string
+  }
   classroomQrToken: string
   attemptId: string
   now?: Date
   loadPresentation?: typeof loadTeacherAttendanceQrPresentation
   executeCheckIn?: typeof executeStudentAttendanceCheckIn
+  joinClassroom?: typeof joinClassroomByCodeAtomic
+  syncSources?: typeof syncTeacherAttendanceSources
 }): Promise<StudentAttendanceCheckInView & {
   classroomId?: string
   studentId?: string
@@ -316,26 +356,67 @@ export async function executeClassroomQrStudentCheckIn(input: {
     now: input.now,
   })
   if (access.state !== 'ready') throw new ClassroomAttendanceQrError('not_open')
-  const { teacherId, actor } = await loadClassroomActor({ supabase: input.supabase, classroomId })
-  await assertStudentRosterBoundary({
+  const classroom = await loadClassroomActor({ supabase: input.supabase, classroomId })
+  let boundary = await loadStudentRosterBoundary({
     supabase: input.supabase,
     classroomId,
     studentId: input.pikaUser.id,
   })
+  if (boundary.enrolled && !boundary.activeParticipant) {
+    throw new ClassroomAttendanceQrError('not_enrolled')
+  }
   const occurrence = await loadCurrentOpenOccurrence({
     supabase: input.supabase,
     classroomId,
     now: input.now ?? new Date(),
   })
+  let joinedThroughQr = false
+  if (!boundary.enrolled) {
+    if (input.pikaUser.authSource !== 'workos' || !input.pikaUser.workosUserId) {
+      throw new ClassroomAttendanceQrError('identity_not_linked')
+    }
+    const joinResult = await (input.joinClassroom ?? joinClassroomByCodeAtomic)({
+      actorId: input.pikaUser.id,
+      expectedClassroomId: classroomId,
+      classCode: classroom.classCode,
+      firstName: null,
+      lastName: null,
+      studentNumber: null,
+      supabase: input.supabase,
+    })
+    if (!joinResult.ok) mapJoinFailure(joinResult)
+    joinedThroughQr = true
+    try {
+      await (input.syncSources ?? syncTeacherAttendanceSources)({
+        supabase: input.supabase,
+        teacherId: classroom.teacherId,
+        classroomId,
+        windowStart: occurrence.class_date,
+        windowEnd: format(addDays(parseISO(occurrence.class_date), 90), 'yyyy-MM-dd'),
+        integrationState: 'ready',
+        scheduleThrough: access.scheduleThrough,
+      })
+    } catch {
+      throw new ClassroomAttendanceQrError('unavailable')
+    }
+    boundary = await loadStudentRosterBoundary({
+      supabase: input.supabase,
+      classroomId,
+      studentId: input.pikaUser.id,
+    })
+    if (!boundary.enrolled || !boundary.activeParticipant) {
+      throw new ClassroomAttendanceQrError('unavailable')
+    }
+  }
   let presentation
   try {
     presentation = await (input.loadPresentation ?? loadTeacherAttendanceQrPresentation)({
       supabase: input.supabase,
-      teacherId,
+      teacherId: classroom.teacherId,
       classroomId,
       classDate: occurrence.class_date,
       requestId: randomUUID(),
-      actor,
+      actor: classroom.actor,
       integrationState: 'ready',
     })
   } catch (error) {
@@ -348,13 +429,23 @@ export async function executeClassroomQrStudentCheckIn(input: {
   const match = ENTRY_PATH_PATTERN.exec(presentation.entryPath)
   if (!match) throw new ClassroomAttendanceQrError('unavailable')
   try {
-    return await (input.executeCheckIn ?? executeStudentAttendanceCheckIn)({
+    const checkIn = await (input.executeCheckIn ?? executeStudentAttendanceCheckIn)({
       supabase: input.supabase,
       pikaUser: input.pikaUser,
       entryToken: match[1],
       attemptId: input.attemptId,
       integrationState: 'ready',
     })
+    if (joinedThroughQr && checkIn.state === 'checked_in') {
+      return {
+        ...checkIn,
+        description: 'You joined the classroom and your attendance was recorded.',
+      }
+    }
+    if (joinedThroughQr && checkIn.state === 'needs_staff') {
+      throw new ClassroomAttendanceQrError('unavailable')
+    }
+    return checkIn
   } catch (error) {
     if (error instanceof StudentAttendanceCheckInError && error.code === 'expired_entry') {
       throw new ClassroomAttendanceQrError('not_open')

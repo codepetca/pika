@@ -49,6 +49,9 @@ describe('POST /api/student/attendance/classroom-check-in', () => {
     ['invalid_or_revoked', 'invalid', 'This classroom QR is no longer valid'],
     ['not_open', 'closed', 'Attendance is not open'],
     ['not_enrolled', 'needs_staff', 'Your teacher needs to help'],
+    ['not_on_roster', 'needs_staff', 'This account is not on the class roster'],
+    ['enrollment_closed', 'needs_staff', 'Joining this classroom is closed'],
+    ['identity_not_linked', 'needs_staff', 'Use your verified school account'],
   ] as const)('maps %s without leaking classroom or Bara identifiers', async (code, state, title) => {
     mocks.execute.mockRejectedValue(new ClassroomAttendanceQrError(code))
     const response = await POST(request({ classroomQrToken, attemptId }))
