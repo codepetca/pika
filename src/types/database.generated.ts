@@ -8625,10 +8625,6 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: number
       }
-      consume_classroom_join_guess_v1: {
-        Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
-        Returns: Json
-      }
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
         Returns: number
@@ -8883,6 +8879,10 @@ export type Database = {
           p_scope: string
           p_window_seconds: number
         }
+        Returns: Json
+      }
+      consume_classroom_join_guess_v1: {
+        Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
         Returns: Json
       }
       consume_password_reset_and_revoke_sessions: {
