@@ -11,6 +11,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-07 — Cover class-day review from secondary creation entry points
+
+- The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
+- Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.
+
+## 2026-09-07 — Remediate student Daily calendar and history review findings
+
+- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
+- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
+- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.
+- The cumulative integration pass found four additional boundaries. Added a reactive Toronto-day clock so midnight reloads the editor, history, Today and Last class without carrying content; lesson-plan sources now preserve snapshots and expose retry; scheduled announcements remap when publication time arrives; and successful retries restore focus to the active Daily plan region.
+- Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
+- The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
+- Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.
+
 ## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
 
 - Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
@@ -288,3 +303,8 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 ## 2026-09-10 — Standalone Gradebook items
 
 Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
+
+## 2026-09-10 — Finish standalone Gradebook browser contract correction
+
+- User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
+- The two earlier independent-review findings are corrected: category removal retracts returned marks, and identical score saves preserve return state. The extension permits one test-only correction, focused verification, one Terra review, and fresh exact-head CI. No merge, deployment, or persistent migration application is authorized.
