@@ -20,6 +20,15 @@ function readPublicJoinFunction(): string {
   return sql.slice(start, end + 4)
 }
 
+function readPublicGuessFunction(): string {
+  const sql = readMigration()
+  const start = sql.indexOf('create function public.consume_classroom_join_guess_v1(')
+  const end = sql.indexOf('\n$$;', start)
+  expect(start).toBeGreaterThan(-1)
+  expect(end).toBeGreaterThan(start)
+  return sql.slice(start, end + 4)
+}
+
 describe('atomic contextual classroom enrollment migration', () => {
   it('keeps invitation-guess state private and schema-backed', () => {
     const sql = readMigration()
@@ -36,6 +45,7 @@ describe('atomic contextual classroom enrollment migration', () => {
     expect(sql).toContain("v_invitation_max_attempts constant integer := 3")
     expect(sql).toContain('create index classroom_join_rate_limits_updated_at_idx')
     expect(sql).toContain('create function public.cleanup_classroom_join_rate_limits_v1')
+    expect(sql).toContain('create function public.consume_classroom_join_guess_v1')
     expect(sql).toContain('p_batch_size is null or p_batch_size not between 1 and 10000')
     expect(sql).toContain('for update skip locked')
     expect(sql).not.toContain('jsonb_object_length')
@@ -47,17 +57,36 @@ describe('atomic contextual classroom enrollment migration', () => {
   it('exposes only a fixed-search-path service-role transaction', () => {
     const sql = readMigration()
     const publicFunction = readPublicJoinFunction()
+    const guessFunction = readPublicGuessFunction()
     const signature =
       'public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)'
+    const guessSignature = 'public.consume_classroom_join_guess_v1(text, text)'
 
     expect(sql).toContain('create function public.join_classroom_by_code_atomic_v1')
     expect(publicFunction).toContain('security definer')
     expect(publicFunction).toContain("set search_path = ''")
+    expect(guessFunction).toContain('security definer')
+    expect(guessFunction).toContain("set search_path = ''")
     expect(sql.replace(/\s+/g, ' ')).toContain(
       `revoke all on function ${signature} from public, anon, authenticated, service_role`
     )
     expect(sql.replace(/\s+/g, ' ')).toContain(`grant execute on function ${signature} to service_role`)
-    expect(sql).toContain('no live route adopts it in migration 159')
+    expect(sql.replace(/\s+/g, ' ')).toContain(
+      `revoke all on function ${guessSignature} from public, anon, authenticated, service_role`,
+    )
+    expect(sql.replace(/\s+/g, ' ')).toContain(
+      `grant execute on function ${guessSignature} to service_role`,
+    )
+    expect(sql).toContain('disabled-by-default contextual pilot path')
+  })
+
+  it('charges rejected guesses without resolving an actor or classroom', () => {
+    const sql = readPublicGuessFunction()
+
+    expect(sql).toContain('private.consume_classroom_join_rate_limits_v1(')
+    expect(sql).not.toContain('from public.users')
+    expect(sql).not.toContain('from public.classrooms')
+    expect(sql).toContain("'error_code', 'rate_limited'")
   })
 
   it('limits guesses before resolving the actor or classroom', () => {

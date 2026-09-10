@@ -8625,6 +8625,10 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: number
       }
+      consume_classroom_join_guess_v1: {
+        Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
+        Returns: Json
+      }
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
         Returns: number

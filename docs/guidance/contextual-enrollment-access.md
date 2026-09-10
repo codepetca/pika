@@ -1,6 +1,6 @@
 # Contextual enrollment access foundation
 
-Status: dormant foundation; no live imports, rollout or new access. The enrollment SQL was
+Status: guarded route adopter; no rollout or newly enabled production access. The enrollment SQL was
 applied to local Pika only on 2026-09-03 under one-time exact permission, when it was numbered
 157, and passed its database contracts. It is now source migration 159 after rebasing behind
 main's migrations 157–158; a clean 159 replay remains required. Hosted application remains
@@ -16,10 +16,10 @@ Enrollment authority must therefore come from the target classroom and a verifie
 invitation, not the permanent `users.role` value. Existing production behavior stays
 authoritative until the whole reachable mixed-role foundation and recovery floor pass.
 
-This slice adds two contracts with no production adopters:
+This foundation now has one disabled-by-default route adopter:
 
 - `classroom-enrollment-access.ts` preserves `requireRole('student')` while disabled.
-  When explicitly called in a future pilot, it authenticates before reading the request
+  When explicitly enabled for a pilot, it authenticates before reading the request
   body or looking up an invitation, validates a bounded list of exact user/classroom
   pairs and keeps every student-role user on the unchanged legacy path. A wrong-role user
   with no matching pair is rejected immediately; a paired wrong-role user receives only
@@ -31,17 +31,23 @@ This slice adds two contracts with no production adopters:
   server-trusted evidence. It rejects malformed evidence, archived classrooms, owner
   self-join, direct-ID admission, closed enrollment, roster mismatch and incomplete
   open-join profiles. Existing active membership is idempotent and grants no new access.
-- Migration 159 adds a service-only atomic join RPC and a private schema-backed guess
-  limiter. The transaction locks and revalidates the exact expected classroom plus code,
+- Migration 159 adds a service-only atomic join RPC, a service-only rejected-guess RPC and
+  a private schema-backed guess limiter. The transaction locks and revalidates the exact expected classroom plus code,
   rejects owner self-join and archive/policy changes, and commits roster, stable roster
   binding, enrollment, profile and optional Pal outbox evidence together. No browser role
   can execute the RPC or read limiter state.
-- `contextual-classroom-enrollment.ts` is a dormant server adapter. It normalizes the code,
+- `contextual-classroom-enrollment.ts` is the guarded server adapter. It normalizes the code,
   HMACs an actor budget and an actor-plus-invitation budget with `SESSION_SECRET`, calls
   only the service RPC, builds a validated pseudonymous classroom-joined event when Pal is
   enabled, and fails unavailable on schema or response drift. Scoping the
   invitation budget to the actor prevents one attacker from exhausting a valid classroom's
   budget for everyone else.
+- `/api/student/classrooms/join` calls the gate before parsing its body. Student-role and
+  unflagged requests stay on the legacy implementation. Only a wrong-role user in an exact
+  configured pair reaches a pair-scoped lookup, pure-policy check and atomic join. Direct
+  classroom IDs can recognize an existing membership but cannot create one. Contextual
+  responses omit class codes and owner data. A non-empty code that misses the exact scoped
+  lookup is charged through the rejected-guess RPC before the generic not-found response.
 
 The cohort contains UUIDs only. Never put emails, class codes, titles or other personal
 or classroom content in configuration or logs. Canonical UUID matching prevents alias
@@ -53,16 +59,18 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
 
 1. Authenticate the server session before reading a code or classroom.
 2. Keep student-role users on the legacy path. Reject a wrong-role user with no configured
-   pair before reading the request body or looking up a code, then use the migration 159
-   transaction to rate-limit both the authenticated actor and actor-invitation guesses.
+   pair before reading the request body or looking up a code, then use migration 159 to
+   rate-limit both the authenticated actor and actor-invitation guesses. Scoped lookup
+   misses use the service-only rejected-guess RPC; matched codes use the atomic transaction.
 3. For a contextual candidate, resolve a normalized verified code only in a query scoped
    to the authenticated result's `allowedClassroomIds`; a valid code outside that exact
    scope must be indistinguishable from an invalid code. Carry the server-resolved
    classroom ID into policy evidence. A classroom ID may recognize an existing membership
    for compatibility, but can never create a membership.
-4. Load exact classroom, relationship and roster/profile evidence on the server.
+4. Load exact classroom, relationship and roster evidence on the server; normalize and
+   validate any submitted profile fields.
 5. Evaluate the pure policy. Never accept request-asserted relationship, owner, roster,
-   profile, lifecycle or plan data.
+   lifecycle or plan data.
 6. For a new membership, use the migration 159 transaction that locks and revalidates the
    classroom, owner, archive state, enrollment toggle, join policy, invitation, roster
    and existing enrollment; then writes roster/binding, enrollment, profile and any
@@ -70,7 +78,7 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
    idempotent membership. No partial roster/profile side effects may survive failure.
 7. Project a least-data response. Do not return the class code or private owner data.
 
-## Gates before any route adoption
+## Route-adoption invariants
 
 - A separately reviewed service-only atomic RPC and schema-backed guess limiter exist.
 - Rollback-only database tests prove duplicate races, archive/ownership/enrollment-policy
@@ -118,6 +126,8 @@ immutable exact pair-scoped lookup, canonical UUIDs, empty/noncohort behavior an
 cross-product. Policy coverage validates every admission/denial state and fails closed on
 malformed, cross-class invitation or internally inconsistent relationship evidence.
 
-No API route imports the adapter or calls the RPC. Production login, signup, join, roster,
-classroom lists, navigation, entitlements, Pal delivery and the development-only home
-reference remain unchanged. Local verification does not authorize hosted application.
+The regular join route imports the guarded adapter but the controlling flag remains unset.
+Production login, signup, legacy student join behavior, roster, classroom lists, navigation,
+entitlements and the development-only home reference remain unchanged. Contextual Pal delivery
+uses the same event instant as its transactional outbox fact. Local verification does not
+authorize hosted migration application or a pilot cohort.

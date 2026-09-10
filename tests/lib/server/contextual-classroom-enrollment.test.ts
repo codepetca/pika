@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api-handler'
 import {
   buildClassroomJoinRateLimitKeys,
+  consumeClassroomJoinGuess,
   joinClassroomByCodeAtomic,
   normalizeClassroomJoinCode,
 } from '@/lib/server/contextual-classroom-enrollment'
@@ -29,6 +30,46 @@ describe('contextual classroom enrollment server adapter', () => {
     expect(first.invitationKeyHash).toMatch(/^[0-9a-f]{64}$/)
     expect(first.invitationKeyHash).not.toBe(otherActor.invitationKeyHash)
     expect(JSON.stringify(first)).not.toContain('ABC-123')
+  })
+
+  it('charges rejected invitation guesses through the service-only limiter', async () => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    const allowed = createClient({ data: { ok: true }, error: null })
+    const blocked = createClient({
+      data: {
+        ok: false,
+        status: 429,
+        error_code: 'rate_limited',
+        retry_after_seconds: 30,
+      },
+      error: null,
+    })
+
+    await expect(consumeClassroomJoinGuess({
+      actorId: '11111111-1111-4111-8111-111111111111',
+      classCode: ' bio-101 ',
+      supabase: allowed as never,
+    })).resolves.toEqual({ ok: true })
+    await expect(consumeClassroomJoinGuess({
+      actorId: '11111111-1111-4111-8111-111111111111',
+      classCode: 'BIO-101',
+      supabase: blocked as never,
+    })).resolves.toMatchObject({ error_code: 'rate_limited', retry_after_seconds: 30 })
+    expect(allowed.rpc).toHaveBeenCalledWith('consume_classroom_join_guess_v1', {
+      p_actor_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      p_invitation_key_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    })
+  })
+
+  it('fails unavailable when rejected-guess limiter output drifts', async () => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    const client = createClient({ data: { ok: false }, error: null })
+
+    await expect(consumeClassroomJoinGuess({
+      actorId: '11111111-1111-4111-8111-111111111111',
+      classCode: 'BIO-101',
+      supabase: client as never,
+    })).rejects.toMatchObject({ statusCode: 503 })
   })
 
   it('calls the service-only RPC with derived keys and validates the result', async () => {
