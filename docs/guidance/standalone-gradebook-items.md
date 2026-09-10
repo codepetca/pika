@@ -48,7 +48,7 @@ student aggregate in this implementation.
 
 ## Storage and rollout
 
-Migration `161_standalone_gradebook_items.sql` adds first-class items, original
+Migration `162_standalone_gradebook_items.sql` adds first-class items, original
 scores, service-only atomic mutation functions, archive resource membership,
 revision/maintenance guards, and student-purge integration. Scores are scoped to
 both their item/classroom and current enrollment. Removing a student removes

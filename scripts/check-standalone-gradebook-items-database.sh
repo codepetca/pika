@@ -14,8 +14,8 @@ fi
 docker exec -i "$GRADEBOOK_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 do $$ begin
-  if not exists(select 1 from supabase_migrations.schema_migrations where version='161') then
-    raise exception 'Migration 161 must already be applied through an authorized workflow';
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='162') then
+    raise exception 'Migration 162 must already be applied through an authorized workflow';
   end if;
   if has_table_privilege('authenticated','public.gradebook_items','SELECT')
     or has_table_privilege('anon','public.gradebook_item_scores','SELECT')
@@ -149,7 +149,7 @@ begin
   select to_jsonb(item) into original_item from public.gradebook_items item where id=i;
   select to_jsonb(score) into original_score from public.gradebook_item_scores score where item_id=i;
   actors := jsonb_build_array(jsonb_build_object('actor_id',t,'role','teacher'),jsonb_build_object('actor_id',s,'role','student'));
-  r := public.begin_classroom_archive_export_v2(export_id,t,c,repeat('a',64),'161_standalone_gradebook_items','abcdef1',
+  r := public.begin_classroom_archive_export_v2(export_id,t,c,repeat('a',64),'162_standalone_gradebook_items','abcdef1',
     '{"mode":"teacher_managed","delete_after":null}'::jsonb,2,2);
   if not coalesce((r->>'ok')::boolean,false) then raise exception 'Standalone archive begin failed: %',r; end if;
   counts := r->'resource_counts';
@@ -186,7 +186,7 @@ begin
   r := public.complete_classroom_archive_compaction_v2(compact_id,t,actors,verification,2);
   if not coalesce((r->>'ok')::boolean,false) or exists(select 1 from public.gradebook_items where id=i)
     or exists(select 1 from public.gradebook_item_scores where item_id=i) then raise exception 'Standalone compaction failed: %',r; end if;
-  r := public.begin_classroom_archive_restore_v2(restore_id,t,c,export_id,repeat('e',64),'161_standalone_gradebook_items',
+  r := public.begin_classroom_archive_restore_v2(restore_id,t,c,export_id,repeat('e',64),'162_standalone_gradebook_items',
     '[]'::jsonb,counts,'[]'::jsonb,2147483648,2,2,counts);
   if not coalesce((r->>'ok')::boolean,false) then raise exception 'Standalone restore begin failed: %',r; end if;
   for resource in select * from standalone_archive_rows loop
