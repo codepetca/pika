@@ -59,6 +59,33 @@ function installMissingClassroomLookup(error: { code: string } | null = { code: 
   })
 }
 
+function installExistingDirectIdLookup() {
+  function query(data: unknown, error: unknown = null) {
+    const builder: any = {
+      select: vi.fn(() => builder),
+      eq: vi.fn(() => builder),
+      single: vi.fn().mockResolvedValue({ data, error }),
+    }
+    return builder
+  }
+  mocks.from.mockImplementation((table: string) => {
+    if (table === 'classrooms') {
+      return query({
+        id: classroomId,
+        title: 'Biology',
+        class_code: 'BIO101',
+        term_label: 'Fall 2026',
+        allow_enrollment: true,
+        join_policy: 'roster',
+        archived_at: null,
+      })
+    }
+    if (table === 'classroom_enrollments') return query({ id: enrollmentId })
+    if (table === 'classroom_roster') return query(null, { code: 'PGRST116' })
+    throw new Error(`Unexpected table: ${table}`)
+  })
+}
+
 function rpcSuccess(alreadyEnrolled = false) {
   return {
     ok: true,
@@ -139,6 +166,16 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
       success: true,
       alreadyEnrolled: true,
     })
+  })
+
+  it('preserves an already-issued direct-ID link even when the request also contains a classCode', async () => {
+    installExistingDirectIdLookup()
+
+    const response = await POST(request({ classCode: classroomId, classroomId }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ success: true, alreadyEnrolled: true })
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
   it('charges a rejected invitation guess before returning not found', async () => {

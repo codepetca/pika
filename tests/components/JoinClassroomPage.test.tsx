@@ -4,9 +4,10 @@ import JoinClassroomPage from '@/app/join/[code]/page'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
 const push = vi.hoisted(() => vi.fn())
+const navigation = vi.hoisted(() => ({ code: 'ABC123' }))
 
 vi.mock('next/navigation', () => ({
-  useParams: () => ({ code: 'ABC123' }),
+  useParams: () => ({ code: navigation.code }),
   useRouter: () => ({ push }),
 }))
 
@@ -28,6 +29,7 @@ function jsonResponse(body: unknown, ok = true, status = ok ? 200 : 400): Respon
 
 describe('JoinClassroomPage', () => {
   beforeEach(() => {
+    navigation.code = 'ABC123'
     push.mockClear()
     vi.mocked(invalidateStudentClassrooms).mockClear()
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(
@@ -84,5 +86,20 @@ describe('JoinClassroomPage', () => {
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith('/login?next=%2Fjoin%2FABC123')
     })
+  })
+
+  it('preserves compatibility for an already-issued classroom UUID link', async () => {
+    const classroomId = '33333333-3333-4333-8333-333333333333'
+    navigation.code = classroomId
+    const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(jsonResponse({
+      classroom: { id: classroomId, title: 'Biology' },
+      alreadyEnrolled: true,
+    })))
+    vi.stubGlobal('fetch', fetcher as any)
+
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'You’re already in this classroom' })).toBeVisible()
+    expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ classroomId })
   })
 })

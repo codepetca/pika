@@ -26,10 +26,14 @@ export default function JoinClassroomPage() {
   const joinClassroom = useCallback(async () => {
     setView({ kind: 'loading' })
     try {
+      const isLegacyClassroomId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(code)
       const response = await fetch('/api/student/classrooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classCode: code }),
+        body: JSON.stringify(isLegacyClassroomId
+          ? { classroomId: code }
+          : { classCode: code }),
       })
       if (response.status === 401) {
         push(`/login?next=${encodeURIComponent(`/join/${code}`)}`)

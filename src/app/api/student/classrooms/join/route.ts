@@ -409,7 +409,7 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
     )
   }
 
-  if (classCode) {
+  if (classCode && !looksLikeUuid(classroomId)) {
     return joinClassroomByRosterMatchedCode(user, classCode)
   }
 
