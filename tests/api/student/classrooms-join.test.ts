@@ -60,7 +60,7 @@ function installMissingClassroomLookup(error: { code: string } | null = { code: 
   })
 }
 
-function installExistingDirectIdLookup() {
+function installExistingDirectIdLookup(existingEnrollment = true) {
   function query(data: unknown, error: unknown = null) {
     const builder: any = {
       select: vi.fn(() => builder),
@@ -81,7 +81,11 @@ function installExistingDirectIdLookup() {
         archived_at: null,
       })
     }
-    if (table === 'classroom_enrollments') return query({ id: enrollmentId })
+    if (table === 'classroom_enrollments') {
+      return existingEnrollment
+        ? query({ id: enrollmentId })
+        : query(null, { code: 'PGRST116' })
+    }
     if (table === 'classroom_roster') return query(null, { code: 'PGRST116' })
     throw new Error(`Unexpected table: ${table}`)
   })
@@ -230,6 +234,27 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ success: true, alreadyEnrolled: true })
     expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it('routes a new direct-ID enrollment through the atomic join transaction', async () => {
+    installExistingDirectIdLookup(false)
+
+    const response = await POST(request({ classroomId }))
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({
+      success: true,
+      classroom: { id: classroomId, title: 'Biology' },
+      enrollment: { id: enrollmentId },
+    })
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'join_classroom_by_code_atomic_v1',
+      expect.objectContaining({
+        p_actor_id: studentId,
+        p_expected_classroom_id: classroomId,
+        p_class_code: 'BIO101',
+      }),
+    )
   })
 
   it('charges a rejected invitation guess before returning not found', async () => {

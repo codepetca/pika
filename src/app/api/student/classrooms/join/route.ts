@@ -20,7 +20,6 @@ import {
   attemptImmediatePalEventDelivery,
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
-import { createClassroomEnrollmentWithPalEvent } from '@/lib/server/pal-source-writes'
 import {
   classroomJoinRequestSchema,
   type ClassroomJoinRequest,
@@ -506,157 +505,38 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
     })
   }
 
-  if (!classroom.allow_enrollment) {
-    return NextResponse.json(
-      { error: 'Enrollment is closed for this classroom.', code: 'enrollment_closed' },
-      { status: 403 }
-    )
-  }
+  const occurredAt = new Date()
+  const result = await joinClassroomByCodeAtomic({
+    actorId: user.id,
+    expectedClassroomId: classroom.id,
+    classCode: classroom.class_code,
+    firstName,
+    lastName,
+    studentNumber,
+    occurredAt,
+    supabase,
+  })
+  if (!result.ok) return contextualRpcFailure(result)
 
-  const joinPolicy = classroom.join_policy === 'open_join' ? 'open_join' : 'roster'
-
-  const { data: rosterEntry, error: rosterError } = await supabase
-    .from('classroom_roster')
-    .select('student_number, first_name, last_name')
-    .eq('classroom_id', classroom.id)
-    .eq('email', normalizedEmail)
-    .single()
-
-  if (rosterError && rosterError.code !== 'PGRST116') {
-    console.error('Error checking classroom roster:', rosterError)
-    return NextResponse.json(
-      { error: 'Failed to join classroom' },
-      { status: 500 }
-    )
-  }
-
-  let effectiveRosterEntry = rosterEntry
-
-  if (!effectiveRosterEntry && joinPolicy === 'roster') {
-    return NextResponse.json(
-      { error: 'Your email is not on the roster for this classroom.', code: 'not_on_roster' },
-      { status: 403 }
-    )
-  }
-
-  if (!effectiveRosterEntry && joinPolicy === 'open_join') {
-    if (!firstName || !lastName) {
-      return NextResponse.json(
-        {
-          error: 'First name and last name are required to join this classroom.',
-          code: 'profile_required',
-          requiredFields: ['firstName', 'lastName'],
-        },
-        { status: 400 }
-      )
-    }
-
-    effectiveRosterEntry = {
-      student_number: studentNumber,
-      first_name: firstName,
-      last_name: lastName,
-    }
-
-    const { error: rosterUpsertError } = await supabase
-      .from('classroom_roster')
-      .upsert(
-        {
-          classroom_id: classroom.id,
-          email: normalizedEmail,
-          student_number: studentNumber,
-          first_name: firstName,
-          last_name: lastName,
-          counselor_email: null,
-          join_source: 'open_join',
-        },
-        { onConflict: 'classroom_id,email' }
-      )
-
-    if (rosterUpsertError) {
-      console.error('Error creating open-join roster row:', rosterUpsertError)
-      return NextResponse.json(
-        { error: 'Failed to join classroom' },
-        { status: 500 }
-      )
-    }
-  }
-
-  let enrollment
   let palDelivery: PalImmediateDeliveryStatus | undefined
-  if (isPalEnabled()) {
-    const occurredAt = new Date()
-    const palEvent = buildClassroomJoinedEvent({
-      learnerId: user.id,
-      classroomId: classroom.id,
-      occurredAt,
+  if (result.created && isPalEnabled()) {
+    palDelivery = await attemptImmediatePalEventDelivery({
+      event: buildClassroomJoinedEvent({
+        learnerId: user.id,
+        classroomId: result.classroom.id,
+        occurredAt,
+      }),
+      supabase,
     })
-
-    try {
-      const result = await createClassroomEnrollmentWithPalEvent({
-        supabase,
-        classroomId: classroom.id,
-        studentId: user.id,
-        event: palEvent,
-      })
-      enrollment = result.enrollment
-      if (!result.created) {
-        return NextResponse.json({
-          success: true,
-          classroom,
-          alreadyEnrolled: true,
-        })
-      }
-      palDelivery = await attemptImmediatePalEventDelivery({
-        event: palEvent,
-        supabase,
-      })
-    } catch (error) {
-      console.error('Error enrolling student with Pal outbox:', error)
-      return NextResponse.json(
-        { error: 'Failed to join classroom' },
-        { status: 500 }
-      )
-    }
-  } else {
-    const { data, error: enrollError } = await supabase
-      .from('classroom_enrollments')
-      .insert({
-        classroom_id: classroom.id,
-        student_id: user.id,
-      })
-      .select()
-      .single()
-
-    if (enrollError) {
-      console.error('Error enrolling student:', enrollError)
-      return NextResponse.json(
-        { error: 'Failed to join classroom' },
-        { status: 500 }
-      )
-    }
-    enrollment = data
-  }
-
-  if (effectiveRosterEntry?.first_name && effectiveRosterEntry?.last_name) {
-    await supabase
-      .from('student_profiles')
-      .upsert(
-        {
-          user_id: user.id,
-          student_number: effectiveRosterEntry.student_number || null,
-          first_name: effectiveRosterEntry.first_name,
-          last_name: effectiveRosterEntry.last_name,
-        },
-        { onConflict: 'user_id' }
-      )
   }
 
   return NextResponse.json({
     success: true,
-    classroom,
-    enrollment,
+    classroom: result.classroom,
+    enrollment: result.enrollment,
+    ...(result.already_enrolled ? { alreadyEnrolled: true } : {}),
     pal_delivery: palDelivery,
-  }, { status: 201 })
+  }, { status: result.status })
 }
 
 // POST /api/student/classrooms/join - Join classroom by code or ID
