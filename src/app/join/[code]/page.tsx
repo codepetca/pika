@@ -47,7 +47,7 @@ export default function JoinClassroomPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isLegacyClassroomId
-          ? { classroomId: code.trim() }
+          ? { classroomId: code.trim(), ...(profile || {}) }
           : { classCode: code, ...(profile || {}) }),
       })
       if (response.status === 401) {

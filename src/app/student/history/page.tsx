@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button, ContentDialog, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
@@ -23,6 +24,7 @@ import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/stude
 import { getTodayInToronto } from '@/lib/timezone'
 
 export default function HistoryPage() {
+  const router = useRouter()
   const pageRegionRef = useRef<HTMLDivElement>(null)
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
@@ -130,6 +132,10 @@ export default function HistoryPage() {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.code === 'profile_required') {
+          router.push(`/join/${encodeURIComponent(joinCode.trim())}`)
+          return
+        }
         throw new Error(data.error || 'Failed to join classroom')
       }
 

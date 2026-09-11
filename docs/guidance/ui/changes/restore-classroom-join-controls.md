@@ -1,7 +1,7 @@
 # Restore classroom join controls
 
 Surface: classroom Settings > Access and the classroom join QR dialog, plus the
-student `/join/[code]` open-join profile state. Reference: the Settings Pattern
+student `/join/[code]` open-join profile state and Attendance join handoff. Reference: the Settings Pattern
 Lab mockup, the shared `SettingsSwitchRow`, `DialogPanel`, `QrCode`, `FormField`,
 and `Input` contracts, and the existing classroom join success/error card.
 Roles: teacher and student. Viewports: 1440×900 and 390×844. Themes: light and
@@ -22,3 +22,4 @@ shared dialog keyboard and ARIA contracts are unchanged.
 | Roster-only policy | `SettingsSwitchRow` and the existing classroom PATCH field | reuse | The persisted policy and canonical switch behavior already exist |
 | Join code in QR | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog already owns classroom join semantics |
 | Open-join identity form | `/join/[code]`, `FormField`, and `Input` | extend | The join route already returns `profile_required` and the page owns join outcomes |
+| Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off to the canonical join page instead of duplicating identity fields |

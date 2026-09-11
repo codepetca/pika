@@ -131,6 +131,37 @@ describe('JoinClassroomPage', () => {
     expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ classroomId })
   })
 
+  it('submits an open-join profile through an already-issued classroom UUID link', async () => {
+    const classroomId = '33333333-3333-4333-8333-333333333333'
+    navigation.code = classroomId
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        code: 'profile_required',
+        requiredFields: ['firstName', 'lastName'],
+      }, false, 400))
+      .mockResolvedValueOnce(jsonResponse({
+        classroom: { id: classroomId, title: 'Biology' },
+      }))
+    vi.stubGlobal('fetch', fetcher)
+
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(screen.getByLabelText('Student number or lab ID (optional)'), { target: { value: 'S-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(fetcher.mock.calls[1][1]?.body as string)).toEqual({
+      classroomId,
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      studentNumber: 'S-123',
+    })
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+  })
+
   it('retains a legacy stored code exactly for the bounded server fallback', async () => {
     navigation.code = ' bio101 '
     const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(jsonResponse({

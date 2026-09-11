@@ -6,6 +6,12 @@ import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/stude
 import { fetchStudentEntriesForClassroom, invalidateStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import type { Classroom } from '@/types'
 
+const push = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
+
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div>Loading...</div>,
 }))
@@ -62,6 +68,7 @@ describe('HistoryPage', () => {
     vi.mocked(invalidateStudentClassrooms).mockClear()
     vi.mocked(invalidateClassDaysForClassroom).mockClear()
     vi.mocked(invalidateStudentEntriesForClassroom).mockClear()
+    push.mockClear()
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -153,6 +160,25 @@ describe('HistoryPage', () => {
     await waitFor(() => {
       expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(joinedClassroom.id)
     })
+  })
+
+  it('continues an open join on the profile-aware join page when identity is required', async () => {
+    vi.mocked(fetchStudentClassrooms).mockResolvedValue([])
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(jsonResponse({
+      code: 'profile_required',
+      error: 'Enter your name to join this classroom.',
+    }, false))) as any)
+
+    render(<HistoryPage />)
+
+    expect(await screen.findByText('No Classes Yet')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: /class code/i }), {
+      target: { value: ' open42 ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Join Class' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/OPEN42'))
+    expect(screen.queryByText('Enter your name to join this classroom.')).not.toBeInTheDocument()
   })
 
   it('opens a submitted log in the shared dialog and returns focus on close', async () => {
