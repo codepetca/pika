@@ -329,7 +329,11 @@ async function joinClassroomContextually(args: {
   }, { status: result.status })
 }
 
-async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCode: string) {
+async function joinClassroomByCode(
+  user: AuthenticatedUser,
+  classCode: string,
+  profile: { firstName: string | null; lastName: string | null; studentNumber: string | null },
+) {
   const supabase = getServiceRoleClient()
   const normalizedCode = normalizeClassroomJoinCode(classCode)
   const lookupCandidates = async (candidateCode: string) => {
@@ -379,24 +383,13 @@ async function joinClassroomByRosterMatchedCode(user: AuthenticatedUser, classCo
     actorId: user.id,
     expectedClassroomId: classroom.id,
     classCode: normalizedCode,
-    firstName: null,
-    lastName: null,
-    studentNumber: null,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    studentNumber: profile.studentNumber,
     occurredAt,
     supabase,
   })
-  if (!result.ok) {
-    // A roster-only join deliberately supplies no profile fields. In an
-    // open-join classroom, profile_required therefore means there was no
-    // existing roster identity match.
-    if (result.error_code === 'profile_required') {
-      return NextResponse.json(
-        { error: 'Your account is not on the roster for this classroom.', code: 'not_on_roster' },
-        { status: 403 },
-      )
-    }
-    return contextualRpcFailure(result)
-  }
+  if (!result.ok) return contextualRpcFailure(result)
 
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
@@ -433,7 +426,7 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
   }
 
   if (classCode && !looksLikeUuid(classroomId)) {
-    return joinClassroomByRosterMatchedCode(user, classCode)
+    return joinClassroomByCode(user, classCode, { firstName, lastName, studentNumber })
   }
 
   const supabase = getServiceRoleClient()

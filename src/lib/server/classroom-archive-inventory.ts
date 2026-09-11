@@ -198,7 +198,7 @@ export function verifyRemoteClassroomContracts(
   }
 }
 
-export function auditClassroomOpenApiSchema(document: unknown, includeOverrides = true, includeItems = true) {
+export function auditClassroomOpenApiSchema(document: unknown, includeOverrides = true, includeItems = true, includeRemovedRosterActor = true) {
   const parsed = openApiSchema.parse(document)
   const relationships: Array<{
     child_table: string
@@ -222,7 +222,7 @@ export function auditClassroomOpenApiSchema(document: unknown, includeOverrides 
     }
     if (keyColumns.length > 0) primaryKeys.push({ table_name: table, columns: keyColumns })
   }
-  return auditClassroomResourceSchema(relationships, primaryKeys, includeOverrides, includeItems)
+  return auditClassroomResourceSchema(relationships, primaryKeys, includeOverrides, includeItems, includeRemovedRosterActor)
 }
 
 function comparePrimaryKey(left: Record<string, unknown>, right: Record<string, unknown>, key: string) {
@@ -373,6 +373,9 @@ export async function inventoryArchivedClassrooms(
     openApi,
     deployed.some((resource) => resource.table === 'gradebook_score_overrides'),
     deployed.some((resource) => resource.table === 'gradebook_items'),
+    archiveContractSchema.parse(archiveContract).some((row) =>
+      row.table_name === 'classroom_roster' && row.actor_columns.includes('removed_student_id'),
+    ),
   )
   if (!catalogAudit.ok) throw new Error('Remote classroom catalog does not match the checked-in contract')
 

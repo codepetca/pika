@@ -31569,6 +31569,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.
 
 <!-- pika-session-log-archive-batch:932d394aed0ce7ca20a513c5845ca9866c34d4a1c5bdd4a75206d041ffc6d507 -->
+<!-- pika-session-log-archive-batch:fe5a9ea227ded3c1ecefbacf2e8647372d6bf61549057483a2000ed145de7585 -->
 ## 2026-09-07 — Audit third-party student-data egress
 
 - User deferred the embedded exam PDF-viewer check and continued the security goal. Created isolated `codex/student-data-egress-audit` on current main; audited paths match production source. Recorded data destinations, existing safeguards, retention unknowns and remediation sequence in `docs/guidance/student-data-egress-audit.md`.
@@ -31577,13 +31578,20 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
 
 <!-- pika-session-log-archive-batch:7859775158a038890f9e180a7a229122410ad6e193b17ea415b0d13bf7414264 -->
+=======
+<!-- pika-session-log-archive-batch:a5d10e76e40641fd0e3f63efafa98f7629db306ff6d38049bf225731a4eb6c9c -->
+>>>>>>> origin/main
 ## 2026-09-07 — Preserve the Roster actions and email labels handoff
 
 - Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
 - Renamed the roster contact columns and related UI copy to Email (main) and Email (secondary), including manual-add/CSV dialogs, edit labels, copy actions and conflict feedback. Data contracts remain unchanged; the legacy `counselor_email` field still stores the secondary address.
 - Focused component/API coverage passes 52 tests; type, design/UI policy and the Pika audit pass. Browser verification covers teacher desktop/mobile, light/dark, default/open/focus states plus student-route exclusion; menu focus, Escape return and viewport containment were inspected. Risk profile none; use one Terra/high reviewer for the standard-risk UI/state diff. No schema, migration, dependency, hosted data or deployment changes.
 
+<<<<<<< HEAD
 <!-- pika-session-log-archive-batch:3ac70243531a6ebcbb4960790e1316e13127f0764c158208e45bcad55e9ad958 -->
+=======
+<!-- pika-session-log-archive-batch:808b3053040a0378b36501404b17824558dffc83645efb0609836c249f41be5b -->
+>>>>>>> origin/main
 ## 2026-09-07 — Preserve the atomic enrollment and guess-limit handoff
 
 - Began the next dormant compatibility-C slice from merged main on `codex/atomic-enrollment-foundation`. Authored unapplied migration 157 after shared local history revealed another active branch owns 155–156: a private schema-backed 10-minute limiter (12 actor attempts, 3 actor-plus-invitation attempts) and a service-only code-join transaction that locks/revalidates the exact classroom, denies self/archive/closed/roster conflicts, and atomically writes roster lineage, enrollment, profile and optional verified Pal evidence.
@@ -31593,6 +31601,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Targeted Sol/high remediation review (launch 3) found three additional blockers in batch 1: unsupported `jsonb_object_length`, a cleanup/request lock cycle, and rejoin rejection when a legitimate same-source Pal event has a new occurrence timestamp. Correction batch 2 uses supported exact-object comparisons, moves stale cleanup to a separate bounded service-only `SKIP LOCKED` function, and verifies stable Pal identity/source fields while allowing timestamp drift. The rollback fixture now covers valid-event rejoin plus cross-source collision. Static/adapter/guidance tests pass 11; migration execution and generated types remain pending the same dependency/authorization gate.
 - Targeted Sol/high remediation review launch 4 cleared those three corrections and found one P2: explicit NULL bypassed the cleanup batch bound because `LIMIT NULL` is unbounded. Correction batch 3 rejects NULL and adds rollback assertions for NULL/zero/oversized inputs plus exact small-batch behavior. This reaches the default three-batch limit; reserve launch 5 for cumulative integration after #1187, authorized local migration 157, generated types and database harnesses are complete.
 - Owner then authorized local application of the exact migration 157. Because #1187 is still open but local history already contains its 155–156, created an unpushed temporary integration worktree containing exact #1187 head plus #1193; checksum `482f9a99f6315ed4013cb33ddb01a0abe1232d5eb57bb281853989217c7692b5` matched the reviewed 157 file. Verified target `supabase_db_pika`/54322 and a 157-only dry run, then applied 157 once; authorization is consumed. Local history is 001–157, database lint has zero findings, rollback and concurrency harnesses pass with all synthetic fixtures removed, and generated types match. Integrated only 157's generated entries into #1193 and removed the temporary RPC cast. No hosted migration, route adoption, cohort, deployment or production change occurred.
+<<<<<<< HEAD
 
 <!-- pika-session-log-archive-batch:d75e37be5731e538dee072b16b0a0e7dd09db17eebfc7ff0789e0e6c5a8816c5 -->
 ## 2026-09-07 — Rebase atomic enrollment after prerequisite merge
@@ -31605,3 +31614,35 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
 - Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
+
+<!-- pika-session-log-archive-batch:6ce5f12303205e618da492dcb128d6ffb9fea94d4d26a4971c7d92c5735738b0 -->
+## 2026-09-07 — Rebase atomic enrollment after prerequisite merge
+
+- Rebased PR #1193 onto current main after #1187 merged. Main now owns migrations 155–158, so the enrollment source migration moved from 157 to 159 with its SQL unchanged. The earlier exact local authorization was consumed by the former 157 filename; the current local history is therefore evidence of the SQL behavior, not a clean 159 lineage replay. No migration was reapplied, repaired, reset, or promoted.
+- Updated current enrollment guidance, harness messages, and static contracts to migration 159. A clean ephemeral replay, focused/type checks, the reserved fifth and final cumulative reviewer launch, and exact-head CI remain before readiness. Hosted application, route adoption, cohort activation, deployment, and production access remain unapproved.
+
+## 2026-09-07 — Bind atomic enrollment responses to the requested classroom
+
+- The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
+- Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
+
+## 2026-09-08 — Resume privacy fix review for PR 1218
+
+- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
+- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
+
+## 2026-09-08 — Make the Gradebook percent control a true toggle
+
+- Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
+- Updated the live Gradebook and Pattern Lab semantic coverage. Focused checks pass 21 files / 232 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and 67 directly affected tests pass. Teacher desktop/mobile light/dark and on/off/hover states were visually inspected. Student view is not applicable because Gradebook is teacher-only.
+- Composite-widget checklist reviewed: native button keyboard behavior is preserved, semantic pressed state is covered by tests, and no manual follow-up remains. Risk profile: none; no schema, data, API, dependency, or new shared component.
+
+## 2026-09-08 — Rebase atomic enrollment after Gradebook toggle
+
+- Rebased PR #1193 onto main `6dbc2fcf` after #1219 merged. Preserved main's Gradebook toggle and resolved only the shared continuity journal; migration 159, the enrollment adapter, generated types, database harnesses, CI wiring, and their tests are unchanged by range comparison.
+- The previously reviewed exact-head CI was green before main advanced. Focused verification and fresh ready-PR CI must pass on the rebased head before merge. No reviewer launch, migration application, hosted change, route adoption, cohort, deployment, or production rollout occurred.
+
+## 2026-09-08 — Sync privacy PR 1218 for authorized merge
+
+- User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
+- Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.

@@ -79,7 +79,16 @@ application archive actor definitions omitted the retained student, teacher re-a
 could miss retained identity after an account email change, and Gradebook mark
 checks needed to acquire removal locks before checking enrollment. Remediation
 batch 1 updates those paths and adds regressions, including the legacy roster
-query fallback. The revised migration source has **not** been applied: the first
-one-time authorization is consumed. Its new email/grade-race database regressions
-and targeted independent re-review remain required before readiness. The existing
-disposable database proves only the original migration, not the revised SQL.
+query fallback. Renewed one-time permission was consumed applying revised164
+(SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`)
+to fresh schema-only disposable `pika_removal_164_7vacjt`. Removal/archive/email
+regressions and separate grade insert/update races pass, database lint is clean,
+and freshly generated types match. The grade-race fixture allows the existing
+archive-revision trigger to wait before rejecting a post-removal mark.
+
+Targeted review found the pre164 archive catalog audit also needed the verified
+live actor-contract flag. Remediation batch2 threads that exact flag through the
+catalog audit and tests old/new matching schemas plus mismatched/unexpected actors.
+No SQL changed or was reapplied. Main's classroom join-controls change is included;
+its joins still pass the removed-membership database guard. Final review and CI
+remain required; shared/production databases are untouched.

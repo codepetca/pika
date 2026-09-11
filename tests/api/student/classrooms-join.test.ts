@@ -137,7 +137,7 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
     expect(mocks.from).not.toHaveBeenCalled()
   })
 
-  it('joins through the existing atomic roster-matched contract without attendance writes', async () => {
+  it('joins through the atomic classroom-code contract without attendance writes', async () => {
     const lookup = installClassroomLookup()
     const response = await POST(request({
       classCode: ' bio_101% ',
@@ -156,8 +156,8 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
         p_actor_id: studentId,
         p_expected_classroom_id: classroomId,
         p_class_code: 'BIO_101%',
-        p_first_name: undefined,
-        p_last_name: undefined,
+        p_first_name: 'Ignored',
+        p_last_name: 'Profile',
         p_student_number: undefined,
       }),
     )
@@ -284,7 +284,7 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
 
   it.each([
     ['not_on_roster', 403, 'not_on_roster'],
-    ['profile_required', 400, 'not_on_roster'],
+    ['profile_required', 400, 'profile_required'],
     ['roster_ambiguous', 409, 'roster_ambiguous'],
     ['roster_binding_conflict', 409, 'roster_binding_conflict'],
   ] as const)('projects %s without creating membership or attendance', async (errorCode, status, expectedCode) => {
@@ -300,7 +300,7 @@ describe('POST /api/student/classrooms/join roster-matched link', () => {
       error: null,
     })
     const response = await POST(request({ classCode: 'BIO101' }))
-    expect(response.status).toBe(errorCode === 'profile_required' ? 403 : status)
+    expect(response.status).toBe(status)
     expect(await response.json()).toMatchObject({ code: expectedCode })
     expect(mocks.from.mock.calls.map(([table]) => table)).not.toContain('attendance_check_ins')
   })

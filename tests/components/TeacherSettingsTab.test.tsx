@@ -38,6 +38,10 @@ vi.mock('@/components/editor', () => ({
   ),
 }))
 
+vi.mock('react-qr-code', () => ({
+  default: ({ value }: { value: string }) => <svg data-testid="join-qr-value" data-value={value} />,
+}))
+
 const mockClassroom: Classroom = {
   id: 'cls-123',
   teacher_id: 't1',
@@ -144,6 +148,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     await waitFor(() => expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12'))
 
     rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
+    expect(screen.getByRole('button', { name: 'Copy join code CHEM12' })).toHaveTextContent('CHEM12')
     expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
@@ -699,23 +704,62 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     expect(screen.queryByText('This replaces the current code. Students will need the new code/link to join.')).not.toBeInTheDocument()
   })
 
-  it('shows separate roster-matched join QR and link controls', async () => {
+  it('shows separate classroom join code, QR, link, and roster policy controls', async () => {
     render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
 
     expect(screen.getByText('Student access')).toBeInTheDocument()
     expect(screen.getByText('Join this classroom')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy join code ABC123' })).toHaveTextContent('ABC123')
     expect(screen.getByText('Allow new joins')).toBeInTheDocument()
-    expect(screen.getByText(/Only students on the roster can use this link/)).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Only students on roster can join' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
     expect(screen.getByRole('link', { name: 'View roster' })).toHaveAttribute(
       'href',
       '/classrooms/cls-123?tab=roster',
     )
-    expect(screen.queryByRole('switch', { name: 'Join mode' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
     const dialog = screen.getByRole('dialog', { name: 'Join this classroom' })
     expect(within(dialog).getByText('Test Course')).toBeVisible()
+    expect(within(dialog).getByText('ABC123')).toBeVisible()
     expect(within(dialog).getByLabelText('Test Course join classroom QR code')).toBeVisible()
     expect(within(dialog).getByRole('button', { name: 'Copy link' })).toBeVisible()
+  })
+
+  it('preserves exact padded codes in copied links and the QR URL', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    render(<TeacherSettingsTab classroom={{ ...mockClassroom, class_code: ' BIO101 ' }} sectionParam="access" />, { wrapper: Wrapper })
+
+    const expectedLink = `${window.location.origin}/join/%20BIO101%20`
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link', exact: true }))
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(expectedLink))
+    expect(decodeURIComponent(new URL(expectedLink).pathname.split('/').pop()!)).toBe(' BIO101 ')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    const dialog = screen.getByRole('dialog', { name: 'Join this classroom' })
+    expect(within(dialog).getByTestId('join-qr-value')).toHaveAttribute('data-value', expectedLink)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link', exact: true }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2))
+    expect(writeText).toHaveBeenLastCalledWith(expectedLink)
+  })
+
+  it('saves open joining from the roster-only toggle', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ classroom: { ...mockClassroom, join_policy: 'open_join' } }),
+    })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Only students on roster can join' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Open join via code/link.')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Anyone with this code or link can join after entering their name.')).toBeVisible()
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ joinPolicy: 'open_join' })
   })
 })
 

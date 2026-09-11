@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-08 — Resume privacy fix review for PR 1218
-
-- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
-- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
-
-## 2026-09-08 — Make the Gradebook percent control a true toggle
-
-- Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
-- Updated the live Gradebook and Pattern Lab semantic coverage. Focused checks pass 21 files / 232 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and 67 directly affected tests pass. Teacher desktop/mobile light/dark and on/off/hover states were visually inspected. Student view is not applicable because Gradebook is teacher-only.
-- Composite-widget checklist reviewed: native button keyboard behavior is preserved, semantic pressed state is covered by tests, and no manual follow-up remains. Risk profile: none; no schema, data, API, dependency, or new shared component.
-
-## 2026-09-08 — Rebase atomic enrollment after Gradebook toggle
-
-- Rebased PR #1193 onto main `6dbc2fcf` after #1219 merged. Preserved main's Gradebook toggle and resolved only the shared continuity journal; migration 159, the enrollment adapter, generated types, database harnesses, CI wiring, and their tests are unchanged by range comparison.
-- The previously reviewed exact-head CI was green before main advanced. Focused verification and fresh ready-PR CI must pass on the rebased head before merge. No reviewer launch, migration application, hosted change, route adoption, cohort, deployment, or production rollout occurred.
-
-## 2026-09-08 — Sync privacy PR 1218 for authorized merge
-
-- User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
-- Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
-
 ## 2026-09-08 — Normalize Attendance timing minute inputs
 
 - Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
@@ -267,3 +246,29 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
 - Full removal/archive/email-identity fixture and lock probes pass. Corrected grade-race harness to allow the existing archive-revision trigger to wait for removal commit before rejecting the mark; separate removal rounds test insert and update, with no attempted mark persisted. No migration change or reapplication. Database lint is clean and independently generated public types match. Synthetic users cleaned up. Targeted independent review and stable-head CI remain before ready handoff.
+
+## 2026-09-11 — Preserve pre164 archive inventory compatibility
+
+- Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
+- Synchronized main `b170b89d` (classroom join controls), preserving both continuity histories. Its join flow uses the same serialized RPC and removed-membership guard; no application merge conflicts. Targeted re-review (launch4) and cumulative integration (launch5) remain within the bounded review plan. No merge/deployment permission.
+
+## 2026-09-11 — Restore classroom join controls
+
+- Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
+- Reused the Settings Pattern Lab composition and shared switch, dialog, QR, field and input owners. Teacher/student desktop/mobile light/dark browser coverage passes for roster-only, open-join, QR-open, profile-required, success and error states; screenshots were visually inspected with no overflow. Composite checklist reviewed: keyboard behavior and semantic state are covered, with no manual follow-up.
+- Focused unit/API coverage passes 61 tests, the rollback-only contextual enrollment database contract passes, the Pika audit passes, and the application/database/browser focused gate passes 211 tests plus architecture, UI/design policy, TypeScript and lint. No migration, dependency, hosted data, configuration or deployment change.
+- Independent review found two compatibility gaps in open joining: Attendance code entry could not continue when a profile was required, and legacy UUID join links dropped submitted profile fields. Attendance now hands off to the canonical profile-aware join page, UUID retries retain the profile, and both paths have component regressions. The remediated focused gate passes 218 tests plus architecture, UI/design policy, TypeScript and lint; final integration review follows on the stable head.
+- Final integration review found that trimming the Attendance handoff could break space-padded legacy codes already accepted by the bounded server fallback. The handoff now URL-encodes the exact entered code and its regression retains surrounding spaces. The default five-launch review budget is exhausted after this correction, so the PR remains draft pending an explicitly authorized final-review extension.
+- Simplified the join QR at owner direction to reuse the attendance display modal's `max-w-6xl`, portrait-mobile and widescreen-desktop frame and QR scale. The dialog now shows only the classroom name, join-code label/value, Copy link, QR, and close control; all introductory/instructional text is removed. Teacher desktop/mobile light/dark open-dialog screenshots were inspected, QR contrast is asserted in both themes, and the student role is unaffected.
+- Extended review raised possible clipping at 390×844, but explicit bounds for the wrapped classroom title, join code, Copy link, and complete QR all remain within the dialog in mobile light/dark runs, matching the inspected captures. The claim was rejected as unsupported; the bounds assertion remains as a responsive regression.
+- Final integration review found the Attendance profile handoff spent a second rate-limited probe before profile submission, leaving no budget for one transient retry. The handoff now carries a non-authoritative profile-required UI hint, skips only that redundant client probe, preserves the exact code, and still submits the profile through the authoritative join endpoint. Rate-limited profile responses show the server retry delay instead of claiming an immediate retry is safe; integrated component and browser regressions cover the three-attempt sequence and wait message.
+
+## 2026-09-11 — PR #1245 reviewed-blocker continuation
+
+- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
+- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.
+
+## 2026-09-11 — PR #1245 cumulative review remediation
+
+- Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
+- Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.

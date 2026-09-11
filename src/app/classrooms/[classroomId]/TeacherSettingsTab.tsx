@@ -35,7 +35,7 @@ import {
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import { TeacherClassroomJoinQrDialog } from './TeacherClassroomJoinQrDialog'
 import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
-import type { Classroom, LessonPlanVisibility } from '@/types'
+import type { Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -122,6 +122,7 @@ export function TeacherSettingsTab({
   const [titleError, setTitleError] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
+  const [joinPolicy, setJoinPolicy] = useState<ClassroomJoinPolicy>(classroom.join_policy || 'roster')
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
@@ -155,6 +156,7 @@ export function TeacherSettingsTab({
   const displayedTitleError = formStateReady ? titleError : ''
   const displayedJoinCode = formStateReady ? joinCode : classroom.class_code
   const displayedAllowEnrollment = formStateReady ? allowEnrollment : classroom.allow_enrollment
+  const displayedJoinPolicy = formStateReady ? joinPolicy : classroom.join_policy || 'roster'
   const displayedSaving = formStateReady && saving
   const displayedEnrollmentError = formStateReady ? enrollmentError : ''
   const displayedJoinCodeError = formStateReady ? joinCodeError : ''
@@ -177,7 +179,7 @@ export function TeacherSettingsTab({
   const displayedBlueprintTitle = formStateReady ? blueprintTitle : classroom.title
   const displayedBlueprintBusy = formStateReady && blueprintBusy
   const displayedBlueprintError = formStateReady ? blueprintError : ''
-  const joinLink = `${origin}/join/${displayedJoinCode}`
+  const joinLink = `${origin}/join/${encodeURIComponent(displayedJoinCode)}`
 
   useEffect(() => {
     setOrigin(window.location.origin)
@@ -196,6 +198,7 @@ export function TeacherSettingsTab({
     setTitleError('')
     setJoinCode(classroom.class_code)
     setAllowEnrollment(classroom.allow_enrollment)
+    setJoinPolicy(classroom.join_policy || 'roster')
     setSaving(false)
     setEnrollmentError('')
     setJoinCodeError('')
@@ -309,6 +312,40 @@ export function TeacherSettingsTab({
         onClassroomUpdated?.(data.classroom)
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
+      showMessage({ text: 'Settings saved', tone: 'success' })
+    } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      setEnrollmentError(err.message || 'Failed to update settings')
+    } finally {
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setSaving(false)
+      }
+    }
+  }
+
+  async function saveJoinPolicy(nextValue: ClassroomJoinPolicy) {
+    if (isReadOnly || nextValue === joinPolicy) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
+    setSaving(true)
+    setEnrollmentError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ joinPolicy: nextValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update settings')
+      }
+      invalidateTeacherClassrooms()
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
+      setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
@@ -561,17 +598,31 @@ export function TeacherSettingsTab({
             <SettingsPanel>
             <SettingsHeading
               title="Student access"
-              tooltip="Share the classroom join link or QR with students already listed on the roster."
+              tooltip="Share the classroom join code, link, or QR and control who may join."
             />
 
             <div>
               <div className="text-base font-semibold text-text-default">Join this classroom</div>
               <p className="mt-1 text-sm text-text-muted">
-                Students must sign in with a school account that safely matches one roster entry.
+                {displayedJoinPolicy === 'roster'
+                  ? 'Students must sign in with a school account that safely matches one roster entry.'
+                  : 'Students can join after signing in and entering their name.'}
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <Button
+                type="button"
+                variant="subtle"
+                size="md"
+                onClick={() => copyWithNotice('Join code', displayedJoinCode)}
+                aria-label={`Copy join code ${displayedJoinCode}`}
+                disabled={!formStateReady}
+                className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
+              >
+                {displayedJoinCode}
+              </Button>
+
               <Button
                 type="button"
                 variant="secondary"
@@ -623,11 +674,30 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <div className="border-t border-border pt-3 text-sm text-text-muted">
-              Only students on the roster can use this link.{' '}
-              <Link href={`/classrooms/${classroom.id}?tab=roster`} className="font-medium text-primary underline">
-                View roster
-              </Link>
+            <div className="space-y-2 border-t border-border pt-3">
+              <SettingsSwitchRow
+                checked={displayedJoinPolicy === 'roster'}
+                onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
+                disabled={displayedSaving || isReadOnly || !displayedAllowEnrollment || !formStateReady}
+                ariaLabel="Only students on roster can join"
+              >
+                {displayedJoinPolicy === 'roster' ? (
+                  <>
+                    <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
+                    <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
+                      View roster
+                    </Link>
+                  </>
+                ) : (
+                  <span className="font-medium text-text-default">Open join via code/link.</span>
+                )}
+              </SettingsSwitchRow>
+
+              {displayedAllowEnrollment && displayedJoinPolicy === 'open_join' ? (
+                <div className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                  Anyone with this code or link can join after entering their name.
+                </div>
+              ) : null}
             </div>
 
             {displayedJoinCodeError && <div className="text-sm text-danger">{displayedJoinCodeError}</div>}
@@ -809,6 +879,7 @@ export function TeacherSettingsTab({
 
             <TeacherClassroomJoinQrDialog
               classroomTitle={displayedTitle}
+              joinCode={displayedJoinCode}
               joinUrl={joinLink}
               isOpen={showJoinQr && formStateReady && displayedAllowEnrollment && !isReadOnly}
               onClose={() => setShowJoinQr(false)}
