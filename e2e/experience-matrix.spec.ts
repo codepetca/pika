@@ -1200,11 +1200,24 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   await expect(joinQr).toBeVisible()
   expect(await joinQr.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(17, 24, 39)')
   const joinDialogBox = await joinDialog.boundingBox()
+  const joinContentBoxes = await Promise.all([
+    joinDialog.getByText('Computer Science 11', { exact: true }),
+    joinDialog.getByText('ICS3U2', { exact: true }),
+    joinDialog.getByRole('button', { name: 'Copy link' }),
+    joinQr,
+  ].map((element) => element.boundingBox()))
   const joinViewport = page.viewportSize()
   expect(joinDialogBox).not.toBeNull()
   expect(joinViewport).not.toBeNull()
   expect(joinDialogBox!.x).toBeGreaterThanOrEqual(0)
   expect(joinDialogBox!.x + joinDialogBox!.width).toBeLessThanOrEqual(joinViewport!.width)
+  for (const contentBox of joinContentBoxes) {
+    expect(contentBox).not.toBeNull()
+    expect(contentBox!.x).toBeGreaterThanOrEqual(joinDialogBox!.x)
+    expect(contentBox!.y).toBeGreaterThanOrEqual(joinDialogBox!.y)
+    expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(joinDialogBox!.x + joinDialogBox!.width)
+    expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(joinDialogBox!.y + joinDialogBox!.height)
+  }
   await page.screenshot({
     path: testInfo.outputPath(`classroom-join-qr-${getExperienceMetadata(testInfo).viewport}.png`),
     animations: 'disabled',
