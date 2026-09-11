@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Audit third-party student-data egress
-
-- User deferred the embedded exam PDF-viewer check and continued the security goal. Created isolated `codex/student-data-egress-audit` on current main; audited paths match production source. Recorded data destinations, existing safeguards, retention unknowns and remediation sequence in `docs/guidance/student-data-egress-audit.md`.
-- Local synthetic probes against actual sanitizer/provider code confirmed standalone accented-name leakage and raw provider-body retention in grading errors. Reviewed the downstream persistence path, Brevo error logging, nightly second-use journal extraction and inconsistent outbound redirect/Gradex URL controls. No live student data or paid/provider calls were used.
-- Next: approve the narrow name-redaction/error-diagnostic implementation, then environment verification, regressions, focused checks and draft-first independent review. Product-feedback scope and remote retention/deletion remain separate decisions. No product code, migration, production configuration, PR or deployment changed.
-- User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
-
 ## 2026-09-07 — Preserve the Roster actions and email labels handoff
 
 - Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
@@ -270,3 +263,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
 - One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.
+
+## 2026-09-11 — Restore classroom join controls
+
+- Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
+- Reused the Settings Pattern Lab composition and shared switch, dialog, QR, field and input owners. Teacher/student desktop/mobile light/dark browser coverage passes for roster-only, open-join, QR-open, profile-required, success and error states; screenshots were visually inspected with no overflow. Composite checklist reviewed: keyboard behavior and semantic state are covered, with no manual follow-up.
+- Focused unit/API coverage passes 61 tests, the rollback-only contextual enrollment database contract passes, the Pika audit passes, and the application/database/browser focused gate passes 211 tests plus architecture, UI/design policy, TypeScript and lint. No migration, dependency, hosted data, configuration or deployment change.

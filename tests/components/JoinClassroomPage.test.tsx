@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import JoinClassroomPage from '@/app/join/[code]/page'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
@@ -76,6 +76,34 @@ describe('JoinClassroomPage', () => {
     render(<JoinClassroomPage />)
     expect(await screen.findByRole('heading', { name: title })).toBeVisible()
     expect(screen.queryByText(/attendance/i)).not.toBeInTheDocument()
+  })
+
+  it('collects a student profile when an open classroom requires one', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        code: 'profile_required',
+        requiredFields: ['firstName', 'lastName'],
+      }, false, 400))
+      .mockResolvedValueOnce(jsonResponse({
+        classroom: { id: 'classroom-1', title: 'Biology' },
+      }))
+    vi.stubGlobal('fetch', fetcher)
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.change(screen.getByLabelText('Student number or lab ID (optional)'), { target: { value: 'S-123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(fetcher.mock.calls[1][1]?.body as string)).toEqual({
+      classCode: 'ABC123',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      studentNumber: 'S-123',
+    })
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
   })
 
   it('returns a signed-out student to the exact classroom join route', async () => {

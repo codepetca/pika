@@ -6,12 +6,14 @@ import { Button, DialogPanel, QrCode } from '@/ui'
 
 export function TeacherClassroomJoinQrDialog({
   classroomTitle,
+  joinCode,
   joinUrl,
   isOpen,
   onClose,
   onCopyLink,
 }: {
   classroomTitle: string
+  joinCode: string
   joinUrl: string
   isOpen: boolean
   onClose: () => void
@@ -43,8 +45,12 @@ export function TeacherClassroomJoinQrDialog({
             Join this classroom
           </h2>
           <p className="mt-3 text-xl font-medium text-text-default">{classroomTitle}</p>
+          <div className="mt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Join code</p>
+            <p className="mt-1 font-mono text-3xl font-semibold tracking-wider text-text-default">{joinCode}</p>
+          </div>
           <p className="mt-4 text-sm leading-6 text-text-muted">
-            Students scan this code, sign in with their school account, and join when exactly one roster entry matches.
+            Students can scan the QR code or enter the join code after signing in.
           </p>
           <Button type="button" variant="secondary" className="mt-6" onClick={onCopyLink}>
             <ClipboardCopy className="h-4 w-4" aria-hidden="true" />

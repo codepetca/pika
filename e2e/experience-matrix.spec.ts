@@ -1159,10 +1159,30 @@ test('shows student attendance states without exposing derived status labels', a
 
 test('keeps classroom joining visually distinct from attendance check-in', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
+  await page.route('**/api/teacher/classrooms/30000000-0000-4000-8000-000000000021', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroom: {
+          id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          title: 'Computer Science 11',
+          class_code: 'ICS3U2',
+          allow_enrollment: true,
+          join_policy: 'open_join',
+        },
+      }),
+    })
+  })
 
   await page.goto('/e2e-fixtures/teacher-classroom-access', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Access' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Join this classroom', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy join code' })).toHaveText('ICS3U2')
+  await expect(page.getByRole('switch', { name: 'Only students on roster can join' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
   await expect(page.getByText('Check in for attendance', { exact: true })).toHaveCount(0)
   const joinDialog = page.getByRole('dialog', { name: 'Join this classroom' })
@@ -1173,6 +1193,7 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   }).toPass({ timeout: 30_000 })
   await expect(joinDialog.getByText('Student access', { exact: true })).toBeVisible()
   await expect(joinDialog.getByText('Computer Science 11', { exact: true })).toBeVisible()
+  await expect(joinDialog.getByText('ICS3U2', { exact: true })).toBeVisible()
   await expect(joinDialog.getByLabel('Computer Science 11 join classroom QR code')).toBeVisible()
   const joinDialogBox = await joinDialog.boundingBox()
   const joinViewport = page.viewportSize()
@@ -1186,8 +1207,18 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   })
 
   await joinDialog.getByRole('button', { name: 'Close' }).click()
-  let joinState: 'joined' | 'already' | 'not_on_roster' | 'ambiguous' = 'joined'
+  await page.getByRole('switch', { name: 'Only students on roster can join' }).click()
+  await expect(page.getByText('Open join via code/link.')).toBeVisible()
+  await expect(page.getByText('Students can join after signing in and entering their name.')).toBeVisible()
+  await expect(page.getByText('Anyone with this code or link can join after entering their name.')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-settings-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+
+  let joinState: 'joined' | 'already' | 'profile' | 'not_on_roster' | 'ambiguous' = 'joined'
   await page.route('**/api/student/classrooms/join', async (route) => {
+    const requestBody = route.request().postDataJSON() as { firstName?: string }
     const bodies = {
       joined: {
         success: true,
@@ -1199,13 +1230,15 @@ test('keeps classroom joining visually distinct from attendance check-in', async
         alreadyEnrolled: true,
         classroom: { id: ATTENDANCE_FIXTURE_CLASSROOM_ID, title: 'Computer Science 11' },
       },
+      profile: { error: 'Profile required', code: 'profile_required', requiredFields: ['firstName', 'lastName'] },
       not_on_roster: { error: 'Not on roster', code: 'not_on_roster' },
       ambiguous: { error: 'Ambiguous roster match', code: 'roster_ambiguous' },
     }
+    const completedProfile = joinState === 'profile' && Boolean(requestBody.firstName)
     await route.fulfill({
-      status: joinState === 'joined' || joinState === 'already' ? 200 : 403,
+      status: joinState === 'joined' || joinState === 'already' || completedProfile ? 200 : joinState === 'profile' ? 400 : 403,
       contentType: 'application/json',
-      body: JSON.stringify(bodies[joinState]),
+      body: JSON.stringify(completedProfile ? bodies.joined : bodies[joinState]),
     })
   })
 
@@ -1221,6 +1254,18 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   joinState = 'already'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'You’re already in this classroom' })).toBeVisible()
+
+  joinState = 'profile'
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+  await page.getByLabel('First name').fill('Ada')
+  await page.getByLabel('Last name').fill('Lovelace')
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-profile-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Join classroom' }).click()
+  await expect(page.getByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
 
   joinState = 'not_on_roster'
   await page.reload({ waitUntil: 'domcontentloaded' })
