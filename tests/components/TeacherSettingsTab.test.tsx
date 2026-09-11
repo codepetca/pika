@@ -38,6 +38,10 @@ vi.mock('@/components/editor', () => ({
   ),
 }))
 
+vi.mock('react-qr-code', () => ({
+  default: ({ value }: { value: string }) => <svg data-testid="join-qr-value" data-value={value} />,
+}))
+
 const mockClassroom: Classroom = {
   id: 'cls-123',
   teacher_id: 't1',
@@ -721,6 +725,24 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     expect(within(dialog).getByText('ABC123')).toBeVisible()
     expect(within(dialog).getByLabelText('Test Course join classroom QR code')).toBeVisible()
     expect(within(dialog).getByRole('button', { name: 'Copy link' })).toBeVisible()
+  })
+
+  it('preserves exact padded codes in copied links and the QR URL', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    render(<TeacherSettingsTab classroom={{ ...mockClassroom, class_code: ' BIO101 ' }} sectionParam="access" />, { wrapper: Wrapper })
+
+    const expectedLink = `${window.location.origin}/join/%20BIO101%20`
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link', exact: true }))
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(expectedLink))
+    expect(decodeURIComponent(new URL(expectedLink).pathname.split('/').pop()!)).toBe(' BIO101 ')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    const dialog = screen.getByRole('dialog', { name: 'Join this classroom' })
+    expect(within(dialog).getByTestId('join-qr-value')).toHaveAttribute('data-value', expectedLink)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link', exact: true }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2))
+    expect(writeText).toHaveBeenLastCalledWith(expectedLink)
   })
 
   it('saves open joining from the roster-only toggle', async () => {

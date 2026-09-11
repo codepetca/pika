@@ -179,7 +179,7 @@ export function TeacherSettingsTab({
   const displayedBlueprintTitle = formStateReady ? blueprintTitle : classroom.title
   const displayedBlueprintBusy = formStateReady && blueprintBusy
   const displayedBlueprintError = formStateReady ? blueprintError : ''
-  const joinLink = `${origin}/join/${displayedJoinCode}`
+  const joinLink = `${origin}/join/${encodeURIComponent(displayedJoinCode)}`
 
   useEffect(() => {
     setOrigin(window.location.origin)
