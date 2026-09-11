@@ -5,6 +5,18 @@ import { fetchClassDaysForClassroom, invalidateClassDaysForClassroom } from '@/l
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 import { fetchStudentEntriesForClassroom, invalidateStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import type { Classroom } from '@/types'
+import JoinClassroomPage from '@/app/join/[code]/page'
+
+const push = vi.fn()
+const navigation = { code: 'OPEN42', profileRequired: false }
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+  useParams: () => ({ code: navigation.code }),
+  useSearchParams: () => ({
+    get: (name: string) => name === 'profile' && navigation.profileRequired ? 'required' : null,
+  }),
+}))
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div>Loading...</div>,
@@ -62,6 +74,9 @@ describe('HistoryPage', () => {
     vi.mocked(invalidateStudentClassrooms).mockClear()
     vi.mocked(invalidateClassDaysForClassroom).mockClear()
     vi.mocked(invalidateStudentEntriesForClassroom).mockClear()
+    push.mockClear()
+    navigation.code = 'OPEN42'
+    navigation.profileRequired = false
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -153,6 +168,80 @@ describe('HistoryPage', () => {
     await waitFor(() => {
       expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(joinedClassroom.id)
     })
+  })
+
+  it.each([false, true])('shows the server join retry delay with existing classrooms=%s', async (hasClassrooms) => {
+    vi.mocked(fetchStudentClassrooms).mockResolvedValue(hasClassrooms ? [classroom] : [])
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({
+      code: 'rate_limited',
+      error: 'Too many attempts',
+      retryAfterSeconds: 45,
+    }, false))
+    vi.stubGlobal('fetch', fetcher)
+
+    render(<HistoryPage />)
+    if (hasClassrooms) {
+      fireEvent.click(await screen.findByRole('button', { name: '+ Join' }))
+    }
+    const codeInput = await screen.findByRole('textbox', { name: /class code/i })
+    fireEvent.change(codeInput, { target: { value: ' OPEN42 ' } })
+    fireEvent.click(screen.getByRole('button', { name: hasClassrooms ? 'Join' : 'Join Class', exact: true }))
+
+    const message = 'Too many attempts. Wait 45 seconds before trying again.'
+    expect(await screen.findByText(message)).toBeVisible()
+    expect(codeInput).toHaveAccessibleDescription(message)
+    expect(codeInput).toHaveValue(' OPEN42 ')
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(push).not.toHaveBeenCalled()
+    expect(invalidateStudentClassrooms).not.toHaveBeenCalled()
+  })
+
+  it('continues an open join with one transient retry inside the three-attempt budget', async () => {
+    vi.mocked(fetchStudentClassrooms).mockResolvedValue([])
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        code: 'profile_required',
+        error: 'Enter your name to join this classroom.',
+      }, false))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Temporary failure' }, false))
+      .mockResolvedValueOnce(jsonResponse({
+        classroom: { id: 'classroom-2', title: 'Open Biology' },
+      }))
+    vi.stubGlobal('fetch', fetcher as any)
+
+    render(<HistoryPage />)
+
+    expect(await screen.findByText('No Classes Yet')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: /class code/i }), {
+      target: { value: ' open42 ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Join Class' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/%20OPEN42%20?profile=required'))
+    expect(screen.queryByText('Enter your name to join this classroom.')).not.toBeInTheDocument()
+
+    cleanup()
+    navigation.code = ' OPEN42 '
+    navigation.profileRequired = true
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+    expect(fetcher).toHaveBeenCalledOnce()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('safe to try again')
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    for (const call of fetcher.mock.calls.slice(1)) {
+      expect(JSON.parse(call[1]?.body as string)).toMatchObject({
+        classCode: ' OPEN42 ',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+      })
+    }
   })
 
   it('opens a submitted log in the shared dialog and returns focus on close', async () => {

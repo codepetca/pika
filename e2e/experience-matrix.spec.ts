@@ -1159,10 +1159,30 @@ test('shows student attendance states without exposing derived status labels', a
 
 test('keeps classroom joining visually distinct from attendance check-in', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
+  await page.route('**/api/teacher/classrooms/30000000-0000-4000-8000-000000000021', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroom: {
+          id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          title: 'Computer Science 11',
+          class_code: 'ICS3U2',
+          allow_enrollment: true,
+          join_policy: 'open_join',
+        },
+      }),
+    })
+  })
 
   await page.goto('/e2e-fixtures/teacher-classroom-access', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Access' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Join this classroom', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy join code ICS3U2' })).toHaveText('ICS3U2')
+  await expect(page.getByRole('switch', { name: 'Only students on roster can join' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
   await expect(page.getByRole('button', { name: 'Show QR' })).toBeVisible()
   await expect(page.getByText('Check in for attendance', { exact: true })).toHaveCount(0)
   const joinDialog = page.getByRole('dialog', { name: 'Join this classroom' })
@@ -1171,23 +1191,51 @@ test('keeps classroom joining visually distinct from attendance check-in', async
     await showJoinQrButton.click()
     await expect(joinDialog).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 30_000 })
-  await expect(joinDialog.getByText('Student access', { exact: true })).toBeVisible()
+  await expect(joinDialog.getByText('Student access', { exact: true })).toHaveCount(0)
   await expect(joinDialog.getByText('Computer Science 11', { exact: true })).toBeVisible()
-  await expect(joinDialog.getByLabel('Computer Science 11 join classroom QR code')).toBeVisible()
+  await expect(joinDialog.getByText('ICS3U2', { exact: true })).toBeVisible()
+  await expect(joinDialog.getByText('Students can scan the QR code or enter the join code after signing in.')).toHaveCount(0)
+  await expect(joinDialog.getByRole('button', { name: 'Copy link' })).toBeVisible()
+  const joinQr = joinDialog.getByLabel('Computer Science 11 join classroom QR code')
+  await expect(joinQr).toBeVisible()
+  expect(await joinQr.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(17, 24, 39)')
   const joinDialogBox = await joinDialog.boundingBox()
+  const joinContentBoxes = await Promise.all([
+    joinDialog.getByText('Computer Science 11', { exact: true }),
+    joinDialog.getByText('ICS3U2', { exact: true }),
+    joinDialog.getByRole('button', { name: 'Copy link' }),
+    joinQr,
+  ].map((element) => element.boundingBox()))
   const joinViewport = page.viewportSize()
   expect(joinDialogBox).not.toBeNull()
   expect(joinViewport).not.toBeNull()
   expect(joinDialogBox!.x).toBeGreaterThanOrEqual(0)
   expect(joinDialogBox!.x + joinDialogBox!.width).toBeLessThanOrEqual(joinViewport!.width)
+  for (const contentBox of joinContentBoxes) {
+    expect(contentBox).not.toBeNull()
+    expect(contentBox!.x).toBeGreaterThanOrEqual(joinDialogBox!.x)
+    expect(contentBox!.y).toBeGreaterThanOrEqual(joinDialogBox!.y)
+    expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(joinDialogBox!.x + joinDialogBox!.width)
+    expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(joinDialogBox!.y + joinDialogBox!.height)
+  }
   await page.screenshot({
     path: testInfo.outputPath(`classroom-join-qr-${getExperienceMetadata(testInfo).viewport}.png`),
     animations: 'disabled',
   })
 
   await joinDialog.getByRole('button', { name: 'Close' }).click()
-  let joinState: 'joined' | 'already' | 'not_on_roster' | 'ambiguous' = 'joined'
+  await page.getByRole('switch', { name: 'Only students on roster can join' }).click()
+  await expect(page.getByText('Open join via code/link.')).toBeVisible()
+  await expect(page.getByText('Students can join after signing in and entering their name.')).toBeVisible()
+  await expect(page.getByText('Anyone with this code or link can join after entering their name.')).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-settings-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+
+  let joinState: 'joined' | 'already' | 'profile' | 'rate_limited' | 'not_on_roster' | 'ambiguous' = 'joined'
   await page.route('**/api/student/classrooms/join', async (route) => {
+    const requestBody = route.request().postDataJSON() as { firstName?: string }
     const bodies = {
       joined: {
         success: true,
@@ -1199,13 +1247,22 @@ test('keeps classroom joining visually distinct from attendance check-in', async
         alreadyEnrolled: true,
         classroom: { id: ATTENDANCE_FIXTURE_CLASSROOM_ID, title: 'Computer Science 11' },
       },
+      profile: { error: 'Profile required', code: 'profile_required', requiredFields: ['firstName', 'lastName'] },
+      rate_limited: { error: 'Too many attempts', code: 'rate_limited', retryAfterSeconds: 45 },
       not_on_roster: { error: 'Not on roster', code: 'not_on_roster' },
       ambiguous: { error: 'Ambiguous roster match', code: 'roster_ambiguous' },
     }
+    const completedProfile = joinState === 'profile' && Boolean(requestBody.firstName)
     await route.fulfill({
-      status: joinState === 'joined' || joinState === 'already' ? 200 : 403,
+      status: joinState === 'joined' || joinState === 'already' || completedProfile
+        ? 200
+        : joinState === 'profile'
+          ? 400
+          : joinState === 'rate_limited'
+            ? 429
+            : 403,
       contentType: 'application/json',
-      body: JSON.stringify(bodies[joinState]),
+      body: JSON.stringify(completedProfile ? bodies.joined : bodies[joinState]),
     })
   })
 
@@ -1222,13 +1279,73 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'You’re already in this classroom' })).toBeVisible()
 
-  joinState = 'not_on_roster'
+  joinState = 'profile'
   await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+  await page.getByLabel('First name').fill('Ada')
+  await page.getByLabel('Last name').fill('Lovelace')
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-profile-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Join classroom' }).click()
+  await expect(page.getByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+
+  joinState = 'rate_limited'
+  await page.goto('/join/ICS3U2?profile=required', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+  await page.getByLabel('First name').fill('Ada')
+  await page.getByLabel('Last name').fill('Lovelace')
+  await page.getByRole('button', { name: 'Join classroom' }).click()
+  await expect(page.getByText('Too many attempts. Wait 45 seconds before trying again.', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-rate-limit-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+
+  joinState = 'not_on_roster'
+  await page.goto('/join/ICS3U2', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'You’re not on this class roster' })).toBeVisible()
 
   joinState = 'ambiguous'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'We couldn’t match your school account' })).toBeVisible()
+})
+
+test('shows the History join retry delay in empty and enrolled states', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  let hasClassrooms = false
+  await page.route('**/api/auth/me', (route) => route.fulfill({ json: { user: { id: 'history-student', role: 'student' } } }))
+  await page.route('**/api/student/classrooms', (route) => route.fulfill({
+    json: { classrooms: hasClassrooms ? [{ id: ATTENDANCE_FIXTURE_CLASSROOM_ID, title: 'Computer Science 11', class_code: 'ICS3U2' }] : [] },
+  }))
+  await page.route('**/api/classrooms/*/class-days', (route) => route.fulfill({ json: { class_days: [] } }))
+  await page.route('**/api/student/entries?*', (route) => route.fulfill({ json: { entries: [] } }))
+  let joinRequests = 0
+  await page.route('**/api/student/classrooms/join', (route) => {
+    joinRequests += 1
+    return route.fulfill({ status: 429, json: { code: 'rate_limited', error: 'Too many attempts', retryAfterSeconds: 45 } })
+  })
+
+  for (const enrolled of [false, true]) {
+    hasClassrooms = enrolled
+    await page.goto('/e2e-fixtures/student-history', { waitUntil: 'domcontentloaded' })
+    if (enrolled) await page.getByRole('button', { name: '+ Join' }).click()
+    const codeInput = page.getByRole('textbox', { name: /class code/i })
+    await codeInput.fill(' OPEN42 ')
+    await page.getByRole('button', { name: enrolled ? 'Join' : 'Join Class', exact: true }).click()
+    const message = 'Too many attempts. Wait 45 seconds before trying again.'
+    await expect(page.getByText(message, { exact: true })).toBeVisible()
+    await expect(codeInput).toHaveAccessibleDescription(message)
+    await expect(codeInput).toHaveValue(' OPEN42 ')
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({
+      path: testInfo.outputPath(`history-join-rate-limit-${enrolled ? 'enrolled' : 'empty'}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+  expect(joinRequests).toBe(2)
 })
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {

@@ -16,7 +16,7 @@ Enrollment authority must therefore come from the target classroom and a verifie
 invitation, not the permanent `users.role` value. Existing production behavior stays
 authoritative until the whole reachable mixed-role foundation and recovery floor pass.
 
-This foundation now owns roster-matched class-code joining and one disabled-by-default
+This foundation now owns policy-aware class-code joining and one disabled-by-default
 mixed-role route adopter:
 
 - `classroom-enrollment-access.ts` preserves `requireRole('student')` while disabled.
@@ -45,9 +45,10 @@ mixed-role route adopter:
   invitation budget to the actor prevents one attacker from exhausting a valid classroom's
   budget for everyone else.
 - `/api/student/classrooms/join` calls the gate before parsing its body. Authenticated
-  student class-code requests use the atomic service contract with no scanner-supplied
-  profile fields, so exactly one normalized roster identity must already exist. Existing
-  membership remains idempotent. Direct-ID compatibility requests stay on the legacy
+  student class-code requests use the atomic service contract. Roster-only classrooms
+  require exactly one normalized roster identity; open-join classrooms may request the
+  bounded first and last name fields required by the transaction. Existing membership
+  remains idempotent. Direct-ID compatibility requests stay on the legacy
   implementation. Only a wrong-role user in an exact
   configured pair reaches a bounded pair-scoped lookup, exact normalized code comparison,
   pure-policy check and atomic join. No pattern operator treats invitation input as a wildcard. Direct
@@ -86,13 +87,19 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
    idempotent membership. No partial roster/profile side effects may survive failure.
 7. Project a least-data response. Do not return the class code or private owner data.
 
+Client handoffs after `profile_required` may carry a non-authoritative UI hint to show
+the profile form without repeating the same join probe. The subsequent profile submission
+must still pass through this server sequence, and `rate_limited` responses must display the
+returned retry delay rather than inviting an immediate retry.
+
 ## Route-adoption invariants
 
 - A separately reviewed service-only atomic RPC and schema-backed guess limiter exist.
 - Rollback-only database tests prove duplicate races, archive/ownership/enrollment-policy
   races, self-join denial, exact invitation binding and all-or-nothing side effects.
 - The `/api/student/classrooms/join` route preserves authentication-before-body behavior
-  and legacy direct-ID compatibility while class-code joins require one roster match.
+  and legacy direct-ID compatibility while class-code joins enforce the classroom's
+  roster-only or open-join policy inside the atomic transaction.
 - Pal enabled/disabled behavior uses the same atomic source of truth and does not publish
   a membership fact for a rolled-back or pre-existing enrollment.
 - Teacher roster reads/writes and student classroom lists are migrated as separate,
@@ -142,7 +149,7 @@ immutable exact pair-scoped lookup, canonical UUIDs, empty/noncohort behavior an
 cross-product. Policy coverage validates every admission/denial state and fails closed on
 malformed, cross-class invitation or internally inconsistent relationship evidence.
 
-The regular join route uses the guarded adapter for roster-matched student class-code joins;
+The regular join route uses the guarded adapter for policy-aware student class-code joins;
 the controlling flag still limits only mixed-role access. Production login, signup, direct-ID
 compatibility, roster, classroom lists, navigation, entitlements and the development-only home
 reference otherwise remain unchanged. Contextual Pal delivery
