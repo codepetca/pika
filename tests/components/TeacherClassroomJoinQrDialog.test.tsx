@@ -20,9 +20,12 @@ describe('TeacherClassroomJoinQrDialog', () => {
     )
 
     const dialog = screen.getByRole('dialog', { name: 'Join this classroom' })
+    expect(dialog).toHaveClass('max-w-6xl', 'aspect-[2/3]', 'sm:aspect-video')
     expect(within(dialog).getByText('Computer Science 11')).toBeVisible()
     expect(within(dialog).getByText('ICS3U2')).toBeVisible()
     expect(within(dialog).getByLabelText('Computer Science 11 join classroom QR code')).toBeVisible()
+    expect(within(dialog).queryByText('Student access')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/Students can scan/i)).not.toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('button', { name: 'Copy link' }))
     expect(onCopyLink).toHaveBeenCalledOnce()

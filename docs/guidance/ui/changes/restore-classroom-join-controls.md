@@ -9,8 +9,10 @@ dark. States: roster-only, open join, joining disabled, QR open, profile require
 join success, and join errors.
 
 Primary signal: the join code is readable beside the existing join actions and
-inside the QR dialog; admission policy remains an explicit switch. Must not add
-attendance actions or make the classroom join QR resemble the attendance poster.
+inside the QR dialog; admission policy remains an explicit switch. The join QR
+reuses the attendance display modal's dimensions and responsive split layout while
+keeping only join-specific content: classroom name, join code, copy link, and QR.
+It must not add attendance actions or attendance wording.
 No new design-system pattern or human promotion is required. The composite-widget
 checklist was reviewed because the change extends a dialog: keyboard behavior is
 covered, semantic state is covered by tests, and no manual follow-up remains. The
@@ -20,6 +22,7 @@ shared dialog keyboard and ARIA contracts are unchanged.
 |---|---|---|---|
 | Join code in Settings | Settings Pattern Lab join-code action | reuse | The approved mockup already owns the visible, copyable code treatment |
 | Roster-only policy | `SettingsSwitchRow` and the existing classroom PATCH field | reuse | The persisted policy and canonical switch behavior already exist |
-| Join code in QR | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog already owns classroom join semantics |
+| Join QR frame and sizing | attendance QR `DialogPanel` composition | reuse | The requested display uses the same desktop/mobile proportions and QR scale |
+| Join-specific QR content | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog keeps only classroom name, join code, copy link, and QR semantics |
 | Open-join identity form | `/join/[code]`, `FormField`, and `Input` | extend | The join route already returns `profile_required` and the page owns join outcomes |
 | Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off to the canonical join page instead of duplicating identity fields |
