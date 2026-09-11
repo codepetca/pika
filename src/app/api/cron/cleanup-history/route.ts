@@ -14,6 +14,7 @@ import { runColdClassroomPurgeSafetyNet } from '@/lib/server/cold-classroom-purg
 import { runCourseBlueprintPurgeSafetyNet } from '@/lib/server/course-blueprint-purge'
 import { readStudentPurgeHealth, runStudentPurgeSafetyNet } from '@/lib/server/student-purge'
 import { readManagedDeletionHealth } from '@/lib/server/managed-deletion-health'
+import { cleanupClassroomJoinLimiter } from '@/lib/server/classroom-join-limiter-cleanup'
 import {
   beginCleanupHistoryCronRun,
   CronRunLedgerError,
@@ -34,6 +35,7 @@ const SAVE_OPERATION_RETENTION_DAYS = 35
 type IdRow = { id: string }
 
 const CRON_RESPONSE_ERROR_CODES: Record<string, string> = {
+  'Classroom join limiter cleanup unhealthy': 'classroom_join_limiter_cleanup_unhealthy',
   'Student purge health degraded': 'student_purge_health_degraded',
   'Failed to clean classroom archive staging': 'archive_staging_cleanup_failed',
   'Failed to clean classroom archive objects': 'archive_object_cleanup_failed',
@@ -188,6 +190,12 @@ async function runCleanupHistory(
   supabase: ReturnType<typeof getServiceRoleClient>,
   metrics: CleanupHistoryCronMetrics,
 ) {
+  if (!await cleanupClassroomJoinLimiter(supabase)) {
+    return NextResponse.json(
+      { error: 'Classroom join limiter cleanup unhealthy' },
+      { status: 503 },
+    )
+  }
   const cutoffDate = formatInTimeZone(
     subDays(new Date(), 30),
     TIMEZONE,

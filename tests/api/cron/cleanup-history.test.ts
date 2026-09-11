@@ -13,6 +13,7 @@ const coldPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const studentPurgeMocks = vi.hoisted(() => ({ run: vi.fn(), health: vi.fn() }))
 const healthMocks = vi.hoisted(() => ({ read: vi.fn() }))
+const joinLimiterMocks = vi.hoisted(() => ({ cleanup: vi.fn() }))
 const ledgerMocks = vi.hoisted(() => ({
   begin: vi.fn(),
   finish: vi.fn(),
@@ -21,6 +22,10 @@ const ledgerMocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
+vi.mock('@/lib/server/classroom-join-limiter-cleanup', () => ({
+  cleanupClassroomJoinLimiter: joinLimiterMocks.cleanup,
 }))
 
 vi.mock('@/lib/server/classroom-archive-object-cleanup', () => ({
@@ -247,6 +252,7 @@ describe('cron cleanup-history route', () => {
   })
 
   beforeEach(() => {
+    joinLimiterMocks.cleanup.mockResolvedValue(true)
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     cleanupMocks.enabled.mockReturnValue(false)
@@ -289,6 +295,24 @@ describe('cron cleanup-history route', () => {
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: 'Unauthorized' })
     expect(ledgerMocks.begin).not.toHaveBeenCalled()
+    expect(joinLimiterMocks.cleanup).not.toHaveBeenCalled()
+  })
+
+  it('records failed limiter maintenance in the durable cron health signal', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000111',
+      started: true,
+    })
+    joinLimiterMocks.cleanup.mockResolvedValue(false)
+    const response = await GET(cronRequest())
+    expect(response.status).toBe(503)
+    expect(ledgerMocks.finish).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'failed',
+      httpStatus: 503,
+      errorCode: 'classroom_join_limiter_cleanup_unhealthy',
+    }))
   })
 
   it('records an authenticated Vercel invocation and its aggregate success metrics', async () => {
@@ -316,6 +340,7 @@ describe('cron cleanup-history route', () => {
     ))
 
     expect(response.status).toBe(200)
+    expect(joinLimiterMocks.cleanup).toHaveBeenCalledWith(mockSupabaseClient)
     expect(ledgerMocks.resolve).toHaveBeenCalledWith(expect.objectContaining({
       method: 'GET',
     }))
