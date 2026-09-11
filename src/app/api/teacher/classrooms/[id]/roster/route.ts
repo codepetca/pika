@@ -4,6 +4,11 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getStudentPurgeEnabledStudentIds } from '@/lib/server/student-purge'
+import type { TableRow } from '@/types/database'
+
+type RosterListRow = Pick<TableRow<'classroom_roster'>,
+  'id' | 'email' | 'student_number' | 'first_name' | 'last_name' | 'counselor_email'
+  | 'join_source' | 'created_at' | 'updated_at'> & { removed_at?: string | null }
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +29,7 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
   }
 
   const rosterColumns = 'id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at'
-  let rosterResponse: { data: unknown[] | null; error: { code: string; message: string } | null } = await supabase
+  let rosterResponse: { data: RosterListRow[] | null; error: { code: string; message: string } | null } = await supabase
     .from('classroom_roster')
     .select(`${rosterColumns}, removed_at`)
     .eq('classroom_id', classroomId)
@@ -88,7 +93,7 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     joinedByStudentId.set(joined.student_id, joined)
   }
 
-  const roster = (rosterRows || []).filter((r: any) => !r.removed_at).map((r: any) => {
+  const roster = (rosterRows || []).filter((r) => !r.removed_at).map((r) => {
     const email = String(r.email || '').toLowerCase().trim()
     const boundStudentId = studentIdByRosterId.get(String(r.id))
     const joined = boundStudentId

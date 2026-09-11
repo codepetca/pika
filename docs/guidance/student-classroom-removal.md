@@ -58,11 +58,18 @@ removal. Migration application requires separate authorization naming the exact
 target and migration. No production migrations or student-data mutations are
 authorized by this implementation request alone.
 
-Current verification: the focused gate passes 214 tests plus TypeScript, lint,
+Current verification: the focused gate passes plus TypeScript, lint,
 architecture and UI/design policy checks; separate migration source contracts
 also pass. Teacher removal and separate deletion visual scenarios pass in
 desktop/mobile light/dark (desktop-light rerun after a local navigation timeout).
-Student-role routing is checked, but actual post-removal access, retained-data
-behavior, archive round trips and concurrency still require database execution.
-Migration 164 remains unapplied, generated types pending, and the PR must remain
-draft until those checks and independent high-risk review are complete.
+After one-time owner authorization, migration 164 was applied via SQL only to
+the disposable local `pika_removal_164_wgvpf4` database on 2026-09-11. The source
+001–163 public/private schema was checked for exact equality before application;
+no student records were copied. The removal/restore fixture, removed-student and
+Gradebook archive round trips, cross-class/email-change checks and competing-lock
+probes pass. Database lint found no errors or warnings. Generated types were produced and
+independently compared using Supabase's generator against that database; the
+normal `--local` wrapper targets the deliberately unchanged shared database.
+The shared database remains at 163. CI will perform clean migration replay and
+the standard generated-types check. Keep the PR draft until independent
+high-risk review and all required checks are complete.

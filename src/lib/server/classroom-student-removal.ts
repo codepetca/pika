@@ -12,13 +12,8 @@ const resultSchema = z.object({
 })
 
 export async function removeClassroomStudents(teacherId: string, classroomId: string, rosterIds: string[]) {
-  // Narrow compatibility boundary until the forward migration is reflected in
-  // generated types. Never fall back to the legacy destructive removal RPC.
-  const client = getServiceRoleClient() as unknown as {
-    rpc(name: string, args: Record<string, unknown>): PromiseLike<{
-      data: unknown; error: { code?: string; message?: string } | null
-    }>
-  }
+  // Never fall back to the legacy destructive removal RPC.
+  const client = getServiceRoleClient()
   const { data, error } = await client.rpc('remove_classroom_students_preserving_data', {
     p_teacher_id: teacherId, p_classroom_id: classroomId,
     p_roster_ids: [...new Set(rosterIds)],
@@ -40,11 +35,7 @@ export async function removeClassroomStudents(teacherId: string, classroomId: st
 
 /** Explicit teacher re-addition restores retained membership, never erases data. */
 export async function restoreRemovedClassroomStudents(teacherId: string, classroomId: string, emails: string[]) {
-  const client = getServiceRoleClient() as unknown as {
-    rpc(name: string, args: Record<string, unknown>): PromiseLike<{
-      data: unknown; error: { code?: string; message?: string } | null
-    }>
-  }
+  const client = getServiceRoleClient()
   const normalized = [...new Set(emails.map((email) => email.trim().toLowerCase()))]
   let restored = 0
   for (let offset = 0; offset < normalized.length; offset += 100) {

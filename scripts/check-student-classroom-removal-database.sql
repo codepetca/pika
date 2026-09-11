@@ -47,7 +47,8 @@ insert into public.users (id, email, role) values
   ('c1640000-0000-4000-8000-000000000001', 'owner-164@example.invalid', 'teacher'),
   ('c1640000-0000-4000-8000-000000000002', 'other-owner-164@example.invalid', 'teacher'),
   ('c1640000-0000-4000-8000-000000000003', 'student-164@example.invalid', 'student'),
-  ('c1640000-0000-4000-8000-000000000020', 'inactive-164@example.invalid', 'student');
+  ('c1640000-0000-4000-8000-000000000020', 'inactive-164@example.invalid', 'student'),
+  ('c1640000-0000-4000-8000-000000000040', 'archive-164@example.invalid', 'student');
 
 insert into public.classrooms (id, teacher_id, title, class_code, allow_enrollment, join_policy)
 values (
@@ -55,6 +56,20 @@ values (
   'c1640000-0000-4000-8000-000000000001',
   'Removal fixture',
   'C164FIXTURE',
+  true,
+  'roster'
+), (
+  'c1640000-0000-4000-8000-000000000041',
+  'c1640000-0000-4000-8000-000000000001',
+  'Removal archive fixture',
+  'C164ARCHIVE',
+  true,
+  'roster'
+), (
+  'c1640000-0000-4000-8000-000000000048',
+  'c1640000-0000-4000-8000-000000000001',
+  'Removal cross-class fixture',
+  'C164CROSS',
   true,
   'roster'
 );
@@ -85,6 +100,14 @@ insert into public.classroom_roster (
     'Inactive',
     'Fixture',
     'manual'
+  ),
+  (
+    'c1640000-0000-4000-8000-000000000042',
+    'c1640000-0000-4000-8000-000000000041',
+    'archive-164@example.invalid',
+    'Archive',
+    'Fixture',
+    'manual'
   );
 
 insert into public.classroom_enrollments (
@@ -101,7 +124,24 @@ insert into public.classroom_enrollments (
   'c1640000-0000-4000-8000-000000000020',
   '2026-09-01T13:00:00Z',
   '{}'::jsonb
+), (
+  'c1640000-0000-4000-8000-000000000043',
+  'c1640000-0000-4000-8000-000000000041',
+  'c1640000-0000-4000-8000-000000000040',
+  '2026-08-20T14:00:00Z',
+  '{"2026-08-21":"absent"}'::jsonb
+), (
+  'c1640000-0000-4000-8000-000000000049',
+  'c1640000-0000-4000-8000-000000000048',
+  'c1640000-0000-4000-8000-000000000040',
+  '2026-08-20T15:00:00Z',
+  '{}'::jsonb
 );
+
+-- Stable roster identity, not mutable account email, selects the learner.
+update public.users
+set email = 'archive-renamed-164@example.invalid'
+where id = 'c1640000-0000-4000-8000-000000000040';
 
 insert into public.entries (
   id, student_id, classroom_id, date, text, on_time
@@ -111,6 +151,20 @@ insert into public.entries (
   'c1640000-0000-4000-8000-000000000010',
   '2026-09-02',
   'Retained daily log',
+  true
+), (
+  'c1640000-0000-4000-8000-000000000047',
+  'c1640000-0000-4000-8000-000000000040',
+  'c1640000-0000-4000-8000-000000000041',
+  '2026-08-21',
+  'Archived removed-student log',
+  true
+), (
+  'c1640000-0000-4000-8000-000000000050',
+  'c1640000-0000-4000-8000-000000000040',
+  'c1640000-0000-4000-8000-000000000048',
+  '2026-08-21',
+  'Other-class retained log',
   true
 );
 
@@ -125,6 +179,14 @@ insert into public.gradebook_items (
   10,
   true,
   'c1640000-0000-4000-8000-000000000001'
+), (
+  'c1640000-0000-4000-8000-000000000044',
+  'c1640000-0000-4000-8000-000000000041',
+  'Archived retained mark',
+  20,
+  15,
+  true,
+  'c1640000-0000-4000-8000-000000000001'
 );
 
 insert into public.gradebook_item_scores (
@@ -136,6 +198,13 @@ insert into public.gradebook_item_scores (
   'c1640000-0000-4000-8000-000000000003',
   8,
   clock_timestamp()
+), (
+  'c1640000-0000-4000-8000-000000000045',
+  'c1640000-0000-4000-8000-000000000041',
+  'c1640000-0000-4000-8000-000000000044',
+  'c1640000-0000-4000-8000-000000000040',
+  17,
+  '2026-08-22T16:00:00Z'
 );
 
 insert into public.gradebook_score_overrides (
@@ -147,6 +216,14 @@ insert into public.gradebook_score_overrides (
   'final',
   'c1640000-0000-4000-8000-000000000010',
   87,
+  'c1640000-0000-4000-8000-000000000001'
+), (
+  'c1640000-0000-4000-8000-000000000046',
+  'c1640000-0000-4000-8000-000000000041',
+  'c1640000-0000-4000-8000-000000000040',
+  'final',
+  'c1640000-0000-4000-8000-000000000041',
+  91,
   'c1640000-0000-4000-8000-000000000001'
 );
 
@@ -180,6 +257,12 @@ insert into public.pal_event_outbox (
     'metadata', '{}'::jsonb
   )
 );
+
+create temporary table removal_archive_rows (
+  table_name text primary key,
+  rows jsonb not null
+) on commit drop;
+grant select, insert on removal_archive_rows to service_role;
 
 set local role service_role;
 
@@ -233,6 +316,18 @@ set local role service_role;
 do $behavior$
 declare
   v_result jsonb;
+  v_counts jsonb;
+  v_actors jsonb;
+  v_verification jsonb;
+  v_rows jsonb;
+  v_resource record;
+  v_archive_path text;
+  v_original_roster jsonb;
+  v_original_score jsonb;
+  v_original_override jsonb;
+  v_export_id constant uuid := 'c1640000-0000-4000-8000-000000000060';
+  v_compact_id constant uuid := 'c1640000-0000-4000-8000-000000000061';
+  v_restore_id constant uuid := 'c1640000-0000-4000-8000-000000000062';
 begin
   v_result := public.remove_classroom_students_preserving_data(
     'c1640000-0000-4000-8000-000000000001',
@@ -378,6 +473,279 @@ begin
   end if;
   if not exists (select 1 from public.pal_event_outbox where id = 'c1640000-0000-4000-8000-000000000017') then
     raise exception 'Restore rewrote Pal state';
+  end if;
+
+  -- A removed membership remains removed across hot-to-cold-to-hot archive,
+  -- while retained roster metadata and grades round-trip byte-for-byte.
+  v_result := public.remove_classroom_students_preserving_data(
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    array['c1640000-0000-4000-8000-000000000042'::uuid]
+  );
+  if v_result <> '{"removed_count":1,"requested_count":1}'::jsonb then
+    raise exception 'Archive-fixture removal failed: %', v_result;
+  end if;
+  select to_jsonb(roster) into strict v_original_roster
+  from public.classroom_roster roster
+  where roster.id = 'c1640000-0000-4000-8000-000000000042';
+  select to_jsonb(score) into strict v_original_score
+  from public.gradebook_item_scores score
+  where score.id = 'c1640000-0000-4000-8000-000000000045';
+  select to_jsonb(override_row) into strict v_original_override
+  from public.gradebook_score_overrides override_row
+  where override_row.id = 'c1640000-0000-4000-8000-000000000046';
+  if exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000043'
+  ) then
+    raise exception 'Archive-fixture removal retained enrollment';
+  end if;
+  if not exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000049'
+  ) or not exists (
+    select 1 from public.entries
+    where id = 'c1640000-0000-4000-8000-000000000050'
+  ) then
+    raise exception 'Removal changed the same learner in another classroom';
+  end if;
+
+  update public.classrooms
+  set archived_at = clock_timestamp()
+  where id = 'c1640000-0000-4000-8000-000000000041';
+  v_actors := jsonb_build_array(
+    jsonb_build_object(
+      'actor_id', 'c1640000-0000-4000-8000-000000000001'::uuid,
+      'role', 'teacher'
+    ),
+    jsonb_build_object(
+      'actor_id', 'c1640000-0000-4000-8000-000000000040'::uuid,
+      'role', 'student'
+    )
+  );
+  v_result := public.begin_classroom_archive_export_v2(
+    v_export_id,
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    repeat('a', 64),
+    '164_student_classroom_removal',
+    'abcdef1',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Removed-student archive begin failed: %', v_result;
+  end if;
+  v_counts := v_result->'resource_counts';
+  if v_counts->>'classroom_roster' <> '1'
+    or v_counts->>'classroom_enrollments' <> '0'
+    or v_counts->>'gradebook_item_scores' <> '1'
+    or v_counts->>'gradebook_score_overrides' <> '1'
+  then
+    raise exception 'Removed-student archive inventory is incomplete: %', v_counts;
+  end if;
+  for v_resource in
+    select *
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 2
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb) '
+      || 'from public.%I source '
+      || 'where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_columns[1],
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_columns[1]
+    ) into v_rows using 'c1640000-0000-4000-8000-000000000041'::uuid;
+    insert into removal_archive_rows values (v_resource.table_name, v_rows);
+  end loop;
+  v_archive_path := format(
+    '%s/%s/%s/classroom-v2.tar.gz',
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    v_export_id
+  );
+  if not public.stage_classroom_archive_object_upload(
+    v_export_id,
+    'c1640000-0000-4000-8000-000000000001',
+    'classroom-archives',
+    v_archive_path,
+    repeat('b', 64),
+    1024
+  ) then
+    raise exception 'Removed-student archive staging failed';
+  end if;
+  v_result := public.complete_classroom_archive_export_v2(
+    v_export_id,
+    'c1640000-0000-4000-8000-000000000001',
+    'classroom-archives',
+    v_archive_path,
+    repeat('b', 64),
+    repeat('c', 64),
+    1024,
+    4096,
+    v_counts,
+    2,
+    v_counts,
+    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{"read_back_verified":true,"artifact_checksum_verified":true,"manifest_verified":true,"resource_checksums_verified":true,"resource_counts_verified":true,"storage_objects_verified":true,"actor_snapshots_verified":true}'::jsonb
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Removed-student archive finalize failed: %', v_result;
+  end if;
+  v_result := public.begin_classroom_archive_compaction_v2(
+    v_compact_id,
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    v_export_id,
+    repeat('d', 64),
+    2
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Removed-student compaction begin failed: %', v_result;
+  end if;
+  for v_resource in select * from removal_archive_rows loop
+    if jsonb_array_length(v_resource.rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_compact_id,
+        'c1640000-0000-4000-8000-000000000001',
+        v_resource.table_name,
+        v_resource.rows
+      );
+    end if;
+  end loop;
+  perform public.stage_classroom_archive_compaction_objects(
+    v_compact_id,
+    'c1640000-0000-4000-8000-000000000001',
+    '[]'::jsonb
+  );
+  v_verification := jsonb_build_object(
+    'operation_id', v_compact_id,
+    'archive_id', v_export_id,
+    'artifact_sha256', repeat('b', 64),
+    'content_sha256', repeat('c', 64),
+    'verified_at', clock_timestamp(),
+    'read_back_verified', true,
+    'artifact_checksum_verified', true,
+    'manifest_verified', true,
+    'resource_checksums_verified', true,
+    'resource_counts_verified', true,
+    'storage_objects_verified', true,
+    'actor_snapshots_verified', true,
+    'schema_adapter_verified', true,
+    'actor_references_resolved', true,
+    'source_object_cleanup_staged', true
+  );
+  v_result := public.complete_classroom_archive_compaction_v2(
+    v_compact_id,
+    'c1640000-0000-4000-8000-000000000001',
+    v_actors,
+    v_verification,
+    2
+  );
+  if not coalesce((v_result->>'ok')::boolean, false)
+    or exists (
+      select 1 from public.classrooms
+      where id = 'c1640000-0000-4000-8000-000000000041'
+    )
+  then
+    raise exception 'Removed-student compaction failed: %', v_result;
+  end if;
+  if not exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000049'
+  ) or not exists (
+    select 1 from public.entries
+    where id = 'c1640000-0000-4000-8000-000000000050'
+  ) then
+    raise exception 'Compaction changed the same learner in another classroom';
+  end if;
+  v_result := public.begin_classroom_archive_restore_v2(
+    v_restore_id,
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    v_export_id,
+    repeat('e', 64),
+    '164_student_classroom_removal',
+    '[]'::jsonb,
+    v_counts,
+    '[]'::jsonb,
+    2147483648,
+    2,
+    2,
+    v_counts
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Removed-student restore begin failed: %', v_result;
+  end if;
+  for v_resource in select * from removal_archive_rows loop
+    if jsonb_array_length(v_resource.rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows_v2(
+        v_restore_id,
+        'c1640000-0000-4000-8000-000000000001',
+        v_resource.table_name,
+        v_resource.rows,
+        2
+      );
+    end if;
+  end loop;
+  v_result := public.complete_classroom_archive_restore_v2(
+    v_restore_id,
+    'c1640000-0000-4000-8000-000000000001',
+    '{"archive_checksum_verified":true,"manifest_verified":true,"resource_checksums_verified":true,"resource_counts_verified":true,"storage_objects_verified":true,"actor_snapshots_verified":true,"schema_adapter_available":true,"restored_storage_objects_verified":true,"adapter_chain":[]}'::jsonb,
+    2
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Removed-student archive restore failed: %', v_result;
+  end if;
+  if (select to_jsonb(roster) from public.classroom_roster roster
+      where roster.id = 'c1640000-0000-4000-8000-000000000042')
+      is distinct from v_original_roster
+    or (select to_jsonb(score) from public.gradebook_item_scores score
+      where score.id = 'c1640000-0000-4000-8000-000000000045')
+      is distinct from v_original_score
+    or (select to_jsonb(override_row) from public.gradebook_score_overrides override_row
+      where override_row.id = 'c1640000-0000-4000-8000-000000000046')
+      is distinct from v_original_override
+  then
+    raise exception 'Archive roundtrip changed retained roster or grades';
+  end if;
+  if exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000043'
+  ) then
+    raise exception 'Archive restore accidentally reenrolled the removed learner';
+  end if;
+  update public.classrooms
+  set archived_at = null
+  where id = 'c1640000-0000-4000-8000-000000000041';
+  v_result := public.restore_removed_classroom_students(
+    'c1640000-0000-4000-8000-000000000001',
+    'c1640000-0000-4000-8000-000000000041',
+    array['archive-164@example.invalid']
+  );
+  if v_result <> '{"requested_count":1,"restored_count":1}'::jsonb
+    or not exists (
+      select 1 from public.classroom_enrollments
+      where id = 'c1640000-0000-4000-8000-000000000043'
+        and student_id = 'c1640000-0000-4000-8000-000000000040'
+        and created_at = '2026-08-20T14:00:00Z'
+        and manual_attendance_marks = '{"2026-08-21":"absent"}'::jsonb
+    )
+  then
+    raise exception 'Explicit post-archive membership restore changed metadata: %', v_result;
+  end if;
+  if not exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000049'
+  ) or not exists (
+    select 1 from public.entries
+    where id = 'c1640000-0000-4000-8000-000000000050'
+  ) then
+    raise exception 'Archive restore changed the same learner in another classroom';
   end if;
 end;
 $behavior$;

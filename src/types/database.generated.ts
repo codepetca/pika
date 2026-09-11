@@ -3730,6 +3730,12 @@ export type Database = {
           id: string
           join_source: string
           last_name: string | null
+          removed_at: string | null
+          removed_enrolled_at: string | null
+          removed_enrollment_id: string | null
+          removed_student_id: string | null
+          retained_attendance_participant_active: boolean | null
+          retained_manual_attendance_marks: Json | null
           student_number: string | null
           updated_at: string
         }
@@ -3742,6 +3748,12 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
+          removed_at?: string | null
+          removed_enrolled_at?: string | null
+          removed_enrollment_id?: string | null
+          removed_student_id?: string | null
+          retained_attendance_participant_active?: boolean | null
+          retained_manual_attendance_marks?: Json | null
           student_number?: string | null
           updated_at?: string
         }
@@ -3754,6 +3766,12 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
+          removed_at?: string | null
+          removed_enrolled_at?: string | null
+          removed_enrollment_id?: string | null
+          removed_student_id?: string | null
+          retained_attendance_participant_active?: boolean | null
+          retained_manual_attendance_marks?: Json | null
           student_number?: string | null
           updated_at?: string
         }
@@ -3763,6 +3781,13 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_roster_removed_student_id_fkey"
+            columns: ["removed_student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -5295,13 +5320,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "gradebook_item_scores_classroom_id_student_id_fkey"
-            columns: ["classroom_id", "student_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_enrollments"
-            referencedColumns: ["classroom_id", "student_id"]
-          },
-          {
             foreignKeyName: "gradebook_item_scores_item_id_classroom_id_fkey"
             columns: ["item_id", "classroom_id"]
             isOneToOne: false
@@ -5419,13 +5437,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classrooms"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "gradebook_score_overrides_classroom_id_student_id_fkey"
-            columns: ["classroom_id", "student_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_enrollments"
-            referencedColumns: ["classroom_id", "student_id"]
           },
           {
             foreignKeyName: "gradebook_score_overrides_created_by_fkey"
@@ -9998,6 +10009,10 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_pre_v164: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       normalize_classroom_archive_restore_row_v143: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -10160,6 +10175,14 @@ export type Database = {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
       }
+      remove_classroom_students_preserving_data: {
+        Args: {
+          p_classroom_id: string
+          p_roster_ids: string[]
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       renew_classroom_archive_object_upload_cleanup_lease: {
         Args: {
           p_lease_seconds?: number
@@ -10307,6 +10330,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      restore_removed_classroom_students: {
+        Args: {
+          p_classroom_id: string
+          p_emails: string[]
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       retry_attendance_outbox_v1: {
         Args: {
