@@ -214,7 +214,12 @@ for (const role of ['teacher', 'student'] as const) {
       example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
     ).toBeVisible()
     await expect(example.getByText('84%')).toBeVisible()
-    await expect(example.getByText('Not counted')).toBeVisible()
+    await expect(
+      example.getByTestId('student-grades-visible-preview').getByText('Not counted')
+    ).toBeVisible()
+    const standalone = example.getByTestId('standalone-returned-marks-preview')
+    await expect(standalone.getByText('Not counted')).toBeVisible()
+    await expect(standalone.getByRole('link')).toHaveCount(0)
     const feedbackLinks = example.getByRole('link')
     await expect(feedbackLinks).toHaveCount(3)
     await testInfo.attach('student-grades-visible', {

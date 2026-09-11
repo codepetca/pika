@@ -123,7 +123,9 @@ export function StudentAttendanceCheckIn({
               aria-hidden="true"
             />
             <h1 className="mt-4 text-xl font-semibold text-text-default">{result.title}</h1>
-            <p className="mt-2 text-sm text-text-muted">{result.description}</p>
+            {result.description ? (
+              <p className="mt-2 text-sm text-text-muted">{result.description}</p>
+            ) : null}
             {result.recordedAt ? (
               <p className="mt-3 text-xs text-text-muted">
                 Confirmed {new Date(result.recordedAt).toLocaleTimeString([], {

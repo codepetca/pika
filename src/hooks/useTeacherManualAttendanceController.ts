@@ -18,6 +18,27 @@ function manualAttendanceUrl(classroomId: string, classDate: string) {
   return `/api/teacher/manual-attendance?${params.toString()}`
 }
 
+function applyManualAttendanceMarks(
+  current: ManualAttendanceView,
+  studentIds: string[],
+  status: ManualAttendanceMark,
+) {
+  const nextOverrides = new Map(
+    current.overrides.map((override) => [override.studentId, override.status]),
+  )
+  studentIds.forEach((studentId) => {
+    if (status === 'automatic') nextOverrides.delete(studentId)
+    else nextOverrides.set(studentId, status)
+  })
+  return {
+    ...current,
+    overrides: [...nextOverrides].map(([studentId, nextStatus]) => ({
+      studentId,
+      status: nextStatus,
+    })),
+  }
+}
+
 type ManualAttendanceScope = {
   key: string
   classroomId: string
@@ -139,14 +160,26 @@ export function useTeacherManualAttendanceController(input: {
       !input.enabled
       || input.archived
       || activeCommandRef.current
+      || !view
+      || view.classroomId !== input.classroomId
+      || view.classDate !== input.selectedDate
       || studentIds.length === 0
       || studentIds.some((studentId) => !input.visibleStudentIds.includes(studentId))
     ) return
     const commandScope = scopeRef.current
+    const previousOverrides = [...view.overrides]
     const commandId = ++commandSequence.current
     activeCommandRef.current = { id: commandId, scopeKey: commandScope.key }
     requestSequence.current += 1
     setActiveCommand('marks')
+    setView((current) => {
+      if (
+        !current
+        || current.classroomId !== commandScope.classroomId
+        || current.classDate !== commandScope.selectedDate
+      ) return current
+      return applyManualAttendanceMarks(current, studentIds, status)
+    })
     let completedChunks = 0
     try {
       for (
@@ -177,41 +210,61 @@ export function useTeacherManualAttendanceController(input: {
         && activeCommandRef.current?.id === commandId
         && scopeRef.current.key === commandScope.key
       ) {
-        setView((current) => {
-          if (
-            !current
-            || current.classroomId !== commandScope.classroomId
-            || current.classDate !== commandScope.selectedDate
-          ) return current
-          const nextOverrides = new Map(
-            current.overrides.map((override) => [override.studentId, override.status]),
-          )
-          studentIds.forEach((studentId) => {
-            if (status === 'automatic') nextOverrides.delete(studentId)
-            else nextOverrides.set(studentId, status)
-          })
-          return {
-            ...current,
-            overrides: [...nextOverrides].map(([studentId, nextStatus]) => ({
-              studentId,
-              status: nextStatus,
-            })),
-          }
-        })
         showMessage({
           text: options.successText ?? (status === 'automatic' ? 'Manual changes reverted' : 'Attendance updated'),
           tone: 'success',
         })
       }
     } catch (reason) {
-      if (mountedRef.current && scopeRef.current.key === commandScope.key) {
-        if (completedChunks > 0) await loadScope(commandScope, true)
+      if (
+        mountedRef.current
+        && activeCommandRef.current?.id === commandId
+        && scopeRef.current.key === commandScope.key
+      ) {
+        let warningText: string
+        if (completedChunks > 0) {
+          const refreshed = await loadScope(commandScope, true)
+          if (
+            !mountedRef.current
+            || activeCommandRef.current?.id !== commandId
+            || scopeRef.current.key !== commandScope.key
+          ) return
+          if (refreshed) {
+            warningText = 'Some attendance changes were saved; the current attendance has been refreshed'
+          } else {
+            const confirmedStudentIds = studentIds.slice(
+              0,
+              completedChunks * MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST,
+            )
+            setView((current) => {
+              if (
+                !current
+                || current.classroomId !== commandScope.classroomId
+                || current.classDate !== commandScope.selectedDate
+              ) return current
+              return applyManualAttendanceMarks(
+                { ...current, overrides: previousOverrides },
+                confirmedStudentIds,
+                status,
+              )
+            })
+            warningText = 'Some attendance changes were saved; the current attendance could not be refreshed'
+          }
+        } else {
+          setView((current) => {
+            if (
+              !current
+              || current.classroomId !== commandScope.classroomId
+              || current.classDate !== commandScope.selectedDate
+            ) return current
+            return { ...current, overrides: previousOverrides }
+          })
+          warningText = reason instanceof Error
+            ? reason.message
+            : 'Manual attendance could not be updated'
+        }
         showMessage({
-          text: completedChunks > 0
-            ? 'Some attendance changes were saved; the current attendance has been refreshed'
-            : reason instanceof Error
-              ? reason.message
-              : 'Manual attendance could not be updated',
+          text: warningText,
           tone: 'warning',
         })
       }
@@ -225,10 +278,13 @@ export function useTeacherManualAttendanceController(input: {
     }
   }, [
     input.archived,
+    input.classroomId,
     input.enabled,
+    input.selectedDate,
     input.visibleStudentIds,
     loadScope,
     showMessage,
+    view,
   ])
 
   const saveSettings = useCallback(async (next: {

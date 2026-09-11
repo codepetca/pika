@@ -1,6 +1,6 @@
 # Stable classroom attendance QR
 
-The teacher's Daily context bar exposes one `Classroom QR` action whenever QR
+The teacher's Daily context bar exposes one `Check in for attendance` action whenever QR
 attendance is available for the classroom. It opens the reusable poster for
 landscape screen display and a separate portrait print layout, including while
 attendance is scheduled or closed. Rotation invalidates the previous poster;
@@ -25,6 +25,11 @@ teachers must print and replace it.
   window and its open projection, verifies enabled attendance policy and an active
   class day even while provider cancellation is syncing, then uses Bara presentation/check-in
   operations entirely server-side. Bara remains authoritative for check-in.
+- Attendance classifies a signed-in nonmember without writing: exactly one safe
+  roster match reports that the student has not joined yet, no match reports that
+  the student is not on the class roster, and ambiguous or conflicting identity
+  evidence receives a neutral explanation. The attendance route never enrolls,
+  binds a roster row, synchronizes sources, or offers an inline join action.
 - A signed-out scan carries its safe opaque attendance path through login and
   both supported signup flows, including verification and password creation,
   before returning to the existing check-in boundary. Signup does not enroll a
@@ -58,7 +63,7 @@ teachers must print and replace it.
 
 Reference: Daily attendance, the shared DialogPanel/ConfirmDialog contracts,
 and Pattern Lab Controls. Primary signal: a landscape, monitor-shaped panel with
-the centered classroom label, “Scan Attendance”, attendance hours, and direct print/rotate actions on the left and a maximum-height, square,
+the centered classroom label, “Check in for attendance”, attendance hours, and direct print/rotate actions on the left and a maximum-height, square,
 dark-on-light code with a quiet zone on the right. Do not add new attendance
 statuses, raw theme colors, or new overlay behavior. No experimental shared
 pattern or human promotion is proposed.
@@ -73,7 +78,7 @@ pattern or human promotion is proposed.
 
 The print-only body portal is not an interactive overlay; it isolates a portrait
 poster with the centered classroom name above the QR, followed by prominent attendance
-hours and a subordinate `Scan Attendance` label below the QR, from
+hours and a subordinate `Check in for attendance` label below the QR, from
 the application during printing. Printable codes resolve to dark-on-white
 independently of the active theme. Feature state stays outside
 `src/ui`. QR viewport geometry is registered under the attendance design owner.
@@ -88,8 +93,9 @@ places the same actions in its `Poster settings` menu.
 
 Teacher and student fixtures cover desktop 1440×900 and mobile 390×844 in light
 and dark. Browser contracts cover live QR sizing, poster view, direct poster actions,
-rotation warning, print isolation, and student loading/success/closed/revoked/roster/error
-states. Focus and Escape contracts are tested through shared dialog owners.
+rotation warning, print isolation, and student loading/success/closed/revoked/not joined/
+not rostered/ambiguous/error states. Focus and Escape contracts are tested through
+shared dialog owners.
 Fixtures do not prove live Bara operation or real authenticated redirection;
 API/server tests cover authorization boundaries separately. A real-stack smoke
 test remains required after material attendance or QR boundary changes. No new

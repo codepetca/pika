@@ -52,9 +52,9 @@ describe('TeacherClassroomQrDialog', () => {
 
     renderDialog()
 
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+    const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
     expect(dialog).toHaveClass('aspect-[2/3]', 'sm:aspect-video')
-    const qr = within(dialog).getByLabelText('Physics 11 permanent attendance QR code')
+    const qr = within(dialog).getByLabelText('Physics 11 check in for attendance QR code')
     expect(qr).toBeVisible()
     expect(qr).toHaveClass('max-w-64', 'sm:h-full', 'p-[10%]')
     expect(within(dialog).getByText('Physics 11')).toHaveClass('sm:text-5xl')
@@ -62,7 +62,8 @@ describe('TeacherClassroomQrDialog', () => {
     expect(within(dialog).getByText('Physics 11').parentElement?.parentElement)
       .toHaveClass('justify-center', 'gap-3', 'sm:gap-6')
     expect(qr.parentElement).toHaveClass('flex-none', 'sm:flex-1')
-    expect(within(dialog).getByText('Scan Attendance')).toHaveClass('hidden', 'sm:block', 'sm:text-3xl')
+    expect(within(dialog).getAllByText('Check in for attendance').find((node) => node.tagName === 'P'))
+      .toHaveClass('hidden', 'sm:block', 'sm:text-3xl')
     expect(within(dialog).getByText('9:00 AM - 10:00 AM')).toHaveClass('hidden', 'sm:block', 'sm:text-2xl')
     const optionsButton = within(dialog).getByRole('button', { name: 'QR options' })
     expect(optionsButton.closest('[class*="sm:hidden"]')).toBeTruthy()
@@ -75,8 +76,8 @@ describe('TeacherClassroomQrDialog', () => {
     const printSubtitle = printLayout?.querySelector('[data-classroom-qr-print-subtitle]')
     expect(printHours).toHaveTextContent('9:00 AM - 10:00 AM')
     expect(printHours).toHaveClass('text-4xl')
-    expect(printSubtitle).toHaveTextContent('Scan Attendance')
-    const printQr = printLayout?.querySelector('[aria-label="Physics 11 permanent attendance QR code"]')
+    expect(printSubtitle).toHaveTextContent('Check in for attendance')
+    const printQr = printLayout?.querySelector('[aria-label="Physics 11 check in for attendance QR code"]')
     expect(printQr?.compareDocumentPosition(printHours!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(printHours?.compareDocumentPosition(printSubtitle!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(document.querySelector('style[media="print"]')).toHaveTextContent('size: portrait')
@@ -99,7 +100,7 @@ describe('TeacherClassroomQrDialog', () => {
     })
     expect(downloadedSvg).toContain('<svg')
     expect(downloadedSvg).not.toContain('Physics 11')
-    expect(downloadedSvg).not.toContain('Scan Attendance')
+    expect(downloadedSvg).not.toContain('Check in for attendance')
     expect(anchorClick).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:qr')
 
@@ -126,7 +127,7 @@ describe('TeacherClassroomQrDialog', () => {
 
     renderDialog()
 
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+    const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
     await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
     await user.click(within(screen.getByRole('menu', { name: 'Poster settings' })).getByRole('menuitem', { name: 'Rotate QR' }))
     const confirm = screen.getByRole('dialog', { name: 'Rotate classroom QR?' })
@@ -146,7 +147,7 @@ describe('TeacherClassroomQrDialog', () => {
   it('shows a recoverable loading failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => response({ error: 'down' }, false)))
     renderDialog()
-    expect(await screen.findByRole('heading', { name: 'Classroom QR unavailable' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Attendance QR unavailable' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible()
   })
 
@@ -162,7 +163,7 @@ describe('TeacherClassroomQrDialog', () => {
     vi.stubGlobal('fetch', fetcher)
     const user = userEvent.setup()
     renderDialog()
-    const dialog = await screen.findByRole('dialog', { name: 'Classroom QR' })
+    const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
     await user.click(within(dialog).getByRole('button', { name: 'Poster settings' }))
     await user.click(within(screen.getByRole('menu', { name: 'Poster settings' })).getByRole('menuitem', { name: 'Rotate QR' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Rotate classroom QR?' })).getByRole('button', { name: 'Rotate QR' }))

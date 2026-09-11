@@ -31468,3 +31468,102 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 
 - Published draft #1207 at d594758c. The independent review found classic-scrollbar mirror misalignment and touch-inaccessible format help. One correction batch measures the textarea client area, adds opt-in tap/click help with a button description, and connects validation advice to the input.
 - Added reproducible browser coverage for wrapped roster caret placement, bottom scrolling, and touch opening/dismissal; the scenario passes. Shared-control keyboard/description regressions and a deterministic Pattern Lab help example cover the tooltip extension. Targeted and final independent review precede ready-state CI; no merge is authorized by this PR/review request.
+
+<!-- pika-session-log-archive-batch:717383320f3a28fe8f50f484576f435d51bac0a015386488a8c1ee9660cb4364 -->
+## 2026-09-06 — Mirror calendar items in student Daily panels
+
+- Added shared Toronto date mapping for assignments and announcements so the student Daily Today and Last class panels use the same dates as Calendar. Published announcements use `created_at`; future scheduled announcements use `scheduled_for` when applicable.
+- Reused the existing student lesson-plan viewer and announcement renderer, adding date-matched assignment cards, announcement content and navigation back to Classwork or all Announcements. Teacher Daily behavior is unchanged; empty and loading states remain intact.
+- Added focused coverage for calendar date mapping and both student date panels. Focused tests pass 5 files / 64 tests; TypeScript, lint, design policy and production build pass. Lint retains one pre-existing `TestDetailPanel` hook warning. Browser verification covered student desktop/mobile light/dark populated states and the existing teacher/student classroom surfaces; no schema, dependency, hosted-data or deployment change.
+
+<!-- pika-session-log-archive-batch:d1d377d9ba61ea154557d30003ea71a98b399eb7e8911e0dfb17c2131d946d0a -->
+## 2026-09-06 — Limit student Daily history to five past logs
+
+- Student Daily now requests a six-entry history window and renders at most five entries before today, preserving today’s log plus the five most recent past logs. The broader student History page and API behavior remain unchanged.
+- Added a regression covering an overfilled response so stale cache data cannot surface a sixth past log. Focused checks pass 24 files / 278 tests plus architecture, UI policy, design policy, TypeScript and lint. The UI verification script passes on the current classroom-list fixture; the local auth fixture no longer has a classroom for populated-route verification.
+- Excluded entries dated on non-class days from that same list, with a regression covering a weekend entry. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+- Added class-day-driven empty placeholders: the latest five prior class days now appear in history, with “No log submitted” for missed logs; non-class days remain excluded. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
+
+<!-- pika-session-log-archive-batch:3971028f12b33db4e6ea51b32b53612f64ddb52ec42e5345e8fd799c3ef6a94b -->
+## 2026-09-06 — Show ten past class-day logs in student Daily history
+
+- Expanded student Daily history from five to ten prior class days, still excluding non-class days and preserving empty “No log submitted” rows for missed class days. Today remains the separate current-day editor.
+- Updated the history boundary regression and all request/cache fixtures to use today plus ten past entries. Focused checks pass 24 files / 280 tests plus architecture, UI policy, design policy, TypeScript and lint; the Pika audit passes.
+- Playwright verification passed student desktop/mobile light/dark captures and teacher desktop/mobile unchanged-state captures. The current seeded classroom has only five past class days, so the ten-row boundary is covered by the focused fixture. Composite-widget checklist reviewed: keyboard behavior remains covered, scheduled semantics have a role/name regression, and no manual follow-up remains. No schema, dependency, hosted-data or deployment change.
+
+<!-- pika-session-log-archive-batch:ed4b63869c0fa537f0098ddd0a7ce89fdfcdcb6f364423d801af06de0e444482 -->
+## 2026-09-07 — Integrate class-day setup for the sequential merge queue
+
+- Coordinator released PR #1203 after #1209 merged. Rebased onto main `68b3a58c`; class-day source and concurrency remediation remain patch-equivalent. Current main already supplies the typography ESM fix; removed the duplicate import produced by replay and retained main's configuration exactly. Updated the architecture summary to match weekday-only generation and compacted combined session history after the focused gate identified its cap.
+- Sole writer remains `codex/classroom-class-days`. The authorized post-hold pass uses existing clean reviews plus one bounded Terra/high cumulative integration review, focused tests and teacher/student browser/visual checks before fresh final-SHA CI and merge to main. Risk profile: workspace-state. No new migration or production action is included.
+
+## 2026-09-07 — Cover class-day review from secondary creation entry points
+
+- The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
+- Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.
+
+<!-- pika-session-log-archive-batch:29183d323268299f7e3be1c46b08dbff0a5d7a00cc42e55969cc4c1045871211 -->
+## 2026-09-07 — Remediate student Daily calendar and history review findings
+
+- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
+- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
+- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.
+- The cumulative integration pass found four additional boundaries. Added a reactive Toronto-day clock so midnight reloads the editor, history, Today and Last class without carrying content; lesson-plan sources now preserve snapshots and expose retry; scheduled announcements remap when publication time arrives; and successful retries restore focus to the active Daily plan region.
+- Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
+- The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
+- Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.
+
+<!-- pika-session-log-archive-batch:027e1741fda4f85c67c14e2459a2d6a263af8250c1ee4163510c6db1f741f507 -->
+## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
+
+- Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
+- Regression coverage: disabled/enabled/global-off states, pending reward refresh, classroom transition, and modal cleanup; 52 focused component tests pass. Visual fixture with the real classroom client and pending early-start reward verified student desktop/mobile and light/dark, enabled/disabled (eight captures in local `output/playwright`). Teacher is n/a: student-only surfaces. Reuses Pal host layers, feature-visibility policy, and ModalLayer; no design/style changes or new pattern. Composite checklist reviewed; keyboard/semantic tests retained, no manual follow-up.
+- Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
+
+- Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.
+
+<!-- pika-session-log-archive-batch:a75fe0027ad10915b247140f7d36b15340e5945376a3e98ac4ce828b08a6c854 -->
+## 2026-09-07 — Wider calendar announcement tooltips (#1210)
+
+Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
+
+<!-- pika-session-log-archive-batch:2fd41e1bf9df702ba63610e113071bd3469b97a9c74b28c8981408d540c2feb9 -->
+## 2026-09-07 — Production review: isolate Gradebook override identities
+
+- Cumulative production review found that assignment and test overrides sharing an assessment UUID collided in the server's lookup map.
+- Added assessment type to override lookup keys while preserving the separate calculated-score maps.
+- Three API regressions failed before the fix and passed afterward: distinct overrides for both types and each one-sided override; assertions cover cells, student details, final grades, and class averages.
+- No schema or UI changes. Migration 157 remains a separately controlled rollout.
+
+## 2026-09-07 — Archive compatibility across migration157 rollout
+
+- Production promotion review identified an app/schema ordering gap in archive export, deletion inventory, and restore.
+- Read the deployed v2 resource contract and accept only the full table set or the exact pre157 set. Export manifests and completion counts preserve the database snapshot contract; deletion inventory avoids the absent override table.
+- Restore permits archives with empty override data on schema156 but rejects non-empty overrides before staging or storage reservations. Schema/catalog mismatches and contract-read errors still fail closed.
+- Added regression coverage for both schema versions, strict contract reads, archive export, inventory, and restore. No migration applied; schema157 remains separately authorized.
+- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
+- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
+
+## 2026-09-07 — Resume browser security PR completion
+
+- Owner authorized final review, required CI and merge of #1202 to main. Rebased onto `daa70b88` without conflicts; no migrations were added or changed. This task remains sole writer of `codex/global-browser-security-headers`; the active merge-coordinator task owns a separate archive compatibility branch and production promotion.
+- Final integration review uses one Sol/high reviewer against a detached fixed commit while local focused checks run. Risk profile: runtime-platform. Earlier security/compatibility reviews and browser evidence remain applicable; final reviewed SHA, check results and merge evidence are recorded in the PR. Production rollout is separate.
+- PR #1189's first exact-head CI run passed Test & Build and all database contracts, then failed the browser matrix because two existing Course Guide scenarios still asserted the retired Edit guide flow and Curriculum overview section heading across four viewports. Returned the PR to draft before correction; the unrelated student API timeout was flaky and passed on retry.
+- Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
+- Targeted independent review found one non-blocking role-boundary gap in the student matrix: it still excluded the retired direct buttons instead of the new More trigger. The corrected assertion excludes More actions and the removed Resources heading for students. One correction batch is in use; a final integration check and fresh focused/exact-head CI are required before readiness or merge. No production or database action was taken.
+
+## 2026-09-07 — Preserve the dormant contextual enrollment foundation handoff
+
+- After user-authorized merge of dev-only prototype PR #1178 at `f4f6ba32`, started compatibility batch C on `codex/contextual-enrollment-access`. Added dormant exact-pair identity selection and a pure join policy covering owner self-join, existing membership, verified-code-only admission, archive/enrollment/roster/open-join rules and malformed evidence. Contextual pair selection is explicitly a candidate, never final authorization.
+- No live route imports the new modules. Existing join/list/roster behavior and role guards are unchanged; no migration, cohort, environment setting, production rollout or new access exists. Adoption is blocked on a schema-backed guess limiter, one atomic revalidating membership transaction, concurrency/failure evidence and separately migrated list/roster consumers.
+- Red-first contract tests pass. Focused gate passes 13 files / 123 tests plus architecture, UI/design policy, TypeScript and lint. No specialized runtime profile; independent review risk high because this defines a future authorization boundary. Use Sol/high security plus Terra/high compatibility review before any merge decision; full access epic remains incomplete.
+
+<!-- pika-session-log-archive-batch:6baa47216f734f0bb91c9dafcbb12bc996123ca43516f17d9b983d90c24625cd -->
+## 2026-09-07 — Correct PPZ3C Online first class day
+
+- Production inventory resolved the exact active classroom and found four generated class days plus two lesson-plan mutation heads before the corrected September 8, 2026 start; no Daily logs, summaries, lesson plans, manual attendance marks, Bara occurrences, or PAL events exist in the affected range.
+- Added a replay-safe, fail-closed one-time migration that verifies the inventoried identity and data before deleting those six rows and changing only the classroom start date. The no-op replay path and full fixture success path pass locally; focused checks pass 10 files / 90 tests plus architecture, TypeScript, and lint. Production remains unchanged pending reviewed-PR completion and the separately authorized linked migration application.
+- Initial high-risk review found the production branch lacked committed replay evidence and that already-validated class-day/Daily writes could recreate pre-start data after the correction. Added an exact owner assertion, production-shaped rollback harness, CI execution, and narrow database guards that reject future pre-September-8 class-day or Daily-entry writes only for the corrected classroom. The harness, database lint, and focused gate pass; production remains unchanged.
+- Targeted review found the first harness incorrectly depended on seeded users/classrooms that fresh CI does not provide. Replaced cloning with explicit minimal fixtures and exercised absent target, missing target, owner drift, success, and post-correction write rejection through the migration-owned private operation. The corrected rollback harness, database lint, and focused gate pass.
+- Final integration review found lesson-plan saves could still recreate pre-start plans or mutation heads. Extended the exact-classroom guard and rollback assertions to both tables, rebased onto current main, and reran the full correction harness successfully. This is the third and final remediation batch; production remains unchanged pending stable-head review and CI.
+- Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.

@@ -6,9 +6,9 @@ and [calendar writes #1175](contextual-calendar-writes.md), in that order after
 synchronization, integration review and fresh CI. Their PR records contain the exact
 landing SHAs and checks. These implemented backend slices remain off by default;
 hosted parity is unmeasured and the reachable mixed-role domain is incomplete.
-The [enrollment foundation](contextual-enrollment-access.md) begins batch C with dormant
-identity/cohort and pure admission contracts; it has no live route imports and does not
-make enrollment or the Owned/Joined home available.
+The [enrollment foundation](contextual-enrollment-access.md) begins batch C with a guarded,
+disabled-by-default join-route adopter. It does not enable a cohort or make the Owned/Joined
+home available.
 See the [compatibility inventory and runbook](classroom-access-compatibility.md).
 This is not approval for production rollout, neutral onboarding or monetization enforcement.
 
@@ -120,14 +120,15 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   Migration 152 adds two service-only calendar RPCs, verified locally with separate exact
   permission; hosted application remains unapproved. Other guards stay legacy. UI,
   sessions, attendance entitlements, dependencies, signup and payment providers remain unchanged.
-- The first enrollment foundation slice is also dormant: it preserves the legacy student
-  guard when disabled and defines fail-closed exact-pair/admission decisions. The follow-up
-  authors migration 159 with a service-only atomic write, private actor/actor-invitation
-  guess limits and rollback/concurrency harnesses. The same SQL was behaviorally verified
-  locally before resequencing, when it was migration 157; the current 159 source must still
-  pass a clean replay after main's migrations 157–158. Hosted application remains unapproved
-  and the RPC remains uncalled by live code. Neither slice adds a cohort or changes production
-  configuration; the live join route remains legacy-only.
+- The enrollment foundation preserves the legacy student path when disabled and defines
+  fail-closed exact-pair/admission decisions. Migration 159 provides the service-only atomic
+  write and private actor/actor-invitation windows; forward migration 161 provides the
+  service-only rejected-guess adopter. Together they have rollback/concurrency harnesses.
+  The guarded join route now adopts those contracts only for an exact configured pair; its
+  flag remains unset. Migration 159 is already deployed and its source remains fixed to that
+  deployed definition; migration 161 requires separate target-specific application
+  authorization. No cohort or production configuration changed, so
+  every current production request remains on the legacy join path.
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

@@ -257,6 +257,21 @@ describe('Teacher dashboard page', () => {
     )
   })
 
+  it('copies the roster-matched class-code join link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    installFetchMock()
+
+    renderDashboard()
+
+    await screen.findByText('student@example.com')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy link' }))
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/join/DASH1`)
+  })
+
   it.each([true, false])('opens class-day review after blank creation (empty=%s)', async (empty) => {
     installFetchMock({ classrooms: empty ? [] : undefined })
     renderDashboard()

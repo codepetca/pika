@@ -32,6 +32,7 @@ export interface GradebookTableProps {
   savingKeys: Set<string>
   isReadOnly: boolean
   scoreEditingDisabled?: boolean
+  itemScoreEditingDisabled?: boolean
   onWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
   onWeightCommit: (column: GradebookAssessmentColumn) => void
   onAssessmentOpen: (column: GradebookAssessmentColumn) => void
@@ -60,7 +61,7 @@ const ASSESSMENT_WIDTH = 88
 export function GradebookTable({
   students, columns, displayMode, lastNameFirst, showStudentIds,
   showWeights, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
-  weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
+  weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
   onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
   sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
@@ -191,7 +192,7 @@ export function GradebookTable({
                 {columns.map((column) => {
                   const cell = getAssessmentCell(student, column)
                   const scoreKey = `${student.student_id}:${getAssessmentColumnKey(column)}`
-                  const canEdit = !scoreEditingDisabled && Boolean(onScoreOpen)
+                  const canEdit = !(column.assessment_type === 'item' ? itemScoreEditingDisabled : scoreEditingDisabled) && Boolean(onScoreOpen)
                   const score = formatAssessmentScore(cell, displayMode)
                   const scoreTone = getGradePercentTextClass(getAssessmentCellPercent(cell))
                   return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', getGradePercentTextClass(getAssessmentCellPercent(cell)))}>

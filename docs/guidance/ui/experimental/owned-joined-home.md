@@ -67,6 +67,7 @@ Human promotion and separately reviewed server discovery/routing are required be
 - Joined rows share the live visual frame but deliberately expose Hide/Unhide instead of
   owner-only archive, reorder, reuse or delete behavior. This is a relationship extension,
   not a change to the current live authorization model.
+- Group headings use relationship or lifecycle labels without displaying classroom counts.
 - No new shared primitive, production route, persistence, entitlement or lifecycle behavior changes.
   Reusing the live Settings menu exposed and corrected a shared keyboard-navigation defect:
   existing work-surface menus now use the repository's dropdown owner for roving focus,
@@ -89,6 +90,16 @@ Human promotion and separately reviewed server discovery/routing are required be
   fixture-only scope. The prototype still changes no production feature availability; the
   shared keyboard correction also passes existing inspector-preview compatibility and
   parent-rerender and removed-handler cleanup cases.
+
+### Group-heading refinement — 2026-09-09
+
+- Removed numeric totals from the Teaching, Joined, Archived and Hidden group headings while
+  preserving their labels, regions, filters and classroom-card layout.
+- Component coverage asserts the active Teaching and Joined headings contain only their labels.
+  The existing browser scenario passes for teacher and student at desktop/mobile in light/dark,
+  and the default grouped list was visually inspected across the same eight combinations.
+- This remains a fixture-only presentation refinement. It changes no live route, relationship,
+  entitlement, persistence or classroom action.
 
 ## Hidden joined classrooms — approved prototype revision
 

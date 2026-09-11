@@ -279,6 +279,17 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // PostgreSQL function metadata does not encode nullable input contracts.
+  mutate_gradebook_item: FunctionContract<
+    'mutate_gradebook_item', Json,
+    Replace<GeneratedFunctions['mutate_gradebook_item']['Args'], {
+      p_gradebook_category_id?: string | null
+    }>
+  >
+  set_gradebook_item_score: FunctionContract<
+    'set_gradebook_item_score', Json,
+    Replace<GeneratedFunctions['set_gradebook_item_score']['Args'], { p_earned: number | null }>
+  >
   issue_auth_session: FunctionContract<
     'issue_auth_session',
     boolean,

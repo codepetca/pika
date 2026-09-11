@@ -126,6 +126,8 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
     !legacyQuizTables.has(resource.table),
   ),
   archiveResource('gradebook_score_overrides', ['student_id', 'created_by']),
+  archiveResource('gradebook_items', ['created_by']),
+  archiveResource('gradebook_item_scores', ['student_id']),
   ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(17).filter((resource) =>
     !legacyQuizTables.has(resource.table),
   ),
@@ -140,6 +142,8 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
     !legacyQuizTables.has(table),
   ),
   'gradebook_score_overrides',
+  'gradebook_items',
+  'gradebook_item_scores',
   ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.slice(6).filter((table) =>
     !legacyQuizTables.has(table),
   ),
@@ -147,11 +151,18 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   'classroom_retired_assessment_record_actors',
 ] as const
 
-// Migration 157 is additive. Only its table may be absent during app-first rollout.
+// Additive migrations may be absent on older deployed schemas. Historical archive
+// manifests may omit these resources and decode them as empty collections.
+export const ADDITIVE_CLASSROOM_ARCHIVE_TABLES: readonly string[] = [
+  'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores',
+]
 export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
   const actual = new Set(tableNames)
+  if (actual.has('gradebook_items') !== actual.has('gradebook_item_scores')) {
+    throw new Error('Classroom archive resource contract is invalid')
+  }
   const selected = CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) =>
-    resource.table !== 'gradebook_score_overrides' || actual.has(resource.table),
+    !ADDITIVE_CLASSROOM_ARCHIVE_TABLES.includes(resource.table) || actual.has(resource.table),
   )
   if (actual.size !== tableNames.length || actual.size !== selected.length
     || selected.some((resource) => !actual.has(resource.table))) {

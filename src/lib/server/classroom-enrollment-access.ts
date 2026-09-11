@@ -40,7 +40,8 @@ function configuredPairs(): EnrollmentPair[] | null {
 
 /**
  * Authenticate before resolving a code or classroom so an invalid invitation
- * cannot disclose classroom existence. No live route imports this dormant gate.
+ * cannot disclose classroom existence. The regular join route uses this gate
+ * while keeping its contextual branch disabled by default.
  */
 export async function authenticateClassroomEnrollmentRequest(): Promise<AuthenticatedEnrollmentRequest> {
   if (process.env.PIKA_CLASSROOM_ENROLLMENT_ACCESS_ENABLED !== 'true') {

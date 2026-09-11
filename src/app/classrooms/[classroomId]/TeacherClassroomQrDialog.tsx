@@ -187,14 +187,14 @@ export function TeacherClassroomQrDialog({
       <div className="mt-8 flex min-h-0 w-full flex-1 items-center justify-center">
         <QrCode
           value={entryUrl}
-          label={`${classroomTitle} permanent attendance QR code`}
+          label={`${classroomTitle} check in for attendance QR code`}
           className="aspect-square h-full max-h-full max-w-full border-0 bg-qr-background p-[10%]"
           codeClassName="h-full max-w-none"
         />
       </div>
       <div className="mt-8 shrink-0">
         {attendanceHours ? <p data-classroom-qr-print-hours className="text-4xl font-semibold">{attendanceHours}</p> : null}
-        <p data-classroom-qr-print-subtitle className="mt-3 text-2xl font-medium">Scan Attendance</p>
+        <p data-classroom-qr-print-subtitle className="mt-3 text-2xl font-medium">Check in for attendance</p>
       </div>
     </div>
   ) : null
@@ -208,7 +208,7 @@ export function TeacherClassroomQrDialog({
         maxWidth="max-w-6xl"
         className="aspect-[2/3] overflow-hidden sm:aspect-video"
       >
-        <h2 id={titleId} className="sr-only">Classroom QR</h2>
+        <h2 id={titleId} className="sr-only">Check in for attendance</h2>
         <Button
           type="button"
           variant="ghost"
@@ -227,7 +227,7 @@ export function TeacherClassroomQrDialog({
           <div className="flex h-full items-center justify-center">
             <PageState
               kind="error"
-              title="Classroom QR unavailable"
+              title="Attendance QR unavailable"
               description={error}
               compact
               action={<Button type="button" onClick={() => void load()}>Try again</Button>}
@@ -238,7 +238,7 @@ export function TeacherClassroomQrDialog({
             <div className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center px-3 text-center sm:w-1/3">
               <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">{classroomTitle}</p>
               <p className="mt-4 hidden text-xl font-medium leading-tight text-text-default sm:mt-6 sm:block sm:text-3xl">
-                Scan Attendance
+                Check in for attendance
               </p>
               {attendanceHours ? (
                 <p className="mt-2 hidden text-lg font-medium text-text-muted sm:mt-3 sm:block sm:text-2xl">{attendanceHours}</p>
@@ -259,7 +259,7 @@ export function TeacherClassroomQrDialog({
             <div ref={qrRef} className="flex min-h-0 flex-none items-center justify-center sm:h-full sm:flex-1">
               <QrCode
                 value={entryUrl}
-                label={`${classroomTitle} permanent attendance QR code`}
+                label={`${classroomTitle} check in for attendance QR code`}
                 className="aspect-square w-full max-w-64 border-0 bg-qr-background p-[10%] sm:h-full sm:w-auto sm:max-w-full"
                 codeClassName="h-full max-w-none"
               />

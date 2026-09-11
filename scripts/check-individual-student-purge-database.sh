@@ -79,6 +79,18 @@ insert into public.classroom_enrollments (classroom_id, student_id) values
   ('d1230000-0000-4000-8000-000000000010', 'd1230000-0000-4000-8000-000000000003'),
   ('d1230000-0000-4000-8000-000000000010', 'd1230000-0000-4000-8000-000000000004'),
   ('d1230000-0000-4000-8000-000000000011', 'd1230000-0000-4000-8000-000000000002');
+-- Original standalone scores are target data; item definitions and classmates survive.
+do $$ begin
+  if to_regclass('public.gradebook_items') is not null then
+    insert into public.gradebook_items(id,classroom_id,title,points_possible,created_by) values
+      ('d1230000-0000-4000-8000-000000000090','d1230000-0000-4000-8000-000000000010','Attendance term',20,'d1230000-0000-4000-8000-000000000001'),
+      ('d1230000-0000-4000-8000-000000000091','d1230000-0000-4000-8000-000000000011','Other term',20,'d1230000-0000-4000-8000-000000000001');
+    insert into public.gradebook_item_scores(classroom_id,item_id,student_id,earned,returned_at) values
+      ('d1230000-0000-4000-8000-000000000010','d1230000-0000-4000-8000-000000000090','d1230000-0000-4000-8000-000000000002',18,now()),
+      ('d1230000-0000-4000-8000-000000000010','d1230000-0000-4000-8000-000000000090','d1230000-0000-4000-8000-000000000003',19,now()),
+      ('d1230000-0000-4000-8000-000000000011','d1230000-0000-4000-8000-000000000091','d1230000-0000-4000-8000-000000000002',17,now());
+  end if;
+end $$;
 insert into public.classroom_roster (classroom_id, email) values
   ('d1230000-0000-4000-8000-000000000010', 'student-purge-target@example.test'),
   ('d1230000-0000-4000-8000-000000000010', 'student-purge-classmate@example.test'),
@@ -394,6 +406,14 @@ $begin_purge$;
 
 do $fence$
 begin
+  if to_regclass('public.gradebook_item_scores') is not null then
+    begin
+      perform public.set_gradebook_item_score('d1230000-0000-4000-8000-000000000001',
+        'd1230000-0000-4000-8000-000000000010','d1230000-0000-4000-8000-000000000090',
+        'd1230000-0000-4000-8000-000000000002',10);
+      raise exception 'Original standalone mark bypassed student purge fence';
+    exception when sqlstate '55000' then null; end;
+  end if;
   begin
     insert into public.entries (student_id, classroom_id, date, text, on_time) values (
       'd1230000-0000-4000-8000-000000000002',
@@ -659,6 +679,18 @@ begin
   if exists (select 1 from public.student_purge_fences
     where operation_id = 'd1230000-0000-4000-8000-000000000100')
   then raise exception 'Completed student purge left an active fence'; end if;
+  if to_regclass('public.gradebook_items') is not null then
+    if exists(select 1 from public.gradebook_item_scores where classroom_id='d1230000-0000-4000-8000-000000000010'
+        and student_id='d1230000-0000-4000-8000-000000000002')
+      or not exists(select 1 from public.gradebook_items where id='d1230000-0000-4000-8000-000000000090')
+      or not exists(select 1 from public.gradebook_item_scores where item_id='d1230000-0000-4000-8000-000000000090'
+        and student_id='d1230000-0000-4000-8000-000000000003' and earned=19 and returned_at is not null)
+      or not exists(select 1 from public.gradebook_item_scores where item_id='d1230000-0000-4000-8000-000000000091'
+        and student_id='d1230000-0000-4000-8000-000000000002' and earned=17 and returned_at is not null) then
+      raise exception 'Student purge lost standalone score isolation or item definition';
+    end if;
+  end if;
+
   if exists (select 1 from public.assignment_docs where id = 'd1230000-0000-4000-8000-000000000041')
     or not exists (select 1 from public.assignment_docs where id = 'd1230000-0000-4000-8000-000000000042')
     or exists (select 1 from public.test_responses where id = 'd1230000-0000-4000-8000-000000000055')

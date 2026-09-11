@@ -14,6 +14,7 @@ import {
   type StudentAttendanceCheckInView,
 } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
+import { buildPostgrestExactTextFilter } from '@/lib/server/contextual-classroom-enrollment'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -39,6 +40,14 @@ const classroomRowSchema = z.object({
 const teacherRowSchema = z.object({
   workos_user_id: z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/),
 }).strict()
+const rosterRowSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().min(1).max(320),
+}).strict()
+const rosterBindingSchema = z.object({
+  classroom_id: z.string().uuid(),
+  student_id: z.string().uuid(),
+}).strict()
 
 export interface TeacherClassroomQrPresentation {
   entryPath: string
@@ -53,6 +62,8 @@ export class ClassroomAttendanceQrError extends Error {
     | 'invalid_or_revoked'
     | 'not_open'
     | 'not_enrolled'
+    | 'not_on_roster'
+    | 'roster_ambiguous'
     | 'conflict'
     | 'unavailable',
   ) {
@@ -263,6 +274,7 @@ async function assertStudentRosterBoundary(input: {
   supabase: any
   classroomId: string
   studentId: string
+  studentEmail: string
 }) {
   const [enrollment, participant] = await Promise.all([
     input.supabase.from('classroom_enrollments').select('id')
@@ -270,8 +282,51 @@ async function assertStudentRosterBoundary(input: {
     input.supabase.from('attendance_participant_mappings').select('student_id, active')
       .eq('classroom_id', input.classroomId).eq('student_id', input.studentId).eq('active', true).maybeSingle(),
   ])
-  if (enrollment.error || participant.error) throw new ClassroomAttendanceQrError('unavailable')
-  if (!enrollment.data || !participant.data) throw new ClassroomAttendanceQrError('not_enrolled')
+  if (enrollment.error || participant.error) {
+    throw new ClassroomAttendanceQrError('unavailable')
+  }
+  if (enrollment.data) {
+    if (!participant.data) throw new ClassroomAttendanceQrError('unavailable')
+    return
+  }
+
+  // Bound the case-insensitive exact match so a scan never loads the classroom's
+  // roster into the app process. Escaping keeps valid email punctuation from
+  // becoming an ILIKE wildcard. Attendance never writes enrollment here.
+  const normalizedEmail = input.studentEmail.trim().toLowerCase()
+  const rosterFilter = buildPostgrestExactTextFilter(normalizedEmail)
+  const rosterQuery = input.supabase.from('classroom_roster').select('id, email')
+    .eq('classroom_id', input.classroomId)
+  const roster = await (rosterFilter.operator === 'eq'
+    ? rosterQuery.eq('email', rosterFilter.value)
+    : rosterQuery.ilike('email', rosterFilter.value)
+  ).limit(2)
+  if (roster.error) throw new ClassroomAttendanceQrError('unavailable')
+  const parsedRoster = z.array(rosterRowSchema).safeParse(roster.data)
+  if (!parsedRoster.success) throw new ClassroomAttendanceQrError('unavailable')
+  const matches = parsedRoster.data.filter((row) => row.email.trim().toLowerCase() === normalizedEmail)
+  if (matches.length === 0) throw new ClassroomAttendanceQrError('not_on_roster')
+  if (matches.length !== 1) throw new ClassroomAttendanceQrError('roster_ambiguous')
+
+  const binding = await input.supabase.from('classroom_roster_student_bindings')
+    .select('classroom_id, student_id')
+    .eq('roster_id', matches[0].id)
+    .maybeSingle()
+  if (binding.error) throw new ClassroomAttendanceQrError('unavailable')
+  if (binding.data) {
+    const parsedBinding = rosterBindingSchema.safeParse(binding.data)
+    if (
+      !parsedBinding.success
+      || parsedBinding.data.classroom_id !== input.classroomId
+      || parsedBinding.data.student_id !== input.studentId
+    ) {
+      throw new ClassroomAttendanceQrError('roster_ambiguous')
+    }
+    // A binding without its enrollment is inconsistent and must not be treated
+    // as a safe invitation to check in.
+    throw new ClassroomAttendanceQrError('roster_ambiguous')
+  }
+  throw new ClassroomAttendanceQrError('not_enrolled')
 }
 
 async function loadClassroomActor(input: { supabase: any; classroomId: string }) {
@@ -321,6 +376,7 @@ export async function executeClassroomQrStudentCheckIn(input: {
     supabase: input.supabase,
     classroomId,
     studentId: input.pikaUser.id,
+    studentEmail: input.pikaUser.email,
   })
   const occurrence = await loadCurrentOpenOccurrence({
     supabase: input.supabase,

@@ -48,7 +48,9 @@ describe('POST /api/student/attendance/classroom-check-in', () => {
   it.each([
     ['invalid_or_revoked', 'invalid', 'This classroom QR is no longer valid'],
     ['not_open', 'closed', 'Attendance is not open'],
-    ['not_enrolled', 'needs_staff', 'Your teacher needs to help'],
+    ['not_enrolled', 'needs_staff', 'You haven’t joined this classroom yet'],
+    ['not_on_roster', 'needs_staff', 'You’re not on this class roster'],
+    ['roster_ambiguous', 'needs_staff', 'We couldn’t safely match your account'],
   ] as const)('maps %s without leaking classroom or Bara identifiers', async (code, state, title) => {
     mocks.execute.mockRejectedValue(new ClassroomAttendanceQrError(code))
     const response = await POST(request({ classroomQrToken, attemptId }))
@@ -56,6 +58,15 @@ describe('POST /api/student/attendance/classroom-check-in', () => {
     const body = await response.json()
     expect(body).toMatchObject({ state, title })
     expect(JSON.stringify(body)).not.toMatch(/11111111|roster_|occurrence_|check.in.token/i)
+  })
+
+  it('returns no description for a revoked classroom QR', async () => {
+    mocks.execute.mockRejectedValue(new ClassroomAttendanceQrError('invalid_or_revoked'))
+    const response = await POST(request({ classroomQrToken, attemptId }))
+    expect(await response.json()).toEqual({
+      state: 'invalid',
+      title: 'This classroom QR is no longer valid',
+    })
   })
 
   it('rejects client-supplied classroom or student identity fields', async () => {

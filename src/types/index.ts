@@ -1284,7 +1284,7 @@ export interface GradebookSettings {
   tests_weight: number
 }
 
-export type GradebookAssessmentType = 'assignment' | 'test'
+export type GradebookAssessmentType = 'assignment' | 'test' | 'item'
 export interface GradebookCategory {
   id: string
   name: string
@@ -1314,6 +1314,8 @@ export interface GradebookAssessmentColumn {
   category_name?: string
   category_percentage?: number | null
   exact_course_weight?: number | null
+  scored_count?: number
+  returned_count?: number
   include_in_final: boolean
   due_at?: string
   is_draft?: boolean
@@ -1321,6 +1323,7 @@ export interface GradebookAssessmentColumn {
 }
 
 export interface GradebookAssessmentCell {
+  returned_at?: string | null
   assessment_id: string
   assessment_type: GradebookAssessmentType
   earned: number | null

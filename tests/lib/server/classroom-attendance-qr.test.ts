@@ -26,6 +26,8 @@ type Scenario = {
   open?: boolean
   enabled?: boolean | null
   isClassDay?: boolean | null
+  rosterEmails?: string[]
+  rosterBindingStudentId?: string | null
 }
 
 function fakeSupabase({
@@ -34,6 +36,8 @@ function fakeSupabase({
   open = true,
   enabled = true,
   isClassDay = true,
+  rosterEmails = ['student@example.com'],
+  rosterBindingStudentId = null,
 }: Scenario = {}) {
   return {
     from(table: string) {
@@ -41,9 +45,29 @@ function fakeSupabase({
       const query: any = {
         select() { return query },
         eq(column: string, value: unknown) { filters[column] = value; return query },
+        ilike(column: string, value: unknown) { filters[`ilike:${column}`] = value; return query },
         lte(column: string, value: unknown) { filters[column] = value; return query },
         gt(column: string, value: unknown) { filters[column] = value; return query },
-        limit() {
+        limit(count: number) {
+          if (table === 'classroom_roster') {
+            expect(filters.classroom_id).toBe(classroomId)
+            const rawLookup = String(filters.email ?? filters['ilike:email'])
+            const lookupEmail = rawLookup.replace(/\\([\\%_])/g, '$1').toLowerCase()
+            if (rawLookup.includes('*')) {
+              expect(filters.email).toBe(rawLookup)
+              expect(filters['ilike:email']).toBeUndefined()
+            }
+            return Promise.resolve({
+              data: rosterEmails
+                .filter((email) => email.trim().toLowerCase() === lookupEmail)
+                .slice(0, count)
+                .map((email, index) => ({
+                  id: `77777777-7777-4777-8777-77777777777${index}`,
+                  email,
+                })),
+              error: null,
+            })
+          }
           if (table !== 'attendance_occurrence_mappings') throw new Error(`Unexpected limit ${table}`)
           expect(filters.classroom_id).toBe(classroomId)
           expect(filters.desired_state).toBe('scheduled')
@@ -53,6 +77,9 @@ function fakeSupabase({
               opens_at: '2026-09-01T12:00:00.000Z', closes_at: '2026-09-01T13:00:00.000Z',
               desired_state: 'scheduled' }], error: null,
           })
+        },
+        then(resolve: (value: unknown) => unknown) {
+          return Promise.reject(new Error(`Unexpected awaited query ${table}`)).then(resolve)
         },
         maybeSingle() {
           if (table === 'attendance_window_policies') {
@@ -81,6 +108,14 @@ function fakeSupabase({
           if (table === 'attendance_participant_mappings') {
             return Promise.resolve({
               data: enrolled ? { student_id: studentId, active: true } : null,
+              error: null,
+            })
+          }
+          if (table === 'classroom_roster_student_bindings') {
+            return Promise.resolve({
+              data: rosterBindingStudentId
+                ? { classroom_id: classroomId, student_id: rosterBindingStudentId }
+                : null,
               error: null,
             })
           }
@@ -204,12 +239,51 @@ describe('stable classroom attendance QR', () => {
   it('blocks a student from another classroom before occurrence or Bara resolution', async () => {
     const loadPresentation = vi.fn()
     await expect(executeClassroomQrStudentCheckIn({
-      supabase: fakeSupabase({ enrolled: false }),
+      supabase: fakeSupabase({ enrolled: false, rosterEmails: ['student@example.com'] }),
       pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
       classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
       attemptId: '55555555-5555-4555-8555-555555555555',
       loadPresentation,
     })).rejects.toMatchObject({ code: 'not_enrolled' })
     expect(loadPresentation).not.toHaveBeenCalled()
+  })
+
+  it('distinguishes a non-rostered student without recording attendance', async () => {
+    const loadPresentation = vi.fn()
+    const executeCheckIn = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, rosterEmails: ['someone-else@example.com'] }),
+      pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      loadPresentation,
+      executeCheckIn,
+    })).rejects.toMatchObject({ code: 'not_on_roster' })
+    expect(loadPresentation).not.toHaveBeenCalled()
+    expect(executeCheckIn).not.toHaveBeenCalled()
+  })
+
+  it('treats a literal star in a roster email as data rather than a wildcard', async () => {
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({ enrolled: false, rosterEmails: ['student*tag@example.com'] }),
+      pikaUser: { id: studentId, email: 'student*tag@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+    })).rejects.toMatchObject({ code: 'not_enrolled' })
+  })
+
+  it('fails neutrally when case-normalized roster identity is ambiguous', async () => {
+    const executeCheckIn = vi.fn()
+    await expect(executeClassroomQrStudentCheckIn({
+      supabase: fakeSupabase({
+        enrolled: false,
+        rosterEmails: ['student@example.com', 'STUDENT@example.com'],
+      }),
+      pikaUser: { id: studentId, email: 'student@example.com', role: 'student' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+      executeCheckIn,
+    })).rejects.toMatchObject({ code: 'roster_ambiguous' })
+    expect(executeCheckIn).not.toHaveBeenCalled()
   })
 })

@@ -690,7 +690,7 @@ export function TeacherLiveAttendanceTab({
   const mobileSessionActions: TeacherWorkSurfaceActionItem[] = [
     ...(sessionState === 'open' ? [{
       id: 'show-attendance-qr',
-      label: 'Show QR',
+      label: 'Show attendance QR',
       icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
       disabled: Boolean(activeCommand) || localSessionPending,
       onSelect: openQrPresentation,
@@ -818,13 +818,13 @@ export function TeacherLiveAttendanceTab({
             </div>
           ) : null}
           {sessionState === 'open' ? (
-            <Tooltip content="Show QR">
+            <Tooltip content="Show attendance QR">
               <Button
                 type="button"
                 size="sm"
                 variant="primary"
                 className="hidden h-9 w-9 px-0 sm:inline-flex"
-                aria-label="Show QR"
+                aria-label="Show attendance QR"
                 disabled={Boolean(activeCommand) || localSessionPending}
                 onClick={openQrPresentation}
               >
@@ -1158,8 +1158,8 @@ export function TeacherLiveAttendanceTab({
       <ContentDialog
         isOpen={qrOpen}
         onClose={() => setQrOpen(false)}
-        title="Attendance QR"
-        subtitle={formatFullDay(selectedDate)}
+        title="Check in for attendance"
+        subtitle={`${classroom.title} · ${formatFullDay(selectedDate)}`}
         maxWidth="max-w-md"
       >
         {qrLoading ? (

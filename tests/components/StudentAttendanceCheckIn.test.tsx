@@ -112,4 +112,23 @@ describe('StudentAttendanceCheckIn', () => {
       classroomQrToken: 'a'.repeat(43),
     })
   })
+
+  it('renders a revoked classroom QR as a title-only terminal state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      state: 'invalid',
+      title: 'This classroom QR is no longer valid',
+    }), { status: 200 })))
+
+    render(
+      <StudentAttendanceCheckIn
+        entryToken={'a'.repeat(43)}
+        canCheckIn
+        mode="classroom"
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'This classroom QR is no longer valid' })).toBeVisible()
+    expect(screen.queryByText('Ask your teacher for the current classroom attendance poster.'))
+      .not.toBeInTheDocument()
+  })
 })

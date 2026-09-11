@@ -184,6 +184,80 @@ describe('useTeacherManualAttendanceController', () => {
     expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
   })
 
+  it('applies a manual attendance mark before the request completes', async () => {
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      if (init.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: [studentId],
+    }))
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'absent')
+    })
+
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
+    expect(appMessageMock.showMessage).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolvePost(response({ ok: true }))
+      await command
+    })
+  })
+
+  it('rolls back an optimistic mark when the request fails', async () => {
+    let rejectPost!: (reason: Error) => void
+    const post = new Promise<Response>((_resolve, reject) => { rejectPost = reject })
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) return Promise.resolve(response(view(url.searchParams.get('date')!)))
+      if (init.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: [studentId],
+    }))
+
+    await waitFor(() => expect(result.current.overridesByStudentId.get(studentId)).toBe('late'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'absent')
+    })
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
+
+    await act(async () => {
+      rejectPost(new Error('Write failed'))
+      await command
+    })
+
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('late')
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Write failed',
+      tone: 'warning',
+    })
+  })
+
   it('chunks class-wide marks into bounded requests', async () => {
     const roster = studentIds(201)
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -259,6 +333,241 @@ describe('useTeacherManualAttendanceController', () => {
     expect(getCount).toBe(2)
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
       text: 'Some attendance changes were saved; the current attendance has been refreshed',
+      tone: 'warning',
+    })
+  })
+
+  it('does not show a stale partial-save warning after switching dates during refresh', async () => {
+    const roster = studentIds(201)
+    let resolveRefresh!: (value: Response) => void
+    const refresh = new Promise<Response>((resolve) => { resolveRefresh = resolve })
+    let dateAGetCount = 0
+    let postCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        const date = url.searchParams.get('date')!
+        if (date === '2026-05-06') {
+          dateAGetCount += 1
+          return dateAGetCount === 1 ? Promise.resolve(response(view(date))) : refresh
+        }
+        return Promise.resolve(response(view(date)))
+      }
+      if (init.method === 'POST') {
+        postCount += 1
+        return Promise.resolve(postCount === 1
+          ? response({ ok: true })
+          : new Response(JSON.stringify({ error: 'Write failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result, rerender } = renderHook(
+      ({ selectedDate }) => useTeacherManualAttendanceController({
+        classroomId,
+        selectedDate,
+        enabled: true,
+        isActive: true,
+        archived: false,
+        visibleStudentIds: roster,
+      }),
+      { initialProps: { selectedDate: '2026-05-06' } },
+    )
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks(roster, 'present')
+    })
+    await waitFor(() => expect(dateAGetCount).toBe(2))
+
+    rerender({ selectedDate: '2026-05-07' })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
+
+    await act(async () => {
+      resolveRefresh(response(view('2026-05-06')))
+      await command
+    })
+
+    expect(result.current.view).toMatchObject({
+      classDate: '2026-05-07',
+      overrides: [],
+    })
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'Some attendance changes were saved; the current attendance has been refreshed',
+      tone: 'warning',
+    })
+  })
+
+  it('does not roll an abandoned failed command into a re-entered date', async () => {
+    let rejectPost!: (reason: Error) => void
+    const post = new Promise<Response>((_resolve, reject) => { rejectPost = reject })
+    let dateAGetCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        const date = url.searchParams.get('date')!
+        dateAGetCount += Number(date === '2026-05-06')
+        const next = view(date)
+        if (date === '2026-05-06' && dateAGetCount === 2) {
+          next.overrides = [{ studentId, status: 'present' }]
+        }
+        return Promise.resolve(response(next))
+      }
+      if (init.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result, rerender } = renderHook(
+      ({ selectedDate }) => useTeacherManualAttendanceController({
+        classroomId,
+        selectedDate,
+        enabled: true,
+        isActive: true,
+        archived: false,
+        visibleStudentIds: [studentId],
+      }),
+      { initialProps: { selectedDate: '2026-05-06' } },
+    )
+
+    await waitFor(() => expect(result.current.overridesByStudentId.get(studentId)).toBe('late'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'absent')
+    })
+    rerender({ selectedDate: '2026-05-07' })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
+    rerender({ selectedDate: '2026-05-06' })
+    await waitFor(() => expect(result.current.overridesByStudentId.get(studentId)).toBe('present'))
+
+    await act(async () => {
+      rejectPost(new Error('Old write failed'))
+      await command
+    })
+
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('present')
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'Old write failed',
+      tone: 'warning',
+    })
+  })
+
+  it('does not notify a re-entered date when an abandoned partial refresh resolves', async () => {
+    const roster = studentIds(201)
+    let resolveRefresh!: (value: Response) => void
+    const refresh = new Promise<Response>((resolve) => { resolveRefresh = resolve })
+    let dateAGetCount = 0
+    let postCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        const date = url.searchParams.get('date')!
+        if (date === '2026-05-06') {
+          dateAGetCount += 1
+          if (dateAGetCount === 2) return refresh
+        }
+        return Promise.resolve(response(view(date)))
+      }
+      if (init.method === 'POST') {
+        postCount += 1
+        return Promise.resolve(postCount === 1
+          ? response({ ok: true })
+          : new Response(JSON.stringify({ error: 'Write failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result, rerender } = renderHook(
+      ({ selectedDate }) => useTeacherManualAttendanceController({
+        classroomId,
+        selectedDate,
+        enabled: true,
+        isActive: true,
+        archived: false,
+        visibleStudentIds: roster,
+      }),
+      { initialProps: { selectedDate: '2026-05-06' } },
+    )
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks(roster, 'present')
+    })
+    await waitFor(() => expect(dateAGetCount).toBe(2))
+    rerender({ selectedDate: '2026-05-07' })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
+    rerender({ selectedDate: '2026-05-06' })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+
+    await act(async () => {
+      resolveRefresh(response(view('2026-05-06')))
+      await command
+    })
+
+    expect(appMessageMock.showMessage).not.toHaveBeenCalledWith({
+      text: 'Some attendance changes were saved; the current attendance has been refreshed',
+      tone: 'warning',
+    })
+  })
+
+  it('keeps only confirmed chunks when a partial-save refresh fails', async () => {
+    const roster = studentIds(201)
+    let getCount = 0
+    let postCount = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (!init?.method) {
+        getCount += 1
+        return Promise.resolve(getCount === 1
+          ? response(view(url.searchParams.get('date')!))
+          : new Response(JSON.stringify({ error: 'Refresh failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      if (init.method === 'POST') {
+        postCount += 1
+        return Promise.resolve(postCount === 1
+          ? response({ ok: true })
+          : new Response(JSON.stringify({ error: 'Write failed' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useTeacherManualAttendanceController({
+      classroomId,
+      selectedDate: '2026-05-06',
+      enabled: true,
+      isActive: true,
+      archived: false,
+      visibleStudentIds: roster,
+    }))
+
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    await act(async () => {
+      await result.current.submitMarks(roster, 'present')
+    })
+
+    expect(result.current.overridesByStudentId.get(roster[0])).toBe('present')
+    expect(result.current.overridesByStudentId.get(roster[199])).toBe('present')
+    expect(result.current.overridesByStudentId.has(roster[200])).toBe(false)
+    expect(result.current.error).toBe('Refresh failed')
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Some attendance changes were saved; the current attendance could not be refreshed',
       tone: 'warning',
     })
   })

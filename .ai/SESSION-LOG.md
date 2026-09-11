@@ -11,96 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-06 — Mirror calendar items in student Daily panels
-
-- Added shared Toronto date mapping for assignments and announcements so the student Daily Today and Last class panels use the same dates as Calendar. Published announcements use `created_at`; future scheduled announcements use `scheduled_for` when applicable.
-- Reused the existing student lesson-plan viewer and announcement renderer, adding date-matched assignment cards, announcement content and navigation back to Classwork or all Announcements. Teacher Daily behavior is unchanged; empty and loading states remain intact.
-- Added focused coverage for calendar date mapping and both student date panels. Focused tests pass 5 files / 64 tests; TypeScript, lint, design policy and production build pass. Lint retains one pre-existing `TestDetailPanel` hook warning. Browser verification covered student desktop/mobile light/dark populated states and the existing teacher/student classroom surfaces; no schema, dependency, hosted-data or deployment change.
-
-## 2026-09-06 — Limit student Daily history to five past logs
-
-- Student Daily now requests a six-entry history window and renders at most five entries before today, preserving today’s log plus the five most recent past logs. The broader student History page and API behavior remain unchanged.
-- Added a regression covering an overfilled response so stale cache data cannot surface a sixth past log. Focused checks pass 24 files / 278 tests plus architecture, UI policy, design policy, TypeScript and lint. The UI verification script passes on the current classroom-list fixture; the local auth fixture no longer has a classroom for populated-route verification.
-- Excluded entries dated on non-class days from that same list, with a regression covering a weekend entry. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
-- Added class-day-driven empty placeholders: the latest five prior class days now appear in history, with “No log submitted” for missed logs; non-class days remain excluded. Final focused checks pass 24 files / 279 tests plus architecture, UI policy, design policy, TypeScript and lint.
-
-## 2026-09-06 — Show ten past class-day logs in student Daily history
-
-- Expanded student Daily history from five to ten prior class days, still excluding non-class days and preserving empty “No log submitted” rows for missed class days. Today remains the separate current-day editor.
-- Updated the history boundary regression and all request/cache fixtures to use today plus ten past entries. Focused checks pass 24 files / 280 tests plus architecture, UI policy, design policy, TypeScript and lint; the Pika audit passes.
-- Playwright verification passed student desktop/mobile light/dark captures and teacher desktop/mobile unchanged-state captures. The current seeded classroom has only five past class days, so the ten-row boundary is covered by the focused fixture. Composite-widget checklist reviewed: keyboard behavior remains covered, scheduled semantics have a role/name regression, and no manual follow-up remains. No schema, dependency, hosted-data or deployment change.
-
-## 2026-09-07 — Integrate class-day setup for the sequential merge queue
-
-- Coordinator released PR #1203 after #1209 merged. Rebased onto main `68b3a58c`; class-day source and concurrency remediation remain patch-equivalent. Current main already supplies the typography ESM fix; removed the duplicate import produced by replay and retained main's configuration exactly. Updated the architecture summary to match weekday-only generation and compacted combined session history after the focused gate identified its cap.
-- Sole writer remains `codex/classroom-class-days`. The authorized post-hold pass uses existing clean reviews plus one bounded Terra/high cumulative integration review, focused tests and teacher/student browser/visual checks before fresh final-SHA CI and merge to main. Risk profile: workspace-state. No new migration or production action is included.
-
-## 2026-09-07 — Cover class-day review from secondary creation entry points
-
-- The resumed integration reviewer identified that blank classroom creation from Teacher Dashboard and Teacher Calendar did not navigate into the class-day review notice. Reused the existing Classroom page notice and creation redirect; both legacy callbacks now open the created classroom with the review flag, while Blueprint completion retains its in-modal handoff. No new visual composition or component contract is introduced.
-- Four regression cases first failed for empty/populated Dashboard and Calendar entry points. The correction is verified with the existing Blueprint handoff tests, focused gate and mocked browser creation through both entry pages. The declared matrix is teacher desktop/mobile light/dark, existing notice/Settings destination as reference; student remains regression-only behind the existing role gate. One targeted cumulative re-review follows this second integration batch before readiness.
-
-## 2026-09-07 — Remediate student Daily calendar and history review findings
-
-- Rebased draft PR #1208 onto current main and resolved its two independent-review findings in one batch. Student Daily now tracks assignments and announcements independently, preserves successful snapshots when one source fails, exposes per-source retry controls, and ignores stale responses after classroom switches.
-- Daily history now retrieves the classroom entry set before selecting today and the ten most recent prior class days. Non-class entries can no longer consume the retrieval cap; missed class days remain visible as empty rows and non-class days remain excluded.
-- Added regressions for partial calendar failure/retry, stale source races, and eleven non-class entries preceding ten valid class-day logs. The Pika audit passes; focused checks pass 24 files / 284 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verification passes student desktop/mobile light/dark default and source-error states plus teacher desktop/mobile regression views. No schema, dependency, hosted-data or deployment change.
-- The cumulative integration pass found four additional boundaries. Added a reactive Toronto-day clock so midnight reloads the editor, history, Today and Last class without carrying content; lesson-plan sources now preserve snapshots and expose retry; scheduled announcements remap when publication time arrives; and successful retries restore focus to the active Daily plan region.
-- Added fake-time midnight and publication-boundary coverage plus Today/Last-class failure recovery and focus regressions. Final local checks pass 24 files / 289 tests, the Pika audit, and student desktop/mobile light/dark plus combined lesson-plan-error and teacher regression captures. The extended review remains bounded to one final targeted reviewer before readiness.
-- The final targeted review identified browser timer overflow for publication dates more than 24.8 days away and blocking refresh treatment for an existing Last-class snapshot. Publication waits now clamp to the platform limit and re-arm until the exact boundary; Last class keeps its keyed snapshot visible while the shared refresh indicator communicates retry activity.
-- Long-range fake-timer and success-to-failed-retry-to-recovery snapshot tests pass. The final focused gate passes 24 files / 291 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and refreshed student/teacher desktop/mobile captures pass. One final authorized review launch is required on the stable correction SHA.
-
-## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
-
-- Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
-- Regression coverage: disabled/enabled/global-off states, pending reward refresh, classroom transition, and modal cleanup; 52 focused component tests pass. Visual fixture with the real classroom client and pending early-start reward verified student desktop/mobile and light/dark, enabled/disabled (eight captures in local `output/playwright`). Teacher is n/a: student-only surfaces. Reuses Pal host layers, feature-visibility policy, and ModalLayer; no design/style changes or new pattern. Composite checklist reviewed; keyboard/semantic tests retained, no manual follow-up.
-- Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
-
-- Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.
-
-## 2026-09-07 — Wider calendar announcement tooltips (#1210)
-
-Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
-
-## 2026-09-07 — Production review: isolate Gradebook override identities
-
-- Cumulative production review found that assignment and test overrides sharing an assessment UUID collided in the server's lookup map.
-- Added assessment type to override lookup keys while preserving the separate calculated-score maps.
-- Three API regressions failed before the fix and passed afterward: distinct overrides for both types and each one-sided override; assertions cover cells, student details, final grades, and class averages.
-- No schema or UI changes. Migration 157 remains a separately controlled rollout.
-
-## 2026-09-07 — Archive compatibility across migration157 rollout
-
-- Production promotion review identified an app/schema ordering gap in archive export, deletion inventory, and restore.
-- Read the deployed v2 resource contract and accept only the full table set or the exact pre157 set. Export manifests and completion counts preserve the database snapshot contract; deletion inventory avoids the absent override table.
-- Restore permits archives with empty override data on schema156 but rejects non-empty overrides before staging or storage reservations. Schema/catalog mismatches and contract-read errors still fail closed.
-- Added regression coverage for both schema versions, strict contract reads, archive export, inventory, and restore. No migration applied; schema157 remains separately authorized.
-- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
-- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
-## 2026-09-07 — Resume browser security PR completion
-
-- Owner authorized final review, required CI and merge of #1202 to main. Rebased onto `daa70b88` without conflicts; no migrations were added or changed. This task remains sole writer of `codex/global-browser-security-headers`; the active merge-coordinator task owns a separate archive compatibility branch and production promotion.
-- Final integration review uses one Sol/high reviewer against a detached fixed commit while local focused checks run. Risk profile: runtime-platform. Earlier security/compatibility reviews and browser evidence remain applicable; final reviewed SHA, check results and merge evidence are recorded in the PR. Production rollout is separate.
-- PR #1189's first exact-head CI run passed Test & Build and all database contracts, then failed the browser matrix because two existing Course Guide scenarios still asserted the retired Edit guide flow and Curriculum overview section heading across four viewports. Returned the PR to draft before correction; the unrelated student API timeout was flaky and passed on retry.
-- Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
-- Targeted independent review found one non-blocking role-boundary gap in the student matrix: it still excluded the retired direct buttons instead of the new More trigger. The corrected assertion excludes More actions and the removed Resources heading for students. One correction batch is in use; a final integration check and fresh focused/exact-head CI are required before readiness or merge. No production or database action was taken.
-
-## 2026-09-07 — Preserve the dormant contextual enrollment foundation handoff
-
-- After user-authorized merge of dev-only prototype PR #1178 at `f4f6ba32`, started compatibility batch C on `codex/contextual-enrollment-access`. Added dormant exact-pair identity selection and a pure join policy covering owner self-join, existing membership, verified-code-only admission, archive/enrollment/roster/open-join rules and malformed evidence. Contextual pair selection is explicitly a candidate, never final authorization.
-- No live route imports the new modules. Existing join/list/roster behavior and role guards are unchanged; no migration, cohort, environment setting, production rollout or new access exists. Adoption is blocked on a schema-backed guess limiter, one atomic revalidating membership transaction, concurrency/failure evidence and separately migrated list/roster consumers.
-- Red-first contract tests pass. Focused gate passes 13 files / 123 tests plus architecture, UI/design policy, TypeScript and lint. No specialized runtime profile; independent review risk high because this defines a future authorization boundary. Use Sol/high security plus Terra/high compatibility review before any merge decision; full access epic remains incomplete.
-
-## 2026-09-07 — Correct PPZ3C Online first class day
-
-- Production inventory resolved the exact active classroom and found four generated class days plus two lesson-plan mutation heads before the corrected September 8, 2026 start; no Daily logs, summaries, lesson plans, manual attendance marks, Bara occurrences, or PAL events exist in the affected range.
-- Added a replay-safe, fail-closed one-time migration that verifies the inventoried identity and data before deleting those six rows and changing only the classroom start date. The no-op replay path and full fixture success path pass locally; focused checks pass 10 files / 90 tests plus architecture, TypeScript, and lint. Production remains unchanged pending reviewed-PR completion and the separately authorized linked migration application.
-- Initial high-risk review found the production branch lacked committed replay evidence and that already-validated class-day/Daily writes could recreate pre-start data after the correction. Added an exact owner assertion, production-shaped rollback harness, CI execution, and narrow database guards that reject future pre-September-8 class-day or Daily-entry writes only for the corrected classroom. The harness, database lint, and focused gate pass; production remains unchanged.
-- Targeted review found the first harness incorrectly depended on seeded users/classrooms that fresh CI does not provide. Replaced cloning with explicit minimal fixtures and exercised absent target, missing target, owner drift, success, and post-correction write rejection through the migration-owned private operation. The corrected rollback harness, database lint, and focused gate pass.
-- Final integration review found lesson-plan saves could still recreate pre-start plans or mutation heads. Extended the exact-classroom guard and rollback assertions to both tables, rebased onto current main, and reran the full correction harness successfully. This is the third and final remediation batch; production remains unchanged pending stable-head review and CI.
-- Exact-head CI passed the PPZ3C migration harness but its warning-level database lint required explicit UUID casts for the two migration constants. Added those casts; the warning-free lint, rollback harness, and full focused gate now pass locally. Production remains unchanged.
-
 ## 2026-09-07 — Audit third-party student-data egress
 
 - User deferred the embedded exam PDF-viewer check and continued the security goal. Created isolated `codex/student-data-egress-audit` on current main; audited paths match production source. Recorded data destinations, existing safeguards, retention unknowns and remediation sequence in `docs/guidance/student-data-egress-audit.md`.
@@ -279,3 +189,84 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
 - Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.
+
+## 2026-09-09 — Remove counts from Owned / Joined prototype headings
+
+- Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
+- Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
+- Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
+
+## 2026-09-10 — Adopt contextual enrollment in the guarded join route
+
+- Merged prototype heading cleanup PR #1236, synchronized main, and started the next compatibility-batch-C slice in an isolated worktree.
+- The regular join endpoint now authenticates before body parsing and preserves the existing student path unless the exact mixed-role pilot flag and user/classroom pair are configured. The contextual branch scopes code resolution to that pair, evaluates server-built relationship/roster evidence, creates membership only through migration 159's atomic transaction, projects no code/owner data, and allows direct classroom IDs only to recognize an existing membership.
+- Added a service-only rejected-guess wrapper to migration 159 so invalid, out-of-scope and pre-atomic policy-denied non-empty codes consume the same actor and actor-invitation windows. Exact normalized server comparison rejects wildcard/prefix patterns. Successful joins retain atomic roster, binding, profile and optional Pal outbox writes; immediate Pal delivery occurs only for a newly committed membership and uses the same event instant.
+- Independent security and compatibility review found and cleared bounded-input, post-lockout denial-oracle and wildcard-pattern issues. Focused verification passes 104 files / 1,102 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and database-harness shell syntax pass. The rollback-only database harness was not run because the revised, resequenced migration 159 has not been applied under a new exact local permission. No migration, cohort, flag, hosted data, deployment or production availability changed.
+
+## 2026-09-10 — Correct contextual enrollment migration lineage
+
+- Verified that local and production databases already record migrations 159 and 160. Both expose migration 159's atomic join foundation and migration 160's announcement fields, but neither has the rejected-guess wrapper later added to the already-applied 159 source.
+- Restored migration 159 byte-for-byte to its deployed definition and moved the rejected-guess wrapper plus adopter comment into additive forward migration 161. Updated current access guidance, database-harness prerequisites and static migration contracts to preserve the boundary.
+- Targeted coverage passes 24 tests; the focused application/database gate passes 99 tests plus architecture, TypeScript and lint. The complete database harness passes with migration 161 installed inside one rollback-only transaction, and the function is absent afterward. The Pika audit is clean. No local or hosted migration was applied, no cohort or flag changed, and current production requests remain on the legacy path.
+- Initial high-risk review found no security or migration-design defect, but identified two verification gaps. Remediation pins migration 159's deployed SHA-256 and makes the database-type preflight parse both current JSON and legacy table migration-list output, with fixtures proving pending migration 161 fails before type generation. Targeted coverage passes 13 tests; focused revalidation and targeted compatibility review remain.
+- Targeted compatibility review cleared that batch. Final cumulative review then found recognized but empty/malformed JSON could still pass as matching history; remediation batch 2 now requires a nonempty migration array and strict string `local`/`remote` fields with at least one numeric side. Malformed, renamed, empty and non-string fixture coverage passes; the focused gate passes 106 tests plus all static checks.
+- The approved extended final review and targeted parser re-review cleared the cumulative diff. Exact-head CI then found one stale attendance contract still pinned `.ai/CURRENT.md` to production migration 156; remediation batch 3 updates that assertion to the independently verified 160 boundary. The affected 47 tests and focused 110-test/static gate pass. The PR remains draft pending an additional targeted review authorization and fresh CI.
+
+## 2026-09-10 — Separate classroom joining from attendance QR
+
+- Replaced the draft attendance-driven enrollment design with two explicit flows. Teachers share a roster-matched `Join this classroom` link/QR from Settings > Access; students authenticate, join only on one safe existing roster match, and see an explicit joined/already joined/no match/ambiguous result. The join operation reuses migration 159's atomic transaction and does not record attendance.
+- Classroom attendance QR is read-only for nonmembers: an existing enrollment plus active participant can check in, while a rostered nonmember, roster miss, conflicting identity, closed window, or revoked token receives a distinct non-writing result. Attendance never enrolls, binds, synchronizes sources, or offers an inline join action.
+- Updated Daily/live/poster wording to `Check in for attendance`, added governed join/attendance guidance and a teacher access fixture, and visually inspected desktop/mobile light/dark join QR and student result captures. Browser contracts pass 10/10 across the two focused scenarios; focused checks pass 35 files / 431 tests plus architecture, UI/design policy, TypeScript and lint, and the Pika audit is clean. No migration was added or applied; no hosted data, configuration, dependency, deployment, or production state changed. Independent fixed-head review and exact-head CI still gate readiness.
+- Initial independent review found an existing Dashboard UUID-link compatibility break, an unbounded attendance roster read, and a case-sensitive join prelookup. Remediation preserves issued UUID links while making all new teacher links code-based, and uses wildcard-safe maximum-two server-side candidate reads for join and attendance identity classification. Targeted compatibility re-review approved the first fix; targeted security re-review and fresh exact-head gates remain.
+
+## 2026-09-10 — Make manual attendance optimistic
+
+- Manual attendance status changes now render immediately while the existing API write completes. A failed first write restores the exact prior overrides; a partially saved class-wide batch retains the existing authoritative refresh and warning behavior.
+- Added hook regressions for pre-response projection and rollback, plus a browser scenario that holds the write open and verifies the selected status across teacher desktop/mobile and light/dark. Student is n/a because this interaction exists only on the teacher Daily surface.
+- Focused verification passes 199 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit is clean, and all four optimistic-state captures were visually inspected; one desktop-light Playwright teardown timed out after the body passed and then passed cleanly alone.
+- Independent review found that a partial-save recovery refresh could finish after a date switch and show the old date's warning in the new scope. Remediation rechecks mount and scope after the awaited refresh; the delayed-refresh/date-switch regression passes with the hook suite 8/8.
+- Final cumulative review found two remaining recovery edges: an A-to-B-to-A scope cycle could reuse the same value key, and a failed recovery read could leave the unsaved optimistic tail visible. Remediation binds rollback/notification to the original command ID and reconstructs only server-acknowledged chunks when refresh fails, with focused regressions for both scope cycles and failed reconciliation.
+- Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
+
+## 2026-09-10 — Put roster removal in Student Actions
+
+- Moved student removal from page-level More actions into the centered selection-aware Student Actions menu. Direct row selection now enables the same menu as checkbox selection.
+- Unified the teacher-facing behavior after product clarification: removing a joined student uses the existing comprehensive purge, which also removes roster membership; unjoined invitations retain the lightweight roster-only path because no classroom data exists. The duplicate purge menu item is gone. Joined students must be removed one at a time for per-student impact review and typed confirmation, and unavailable comprehensive removal fails closed instead of falling back to partial deletion.
+- The comprehensive dialog now consistently uses removal language and states that all classroom data is permanently deleted while the account and other-class data remain. Independent review found a join-after-page-load race in the legacy lightweight endpoint; forward migration 162 now serializes with classroom joining and rejects joined targets before any deletion, while the UI refreshes into the comprehensive flow. Targeted re-review found the legacy UUID-link enrollment path did not share that lock, so new direct-ID enrollments now use the existing atomic join transaction while already-enrolled compatibility links remain supported. The migration was not applied locally or remotely. Targeted race/API/migration/join coverage passes 70/70; the focused application/database/browser gate passes 19 files / 220 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit was clean before this follow-up. Teacher desktop/mobile light/dark menu, confirmation, and progress states plus the student authorization boundary pass the six-test browser matrix with no horizontal overflow.
+- Exact-head CI exposed an older cross-operation database check that still expected lightweight roster removal to delete joined memberships. The contract now explicitly requires that call to fail atomically and preserve both joined roster and enrollment rows for the comprehensive purge path; the focused 220-test/static gate remains green. The PR returned to draft before this correction and requires fresh exact-head CI.
+
+## 2026-09-10 — Standalone Gradebook items
+
+Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
+
+## 2026-09-10 — Finish standalone Gradebook browser contract correction
+
+- User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
+- The two earlier independent-review findings are corrected: category removal retracts returned marks, and identical score saves preserve return state. The extension permits one test-only correction, focused verification, one Terra review, and fresh exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+## 2026-09-10 — Synchronize standalone Gradebook with corrected enrollment lineage
+
+- User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
+- The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+## 2026-09-10 — Clarify other assessment creation in Gradebook
+
+- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
+- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
+
+## 2026-09-10 — Order and group Gradebook menu actions
+
+- Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
+- Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.
+
+## 2026-09-10 — Synchronize Gradebook with main through PR 1241
+
+- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
+- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.
+
+## 2026-09-10 — Close join-limiter maintenance release prerequisite
+
+- Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
+- One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.

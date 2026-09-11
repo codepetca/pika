@@ -23,7 +23,7 @@ export type ClassroomJoinDecision =
   | { allowed: false; reason: 'invalid_evidence' | 'archived' | 'own_classroom' | 'code_required' | 'enrollment_closed' | 'not_on_roster' | 'profile_required' }
 
 /**
- * Dormant admission policy only. The caller must authenticate, resolve the
+ * Contextual admission policy only. The caller must authenticate, resolve the
  * invitation, rate-limit guesses and perform all accepted writes atomically.
  */
 export function decideClassroomJoin(input: unknown): ClassroomJoinDecision {

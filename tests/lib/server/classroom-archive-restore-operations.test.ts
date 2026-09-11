@@ -57,10 +57,14 @@ function archiveV2ResourceCounts() {
   )
 }
 
-function fixture(version: 1 | 2 = 1, withOverrides = false) {
+function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
   const sourceResources = resources()
   if (withOverrides) Object.assign(sourceResources, {
     gradebook_score_overrides: [{ id: '15700000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, student_id: STUDENT_ID, created_by: TEACHER_ID, assessment_id: ASSIGNMENT_ID, assessment_type: 'assignment', earned: 8 }],
+  })
+  if (withItems) Object.assign(sourceResources, {
+    gradebook_items: [{ id: '16100000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, created_by: TEACHER_ID, title: 'Attendance', points_possible: 20 }],
+    gradebook_item_scores: [{ id: '16100000-0000-4000-8000-000000000021', classroom_id: CLASSROOM_ID, item_id: '16100000-0000-4000-8000-000000000020', student_id: STUDENT_ID, earned: 18, returned_at: '2026-07-12T12:00:00.000Z' }],
   })
   const archiveResources = version === 2
     ? Object.fromEntries(
@@ -125,8 +129,10 @@ function createSupabaseMock(options: {
   archiveVersion?: 1 | 2
   pre157?: boolean
   withOverrides?: boolean
+  pre163?: boolean
+  withItems?: boolean
 } = {}) {
-  const bundle = fixture(options.archiveVersion, options.withOverrides)
+  const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems)
   const counts = Object.fromEntries(
     bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
   )
@@ -257,6 +263,7 @@ function createSupabaseMock(options: {
     if (table === 'classroom_archive_resource_contract_versions') {
       const data = CLASSROOM_ARCHIVE_V2_RESOURCES
         .filter((resource) => !options.pre157 || resource.table !== 'gradebook_score_overrides')
+        .filter((resource) => !options.pre163 || !['gradebook_items', 'gradebook_item_scores'].includes(resource.table))
         .map((resource) => ({ table_name: resource.table }))
       const query = {
         select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
@@ -687,5 +694,27 @@ it.each([false, true])('restores against schema156 only when override rows are a
     expect(result).toMatchObject({ error_code: 'classroom_archive_restore_migration_required' })
   } else {
     expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_score_overrides')
+  }
+})
+
+
+it.each([false, true])('restores against schema162 only when original standalone rows are absent: %s', async (withItems) => {
+  const mock = createSupabaseMock({ pre163: true, archiveVersion: 2, withItems })
+  const result = await restoreClassroomArchive({
+    supabase: mock.client, operationId: OPERATION_ID, archiveId: ARCHIVE_ID,
+    teacherId: TEACHER_ID, classroomId: CLASSROOM_ID,
+    databaseBudgetBytes: 524288000, supabaseUrl: 'https://project.supabase.co',
+  })
+  expect(result.ok).toBe(!withItems)
+  const begin = mock.rpc.mock.calls.find(([name]) => name === 'begin_classroom_archive_restore_v2')
+  if (withItems) {
+    expect(begin).toBeUndefined()
+    expect(result).toMatchObject({
+      error_code: 'classroom_archive_restore_migration_required',
+      error: 'Restoring standalone Gradebook items requires migration 163',
+    })
+  } else {
+    expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_items')
+    expect(begin?.[1].p_resource_counts).not.toHaveProperty('gradebook_item_scores')
   }
 })

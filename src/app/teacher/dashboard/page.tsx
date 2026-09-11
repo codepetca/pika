@@ -240,7 +240,7 @@ export default function TeacherDashboardPage() {
 
   function handleCopyJoinLink() {
     if (!selectedClassroom) return
-    const link = `${window.location.origin}/join/${selectedClassroom.id}`
+    const link = `${window.location.origin}/join/${selectedClassroom.class_code}`
     navigator.clipboard.writeText(link)
     showSuccess('Link Copied', 'Join link copied to clipboard!')
   }

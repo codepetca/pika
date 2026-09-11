@@ -58,6 +58,8 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   classwork_materials: ['created_by'],
   entries: ['student_id'],
   gradebook_score_overrides: ['student_id', 'created_by'],
+  gradebook_items: ['created_by'],
+  gradebook_item_scores: ['student_id'],
   report_card_rows: ['student_id'],
   report_cards: ['created_by'],
   survey_responses: ['student_id'],
@@ -404,6 +406,8 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('class_days', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
   resource('classroom_enrollments', 'classrooms', 'classroom_id', ['student_identity']),
   resource('gradebook_score_overrides', 'classrooms', 'classroom_id', ['student_identity', 'grades_and_feedback'], 'exclude', ['classroom_enrollments']),
+  resource('gradebook_items', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback'], 'exclude', ['gradebook_categories']),
+  resource('gradebook_item_scores', 'classrooms', 'classroom_id', ['student_identity', 'grades_and_feedback'], 'exclude', ['classroom_enrollments', 'gradebook_items']),
   resource('classroom_resources', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('classroom_roster', 'classrooms', 'classroom_id', ['student_identity']),
   resource('classwork_materials', 'classrooms', 'classroom_id', ['teacher_content']),
@@ -500,9 +504,11 @@ export function auditClassroomResourceSchema(
   relationships: ClassroomSchemaRelationship[],
   primaryKeys: ClassroomSchemaPrimaryKey[],
   includeGradebookOverrides = true,
+  includeGradebookItems = true,
 ): ClassroomResourceSchemaAudit {
   const relationalResources = CLASSROOM_RELATIONAL_RESOURCES.filter((resource) =>
-    resource.table !== 'gradebook_score_overrides' || includeGradebookOverrides,
+    (resource.table !== 'gradebook_score_overrides' || includeGradebookOverrides)
+    && (!['gradebook_items', 'gradebook_item_scores'].includes(resource.table) || includeGradebookItems),
   )
   const nonOwningReferenceKeys = new Set(
     CLASSROOM_NON_OWNING_REFERENCES.flatMap((relationship) =>

@@ -551,6 +551,15 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
+    if (!targetResources.some((resource) => resource.table === 'gradebook_items')
+      && ((plan.resources.gradebook_items?.length || 0) > 0 || (plan.resources.gradebook_item_scores?.length || 0) > 0)) {
+      throw new ClassroomArchiveRestoreError(
+        'classroom_archive_restore_migration_required',
+        'Restoring standalone Gradebook items requires migration 163',
+        409,
+        false,
+      )
+    }
     managedStorageEnabled = true
     for (const object of plan.storageObjects) {
       const reservation = await reserveManagedStorageUpload({

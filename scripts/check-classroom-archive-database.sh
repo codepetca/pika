@@ -70,10 +70,12 @@ declare
 begin
   v_expected_resource_count := 40
     + case when to_regclass('public.gradebook_categories') is null then 0 else 1 end
-    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end;
+    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end
+    + case when to_regclass('public.gradebook_items') is null then 0 else 2 end;
   v_expected_trigger_count := 39
     + case when to_regclass('public.gradebook_categories') is null then 0 else 1 end
-    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end;
+    + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end
+    + case when to_regclass('public.gradebook_items') is null then 0 else 2 end;
   if (select count(*) from public.classroom_archive_resource_contract)
       <> v_expected_resource_count then
     raise exception 'Expected % database archive-v2 resources', v_expected_resource_count;

@@ -1,18 +1,27 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const migrationPath = join(
+const atomicMigrationPath = join(
   process.cwd(),
   'supabase/migrations/159_atomic_contextual_classroom_enrollment.sql'
 )
+const rejectedGuessMigrationPath = join(
+  process.cwd(),
+  'supabase/migrations/161_contextual_classroom_rejected_guess_limiter.sql'
+)
 
-function readMigration(): string {
-  return readFileSync(migrationPath, 'utf8').toLowerCase()
+function readAtomicMigration(): string {
+  return readFileSync(atomicMigrationPath, 'utf8').toLowerCase()
+}
+
+function readRejectedGuessMigration(): string {
+  return readFileSync(rejectedGuessMigrationPath, 'utf8').toLowerCase()
 }
 
 function readPublicJoinFunction(): string {
-  const sql = readMigration()
+  const sql = readAtomicMigration()
   const start = sql.indexOf('create function public.join_classroom_by_code_atomic_v1(')
   const end = sql.indexOf('\n$$;', start)
   expect(start).toBeGreaterThan(-1)
@@ -20,10 +29,23 @@ function readPublicJoinFunction(): string {
   return sql.slice(start, end + 4)
 }
 
-describe('atomic contextual classroom enrollment migration', () => {
-  it('keeps invitation-guess state private and schema-backed', () => {
-    const sql = readMigration()
+function readPublicGuessFunction(): string {
+  const sql = readRejectedGuessMigration()
+  const start = sql.indexOf('create function public.consume_classroom_join_guess_v1(')
+  const end = sql.indexOf('\n$$;', start)
+  expect(start).toBeGreaterThan(-1)
+  expect(end).toBeGreaterThan(start)
+  return sql.slice(start, end + 4)
+}
 
+describe('atomic contextual classroom enrollment migration', () => {
+  it('keeps the deployed migration 159 definition immutable', () => {
+    const migration = readFileSync(atomicMigrationPath)
+    const sql = migration.toString('utf8').toLowerCase()
+
+    expect(createHash('sha256').update(migration).digest('hex')).toBe(
+      '3d0379dd38b2b8f7365898004ba60b531b519ebb31f19106bf4c39da645770d3'
+    )
     expect(sql).toContain('create table public.classroom_join_rate_limits')
     expect(sql).toContain('alter table public.classroom_join_rate_limits enable row level security')
     expect(sql).toContain(
@@ -36,6 +58,7 @@ describe('atomic contextual classroom enrollment migration', () => {
     expect(sql).toContain("v_invitation_max_attempts constant integer := 3")
     expect(sql).toContain('create index classroom_join_rate_limits_updated_at_idx')
     expect(sql).toContain('create function public.cleanup_classroom_join_rate_limits_v1')
+    expect(sql).not.toContain('create function public.consume_classroom_join_guess_v1')
     expect(sql).toContain('p_batch_size is null or p_batch_size not between 1 and 10000')
     expect(sql).toContain('for update skip locked')
     expect(sql).not.toContain('jsonb_object_length')
@@ -45,19 +68,39 @@ describe('atomic contextual classroom enrollment migration', () => {
   })
 
   it('exposes only a fixed-search-path service-role transaction', () => {
-    const sql = readMigration()
+    const sql = readAtomicMigration()
+    const rejectedGuessSql = readRejectedGuessMigration()
     const publicFunction = readPublicJoinFunction()
+    const guessFunction = readPublicGuessFunction()
     const signature =
       'public.join_classroom_by_code_atomic_v1(uuid, uuid, text, text, text, text, text, text, jsonb)'
+    const guessSignature = 'public.consume_classroom_join_guess_v1(text, text)'
 
     expect(sql).toContain('create function public.join_classroom_by_code_atomic_v1')
     expect(publicFunction).toContain('security definer')
     expect(publicFunction).toContain("set search_path = ''")
+    expect(guessFunction).toContain('security definer')
+    expect(guessFunction).toContain("set search_path = ''")
     expect(sql.replace(/\s+/g, ' ')).toContain(
       `revoke all on function ${signature} from public, anon, authenticated, service_role`
     )
     expect(sql.replace(/\s+/g, ' ')).toContain(`grant execute on function ${signature} to service_role`)
-    expect(sql).toContain('no live route adopts it in migration 159')
+    expect(rejectedGuessSql.replace(/\s+/g, ' ')).toContain(
+      `revoke all on function ${guessSignature} from public, anon, authenticated, service_role`,
+    )
+    expect(rejectedGuessSql.replace(/\s+/g, ' ')).toContain(
+      `grant execute on function ${guessSignature} to service_role`,
+    )
+    expect(rejectedGuessSql).toContain('disabled-by-default contextual pilot path')
+  })
+
+  it('charges rejected guesses without resolving an actor or classroom', () => {
+    const sql = readPublicGuessFunction()
+
+    expect(sql).toContain('private.consume_classroom_join_rate_limits_v1(')
+    expect(sql).not.toContain('from public.users')
+    expect(sql).not.toContain('from public.classrooms')
+    expect(sql).toContain("'error_code', 'rate_limited'")
   })
 
   it('limits guesses before resolving the actor or classroom', () => {
@@ -75,7 +118,7 @@ describe('atomic contextual classroom enrollment migration', () => {
   })
 
   it('revalidates contextual authorization and writes every join effect atomically', () => {
-    const sql = readMigration()
+    const sql = readAtomicMigration()
 
     expect(sql).toContain('classroom.teacher_id = p_actor_id')
     expect(sql).toContain('classroom.archived_at is not null')
@@ -95,7 +138,7 @@ describe('atomic contextual classroom enrollment migration', () => {
   })
 
   it('returns a least-data projection without invitation or owner details', () => {
-    const sql = readMigration()
+    const sql = readAtomicMigration()
 
     expect(sql).toContain("'classroom', jsonb_build_object(")
     expect(sql).toContain("'id', v_classroom.id")

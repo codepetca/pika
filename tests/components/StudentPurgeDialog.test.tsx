@@ -49,13 +49,13 @@ describe('StudentPurgeDialog', () => {
       onCompleted={vi.fn()}
     />)
 
-    const dialog = await screen.findByRole('dialog', { name: 'Purge this student’s classroom data?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Remove this student?' })
     expect(dialog).toHaveTextContent(/submissions, tests, grades, attendance/)
     expect(dialog).toHaveTextContent(/user account and data in other classrooms are kept/i)
     expect(dialog).toHaveTextContent(/archive copies and Gradex extracts/)
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toContainElement(document.activeElement)
-    const purge = within(dialog).getByRole('button', { name: 'Purge classroom data' })
+    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
     expect(purge).toBeDisabled()
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'STUDENT@example.com' } })
     expect(purge).toBeDisabled()
@@ -87,7 +87,7 @@ describe('StudentPurgeDialog', () => {
       onCompleted={vi.fn()}
     />)
     expect(await screen.findByText('student_purge_external_erasure_required')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Purge classroom data' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove student' })).toBeDisabled()
   })
 
   it('uses the authoritative account email when the roster casing differs', async () => {
@@ -109,7 +109,7 @@ describe('StudentPurgeDialog', () => {
     const input = within(dialog).getByRole('textbox', {
       name: /Type “Joined@example\.com” to confirm/,
     })
-    const purge = within(dialog).getByRole('button', { name: 'Purge classroom data' })
+    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
     fireEvent.change(input, { target: { value: 'joined@example.com' } })
     expect(purge).toBeDisabled()
     fireEvent.change(input, { target: { value: 'Joined@example.com' } })
@@ -137,7 +137,7 @@ describe('StudentPurgeDialog', () => {
     />)
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: EMAIL } })
-    const purge = within(dialog).getByRole('button', { name: 'Purge classroom data' })
+    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
     fireEvent.click(purge)
     await within(dialog).findByRole('alert')
     fireEvent.click(purge)

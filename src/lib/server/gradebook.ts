@@ -40,8 +40,8 @@ type GradebookCategory = {
   is_default: boolean
 }
 
-type GradebookAssessmentType = 'assignment' | 'test'
-type GradebookOverrideType = GradebookAssessmentType | 'final'
+type GradebookAssessmentType = 'assignment' | 'test' | 'item'
+type GradebookOverrideType = Exclude<GradebookAssessmentType, 'item'> | 'final'
 type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -52,6 +52,7 @@ type GradebookAssessmentStatus =
   | 'resubmitted'
 
 type GradebookAssessmentCell = {
+  returned_at?: string | null
   assessment_id: string
   assessment_type: GradebookAssessmentType
   earned: number | null
@@ -361,6 +362,24 @@ export async function loadTeacherGradebook(opts: {
     console.error('Error loading student profiles for gradebook:', profilesError)
     throw new ApiError(500, 'Failed to load student profiles for gradebook')
   }
+
+  const { rows: items, error: itemsError } = await loadPagedRows<{
+    id: string; title: string; points_possible: number; gradebook_weight: number
+    gradebook_category_id: string | null; include_in_final: boolean
+  }>(() => supabase.from('gradebook_items')
+    .select('id, title, points_possible, gradebook_weight, gradebook_category_id, include_in_final')
+    .eq('classroom_id', classroomId).order('created_at').order('id'))
+  const itemsAvailable = !itemsError && categorySchemaAvailable
+  if (itemsError && !isMissingTableError(itemsError)) {
+    throw new ApiError(500, 'Failed to load Gradebook items')
+  }
+  if (items.length && !categorySchemaAvailable) throw new ApiError(500, 'Gradebook categories are unavailable')
+  const { rows: itemScores, error: itemScoresError } = await loadStudentScopedRows<{
+    item_id: string; student_id: string; earned: number; returned_at: string | null
+  }>(supabase, 'gradebook_item_scores', 'item_id, student_id, earned, returned_at',
+    'item_id', items.map((item) => item.id), studentIds)
+  if (itemScoresError) throw new ApiError(500, 'Failed to load Gradebook item marks')
+  const itemScoreMap = new Map(itemScores.map((score) => [cellKey(score.student_id, score.item_id), score]))
 
   const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]))
 
@@ -872,6 +891,9 @@ export async function loadTeacherGradebook(opts: {
   const categoryMap = new Map(categories.map((category) => [category.id, category]))
   const assessmentWeightsByCategory = new Map<string, number[]>()
   for (const assessment of [
+    ...items.filter((item) => item.include_in_final).map((item) => ({
+      categoryId: item.gradebook_category_id, weight: Number(item.gradebook_weight),
+    })),
     ...assignments
       .filter((assignment) => assignment.include_in_final && !assignment.is_draft)
       .map((assignment) => ({
@@ -943,6 +965,15 @@ export async function loadTeacherGradebook(opts: {
         ),
       }
     }),
+    ...items.map((item, index) => ({
+      assessment_id: item.id, assessment_type: 'item' as const,
+      code: assessmentCode('I', index), title: item.title,
+      possible: Number(item.points_possible), weight: Number(item.gradebook_weight),
+      include_in_final: item.include_in_final,
+      scored_count: itemScores.filter((score) => score.item_id === item.id).length,
+      returned_count: itemScores.filter((score) => score.item_id === item.id && score.returned_at).length,
+      ...assessmentCategoryFields(item.gradebook_category_id, Number(item.gradebook_weight), item.include_in_final),
+    })),
   ]
 
   const students = (enrollments || []).map((enrollment) => {
@@ -966,6 +997,20 @@ export async function loadTeacherGradebook(opts: {
         }
       }),
     ]
+    const standaloneCells: GradebookAssessmentCell[] = items.map((item) => {
+      const score = itemScoreMap.get(cellKey(studentId, item.id))
+      const possible = Number(item.points_possible)
+      if (!score) return blankAssessmentCell('item', item.id, possible)
+      const earned = Number(score.earned)
+      return { assessment_id: item.id, assessment_type: 'item', earned, possible,
+        percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
+    })
+    assessmentScores.push(...standaloneCells)
+    const itemRows = items.flatMap((item, index) => {
+      const cell = standaloneCells[index]
+      if (!item.include_in_final || cell.earned == null) return []
+      return [{ earned: cell.earned, possible: cell.possible, weight: Number(item.gradebook_weight), categoryId: item.gradebook_category_id }]
+    })
     const assignmentRows = assignments.flatMap((assignment, index) => {
       const cell = assessmentScores[index]
       if (!assignment.include_in_final || assignment.is_draft || cell.earned == null || cell.possible <= 0) return []
@@ -990,7 +1035,7 @@ export async function loadTeacherGradebook(opts: {
             id: category.id,
             percentage: category.percentage,
           })),
-          items: [...assignmentRows, ...testRows],
+          items: [...assignmentRows, ...testRows, ...itemRows],
         })
       : null
     const assignmentTotals = assignmentRows.reduce(
@@ -1092,6 +1137,7 @@ export async function loadTeacherGradebook(opts: {
     categories,
     category_schema_available: categorySchemaAvailable,
     score_overrides_available: scoreOverridesAvailable,
+    items_available: itemsAvailable,
     assessment_columns: assessmentColumns,
     students,
     selected_student: selectedStudent
@@ -1141,8 +1187,18 @@ export async function loadTeacherGradebook(opts: {
         : null,
       assignments: classAssignmentSummaries,
       tests: classTestSummaries,
+      items: items.map((item) => {
+        const values = students.flatMap((student) => {
+          const cell = student.assessment_scores.find((cell) => cell.assessment_type === 'item' && cell.assessment_id === item.id)
+          return cell?.percent == null ? [] : [cell.percent]
+        })
+        return { item_id: item.id, title: item.title, possible: Number(item.points_possible),
+          scored_count: values.length, average_percent: values.length ? round2(values.reduce((sum, value) => sum + value, 0) / values.length) : null,
+          median_percent: median(values) }
+      }),
     },
     totals: {
+      items: items.length,
       assignments: assignments.length || 0,
       tests: tests.filter((test) => test.status !== 'draft').length || 0,
     },

@@ -46,6 +46,12 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: ({ content }: any) => <div data-testid="rich-text-viewer">{JSON.stringify(content)}</div>,
 }))
 
+vi.mock('@/components/gradebook/StudentReturnedMarks', () => ({
+  StudentReturnedMarks: ({ classroomId, isActive }: { classroomId: string; isActive: boolean }) => (
+    <div data-testid="returned-marks" data-classroom-id={classroomId} data-active={isActive} />
+  ),
+}))
+
 // --- Helpers ---
 
 const classroom: Classroom = {
@@ -164,6 +170,15 @@ describe('StudentAssignmentsTab', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('includes returned standalone marks in an empty Classwork summary', async () => {
+    mockFetchClasswork([])
+    const { rerender } = render(<StudentAssignmentsTab classroom={classroom} />)
+    expect(await screen.findByTestId('returned-marks')).toHaveAttribute('data-classroom-id', classroom.id)
+    expect(screen.getByTestId('returned-marks')).toHaveAttribute('data-active', 'true')
+    rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)
+    expect(screen.getByTestId('returned-marks')).toHaveAttribute('data-active', 'false')
   })
 
   it('shows a classwork error and restores the list after retry', async () => {

@@ -147,11 +147,11 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByRole('region', { name: 'Attendance controls and summary' })).toBe(contextBar)
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     const primaryControl = screen.getByTestId('attendance-primary-control')
-    const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
+    const showQr = within(contextBar).getByRole('button', { name: 'Show attendance QR' })
     const closeAttendance = within(contextBar).getByRole('button', { name: 'Stop QR check-in' })
     expect(showQr).toBeEnabled()
     expect(closeAttendance).toBeEnabled()
-    expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
+    expect(within(primaryControl).getByRole('button', { name: 'Show attendance QR' })).toBe(showQr)
     expect(within(primaryControl).getByRole('button', { name: 'Stop QR check-in' })).toBe(closeAttendance)
     expect(screen.getAllByRole('checkbox')).toHaveLength(3)
     const studentActions = within(primaryControl).getByRole('button', {
@@ -464,7 +464,7 @@ describe('TeacherLiveAttendanceTab', () => {
     await screen.findByText('Ada')
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show attendance QR' }))
     expect(await screen.findByRole('img', {
       name: 'Student attendance check-in QR code',
     })).toBeInTheDocument()
@@ -498,7 +498,7 @@ describe('TeacherLiveAttendanceTab', () => {
       await Promise.resolve()
     })
     expect(screen.getByText('Ada')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show attendance QR' }))
     await act(async () => {
       await Promise.resolve()
       await Promise.resolve()
@@ -524,7 +524,7 @@ describe('TeacherLiveAttendanceTab', () => {
 
     renderTab()
     await screen.findByText('Ada')
-    fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show attendance QR' }))
 
     expect(await screen.findByText('This QR code has expired')).toBeInTheDocument()
     expect(screen.queryByRole('img', {

@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 /**
- * Dormant foundation: existing route guards remain authoritative until migrated.
+ * Contextual enrollment foundation: legacy route guards remain authoritative
+ * outside the explicitly configured pilot cohort.
  * Only construct this from authenticated identity + server-loaded classroom data.
  * Shape validation is NOT proof of identity or membership.
  */
