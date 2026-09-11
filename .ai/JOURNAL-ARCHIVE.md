@@ -31578,20 +31578,15 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - User approved the first fix package: Unicode/NFC-aware single-pass roster-name replacement, content-free OpenAI/Brevo failures and grading output-validation errors. Added synthetic regression coverage, including actual assignment-run persistence after provider failures; initial targeted tests pass. No dependencies, migrations, production settings or workflows changed. Risk: runtime-platform/high privacy; draft PR, independent Sol/high + Terra/high review and stable-SHA CI required before handoff. Broader logging/transport and product/retention decisions remain follow-ups.
 
 <!-- pika-session-log-archive-batch:7859775158a038890f9e180a7a229122410ad6e193b17ea415b0d13bf7414264 -->
-=======
 <!-- pika-session-log-archive-batch:a5d10e76e40641fd0e3f63efafa98f7629db306ff6d38049bf225731a4eb6c9c -->
->>>>>>> origin/main
 ## 2026-09-07 — Preserve the Roster actions and email labels handoff
 
 - Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
 - Renamed the roster contact columns and related UI copy to Email (main) and Email (secondary), including manual-add/CSV dialogs, edit labels, copy actions and conflict feedback. Data contracts remain unchanged; the legacy `counselor_email` field still stores the secondary address.
 - Focused component/API coverage passes 52 tests; type, design/UI policy and the Pika audit pass. Browser verification covers teacher desktop/mobile, light/dark, default/open/focus states plus student-route exclusion; menu focus, Escape return and viewport containment were inspected. Risk profile none; use one Terra/high reviewer for the standard-risk UI/state diff. No schema, migration, dependency, hosted data or deployment changes.
 
-<<<<<<< HEAD
 <!-- pika-session-log-archive-batch:3ac70243531a6ebcbb4960790e1316e13127f0764c158208e45bcad55e9ad958 -->
-=======
 <!-- pika-session-log-archive-batch:808b3053040a0378b36501404b17824558dffc83645efb0609836c249f41be5b -->
->>>>>>> origin/main
 ## 2026-09-07 — Preserve the atomic enrollment and guess-limit handoff
 
 - Began the next dormant compatibility-C slice from merged main on `codex/atomic-enrollment-foundation`. Authored unapplied migration 157 after shared local history revealed another active branch owns 155–156: a private schema-backed 10-minute limiter (12 actor attempts, 3 actor-plus-invitation attempts) and a service-only code-join transaction that locks/revalidates the exact classroom, denies self/archive/closed/roster conflicts, and atomically writes roster lineage, enrollment, profile and optional verified Pal evidence.
@@ -31601,7 +31596,6 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Targeted Sol/high remediation review (launch 3) found three additional blockers in batch 1: unsupported `jsonb_object_length`, a cleanup/request lock cycle, and rejoin rejection when a legitimate same-source Pal event has a new occurrence timestamp. Correction batch 2 uses supported exact-object comparisons, moves stale cleanup to a separate bounded service-only `SKIP LOCKED` function, and verifies stable Pal identity/source fields while allowing timestamp drift. The rollback fixture now covers valid-event rejoin plus cross-source collision. Static/adapter/guidance tests pass 11; migration execution and generated types remain pending the same dependency/authorization gate.
 - Targeted Sol/high remediation review launch 4 cleared those three corrections and found one P2: explicit NULL bypassed the cleanup batch bound because `LIMIT NULL` is unbounded. Correction batch 3 rejects NULL and adds rollback assertions for NULL/zero/oversized inputs plus exact small-batch behavior. This reaches the default three-batch limit; reserve launch 5 for cumulative integration after #1187, authorized local migration 157, generated types and database harnesses are complete.
 - Owner then authorized local application of the exact migration 157. Because #1187 is still open but local history already contains its 155–156, created an unpushed temporary integration worktree containing exact #1187 head plus #1193; checksum `482f9a99f6315ed4013cb33ddb01a0abe1232d5eb57bb281853989217c7692b5` matched the reviewed 157 file. Verified target `supabase_db_pika`/54322 and a 157-only dry run, then applied 157 once; authorization is consumed. Local history is 001–157, database lint has zero findings, rollback and concurrency harnesses pass with all synthetic fixtures removed, and generated types match. Integrated only 157's generated entries into #1193 and removed the temporary RPC cast. No hosted migration, route adoption, cohort, deployment or production change occurred.
-<<<<<<< HEAD
 
 <!-- pika-session-log-archive-batch:d75e37be5731e538dee072b16b0a0e7dd09db17eebfc7ff0789e0e6c5a8816c5 -->
 ## 2026-09-07 — Rebase atomic enrollment after prerequisite merge
