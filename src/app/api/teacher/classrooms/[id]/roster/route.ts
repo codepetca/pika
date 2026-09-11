@@ -23,10 +23,14 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     )
   }
 
-  const rosterResponse = await supabase
+  const rosterColumns = 'id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at'
+  let rosterResponse: { data: unknown[] | null; error: { code: string; message: string } | null } = await supabase
     .from('classroom_roster')
-    .select('id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at')
+    .select(`${rosterColumns}, removed_at`)
     .eq('classroom_id', classroomId)
+  if (rosterResponse.error && ['42703', 'PGRST204'].includes(rosterResponse.error.code)) {
+    rosterResponse = await supabase.from('classroom_roster').select(rosterColumns).eq('classroom_id', classroomId)
+  }
   const { data: rosterRows, error: rosterError } = rosterResponse
 
   if (rosterError) {
@@ -84,7 +88,7 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     joinedByStudentId.set(joined.student_id, joined)
   }
 
-  const roster = (rosterRows || []).map((r: any) => {
+  const roster = (rosterRows || []).filter((r: any) => !r.removed_at).map((r: any) => {
     const email = String(r.email || '').toLowerCase().trim()
     const boundStudentId = studentIdByRosterId.get(String(r.id))
     const joined = boundStudentId

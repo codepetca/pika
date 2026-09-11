@@ -291,3 +291,4 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
     })
   })
 })
+vi.mock('@/lib/server/classroom-student-removal', () => ({ restoreRemovedClassroomStudents: vi.fn(async () => 0) }))

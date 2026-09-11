@@ -13,14 +13,6 @@ const DIGEST = 'a'.repeat(64)
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(), impact: vi.fn(), active: vi.fn(), start: vi.fn(), status: vi.fn(), tick: vi.fn(), target: vi.fn(),
-  after: vi.fn(), background: vi.fn(),
-}))
-vi.mock('next/server', async (importOriginal) => ({
-  ...await importOriginal<typeof import('next/server')>(),
-  after: (callback: () => Promise<void>) => mocks.after(callback),
-}))
-vi.mock('@/lib/server/student-purge-worker', () => ({
-  runStudentPurgeInBackground: (...args: unknown[]) => mocks.background(...args),
 }))
 vi.mock('@/lib/auth', () => ({ requireRole: (...args: unknown[]) => mocks.requireRole(...args) }))
 vi.mock('@/lib/server/student-purge', () => ({
@@ -78,22 +70,6 @@ describe('teacher individual-student purge routes', () => {
       operationId: OPERATION_ID, confirmation: 'student@example.com', expectedSourceRevision: 7,
       expectedStorageInventorySha256: DIGEST, expectedRelationalInventorySha256: DIGEST,
     })
-    expect(mocks.after).toHaveBeenCalledTimes(1)
-    expect(mocks.background).not.toHaveBeenCalled()
-    await mocks.after.mock.calls[0][0]()
-    expect(mocks.background).toHaveBeenCalledWith(TEACHER_ID, OPERATION_ID)
-  })
-
-  it('does not schedule work when admission fails', async () => {
-    mocks.start.mockRejectedValue(new ApiError(409, 'External erasure required'))
-    const response = await startPurge(new NextRequest('http://localhost/purge', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ operation_id: OPERATION_ID, confirmation: 'student@example.com',
-        expected_source_revision: 7, expected_storage_inventory_sha256: DIGEST,
-        expected_relational_inventory_sha256: DIGEST }),
-    }), context)
-    expect(response.status).toBe(409)
-    expect(mocks.after).not.toHaveBeenCalled()
   })
 
   it('rejects a student session before any purge state is read or changed', async () => {

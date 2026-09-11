@@ -50,6 +50,9 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
             eq: vi.fn().mockResolvedValue({
               data: [
                 {
+                  id: 'removed-roster', email: 'removed@example.com', removed_at: '2026-09-11T12:00:00Z',
+                },
+                {
                   id: 'r-1',
                   email: 'Joined@Example.com',
                   student_number: '1001',

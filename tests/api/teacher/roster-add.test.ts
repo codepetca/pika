@@ -93,3 +93,4 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
     ], { onConflict: 'classroom_id,email' })
   })
 })
+vi.mock('@/lib/server/classroom-student-removal', () => ({ restoreRemovedClassroomStudents: vi.fn(async () => 0) }))

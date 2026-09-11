@@ -52,6 +52,8 @@ async function newRolePage(
 }
 
 async function mockTeacherStudentPurge(page: Page, classroomId: string) {
+  let removed = false
+  let purgeRequestCount = 0
   const scopedImpact = { ...impact, classroom_id: classroomId }
   const scopedOperation = { ...operation, classroom_id: classroomId }
 
@@ -60,7 +62,7 @@ async function mockTeacherStudentPurge(page: Page, classroomId: string) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        roster: [{
+        roster: removed ? [] : [{
           id: '10000000-0000-4000-8000-000000000001',
           email: STUDENT_EMAIL,
           first_name: 'Student1',
@@ -78,9 +80,16 @@ async function mockTeacherStudentPurge(page: Page, classroomId: string) {
       }),
     })
   })
+  await page.route(`**/api/teacher/classrooms/${classroomId}/roster/remove`, async (route) => {
+    expect(route.request().method()).toBe('POST')
+    expect(route.request().postDataJSON()).toEqual({ roster_ids: ['10000000-0000-4000-8000-000000000001'] })
+    removed = true
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) })
+  })
   await page.route(
     `**/api/teacher/classrooms/${classroomId}/students/${STUDENT_ID}/purge`,
     async (route) => {
+      purgeRequestCount += 1
       await route.fulfill({
         status: route.request().method() === 'POST' ? 202 : 200,
         contentType: 'application/json',
@@ -100,6 +109,7 @@ async function mockTeacherStudentPurge(page: Page, classroomId: string) {
       })
     },
   )
+  return { purgeRequestCount: () => purgeRequestCount }
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -123,13 +133,13 @@ for (const entry of matrix) {
       () => browser.newContext({ storageState: '.auth/teacher.json', viewport: entry.viewport }),
       entry.theme,
     )
-    await mockTeacherStudentPurge(page, classroomId!)
+    const requests = await mockTeacherStudentPurge(page, classroomId!)
     await page.goto(`/classrooms/${classroomId}?tab=roster`)
     await page.getByText('Student1', { exact: true }).click()
     await page.getByRole('button', { name: '1 selected' }).click()
     const studentActionsMenu = page.getByRole('menu', { name: 'Student actions' })
     await expect(studentActionsMenu.getByRole('menuitem', { name: 'Remove student' })).toBeVisible()
-    await expect(studentActionsMenu.getByRole('menuitem', { name: 'Purge classroom data' })).toHaveCount(0)
+    await expect(studentActionsMenu.getByRole('menuitem', { name: /Permanently delete class data/ })).toBeVisible()
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
       path: testInfo.outputPath(`student-actions-${entry.name}.png`),
@@ -138,7 +148,27 @@ for (const entry of matrix) {
     })
 
     await studentActionsMenu.getByRole('menuitem', { name: 'Remove student' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Remove this student?' })
+    const removalDialog = page.getByRole('dialog', { name: 'Remove student from class?' })
+    await expect(removalDialog).toBeVisible()
+    await expect(removalDialog).toContainText('Submitted work, marks, attendance history, and Pal progress are kept.')
+    await expect(removalDialog).toContainText('Their account and other classes are unaffected.')
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({ path: testInfo.outputPath(`removal-confirmation-${entry.name}.png`), fullPage: true, animations: 'disabled' })
+    await removalDialog.getByRole('button', { name: 'Remove from class' }).click()
+    await expect(removalDialog).toHaveCount(0)
+    await expect(page.getByText('Student removed from class', { exact: true })).toBeVisible()
+    await expect(page.getByText('Student1', { exact: true })).toHaveCount(0)
+    expect(requests.purgeRequestCount()).toBe(0)
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({ path: testInfo.outputPath(`removal-success-${entry.name}.png`), fullPage: true, animations: 'disabled' })
+
+    // A fresh mocked roster represents a separate destructive operation.
+    await mockTeacherStudentPurge(page, classroomId!)
+    await page.reload()
+    await page.getByText('Student1', { exact: true }).click()
+    await page.getByRole('button', { name: '1 selected' }).click()
+    await page.getByRole('menuitem', { name: /Permanently delete class data/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'Permanently delete class data?' })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
     await expect(dialog).toContainText('user account and data in other classrooms are kept')
@@ -150,7 +180,7 @@ for (const entry of matrix) {
     })
 
     await dialog.getByRole('textbox').fill(STUDENT_EMAIL)
-    await dialog.getByRole('button', { name: 'Remove student' }).click()
+    await dialog.getByRole('button', { name: 'Delete class data' }).click()
     await expect(dialog.getByRole('alert')).toContainText('waiting safely')
     await expect(dialog).toContainText('Deleting files 2 of 6')
     await page.screenshot({

@@ -332,7 +332,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     const fallbackError = pendingRemoval.rows.length > 1 ? 'Failed to remove students' : 'Failed to remove student'
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/bulk-delete`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roster_ids: removalRosterIds }),
@@ -371,6 +371,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         setSelectedRosterId(null)
       }
       clearSelection()
+      showMessage({ text: removalRosterIds.length === 1 ? 'Student removed from class' : 'Students removed from class', tone: 'success' })
       await loadRoster({ preserveRoster: true })
     } catch (err: any) {
       if (
@@ -555,7 +556,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   function openRemoveStudentDialog(rows: RosterRow[]) {
-    if (rows.length === 0 || rows.some((row) => row.joined) || isReadOnly) return
+    if (rows.length === 0 || isReadOnly) return
     setRemovalError('')
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
@@ -598,14 +599,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThis removes their invitation from this class roster. They have not joined the class, so there is no classroom data to delete.`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the active roster. Submitted work, marks, attendance history, and Pal progress are kept. Their account and other classes are unaffected.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
 
-    return `${preview}${remaining}\n\nThis removes the selected invitations from this class roster. These students have not joined the class, so there is no classroom data to delete.`
+    return `${preview}${remaining}\n\nThey will lose access to this class and leave the active roster. Submitted work, marks, attendance history, and Pal progress are kept. Their accounts and other classes are unaffected.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
@@ -643,31 +644,26 @@ export function TeacherRosterTab({ classroom }: Props) {
     : null
 
   if (hasStudentActionRows) {
-    const containsJoinedStudent = removalTargetRows.some((row) => row.joined)
-    const unavailableReason = removalTargetRows.length > 1 && containsJoinedStudent
-      ? 'Remove joined students one at a time so each deletion can be confirmed.'
-      : removalTargetRows.length === 1 && containsJoinedStudent && !purgeTarget
-        ? 'Comprehensive removal is not available for this student right now.'
-        : undefined
-
     studentActionOptions.push({
       id: 'remove-student',
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
-      description: unavailableReason,
-      onSelect: () => {
-        if (purgeTarget) {
-          setPendingPurge(purgeTarget)
-          return
-        }
-        openRemoveStudentDialog(removalTargetRows)
-      },
+      onSelect: () => openRemoveStudentDialog(removalTargetRows),
       disabled: isRosterLoading
         || isRemoving
         || removalTargetRows.length === 0
-        || Boolean(unavailableReason)
-        || (!purgeTarget && isReadOnly),
+        || isReadOnly,
       destructive: true,
     })
+    if (purgeTarget) {
+      studentActionOptions.push({
+        id: 'delete-student-data',
+        label: <span className="text-danger">Permanently delete class data</span>,
+        description: 'Delete this student’s data from this class. External-service restrictions may apply.',
+        onSelect: () => setPendingPurge(purgeTarget),
+        disabled: isRosterLoading || isRemoving,
+        destructive: true,
+      })
+    }
   }
 
   const actionBar = (
@@ -686,6 +682,7 @@ export function TeacherRosterTab({ classroom }: Props) {
             disabled={isReadOnly || isRosterLoading}
           />
           <TeacherWorkSurfaceMenuButton
+            menuAlign="center"
             buttonProps={{ 'aria-label': hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions' }}
             label={<span className="inline-flex items-center gap-2 whitespace-nowrap">
               <span>{hasStudentActionRows ? `${removalTargetRows.length} selected` : 'Student Actions'}</span>
@@ -696,7 +693,6 @@ export function TeacherRosterTab({ classroom }: Props) {
             variant={hasStudentActionRows ? 'primary' : 'secondary'}
             className="w-36"
             menuAriaLabel="Student actions"
-            menuAlign="start"
           />
         </TeacherWorkSurfaceActionCluster>
       }
@@ -1033,9 +1029,9 @@ export function TeacherRosterTab({ classroom }: Props) {
 
       <ConfirmDialog
         isOpen={!!pendingRemoval}
-        title={pendingRemoval && pendingRemoval.rows.length > 1 ? 'Remove students?' : 'Remove student?'}
+        title={pendingRemoval && pendingRemoval.rows.length > 1 ? 'Remove students from class?' : 'Remove student from class?'}
         description={pendingRemoval ? getRemovalDescription(pendingRemoval.rows) : undefined}
-        confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
+        confirmLabel={isRemoving ? 'Removing...' : 'Remove from class'}
         cancelLabel="Cancel"
         confirmVariant="danger"
         errorMessage={removalError || undefined}

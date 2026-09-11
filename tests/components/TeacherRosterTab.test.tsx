@@ -101,7 +101,7 @@ function mockRosterFetch() {
       return mockJson({ roster: [rosterRow, secondRosterRow] })
     }
 
-    if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+    if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
       return mockJson({ success: true })
     }
 
@@ -120,7 +120,7 @@ function mockInvitationRosterFetch() {
       return mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
     }
 
-    if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+    if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
       return mockJson({ success: true })
     }
 
@@ -166,10 +166,10 @@ function getIndividualDeleteCalls(fetchMock: ReturnType<typeof vi.fn>) {
   })
 }
 
-function getBulkDeleteCalls(fetchMock: ReturnType<typeof vi.fn>) {
+function getRemovalCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     return (
-      String(input) === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` &&
+      String(input) === `/api/teacher/classrooms/${classroom.id}/roster/remove` &&
       (init as RequestInit | undefined)?.method === 'POST'
     )
   })
@@ -993,7 +993,7 @@ describe('TeacherRosterTab', () => {
           })
         })
       }
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
         return mockJson({ success: true })
       }
       if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
@@ -1007,8 +1007,8 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Grace'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
-      .getByRole('button', { name: 'Remove' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Remove student from class?' }))
+      .getByRole('button', { name: 'Remove from class' }))
     await waitFor(() => expect(resolveRefresh).toEqual(expect.any(Function)))
 
     await user.click(screen.getByRole('button', {
@@ -1248,24 +1248,26 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
 
-    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
+    expect(getRemovalCalls(fetchMock)).toHaveLength(0)
 
-    const dialog = screen.getByRole('dialog', { name: 'Remove student?' })
+    const dialog = screen.getByRole('dialog', { name: 'Remove student from class?' })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
-    expect(dialog).toHaveTextContent(/removes their invitation from this class roster/i)
-    expect(dialog).toHaveTextContent(/there is no classroom data to delete/i)
+    expect(dialog).toHaveTextContent(/lose access to this class and leave the active roster/i)
+    expect(dialog).toHaveTextContent(/Submitted work, marks, attendance history, and Pal progress are kept/i)
 
-    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
 
     await waitFor(() => {
-      expect(getBulkDeleteCalls(fetchMock)).toHaveLength(1)
+      expect(getRemovalCalls(fetchMock)).toHaveLength(1)
     })
-    expect(getRequestBody(getBulkDeleteCalls(fetchMock)[0]).roster_ids).toEqual([rosterRow.id])
+    expect(getRequestBody(getRemovalCalls(fetchMock)[0]).roster_ids).toEqual([rosterRow.id])
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes('/purge'))).toHaveLength(0)
+    expect(await screen.findByText('Student removed from class')).toBeInTheDocument()
   })
 
-  it('uses comprehensive removal for one rollout-enabled joined student', async () => {
+  it('opens permanent deletion only through its separate action for a rollout-enabled joined student', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -1303,27 +1305,36 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Ada'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Remove this student?' })
+    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeEnabled()
+    await user.click(screen.getByRole('menuitem', { name: /Permanently delete class data/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Permanently delete class data?' })
     expect(dialog).toHaveTextContent(/removes the student from this class and permanently deletes/i)
     expect(dialog).toHaveTextContent(/data in other classrooms are kept/i)
-    expect(within(dialog).getByRole('button', { name: 'Remove student' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Delete class data' })).toBeDisabled()
   })
 
-  it('does not fall back to partial deletion when comprehensive removal is unavailable', async () => {
+  it('allows joined student removal without permanent-deletion rollout access', async () => {
     const user = userEvent.setup()
-    mockRosterFetch()
+    const fetchMock = mockRosterFetch()
 
     renderRoster()
     await user.click(await screen.findByText('Ada'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
 
     const removeStudent = screen.getByRole('menuitem', { name: /Remove student/ })
-    expect(removeStudent).toBeDisabled()
-    expect(removeStudent).toHaveTextContent(/comprehensive removal is not available/i)
+    expect(removeStudent).toBeEnabled()
+    expect(screen.queryByRole('menuitem', { name: /Permanently delete class data/ })).not.toBeInTheDocument()
+    await user.click(removeStudent)
+    const dialog = screen.getByRole('dialog', { name: 'Remove student from class?' })
+    expect(dialog).toHaveTextContent('Submitted work, marks, attendance history, and Pal progress are kept.')
+    expect(dialog).toHaveTextContent('Their account and other classes are unaffected.')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
+    expect(await screen.findByText('Student removed from class')).toBeInTheDocument()
+    expect(getRequestBody(getRemovalCalls(fetchMock)[0]).roster_ids).toEqual([rosterRow.id])
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes('/purge'))).toHaveLength(0)
   })
 
-  it('refreshes into comprehensive removal when an invitation joins before confirmation', async () => {
+  it('retains the preservation confirmation after a legacy joined-student conflict refresh', async () => {
     const user = userEvent.setup()
     let rosterLoads = 0
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -1335,7 +1346,7 @@ describe('TeacherRosterTab', () => {
           ? { roster: [invitedRosterRow], student_purge_enabled_ids: [] }
           : { roster: [rosterRow], student_purge_enabled_ids: [rosterRow.student_id] })
       }
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
         return Promise.resolve({
           ok: false,
           status: 409,
@@ -1373,8 +1384,8 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Ada'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
-      .getByRole('button', { name: 'Remove' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Remove student from class?' }))
+      .getByRole('button', { name: 'Remove from class' }))
 
     expect(await screen.findByText(/student just joined the class/i)).toBeInTheDocument()
     await waitFor(() => expect(rosterLoads).toBe(2))
@@ -1382,7 +1393,7 @@ describe('TeacherRosterTab', () => {
 
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    expect(await screen.findByRole('dialog', { name: 'Remove this student?' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Remove student from class?' })).toHaveTextContent('Pal progress are kept')
   })
 
   it('keeps comprehensive removal available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
@@ -1398,7 +1409,8 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Ada'))
     expect(screen.getByRole('button', { name: 'Add students' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeEnabled()
+    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Permanently delete class data/ })).toBeEnabled()
     expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
   })
 
@@ -1415,27 +1427,34 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: '2 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
 
-    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
+    expect(getRemovalCalls(fetchMock)).toHaveLength(0)
 
-    const dialog = screen.getByRole('dialog', { name: 'Remove students?' })
+    const dialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(within(dialog).getByText(/grace@example\.com/)).toBeInTheDocument()
 
-    await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
 
     await waitFor(() => {
-      expect(getBulkDeleteCalls(fetchMock)).toHaveLength(1)
+      expect(getRemovalCalls(fetchMock)).toHaveLength(1)
     })
-    expect(getRequestBody(getBulkDeleteCalls(fetchMock)[0]).roster_ids).toEqual(
+    expect(getRequestBody(getRemovalCalls(fetchMock)[0]).roster_ids).toEqual(
       expect.arrayContaining([rosterRow.id, secondRosterRow.id])
     )
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('requires joined students to be removed one at a time', async () => {
+  it.each(['joined', 'mixed'] as const)('removes a %s selection together without invoking permanent deletion', async (selection) => {
     const user = userEvent.setup()
-    mockRosterFetch()
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith('/roster') && !init?.method) {
+        return mockJson({ roster: [rosterRow, selection === 'mixed' ? secondInvitedRosterRow : secondRosterRow] })
+      }
+      if (String(input).endsWith('/roster/remove') && init?.method === 'POST') return mockJson({ success: true })
+      throw new Error(`Unexpected request: ${String(input)}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
 
     renderRoster()
     await screen.findByText('Ada')
@@ -1444,8 +1463,14 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: '2 selected' }))
 
     const removeStudents = screen.getByRole('menuitem', { name: /Remove students/ })
-    expect(removeStudents).toBeDisabled()
-    expect(removeStudents).toHaveTextContent(/one at a time so each deletion can be confirmed/i)
+    expect(removeStudents).toBeEnabled()
+    await user.click(removeStudents)
+    const dialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
+    expect(dialog).toHaveTextContent('Pal progress are kept')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
+    expect(await screen.findByText('Students removed from class')).toBeInTheDocument()
+    expect(getRequestBody(getRemovalCalls(fetchMock)[0]).roster_ids).toEqual(expect.arrayContaining([rosterRow.id, secondRosterRow.id]))
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes('/purge'))).toHaveLength(0)
   })
 
   it('keeps student-scoped actions in the centered Student Actions menu', async () => {
@@ -1475,7 +1500,7 @@ describe('TeacherRosterTab', () => {
     const studentActionsMenu = screen.getByRole('menu', { name: 'Student actions' })
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' })).toBeEnabled()
     expect(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (secondary)' })).toBeEnabled()
-    expect(within(studentActionsMenu).getByRole('menuitem', { name: /Remove students/ })).toBeDisabled()
+    expect(within(studentActionsMenu).getByRole('menuitem', { name: /Remove students/ })).toBeEnabled()
 
     await user.click(within(studentActionsMenu).getByRole('menuitem', { name: 'Copy emails (primary)' }))
     expect(writeText).toHaveBeenCalledWith('grace@example.com, ada@example.com')
@@ -1507,7 +1532,7 @@ describe('TeacherRosterTab', () => {
         return mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
       }
 
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
         if (failBulkOnce) {
           failBulkOnce = false
           return mockJson({ error: 'Failed to remove students' }, false)
@@ -1528,26 +1553,29 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: '2 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
 
-    const multiDialog = screen.getByRole('dialog', { name: 'Remove students?' })
-    await user.click(within(multiDialog).getByRole('button', { name: 'Remove' }))
+    const multiDialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
+    await user.click(within(multiDialog).getByRole('button', { name: 'Remove from class' }))
 
     await waitFor(() => {
       expect(screen.getByText('Failed to remove students')).toBeInTheDocument()
     })
 
-    const retryDialog = screen.getByRole('dialog', { name: 'Remove students?' })
+    const retryDialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
     expect(within(retryDialog).getByRole('alert')).toHaveTextContent('Failed to remove students')
+    expect(screen.getByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('Grace')).toBeInTheDocument()
+    expect(retryDialog).toHaveTextContent('Pal progress are kept')
     expect(retryDialog).toContainElement(document.activeElement as HTMLElement)
     expect(within(retryDialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(within(retryDialog).getByText(/grace@example\.com/)).toBeInTheDocument()
 
-    await user.click(within(retryDialog).getByRole('button', { name: 'Remove' }))
+    await user.click(within(retryDialog).getByRole('button', { name: 'Remove from class' }))
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(2)
+    expect(getRemovalCalls(fetchMock)).toHaveLength(2)
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
@@ -1564,7 +1592,7 @@ describe('TeacherRosterTab', () => {
           ? mockJson({ roster: [invitedRosterRow, secondInvitedRosterRow] })
           : mockJson({ error: 'Roster refresh failed' }, false)
       }
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/remove` && method === 'POST') {
         return mockJson({ success: true })
       }
 
@@ -1575,8 +1603,8 @@ describe('TeacherRosterTab', () => {
     await user.click(await screen.findByText('Ada'))
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Remove student?' }))
-      .getByRole('button', { name: 'Remove' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Remove student from class?' }))
+      .getByRole('button', { name: 'Remove from class' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Roster refresh failed')
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
