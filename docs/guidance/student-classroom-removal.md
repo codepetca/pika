@@ -62,7 +62,7 @@ Current verification: the focused gate passes plus TypeScript, lint,
 architecture and UI/design policy checks; separate migration source contracts
 also pass. Teacher removal and separate deletion visual scenarios pass in
 desktop/mobile light/dark (desktop-light rerun after a local navigation timeout).
-After one-time owner authorization, migration 164 was applied via SQL only to
+After one-time owner authorization, migration 164 at commit `32aed6aa` was applied via SQL only to
 the disposable local `pika_removal_164_wgvpf4` database on 2026-09-11. The source
 001–163 public/private schema was checked for exact equality before application;
 no student records were copied. The removal/restore fixture, removed-student and
@@ -73,3 +73,13 @@ normal `--local` wrapper targets the deliberately unchanged shared database.
 The shared database remains at 163. CI will perform clean migration replay and
 the standard generated-types check. Keep the PR draft until independent
 high-risk review and all required checks are complete.
+
+Initial independent Sol/high and Terra/high review found three blockers: current
+application archive actor definitions omitted the retained student, teacher re-add
+could miss retained identity after an account email change, and Gradebook mark
+checks needed to acquire removal locks before checking enrollment. Remediation
+batch 1 updates those paths and adds regressions, including the legacy roster
+query fallback. The revised migration source has **not** been applied: the first
+one-time authorization is consumed. Its new email/grade-race database regressions
+and targeted independent re-review remain required before readiness. The existing
+disposable database proves only the original migration, not the revised SQL.

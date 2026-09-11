@@ -375,6 +375,20 @@ describe('classroom archive production inventory', () => {
     )).toThrow('archive resource contract does not match')
   })
 
+  it('accepts migration164 retained-roster actors and the exact pre-migration contract', () => {
+    const contract = remoteArchiveContract()
+    const roster = contract.find((row) => row.table_name === 'classroom_roster')!
+    const gradex = GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table }))
+    roster.actor_columns = ['removed_student_id']
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+    roster.actor_columns = []
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+    roster.actor_columns = ['unexpected_actor_id']
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow('archive resource contract')
+    expect(CLASSROOM_ARCHIVE_V1_RESOURCES.find((row) => row.table === 'classroom_roster')?.actor_columns).toEqual([])
+    expect(CLASSROOM_ARCHIVE_V2_RESOURCES.find((row) => row.table === 'classroom_roster')?.actor_columns).toEqual(['removed_student_id'])
+  })
+
   it('audits primary keys and foreign keys from the validated PostgREST schema', () => {
     expect(auditClassroomOpenApiSchema(openApiDocument())).toMatchObject({ ok: true })
   })

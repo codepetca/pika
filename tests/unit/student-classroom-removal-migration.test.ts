@@ -42,6 +42,12 @@ describe('migration 164 reversible classroom student removal', () => {
     )
     expect(migration).toContain('require_gradebook_enrollment_for_mark_change')
     expect(migration).toContain("message = 'gradebook_student_not_enrolled'")
+    expect(migration).toMatch(
+      /if tg_op = 'INSERT' then[\s\S]*?try_lock_classroom_membership_change\([\s\S]*?new\.classroom_id,[\s\S]*?new\.student_id[\s\S]*?if not exists \([\s\S]*?from public\.classroom_enrollments/,
+    )
+    expect(migration).toMatch(
+      /or new\.earned is distinct from old\.earned[\s\S]*?try_lock_classroom_membership_change\([\s\S]*?if not exists \([\s\S]*?from public\.classroom_enrollments/,
+    )
     expect(migration).toContain("is_classroom_archive_maintenance_mode('restore')")
     expect(migration).not.toMatch(/delete from public\.gradebook_(score_overrides|item_scores)/)
   })
@@ -66,6 +72,22 @@ describe('migration 164 reversible classroom student removal', () => {
     )
     expect(migration).toContain(
       'grant execute on function public.restore_removed_classroom_students(uuid, uuid, text[])\n  to service_role;',
+    )
+  })
+
+  it('restores through current account identity and safely merges an unbound re-add row', () => {
+    expect(migration).toContain('classroom_roster_restore_identity_conflict')
+    expect(migration).toMatch(
+      /from public\.users as account[\s\S]*?lower\(btrim\(account\.email\)\) = v_email/,
+    )
+    expect(migration).toMatch(
+      /v_requested_user_role is distinct from 'student'[\s\S]*?v_user_count = 1[\s\S]*?classroom_roster_restore_identity_conflict/,
+    )
+    expect(migration).toMatch(
+      /binding\.student_id = v_requested_student_id[\s\S]*?v_placeholder\.removed_at is not null[\s\S]*?classroom_roster_student_bindings[\s\S]*?delete from public\.classroom_roster[\s\S]*?set email = v_email,[\s\S]*?first_name = v_placeholder\.first_name/,
+    )
+    expect(migration).toMatch(
+      /perform private\.try_lock_classroom_membership_change\([\s\S]*?v_roster\.removed_student_id[\s\S]*?select count\(\*\)::integer into v_placeholder_count/,
     )
   })
 

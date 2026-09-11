@@ -130,6 +130,10 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
   archiveResource('gradebook_item_scores', ['student_id']),
   ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(17).filter((resource) =>
     !legacyQuizTables.has(resource.table),
+  ).map((resource) =>
+    resource.table === 'classroom_roster'
+      ? archiveResource('classroom_roster', ['removed_student_id'])
+      : resource,
   ),
   archiveResource('classroom_retired_assessment_records'),
   archiveResource('classroom_retired_assessment_record_actors', ['actor_id']),

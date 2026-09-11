@@ -62,6 +62,10 @@ begin
     return new;
   end if;
   if tg_op = 'INSERT' then
+    perform private.try_lock_classroom_membership_change(
+      new.classroom_id,
+      new.student_id
+    );
     if not exists (
       select 1
       from public.classroom_enrollments as enrollment
@@ -76,6 +80,10 @@ begin
     or new.student_id is distinct from old.student_id
     or new.earned is distinct from old.earned
   then
+    perform private.try_lock_classroom_membership_change(
+      new.classroom_id,
+      new.student_id
+    );
     if not exists (
       select 1
       from public.classroom_enrollments as enrollment
@@ -369,8 +377,13 @@ declare
   v_requested_count integer;
   v_restored_count integer := 0;
   v_email text;
-  v_match_count integer;
+  v_user_count integer;
+  v_candidate_count integer;
+  v_placeholder_count integer;
+  v_requested_student_id uuid;
+  v_requested_user_role text;
   v_roster public.classroom_roster%rowtype;
+  v_placeholder public.classroom_roster%rowtype;
   v_binding public.classroom_roster_student_bindings%rowtype;
 begin
   select count(*)::integer into v_requested_count
@@ -402,29 +415,81 @@ begin
     where nullif(btrim(email), '') is not null
     order by 1
   loop
-    perform 1
-    from public.classroom_roster as roster
-    where roster.classroom_id = p_classroom_id
-      and lower(btrim(roster.email)) = v_email
-    order by roster.id
-    for update;
+    select count(*)::integer,
+      (array_agg(account.id order by account.id))[1],
+      (array_agg(account.role::text order by account.id))[1]
+    into v_user_count, v_requested_student_id, v_requested_user_role
+    from public.users as account
+    where lower(btrim(account.email)) = v_email;
+    if v_user_count > 1 then
+      raise exception using errcode = '22023', message = 'classroom_roster_restore_identity_ambiguous';
+    end if;
+    if v_requested_user_role is distinct from 'student' then
+      v_requested_student_id := null;
+      if v_user_count = 1 and exists (
+        select 1
+        from public.classroom_roster as roster
+        where roster.classroom_id = p_classroom_id
+          and roster.removed_at is not null
+          and lower(btrim(roster.email)) = v_email
+      ) then
+        raise exception using errcode = '22023', message = 'classroom_roster_restore_identity_conflict';
+      end if;
+    end if;
 
-    select count(*)::integer into v_match_count
-    from public.classroom_roster as roster
-    where roster.classroom_id = p_classroom_id
-      and lower(btrim(roster.email)) = v_email;
-    if v_match_count > 1 then
+    if v_requested_student_id is not null then
+      select count(*)::integer into v_candidate_count
+      from public.classroom_roster as roster
+      join public.classroom_roster_student_bindings as binding
+        on binding.roster_id = roster.id
+        and binding.classroom_id = roster.classroom_id
+      where roster.classroom_id = p_classroom_id
+        and roster.removed_at is not null
+        and roster.removed_student_id = binding.student_id
+        and binding.student_id = v_requested_student_id;
+      if v_candidate_count = 0 and exists (
+        select 1
+        from public.classroom_roster as roster
+        where roster.classroom_id = p_classroom_id
+          and roster.removed_at is not null
+          and lower(btrim(roster.email)) = v_email
+          and roster.removed_student_id is distinct from v_requested_student_id
+      ) then
+        -- The stored address now belongs to another account. Never restore the
+        -- retained identity from an email that has been reassigned.
+        raise exception using errcode = '22023', message = 'classroom_roster_restore_identity_conflict';
+      end if;
+    else
+      select count(*)::integer into v_candidate_count
+      from public.classroom_roster as roster
+      where roster.classroom_id = p_classroom_id
+        and roster.removed_at is not null
+        and lower(btrim(roster.email)) = v_email;
+    end if;
+    if v_candidate_count > 1 then
       raise exception using errcode = '22023', message = 'classroom_roster_restore_ambiguous';
-    elsif v_match_count = 0 then
+    elsif v_candidate_count = 0 then
       continue;
     end if;
 
-    select roster.* into strict v_roster
-    from public.classroom_roster as roster
-    where roster.classroom_id = p_classroom_id
-      and lower(btrim(roster.email)) = v_email;
-    if v_roster.removed_at is null then
-      continue;
+    if v_requested_student_id is not null then
+      select roster.* into strict v_roster
+      from public.classroom_roster as roster
+      join public.classroom_roster_student_bindings as binding
+        on binding.roster_id = roster.id
+        and binding.classroom_id = roster.classroom_id
+      where roster.classroom_id = p_classroom_id
+        and roster.removed_at is not null
+        and roster.removed_student_id = binding.student_id
+        and binding.student_id = v_requested_student_id
+      for update of roster;
+    else
+      select roster.* into strict v_roster
+      from public.classroom_roster as roster
+      where roster.classroom_id = p_classroom_id
+        and roster.removed_at is not null
+        and lower(btrim(roster.email)) = v_email
+      for update;
     end if;
 
     select binding.* into v_binding
@@ -442,6 +507,54 @@ begin
       p_classroom_id,
       v_roster.removed_student_id
     );
+
+    select count(*)::integer into v_placeholder_count
+    from public.classroom_roster as roster
+    where roster.classroom_id = p_classroom_id
+      and roster.id <> v_roster.id
+      and lower(btrim(roster.email)) = v_email;
+    if v_placeholder_count > 1 then
+      raise exception using errcode = '22023', message = 'classroom_roster_restore_ambiguous';
+    elsif v_placeholder_count = 1 then
+      if v_requested_student_id is null then
+        raise exception using errcode = '22023', message = 'classroom_roster_restore_identity_conflict';
+      end if;
+      select roster.* into strict v_placeholder
+      from public.classroom_roster as roster
+      where roster.classroom_id = p_classroom_id
+        and roster.id <> v_roster.id
+        and lower(btrim(roster.email)) = v_email
+      for update;
+      if v_placeholder.removed_at is not null
+        or exists (
+          select 1
+          from public.classroom_roster_student_bindings as binding
+          where binding.roster_id = v_placeholder.id
+        )
+      then
+        raise exception using errcode = '22023', message = 'classroom_roster_restore_identity_conflict';
+      end if;
+
+      delete from public.classroom_roster
+      where id = v_placeholder.id;
+      update public.classroom_roster
+      set email = v_email,
+        first_name = v_placeholder.first_name,
+        last_name = v_placeholder.last_name,
+        student_number = v_placeholder.student_number,
+        counselor_email = v_placeholder.counselor_email,
+        join_source = v_placeholder.join_source
+      where id = v_roster.id
+      returning * into v_roster;
+    elsif v_requested_student_id is not null
+      and lower(btrim(v_roster.email)) is distinct from v_email
+    then
+      update public.classroom_roster
+      set email = v_email
+      where id = v_roster.id
+      returning * into v_roster;
+    end if;
+
     if exists (
       select 1 from public.classroom_enrollments as enrollment
       where enrollment.classroom_id = p_classroom_id

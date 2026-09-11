@@ -52,6 +52,7 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
+  classroom_roster: ['removed_student_id'],
   classroom_retired_assessment_record_actors: ['actor_id'],
   classroom_resources: ['updated_by'],
   classrooms: ['teacher_id'],

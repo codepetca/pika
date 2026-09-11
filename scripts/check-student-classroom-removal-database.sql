@@ -48,7 +48,8 @@ insert into public.users (id, email, role) values
   ('c1640000-0000-4000-8000-000000000002', 'other-owner-164@example.invalid', 'teacher'),
   ('c1640000-0000-4000-8000-000000000003', 'student-164@example.invalid', 'student'),
   ('c1640000-0000-4000-8000-000000000020', 'inactive-164@example.invalid', 'student'),
-  ('c1640000-0000-4000-8000-000000000040', 'archive-164@example.invalid', 'student');
+  ('c1640000-0000-4000-8000-000000000040', 'archive-164@example.invalid', 'student'),
+  ('c1640000-0000-4000-8000-000000000051', 'reuse-holder-164@example.invalid', 'student');
 
 insert into public.classrooms (id, teacher_id, title, class_code, allow_enrollment, join_policy)
 values (
@@ -398,6 +399,23 @@ begin
     raise exception 'Removal did not deactivate the attendance participant';
   end if;
 
+  update public.users
+  set email = 'student-renamed-164@example.invalid'
+  where id = 'c1640000-0000-4000-8000-000000000003';
+  insert into public.classroom_roster (
+    id, classroom_id, email, first_name, last_name, student_number,
+    counselor_email, join_source
+  ) values (
+    'c1640000-0000-4000-8000-000000000023',
+    'c1640000-0000-4000-8000-000000000010',
+    'student-renamed-164@example.invalid',
+    'Updated',
+    'Student',
+    'S-164-NEW',
+    'counselor-renamed-164@example.invalid',
+    'csv'
+  );
+
   begin
     insert into public.classroom_enrollments (classroom_id, student_id)
     values (
@@ -431,7 +449,7 @@ begin
   v_result := public.restore_removed_classroom_students(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000010',
-    array[' STUDENT-164@EXAMPLE.INVALID ', 'inactive-164@example.invalid']
+    array[' STUDENT-RENAMED-164@EXAMPLE.INVALID ', 'inactive-164@example.invalid']
   );
   if v_result <> '{"requested_count":2,"restored_count":2}'::jsonb then
     raise exception 'Unexpected restore result: %', v_result;
@@ -449,11 +467,27 @@ begin
   if not exists (
     select 1 from public.classroom_roster
     where id = 'c1640000-0000-4000-8000-000000000011'
+      and email = 'student-renamed-164@example.invalid'
+      and first_name = 'Updated'
+      and last_name = 'Student'
+      and student_number = 'S-164-NEW'
+      and counselor_email = 'counselor-renamed-164@example.invalid'
+      and join_source = 'csv'
       and removed_at is null
       and removed_student_id is null
       and retained_manual_attendance_marks is null
   ) then
-    raise exception 'Restore did not clear retained removal state';
+    raise exception 'Restore did not merge the explicit re-add metadata';
+  end if;
+  if exists (
+    select 1 from public.classroom_roster
+    where id = 'c1640000-0000-4000-8000-000000000023'
+  ) or (
+    select count(*) from public.classroom_roster
+    where classroom_id = 'c1640000-0000-4000-8000-000000000010'
+      and lower(btrim(email)) = 'student-renamed-164@example.invalid'
+  ) <> 1 then
+    raise exception 'Restore did not merge the unbound re-add placeholder';
   end if;
   if not exists (
     select 1 from public.attendance_participant_mappings
@@ -500,6 +534,50 @@ begin
   ) then
     raise exception 'Archive-fixture removal retained enrollment';
   end if;
+  update public.users
+  set email = 'archive-164@example.invalid'
+  where id = 'c1640000-0000-4000-8000-000000000002';
+  begin
+    perform public.restore_removed_classroom_students(
+      'c1640000-0000-4000-8000-000000000001',
+      'c1640000-0000-4000-8000-000000000041',
+      array['archive-164@example.invalid']
+    );
+    raise exception 'Expected teacher-owned reused-email identity conflict';
+  exception when invalid_parameter_value then
+    if sqlerrm <> 'classroom_roster_restore_identity_conflict' then raise; end if;
+  end;
+  if exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000043'
+  ) then
+    raise exception 'Teacher-owned reused email restored a retained student';
+  end if;
+  update public.users
+  set email = 'other-owner-164@example.invalid'
+  where id = 'c1640000-0000-4000-8000-000000000002';
+  update public.users
+  set email = 'archive-164@example.invalid'
+  where id = 'c1640000-0000-4000-8000-000000000051';
+  begin
+    perform public.restore_removed_classroom_students(
+      'c1640000-0000-4000-8000-000000000001',
+      'c1640000-0000-4000-8000-000000000041',
+      array['archive-164@example.invalid']
+    );
+    raise exception 'Expected reused-email identity conflict';
+  exception when invalid_parameter_value then
+    if sqlerrm <> 'classroom_roster_restore_identity_conflict' then raise; end if;
+  end;
+  if exists (
+    select 1 from public.classroom_enrollments
+    where id = 'c1640000-0000-4000-8000-000000000043'
+  ) then
+    raise exception 'Reused email restored a different retained identity';
+  end if;
+  update public.users
+  set email = 'reuse-holder-164@example.invalid'
+  where id = 'c1640000-0000-4000-8000-000000000051';
   if not exists (
     select 1 from public.classroom_enrollments
     where id = 'c1640000-0000-4000-8000-000000000049'
