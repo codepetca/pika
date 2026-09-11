@@ -109,8 +109,16 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
   failures roll back membership effects but preserve the charged attempt. Revisit limits
   with production telemetry before a pilot.
 - Stale limiter cleanup is a separate bounded, service-only function with an indexed age
-  scan and `SKIP LOCKED`; it is deliberately off the join request path. A scheduled cleanup
-  owner and health signal are required before live adoption.
+  scan and `SKIP LOCKED`; it is deliberately off the join request path. The existing
+  authenticated `/api/cron/cleanup-history` owns one batch of at most 10,000 rows
+  daily at 07:00 UTC through the Vercel schedule. Only rows untouched for more
+  than one day qualify; active limiter windows are preserved by the database.
+  A database/transport error, invalid result, or full batch returns 503 and records
+  `classroom_join_limiter_cleanup_unhealthy` in the existing cron-run ledger.
+  The cron health snapshot exposes failed or missing scheduled runs; sanitized
+  deployment logs report the deleted count. A full batch signals possible backlog
+  for operator investigation, rather than an unbounded retry. This uses the existing
+  cron secret and ledger with no additional schema, configuration, or schedule.
 - A classroom roster may seed a missing global student profile, but cannot overwrite an
   established profile from another classroom. Any future profile-editing authority or
   classroom-scoped identity model is a separate product and data-contract decision.
