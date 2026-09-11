@@ -100,3 +100,11 @@ email-matched active memberships are rejected; student records are never deleted
 Regression coverage includes unrelated invitations and unbound re-add placeholders.
 The owner approved one fresh disposable-local application of revised164 and two
 additional reviews; this does not authorize production rollout or merge.
+
+Targeted review cleared the third correction. Its one-time SQL application to
+`pika_removal_164_djwzbp` succeeded with checksum
+`e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7`.
+Full removal/archive/email/legacy-invitation/grade-race tests and the standalone
+Gradebook archive/retention harness pass; lint is clean and generated types match.
+Synthetic users were cleaned up. Shared postgres remains163 with no removal
+columns; production is untouched. Final review and exact-head CI remain required.
