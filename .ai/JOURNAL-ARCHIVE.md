@@ -31598,6 +31598,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Owner then authorized local application of the exact migration 157. Because #1187 is still open but local history already contains its 155–156, created an unpushed temporary integration worktree containing exact #1187 head plus #1193; checksum `482f9a99f6315ed4013cb33ddb01a0abe1232d5eb57bb281853989217c7692b5` matched the reviewed 157 file. Verified target `supabase_db_pika`/54322 and a 157-only dry run, then applied 157 once; authorization is consumed. Local history is 001–157, database lint has zero findings, rollback and concurrency harnesses pass with all synthetic fixtures removed, and generated types match. Integrated only 157's generated entries into #1193 and removed the temporary RPC cast. No hosted migration, route adoption, cohort, deployment or production change occurred.
 
 <!-- pika-session-log-archive-batch:d75e37be5731e538dee072b16b0a0e7dd09db17eebfc7ff0789e0e6c5a8816c5 -->
+<!-- pika-session-log-archive-batch:841fe450cb134665475e3f9e4d42d7f635412fe830e6d095c5ecb1d93676516b -->
 ## 2026-09-07 — Rebase atomic enrollment after prerequisite merge
 
 - Rebased PR #1193 onto current main after #1187 merged. Main now owns migrations 155–158, so the enrollment source migration moved from 157 to 159 with its SQL unchanged. The earlier exact local authorization was consumed by the former 157 filename; the current local history is therefore evidence of the SQL behavior, not a clean 159 lineage replay. No migration was reapplied, repaired, reset, or promoted.
@@ -31646,3 +31647,46 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
 - Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
+
+<!-- pika-session-log-archive-batch:5df3f614f2824378337aa44eea3c9984148831a94ff4da09c89c3580deb746e0 -->
+## 2026-09-07 — Bind atomic enrollment responses to the requested classroom
+
+- The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
+- Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
+
+## 2026-09-08 — Resume privacy fix review for PR 1218
+
+- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
+- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
+
+## 2026-09-08 — Make the Gradebook percent control a true toggle
+
+- Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
+- Updated the live Gradebook and Pattern Lab semantic coverage. Focused checks pass 21 files / 232 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and 67 directly affected tests pass. Teacher desktop/mobile light/dark and on/off/hover states were visually inspected. Student view is not applicable because Gradebook is teacher-only.
+- Composite-widget checklist reviewed: native button keyboard behavior is preserved, semantic pressed state is covered by tests, and no manual follow-up remains. Risk profile: none; no schema, data, API, dependency, or new shared component.
+
+## 2026-09-08 — Rebase atomic enrollment after Gradebook toggle
+
+- Rebased PR #1193 onto main `6dbc2fcf` after #1219 merged. Preserved main's Gradebook toggle and resolved only the shared continuity journal; migration 159, the enrollment adapter, generated types, database harnesses, CI wiring, and their tests are unchanged by range comparison.
+- The previously reviewed exact-head CI was green before main advanced. Focused verification and fresh ready-PR CI must pass on the rebased head before merge. No reviewer launch, migration application, hosted change, route adoption, cohort, deployment, or production rollout occurred.
+
+## 2026-09-08 — Sync privacy PR 1218 for authorized merge
+
+- User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
+- Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
+
+## 2026-09-08 — Normalize Attendance timing minute inputs
+
+- Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
+- Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
+
+## 2026-09-08 — Resolve the second privacy PR history conflict
+
+- Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
+- Scope is one documentation-only integration review and fresh exact-head CI before authorized main merge. Prior exact-head CI at `0339c5da` passed all lanes and PR Gate. No migration, production deployment, or new security implementation is included.
+
+## 2026-09-08 — Open blueprint-created classrooms directly
+
+- Removed the post-instantiation “Classroom Created” review step. Successful Blueprint creation now closes the wizard and opens the new classroom's Assignments tab immediately while preserving the class-day review prompt and parent-list refresh.
+- Updated component and browser coverage to assert the direct destination and absence of the old modal. Independent review caught that the removed modal had also named lesson plans that could not fit the calendar; remediation batch 1 now carries those titles into the classroom's existing review notice through a session-scoped handoff, while the no-overflow path retains the generic notice.
+- Focused checks pass 18 files / 260 tests plus architecture, UI/design policy, TypeScript, and lint; the pre-commit audit passes. Visual verification passed for the teacher destination and overflow notice on desktop/mobile in light/dark themes. Student is not applicable because classroom creation is teacher-only. Composite checklist reviewed: pending-operation Escape protection remains covered, the removed dialog state adds no semantic or keyboard obligation, and no manual follow-up remains. Risk profile: none.

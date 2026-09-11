@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 
 const STUDENT_ID = '20000000-0000-4000-8000-000000000001'
 const OPERATION_ID = '30000000-0000-4000-8000-000000000001'
@@ -118,23 +118,32 @@ async function expectNoHorizontalOverflow(page: Page) {
   )).toBe(false)
 }
 
-for (const entry of matrix) {
-  test(`captures individual-student purge and student boundary matrix (${entry.name})`, async ({ browser }, testInfo) => {
-    const discoveryContext = await browser.newContext({ storageState: '.auth/teacher.json' })
-    const discoveryPage = await discoveryContext.newPage()
-    await discoveryPage.goto('/classrooms')
-    await discoveryPage.locator('[data-testid="classroom-card"]').first().click()
-    await discoveryPage.waitForURL(/\/classrooms\/[^/?]+/)
-    const classroomId = new URL(discoveryPage.url()).pathname.split('/').at(-1)
+async function discoverClassroom(browser: Browser, baseURL: string | undefined) {
+  const discoveryContext = await browser.newContext({ baseURL, storageState: '.auth/teacher.json' })
+  try {
+    // Fixture discovery is not part of the removal UI contract. Read the
+    // authenticated list instead of spending each scenario on index navigation.
+    const response = await discoveryContext.request.get('/api/teacher/classrooms')
+    expect(response.ok()).toBe(true)
+    const { classrooms } = await response.json()
+    const matches = classrooms.filter((classroom: { title: string }) => classroom.title === 'Test Classroom')
+    expect(matches).toHaveLength(1)
+    expect(matches[0].id).toMatch(/^[0-9a-f-]{36}$/i)
+    return matches[0].id as string
+  } finally {
     await discoveryContext.close()
-    expect(classroomId).toBeTruthy()
+  }
+}
 
+for (const entry of matrix) {
+  test(`captures preserving student removal (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+    const classroomId = await discoverClassroom(browser, baseURL)
     const { context, page } = await newRolePage(
-      () => browser.newContext({ storageState: '.auth/teacher.json', viewport: entry.viewport }),
+      () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
       entry.theme,
     )
     const requests = await mockTeacherStudentPurge(page, classroomId!)
-    await page.goto(`/classrooms/${classroomId}?tab=roster`)
+    await page.goto(`/classrooms/${classroomId}?tab=roster`, { waitUntil: 'domcontentloaded' })
     await page.getByText('Student1', { exact: true }).click()
     await page.getByRole('button', { name: '1 selected' }).click()
     const studentActionsMenu = page.getByRole('menu', { name: 'Student actions' })
@@ -162,9 +171,17 @@ for (const entry of matrix) {
     await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`removal-success-${entry.name}.png`), fullPage: true, animations: 'disabled' })
 
-    // A fresh mocked roster represents a separate destructive operation.
+    await context.close()
+  })
+
+  test(`captures separate permanent student deletion (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+    const classroomId = await discoverClassroom(browser, baseURL)
+    const { context, page } = await newRolePage(
+      () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
+      entry.theme,
+    )
     await mockTeacherStudentPurge(page, classroomId!)
-    await page.reload()
+    await page.goto(`/classrooms/${classroomId}?tab=roster`, { waitUntil: 'domcontentloaded' })
     await page.getByText('Student1', { exact: true }).click()
     await page.getByRole('button', { name: '1 selected' }).click()
     await page.getByRole('menuitem', { name: /Permanently delete class data/ }).click()
@@ -189,9 +206,12 @@ for (const entry of matrix) {
       animations: 'disabled',
     })
     await context.close()
+  })
 
+  test(`captures student removal permission boundary (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+    const classroomId = await discoverClassroom(browser, baseURL)
     const { context: studentContext, page: studentPage } = await newRolePage(
-      () => browser.newContext({ storageState: '.auth/student.json', viewport: entry.viewport }),
+      () => browser.newContext({ baseURL, storageState: '.auth/student.json', viewport: entry.viewport }),
       entry.theme,
     )
     let studentPurgeRequestCount = 0
@@ -199,8 +219,10 @@ for (const entry of matrix) {
       studentPurgeRequestCount += 1
       await route.abort()
     })
-    await studentPage.goto(`/classrooms/${classroomId}?tab=roster`)
-    await studentPage.waitForURL((url) => url.searchParams.get('tab') === 'today')
+    await studentPage.goto(`/classrooms/${classroomId}?tab=roster`, { waitUntil: 'domcontentloaded' })
+    await studentPage.waitForURL((url) => url.searchParams.get('tab') === 'today', { waitUntil: 'domcontentloaded' })
+    // Prove the student content has resolved before asserting absence of teacher controls.
+    await expect(studentPage.getByText(/^(Daily Log|No class today)$/)).toBeVisible()
     await expect(studentPage.getByRole('button', { name: 'More actions' })).toHaveCount(0)
     await expect(studentPage.getByText('Purge classroom data')).toHaveCount(0)
     expect(studentPurgeRequestCount).toBe(0)

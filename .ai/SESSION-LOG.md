@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-08 — Resolve the second privacy PR history conflict
-
-- Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
-- Scope is one documentation-only integration review and fresh exact-head CI before authorized main merge. Prior exact-head CI at `0339c5da` passed all lanes and PR Gate. No migration, production deployment, or new security implementation is included.
-
-## 2026-09-08 — Open blueprint-created classrooms directly
-
-- Removed the post-instantiation “Classroom Created” review step. Successful Blueprint creation now closes the wizard and opens the new classroom's Assignments tab immediately while preserving the class-day review prompt and parent-list refresh.
-- Updated component and browser coverage to assert the direct destination and absence of the old modal. Independent review caught that the removed modal had also named lesson plans that could not fit the calendar; remediation batch 1 now carries those titles into the classroom's existing review notice through a session-scoped handoff, while the no-overflow path retains the generic notice.
-- Focused checks pass 18 files / 260 tests plus architecture, UI/design policy, TypeScript, and lint; the pre-commit audit passes. Visual verification passed for the teacher destination and overflow notice on desktop/mobile in light/dark themes. Student is not applicable because classroom creation is teacher-only. Composite checklist reviewed: pending-operation Escape protection remains covered, the removed dialog state adds no semantic or keyboard obligation, and no manual follow-up remains. Risk profile: none.
-
 ## 2026-09-08 — Diagnose and resolve the privacy PR merge disagreement
 
 - Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
@@ -254,6 +243,12 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 - Revised164 checksum `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7` awaits targeted review and the approved one-time application to fresh disposable `pika_removal_164_djwzbp`; shared/prod remain unchanged. Prior755-test focused gate passed; SQL behavior remains to be verified against the revision.
 - Targeted Sol/high review launch6 cleared fixed `dab31d44`. The approved single SQL application then succeeded in `pika_removal_164_djwzbp` (permission consumed). Full removal/archive/email/legacy-delete/race harness and standalone Gradebook archive/retention harness pass. Database lint clean, generated public types match, synthetic users0; shared postgres remains163 without removal columns. Latest focused709 tests/56files plus static checks and audit pass. Final cumulative review launch7 and exact-head CI remain; no merge/deployment authorization.
 
+## 2026-09-11 — Split removal browser contracts after CI timeout
+
+- Final review launch7 cleared `48c4a767`; exact-head CI passed full test/build and all database contracts, but the combined removal/purge/student visual test repeatedly exhausted its30s total budget (one final failure, other transient browser scenarios retried successfully). User requested the next correction and main synchronization; PR returned to draft before edits.
+- Split each viewport/theme into independent preserving-removal, permanent-deletion and student-boundary tests; retained every action/assertion/capture without raising timeouts. Authenticated exact-title API fixture discovery replaces unrelated index navigation; explicit baseURL and DOM-ready navigation avoid redundant load waits. Student content must resolve before absence assertions, preventing loading-state false positives.
+- Merged main `7ddd3873`, preserving both session histories; only archive-log marker conflict, no product/schema conflict. Focused817tests/63files and static gates/audit pass. Final local browser14/14 pass in30.3s, teacher/student desktop/mobile light/dark captures inspected (`/tmp/pika-removal-browser-final`). No product or SQL correction; migration checksum remains `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7`. Final available reviewer slot8 and fresh exact-head CI remain. No migration/merge/deployment authorization.
+
 ## 2026-09-11 — Restore classroom join controls
 
 - Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
@@ -274,3 +269,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
 - Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.
+
+## 2026-09-11 — Compact Daily attendance rows
+
+- Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
+- Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
+- Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.

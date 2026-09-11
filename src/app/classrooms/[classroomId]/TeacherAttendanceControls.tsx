@@ -57,7 +57,7 @@ export function AttendanceMarkButton({
         variant="ghost"
         size="xs"
         className={cn(
-          "relative h-11 w-11 rounded-full p-0 after:pointer-events-none after:absolute after:h-5 after:w-5 after:rounded-full after:content-['']",
+          "relative h-8 min-h-8 w-8 min-w-8 rounded-full p-0 after:pointer-events-none after:absolute after:h-5 after:w-5 after:rounded-full after:content-['']",
           STATUS_BUTTON_CLASSES[status],
           active
             ? 'after:opacity-100 after:ring-2 after:ring-primary after:ring-offset-1 after:ring-offset-surface-2 after:shadow-sm'
