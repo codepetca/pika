@@ -4,11 +4,14 @@ import JoinClassroomPage from '@/app/join/[code]/page'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
 const push = vi.hoisted(() => vi.fn())
-const navigation = vi.hoisted(() => ({ code: 'ABC123' }))
+const navigation = vi.hoisted(() => ({ code: 'ABC123', profileRequired: false }))
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ code: navigation.code }),
   useRouter: () => ({ push }),
+  useSearchParams: () => ({
+    get: (name: string) => name === 'profile' && navigation.profileRequired ? 'required' : null,
+  }),
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -30,6 +33,7 @@ function jsonResponse(body: unknown, ok = true, status = ok ? 200 : 400): Respon
 describe('JoinClassroomPage', () => {
   beforeEach(() => {
     navigation.code = 'ABC123'
+    navigation.profileRequired = false
     push.mockClear()
     vi.mocked(invalidateStudentClassrooms).mockClear()
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(
@@ -104,6 +108,28 @@ describe('JoinClassroomPage', () => {
       studentNumber: 'S-123',
     })
     expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+  })
+
+  it('skips the redundant probe for a profile-required handoff and shows the retry wait', async () => {
+    navigation.profileRequired = true
+    const fetcher = vi.fn(() => Promise.resolve(jsonResponse({
+      code: 'rate_limited',
+      retryAfterSeconds: 45,
+    }, false, 429)))
+    vi.stubGlobal('fetch', fetcher as any)
+
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+    expect(fetcher).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many attempts. Wait 45 seconds before trying again.',
+    )
+    expect(fetcher).toHaveBeenCalledOnce()
   })
 
   it('returns a signed-out student to the exact classroom join route', async () => {

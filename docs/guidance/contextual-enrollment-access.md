@@ -87,6 +87,11 @@ A future adopter must preserve this sequence; these contracts alone are insuffic
    idempotent membership. No partial roster/profile side effects may survive failure.
 7. Project a least-data response. Do not return the class code or private owner data.
 
+Client handoffs after `profile_required` may carry a non-authoritative UI hint to show
+the profile form without repeating the same join probe. The subsequent profile submission
+must still pass through this server sequence, and `rate_limited` responses must display the
+returned retry delay rather than inviting an immediate retry.
+
 ## Route-adoption invariants
 
 - A separately reviewed service-only atomic RPC and schema-backed guess limiter exist.

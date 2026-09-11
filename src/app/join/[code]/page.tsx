@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { Button, Card, FormField, Input } from '@/ui'
@@ -18,10 +18,21 @@ type JoinView =
   | { kind: 'profile' }
   | { kind: 'error'; title: string; description: string }
 
+function rateLimitDescription(value: unknown) {
+  const seconds = typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.ceil(value)
+    : null
+  return seconds
+    ? `Too many attempts. Wait ${seconds} seconds before trying again.`
+    : 'Too many attempts. Wait before trying again.'
+}
+
 export default function JoinClassroomPage() {
   const { push } = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const code = String(params.code || '')
+  const profileRequiredHint = searchParams.get('profile') === 'required'
   const [view, setView] = useState<JoinView>({ kind: 'loading' })
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -51,7 +62,8 @@ export default function JoinClassroomPage() {
           : { classCode: code, ...(profile || {}) }),
       })
       if (response.status === 401) {
-        push(`/login?next=${encodeURIComponent(`/join/${code}`)}`)
+        const returnPath = `/join/${encodeURIComponent(code)}${profileRequiredHint ? '?profile=required' : ''}`
+        push(`/login?next=${encodeURIComponent(returnPath)}`)
         return
       }
 
@@ -70,6 +82,15 @@ export default function JoinClassroomPage() {
       }
       if (data?.code === 'profile_required') {
         setView({ kind: 'profile' })
+        return
+      }
+      if (data?.code === 'rate_limited') {
+        const description = rateLimitDescription(data.retryAfterSeconds)
+        if (profile) {
+          setProfileError(description)
+        } else {
+          setView({ kind: 'error', title: 'Too many attempts', description })
+        }
         return
       }
       if (data?.code === 'not_on_roster') {
@@ -110,11 +131,15 @@ export default function JoinClassroomPage() {
     } finally {
       if (profile) setProfileSubmitting(false)
     }
-  }, [code, push])
+  }, [code, profileRequiredHint, push])
 
   useEffect(() => {
+    if (profileRequiredHint) {
+      setView({ kind: 'profile' })
+      return
+    }
     void joinClassroom()
-  }, [joinClassroom])
+  }, [joinClassroom, profileRequiredHint])
 
   function submitProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

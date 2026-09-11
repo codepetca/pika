@@ -5,11 +5,17 @@ import { fetchClassDaysForClassroom, invalidateClassDaysForClassroom } from '@/l
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 import { fetchStudentEntriesForClassroom, invalidateStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import type { Classroom } from '@/types'
+import JoinClassroomPage from '@/app/join/[code]/page'
 
 const push = vi.fn()
+const navigation = { code: 'OPEN42', profileRequired: false }
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
+  useParams: () => ({ code: navigation.code }),
+  useSearchParams: () => ({
+    get: (name: string) => name === 'profile' && navigation.profileRequired ? 'required' : null,
+  }),
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -69,6 +75,8 @@ describe('HistoryPage', () => {
     vi.mocked(invalidateClassDaysForClassroom).mockClear()
     vi.mocked(invalidateStudentEntriesForClassroom).mockClear()
     push.mockClear()
+    navigation.code = 'OPEN42'
+    navigation.profileRequired = false
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -162,12 +170,18 @@ describe('HistoryPage', () => {
     })
   })
 
-  it('continues an open join on the profile-aware join page when identity is required', async () => {
+  it('continues an open join with one transient retry inside the three-attempt budget', async () => {
     vi.mocked(fetchStudentClassrooms).mockResolvedValue([])
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(jsonResponse({
-      code: 'profile_required',
-      error: 'Enter your name to join this classroom.',
-    }, false))) as any)
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        code: 'profile_required',
+        error: 'Enter your name to join this classroom.',
+      }, false))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Temporary failure' }, false))
+      .mockResolvedValueOnce(jsonResponse({
+        classroom: { id: 'classroom-2', title: 'Open Biology' },
+      }))
+    vi.stubGlobal('fetch', fetcher as any)
 
     render(<HistoryPage />)
 
@@ -177,8 +191,31 @@ describe('HistoryPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Join Class' }))
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/%20OPEN42%20'))
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/%20OPEN42%20?profile=required'))
     expect(screen.queryByText('Enter your name to join this classroom.')).not.toBeInTheDocument()
+
+    cleanup()
+    navigation.code = ' OPEN42 '
+    navigation.profileRequired = true
+    render(<JoinClassroomPage />)
+
+    expect(await screen.findByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+    expect(fetcher).toHaveBeenCalledOnce()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('safe to try again')
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    for (const call of fetcher.mock.calls.slice(1)) {
+      expect(JSON.parse(call[1]?.body as string)).toMatchObject({
+        classCode: ' OPEN42 ',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+      })
+    }
   })
 
   it('opens a submitted log in the shared dialog and returns focus on close', async () => {

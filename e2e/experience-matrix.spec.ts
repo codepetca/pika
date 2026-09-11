@@ -1233,7 +1233,7 @@ test('keeps classroom joining visually distinct from attendance check-in', async
     animations: 'disabled',
   })
 
-  let joinState: 'joined' | 'already' | 'profile' | 'not_on_roster' | 'ambiguous' = 'joined'
+  let joinState: 'joined' | 'already' | 'profile' | 'rate_limited' | 'not_on_roster' | 'ambiguous' = 'joined'
   await page.route('**/api/student/classrooms/join', async (route) => {
     const requestBody = route.request().postDataJSON() as { firstName?: string }
     const bodies = {
@@ -1248,12 +1248,19 @@ test('keeps classroom joining visually distinct from attendance check-in', async
         classroom: { id: ATTENDANCE_FIXTURE_CLASSROOM_ID, title: 'Computer Science 11' },
       },
       profile: { error: 'Profile required', code: 'profile_required', requiredFields: ['firstName', 'lastName'] },
+      rate_limited: { error: 'Too many attempts', code: 'rate_limited', retryAfterSeconds: 45 },
       not_on_roster: { error: 'Not on roster', code: 'not_on_roster' },
       ambiguous: { error: 'Ambiguous roster match', code: 'roster_ambiguous' },
     }
     const completedProfile = joinState === 'profile' && Boolean(requestBody.firstName)
     await route.fulfill({
-      status: joinState === 'joined' || joinState === 'already' || completedProfile ? 200 : joinState === 'profile' ? 400 : 403,
+      status: joinState === 'joined' || joinState === 'already' || completedProfile
+        ? 200
+        : joinState === 'profile'
+          ? 400
+          : joinState === 'rate_limited'
+            ? 429
+            : 403,
       contentType: 'application/json',
       body: JSON.stringify(completedProfile ? bodies.joined : bodies[joinState]),
     })
@@ -1284,8 +1291,20 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   await page.getByRole('button', { name: 'Join classroom' }).click()
   await expect(page.getByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
 
+  joinState = 'rate_limited'
+  await page.goto('/join/ICS3U2?profile=required', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Tell your teacher who you are' })).toBeVisible()
+  await page.getByLabel('First name').fill('Ada')
+  await page.getByLabel('Last name').fill('Lovelace')
+  await page.getByRole('button', { name: 'Join classroom' }).click()
+  await expect(page.getByText('Too many attempts. Wait 45 seconds before trying again.', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`classroom-open-join-rate-limit-${getExperienceMetadata(testInfo).viewport}.png`),
+    animations: 'disabled',
+  })
+
   joinState = 'not_on_roster'
-  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.goto('/join/ICS3U2', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'You’re not on this class roster' })).toBeVisible()
 
   joinState = 'ambiguous'

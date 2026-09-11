@@ -25,4 +25,4 @@ shared dialog keyboard and ARIA contracts are unchanged.
 | Join QR frame and sizing | attendance QR `DialogPanel` composition | reuse | The requested display uses the same desktop/mobile proportions and QR scale |
 | Join-specific QR content | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog keeps only classroom name, join code, copy link, and QR semantics |
 | Open-join identity form | `/join/[code]`, `FormField`, and `Input` | extend | The join route already returns `profile_required` and the page owns join outcomes |
-| Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off to the canonical join page instead of duplicating identity fields |
+| Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off with a non-authoritative query hint so the canonical join page shows identity fields without spending another rate-limited probe; profile submission still performs the authoritative server decision |
