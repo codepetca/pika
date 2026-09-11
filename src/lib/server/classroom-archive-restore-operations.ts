@@ -555,7 +555,7 @@ export async function restoreClassroomArchive(args: {
       && ((plan.resources.gradebook_items?.length || 0) > 0 || (plan.resources.gradebook_item_scores?.length || 0) > 0)) {
       throw new ClassroomArchiveRestoreError(
         'classroom_archive_restore_migration_required',
-        'Restoring standalone Gradebook items requires migration 162',
+        'Restoring standalone Gradebook items requires migration 163',
         409,
         false,
       )

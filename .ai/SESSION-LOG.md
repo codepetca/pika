@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Production review: isolate Gradebook override identities
-
-- Cumulative production review found that assignment and test overrides sharing an assessment UUID collided in the server's lookup map.
-- Added assessment type to override lookup keys while preserving the separate calculated-score maps.
-- Three API regressions failed before the fix and passed afterward: distinct overrides for both types and each one-sided override; assertions cover cells, student details, final grades, and class averages.
-- No schema or UI changes. Migration 157 remains a separately controlled rollout.
-
-## 2026-09-07 — Archive compatibility across migration157 rollout
-
-- Production promotion review identified an app/schema ordering gap in archive export, deletion inventory, and restore.
-- Read the deployed v2 resource contract and accept only the full table set or the exact pre157 set. Export manifests and completion counts preserve the database snapshot contract; deletion inventory avoids the absent override table.
-- Restore permits archives with empty override data on schema156 but rejects non-empty overrides before staging or storage reservations. Schema/catalog mismatches and contract-read errors still fail closed.
-- Added regression coverage for both schema versions, strict contract reads, archive export, inventory, and restore. No migration applied; schema157 remains separately authorized.
-- Rebased PR #1195 after the Tests edit-action PR merged. The selected-Test toolbar retains the reviewed fixed-width Student actions control so switching to the selected-count label does not shift the layout.
-- Retained current rolling history; the UI and browser patches apply cleanly over current main. Focused checks, targeted integration review, and fresh exact-head CI precede the authorized merge.
-
-## 2026-09-07 — Resume browser security PR completion
-
-- Owner authorized final review, required CI and merge of #1202 to main. Rebased onto `daa70b88` without conflicts; no migrations were added or changed. This task remains sole writer of `codex/global-browser-security-headers`; the active merge-coordinator task owns a separate archive compatibility branch and production promotion.
-- Final integration review uses one Sol/high reviewer against a detached fixed commit while local focused checks run. Risk profile: runtime-platform. Earlier security/compatibility reviews and browser evidence remain applicable; final reviewed SHA, check results and merge evidence are recorded in the PR. Production rollout is separate.
-- PR #1189's first exact-head CI run passed Test & Build and all database contracts, then failed the browser matrix because two existing Course Guide scenarios still asserted the retired Edit guide flow and Curriculum overview section heading across four viewports. Returned the PR to draft before correction; the unrelated student API timeout was flaky and passed on retry.
-- Updated only those experience-matrix expectations to cover the shared More menu, Edit, Edit with Markdown, Guide options, the absence of Resources, the simplified Course guide heading, and the existing save-error state. Both affected scenarios pass against this branch on an isolated local port; no runtime source changed in this correction.
-- Targeted independent review found one non-blocking role-boundary gap in the student matrix: it still excluded the retired direct buttons instead of the new More trigger. The corrected assertion excludes More actions and the removed Resources heading for students. One correction batch is in use; a final integration check and fresh focused/exact-head CI are required before readiness or merge. No production or database action was taken.
-
-## 2026-09-07 — Preserve the dormant contextual enrollment foundation handoff
-
-- After user-authorized merge of dev-only prototype PR #1178 at `f4f6ba32`, started compatibility batch C on `codex/contextual-enrollment-access`. Added dormant exact-pair identity selection and a pure join policy covering owner self-join, existing membership, verified-code-only admission, archive/enrollment/roster/open-join rules and malformed evidence. Contextual pair selection is explicitly a candidate, never final authorization.
-- No live route imports the new modules. Existing join/list/roster behavior and role guards are unchanged; no migration, cohort, environment setting, production rollout or new access exists. Adoption is blocked on a schema-backed guess limiter, one atomic revalidating membership transaction, concurrency/failure evidence and separately migrated list/roster consumers.
-- Red-first contract tests pass. Focused gate passes 13 files / 123 tests plus architecture, UI/design policy, TypeScript and lint. No specialized runtime profile; independent review risk high because this defines a future authorization boundary. Use Sol/high security plus Terra/high compatibility review before any merge decision; full access epic remains incomplete.
-
 ## 2026-09-07 — Correct PPZ3C Online first class day
 
 - Production inventory resolved the exact active classroom and found four generated class days plus two lesson-plan mutation heads before the corrected September 8, 2026 start; no Daily logs, summaries, lesson plans, manual attendance marks, Bara occurrences, or PAL events exist in the affected range.
@@ -273,6 +243,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Unified the teacher-facing behavior after product clarification: removing a joined student uses the existing comprehensive purge, which also removes roster membership; unjoined invitations retain the lightweight roster-only path because no classroom data exists. The duplicate purge menu item is gone. Joined students must be removed one at a time for per-student impact review and typed confirmation, and unavailable comprehensive removal fails closed instead of falling back to partial deletion.
 - The comprehensive dialog now consistently uses removal language and states that all classroom data is permanently deleted while the account and other-class data remain. Independent review found a join-after-page-load race in the legacy lightweight endpoint; forward migration 162 now serializes with classroom joining and rejects joined targets before any deletion, while the UI refreshes into the comprehensive flow. Targeted re-review found the legacy UUID-link enrollment path did not share that lock, so new direct-ID enrollments now use the existing atomic join transaction while already-enrolled compatibility links remain supported. The migration was not applied locally or remotely. Targeted race/API/migration/join coverage passes 70/70; the focused application/database/browser gate passes 19 files / 220 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit was clean before this follow-up. Teacher desktop/mobile light/dark menu, confirmation, and progress states plus the student authorization boundary pass the six-test browser matrix with no horizontal overflow.
 - Exact-head CI exposed an older cross-operation database check that still expected lightweight roster removal to delete joined memberships. The contract now explicitly requires that call to fail atomically and preserve both joined roster and enrollment rows for the comprehensive purge path; the focused 220-test/static gate remains green. The PR returned to draft before this correction and requires fresh exact-head CI.
+
 ## 2026-09-10 — Standalone Gradebook items
 
 Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
@@ -297,3 +268,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
 - Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.
+
+## 2026-09-10 — Synchronize Gradebook with main through PR 1241
+
+- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
+- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.

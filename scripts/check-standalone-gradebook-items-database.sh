@@ -14,8 +14,8 @@ fi
 docker exec -i "$GRADEBOOK_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 do $$ begin
-  if not exists(select 1 from supabase_migrations.schema_migrations where version='162') then
-    raise exception 'Migration 162 must already be applied through an authorized workflow';
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='163') then
+    raise exception 'Migration 163 must already be applied through an authorized workflow';
   end if;
   if has_table_privilege('authenticated','public.gradebook_items','SELECT')
     or has_table_privilege('anon','public.gradebook_item_scores','SELECT')
@@ -149,7 +149,7 @@ begin
   select to_jsonb(item) into original_item from public.gradebook_items item where id=i;
   select to_jsonb(score) into original_score from public.gradebook_item_scores score where item_id=i;
   actors := jsonb_build_array(jsonb_build_object('actor_id',t,'role','teacher'),jsonb_build_object('actor_id',s,'role','student'));
-  r := public.begin_classroom_archive_export_v2(export_id,t,c,repeat('a',64),'162_standalone_gradebook_items','abcdef1',
+  r := public.begin_classroom_archive_export_v2(export_id,t,c,repeat('a',64),'163_standalone_gradebook_items','abcdef1',
     '{"mode":"teacher_managed","delete_after":null}'::jsonb,2,2);
   if not coalesce((r->>'ok')::boolean,false) then raise exception 'Standalone archive begin failed: %',r; end if;
   counts := r->'resource_counts';
@@ -186,7 +186,7 @@ begin
   r := public.complete_classroom_archive_compaction_v2(compact_id,t,actors,verification,2);
   if not coalesce((r->>'ok')::boolean,false) or exists(select 1 from public.gradebook_items where id=i)
     or exists(select 1 from public.gradebook_item_scores where item_id=i) then raise exception 'Standalone compaction failed: %',r; end if;
-  r := public.begin_classroom_archive_restore_v2(restore_id,t,c,export_id,repeat('e',64),'162_standalone_gradebook_items',
+  r := public.begin_classroom_archive_restore_v2(restore_id,t,c,export_id,repeat('e',64),'163_standalone_gradebook_items',
     '[]'::jsonb,counts,'[]'::jsonb,2147483648,2,2,counts);
   if not coalesce((r->>'ok')::boolean,false) then raise exception 'Standalone restore begin failed: %',r; end if;
   for resource in select * from standalone_archive_rows loop
@@ -203,6 +203,21 @@ begin
     raise exception 'Archive roundtrip changed standalone item or original score';
   end if;
   update public.classrooms set archived_at=null where id=c;
+  -- The main-branch invitation-only remover still guards joined students after
+  -- the standalone-score wrapper is installed.
+  begin
+    perform public.remove_classroom_roster_entries_atomic(c,array['e1610000-0000-4000-8000-000000000040'::uuid]);
+    raise exception 'Joined roster removal bypassed comprehensive purge';
+  exception when object_not_in_prerequisite_state then
+    if sqlerrm <> 'joined_students_require_comprehensive_removal' then raise; end if;
+  end;
+  if not exists(select 1 from public.gradebook_item_scores where item_id=i)
+    or not exists(select 1 from public.classroom_enrollments where classroom_id=c and student_id=s) then
+    raise exception 'Rejected joined roster removal changed enrollment or marks';
+  end if;
+  -- Exercise deferred orphan-score cleanup only after enrollment has been
+  -- removed inside this rollback-only fixture transaction.
+  delete from public.classroom_enrollments where classroom_id=c and student_id=s;
   perform public.remove_classroom_roster_entries_atomic(c,array['e1610000-0000-4000-8000-000000000040'::uuid]);
   set constraints all immediate;
   if exists(select 1 from public.gradebook_item_scores where item_id=i)
