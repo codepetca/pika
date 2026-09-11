@@ -54,6 +54,8 @@ describe('TeacherAttendanceControls', () => {
 
     const mark = screen.getByRole('button', { name: 'Mark Blair Chen present' })
     expect(mark).toHaveAttribute('aria-pressed', 'true')
+    expect(mark).toHaveClass('h-8', 'min-h-8', 'w-8', 'min-w-8')
+    expect(mark).not.toHaveClass('min-h-control', 'min-w-control')
     await user.click(mark)
     expect(onMark).toHaveBeenCalledOnce()
 

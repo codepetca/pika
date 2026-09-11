@@ -115,7 +115,7 @@ function AttendanceMarkButton({
       type="button"
       variant="ghost"
       size="xs"
-      className="h-11 w-11 rounded-full p-0 hover:bg-transparent"
+      className="h-8 min-h-8 w-8 min-w-8 rounded-full p-0 hover:bg-transparent"
       aria-label={`Mark ${studentName} ${label.toLowerCase()}`}
       aria-pressed={active}
       onClick={onClick}
@@ -527,7 +527,7 @@ export function DailyMockup({
                             icon={RotateCcw}
                             variant="ghost"
                             size="xs"
-                            className="h-11 w-11"
+                            className="h-8 min-h-8 w-8 min-w-8"
                             onClick={() => undoStudent(student.id)}
                           />
                         ) : null}

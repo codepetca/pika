@@ -946,7 +946,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           {(refreshing || attendance.refreshing || manualAttendance.refreshing) && (
             <RefreshingIndicator />
           )}
-          <DataTable className="table-fixed">
+          <DataTable density="tight" className="table-fixed">
             <colgroup>
               <col style={{ width: `${columnWidths.first}px` }} />
               <col style={{ width: `${columnWidths.last}px` }} />
@@ -979,7 +979,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
-                  density="tight"
                   buttonClassName="!pl-2 !pr-5"
                   resize={{
                     value: columnWidths.first,
@@ -993,7 +992,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   isActive={sortColumn === 'last_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('last_name')}
-                  density="tight"
                   buttonClassName="!pl-2 !pr-5"
                   resize={{
                     value: columnWidths.last,
@@ -1008,7 +1006,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     isActive={sortColumn === 'id'}
                     direction={sortDirection}
                     onClick={() => handleSort('id')}
-                    density="tight"
                     buttonClassName="!pl-2 !pr-5"
                     className={attendanceEnabled ? 'hidden sm:table-cell' : undefined}
                     resize={{
@@ -1024,7 +1021,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   isActive={sortColumn === 'log'}
                   direction={sortDirection}
                   onClick={() => handleSort('log')}
-                  density="tight"
                   align={showLogColumn ? 'left' : 'center'}
                   className={showLogColumn ? 'min-w-0' : ''}
                 />
@@ -1036,7 +1032,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     isActive={sortColumn === 'check_in'}
                     direction={sortDirection}
                     onClick={() => handleSort('check_in')}
-                    density="tight"
                     buttonClassName="!pl-2 !pr-5"
                     className="hidden md:table-cell"
                     resize={{
@@ -1050,7 +1045,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 {showAttendance ? SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                   <DataTableHeaderCell
                     key={status}
-                    density="tight"
                     className={cn(
                       'sticky z-sticky-table !p-0 bg-surface-3 text-center',
                       STICKY_ATTENDANCE_OFFSETS[status],
@@ -1070,7 +1064,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 )) : null}
                 {showAttendance ? (
                   <DataTableHeaderCell
-                    density="tight"
                     className="sticky right-0 z-sticky-table !p-0 bg-surface-3"
                   >
                     <span className="sr-only">Undo override</span>
@@ -1107,12 +1100,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
-                    <DataTableCell density="tight" className="min-w-0">
+                    <DataTableCell className="min-w-0">
                       <span className="block truncate" title={row.student_first_name || undefined}>
                         {row.student_first_name || '—'}
                       </span>
                     </DataTableCell>
-                    <DataTableCell density="tight" className="min-w-0">
+                    <DataTableCell className="min-w-0">
                       <span className="block truncate" title={row.student_last_name || undefined}>
                         {row.student_last_name || '—'}
                       </span>
@@ -1124,7 +1117,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     </DataTableCell>
                     {showIdColumn ? (
                       <DataTableCell
-                        density="tight"
                         className={attendanceEnabled ? 'hidden text-text-muted sm:table-cell' : 'text-text-muted'}
                       >
                         <span className="block truncate" title={row.email_username}>
@@ -1133,7 +1125,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       </DataTableCell>
                     ) : null}
                     <DataTableCell
-                      density="tight"
                       align={showLogColumn ? 'left' : 'center'}
                       className={showLogColumn ? 'min-w-0 text-text-muted' : ''}
                     >
@@ -1144,14 +1135,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       )}
                     </DataTableCell>
                     {attendanceEnabled ? (
-                      <DataTableCell density="tight" className="hidden min-w-0 text-text-muted md:table-cell">
+                      <DataTableCell className="hidden min-w-0 text-text-muted md:table-cell">
                         {checkInTime ? <span>{checkInTime}</span> : <span className="sr-only">No QR check-in</span>}
                       </DataTableCell>
                     ) : null}
                     {showAttendance ? SORTABLE_ATTENDANCE_STATUSES.map((status) => (
                       <DataTableCell
                         key={status}
-                        density="tight"
                         className={cn(
                           'sticky z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover',
                           isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
@@ -1177,7 +1167,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     )) : null}
                     {showAttendance ? (
                     <DataTableCell
-                      density="tight"
                       className={cn(
                         'sticky right-0 z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover',
                         isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
@@ -1191,7 +1180,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                             icon={RotateCcw}
                             variant="ghost"
                             size="xs"
-                            className="h-11 w-11"
+                            className="h-8 min-h-8 w-8 min-w-8"
                             disabled={!attendanceEditable}
                             onClick={() => void submitAttendanceMarks(
                               [row.student_id],
