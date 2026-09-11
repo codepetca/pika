@@ -133,7 +133,7 @@ export default function HistoryPage() {
 
       if (!response.ok) {
         if (data.code === 'profile_required') {
-          router.push(`/join/${encodeURIComponent(joinCode.trim())}`)
+          router.push(`/join/${encodeURIComponent(joinCode)}`)
           return
         }
         throw new Error(data.error || 'Failed to join classroom')

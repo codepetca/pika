@@ -177,7 +177,7 @@ describe('HistoryPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Join Class' }))
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/OPEN42'))
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/join/%20OPEN42%20'))
     expect(screen.queryByText('Enter your name to join this classroom.')).not.toBeInTheDocument()
   })
 
