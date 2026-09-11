@@ -26,3 +26,13 @@ shared dialog keyboard and ARIA contracts are unchanged.
 | Join-specific QR content | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog keeps only classroom name, join code, copy link, and QR semantics |
 | Open-join identity form | `/join/[code]`, `FormField`, and `Input` | extend | The join route already returns `profile_required` and the page owns join outcomes |
 | Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off with a non-authoritative query hint so the canonical join page shows identity fields without spending another rate-limited probe; profile submission still performs the authoritative server decision |
+
+Continuation verification (2026-09-11): History's empty and enrolled join forms reuse
+the canonical join retry message through `src/lib/classroom-join.ts`; Settings'
+copy action includes the displayed code in its accessible name. Pattern Lab
+Controls supplies the Button/FormField reference. Both roles, 1440×900 and
+390×844, light/dark, Settings open-join and History rate-limited states were
+captured with Playwright and visually inspected. Eight focused browser cases
+passed. Screenshots are in `test-results/experience-matrix-*` and the reference
+is `output/playwright/pr1245-pattern-controls.png` (local fixtures, mocked API
+responses, no hosted writes). No new composite contract or refactor candidate.

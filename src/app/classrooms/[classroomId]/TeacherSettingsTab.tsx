@@ -616,7 +616,7 @@ export function TeacherSettingsTab({
                 variant="subtle"
                 size="md"
                 onClick={() => copyWithNotice('Join code', displayedJoinCode)}
-                aria-label="Copy join code"
+                aria-label={`Copy join code ${displayedJoinCode}`}
                 disabled={!formStateReady}
                 className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
               >

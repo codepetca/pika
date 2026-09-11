@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Preserve the Roster actions and email labels handoff
-
-- Aligned the live teacher Roster controls with the approved operational-page composition: the centered primary action is now the shared icon-only `+` Add students control, while the trailing ghost More actions menu owns Add from CSV and the existing selection-dependent roster commands.
-- Renamed the roster contact columns and related UI copy to Email (main) and Email (secondary), including manual-add/CSV dialogs, edit labels, copy actions and conflict feedback. Data contracts remain unchanged; the legacy `counselor_email` field still stores the secondary address.
-- Focused component/API coverage passes 52 tests; type, design/UI policy and the Pika audit pass. Browser verification covers teacher desktop/mobile, light/dark, default/open/focus states plus student-route exclusion; menu focus, Escape return and viewport containment were inspected. Risk profile none; use one Terra/high reviewer for the standard-risk UI/state diff. No schema, migration, dependency, hosted data or deployment changes.
-
 ## 2026-09-07 — Preserve the atomic enrollment and guess-limit handoff
 
 - Began the next dormant compatibility-C slice from merged main on `codex/atomic-enrollment-foundation`. Authored unapplied migration 157 after shared local history revealed another active branch owns 155–156: a private schema-backed 10-minute limiter (12 actor attempts, 3 actor-plus-invitation attempts) and a service-only code-join transaction that locks/revalidates the exact classroom, denies self/archive/closed/roster conflicts, and atomically writes roster lineage, enrollment, profile and optional verified Pal evidence.
@@ -274,3 +268,8 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 - Simplified the join QR at owner direction to reuse the attendance display modal's `max-w-6xl`, portrait-mobile and widescreen-desktop frame and QR scale. The dialog now shows only the classroom name, join-code label/value, Copy link, QR, and close control; all introductory/instructional text is removed. Teacher desktop/mobile light/dark open-dialog screenshots were inspected, QR contrast is asserted in both themes, and the student role is unaffected.
 - Extended review raised possible clipping at 390×844, but explicit bounds for the wrapped classroom title, join code, Copy link, and complete QR all remain within the dialog in mobile light/dark runs, matching the inspected captures. The claim was rejected as unsupported; the bounds assertion remains as a responsive regression.
 - Final integration review found the Attendance profile handoff spent a second rate-limited probe before profile submission, leaving no budget for one transient retry. The handoff now carries a non-authoritative profile-required UI hint, skips only that redundant client probe, preserves the exact code, and still submits the profile through the authoritative join endpoint. Rate-limited profile responses show the server retry delay instead of claiming an immediate retry is safe; integrated component and browser regressions cover the three-attempt sequence and wait message.
+
+## 2026-09-11 — PR #1245 reviewed-blocker continuation
+
+- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
+- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.

@@ -170,6 +170,32 @@ describe('HistoryPage', () => {
     })
   })
 
+  it.each([false, true])('shows the server join retry delay with existing classrooms=%s', async (hasClassrooms) => {
+    vi.mocked(fetchStudentClassrooms).mockResolvedValue(hasClassrooms ? [classroom] : [])
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({
+      code: 'rate_limited',
+      error: 'Too many attempts',
+      retryAfterSeconds: 45,
+    }, false))
+    vi.stubGlobal('fetch', fetcher)
+
+    render(<HistoryPage />)
+    if (hasClassrooms) {
+      fireEvent.click(await screen.findByRole('button', { name: '+ Join' }))
+    }
+    const codeInput = await screen.findByRole('textbox', { name: /class code/i })
+    fireEvent.change(codeInput, { target: { value: ' OPEN42 ' } })
+    fireEvent.click(screen.getByRole('button', { name: hasClassrooms ? 'Join' : 'Join Class', exact: true }))
+
+    const message = 'Too many attempts. Wait 45 seconds before trying again.'
+    expect(await screen.findByText(message)).toBeVisible()
+    expect(codeInput).toHaveAccessibleDescription(message)
+    expect(codeInput).toHaveValue(' OPEN42 ')
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(push).not.toHaveBeenCalled()
+    expect(invalidateStudentClassrooms).not.toHaveBeenCalled()
+  })
+
   it('continues an open join with one transient retry inside the three-attempt budget', async () => {
     vi.mocked(fetchStudentClassrooms).mockResolvedValue([])
     const fetcher = vi.fn()

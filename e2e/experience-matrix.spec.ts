@@ -1178,7 +1178,7 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   await page.goto('/e2e-fixtures/teacher-classroom-access', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Access' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('Join this classroom', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Copy join code' })).toHaveText('ICS3U2')
+  await expect(page.getByRole('button', { name: 'Copy join code ICS3U2' })).toHaveText('ICS3U2')
   await expect(page.getByRole('switch', { name: 'Only students on roster can join' })).toHaveAttribute(
     'aria-checked',
     'true',
@@ -1310,6 +1310,42 @@ test('keeps classroom joining visually distinct from attendance check-in', async
   joinState = 'ambiguous'
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'We couldn’t match your school account' })).toBeVisible()
+})
+
+test('shows the History join retry delay in empty and enrolled states', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  let hasClassrooms = false
+  await page.route('**/api/auth/me', (route) => route.fulfill({ json: { user: { id: 'history-student', role: 'student' } } }))
+  await page.route('**/api/student/classrooms', (route) => route.fulfill({
+    json: { classrooms: hasClassrooms ? [{ id: ATTENDANCE_FIXTURE_CLASSROOM_ID, title: 'Computer Science 11', class_code: 'ICS3U2' }] : [] },
+  }))
+  await page.route('**/api/classrooms/*/class-days', (route) => route.fulfill({ json: { class_days: [] } }))
+  await page.route('**/api/student/entries?*', (route) => route.fulfill({ json: { entries: [] } }))
+  let joinRequests = 0
+  await page.route('**/api/student/classrooms/join', (route) => {
+    joinRequests += 1
+    return route.fulfill({ status: 429, json: { code: 'rate_limited', error: 'Too many attempts', retryAfterSeconds: 45 } })
+  })
+
+  for (const enrolled of [false, true]) {
+    hasClassrooms = enrolled
+    await page.goto('/e2e-fixtures/student-history', { waitUntil: 'domcontentloaded' })
+    if (enrolled) await page.getByRole('button', { name: '+ Join' }).click()
+    const codeInput = page.getByRole('textbox', { name: /class code/i })
+    await codeInput.fill(' OPEN42 ')
+    await page.getByRole('button', { name: enrolled ? 'Join' : 'Join Class', exact: true }).click()
+    const message = 'Too many attempts. Wait 45 seconds before trying again.'
+    await expect(page.getByText(message, { exact: true })).toBeVisible()
+    await expect(codeInput).toHaveAccessibleDescription(message)
+    await expect(codeInput).toHaveValue(' OPEN42 ')
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({
+      path: testInfo.outputPath(`history-join-rate-limit-${enrolled ? 'enrolled' : 'empty'}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  }
+  expect(joinRequests).toBe(2)
 })
 
 test('resolves permanent classroom attendance QR states after student authentication', async ({ page }, testInfo) => {

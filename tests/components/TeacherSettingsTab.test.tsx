@@ -144,7 +144,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     await waitFor(() => expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12'))
 
     rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
-    expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
+    expect(screen.getByRole('button', { name: 'Copy join code CHEM12' })).toHaveTextContent('CHEM12')
     expect(screen.getByRole('button', { name: 'Show QR' })).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
@@ -705,7 +705,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     expect(screen.getByText('Student access')).toBeInTheDocument()
     expect(screen.getByText('Join this classroom')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('ABC123')
+    expect(screen.getByRole('button', { name: 'Copy join code ABC123' })).toHaveTextContent('ABC123')
     expect(screen.getByText('Allow new joins')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Only students on roster can join' })).toHaveAttribute(
       'aria-checked',

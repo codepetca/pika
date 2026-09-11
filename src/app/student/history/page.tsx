@@ -21,6 +21,7 @@ import {
   invalidateStudentEntriesForClassroom,
 } from '@/lib/student-entries-client'
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
+import { rateLimitDescription } from '@/lib/classroom-join'
 import { getTodayInToronto } from '@/lib/timezone'
 
 export default function HistoryPage() {
@@ -135,6 +136,9 @@ export default function HistoryPage() {
         if (data.code === 'profile_required') {
           router.push(`/join/${encodeURIComponent(joinCode)}?profile=required`)
           return
+        }
+        if (data.code === 'rate_limited') {
+          throw new Error(rateLimitDescription(data.retryAfterSeconds))
         }
         throw new Error(data.error || 'Failed to join classroom')
       }

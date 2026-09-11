@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { Button, Card, FormField, Input } from '@/ui'
+import { rateLimitDescription } from '@/lib/classroom-join'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
 type JoinView =
@@ -17,15 +18,6 @@ type JoinView =
   }
   | { kind: 'profile' }
   | { kind: 'error'; title: string; description: string }
-
-function rateLimitDescription(value: unknown) {
-  const seconds = typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? Math.ceil(value)
-    : null
-  return seconds
-    ? `Too many attempts. Wait ${seconds} seconds before trying again.`
-    : 'Too many attempts. Wait before trying again.'
-}
 
 export default function JoinClassroomPage() {
   const { push } = useRouter()
