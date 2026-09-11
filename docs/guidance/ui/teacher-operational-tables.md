@@ -69,8 +69,10 @@ scope/actions and condense edge information instead of wrapping another row.
   semantic pressed state and a non-color boundary such as a ring or outline;
   do not rely on color or opacity alone.
 - A compact visible status mark may sit inside a larger interaction target. Keep
-  the shared 44px target and focus treatment even when dense table rhythm calls
-  for a smaller visible circle, icon, or badge.
+  the shared 44px target and focus treatment for headers and ordinary controls.
+  Daily's repeated direct row marks use a documented 32px target so the table
+  retains its tight scan rhythm; keep their accessible names, tooltips, keyboard
+  operation, and visible focus treatment.
 
 Daily provides the column and sorting rhythm. Attendance provides the approved
 density and table composition. Selected Test grading provides the approved

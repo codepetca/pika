@@ -115,7 +115,10 @@ describe('PageMockups', () => {
     const daily = screen.getByTestId('daily-mockup')
     expect(within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeVisible()
     expect(within(daily).getByRole('button', { name: 'More actions' })).toBeVisible()
-    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' })).toBeVisible()
+    expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' }))
+      .toHaveClass('h-8', 'min-h-8', 'w-8', 'min-w-8')
+    expect(within(daily).getByRole('button', { name: 'Undo override for Noah Williams' }))
+      .toHaveClass('h-8', 'min-h-8', 'w-8', 'min-w-8')
   })
 
   it('keeps every named tab target mounted and supports keyboard tab changes', async () => {
