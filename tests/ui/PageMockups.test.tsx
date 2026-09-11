@@ -16,6 +16,29 @@ function renderMockups() {
 }
 
 describe('PageMockups', () => {
+  it('opens the standalone item editor with deterministic defaults and restores focus on Escape', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups.getByRole('tabpanel', { name: 'Gradebook' }))
+    expect(gradebook.queryByRole('button', { name: 'Add other assessment' })).not.toBeInTheDocument()
+    const opener = gradebook.getByRole('button', { name: 'More actions' })
+    await user.click(opener)
+    await user.keyboard('{Home}')
+    expect(screen.getByRole('menuitem', { name: 'Edit categories' })).toHaveFocus()
+    await user.keyboard('{ArrowDown}{Enter}')
+    const dialog = within(screen.getByRole('dialog', { name: 'Add other assessment' }))
+    expect(dialog.getByRole('textbox', { name: 'Assessment title' })).toHaveValue('')
+    expect(dialog.getByRole('spinbutton', { name: 'Points possible' })).toHaveValue(100)
+    expect(dialog.getByRole('spinbutton', { name: 'Category weight' })).toHaveValue(10)
+    expect(dialog.getByRole('combobox', { name: 'Include in final grade' })).toHaveValue('yes')
+    expect(dialog.getByRole('button', { name: 'Add other assessment' })).toBeDisabled()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Add other assessment' })).not.toBeInTheDocument()
+    await waitFor(() => expect(opener).toHaveFocus())
+  })
+
   it('keeps full-course weight calculations when only a few assessment columns are shown', async () => {
     const user = userEvent.setup()
     renderMockups()

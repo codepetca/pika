@@ -30,6 +30,9 @@ type GradebookFixture = {
   settingsError?: SupabaseReadError | null
   categories?: Array<any>
   categoriesError?: SupabaseReadError | null
+  items?: Array<any>
+  itemScores?: Array<any>
+  itemsError?: SupabaseReadError | null
   scoreOverrides?: Array<any>
   scoreOverridesError?: SupabaseReadError | null
 }
@@ -47,6 +50,18 @@ function buildMockFrom(fixture: GradebookFixture) {
           })),
         })),
       }
+    }
+
+    if (table === 'gradebook_items' || table === 'gradebook_item_scores') {
+      const query: any = {
+        select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve({
+          data: table === 'gradebook_items' ? fixture.items ?? [] : fixture.itemScores ?? [],
+          error: table === 'gradebook_items' ? fixture.itemsError ?? null : null,
+        }).then(resolve),
+      }
+      return query
     }
 
     if (table === 'gradebook_settings') {
@@ -1170,7 +1185,9 @@ describe('GET /api/teacher/gradebook', () => {
         }
       }
 
-      if (table === 'gradebook_settings') {
+      if (table === 'gradebook_items') return buildMockFrom({ itemsError: { code: '42P01' } })(table)
+
+    if (table === 'gradebook_settings') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -1296,6 +1313,7 @@ describe('GET /api/teacher/gradebook', () => {
         }
       }
 
+      if (table === 'gradebook_items') return buildMockFrom({ itemsError: { code: '42P01' } })(table)
       throw new Error(`Unexpected table in test: ${table}`)
     })
 
@@ -1394,6 +1412,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         }
       }
 
+      if (table === 'gradebook_items') return buildMockFrom({ itemsError: { code: '42P01' } })(table)
       throw new Error(`Unexpected table in test: ${table}`)
     })
 
@@ -1448,6 +1467,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         return { update }
       }
 
+      if (table === 'gradebook_items') return buildMockFrom({ itemsError: { code: '42P01' } })(table)
       throw new Error(`Unexpected table in test: ${table}`)
     })
 
@@ -1495,6 +1515,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         return { update }
       }
 
+      if (table === 'gradebook_items') return buildMockFrom({ itemsError: { code: '42P01' } })(table)
       throw new Error(`Unexpected table in test: ${table}`)
     })
 
@@ -1543,5 +1564,49 @@ describe('PUT /api/teacher/gradebook', () => {
       p_categories: categories,
     })
     expect(body.categories).toEqual(categories)
+  })
+})
+
+
+describe('standalone Gradebook item calculations', () => {
+  it('weights original marks with assignments, excludes blanks, and preserves final overrides', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{ id: 'a1', title: 'Assignment', position: 0, points_possible: 10, gradebook_weight: 10, gradebook_category_id: 'term' }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
+      items: [
+        { id: 'i1', title: 'Attendance – Term 1', points_possible: 20, gradebook_weight: 30, gradebook_category_id: 'term', include_in_final: true },
+        { id: 'blank', title: 'Blank', points_possible: 10, gradebook_weight: 100, gradebook_category_id: 'term', include_in_final: true },
+        { id: 'excluded', title: 'Practice', points_possible: 10, gradebook_weight: 999, gradebook_category_id: 'term', include_in_final: false },
+      ],
+      itemScores: [
+        { item_id: 'i1', student_id: 'student-1', earned: 10, returned_at: null },
+        { item_id: 'excluded', student_id: 'student-1', earned: 0, returned_at: null },
+      ],
+      scoreOverrides: [{ student_id: 'student-1', assessment_type: 'final', assessment_id: 'c1', earned: 88 }],
+    })
+    const response = await GET(new NextRequest('http://localhost/api/teacher/gradebook?classroom_id=c1'))
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.items_available).toBe(true)
+    expect(data.students[0]).toMatchObject({ final_percent: 88, calculated_final_percent: 62.5 })
+    expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'i1')).toMatchObject({ assessment_type: 'item', earned: 10, possible: 20, percent: 50, is_graded: true, returned_at: null })
+    expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'i1').is_manual_override).toBeUndefined()
+    expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'blank').earned).toBeNull()
+    expect(data.assessment_columns.find((column: any) => column.assessment_id === 'i1')).toMatchObject({ scored_count: 1, returned_count: 0 })
+    expect(data.class_summary.items[0]).toMatchObject({ item_id: 'i1', average_percent: 50, scored_count: 1 })
+  })
+
+  it('keeps the existing Gradebook usable before the item migration', async () => {
+    mockSupabaseClient.from = buildMockFrom({ itemsError: { code: '42P01' } })
+    const response = await GET(new NextRequest('http://localhost/api/teacher/gradebook?classroom_id=c1'))
+    expect(response.status).toBe(200)
+    expect((await response.json()).items_available).toBe(false)
+  })
+
+  it('fails closed on unexpected item read errors', async () => {
+    mockSupabaseClient.from = buildMockFrom({ itemsError: { code: '42501', message: 'denied' } })
+    const response = await GET(new NextRequest('http://localhost/api/teacher/gradebook?classroom_id=c1'))
+    expect(response.status).toBe(500)
   })
 })

@@ -8,6 +8,7 @@ source_files:
   - src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx
   - src/components/StudentAssignmentEditor.tsx
   - src/components/StudentTestResults.tsx
+  - src/components/gradebook/StudentReturnedMarks.tsx
 human_review_required: true
 ---
 
@@ -63,3 +64,20 @@ Human acceptance of the Pattern Lab composition may guide a production change,
 but the production feature still requires a returned-only student API,
 classroom-scoped authorization, persisted visibility state, focused tests, and
 the full teacher/student visual verification matrix.
+
+## Standalone marks integration
+
+The standalone Gradebook feature adds a bounded returned-marks list within the
+existing student Classwork summary. This does not implement the aggregate Grades
+prototype or its visibility switch. Pattern Lab renders the production
+`StudentReturnedMarksList` owner with deterministic counted, zero, and excluded
+fixtures, without API reads. This remains experimental composition evidence;
+it does not promote the future aggregate surface into the stable canon.
+
+The list reuses `Card` and the returned-row score treatment. Its primary signal
+is each item's score and percentage. The feature introduces no links to fake
+work, no navigation, no aggregate, and no composite widget. Verification covers
+student desktop/mobile and light/dark, returned/zero/excluded/loading/error/empty
+states, and tab reactivation. Teacher return controls are covered in the feature
+brief. The endpoint scopes release, enrollment, classroom, archive status, and
+Classwork visibility server-side; the browser receives only returned marks.

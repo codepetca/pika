@@ -15,11 +15,12 @@ export function GradebookScoreDialog({
   onClose,
   onSave,
   onUndo,
+  onClear,
 }: {
   isOpen: boolean
   student: GradebookStudentSummary | null
   target: {
-    kind: 'assessment' | 'final'
+    kind: 'assessment' | 'item' | 'final'
     title: string
     value: number | null
     possible?: number
@@ -30,6 +31,7 @@ export function GradebookScoreDialog({
   error?: string
   onClose: () => void
   onSave: (earned: number) => void | Promise<void>
+  onClear?: () => void | Promise<void>
   onUndo?: () => boolean | void | Promise<boolean | void>
 }) {
   const [value, setValue] = useState('')
@@ -48,7 +50,7 @@ export function GradebookScoreDialog({
   const isValid = value.trim() !== '' && Number.isFinite(earned) && earned >= 0 && earned <= 999999.9 && isTenth
   const undoValueText = target?.undoValue == null ? '' : String(target.undoValue)
   const isRestoredValue = overrideUndone && value === undoValueText
-  const possible = target?.kind === 'assessment' ? target.possible : undefined
+  const possible = target?.kind !== 'final' ? target?.possible : undefined
   const exceedsTotal = possible != null
     && isValid
     && earned > possible
@@ -116,7 +118,8 @@ export function GradebookScoreDialog({
           </div>
         </FormField>
         {error ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{error}</div> : null}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {target?.kind === 'item' && target.value != null && onClear ? <Button type="button" variant="secondary" disabled={isSaving} className="mr-auto" onClick={() => { void onClear() }}>Clear mark</Button> : null}
           <Button type="button" variant="secondary" disabled={isSaving} onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={isSaving} disabled={!isValid || isRestoredValue}>Save mark</Button>
         </div>

@@ -63,3 +63,7 @@ Attendance, Term, and Final setup and place restored assessments in Term.
 The live calculation falls back to the legacy points-based calculation only
 when the category schema has not yet been deployed. This compatibility path is
 temporary rollout protection, not a second configurable gradebook mode.
+
+Standalone Gradebook items use these same categories and relative weights.
+They store original marks independently from overrides; see
+[standalone Gradebook items](./standalone-gradebook-items.md).

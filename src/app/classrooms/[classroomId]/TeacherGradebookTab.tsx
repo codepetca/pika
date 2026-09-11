@@ -8,6 +8,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import { GradebookAssessmentDialog, GradebookEditorDialog } from '@/components/gradebook/GradebookDialogs'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
 import { GradebookTable } from '@/components/gradebook/GradebookTable'
+import { GradebookItemEditor, type GradebookItemDetails } from '@/components/gradebook/GradebookItemEditor'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { GradebookToolbar, type GradebookDisplayPreferences } from '@/components/gradebook/GradebookToolbar'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
@@ -25,7 +26,7 @@ import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
 interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void }
-interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; students: GradebookStudentSummary[] }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; students: GradebookStudentSummary[] }
 type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
   | { kind: 'final'; student: GradebookStudentSummary }
@@ -59,6 +60,8 @@ export function TeacherGradebookTab({
   const { scoreDisplayMode } = preferences
   const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
   const [scoreOverridesAvailable, setScoreOverridesAvailable] = useState(true)
+  const [itemsAvailable, setItemsAvailable] = useState(false)
+  const [newItemId, setNewItemId] = useState<string | null>(null)
   useEffect(() => {
     const saved = safeLocalGetJson<Partial<GradebookDisplayPreferences>>(PREFERENCES_KEY)
     if (saved) setPreferences(normalizeGradebookPreferences(saved))
@@ -219,6 +222,7 @@ export function TeacherGradebookTab({
       setCategories(data.categories || [])
       setCategorySchemaAvailable(data.category_schema_available !== false)
       setScoreOverridesAvailable(data.score_overrides_available !== false)
+      setItemsAvailable(data.items_available === true)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -272,6 +276,8 @@ export function TeacherGradebookTab({
     setSavingAssessmentKeys(new Set())
     setGradebookEditorOpen(false)
     setSelectedAssessment(null)
+    setNewItemId(null)
+    setItemsAvailable(false)
     setScoreEditTarget(null)
     setSavingScoreKeys(new Set())
     setScoreDialogError('')
@@ -394,13 +400,14 @@ export function TeacherGradebookTab({
     let queuedSave: Promise<void>
     queuedSave = previousSave.catch(() => undefined).then(async () => {
       try {
-        const response = await fetch('/api/teacher/gradebook', {
-          method: 'PATCH',
+        const response = await fetch(column.assessment_type === 'item' ? '/api/teacher/gradebook/items' : '/api/teacher/gradebook', {
+          method: column.assessment_type === 'item' ? 'POST' : 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             classroom_id: classroomId,
-            assessment_type: column.assessment_type,
-            assessment_id: column.assessment_id,
+            ...(column.assessment_type === 'item'
+              ? { action: 'weight', item_id: column.assessment_id }
+              : { assessment_type: column.assessment_type, assessment_id: column.assessment_id }),
             gradebook_weight: nextWeight,
           }),
         })
@@ -534,6 +541,49 @@ export function TeacherGradebookTab({
     }
   }
 
+  async function mutateItem(action: 'create' | 'update' | 'delete' | 'return_marks', details?: GradebookItemDetails) {
+    if (isReadOnly || !itemsAvailable || dialogSaving) return
+    const itemId = action === 'create' ? newItemId : selectedAssessment?.assessment_id
+    if (!itemId) return
+    const classroomId = classroom.id
+    const requestId = ++dialogSaveSequenceRef.current
+    setDialogSaving(true)
+    setDialogError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook/items', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, classroom_id: classroomId, item_id: itemId, ...details }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not save Gradebook item')
+      if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      setNewItemId(null)
+      setSelectedAssessment(null)
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
+      if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      showMessage({ text: action === 'return_marks' ? 'Marks returned' : action === 'delete' ? 'Item deleted' : action === 'create' ? 'Item added' : 'Item saved', tone: 'success' })
+    } catch (error: unknown) {
+      if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      setDialogError(error instanceof Error ? error.message : 'Could not save Gradebook item')
+    } finally {
+      if (dialogSaveSequenceRef.current === requestId && currentClassroomIdRef.current === classroomId) setDialogSaving(false)
+    }
+  }
+
+  function openAssessment(column: GradebookAssessmentColumn) {
+    if (isReadOnly || (column.assessment_type === 'item' && !itemsAvailable)) return
+    if (savingAssessmentKeys.size) { showMessage({ text: 'Wait for the weight save to finish', tone: 'info' }); return }
+    setDialogError('')
+    setSelectedAssessment(column)
+  }
+
+  function openScore(student: GradebookStudentSummary, column: GradebookAssessmentColumn) {
+    if (isReadOnly || !(column.assessment_type === 'item' ? itemsAvailable : scoreOverridesAvailable)) return
+    setScoreDialogError('')
+    setScoreEditTarget({ kind: 'assessment', student, column })
+  }
+
   const hasManualChanges = students.some((student) => (
     student.is_final_override || student.assessment_scores?.some((cell) => cell.is_manual_override)
   ))
@@ -544,8 +594,10 @@ export function TeacherGradebookTab({
       : `${target.student.student_id}:${getAssessmentColumnKey(target.column)}`
   }
 
-  async function saveManualScore(earned: number) {
-    if (!scoreEditTarget || isReadOnly || !scoreOverridesAvailable) return
+  async function saveManualScore(earned: number | null) {
+    if (!scoreEditTarget || isReadOnly) return
+    const isItem = scoreEditTarget.kind === 'assessment' && scoreEditTarget.column.assessment_type === 'item'
+    if (isItem ? !itemsAvailable : (!scoreOverridesAvailable || earned === null)) return
     const classroomId = classroom.id
     const target = scoreEditTarget
     const key = scoreSaveKey(target)
@@ -554,19 +606,21 @@ export function TeacherGradebookTab({
     setSavingScoreKeys((current) => new Set(current).add(key))
     setScoreDialogError('')
     try {
-      const response = await fetch('/api/teacher/gradebook/manual-scores', {
+      const response = await fetch(isItem ? '/api/teacher/gradebook/items/scores' : '/api/teacher/gradebook/manual-scores', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           classroom_id: classroomId,
           student_id: target.student.student_id,
-          assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
-          assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
+          ...(isItem && target.kind === 'assessment' ? { item_id: target.column.assessment_id } : {
+            assessment_type: target.kind === 'final' ? 'final' : target.column.assessment_type,
+            assessment_id: target.kind === 'final' ? classroomId : target.column.assessment_id,
+          }),
           earned,
         }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to save override')
+      if (!response.ok) throw new Error(data.error || (isItem ? 'Failed to save mark' : 'Failed to save override'))
       if (
         scoreMutationSequenceRef.current !== requestId
         || currentClassroomIdRef.current !== classroomId
@@ -578,13 +632,13 @@ export function TeacherGradebookTab({
         scoreMutationSequenceRef.current !== requestId
         || currentClassroomIdRef.current !== classroomId
       ) return
-      showMessage({ text: 'Override saved', tone: 'success' })
+      showMessage({ text: isItem ? (earned === null ? 'Mark cleared' : 'Mark saved') : 'Override saved', tone: 'success' })
     } catch (error: unknown) {
       if (
         scoreMutationSequenceRef.current !== requestId
         || currentClassroomIdRef.current !== classroomId
       ) return
-      setScoreDialogError(error instanceof Error ? error.message : 'Failed to save override')
+      setScoreDialogError(error instanceof Error ? error.message : (isItem ? 'Failed to save mark' : 'Failed to save override'))
     } finally {
       if (
         scoreMutationSequenceRef.current === requestId
@@ -600,7 +654,7 @@ export function TeacherGradebookTab({
   }
 
   async function undoManualScores(target?: GradebookScoreEditTarget) {
-    if (isReadOnly || !scoreOverridesAvailable) return false
+    if (isReadOnly || !scoreOverridesAvailable || (target?.kind === 'assessment' && target.column.assessment_type === 'item')) return false
     const classroomId = classroom.id
     const key = target ? scoreSaveKey(target) : null
     const requestId = scoreMutationSequenceRef.current + 1
@@ -673,6 +727,8 @@ export function TeacherGradebookTab({
       hasManualChanges={hasManualChanges}
       undoingManualChanges={undoAllSaving}
       onUndoManualChanges={() => setUndoAllOpen(true)}
+      itemsAvailable={itemsAvailable}
+      onAddItem={() => { if (!isReadOnly && itemsAvailable) { setDialogError(''); setNewItemId(crypto.randomUUID()) } }}
       onEditCategories={() => { setDialogError(''); setGradebookEditorOpen(true) }}
       onCopyEmails={() => { void copySelectedEmailsToClipboard() }}
       onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
@@ -693,18 +749,9 @@ export function TeacherGradebookTab({
       isReadOnly={isReadOnly || !categorySchemaAvailable}
       scoreEditingDisabled={isReadOnly || !scoreOverridesAvailable}
       onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
-      onAssessmentOpen={(column) => {
-        if (savingAssessmentKeys.size) { showMessage({ text: 'Wait for the weight save to finish', tone: 'info' }); return }
-        setDialogError(''); setSelectedAssessment(column)
-      }}
-      onScoreOpen={(student, column) => {
-        if (!scoreOverridesAvailable) {
-          showMessage({ text: 'Manual marks require the latest database update', tone: 'info' })
-          return
-        }
-        setScoreDialogError('')
-        setScoreEditTarget({ kind: 'assessment', student, column })
-      }}
+      itemScoreEditingDisabled={isReadOnly || !itemsAvailable}
+      onAssessmentOpen={openAssessment}
+      onScoreOpen={openScore}
       onFinalScoreOpen={(student) => {
         if (!scoreOverridesAvailable) {
           showMessage({ text: 'Overrides require the latest database update', tone: 'info' })
@@ -729,6 +776,9 @@ export function TeacherGradebookTab({
       columns={assessmentColumns}
       displayMode={scoreDisplayMode}
       onClose={() => setSelectedStudentId(null)}
+      onItemOpen={openAssessment}
+      onItemScoreOpen={openScore}
+      isReadOnly={isReadOnly || !itemsAvailable}
     />
   ) : undefined
 
@@ -790,9 +840,15 @@ export function TeacherGradebookTab({
             student={mobileStudent}
             columns={assessmentColumns}
             displayMode={scoreDisplayMode}
+            onItemOpen={openAssessment}
+            onItemScoreOpen={openScore}
+            isReadOnly={isReadOnly || !itemsAvailable}
           />
         ) : (
-          <div className="px-3 py-6 text-sm text-text-muted">No students enrolled yet.</div>
+          <div className="space-y-2 px-3 py-6 text-sm text-text-muted">
+            <p>No students enrolled yet.</p>
+            {assessmentColumns.filter((column) => column.assessment_type === 'item').map((column) => <Button key={column.assessment_id} type="button" variant="ghost" className="w-full justify-start" disabled={isReadOnly || !itemsAvailable} onClick={() => openAssessment(column)} aria-label={`Edit item: ${column.title}`}>{column.title}</Button>)}
+          </div>
         )}
       </div>
     </div>
@@ -830,7 +886,7 @@ export function TeacherGradebookTab({
         onSave={saveGradebookCategories}
       />
       <GradebookAssessmentDialog
-        isOpen={Boolean(selectedAssessment)}
+        isOpen={Boolean(selectedAssessment && selectedAssessment.assessment_type !== 'item')}
         assessment={selectedAssessment}
         assessments={assessmentColumns}
         categories={categories}
@@ -843,6 +899,17 @@ export function TeacherGradebookTab({
         }}
         onSave={saveAssessmentDetails}
       />
+      <GradebookItemEditor
+        isOpen={Boolean(newItemId || selectedAssessment?.assessment_type === 'item')}
+        item={selectedAssessment?.assessment_type === 'item' ? selectedAssessment : null}
+        categories={categories}
+        isSaving={dialogSaving}
+        error={dialogError}
+        onClose={() => { if (!dialogSaving) { setNewItemId(null); setSelectedAssessment(null); setDialogError('') } }}
+        onSave={(details) => mutateItem(newItemId ? 'create' : 'update', details)}
+        onDelete={() => mutateItem('delete')}
+        onReturnMarks={() => mutateItem('return_marks')}
+      />
       <GradebookScoreDialog
         isOpen={Boolean(scoreEditTarget)}
         student={scoreEditTarget?.student ?? null}
@@ -851,14 +918,15 @@ export function TeacherGradebookTab({
             ? { kind: 'final', title: 'Final', value: scoreEditTarget.student.final_percent, isOverride: scoreEditTarget.student.is_final_override, undoValue: scoreEditTarget.student.calculated_final_percent }
             : (() => {
                 const cell = getAssessmentCell(scoreEditTarget.student, scoreEditTarget.column)
-                return { kind: 'assessment' as const, title: scoreEditTarget.column.title, value: cell?.earned ?? null, possible: scoreEditTarget.column.possible, isOverride: cell?.is_manual_override, undoValue: cell?.calculated_earned }
+                return { kind: scoreEditTarget.column.assessment_type === 'item' ? 'item' as const : 'assessment' as const, title: scoreEditTarget.column.title, value: cell?.earned ?? null, possible: scoreEditTarget.column.possible, isOverride: cell?.is_manual_override, undoValue: cell?.calculated_earned }
               })()
           : null}
         isSaving={scoreEditTarget ? savingScoreKeys.has(scoreSaveKey(scoreEditTarget)) : false}
         error={scoreDialogError}
         onClose={() => { setScoreEditTarget(null); setScoreDialogError('') }}
         onSave={saveManualScore}
-        onUndo={scoreEditTarget ? () => undoManualScores(scoreEditTarget) : undefined}
+        onUndo={scoreEditTarget && !(scoreEditTarget.kind === 'assessment' && scoreEditTarget.column.assessment_type === 'item') ? () => undoManualScores(scoreEditTarget) : undefined}
+        onClear={scoreEditTarget?.kind === 'assessment' && scoreEditTarget.column.assessment_type === 'item' ? () => saveManualScore(null) : undefined}
       />
       <ConfirmDialog
         isOpen={undoAllOpen}

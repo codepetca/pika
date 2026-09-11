@@ -174,6 +174,8 @@ describe('classroom archive format', () => {
     if (!verification.ok) throw new Error(verification.error)
     expect(decodeClassroomArchiveData(verification).resources.gradebook_categories).toEqual([])
     expect(decodeClassroomArchiveData(verification).resources.gradebook_score_overrides).toEqual([])
+    expect(decodeClassroomArchiveData(verification).resources.gradebook_items).toEqual([])
+    expect(decodeClassroomArchiveData(verification).resources.gradebook_item_scores).toEqual([])
   })
 
   it('canonicalizes object keys recursively while retaining array order', () => {
