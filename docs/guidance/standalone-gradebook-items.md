@@ -1,7 +1,8 @@
 # Standalone Gradebook items
 
-Teachers can use the visible **Add item** action in Gradebook to record original
-marks without creating Classwork assignments or Tests. A manually scored
+Teachers can use **More actions → Add other assessment** in Gradebook to record
+original marks outside Classwork assignments or Tests. Classwork and Tests
+appear automatically; the creation dialog explains this distinction. A manually scored
 **Attendance – Term 1** item is one example; no attendance automation or daily
 attendance columns are involved.
 
@@ -73,14 +74,14 @@ owners, and the experimental returned Grades row composition.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Add action | GradebookToolbar | extend | Creation stays in current workflow |
+| Add action | GradebookToolbar More actions menu | reuse | Secondary creation stays in the existing menu on desktop and mobile |
 | Item details | ContentDialog, FormField, Input, Select | reuse | Canonical compact form and focus behavior |
 | Original score editing | GradebookScoreDialog | extend | Same mark-entry interaction, explicit clear action |
 | Mobile teacher marks | GradebookStudentPanel | extend | Item details and marks remain accessible |
 | Deletion and return safeguards | ConfirmDialog | reuse | Explicit scope and consequence |
 | Student disclosure | Classwork summary and shared Card | extend | No new navigation or fake work |
 
-Primary signal: visible **Add item** action and existing editable marks. No
+Primary signal: **Add other assessment** in More actions and existing editable marks. No
 charts, decorative status symbols, automated attendance, new shared primitives,
 or new top-level surfaces. Both roles, desktop/mobile, light/dark; default,
 create/edit, blank/scored/returned, clear, deletion/return confirmation, loading,

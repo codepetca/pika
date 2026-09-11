@@ -9,9 +9,9 @@ describe('GradebookItemEditor', () => {
   it('creates with explicit points, inclusion and category weight', () => {
     const save = vi.fn()
     render(<GradebookItemEditor isOpen item={null} categories={[]} onClose={vi.fn()} onSave={save} />)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Item title' }), { target: { value: 'Attendance – Term 1' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Attendance – Term 1' } })
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Points possible' }), { target: { value: '20' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
     expect(save).toHaveBeenCalledWith({ title: 'Attendance – Term 1', points_possible: 20, gradebook_category_id: null, gradebook_weight: 10, include_in_final: true })
   })
   it('proposes the selected category weight and requires saved details before returning marks', () => {

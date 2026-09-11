@@ -63,7 +63,7 @@ export function GradebookItemEditor({
     <ContentDialog
       isOpen={isOpen}
       onClose={isSaving ? () => undefined : onClose}
-      title={item ? 'Edit item' : 'Add item'}
+      title={item ? 'Edit item' : 'Add other assessment'}
       maxWidth="sm:max-w-md"
       showFooterClose={false}
     >
@@ -78,7 +78,8 @@ export function GradebookItemEditor({
         })
       }}>
         <fieldset disabled={isSaving} className="min-w-0 space-y-3">
-          <FormField label="Item title" required>
+          {!item ? <p className="text-sm text-text-muted">Classwork and Tests appear in Gradebook automatically. Add an assessment here only if it is recorded outside Classwork or Tests.</p> : null}
+          <FormField label="Assessment title" required>
             <Input value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} />
           </FormField>
           <FormField
@@ -146,7 +147,7 @@ export function GradebookItemEditor({
             ) : null}
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" loading={isSaving} disabled={!valid || isSaving}>
-              {item ? 'Save item' : 'Add item'}
+              {item ? 'Save item' : 'Add other assessment'}
             </Button>
           </div>
         </fieldset>

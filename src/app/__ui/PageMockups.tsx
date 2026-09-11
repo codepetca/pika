@@ -787,14 +787,15 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             /></span>
           </div>
         </TeacherWorkSurfaceActionCluster>}
-        actions={<><Button type="button" size="sm" className="whitespace-nowrap" onClick={() => setItemEditorOpen(true)}><Plus className="h-4 w-4" aria-hidden="true" />Add item</Button><div className="hidden lg:block"><MoreMenu label="Gradebook" items={[
+        actions={<MoreMenu label="Gradebook" items={[
+          { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
           { id: 'edit-gradebook', label: 'Edit categories', onSelect: () => setGradebookEditorOpen(true) },
-          { id: 'name-order', label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
+          { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
           { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
           { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
           ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
-          { id: 'export', label: 'Export gradebook', onSelect: () => onPrototypeAction('Export gradebook') },
-        ]} /></div></>}
+          { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: () => onPrototypeAction('Export gradebook') },
+        ]} />}
       />
       <TeacherWorkSurfaceTableFrame
         data-testid="gradebook-scroll-frame"
@@ -1044,7 +1045,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           setGradebookEditorOpen(false)
         }}
       />
-      <GradebookItemEditor isOpen={itemEditorOpen} item={null} categories={categories} onClose={() => setItemEditorOpen(false)} onSave={() => { setItemEditorOpen(false); onPrototypeAction('Add Gradebook item') }} />
+      <GradebookItemEditor isOpen={itemEditorOpen} item={null} categories={categories} onClose={() => setItemEditorOpen(false)} onSave={() => { setItemEditorOpen(false); onPrototypeAction('Add other assessment') }} />
       <GradebookAssessmentEditorMockup
         isOpen={Boolean(selectedAssessment)}
         assessment={selectedAssessment}

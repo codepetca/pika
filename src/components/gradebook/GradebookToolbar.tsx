@@ -95,13 +95,14 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         <span className="hidden lg:inline-flex"><IconButton icon={Dumbbell} label="Show weights" variant={preferences.showWeights ? 'subtle' : 'ghost'} aria-pressed={preferences.showWeights} onClick={() => onChange({ showWeights: !preferences.showWeights })} /></span>
       </div>
     </TeacherWorkSurfaceActionCluster>}
-    actions={<><Button type="button" variant="primary" size="sm" disabled={isReadOnly || !itemsAvailable || !onAddItem} onClick={onAddItem} className="whitespace-nowrap"><Plus className="h-4 w-4" aria-hidden="true" />Add item</Button><div className="hidden lg:block"><TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
+    actions={<TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
+      { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
       { id: 'edit-categories', label: 'Edit categories', disabled: isReadOnly, onSelect: onEditCategories },
-      { id: 'name-order', label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
+      { id: 'name-order', dividerBefore: true, label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
-      { id: 'export', label: 'Export gradebook', onSelect: onExport },
-     ]} /></div></>}
+      { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: onExport },
+     ]} />}
   />
 }

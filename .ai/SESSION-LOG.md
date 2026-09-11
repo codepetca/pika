@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Respect classroom Achievements visibility for Pal overlays
-
-- Task/branch: `codex/fix-disabled-achievement-celebration`. Moved ambient Pal rendering from the persistent layout into the classroom's effective Achievements gate; retained the learner provider and index-page presentation. No reward acknowledgement occurs merely because a classroom disables Achievements.
-- Regression coverage: disabled/enabled/global-off states, pending reward refresh, classroom transition, and modal cleanup; 52 focused component tests pass. Visual fixture with the real classroom client and pending early-start reward verified student desktop/mobile and light/dark, enabled/disabled (eight captures in local `output/playwright`). Teacher is n/a: student-only surfaces. Reuses Pal host layers, feature-visibility policy, and ModalLayer; no design/style changes or new pattern. Composite checklist reviewed; keyboard/semantic tests retained, no manual follow-up.
-- Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
-
-- Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.
-
 ## 2026-09-07 — Wider calendar announcement tooltips (#1210)
 
 Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
@@ -298,3 +290,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
 - The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+## 2026-09-10 — Clarify other assessment creation in Gradebook
+
+- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
+- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
