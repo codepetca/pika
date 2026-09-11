@@ -54,8 +54,9 @@ SQL
 done
 
 # Hold a real removal transaction open after it has revoked enrollment. Grade
-# inserts and mark-changing updates in another session must fail fast, then fail
-# the enrollment check after removal commits. Neither attempted mark may persist.
+# inserts and mark-changing updates must be rejected. Earlier archive-revision
+# triggers may wait for removal to commit before the enrollment check runs.
+# Exercise each operation during a separate removal; neither mark may persist.
 docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
   -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
@@ -126,7 +127,12 @@ SQL
 }
 trap cleanup_removal_grade_race EXIT
 
-removal_grade_holder_app="removal_164_grade_holder_$$"
+for removal_grade_action in insert update; do
+if [[ "$removal_grade_action" == update ]]; then
+  docker exec "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
+    -X -v ON_ERROR_STOP=1 -c "select public.restore_removed_classroom_students('d1640000-0000-4000-8000-000000000001', 'd1640000-0000-4000-8000-000000000010', array['grade-race-student-164@example.invalid']);" >/dev/null
+fi
+removal_grade_holder_app="removal_164_grade_holder_${removal_grade_action}_$$"
 docker exec -e PGAPPNAME="$removal_grade_holder_app" -i "$REMOVAL_DB_CONTAINER" \
   psql -U postgres -d "$REMOVAL_DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
@@ -154,12 +160,14 @@ if [[ "$removal_grade_ready" != t ]]; then
 fi
 
 docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
-  -X -v ON_ERROR_STOP=1 <<'SQL'
+  -X -v ON_ERROR_STOP=1 -v grade_action="$removal_grade_action" <<'SQL'
 begin;
-set local statement_timeout = '1s';
+set local statement_timeout = '8s';
+select set_config('test.grade_action', :'grade_action', true);
 do $$
 begin
   begin
+    if current_setting('test.grade_action') = 'insert' then
     insert into public.gradebook_item_scores (
       id, classroom_id, item_id, student_id, earned
     ) values (
@@ -170,20 +178,22 @@ begin
       9
     );
     raise exception 'Grade insert crossed an in-flight removal';
-  exception when serialization_failure then null;
-  end;
-  begin
+    else
     update public.gradebook_score_overrides
     set earned = 99
     where id = 'd1640000-0000-4000-8000-000000000014';
     raise exception 'Grade update crossed an in-flight removal';
+    end if;
   exception when serialization_failure then null;
+  when foreign_key_violation then
+    if sqlerrm <> 'gradebook_student_not_enrolled' then raise; end if;
   end;
 end;
 $$;
 rollback;
 SQL
 wait "$removal_grade_holder"
+done
 
 docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
   -X -v ON_ERROR_STOP=1 <<'SQL'

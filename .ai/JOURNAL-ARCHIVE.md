@@ -31599,3 +31599,9 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - Rebased PR #1193 onto current main after #1187 merged. Main now owns migrations 155–158, so the enrollment source migration moved from 157 to 159 with its SQL unchanged. The earlier exact local authorization was consumed by the former 157 filename; the current local history is therefore evidence of the SQL behavior, not a clean 159 lineage replay. No migration was reapplied, repaired, reset, or promoted.
 - Updated current enrollment guidance, harness messages, and static contracts to migration 159. A clean ephemeral replay, focused/type checks, the reserved fifth and final cumulative reviewer launch, and exact-head CI remain before readiness. Hosted application, route adoption, cohort activation, deployment, and production access remain unapproved.
+
+<!-- pika-session-log-archive-batch:b20cdf223a1fa23b3c4ff19ba86fb9c21c3d3ed90ab178834ea1bace7cee488c -->
+## 2026-09-07 — Bind atomic enrollment responses to the requested classroom
+
+- The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
+- Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
