@@ -326,10 +326,25 @@ declare
   v_original_roster jsonb;
   v_original_score jsonb;
   v_original_override jsonb;
+  v_retained_before jsonb;
+  v_retained_after jsonb;
+  v_invitation uuid;
   v_export_id constant uuid := 'c1640000-0000-4000-8000-000000000060';
   v_compact_id constant uuid := 'c1640000-0000-4000-8000-000000000061';
   v_restore_id constant uuid := 'c1640000-0000-4000-8000-000000000062';
 begin
+  begin
+    perform public.remove_classroom_roster_entries_atomic(
+      'c1640000-0000-4000-8000-000000000010', array[
+        'c1640000-0000-4000-8000-000000000018'::uuid,
+        'c1640000-0000-4000-8000-000000000011'::uuid]);
+    raise exception 'Legacy mixed deletion admitted a joined student';
+  exception when object_not_in_prerequisite_state then
+    if sqlerrm <> 'joined_students_require_comprehensive_removal' then raise; end if;
+  end;
+  if not exists (select 1 from public.classroom_roster where id = 'c1640000-0000-4000-8000-000000000018') then
+    raise exception 'Rejected legacy batch partially deleted its invitation';
+  end if;
   v_result := public.remove_classroom_students_preserving_data(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000010',
@@ -402,6 +417,36 @@ begin
   update public.users
   set email = 'student-renamed-164@example.invalid'
   where id = 'c1640000-0000-4000-8000-000000000003';
+
+  -- Legacy callers may remove an unrelated invitation or an unbound re-add
+  -- placeholder. Neither owns the removed learner's retained work or marks.
+  select jsonb_build_object(
+    'work', (select to_jsonb(e) from public.entries e where id = 'c1640000-0000-4000-8000-000000000013'),
+    'score', (select to_jsonb(s) from public.gradebook_item_scores s where id = 'c1640000-0000-4000-8000-000000000015'),
+    'override', (select to_jsonb(o) from public.gradebook_score_overrides o where id = 'c1640000-0000-4000-8000-000000000016')
+  ) into v_retained_before;
+  insert into public.classroom_roster (id, classroom_id, email) values
+    ('c1640000-0000-4000-8000-000000000080', 'c1640000-0000-4000-8000-000000000010', 'unrelated-164@example.invalid'),
+    ('c1640000-0000-4000-8000-000000000081', 'c1640000-0000-4000-8000-000000000010', 'student-renamed-164@example.invalid');
+  foreach v_invitation in array array[
+    'c1640000-0000-4000-8000-000000000080'::uuid,
+    'c1640000-0000-4000-8000-000000000081'::uuid
+  ] loop
+    v_result := public.remove_classroom_roster_entries_atomic(
+      'c1640000-0000-4000-8000-000000000010', array[v_invitation, v_invitation]);
+    if v_result <> '{"requested_count":1,"deleted_roster_entries":1,"deleted_entries":0,"deleted_assignment_docs":0,"deleted_enrollments":0,"deleted_gradebook_score_overrides":0,"deleted_gradebook_item_scores":0}'::jsonb
+      or exists (select 1 from public.classroom_roster where id = v_invitation)
+    then raise exception 'Legacy invitation deletion changed the wrong data: %', v_result; end if;
+    select jsonb_build_object(
+      'work', (select to_jsonb(e) from public.entries e where id = 'c1640000-0000-4000-8000-000000000013'),
+      'score', (select to_jsonb(s) from public.gradebook_item_scores s where id = 'c1640000-0000-4000-8000-000000000015'),
+      'override', (select to_jsonb(o) from public.gradebook_score_overrides o where id = 'c1640000-0000-4000-8000-000000000016')
+    ) into v_retained_after;
+    if v_retained_after is distinct from v_retained_before then
+      raise exception 'Legacy invitation deletion erased retained student work or marks';
+    end if;
+  end loop;
+
   insert into public.classroom_roster (
     id, classroom_id, email, first_name, last_name, student_number,
     counselor_email, join_source

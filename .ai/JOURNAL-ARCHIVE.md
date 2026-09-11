@@ -31640,3 +31640,9 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 
 - User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
 - Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
+
+<!-- pika-session-log-archive-batch:973aaeef78c5fb725790d1b6ab3103ce20d831f8ede6c7f849894cfe0ee85ca1 -->
+## 2026-09-08 — Normalize Attendance timing minute inputs
+
+- Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
+- Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.

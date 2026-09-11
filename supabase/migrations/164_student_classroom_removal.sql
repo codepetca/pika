@@ -625,8 +625,30 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_requested_count integer;
+  v_found_count integer;
+  v_deleted_count integer;
 begin
-  perform 1 from public.classrooms where id = p_classroom_id for update;
+  select count(distinct roster_id)::integer into v_requested_count
+  from unnest(coalesce(p_roster_ids, array[]::uuid[])) as requested(roster_id);
+  if v_requested_count = 0 or v_requested_count > 100 then
+    raise exception using errcode = '22023', message = 'invalid_roster_removal_request';
+  end if;
+  perform private.try_lock_classroom_membership_change(p_classroom_id);
+  perform public.guard_classroom_purge_lifecycle(p_classroom_id);
+  perform 1 from public.classrooms
+  where id = p_classroom_id and archived_at is null for update;
+  if not found then
+    raise exception using errcode = '42501', message = 'classroom_removal_forbidden';
+  end if;
+  perform 1 from public.classroom_roster
+  where classroom_id = p_classroom_id and id = any(p_roster_ids)
+  order by id for update;
+  get diagnostics v_found_count = row_count;
+  if v_found_count <> v_requested_count then
+    raise exception 'One or more roster entries not found in classroom';
+  end if;
   if exists (
     select 1
     from public.classroom_roster as roster
@@ -638,7 +660,38 @@ begin
       errcode = '55000',
       message = 'removed_students_require_explicit_restore_or_purge';
   end if;
-  return private.remove_classroom_roster_entries_pre_v164(p_classroom_id, p_roster_ids);
+  if exists (
+    select 1 from public.classroom_roster as roster
+    where roster.classroom_id = p_classroom_id and roster.id = any(p_roster_ids)
+      and (
+        exists (select 1 from public.classroom_roster_student_bindings as binding
+          where binding.roster_id = roster.id)
+        or exists (
+          select 1 from public.classroom_enrollments as enrollment
+          join public.users as student on student.id = enrollment.student_id
+          where enrollment.classroom_id = p_classroom_id
+            and lower(btrim(student.email)) = lower(btrim(roster.email))
+        )
+      )
+  ) then
+    raise exception using errcode = '55000',
+      message = 'joined_students_require_comprehensive_removal';
+  end if;
+
+  -- Never delegate to historical cleanup: retained marks deliberately have no
+  -- active enrollment. Even an unbound re-add placeholder owns no student data.
+  delete from public.classroom_roster
+  where classroom_id = p_classroom_id and id = any(p_roster_ids);
+  get diagnostics v_deleted_count = row_count;
+  return jsonb_build_object(
+    'requested_count', v_requested_count,
+    'deleted_roster_entries', v_deleted_count,
+    'deleted_entries', 0,
+    'deleted_assignment_docs', 0,
+    'deleted_enrollments', 0,
+    'deleted_gradebook_score_overrides', 0,
+    'deleted_gradebook_item_scores', 0
+  );
 end;
 $$;
 

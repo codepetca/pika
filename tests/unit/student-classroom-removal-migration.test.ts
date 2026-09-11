@@ -94,8 +94,11 @@ describe('migration 164 reversible classroom student removal', () => {
   it('prevents retained rows from falling through to destructive invitation removal', () => {
     expect(migration).toContain('remove_classroom_roster_entries_pre_v164')
     expect(migration).toMatch(
-      /removed_students_require_explicit_restore_or_purge[\s\S]*?return private\.remove_classroom_roster_entries_pre_v164/,
+      /removed_students_require_explicit_restore_or_purge[\s\S]*?joined_students_require_comprehensive_removal[\s\S]*?delete from public\.classroom_roster/,
     )
+    expect(migration).not.toContain('return private.remove_classroom_roster_entries_pre_v164')
+    expect(migration).toContain("'deleted_gradebook_item_scores', 0")
+    expect(migration).toContain("'deleted_gradebook_score_overrides', 0")
   })
 
   it('keeps removed identity portable across classroom archive restore', () => {

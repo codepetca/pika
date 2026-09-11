@@ -215,13 +215,17 @@ begin
     or not exists(select 1 from public.classroom_enrollments where classroom_id=c and student_id=s) then
     raise exception 'Rejected joined roster removal changed enrollment or marks';
   end if;
-  -- Exercise deferred orphan-score cleanup only after enrollment has been
-  -- removed inside this rollback-only fixture transaction.
+  -- Removed membership no longer authorizes legacy academic-data cleanup.
   delete from public.classroom_enrollments where classroom_id=c and student_id=s;
-  perform public.remove_classroom_roster_entries_atomic(c,array['e1610000-0000-4000-8000-000000000040'::uuid]);
+  begin
+    perform public.remove_classroom_roster_entries_atomic(c,array['e1610000-0000-4000-8000-000000000040'::uuid]);
+    raise exception 'Bound roster identity bypassed invitation-only removal';
+  exception when object_not_in_prerequisite_state then
+    if sqlerrm <> 'joined_students_require_comprehensive_removal' then raise; end if;
+  end;
   set constraints all immediate;
-  if exists(select 1 from public.gradebook_item_scores where item_id=i)
-    or not exists(select 1 from public.gradebook_items where id=i) then raise exception 'Roster cleanup did not retain item and remove original score'; end if;
+  if not exists(select 1 from public.gradebook_item_scores where item_id=i)
+    or not exists(select 1 from public.gradebook_items where id=i) then raise exception 'Rejected roster cleanup changed retained item or score'; end if;
   if (select revision from public.classroom_archive_revisions where classroom_id=c) <= rev then raise exception 'Gradebook did not bump archive revision'; end if;
   perform public.mutate_gradebook_item(t,c,'delete',i);
   if exists(select 1 from public.gradebook_items where id=i) then raise exception 'Delete failed'; end if;

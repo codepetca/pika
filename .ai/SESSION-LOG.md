@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-08 — Normalize Attendance timing minute inputs
-
-- Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
-- Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
-
 ## 2026-09-08 — Resolve the second privacy PR history conflict
 
 - Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
@@ -251,6 +246,12 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
 - Synchronized main `b170b89d` (classroom join controls), preserving both continuity histories. Its join flow uses the same serialized RPC and removed-membership guard; no application merge conflicts. Targeted re-review (launch4) and cumulative integration (launch5) remain within the bounded review plan. No merge/deployment permission.
+
+## 2026-09-11 — Isolate legacy invitation removal from retained marks
+
+- Final review launch5 found the legacy remover still delegated to historical orphan-score cleanup. New rollback regression reproduced deletion of a retained standalone score when deleting an unrelated invitation. Owner approved one bounded correction, one fresh disposable-local application of revised164, and two additional review passes (launches6–7).
+- Batch3 replaces that delegation with a bounded, locked invitation-only delete. Removed/bound/joined identities are rejected; only exact requested invitation rows are deleted, with all academic-data deletion counters zero. Tests cover unrelated invitation, removed-identity re-add placeholder, duplicate targets and atomic mixed joined/invitation rejection. Updated the standalone Gradebook harness to require retained marks after enrollment removal. No UI or Pal changes.
+- Revised164 checksum `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7` awaits targeted review and the approved one-time application to fresh disposable `pika_removal_164_djwzbp`; shared/prod remain unchanged. Prior755-test focused gate passed; SQL behavior remains to be verified against the revision.
 
 ## 2026-09-11 — Restore classroom join controls
 

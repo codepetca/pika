@@ -92,3 +92,11 @@ catalog audit and tests old/new matching schemas plus mismatched/unexpected acto
 No SQL changed or was reapplied. Main's classroom join-controls change is included;
 its joins still pass the removed-membership database guard. Final review and CI
 remain required; shared/production databases are untouched.
+
+Final integration identified historical orphan-score cleanup reachable through
+the legacy invitation remover. The third correction replaces that delegation
+with an exact-target invitation-only delete: removed or bound identities and
+email-matched active memberships are rejected; student records are never deleted.
+Regression coverage includes unrelated invitations and unbound re-add placeholders.
+The owner approved one fresh disposable-local application of revised164 and two
+additional reviews; this does not authorize production rollout or merge.
