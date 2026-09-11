@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
@@ -8,6 +8,7 @@ import {
   startStudentPurge,
 } from '@/lib/server/student-purge'
 import { studentPurgeStartRequestSchema } from '@/lib/validations/student-purge'
+import { runStudentPurgeInBackground } from '@/lib/server/student-purge-worker'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,5 +42,10 @@ export const POST = withErrorHandler('PostTeacherStudentPurge', async (request, 
     expectedStorageInventorySha256: input.expected_storage_inventory_sha256,
     expectedRelationalInventorySha256: input.expected_relational_inventory_sha256,
   })
+  if (operation.status !== 'completed' && !(operation.status === 'failed' && operation.retryable === false)) {
+    after(async () => {
+      await runStudentPurgeInBackground(user.id, operation.operation_id)
+    })
+  }
   return NextResponse.json({ operation }, { status: operation.status === 'completed' ? 200 : 202 })
 })
