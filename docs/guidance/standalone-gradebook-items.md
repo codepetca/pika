@@ -81,7 +81,7 @@ owners, and the experimental returned Grades row composition.
 | Deletion and return safeguards | ConfirmDialog | reuse | Explicit scope and consequence |
 | Student disclosure | Classwork summary and shared Card | extend | No new navigation or fake work |
 
-Primary signal: **Add other assessment** in More actions and existing editable marks. No
+Primary signal: **Edit categories** first with a settings icon, followed by **Add other assessment** in More actions and existing editable marks. Dividers follow **Add other assessment** and precede **Export gradebook**. No
 charts, decorative status symbols, automated attendance, new shared primitives,
 or new top-level surfaces. Both roles, desktop/mobile, light/dark; default,
 create/edit, blank/scored/returned, clear, deletion/return confirmation, loading,

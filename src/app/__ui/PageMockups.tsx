@@ -788,8 +788,8 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           </div>
         </TeacherWorkSurfaceActionCluster>}
         actions={<MoreMenu label="Gradebook" items={[
+          { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
           { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
-          { id: 'edit-gradebook', label: 'Edit categories', onSelect: () => setGradebookEditorOpen(true) },
           { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
           { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
           { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },

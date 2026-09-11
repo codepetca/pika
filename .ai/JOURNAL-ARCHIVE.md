@@ -31521,3 +31521,8 @@ After #1121 merged, returned #1138 to draft and rebased its Preview/Markdown com
 - Required focused validation and draft-first independent review follow. No schema changes, migrations, or deployment.
 
 - Queue release: rebase onto main after #1208, preserving its Daily/calendar/error/rollover behavior. Prior reviewed SHA and CI were clean; repeat focused/visual checks and one bounded integration review before the authorized main merge.
+
+<!-- pika-session-log-archive-batch:a75fe0027ad10915b247140f7d36b15340e5945376a3e98ac4ce828b08a6c854 -->
+## 2026-09-07 — Wider calendar announcement tooltips (#1210)
+
+Doubled announcement content width from 14rem to 28rem on desktop, including weekday/weekend chips; mobile sizing and shared Tooltip behavior retained. Original focused checks and teacher/student desktop/mobile light/dark screenshots passed. Queue release authorized merge after #1211; rebased onto current main, preserving calendar loading/timer/history changes and interaction guards. Only archive-history overlap required resolution; retained main history and this entry. Final integration review and exact-head checks recorded in PR.
