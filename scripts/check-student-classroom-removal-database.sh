@@ -11,8 +11,14 @@ if [[ "$REMOVAL_DB_CONTAINER" != supabase_db_pika ]] \
   exit 2
 fi
 
-docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
-  -X -v ON_ERROR_STOP=1 < scripts/check-student-classroom-removal-database.sql
+# Replay legacy overlapping invitation/tombstone rows in both primary-key orders.
+for removal_archive_placeholder in \
+  c1640000-0000-4000-8000-000000000039 \
+  c1640000-0000-4000-8000-000000000052; do
+  docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
+    -X -v ON_ERROR_STOP=1 -v archive_placeholder_id="$removal_archive_placeholder" \
+    < scripts/check-student-classroom-removal-database.sql
+done
 
 # Competing purge locks must return a retryable conflict, not a deadlock or wait.
 for removal_lock_key in \

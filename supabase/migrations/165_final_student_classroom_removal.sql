@@ -46,6 +46,13 @@ begin
     return new;
   end if;
 
+  -- Older two-call re-adds can leave an unbound invitation beside a retained
+  -- identity. Replay that existing archive state regardless of row order;
+  -- this does not restore enrollment or permit edits to a retained row.
+  if tg_op = 'INSERT' and public.is_classroom_archive_maintenance_mode('restore') then
+    return new;
+  end if;
+
   if exists (
     select 1
     from public.classroom_roster as removed

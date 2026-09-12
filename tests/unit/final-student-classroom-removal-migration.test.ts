@@ -26,4 +26,14 @@ describe('final classroom removal forward migration', () => {
     expect(sql).toContain('before insert or update of classroom_id, student_id on public.classroom_enrollments')
     expect(sql).not.toMatch(/delete from|truncate|cron.schedule/i)
   })
+
+  it('replays legacy invitations only during archive inserts without relaxing enrollment or removed-row edits', () => {
+    const enrollment = sql.slice(0, sql.indexOf('create function private.guard_final_student_roster_write()'))
+    expect(enrollment).not.toContain('is_classroom_archive_maintenance_mode')
+    const archiveAllowance = "tg_op = 'INSERT' and public.is_classroom_archive_maintenance_mode('restore')"
+    expect(sql).toContain(archiveAllowance)
+    expect(sql.indexOf("tg_op = 'UPDATE' and old.removed_at is not null"))
+      .toBeLessThan(sql.indexOf(archiveAllowance))
+    expect(sql).not.toContain("is_classroom_archive_maintenance_mode('compaction')")
+  })
 })

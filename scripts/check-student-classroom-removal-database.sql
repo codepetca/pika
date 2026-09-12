@@ -1,8 +1,13 @@
--- Rollback-only migration 164 behavioral fixture. Run with psql against a
--- disposable database that has migrations 001-164 applied. This script never
+-- Rollback-only migration 164/165 behavioral fixture. Run with psql against a
+-- disposable database that has migrations 001-164 or 001-165 applied. This script never
 -- applies migrations and leaves no durable rows.
 
+\if :{?archive_placeholder_id}
+\else
+\set archive_placeholder_id c1640000-0000-4000-8000-000000000039
+\endif
 begin;
+set local pika.removal_test_placeholder_id = :'archive_placeholder_id';
 set local lock_timeout = '3s';
 set local statement_timeout = '20s';
 
@@ -137,6 +142,14 @@ insert into public.classroom_enrollments (
   'c1640000-0000-4000-8000-000000000040',
   '2026-08-20T15:00:00Z',
   '{}'::jsonb
+);
+
+-- An unrelated invitation can become an overlap when the member changes email.
+-- Seed it before that change so it remains unbound, as with a failed 164 re-add.
+insert into public.classroom_roster (id, classroom_id, email) values (
+  :'archive_placeholder_id'::uuid,
+  'c1640000-0000-4000-8000-000000000041',
+  'archive-renamed-164@example.invalid'
 );
 
 -- Stable roster identity, not mutable account email, selects the learner.
@@ -325,6 +338,7 @@ declare
   v_resource record;
   v_archive_path text;
   v_original_roster jsonb;
+  v_original_placeholder jsonb;
   v_original_score jsonb;
   v_original_override jsonb;
   v_retained_before jsonb;
@@ -610,6 +624,13 @@ begin
 
   -- A removed membership remains removed across hot-to-cold-to-hot archive,
   -- while retained roster metadata and grades round-trip byte-for-byte.
+  -- Preserve the unbound overlap without disabling triggers or applying SQL.
+  if exists (select 1 from public.classroom_roster_student_bindings
+    where roster_id = current_setting('pika.removal_test_placeholder_id')::uuid)
+  then raise exception 'Legacy overlap fixture must be unbound'; end if;
+  select to_jsonb(roster) into strict v_original_placeholder
+  from public.classroom_roster roster
+  where roster.id = current_setting('pika.removal_test_placeholder_id')::uuid;
   v_result := public.remove_classroom_students_preserving_data(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000041',
@@ -717,7 +738,7 @@ begin
     raise exception 'Removed-student archive begin failed: %', v_result;
   end if;
   v_counts := v_result->'resource_counts';
-  if v_counts->>'classroom_roster' <> '1'
+  if v_counts->>'classroom_roster' <> '2'
     or v_counts->>'classroom_enrollments' <> '0'
     or v_counts->>'gradebook_item_scores' <> '1'
     or v_counts->>'gradebook_score_overrides' <> '1'
@@ -883,6 +904,9 @@ begin
   if (select to_jsonb(roster) from public.classroom_roster roster
       where roster.id = 'c1640000-0000-4000-8000-000000000042')
       is distinct from v_original_roster
+    or (select to_jsonb(roster) from public.classroom_roster roster
+      where roster.id = current_setting('pika.removal_test_placeholder_id')::uuid)
+      is distinct from v_original_placeholder
     or (select to_jsonb(score) from public.gradebook_item_scores score
       where score.id = 'c1640000-0000-4000-8000-000000000045')
       is distinct from v_original_score
@@ -919,6 +943,13 @@ begin
     raise exception 'Explicit post-archive membership restore changed metadata: %', v_result;
   end if;
   else
+    begin
+      insert into public.classroom_enrollments (classroom_id, student_id) values (
+        'c1640000-0000-4000-8000-000000000041', 'c1640000-0000-4000-8000-000000000040');
+      raise exception 'Archive placeholder allowed removed-student re-enrollment';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
     begin
       perform public.restore_removed_classroom_students(
         'c1640000-0000-4000-8000-000000000001', 'c1640000-0000-4000-8000-000000000041',

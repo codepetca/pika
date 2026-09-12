@@ -44,3 +44,10 @@ not promoted as a new shared dialog pattern. Composite checklist reviewed; remov
 focus/Cancel and disabled states remain covered by existing component tests;
 re-add error and Cancel are covered by the browser matrix. No manual UI follow-up.
 Migration165 replay/database verification remains pending separate authorization.
+
+Independent review found one archive compatibility edge: old interrupted re-adds
+can leave an active invitation beside the retained identity. The forward guard
+now permits INSERT-only archive replay of that existing state; removed-row edits
+and enrollment remain denied. The database fixture covers both placeholder/tombstone
+UUID orders and exact preservation without granting readmission. Execution remains
+pending database-test authorization; no migration has been applied.
