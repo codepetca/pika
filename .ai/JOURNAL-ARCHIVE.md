@@ -31854,3 +31854,59 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
 - Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
 - Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
+
+<!-- pika-session-log-archive-batch:c282499fb0032dfd9839046d3f72d0c09753f056bad170a0ca44e7200287ca8e -->
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
+
+## 2026-09-09 — Keep manual attendance available for existing occurrences
+
+- Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
+- Extended the existing attendance controller and reused the current row status buttons and Edit attendance dialog; no new component, API, schema, migration, dependency, entitlement, or hosted-data change.
+- Focused component coverage passes 60 tests; the full focused gate passes 200 tests plus architecture, UI/design policy, TypeScript, and lint, and the Pika audit is clean. The teacher attendance browser flow passes desktop/mobile in light/dark, including the cancelled-state correction controls, and all four captures were visually inspected. The related student attendance matrix also passes across the same four view/theme combinations.
+
+## 2026-09-09 — Show selected work titles in teacher action bars
+
+- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
+- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
+- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
+- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
+
+## 2026-09-09 — Preserve attendance QR signup handoff
+
+- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
+- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
+- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
+
+## 2026-09-09 — Prepare outbound transport hardening
+
+- User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
+- Created isolated `codex/outbound-transport-hardening` from main `6173d863`, checked active tasks/PRs for overlap, installed locked dependencies and passed environment verification. Confirmed existing redirect-policy and optional Gradex URL/error-boundary gaps; documented the scoped next package in the student-data egress audit.
+- Paused at the session-start concrete-plan approval gate. No source implementation, tests, new PR, migration, feature-flag or production change in this preparation step.
+
+## 2026-09-09 — Implement approved outbound transport hardening
+
+- User approved the scoped package. Eight authenticated runtime OpenAI/Brevo/Pal/Gradex request sites reject redirects. Optional Gradex requires an HTTPS origin, with loopback HTTP allowed only in explicit development; its HTTP/parser/mapping diagnostics discard provider-controlled content, and request timeouts cover response-body consumption.
+- Synthetic loopback regressions first reproduced redirect forwarding and now prove no second-destination requests. URL, safe-error, retry and timeout regressions added; full focused checks and independent review gate publication/readiness. No real provider requests, student records, migration, feature flag or production change.
+- Initial fixed-head Sol/security and Terra/compatibility reviews approved without findings; bounded local checks passed 1,758 tests and all CI jobs passed (two browser cases passed on retry). After owner merge approval, main advanced through #1231 and conflicted only in this shared log. Rebased while draft, preserving both tasks and unchanged transport implementation; targeted integration review and fresh exact-head CI gate the merge. No migration files changed or stash created.
+
+## 2026-09-09 — Resume final outbound transport merge sync
+
+- The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
+- Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.
+
+## 2026-09-09 — Remove counts from Owned / Joined prototype headings
+
+- Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
+- Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
+- Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
+
+## 2026-09-10 — Adopt contextual enrollment in the guarded join route
+
+- Merged prototype heading cleanup PR #1236, synchronized main, and started the next compatibility-batch-C slice in an isolated worktree.
+- The regular join endpoint now authenticates before body parsing and preserves the existing student path unless the exact mixed-role pilot flag and user/classroom pair are configured. The contextual branch scopes code resolution to that pair, evaluates server-built relationship/roster evidence, creates membership only through migration 159's atomic transaction, projects no code/owner data, and allows direct classroom IDs only to recognize an existing membership.
+- Added a service-only rejected-guess wrapper to migration 159 so invalid, out-of-scope and pre-atomic policy-denied non-empty codes consume the same actor and actor-invitation windows. Exact normalized server comparison rejects wildcard/prefix patterns. Successful joins retain atomic roster, binding, profile and optional Pal outbox writes; immediate Pal delivery occurs only for a newly committed membership and uses the same event instant.
+- Independent security and compatibility review found and cleared bounded-input, post-lockout denial-oracle and wildcard-pattern issues. Focused verification passes 104 files / 1,102 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and database-harness shell syntax pass. The rollback-only database harness was not run because the revised, resequenced migration 159 has not been applied under a new exact local permission. No migration, cohort, flag, hosted data, deployment or production availability changed.

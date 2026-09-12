@@ -2,8 +2,8 @@
 
 Status: migration 168 applied and verified on the existing local `pika` database
 on 2026-09-12, following migrations 166/167. Foundation remains disabled.
-Draft PR #1253 includes the reviewed prerequisite changes from #1252 and awaits
-its landing, final integration review, and combined CI.
+Prerequisite PR #1252 is merged to main as `0aeba623`. Draft PR #1253 is synced
+with that main commit and awaits final integration review and combined CI.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -99,7 +99,7 @@ proposed `pika-pal-integration` database received no application migrations and
 is no longer the verification target. No production application, provider
 provisioning, flag enablement, or real-data erasure is included. The approved
 bounded final integration review remains available; #1253 stays draft until
-the prerequisite lands and the resulting candidate is reviewed for CI.
+the synced candidate is reviewed for CI.
 
 ### Earlier isolated verification evidence
 

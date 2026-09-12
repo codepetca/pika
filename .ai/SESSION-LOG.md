@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Adopt contextual enrollment in the guarded join route
-
-- Merged prototype heading cleanup PR #1236, synchronized main, and started the next compatibility-batch-C slice in an isolated worktree.
-- The regular join endpoint now authenticates before body parsing and preserves the existing student path unless the exact mixed-role pilot flag and user/classroom pair are configured. The contextual branch scopes code resolution to that pair, evaluates server-built relationship/roster evidence, creates membership only through migration 159's atomic transaction, projects no code/owner data, and allows direct classroom IDs only to recognize an existing membership.
-- Added a service-only rejected-guess wrapper to migration 159 so invalid, out-of-scope and pre-atomic policy-denied non-empty codes consume the same actor and actor-invitation windows. Exact normalized server comparison rejects wildcard/prefix patterns. Successful joins retain atomic roster, binding, profile and optional Pal outbox writes; immediate Pal delivery occurs only for a newly committed membership and uses the same event instant.
-- Independent security and compatibility review found and cleared bounded-input, post-lockout denial-oracle and wildcard-pattern issues. Focused verification passes 104 files / 1,102 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and database-harness shell syntax pass. The rollback-only database harness was not run because the revised, resequenced migration 159 has not been applied under a new exact local permission. No migration, cohort, flag, hosted data, deployment or production availability changed.
-
 ## 2026-09-10 — Correct contextual enrollment migration lineage
 
 - Verified that local and production databases already record migrations 159 and 160. Both expose migration 159's atomic join foundation and migration 160's announcement fields, but neither has the rejected-guess wrapper later added to the already-applied 159 source.
@@ -247,3 +240,7 @@ On instruction to proceed, completed startup and watched prerequisite#1252 run34
 ## 2026-09-12 — Use the existing local Pika database for Pal
 
 User corrected the target to the existing local database. Integrated reviewed prerequisite#1252 at7923cfaf into this branch, preserving both history logs. Shared local already had001–167; verified project pika, exact pending-only168 preview, unchanged reviewed checksum and no ambiguous backfill generations, then applied168 once with db push --local. History001–168, source/ledger backfill counts and both disabled rollout gates verified. Rollback-only membership lifecycle/lock tests, canonical generated types/check, warning-free DB lint and241-relationship schema audit pass. Combined focused gate passes1676tests/145files plus static checks. Stopped only task-created disposable containers and retained volumes. Notified the prerequisite owner of shared local168; #1252 final CI/authorized main merge still running, so #1253 remains draft pending final integration review/CI. No production application, provider calls or real-data erasure.
+
+## 2026-09-12 — Sync Pal with merged classroom prerequisites
+
+Prerequisite#1252 merged to main as0aeba623 after all exact-head CI gates passed. Synced main into the Pal branch, resolving only continuity conflicts and retaining verified shared local001–168 status. Product and migration trees remain unchanged from the locally verified7eb26f75 integration. Final focused checks and the approved sixth review (Sol/high,20minute cap) precede stable-head Pal CI; production remains untouched.
