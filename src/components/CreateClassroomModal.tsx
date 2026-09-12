@@ -100,6 +100,7 @@ export function CreateClassroomModal({
   const importInFlightRef = useRef(false)
   const importOperationRef = useRef<CourseBlueprintImportOperation | null>(null)
   const instantiateOperationRef = useRef<{ fingerprint: string; id: string } | null>(null)
+  const blankClassroomOperationRef = useRef<{ fingerprint: string; id: string } | null>(null)
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
@@ -147,6 +148,7 @@ export function CreateClassroomModal({
     setError('')
     importOperationRef.current = null
     instantiateOperationRef.current = null
+    blankClassroomOperationRef.current = null
   }
 
   function showCalendarStep() {
@@ -266,10 +268,18 @@ export function CreateClassroomModal({
         router.push(`/classrooms/${classroom.id}?tab=assignments&reviewClassDays=1`)
         return
       } else {
+        const requestBody = { title }
+        const fingerprint = JSON.stringify(requestBody)
+        if (blankClassroomOperationRef.current?.fingerprint !== fingerprint) {
+          blankClassroomOperationRef.current = { fingerprint, id: crypto.randomUUID() }
+        }
         const createResponse = await fetch('/api/teacher/classrooms', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': blankClassroomOperationRef.current.id,
+          },
+          body: JSON.stringify(requestBody),
         })
 
         const createData = await createResponse.json().catch(() => ({}))
@@ -279,6 +289,7 @@ export function CreateClassroomModal({
         }
 
         classroom = createData.classroom
+        blankClassroomOperationRef.current = null
         calendarBody.classroom_id = classroom.id
         try {
           const calendarResponse = await fetch('/api/teacher/class-days', {

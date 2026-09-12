@@ -3056,6 +3056,48 @@ export type Database = {
           },
         ]
       }
+      classroom_creation_operations: {
+        Row: {
+          classroom_id: string | null
+          completed_at: string
+          created_at: string
+          operation_id: string
+          request_sha256: string
+          subject_user_id: string
+        }
+        Insert: {
+          classroom_id?: string | null
+          completed_at?: string
+          created_at?: string
+          operation_id: string
+          request_sha256: string
+          subject_user_id: string
+        }
+        Update: {
+          classroom_id?: string | null
+          completed_at?: string
+          created_at?: string
+          operation_id?: string
+          request_sha256?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_creation_operations_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_creation_operations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_enrollments: {
         Row: {
           classroom_id: string
@@ -9233,6 +9275,18 @@ export type Database = {
           p_pal_event: Json
           p_student_id: string
           p_viewed_at: string
+        }
+        Returns: Json
+      }
+      create_classroom_atomic_v1: {
+        Args: {
+          p_class_code: string
+          p_operation_id: string
+          p_request_sha256: string
+          p_subject_user_id: string
+          p_term_label: string
+          p_theme_color: string
+          p_title: string
         }
         Returns: Json
       }

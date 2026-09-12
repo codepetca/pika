@@ -31734,6 +31734,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused component coverage passes 84 tests. Browser verification passes teacher desktop/mobile light/dark for poster, print, download, rotation/recovery, closed/scheduled/unconfigured states and occurrence fallback, plus student desktop/mobile light/dark open/closed/revoked/roster/error outcomes. Visual inspection caught and fixed a dark-mode SVG rendering defect by inheriting the fixed semantic QR foreground over the QR background; refreshed dark captures show a scannable dark-on-white code.
 - The first ready-PR Test & Build run correctly rejected a fixed poster padding utility outside the registered QR geometry. Returned PR #1222 to draft, restored the governed 10% quiet zone with a semantic regression, and reran design policy, audit, 56 affected tests, and teacher desktop/mobile light/dark browser captures successfully. Targeted re-review and fresh exact-head CI remain.
 
+<!-- pika-session-log-archive-batch:96c075f0c98811dec5bd1ac9b237dd4d1f742f86664b6aae313a70a06632a45c -->
 ## 2026-09-08 — Refine the classroom QR for monitor display
 
 - Replaced the poster dialog's visible `Classroom QR` header with a responsive monitor-shaped composition: the large classroom name and one settings control occupy the left side while the scan-safe QR uses the maximum available height on the right. Compact screens stack the same content so the QR remains visible and contained.

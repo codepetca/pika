@@ -1,5 +1,5 @@
--- Rollback-only migration 166 behavioral fixture. The wrapper script verifies
--- the exact local Supabase target and that migration 166 is already applied.
+-- Rollback-only migrations 166-167 behavioral fixture. The wrapper verifies
+-- the exact local Supabase target and that both migrations are already applied.
 begin;
 set local lock_timeout = '3s';
 set local statement_timeout = '20s';
@@ -9,16 +9,18 @@ declare
   v_setter text := 'public.set_effective_feature_entitlement_v1(uuid,uuid,text,text,boolean,timestamp with time zone,timestamp with time zone,integer,text,text,bigint)';
   v_reader text := 'public.get_classroom_creation_access_v1(uuid,timestamp with time zone)';
   v_assert text := 'public.assert_classroom_creation_allowed_v1(uuid,uuid,timestamp with time zone)';
+  v_create text := 'public.create_classroom_atomic_v1(uuid,uuid,text,text,text,text,text)';
   v_blueprint text := 'public.instantiate_course_blueprint_atomic_v2(uuid,uuid,uuid,uuid,text,bigint,jsonb)';
   v_blueprint_inner text := 'public.instantiate_course_blueprint_atomic_v2_pre_create_entitlement(uuid,uuid,uuid,uuid,text,bigint,jsonb)';
 begin
   if to_regprocedure(v_setter) is null
     or to_regprocedure(v_reader) is null
     or to_regprocedure(v_assert) is null
+    or to_regprocedure(v_create) is null
     or to_regprocedure(v_blueprint) is null
     or to_regprocedure(v_blueprint_inner) is null
   then
-    raise exception 'Migration 166 is required; this fixture never applies it';
+    raise exception 'Migrations 166-167 are required; this fixture never applies them';
   end if;
 
   if has_table_privilege('anon', 'public.effective_feature_entitlements', 'select')
@@ -33,6 +35,13 @@ begin
     or has_function_privilege('authenticated', v_reader, 'execute')
     or not has_function_privilege('service_role', v_reader, 'execute')
     or has_function_privilege('service_role', v_assert, 'execute')
+    or has_table_privilege('anon', 'public.classroom_creation_operations', 'select')
+    or has_table_privilege('authenticated', 'public.classroom_creation_operations', 'select')
+    or not has_table_privilege('service_role', 'public.classroom_creation_operations', 'select')
+    or has_table_privilege('service_role', 'public.classroom_creation_operations', 'insert')
+    or has_function_privilege('anon', v_create, 'execute')
+    or has_function_privilege('authenticated', v_create, 'execute')
+    or not has_function_privilege('service_role', v_create, 'execute')
     or has_function_privilege('service_role', v_blueprint_inner, 'execute')
     or not has_function_privilege('service_role', v_blueprint, 'execute')
   then
@@ -48,13 +57,14 @@ begin
       to_regprocedure(v_setter),
       to_regprocedure(v_reader),
       to_regprocedure(v_assert),
+      to_regprocedure(v_create),
       to_regprocedure(v_blueprint)
     )
     group by owner.rolname
     having owner.rolname = 'postgres'
       and bool_and(procedure.prosecdef)
       and bool_and(procedure.proconfig @> array['search_path=""']::text[])
-      and count(*) = 4
+      and count(*) = 5
   ) then
     raise exception 'Classroom creation entitlement function security metadata is incorrect';
   end if;
@@ -74,7 +84,8 @@ insert into public.users (id, email, role) values
   ('e1660000-0000-4000-8000-000000000004', 'future-166@example.invalid', 'teacher'),
   ('e1660000-0000-4000-8000-000000000005', 'expired-166@example.invalid', 'teacher'),
   ('e1660000-0000-4000-8000-000000000006', 'existing-166@example.invalid', 'teacher'),
-  ('e1660000-0000-4000-8000-000000000007', 'unavailable-166@example.invalid', 'teacher');
+  ('e1660000-0000-4000-8000-000000000007', 'unavailable-166@example.invalid', 'teacher'),
+  ('e1670000-0000-4000-8000-000000000001', 'retry-167@example.invalid', 'teacher');
 
 -- Missing rows preserve the current application-controlled behavior.
 insert into public.classrooms (id, teacher_id, title, class_code) values (
@@ -125,6 +136,69 @@ declare
   v_result jsonb;
   v_replay jsonb;
 begin
+  -- Ordinary creation stores exactly one result and replays it even when
+  -- server-derived values are regenerated after a lost HTTP response.
+  v_result := public.create_classroom_atomic_v1(
+    'e1670000-0000-4000-8000-000000000101',
+    'e1670000-0000-4000-8000-000000000001',
+    repeat('a', 64),
+    'Retry-safe classroom',
+    'E167ONE',
+    null,
+    'blue'
+  );
+  v_replay := public.create_classroom_atomic_v1(
+    'e1670000-0000-4000-8000-000000000101',
+    'e1670000-0000-4000-8000-000000000001',
+    repeat('a', 64),
+    'Retry-safe classroom',
+    'E167TWO',
+    null,
+    'rose'
+  );
+  if not (v_result->>'ok')::boolean
+    or (v_result->>'replayed')::boolean
+    or not (v_replay->>'ok')::boolean
+    or not (v_replay->>'replayed')::boolean
+    or v_result->'classroom'->>'id' <> v_replay->'classroom'->>'id'
+    or v_replay->'classroom'->>'class_code' <> 'E167ONE'
+    or (
+      select count(*)
+      from public.classrooms
+      where teacher_id = 'e1670000-0000-4000-8000-000000000001'
+    ) <> 1
+  then
+    raise exception 'Ordinary classroom creation replay is invalid: %, %', v_result, v_replay;
+  end if;
+
+  v_replay := public.create_classroom_atomic_v1(
+    'e1670000-0000-4000-8000-000000000101',
+    'e1670000-0000-4000-8000-000000000001',
+    repeat('b', 64),
+    'Changed classroom',
+    'E167NEW',
+    null,
+    'teal'
+  );
+  if v_replay->>'error_code' <> 'classroom_creation_idempotency_conflict' then
+    raise exception 'Ordinary classroom creation conflict is invalid: %', v_replay;
+  end if;
+
+  delete from public.classrooms
+  where id = (v_result->'classroom'->>'id')::uuid;
+  v_replay := public.create_classroom_atomic_v1(
+    'e1670000-0000-4000-8000-000000000101',
+    'e1670000-0000-4000-8000-000000000001',
+    repeat('a', 64),
+    'Retry-safe classroom',
+    'E167THR',
+    null,
+    'amber'
+  );
+  if v_replay->>'error_code' <> 'classroom_creation_result_unavailable' then
+    raise exception 'Missing classroom creation result was recreated: %', v_replay;
+  end if;
+
   begin
     insert into public.classrooms (id, teacher_id, title, class_code) values (
       'e1660000-0000-4000-8000-000000000071',

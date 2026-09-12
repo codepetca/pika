@@ -206,6 +206,47 @@ describe('CreateClassroomModal', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('reuses the blank-classroom idempotency key when an unchanged request is retried', async () => {
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ classroom: { id: 'classroom-1', title: 'Career Studies' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ count: 105, class_days: [] }),
+      })
+
+    renderModal({ onSuccess, onClose })
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByLabelText(/First day of class/i)
+    chooseFirstClassDay()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(await screen.findByText('Temporary failure')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({
+      id: 'classroom-1',
+      title: 'Career Studies',
+    }))
+    expect(onClose).toHaveBeenCalledOnce()
+
+    const createCalls = fetchMock.mock.calls.filter(([url, init]) => (
+      String(url) === '/api/teacher/classrooms' && init?.method === 'POST'
+    ))
+    expect(createCalls).toHaveLength(2)
+    expect((createCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (createCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
   it('requires the last day of class to be after the first day', async () => {
     renderModal()
     fireEvent.change(getClassroomNameInput(), { target: { value: 'Career Studies' } })

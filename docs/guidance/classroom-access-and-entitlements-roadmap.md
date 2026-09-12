@@ -152,8 +152,10 @@ actual integration findings; this roadmap is not a delivery-date commitment.
 - Migration 166 authors the first database-resolved effective-entitlement snapshot and an
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation
-  and ownership transfer share the database guard. The migration is unapplied until exact
-  target/file authorization is granted under the schema rollout checklist.
+  and ownership transfer share the database guard. Forward migration 167 makes ordinary
+  creation retries replay one stored classroom instead of consuming capacity twice. Both are
+  verified on shared local Supabase; neither is applied to hosted production, and no account
+  has been seeded or cut over.
 
 ## Safe rollout while real classes continue
 

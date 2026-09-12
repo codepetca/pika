@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { requireRole } from '@/lib/auth'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
-import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { listTeacherHotArchiveRecovery } from '@/lib/server/classroom-archive-status'
 import {
@@ -41,7 +41,7 @@ vi.mock('@/lib/server/classroom-purge-availability', () => ({
   listHotClassroomPurgeEnabledIds: vi.fn(),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('GET /api/teacher/classrooms', () => {
   beforeEach(() => {
@@ -213,11 +213,28 @@ describe('GET /api/teacher/classrooms', () => {
 })
 
 describe('POST /api/teacher/classrooms', () => {
+  const operationId = '11111111-1111-4111-8111-111111111111'
+
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(getNextTeacherClassroomPosition as any).mockResolvedValue(-1)
     ;(listActiveTeacherClassrooms as any).mockResolvedValue({ data: [], error: null })
+    mockSupabaseClient.rpc.mockImplementation(async (_functionName, args) => ({
+      data: {
+        ok: true,
+        status: 201,
+        operation_id: args.p_operation_id,
+        replayed: false,
+        classroom: {
+          id: '33333333-3333-4333-8333-333333333333',
+          title: args.p_title,
+          class_code: args.p_class_code,
+          term_label: args.p_term_label,
+          theme_color: args.p_theme_color,
+        },
+      },
+      error: null,
+    }))
   })
 
   it('keeps creation teacher-gated even with shadow sampling enabled and a paid client claim', async () => {
@@ -231,7 +248,7 @@ describe('POST /api/teacher/classrooms', () => {
     }))
     expect(response.status).toBe(403)
     expect(requireRole).toHaveBeenCalledWith('teacher')
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
     expect(info).not.toHaveBeenCalled()
   })
 
@@ -242,14 +259,16 @@ describe('POST /api/teacher/classrooms', () => {
     vi.stubEnv('PIKA_ACCESS_SHADOW_USER_IDS', id)
     const info = vi.spyOn(console, 'info').mockImplementation(() => { if (throws) throw new Error('logger down') })
     vi.mocked(requireRole).mockResolvedValueOnce({ id, email: 'private@example.com', role: 'teacher' } as Awaited<ReturnType<typeof requireRole>>)
-    const insert = vi.fn(() => ({ select: () => ({ single: async () => ({ data: { id: 'classroom-1' }, error: null }) }) }))
-    mockSupabaseClient.from.mockReturnValue({ insert })
     const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
-      method: 'POST', body: JSON.stringify({ title: 'Math', classCode: 'ABCDEF', themeColor: 'blue' }),
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+      body: JSON.stringify({ title: 'Math', classCode: 'ABCDEF', themeColor: 'blue' }),
     }))
     expect(response.status).toBe(201)
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ teacher_id: id }))
-    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_classroom_atomic_v1',
+      expect.objectContaining({ p_subject_user_id: id }),
+    )
     expect(info).toHaveBeenCalledWith('PikaAccessShadow', expect.objectContaining({ check: 'create', comparison: 'match' }))
   })
 
@@ -266,58 +285,44 @@ describe('POST /api/teacher/classrooms', () => {
   })
 
   it('should create classroom with generated code', async () => {
-    const mockInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'classroom-1', title: 'Math 101' },
-          error: null,
-        }),
-      })),
-    }))
-
-    const mockFrom = vi.fn(() => ({
-      insert: mockInsert,
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms', {
       method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
       body: JSON.stringify({ title: 'Math 101', termLabel: 'Fall 2024' }),
     })
 
     const response = await POST(request)
     expect(response.status).toBe(201)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Math 101',
-      term_label: 'Fall 2024',
-      position: -1,
-      theme_color: expect.any(String),
-    }))
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_classroom_atomic_v1',
+      expect.objectContaining({
+        p_operation_id: operationId,
+        p_title: 'Math 101',
+        p_class_code: expect.stringMatching(/^[A-Z2-9]{6}$/),
+        p_term_label: 'Fall 2024',
+        p_theme_color: expect.any(String),
+      }),
+    )
+    await expect(response.json()).resolves.toMatchObject({
+      operation_id: operationId,
+      replayed: false,
+    })
   })
 
   it('should create classroom with selected theme color', async () => {
-    const mockInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'classroom-1', title: 'Math 101', theme_color: 'teal' },
-          error: null,
-        }),
-      })),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert: mockInsert }))
-
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms', {
       method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
       body: JSON.stringify({ title: 'Math 101', themeColor: 'teal' }),
     })
 
     const response = await POST(request)
 
     expect(response.status).toBe(201)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      theme_color: 'teal',
-    }))
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_classroom_atomic_v1',
+      expect.objectContaining({ p_theme_color: 'teal' }),
+    )
     expect(listActiveTeacherClassrooms).not.toHaveBeenCalled()
   })
 
@@ -330,28 +335,19 @@ describe('POST /api/teacher/classrooms', () => {
       ],
       error: null,
     })
-    const mockInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'classroom-4', title: 'History 101', theme_color: 'rose' },
-          error: null,
-        }),
-      })),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert: mockInsert }))
-
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms', {
       method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
       body: JSON.stringify({ title: 'History 101' }),
     })
 
     const response = await POST(request)
 
     expect(response.status).toBe(201)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      theme_color: 'rose',
-    }))
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_classroom_atomic_v1',
+      expect.objectContaining({ p_theme_color: 'rose' }),
+    )
   })
 
   it('should reject invalid classroom theme colors', async () => {
@@ -370,18 +366,14 @@ describe('POST /api/teacher/classrooms', () => {
     ['23514', 'classroom_creation_active_limit_reached', 409, 'Archive an active classroom before creating another.', false],
     ['55000', 'classroom_creation_entitlement_unavailable', 503, 'Classroom creation is temporarily unavailable. Please try again.', true],
   ])('maps database creation denial %s safely', async (code, message, status, safeMessage, retryable) => {
-    const mockInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: { code, message, details: 'private database detail' },
-        }),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert: mockInsert }))
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code, message, details: 'private database detail' },
+    })
 
     const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
       method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
       body: JSON.stringify({ title: 'Access classroom', themeColor: 'blue' }),
     }))
 
@@ -390,6 +382,34 @@ describe('POST /api/teacher/classrooms', () => {
       error: safeMessage,
       error_code: message,
       retryable,
+    })
+  })
+
+  it('returns a safe conflict for reuse of an operation key with different input', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: {
+        ok: false,
+        status: 409,
+        operation_id: operationId,
+        error_code: 'classroom_creation_idempotency_conflict',
+        error: 'private database response',
+        retryable: false,
+      },
+      error: null,
+    })
+
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+      body: JSON.stringify({ title: 'Different classroom', themeColor: 'blue' }),
+    }))
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'This classroom creation request conflicts with an earlier attempt.',
+      error_code: 'classroom_creation_idempotency_conflict',
+      retryable: false,
+      operation_id: operationId,
     })
   })
 })
