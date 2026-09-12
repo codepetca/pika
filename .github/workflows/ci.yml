@@ -130,6 +130,9 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify classroom creation entitlements and active-limit concurrency
+        run: bash scripts/check-classroom-creation-entitlements-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 

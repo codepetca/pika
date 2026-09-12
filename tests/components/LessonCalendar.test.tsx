@@ -194,7 +194,7 @@ describe('LessonCalendar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
 
-    const dialog = screen.getByRole('dialog', { name: /monday, march 16, 2026/i })
+    const dialog = screen.getByRole('dialog', { name: 'Mon Mar 16, 2026' })
 
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText('Week 11 test')).toBeInTheDocument()
@@ -217,7 +217,7 @@ describe('LessonCalendar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
 
-    const dialog = screen.getByRole('dialog', { name: /monday, march 16, 2026/i })
+    const dialog = screen.getByRole('dialog', { name: 'Mon Mar 16, 2026' })
     expect(within(dialog).getByRole('link', { name: 'course outline' })).toHaveAttribute(
       'href',
       'https://example.com/outline',

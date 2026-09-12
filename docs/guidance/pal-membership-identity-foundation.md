@@ -1,8 +1,9 @@
 # Pal membership identity foundation — Phase 1
 
-Status: migration 168 applied and verified on isolated local `pika-pal-phase1`
-on 2026-09-12. Foundation remains disabled. Draft PR #1253 is addressing a
-CI fixture-generation reuse failure after clear final integration review.
+Status: migration 168 applied and verified on the existing local `pika` database
+on 2026-09-12, following migrations 166/167. Foundation remains disabled.
+Draft PR #1253 includes the reviewed prerequisite changes from #1252 and awaits
+its landing, final integration review, and combined CI.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -80,6 +81,28 @@ unchanged. No Pal/Bara repository edits are made.
 
 ## Verification and next gate
 
+The user corrected the target to the existing local Pika database. Its verified
+history already contained 001–167. After integrating the reviewed prerequisite
+branch, the exact local preview contained only 168; the reviewed checksum was
+unchanged and read-only checks found no ambiguous historical generation IDs.
+One `supabase db push --local` applied 168 successfully. History now contains
+001–168, the ledger count matches the source backfill count, and the database
+and app gates remain disabled. The rollback-only membership lifecycle fixture
+and both source-lock barriers pass on this database. Public types regenerated
+through the canonical command match the merged generated contract and pass
+`db:types:check`. Combined focused checks pass 1,676 tests across 145 files plus
+architecture, UI/design policy, TypeScript and lint. Database lint is warning-free,
+and the classroom schema audit passes all 241 foreign-key relationships.
+
+Extra Pal disposable containers were stopped, preserving their volumes. The
+proposed `pika-pal-integration` database received no application migrations and
+is no longer the verification target. No production application, provider
+provisioning, flag enablement, or real-data erasure is included. The approved
+bounded final integration review remains available; #1253 stays draft until
+the prerequisite lands and the resulting candidate is reviewed for CI.
+
+### Earlier isolated verification evidence
+
 Unit tests were written before implementation, including a red transport-error
 privacy regression. They cover auth, strict input/output, disabled/missing-schema
 behavior, no caching, and reference stability across secret rotation. The
@@ -92,19 +115,17 @@ The initial task did not authorize migration application. The user subsequently
 approved isolated baseline migrations 001–165, migration 168's intentional
 rollback rehearsal, and then one clean application of 168 in three separate
 instructions. Each succeeded on 2026-09-12. Production operations, flag
-enablement, real-data mutation and provider provisioning remain unauthorized.
+enablement, real-data erasure and provider provisioning remain unauthorized.
 Public types were generated from the verified isolated schema with the
 repository's `db:types:generate` command and passed `db:types:check`. A temporary
 local CLI launcher pointed those commands at this isolated Supabase workdir;
-the shared database was not used. The only generated public change is the
+the shared database was not used at that stage. The only Pal public change is the
 `resolve_pal_membership` RPC. The temporary RPC type adapter was removed.
-Keep the PR draft until final independent review is complete. Ready-event CI
-also replays migrations and must wait for replay authorization. Production
-application, rollout, and merge authority are separate.
+Production application, rollout, and merge authority are separate.
 
-The shared local database contains unrelated migration 166, and another active
-worktree owns 167. This branch reserves 168 and must not generate types from
-that shared database. Verification target: isolated local Supabase project
+Initially the shared local database contained unrelated migration 166, and
+another active worktree owned 167. This branch reserved 168 and generated types
+from an isolated schema at that stage. Earlier verification target: local project
 `pika-pal-phase1`, with seeding disabled and migrations 001–165 as its empty
 baseline. Runtime files are at
 `/Users/stew/.codex/worktrees/pika/.pal-phase1-db`; the database container is
@@ -156,15 +177,14 @@ Pre-application independent source review used Sol/high for security and
 Terra/high for compatibility against `9eee7313`. Both identified the unlocked
 backfill window; Sol also identified missing transaction atomicity. One batched
 correction adds both protections, red-first source-order tests, a rollback
-rehearsal and lock-barrier coverage. Database execution remains the next gate.
+rehearsal and lock-barrier coverage. Database execution subsequently passed.
 
 Targeted Sol/high re-review cleared both findings at implementation commit
 `a553bf8ce0502ff5059e918a3a917803a3db446f`, with no new actionable defects.
 Local focused verification passed 113 tests plus architecture, UI/design policy,
 TypeScript and lint again after the generated RPC and adapter removal.
-Review usage: three launches,
-one full wave, one targeted wave, one fix batch. Final integration review must
-cover the verified schema evidence, generated public RPC and adapter removal.
+Review usage at that checkpoint: three launches, one full wave, one targeted
+wave, one fix batch.
 The user approved a final Sol/high review extension and disposable CI schema
 replay/reset tests. Final cumulative review cleared `6d150f91` with no findings.
 The first ready-event CI run (`34705814298`) then exposed an existing test
@@ -175,4 +195,7 @@ enrollment UUID for each case. The test harness now accepts only the existing
 `pika` project or the explicitly named isolated `pika-pal-phase1` project, with
 matching container name and label checks. Product source and migration 168 are
 unchanged by this correction. PR #1253 was returned to draft before correction;
-focused re-review and CI on the corrected candidate remain required.
+targeted Terra/high review cleared it at `15a6566e`. CI also exposed the missing
+166/167 sequence, now supplied by the reviewed prerequisite branch. Five review
+launches and two remediation batches are complete; the user approved one more
+Sol/high integration pass capped at 20 minutes after the prerequisite lands.

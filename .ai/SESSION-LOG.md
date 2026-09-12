@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-09 — Prepare outbound transport hardening
-
-- User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
-- Created isolated `codex/outbound-transport-hardening` from main `6173d863`, checked active tasks/PRs for overlap, installed locked dependencies and passed environment verification. Confirmed existing redirect-policy and optional Gradex URL/error-boundary gaps; documented the scoped next package in the student-data egress audit.
-- Paused at the session-start concrete-plan approval gate. No source implementation, tests, new PR, migration, feature-flag or production change in this preparation step.
-
-## 2026-09-09 — Implement approved outbound transport hardening
-
-- User approved the scoped package. Eight authenticated runtime OpenAI/Brevo/Pal/Gradex request sites reject redirects. Optional Gradex requires an HTTPS origin, with loopback HTTP allowed only in explicit development; its HTTP/parser/mapping diagnostics discard provider-controlled content, and request timeouts cover response-body consumption.
-- Synthetic loopback regressions first reproduced redirect forwarding and now prove no second-destination requests. URL, safe-error, retry and timeout regressions added; full focused checks and independent review gate publication/readiness. No real provider requests, student records, migration, feature flag or production change.
-- Initial fixed-head Sol/security and Terra/compatibility reviews approved without findings; bounded local checks passed 1,758 tests and all CI jobs passed (two browser cases passed on retry). After owner merge approval, main advanced through #1231 and conflicted only in this shared log. Rebased while draft, preserving both tasks and unchanged transport implementation; targeted integration review and fresh exact-head CI gate the merge. No migration files changed or stash created.
-
-## 2026-09-09 — Resume final outbound transport merge sync
-
-- The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
-- Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.
-
-## 2026-09-09 — Remove counts from Owned / Joined prototype headings
-
-- Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
-- Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
-- Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
-
 ## 2026-09-10 — Adopt contextual enrollment in the guarded join route
 
 - Merged prototype heading cleanup PR #1236, synchronized main, and started the next compatibility-batch-C slice in an isolated worktree.
@@ -244,3 +221,29 @@ Terra cleared the fixture correction at15a6566e; five reviews and two fix batche
 ## 2026-09-12 — Pal prerequisite CI blocker routed to owner
 
 On instruction to proceed, completed startup and watched prerequisite#1252 run34706856667. Test & Build passed; the database schema audit failed on untracked classroom_creation_operations. Reported exact evidence to its owning task, which returned#1252 to draft. No dependency branch edits or integration review launched. Prepared seed-disabled local pika-pal-integration configuration and proposed001–168 checksum manifest at /Users/stew/.codex/worktrees/pika/.pal-integration-db; no database started or migrations applied. Refresh that manifest after the prerequisite correction lands, and obtain exact combined-replay authority before using it. Pal#1253 remains draft with the approved integration review reserved.
+
+## 2026-09-12 — Abbreviate calendar day modal dates
+
+- Updated the shared week-header day modal to show `Fri Sep 11, 2026`; adjusted its two existing dialog-name assertions.
+- Verified: focused checks passed (254 tests, TypeScript, lint, architecture, UI/design policy); audit clean. Playwright screenshots reviewed for teacher/student, 1440×900 and 390×844, light/dark; next-day, ArrowLeft, and Escape checks passed in all eight combinations. Evidence: `output/playwright/calendar-*.png` in the task worktree.
+- Owner: calendar modal date task; branch `codex/calendar-modal-date-format`. Risk profile: none. Reused LessonCalendar date formatting and DialogPanel; Pattern Lab controls/dialog reference inspected. No new pattern or composite behavior.
+- Follow-up: gave the date/navigation row a full-width muted header band and divider using existing semantic tokens. Rechecked all eight screenshots, day navigation/Escape, and 254 focused tests. The pre-commit audit's whole-file composite heuristic requests a newly changed test for this class-only follow-up; existing dialog tests and the keyboard browser matrix passed, with no semantics or handlers changed. Targeted independent review will cover the refinement in the same PR.
+
+## 2026-09-12 — Begin Free / Access classroom-creation enforcement
+
+- Approved policy: Free is join/participate-only; Access permits one active owned classroom and unlimited joining. Initial Access is manually granted. Trial remains a separate, time-limited future overlay with at most one trial period per account; Plus/Pro and billing are deferred.
+- Authored additive migration166 with service-only effective snapshots, immutable idempotent audit, exact validity windows and a transaction-serialized active-classroom limit. Missing snapshots preserve current teacher-role behavior and no cohort is seeded. The database trigger covers direct inserts, reactivation and ownership transfer; the Blueprint entry point is wrapped before its internal error boundary.
+- Ordinary and Blueprint creation paths map exact database denials to safe 403/409/503 responses. Added source, API/helper and Blueprint tests plus a rollback-only database/concurrency harness wired into CI. Owner authorized and consumed one local application of migration166 checksum `c66842db8c504d50a438c8e6f3c841e759cac87923fa3531300b6a84ceeede6c`; preview contained only166 and application succeeded. Transactional and two-writer race contracts pass, database lint is warning-free, and regenerated public types match. Production remains164 and no entitlement row/cohort was created.
+
+## 2026-09-12 — Make ordinary classroom creation retry-safe
+
+- Initial Sol/Terra review of draft PR #1252 found that a lost ordinary-create response could duplicate an unmanaged classroom or consume Access capacity before the retry, and that reactivation denials collapsed to a generic 500. Remediation batch1 adds forward migration167 with a service-only operation ledger and atomic replay RPC, gives the existing blank-class modal a stable per-request idempotency key, and maps exact entitlement errors on restore. No visible modal contract changed.
+- Owner authorized and consumed one shared-local application of migration167 checksum `f14c853330729d6e48a8e6d6cf18c9a7fbf34f32bb11067a5edf175062a29759`; dry run contained only167. Sequential replay, changed-request conflict, missing-result fail-closed behavior, same-key concurrency, Access quota concurrency, privileges, database lint and generated types all pass. Production remains164 and no entitlement cohort was seeded.
+- Focused gate passes1144 tests/105files plus static checks. The Create Classroom browser scenario passes; teacher modal desktop/mobile light/dark and mobile error-state captures were inspected with no visible drift. A real browser retry probe sent the same UUID key twice. Student is n/a because creation remains teacher-gated. Targeted and final independent review remain before exact-head CI; no merge/deployment authorization.
+- Targeted Sol review found one lost-success-body edge: the modal discarded its operation key before validating the returned classroom identity. Remediation batch2 now retains that key until a usable classroom ID is confirmed, so a retry replays the committed operation instead of attempting a duplicate. The focused component regression passes23/23; cumulative checks and review follow. No migration, entitlement, UI layout or rollout change.
+- Targeted Sol and final Terra reviews then cleared stable `1da0bc20`. Ready-head CI run34706856667 passed full test/build but its schema inventory correctly rejected `classroom_creation_operations` as unclassified; returning the PR to draft cancelled the still-running browser lane. Owner approved a bounded extension for remediation batch3 and reviewer launches6–7. The ledger is now explicitly account-owned, non-portable workflow metadata for both its classroom result pointer and subject-account reference; the exact live-schema audit passes241 foreign-key relationships and the inventory suite passes16tests. No migration or runtime behavior changed.
+- Targeted Terra and final Sol reviews cleared corrected `6dbc0741`; exact-head CI run34707881236 then passed classification, full test/build, database architecture including the corrected schema inventory, browser matrix, and PR Gate. Main advanced during that run through calendar-only #1255, leaving conflicts only in the continuity logs. Owner authorized one final sync, reviewer launch8, exact-head CI, and merge to main if green. Rebased onto `5cc127ec`, preserving both log histories; range comparison shows no product/migration change beyond the already reviewed PR. Production remains164 and no rollout state changed.
+
+## 2026-09-12 — Use the existing local Pika database for Pal
+
+User corrected the target to the existing local database. Integrated reviewed prerequisite#1252 at7923cfaf into this branch, preserving both history logs. Shared local already had001–167; verified project pika, exact pending-only168 preview, unchanged reviewed checksum and no ambiguous backfill generations, then applied168 once with db push --local. History001–168, source/ledger backfill counts and both disabled rollout gates verified. Rollback-only membership lifecycle/lock tests, canonical generated types/check, warning-free DB lint and241-relationship schema audit pass. Combined focused gate passes1676tests/145files plus static checks. Stopped only task-created disposable containers and retained volumes. Notified the prerequisite owner of shared local168; #1252 final CI/authorized main merge still running, so #1253 remains draft pending final integration review/CI. No production application, provider calls or real-data erasure.
