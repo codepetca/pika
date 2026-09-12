@@ -4,6 +4,10 @@ export const membershipPalReadRequestSchema = z.object({
   classroomId: z.string().uuid(),
 }).strict()
 
+export const classroomPalTokenRequestSchema = membershipPalReadRequestSchema.extend({
+  scopeKey: z.string().regex(/^pika-classroom-v1-[0-9a-f]{64}$/),
+}).strict()
+
 export const membershipPalResolutionSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('disabled') }).strict(),
   z.object({ status: z.literal('forbidden') }).strict(),

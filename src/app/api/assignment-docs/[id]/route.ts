@@ -206,6 +206,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           created = result.doc
           createdByThisRequest = result.created
           palDelivery = await attemptImmediatePalEventDelivery({
+            membership: { studentId: user.id, classroomId: assignment.classroom_id },
             event: palEvent,
             supabase,
           })

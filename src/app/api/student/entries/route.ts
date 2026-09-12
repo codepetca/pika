@@ -295,6 +295,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       entry = result.entry
       if (palEvent) {
         palDelivery = await attemptImmediatePalEventDelivery({
+          membership: { studentId: user.id, classroomId: classroom_id },
           event: palEvent,
           supabase,
         })
@@ -503,7 +504,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
           )
         }
         const palDelivery = palEvent
-          ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+          ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
           : undefined
         return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
       } catch (error) {
@@ -609,7 +610,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
         )
       }
       const palDelivery = palEvent
-        ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+        ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
         : undefined
       return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
     } catch (error) {

@@ -1,7 +1,7 @@
 # Classroom-specific Pal and automatic student cleanup
 
 Date: 2026-09-12
-Status: phased plan; implementation and rollout gates are not completed.
+Status: Phase 1 delivered; Phase 2 dispatched. Live rollout remains disabled.
 Scope: Pika, Pal, and the required Bara attendance integration.
 Risk profile for implementation: runtime-platform; identity, authorization and
 irreversible data deletion.
@@ -243,9 +243,46 @@ not erased.
 
 ## Immediate next step
 
-Start Phase 1: specify and test the membership-generation identity lifecycle and
-its archive/removal compatibility, then implement the disabled foundation. No
-student-facing cutover, achievements reset or production deletion in this step.
+Deliver Phase 2's disabled classroom-scoped signals and widget implementation,
+tracking provider compatibility and full-phase exit evidence separately from
+the implementation PR. No student-facing cutover, achievement reset or
+production deletion in this step.
+
+## Coordination handoff — 2026-09-12
+
+- Coordinator: `01a09083-d907-7532-ae50-9b46d292bdb6`; tool-backed overall goal
+  active. One implementation owner at a time; use the dispatch/orchestrate skills.
+- Phase 1 owner: `01a095fb-07ff-73b3-90df-5bb6d69d5330`,
+  “Build classroom-specific Pal identity…”. Goal complete; not archived.
+  PR #1253 merge verified from GitHub, main
+  `3a225b0f51dbf791bf0c7ee02d7760368b0823e5`; reviewed head
+  `941ca944a9a5017675bb66396b93f0ff5ea55419`, all five CI checks including
+  PR Gate passed. Canonical main was synchronized and feature checkout cleaned.
+- Local and production migration ledgers are verified through 168. Production
+  166–168 applied once with explicit exact-set approval; 13 function comparisons
+  and 14 read-only postflight checks passed. Sanitized receipt:
+  `/Users/stew/.codex/metrics/pika-production-migrations.jsonl`.
+  Both Pal gates remain disabled; no deployment or existing-achievement changes.
+- Phase 2 owner: `01a0978b-297c-70c1-9199-76a9f104cac0`,
+  “Phase 2 classroom-specific Pal implementation”, in
+  `/Users/stew/.codex/worktrees/d432/pika`. Tool-backed goal confirmed active;
+  branch `codex/pal-classroom-signals`. Disabled source implementation and all
+  six event-family paths authored; 14 browser checks passed across both roles,
+  viewports and themes. Migration 169 is not applied: local preflight previews
+  only 169, and generated types/database execution await exact local approval.
+  No PR yet; publication, independent review and exact-head CI follow that gate.
+  See [implementation evidence](pal-classroom-signals.md). The owner will publish
+  this existing roadmap through the normal reviewed PR workflow.
+- Coordinator heartbeat: `advance-classroom-pal-and-cleanup-phases`, active
+  every 15 minutes; report meaningful transitions only and update the tracked
+  owner after each verified delivery. This is not a product cleanup cron.
+- Current authorization: bounded implementation, dispatch, normal PR/review/CI
+  workflow and coordinator monitoring. Prior exact PR merge and migration
+  approvals are consumed; future merges, migrations, deployments, live rollout,
+  real-data erasure and archival require their applicable explicit authority.
+  Do not infer historical-removal backfill or legacy-profile deletion approval.
+- Phases 3–6 remain pending their exit evidence and approval gates. A ready PR
+  is not a merge, and a merged component is not proof of a complete phase.
 
 This plan supersedes the earlier account-level recommendation in
 [Pal lifecycle review](pal-lifecycle-review.md) and the narrower proposal in

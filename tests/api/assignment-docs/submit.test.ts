@@ -630,6 +630,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       palEvent: expect.objectContaining({ event_type: 'learning_item.completed' }),
     }))
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      membership: { studentId: 'student-1', classroomId: 'class-1' },
       event: expect.objectContaining({ event_type: 'learning_item.completed' }),
       supabase: mockSupabaseClient,
     })

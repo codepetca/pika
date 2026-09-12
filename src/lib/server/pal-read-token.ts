@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { createHash } from 'node:crypto'
 
 import { requirePalEnvironment } from '@/lib/server/pal-config'
 import { pseudonymizePalRef } from '@/lib/server/pal-events'
@@ -33,12 +34,21 @@ export async function mintPalReadToken(input: {
   fetchImpl?: typeof fetch
   now?: Date
 }): Promise<PalReadToken> {
-  const { apiUrl, integrationSecret, pseudonymSecret } = requirePalEnvironment()
+  const { pseudonymSecret } = requirePalEnvironment()
   const learnerId = pseudonymizePalRef(
     'learner',
     input.studentId,
     pseudonymSecret,
   )
+  return mintPalReadTokenForReference({ learnerReference: learnerId, fetchImpl: input.fetchImpl, now: input.now })
+}
+
+async function mintPalReadTokenForReference(input: {
+  learnerReference: string
+  fetchImpl?: typeof fetch
+  now?: Date
+}): Promise<PalReadToken> {
+  const { apiUrl, integrationSecret } = requirePalEnvironment()
   const response = await (input.fetchImpl ?? fetch)(
     `${apiUrl}/api/v1/integration/read-token`,
     {
@@ -48,7 +58,7 @@ export async function mintPalReadToken(input: {
         Authorization: `Bearer ${integrationSecret}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ learner_id: learnerId }),
+      body: JSON.stringify({ learner_id: input.learnerReference }),
       signal: AbortSignal.timeout(5_000),
     },
   )
@@ -159,3 +169,16 @@ export function createPalReadTokenBroker(options: {
 }
 
 export const getPalReadTokenForStudent = createPalReadTokenBroker()
+
+const membershipBroker = createPalReadTokenBroker({
+  mint: ({ studentId: cacheKey }) => mintPalReadTokenForReference({
+    learnerReference: cacheKey.slice(cacheKey.indexOf(':') + 1),
+  }),
+})
+
+export async function getPalReadTokenForMembership(input: { learnerReference: string }): Promise<PalReadToken> {
+  z.string().regex(/^pika-membership-v1-[0-9a-f]{32}$/).parse(input.learnerReference)
+  const { apiUrl, integrationSecret } = requirePalEnvironment()
+  const integrationKey = createHash('sha256').update(JSON.stringify([apiUrl, integrationSecret])).digest('hex')
+  return membershipBroker({ studentId: `${integrationKey}:${input.learnerReference}` })
+}

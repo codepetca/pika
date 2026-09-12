@@ -1,9 +1,10 @@
 # Pal membership identity foundation — Phase 1
 
-Status: migration 168 applied and verified on the existing local `pika` database
-on 2026-09-12, following migrations 166/167. Foundation remains disabled.
-Prerequisite PR #1252 is merged to main as `0aeba623`. Draft PR #1253 is synced
-with that main commit and awaits final integration review and combined CI.
+Status: Phase 1 complete; PR #1253 merged as
+`3a225b0f51dbf791bf0c7ee02d7760368b0823e5`. Local `pika` and production Pika
+`zhioqbapgfcrronyuidm` are verified through migrations 001–168 on 2026-09-12.
+Foundation remains disabled. The final reviewed head was `941ca944`; all five
+CI checks including PR Gate passed. Prerequisite #1252 is merged as `0aeba623`.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -79,7 +80,18 @@ and keys identities within the integration. Its read-token endpoint calls
 routes, read-token broker, signals, outbox, widgets and student achievements are
 unchanged. No Pal/Bara repository edits are made.
 
-## Verification and next gate
+## Final verification and next gate
+
+Production migrations 166–168 were applied once after exact approval. The
+verified ledger contains 001–168; 13 function comparisons and 14 read-only
+postflight checks passed. Receipt:
+`/Users/stew/.codex/metrics/pika-production-migrations.jsonl`. No application
+deployment, provider provisioning, rollout enablement or real-data erasure was
+performed. Those one-time permissions are consumed. Phase 2 reuses this valid
+foundation evidence; its source capture, delivery and presentation require
+their own reviewed implementation and verification.
+
+### Final local foundation evidence
 
 The user corrected the target to the existing local Pika database. Its verified
 history already contained 001–167. After integrating the reviewed prerequisite
@@ -96,10 +108,9 @@ and the classroom schema audit passes all 241 foreign-key relationships.
 
 Extra Pal disposable containers were stopped, preserving their volumes. The
 proposed `pika-pal-integration` database received no application migrations and
-is no longer the verification target. No production application, provider
-provisioning, flag enablement, or real-data erasure is included. The approved
-bounded final integration review remains available; #1253 stays draft until
-the synced candidate is reviewed for CI.
+is no longer the verification target. Final integration review and exact-head
+CI subsequently passed and #1253 merged. The production verification above is
+the current status; the earlier staged evidence below is historical context.
 
 ### Earlier isolated verification evidence
 

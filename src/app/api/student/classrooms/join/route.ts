@@ -311,6 +311,7 @@ async function joinClassroomContextually(args: {
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
+      membership: { studentId: user.id, classroomId: classroom.id },
       event: buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: classroom.id,
@@ -394,6 +395,7 @@ async function joinClassroomByCode(
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
+      membership: { studentId: user.id, classroomId: result.classroom.id },
       event: buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,
@@ -514,6 +516,7 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
+      membership: { studentId: user.id, classroomId: result.classroom.id },
       event: buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,

@@ -1106,6 +1106,7 @@ describe('PATCH /api/student/entries', () => {
       }),
     )
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      membership: { studentId: 'student-1', classroomId: 'classroom-1' },
       event: expect.objectContaining({ event_type: 'daily_log.completed' }),
       supabase: mockSupabaseClient,
     })

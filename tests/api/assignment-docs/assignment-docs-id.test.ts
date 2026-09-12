@@ -154,6 +154,7 @@ describe('GET /api/assignment-docs/[id]', () => {
       }),
     )
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      membership: { studentId: 'student-1', classroomId: 'class-1' },
       event: expect.objectContaining({ event_type: 'learning_item.viewed' }),
       supabase: mockSupabaseClient,
     })

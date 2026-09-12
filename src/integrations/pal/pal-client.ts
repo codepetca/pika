@@ -4,6 +4,13 @@ const MAX_READ_TOKEN_LIFETIME_MS = 10 * 60 * 1000
 const CLOCK_SKEW_ALLOWANCE_MS = 30 * 1000
 const READ_TOKEN_REFRESH_BUFFER_MS = 30 * 1000
 
+export type PalMembershipScope = { classroomId: string; scopeKey: string }
+type PalClientOptions = {
+  fetchImplementation?: typeof fetch
+  now?: () => number
+  membership?: PalMembershipScope
+}
+
 interface PalReadTokenResponse {
   token: string
   expires_at: string
@@ -43,17 +50,15 @@ function parseReadTokenResponse(value: unknown, now: number): PalReadTokenRespon
 
 async function requestPalReadToken(
   signal?: AbortSignal,
-  options: {
-    fetchImplementation?: typeof fetch
-    now?: () => number
-  } = {},
+  options: PalClientOptions = {},
 ): Promise<CachedPalReadToken> {
   const fetchImplementation = options.fetchImplementation ?? fetch
   const response = await fetchImplementation('/api/student/pal/read-token', {
     method: 'POST',
     credentials: 'same-origin',
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', ...(options.membership ? { 'Content-Type': 'application/json' } : {}) },
+    ...(options.membership ? { body: JSON.stringify(options.membership) } : {}),
     signal,
   })
 
@@ -61,8 +66,12 @@ async function requestPalReadToken(
     throw new Error(`Pal token request failed with HTTP ${response.status}`)
   }
 
+  const payload = await response.json()
+  if (options.membership && payload?.scope_key !== options.membership.scopeKey) {
+    throw new Error('Pal token response has the wrong membership scope')
+  }
   const body = parseReadTokenResponse(
-    await response.json(),
+    payload,
     options.now?.() ?? Date.now(),
   )
   return {
@@ -72,10 +81,7 @@ async function requestPalReadToken(
 }
 
 export function createPalReadTokenProvider(
-  options: {
-    fetchImplementation?: typeof fetch
-    now?: () => number
-  } = {},
+  options: PalClientOptions = {},
 ): (signal?: AbortSignal) => Promise<string> {
   let cachedToken: CachedPalReadToken | null = null
 
@@ -98,20 +104,14 @@ export function createPalReadTokenProvider(
 
 export async function getPalReadToken(
   signal?: AbortSignal,
-  options: {
-    fetchImplementation?: typeof fetch
-    now?: () => number
-  } = {},
+  options: PalClientOptions = {},
 ): Promise<string> {
   return createPalReadTokenProvider(options)(signal)
 }
 
 export function createPikaPalClient(
   apiBaseUrl: string,
-  options: {
-    fetchImplementation?: typeof fetch
-    now?: () => number
-  } = {},
+  options: PalClientOptions = {},
 ): PalClient {
   const fetchImplementation = options.fetchImplementation ?? fetch
   const getAccessToken = createPalReadTokenProvider(options)

@@ -220,7 +220,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   }
 
   const palDelivery = palEvent
-    ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+    ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: assignment.classroom_id } })
     : undefined
 
   const doc = submitResult.doc
