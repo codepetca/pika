@@ -18,6 +18,11 @@ Archive v1/v2 enrollment rows preserve the primary key. New enrollments default
 to a fresh UUID. The roster/student binding is unsuitable as the generation:
 it cascades away with roster/classroom deletion and is reconstructed on restore.
 
+Installation uses one explicit transaction and locks roster/enrollment writes
+before backfill until the tracking triggers are installed. Ambiguous historical
+generations abort the whole installation. Enrollment registration runs after a
+successful insert, so discarded `ON CONFLICT` retries create no phantom ledger.
+
 Migration 168 creates a private, non-cascading ledger keyed by that generation.
 The scope digest is SHA-256 of a versioned, unambiguous classroom/student UUID
 pair. It is an internal lookup and binding check, never a provider identifier.
@@ -65,7 +70,7 @@ mint coordinator must reauthorize and handle removal during network calls;
 provider token revocation and in-flight delivery fencing belong to Phase 3.
 This phase does not revoke already issued legacy tokens.
 
-Pal's checked local source accepts one `learner_id`, 1–128 URL-safe characters,
+Pal's checked local source at `69c3c91` accepts one `learner_id`, 1–128 URL-safe characters,
 and keys identities within the integration. Its read-token endpoint calls
 `getOrCreateLearnerIdentity`; therefore Phase 1 does not call it. Legacy Pal
 routes, read-token broker, signals, outbox, widgets and student achievements are
@@ -92,3 +97,25 @@ in `pal-membership.ts`, and run `db:types:check`. Generated types must not be
 edited by hand. Keep the PR draft until that evidence and independent review
 are complete. Ready-event CI also replays migrations and must wait for replay
 authorization. Production application, rollout, and merge authority are separate.
+
+The shared local database contains unrelated migration 166, and another active
+worktree owns 167. This branch reserves 168 and must not generate types from
+that shared database. Proposed verification target: isolated local Supabase
+project `pika-pal-phase1`, with seeding disabled and migrations 001–165 only as
+its empty baseline. Provisioning/replay of that baseline needs authorization.
+The separately gated `scripts/check-pal-membership-migration-rollback.sh` then
+replays migration 168 with an ambiguous synthetic generation inside its
+transaction and checks complete rollback. That script's acknowledgement is an
+execution guard, not user authorization. A subsequent clean application of
+168 requires fresh authorization; the script never retries or applies it cleanly.
+After clean application, `PAL_MEMBERSHIP_PROJECT=pika-pal-phase1 bash
+scripts/check-pal-membership-database.sh` runs rollback-only lifecycle checks
+and two-session lock-barrier checks. These prove source-write exclusion and
+normal removal ordering; they do not claim a completed production rollout or a
+full concurrent writer-between-statements migration rehearsal.
+
+Pre-application independent source review used Sol/high for security and
+Terra/high for compatibility against `9eee7313`. Both identified the unlocked
+backfill window; Sol also identified missing transaction atomicity. One batched
+correction adds both protections, red-first source-order tests, a rollback
+rehearsal and lock-barrier coverage. Database execution remains the next gate.

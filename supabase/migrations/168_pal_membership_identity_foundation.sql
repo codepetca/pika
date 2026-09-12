@@ -4,6 +4,14 @@
 -- are random, persisted once, and independent of every application secret.
 -- This ledger is operational evidence, never an archive resource or cascade
 -- child. Old archive bytes must not overwrite a removed/purged generation.
+begin;
+set local lock_timeout = '5s';
+
+-- Serialize the snapshots with joins/removals until all tracking triggers are
+-- installed. A failed acquisition or ambiguous backfill rolls back everything.
+lock table public.classroom_roster, public.classroom_enrollments
+  in share row exclusive mode;
+
 create table private.pal_membership_generations (
   generation_id uuid primary key,
   scope_digest text,
@@ -168,3 +176,5 @@ grant execute on function public.resolve_pal_membership(uuid,uuid) to service_ro
 
 comment on table private.pal_membership_generations is
   'Immutable membership generation and opaque Pal identity; retained outside archives. Purged is a future verified-cleanup boundary, not a worker or deletion receipt.';
+
+commit;
