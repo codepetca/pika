@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-09 — Preserve attendance QR signup handoff
-
-- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
-- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
-- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
-
 ## 2026-09-09 — Prepare outbound transport hardening
 
 - User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
@@ -246,3 +240,7 @@ User approved final Sol/high review extension and disposable CI replay/reset che
 ## 2026-09-12 — Pal review extension and migration dependency
 
 Terra cleared the fixture correction at15a6566e; five reviews and two fix batches completed. Full CI also found the contiguous-number requirement: 6718 tests passed, while migration filenames fail because166/167 remain in draft PR#1252. User approved a further review extension; reserve one Sol/high integration pass capped at20minutes after the prerequisite lands. Read-only integration against prerequisite1da0bc20 found only a JOURNAL-ARCHIVE conflict; source, workflow and generated types merge cleanly. Its owner is still remediating/reviewing that branch, so no duplicate writer, migration, merge or heavy CI was started. PR#1253 stays draft pending that dependency, combined-schema verification and stable-head CI.
+
+## 2026-09-12 — Pal prerequisite CI blocker routed to owner
+
+On instruction to proceed, completed startup and watched prerequisite#1252 run34706856667. Test & Build passed; the database schema audit failed on untracked classroom_creation_operations. Reported exact evidence to its owning task, which returned#1252 to draft. No dependency branch edits or integration review launched. Prepared seed-disabled local pika-pal-integration configuration and proposed001–168 checksum manifest at /Users/stew/.codex/worktrees/pika/.pal-integration-db; no database started or migrations applied. Refresh that manifest after the prerequisite correction lands, and obtain exact combined-replay authority before using it. Pal#1253 remains draft with the approved integration review reserved.
