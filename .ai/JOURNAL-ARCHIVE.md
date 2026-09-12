@@ -31707,6 +31707,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - The focused gate passes 18 files / 266 tests plus architecture, UI/design policy, TypeScript, and lint; the Pika audit passes. Pattern Lab and the authenticated production edit modal were verified and visually inspected across desktop/mobile and light/dark, including Preview focus restoration. Student is not applicable because this is teacher-only editing. Risk profile: standard UI behavior.
 
 <!-- pika-session-log-archive-batch:b7dc8fddc28004c6649f7f6527b7626bf8af0ae4358a2b310b9751aacbb5f8d1 -->
+<!-- pika-session-log-archive-batch:be56998305dd7dc5f830dcafb72a2fc4b25759218d02ec90c3bd02d94c575ebc -->
 ## 2026-09-08 — Split-pane assignment editing
 
 - Implemented the Pattern Lab prototype in the production assignment edit modal: desktop uses one-third details and two-thirds assignment authoring panes, while mobile stacks the same controls. Assignment creation remains unchanged.
@@ -31733,6 +31734,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused component coverage passes 84 tests. Browser verification passes teacher desktop/mobile light/dark for poster, print, download, rotation/recovery, closed/scheduled/unconfigured states and occurrence fallback, plus student desktop/mobile light/dark open/closed/revoked/roster/error outcomes. Visual inspection caught and fixed a dark-mode SVG rendering defect by inheriting the fixed semantic QR foreground over the QR background; refreshed dark captures show a scannable dark-on-white code.
 - The first ready-PR Test & Build run correctly rejected a fixed poster padding utility outside the registered QR geometry. Returned PR #1222 to draft, restored the governed 10% quiet zone with a semantic regression, and reran design policy, audit, 56 affected tests, and teacher desktop/mobile light/dark browser captures successfully. Targeted re-review and fresh exact-head CI remain.
 
+<!-- pika-session-log-archive-batch:96c075f0c98811dec5bd1ac9b237dd4d1f742f86664b6aae313a70a06632a45c -->
 ## 2026-09-08 — Refine the classroom QR for monitor display
 
 - Replaced the poster dialog's visible `Classroom QR` header with a responsive monitor-shaped composition: the large classroom name and one settings control occupy the left side while the scan-safe QR uses the maximum available height on the right. Compact screens stack the same content so the QR remains visible and contained.
@@ -31740,6 +31742,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused component tests pass 78/78, TypeScript and UI/design policy pass, and the production Daily browser contract passes desktop/mobile in light/dark (4/4), including print and rotation recovery. The broad focused gate exposed one stale QR assertion, now corrected and covered by that 78-test rerun; its other failure passed alone and was unrelated Student Assignments timing. QR-specific Pattern Lab checks passed; its full broad run retained one unrelated Gradebook raw-score failure. All four poster captures and the print capture were visually inspected.
 
 <!-- pika-session-log-archive-batch:8a4c58a3e790115107f908ad320c28c55f1f39182cfc6b1ec5e848ad41c5f5e5 -->
+<!-- pika-session-log-archive-batch:3853115929b4e6756906f1409d03934cb292d553ae098dc36b1628a53e879ee2 -->
 ## 2026-09-08 — Center and expose classroom QR poster actions
 
 - Centered and enlarged the classroom label in the poster's left pane, replaced the explanatory subtitle with a prominent `Scan Attendance` label and the configured attendance hours, and moved Print poster and Rotate QR from the settings menu into visible labeled buttons below the information.
@@ -31753,3 +31756,20 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Simplified compact screen mode to the classroom title and a larger QR, with Print poster, Download SVG, and Rotate QR in the governed `QR options` menu. Desktop keeps Scan Attendance, hours, and visible actions in its left pane. The production browser matrix passes desktop/mobile in light/dark and covers the compact menu-open state; student is n/a because this is a teacher-only poster.
 - Tightened compact screen spacing by centering the classroom title and QR as one group with a small fixed gap; browser geometry now constrains the visible title-to-QR gap to 8–32px. Mobile light/dark pass and were visually inspected; desktop and portrait print compositions remain unchanged.
 - Returned the desktop Print poster, Download SVG, and Rotate QR actions to one governed `Poster settings` menu beneath the left-pane information. Compact mode retains its separate `QR options` menu; action handlers and export/print outputs are unchanged. Desktop light/dark closed and menu-open states were visually inspected, and both desktop themes plus compact dark pass the production browser flow.
+
+## 2026-09-08 — Align the Owned / Joined home prototype with the live classroom list
+
+- Updated only the development-only Pattern Lab Owned / Joined home: classroom rows now use the live themed gradient cards, current owner edit grip/archive treatment, the top-right classroom actions menu, and the archived owner Settings menu. Joined rows retain relationship-correct Hide/Unhide actions and never gain owner operations.
+- Independent review found that the reused shared work-surface menu did not honor the repository's roving-focus and Tab-dismissal contract. The shared owner now handles Arrow/Home/End navigation, disabled-item skipping, Escape focus return and Tab dismissal; direct component and archived Settings regressions pass.
+- Targeted re-review found that preview cleanup could retain a callback from before a parent rerender or drop a removed handler before clearing it. Active previews now refresh their callback by stable action ID and clear before a handler disappears; both regressions and the existing inspector compatibility case pass.
+- Focused checks pass 44 files / 641 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Eight browser scenarios pass across teacher/student, desktop/mobile and light/dark with zero API writes. Visual inspection found and fixed a clipped archived Settings menu, then confirmed the corrected menu and classroom cards across the matrix. Exact-head review/CI are recorded on PR #1225.
+- No production route, authorization, persistence, API, schema, entitlement, dependency or rollout availability changed. The prototype remains gated off in production and still requires later adoption approval; only the shared menu's existing keyboard behavior is corrected in live consumers.
+
+<!-- pika-session-log-archive-batch:681c0fcc0fd5b4e728fc946a5107e15ed6ddaad8bb1d8ea0c17600a23033d18c -->
+## 2026-09-08 — Keep the classroom QR available when attendance is closed
+
+- Promoted the stable classroom poster from its separate canary gate to every classroom with server-confirmed QR attendance access. The Daily center `Classroom QR` action now remains enabled while attendance is scheduled or closed; archived classrooms remain excluded.
+- Preserved scan-time enforcement: Pika still requires an eligible occurrence, enabled attendance policy, active class day, open Bara session projection, current enrollment, and an active participant mapping before submitting a check-in.
+- Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
+- Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
+- Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
