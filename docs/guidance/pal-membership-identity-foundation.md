@@ -119,3 +119,12 @@ Terra/high for compatibility against `9eee7313`. Both identified the unlocked
 backfill window; Sol also identified missing transaction atomicity. One batched
 correction adds both protections, red-first source-order tests, a rollback
 rehearsal and lock-barrier coverage. Database execution remains the next gate.
+
+Targeted Sol/high re-review cleared both findings at implementation commit
+`a553bf8ce0502ff5059e918a3a917803a3db446f`, with no new actionable defects.
+Local focused verification passed 113 tests plus architecture, UI/design policy,
+TypeScript and lint. Review usage: three launches, one full wave, one targeted
+wave, one fix batch. Final integration review is deferred until verified schema
+generation replaces the temporary adapter. No PR has been opened because the
+required pre-PR database type check cannot pass on the shared schema; no ready
+event or CI replay has been triggered. The goal remains active pending approval.
