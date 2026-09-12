@@ -7,6 +7,7 @@ import {
   createBlueprintWritePlanSchema,
   createCourseBlueprintAtomic,
   hashBlueprintOperationRequest,
+  instantiateCourseBlueprintAtomic,
   resolveBlueprintOperationId,
 } from '@/lib/server/course-blueprint-operations'
 import {
@@ -219,6 +220,51 @@ describe('atomic blueprint operation contracts', () => {
     )
     expect(errorSpy.mock.calls.flat().join(' ')).not.toContain('sensitive database detail')
     expect(errorSpy.mock.calls.flat().join(' ')).not.toContain('sensitive row detail')
+  })
+
+  it('returns a safe non-retryable denial when Blueprint creation reaches the active limit', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: '23514',
+          message: 'classroom_creation_active_limit_reached',
+          details: 'private database detail',
+        },
+      }),
+    }
+    const built = buildInstantiateBlueprintWritePlan({
+      detail: blueprintDetail(),
+      input: {
+        blueprintId: '20000000-0000-4000-8000-000000000020',
+        title: 'Access classroom',
+        start_date: '2026-09-08',
+        end_date: '2026-09-09',
+      },
+      themeColor: 'cyan',
+      manifestVersion: '3',
+      operationId,
+    })
+    if (!built.ok) throw new Error('Expected a valid Blueprint plan')
+
+    await expect(instantiateCourseBlueprintAtomic({
+      supabase,
+      operationId,
+      teacherId: '30000000-0000-4000-8000-000000000020',
+      blueprintId: '20000000-0000-4000-8000-000000000020',
+      blueprintVersionId: '21000000-0000-4000-8000-000000000020',
+      plan: built.plan,
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      operation_id: operationId,
+      operation_type: 'instantiate',
+      error_code: 'classroom_creation_active_limit_reached',
+      error: 'Archive an active classroom before creating another.',
+      retryable: false,
+    })
   })
 
   it('passes the source revision into capture without making it part of the write plan', async () => {

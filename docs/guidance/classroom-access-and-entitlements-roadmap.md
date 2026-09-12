@@ -28,10 +28,12 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 
 ### Monetization strategy
 
-- Start teacher-first: students can join and complete assigned work without buying a
-  plan. Classroom capabilities are funded by the owner, not by each student's plan.
-- Launch a useful Free tier and one paid teacher tier first. Plus/Pro are product labels,
-  not authorization roles. Add a second paid tier only when it has a distinct offering.
+- Start teacher-first: Free accounts can join and complete assigned work without buying a
+  plan, but cannot create a classroom. Classroom capabilities are funded by the owner,
+  not by each student's plan.
+- Use **Access** as the initial classroom-creation capability: one active owned classroom
+  and unlimited joining. Grant Access manually during initial development. Plus/Pro are
+  later product labels, not authorization roles; add them only with distinct offerings.
 - Charge for demonstrated teacher value: advanced workflows and higher allowances for
   expensive features such as AI grading. Set actual prices, included features and quotas
   after measuring usage and delivery costs; none are hardcoded by this foundation.
@@ -45,6 +47,20 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
   approval before enforcement; this is not a promise of indefinite free storage.
 - Manual/school-sponsored grants can fit the same capability contract later. Defer school
   sales, organization administration, co-teachers, and a general billing framework.
+
+### Approved initial creation tiers
+
+| Tier/state | Join classrooms | Create active classrooms | Initial provisioning |
+| --- | --- | --- | --- |
+| Free | Yes | No | Default future public baseline |
+| Access | Yes | Up to 1 | Manual grant during initial development |
+| Trial | Yes | Defined by its grant | Separate, time-limited overlay; at most one trial period per account when implemented |
+| Plus / Pro | Yes | Not yet decided | Deferred until the offerings and prices are distinct |
+
+The one-trial-per-account ledger, billing synchronization, upgrade purchase flow and
+Plus/Pro limits are not part of the initial Access enforcement slice. An archived classroom
+does not consume Access capacity. Downgrade or expiry never deletes, archives, or changes
+ownership of existing classrooms; it blocks new active-classroom consumption.
 
 ## Four separate decisions
 
@@ -133,6 +149,11 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
   between the read-only resolver and the write.
+- Migration 166 authors the first database-resolved effective-entitlement snapshot and an
+  atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
+  no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation
+  and ownership transfer share the database guard. The migration is unapplied until exact
+  target/file authorization is granted under the schema rollout checklist.
 
 ## Safe rollout while real classes continue
 
@@ -182,8 +203,8 @@ treat a migration status copied into this roadmap as authority.
 
 ## Decisions still required before monetization enforcement
 
-Creation eligibility at first public launch; free/paid feature matrix and plan names;
-pricing and measured unit costs; trial length and nonpayment/cancellation/grace behavior;
+Pricing and measured unit costs; Plus/Pro feature matrices and creation limits; trial length
+and nonpayment/cancellation/grace behavior; the once-per-account trial eligibility ledger;
 over-limit downgrade handling and archive/export/retention promises; school/manual grant
 precedence and revocation; abuse limits and support override authority. Keep these out of
 hardcoded role checks and do not infer approval from the phase 0 implementation.

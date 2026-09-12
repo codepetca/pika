@@ -364,4 +364,32 @@ describe('POST /api/teacher/classrooms', () => {
 
     expect(response.status).toBe(400)
   })
+
+  it.each([
+    ['42501', 'classroom_creation_entitlement_disabled', 403, 'Classroom creation requires Access.', false],
+    ['23514', 'classroom_creation_active_limit_reached', 409, 'Archive an active classroom before creating another.', false],
+    ['55000', 'classroom_creation_entitlement_unavailable', 503, 'Classroom creation is temporarily unavailable. Please try again.', true],
+  ])('maps database creation denial %s safely', async (code, message, status, safeMessage, retryable) => {
+    const mockInsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: { code, message, details: 'private database detail' },
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert: mockInsert }))
+
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/classrooms', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Access classroom', themeColor: 'blue' }),
+    }))
+
+    expect(response.status).toBe(status)
+    await expect(response.json()).resolves.toEqual({
+      error: safeMessage,
+      error_code: message,
+      retryable,
+    })
+  })
 })

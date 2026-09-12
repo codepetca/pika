@@ -14,6 +14,7 @@ import {
 } from '@/lib/server/classroom-purge-availability'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 import { observeClassroomCreationShadow } from '@/lib/server/classroom-access-shadow'
+import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -123,6 +124,14 @@ export const POST = withErrorHandler('CreateClassroom', async (request: NextRequ
     .single()
 
   if (error) {
+    const denial = mapClassroomCreationDatabaseError(error)
+    if (denial) {
+      return NextResponse.json({
+        error: denial.message,
+        error_code: denial.errorCode,
+        retryable: denial.retryable,
+      }, { status: denial.status })
+    }
     console.error('Error creating classroom:', error)
     throw new ApiError(500, 'Failed to create classroom')
   }

@@ -5176,6 +5176,119 @@ export type Database = {
           },
         ]
       }
+      effective_feature_entitlement_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          entitlement_revision: number
+          feature_key: string
+          id: string
+          new_enabled: boolean
+          new_expires_at: string | null
+          new_quota_limit: number | null
+          new_source: string
+          new_starts_at: string
+          operation_id: string
+          previous_enabled: boolean | null
+          previous_expires_at: string | null
+          previous_quota_limit: number | null
+          previous_source: string | null
+          previous_starts_at: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          entitlement_revision: number
+          feature_key: string
+          id?: string
+          new_enabled: boolean
+          new_expires_at?: string | null
+          new_quota_limit?: number | null
+          new_source: string
+          new_starts_at: string
+          operation_id: string
+          previous_enabled?: boolean | null
+          previous_expires_at?: string | null
+          previous_quota_limit?: number | null
+          previous_source?: string | null
+          previous_starts_at?: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          entitlement_revision?: number
+          feature_key?: string
+          id?: string
+          new_enabled?: boolean
+          new_expires_at?: string | null
+          new_quota_limit?: number | null
+          new_source?: string
+          new_starts_at?: string
+          operation_id?: string
+          previous_enabled?: boolean | null
+          previous_expires_at?: string | null
+          previous_quota_limit?: number | null
+          previous_source?: string | null
+          previous_starts_at?: string | null
+          reason_code?: string
+          request_fingerprint?: string
+          subject_user_id?: string
+        }
+        Relationships: []
+      }
+      effective_feature_entitlements: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          expires_at: string | null
+          feature_key: string
+          quota_limit: number | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled: boolean
+          expires_at?: string | null
+          feature_key: string
+          quota_limit?: number | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          expires_at?: string | null
+          feature_key?: string
+          quota_limit?: number | null
+          revision?: number
+          source?: string
+          starts_at?: string
+          subject_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "effective_feature_entitlements_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entries: {
         Row: {
           classroom_id: string
@@ -7783,6 +7896,14 @@ export type Database = {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
       }
+      assert_classroom_creation_allowed_v1: {
+        Args: {
+          p_at?: string
+          p_exclude_classroom_id?: string
+          p_subject_user_id: string
+        }
+        Returns: undefined
+      }
       attendance_classroom_has_state_v1: {
         Args: { p_classroom_id: string }
         Returns: boolean
@@ -9703,6 +9824,10 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_classroom_creation_access_v1: {
+        Args: { p_at?: string; p_subject_user_id: string }
+        Returns: Json
+      }
       get_cleanup_history_cron_health_snapshot: {
         Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
@@ -9809,6 +9934,18 @@ export type Database = {
         }
         Returns: Json
       }
+      instantiate_course_blueprint_atomic_v2_pre_create_entitlement: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       instantiate_course_blueprint_atomic_v2_pre_managed_storage: {
         Args: {
           p_blueprint_id: string
@@ -9893,6 +10030,10 @@ export type Database = {
       list_attendance_sync_targets_v3: {
         Args: { p_at: string; p_limit?: number }
         Returns: Json
+      }
+      lock_effective_feature_entitlement_v1: {
+        Args: { p_feature_key: string; p_subject_user_id: string }
+        Returns: undefined
       }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
       managed_storage_blueprint_protocol_ready: {
@@ -10602,6 +10743,22 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      set_effective_feature_entitlement_v1: {
+        Args: {
+          p_actor_ref: string
+          p_enabled: boolean
+          p_expected_revision?: number
+          p_expires_at: string
+          p_feature_key: string
+          p_operation_id: string
+          p_quota_limit: number
+          p_reason_code: string
+          p_source: string
+          p_starts_at: string
+          p_subject_user_id: string
+        }
+        Returns: Json
       }
       set_gradebook_item_score: {
         Args: {

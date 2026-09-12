@@ -31707,6 +31707,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - The focused gate passes 18 files / 266 tests plus architecture, UI/design policy, TypeScript, and lint; the Pika audit passes. Pattern Lab and the authenticated production edit modal were verified and visually inspected across desktop/mobile and light/dark, including Preview focus restoration. Student is not applicable because this is teacher-only editing. Risk profile: standard UI behavior.
 
 <!-- pika-session-log-archive-batch:b7dc8fddc28004c6649f7f6527b7626bf8af0ae4358a2b310b9751aacbb5f8d1 -->
+<!-- pika-session-log-archive-batch:be56998305dd7dc5f830dcafb72a2fc4b25759218d02ec90c3bd02d94c575ebc -->
 ## 2026-09-08 — Split-pane assignment editing
 
 - Implemented the Pattern Lab prototype in the production assignment edit modal: desktop uses one-third details and two-thirds assignment authoring panes, while mobile stacks the same controls. Assignment creation remains unchanged.
