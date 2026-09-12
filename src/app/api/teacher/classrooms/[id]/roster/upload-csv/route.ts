@@ -3,7 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
-import { restoreRemovedClassroomStudents } from '@/lib/server/classroom-student-removal'
+import { assertStudentsCanBeAddedToRoster, throwIfRemovedStudentRosterError } from '@/lib/server/classroom-student-removal'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -94,6 +94,9 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     )
   }
 
+  // Check before preview as well as confirmed writes; retained history is not an invitation.
+  await assertStudentsCanBeAddedToRoster(classroomId, students.map((student) => student.email))
+
   // If not confirmed, check for existing students that would be overwritten
   if (!confirmed) {
     const emails = students.map(s => s.email)
@@ -177,6 +180,7 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     .select('id, email')
 
   if (upsertError) {
+    throwIfRemovedStudentRosterError(upsertError)
     console.error('Roster upsert error:', upsertError)
     return NextResponse.json(
       { error: 'Failed to upload roster CSV' },
@@ -184,10 +188,8 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     )
   }
 
-  const restoredCount = await restoreRemovedClassroomStudents(user.id, classroomId, rosterRows.map((row) => row.email))
   return NextResponse.json({
     success: true,
-    restoredCount,
     totalProcessed: students.length,
     upsertedCount: upserted?.length ?? 0,
   })

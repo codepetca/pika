@@ -1,5 +1,31 @@
 # Remove a student from a class
 
+## Current policy — final removal (migration 165)
+
+The user superseded the reversible-removal policy below: removal carries no
+recovery guarantee. A removed student cannot be re-added to the same class until
+their old class data has been permanently purged. Add and CSV import now check
+before any write or overwrite preview; migration165 blocks concurrent writes and
+retires the old restoration RPC without reenrolling anyone. Historical and current
+account emails both remain blocked while the retained identity exists.
+
+Removal still only revokes access and hides the roster entry. It does not erase
+academic records, files, attendance or Pal state immediately, start a purge, or
+schedule future erasure. The existing safety-net cron resumes only previously
+started permanent-deletion operations; it does not discover removed students.
+Cleanup of removed students remains future work, so there is currently no UI
+path to purge an already-removed student or lift their re-add block. A future
+purger must erase the scoped records/files/provider state safely before releasing
+the retained deny record. Accounts and other classes remain unaffected.
+
+Apply migration165 before deploying the matching application. Migration164 is
+immutable. The public database type shape is unchanged (the new guard is private
+and existing public signatures are retained). No real-target migration or cleanup
+is authorized by the implementation request. See the
+[final-removal UI brief](ui/changes/final-student-removal.md).
+
+## Historical implementation and verification — migration 164
+
 User-approved scope: removal revokes classroom membership and hides the student
 from the active roster. It preserves their account, other classes, academic
 records, attendance history, managed files, and Pal progress. Permanent erasure

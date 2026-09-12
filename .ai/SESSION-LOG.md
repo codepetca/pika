@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-08 — Diagnose and resolve the privacy PR merge disagreement
-
-- Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
-- Integrated main `e9c6417d` and explicitly preserved both histories. No new privacy or incoming-main product edits; existing independent reviews apply to their unchanged content. Verify parent equality, history preservation, normal-text mergeability and fresh exact-head CI before authorized squash merge. No production deployment or migration application.
-
 ## 2026-09-08 — Split-pane assignment editing
 
 - Implemented the Pattern Lab prototype in the production assignment edit modal: desktop uses one-third details and two-thirds assignment authoring panes, while mobile stacks the same controls. Assignment creation remains unchanged.
@@ -275,3 +270,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 - Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
 - Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
 - Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.
+
+## 2026-09-11 — Final student removal, no re-add before purge
+
+- User explicitly approved no recovery promise and blocking re-add to the same class until old class data is purged. Owner branch: `codex/final-student-removal`. Removed application restoration calls, added a read-only identity-aware add/CSV preflight, mapped concurrent write denial to409, and revised removal/Pal copy using existing UI owners.
+- Forward migration165 retires the restoring RPC, removes its enrollment bypass, and adds a private roster-write guard. No erasure, new cron, Pal change or public type-shape change; immutable164 checksum preserved. The existing DB harness covers legacy164 and final165 boundaries and keeps archive/data preservation plus grade-race checks; fresh race fixtures replace membership restoration.
+- Verification: affected80tests and focused214tests/19files plus static gates pass;14existing browser scenarios and4blocked re-add scenarios pass. Teacher/student desktop/mobile light/dark captures and Pattern Lab confirmation inspected; audit and shell syntax clean. Evidence `/tmp/pika-final-removal-*`, `test-results/`, and `output/playwright/`. Migration165 remains unapplied; disposable-local verification permission requested separately. No shared-local/prod mutation, deployment or merge authorization. Draft-first independent review follows.

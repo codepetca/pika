@@ -6,7 +6,7 @@ REMOVAL_DB_CONTAINER="${REMOVAL_DB_CONTAINER:-supabase_db_pika}"
 REMOVAL_DATABASE_NAME="${REMOVAL_DATABASE_NAME:-postgres}"
 if [[ "$REMOVAL_DB_CONTAINER" != supabase_db_pika ]] \
   || [[ "$(docker inspect "$REMOVAL_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" != pika ]] \
-  || [[ ! "$REMOVAL_DATABASE_NAME" =~ ^(postgres|pika_removal_164_[a-z0-9_]+)$ ]]; then
+  || [[ ! "$REMOVAL_DATABASE_NAME" =~ ^(postgres|pika_removal_(164|165)_[a-z0-9_]+)$ ]]; then
   echo 'Refusing unexpected classroom-removal test target.' >&2
   exit 2
 fi
@@ -56,7 +56,8 @@ done
 # Hold a real removal transaction open after it has revoked enrollment. Grade
 # inserts and mark-changing updates must be rejected. Earlier archive-revision
 # triggers may wait for removal to commit before the enrollment check runs.
-# Exercise each operation during a separate removal; neither mark may persist.
+# Exercise each operation on a fresh fixture; final removal cannot be undone.
+seed_removal_grade_race() {
 docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
   -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
@@ -108,6 +109,8 @@ insert into public.gradebook_score_overrides (
 );
 commit;
 SQL
+}
+seed_removal_grade_race
 
 cleanup_removal_grade_race() {
   docker exec -i "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
@@ -129,8 +132,8 @@ trap cleanup_removal_grade_race EXIT
 
 for removal_grade_action in insert update; do
 if [[ "$removal_grade_action" == update ]]; then
-  docker exec "$REMOVAL_DB_CONTAINER" psql -U postgres -d "$REMOVAL_DATABASE_NAME" \
-    -X -v ON_ERROR_STOP=1 -c "select public.restore_removed_classroom_students('d1640000-0000-4000-8000-000000000001', 'd1640000-0000-4000-8000-000000000010', array['grade-race-student-164@example.invalid']);" >/dev/null
+  cleanup_removal_grade_race
+  seed_removal_grade_race
 fi
 removal_grade_holder_app="removal_164_grade_holder_${removal_grade_action}_$$"
 docker exec -e PGAPPNAME="$removal_grade_holder_app" -i "$REMOVAL_DB_CONTAINER" \
