@@ -598,7 +598,7 @@ export function LessonCalendar({
                 id="calendar-day-presentation-title"
                 className="text-4xl font-semibold tracking-tight text-text-default sm:text-5xl"
               >
-                {format(presentedDayDetails.day, 'EEEE, MMMM d, yyyy')}
+                {format(presentedDayDetails.day, 'EEE MMM d, yyyy')}
               </h2>
               <div className="flex shrink-0 items-center gap-1">
                 <button
