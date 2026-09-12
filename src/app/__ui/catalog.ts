@@ -128,6 +128,15 @@ export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
     avoidWhen: 'Do not treat the fixture as production authorization, a reporting surface, or a reusable analytics pattern.',
     reference: 'docs/guidance/ui/experimental/student-grades-visibility.md',
   },
+  {
+    id: 'calendar-chip-drag',
+    name: 'Calendar chip movement',
+    owner: 'src/app/__ui/CalendarChipDragPrototype.tsx',
+    maturity: 'experimental',
+    useWhen: 'Evaluating mouse, touch, and keyboard rescheduling for calendar-owned assignments, announcements, tests, and lesson plans.',
+    avoidWhen: 'Do not use this fixture as authorization to update live records or to move published items whose dates are locked.',
+    reference: 'docs/guidance/ui/experimental/calendar-chip-drag.md',
+  },
 ] as const
 
 export type ApprovedIconName =
