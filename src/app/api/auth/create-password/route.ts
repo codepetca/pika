@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
@@ -55,7 +56,7 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
     .maybeSingle()
 
   if (handoffError) {
-    console.error('Error consuming password handoff token:', handoffError)
+    logServerError('auth.verify', handoffError)
     throw new ApiError(500, 'Failed to create password')
   }
 
@@ -73,7 +74,7 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
     .eq('id', user.id)
 
   if (updateError) {
-    console.error('Error updating password:', updateError)
+    logServerError('auth.verify', updateError)
     throw new ApiError(500, 'Failed to create password')
   }
 

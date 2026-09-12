@@ -20,12 +20,9 @@ type RosterNameRow = {
 }
 
 export class AiSanitizationContextLoadError extends Error {
-  readonly cause?: unknown
-
-  constructor(message: string, cause?: unknown) {
+  constructor(message: string, _cause?: unknown) {
     super(message)
     this.name = 'AiSanitizationContextLoadError'
-    this.cause = cause
   }
 }
 

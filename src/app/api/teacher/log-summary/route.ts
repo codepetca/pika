@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import {
@@ -55,7 +56,7 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     .limit(1)
 
   if (statsError) {
-    console.error('Error fetching entry stats:', statsError)
+    logServerError('journal.query', statsError)
     return NextResponse.json(
       { error: 'Failed to fetch entries' },
       { status: 500 }
@@ -69,7 +70,7 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     .eq('date', date)
 
   if (countError) {
-    console.error('Error counting entries:', countError)
+    logServerError('journal.query', countError)
     return NextResponse.json(
       { error: 'Failed to count entries' },
       { status: 500 }

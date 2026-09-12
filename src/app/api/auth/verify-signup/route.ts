@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
@@ -48,7 +49,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     .order('created_at', { ascending: false })
 
   if (fetchError) {
-    console.error('Error fetching verification codes:', fetchError)
+    logServerError('auth.verify', fetchError)
     throw new ApiError(500, 'Internal server error')
   }
 
@@ -87,7 +88,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     .maybeSingle()
 
   if (markCodeError) {
-    console.error('Error marking verification code as used:', markCodeError)
+    logServerError('auth.verify', markCodeError)
     throw new ApiError(500, 'Internal server error')
   }
 
@@ -101,7 +102,7 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     .eq('id', eligibleUser.id)
 
   if (verifyEmailError) {
-    console.error('Error marking email as verified:', verifyEmailError)
+    logServerError('auth.verify', verifyEmailError)
     throw new ApiError(500, 'Internal server error')
   }
 

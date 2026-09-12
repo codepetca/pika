@@ -1,4 +1,5 @@
 import { after } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { sendPasswordResetCode, sendSignupCode } from '@/lib/email'
 
 export const DUMMY_AUTH_BCRYPT_HASH = '$2a$10$lpkNmMXcHq.HXd/ovw0RxehO6zovy.9SfT9kFmgSxAU9Ufk7G6f.K'
@@ -11,20 +12,20 @@ export async function completeAuthResponseFloor(startedAtMs: number): Promise<vo
   }
 }
 
-function scheduleDelivery(label: string, delivery: () => Promise<void>): void {
+function scheduleDelivery(delivery: () => Promise<void>): void {
   after(async () => {
     try {
       await delivery()
     } catch (error) {
-      console.error(`Failed to deliver ${label}:`, error)
+      logServerError('auth.email', error)
     }
   })
 }
 
 export function scheduleSignupCode(email: string, code: string): void {
-  scheduleDelivery('signup verification code', () => sendSignupCode(email, code))
+  scheduleDelivery(() => sendSignupCode(email, code))
 }
 
 export function schedulePasswordResetCode(email: string, code: string): void {
-  scheduleDelivery('password reset code', () => sendPasswordResetCode(email, code))
+  scheduleDelivery(() => sendPasswordResetCode(email, code))
 }
