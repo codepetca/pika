@@ -61,14 +61,15 @@ describe('authentication response parity', () => {
     mocks.after.mockImplementation((callback: () => Promise<void>) => {
       pending = callback()
     })
-    mocks.sendSignupCode.mockRejectedValue(new Error('provider detail'))
+    mocks.sendSignupCode.mockRejectedValue(new Error('PRIVATE-PROVIDER-DETAIL', { cause: { token: 'PRIVATE-TOKEN' } }))
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     expect(() => scheduleSignupCode('student@example.com', 'ABC12')).not.toThrow()
     await pending
     expect(errorSpy).toHaveBeenCalledWith(
-      'Failed to deliver signup verification code:',
-      expect.any(Error),
+      '[pika-diagnostic]',
+      expect.objectContaining({ event: 'auth.email', category: 'unexpected' }),
     )
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('PRIVATE-')
   })
 })

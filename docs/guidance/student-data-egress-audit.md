@@ -217,3 +217,40 @@ that integration will fail closed until its canonical HTTPS origin is used.
 If a vendor intentionally redirects an endpoint, configure/use its reviewed
 canonical endpoint; do not restore automatic forwarding. Live Gradex enablement
 and endpoint configuration have not been checked or changed by this package.
+
+## Application diagnostics — first adoption batch (2026-09-11)
+
+User approved content-free application error logging. This batch covers the
+shared API error handler, core session/authentication-throttle operations,
+classic signup/reset/verification route errors, deferred authentication email
+errors, nightly journal-summary processing, and teacher summary reads. It also
+removes retained raw database causes from AI name-loading errors. The explicit
+adoption list is locked by `tests/unit/diagnostic-boundaries.test.ts`.
+
+`src/lib/server/diagnostics.ts` emits only a fixed event identifier, a coarse
+allowlisted category, and a freshly generated random diagnostic UUID. It does
+not serialize errors, inspect messages/stacks/causes, invoke getters or
+serializers, or accept arbitrary metadata. Unknown values reduce to generic
+categories. No user/classroom IDs, route labels, URLs, query strings, request
+bodies, tokens, database details, or provider content are copied into these
+records. A database failure with an unrecognized code remains observable as an
+unexpected failure, without retaining that raw code.
+
+Unexpected API failures keep their existing HTTP 500 JSON body and additionally
+return `x-pika-error-id`, matching that one diagnostic record. This is a random
+error reference, not a trusted incoming request ID, identity, or end-to-end
+trace across nested operations. Existing known-error responses and retry,
+authentication, email scheduling, summary-generation and authorization behavior
+remain unchanged. Operation labels are intentionally coarse; do not restore
+raw errors or dynamic labels to recover debugging detail.
+
+This is **not global logging certification**. The initial source inventory had
+502 console statements across 162 files (including benign/development logging).
+Route-local logs elsewhere, downstream integration helpers, browser consoles,
+AI telemetry, operator scripts and hosting/access logs remain outside this
+first adoption batch. Synthetic sentinel tests and static boundary checks guard
+the selected paths; subsequent batches must inspect the remaining sinks. This
+does not erase older logs, alter persisted error records or provider retention,
+change journal-derived product-feedback policy, enable Gradex, apply migrations,
+or deploy production. Prior transport release #1235 is live; its signed-in smoke
+checks remain unverified here, not silently counted as passed.

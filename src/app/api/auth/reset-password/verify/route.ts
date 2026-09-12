@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
@@ -48,7 +49,7 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
     .order('created_at', { ascending: false })
 
   if (fetchError) {
-    console.error('Error fetching verification codes:', fetchError)
+    logServerError('auth.reset', fetchError)
     throw new ApiError(500, 'Internal server error')
   }
 
@@ -87,7 +88,7 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
     .maybeSingle()
 
   if (markCodeError) {
-    console.error('Error marking reset code as used:', markCodeError)
+    logServerError('auth.reset', markCodeError)
     throw new ApiError(500, 'Internal server error')
   }
 

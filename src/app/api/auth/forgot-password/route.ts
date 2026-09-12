@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
@@ -75,7 +76,7 @@ export const POST = withErrorHandler('ForgotPassword', async (request: NextReque
     })
 
   if (insertError) {
-    console.error('Error inserting verification code:', insertError)
+    logServerError('auth.reset', insertError)
     await completeAuthResponseFloor(startedAtMs)
     return NextResponse.json(SUCCESS_RESPONSE)
   }

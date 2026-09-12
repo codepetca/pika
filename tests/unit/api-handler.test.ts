@@ -76,21 +76,23 @@ describe('withErrorHandler', () => {
 
     expect(result.status).toBe(500)
     expect(body).toEqual({ error: 'Internal server error' })
-    expect(console.error).toHaveBeenCalledWith('TestRoute error:', unknownError)
+    expect(console.error).toHaveBeenCalledWith('[pika-diagnostic]', {
+      event: 'api.unexpected', category: 'unexpected', diagnosticId: result.headers.get('x-pika-error-id'),
+    })
   })
 
-  it('includes route name in error log', async () => {
-    const handler = withErrorHandler('GetClassrooms', async () => {
-      throw new Error('DB timeout')
+  it('does not log raw errors, request data, caller request IDs or dynamic route labels', async () => {
+    const marker = 'PRIVATE-STUDENT-JOURNAL-TOKEN'
+    const handler = withErrorHandler(marker, async () => {
+      throw new Error(marker, { cause: { name: marker } })
     })
 
-    const request = new NextRequest('http://localhost/api/test')
-    await handler(request, { params: Promise.resolve({}) })
-
-    expect(console.error).toHaveBeenCalledWith(
-      'GetClassrooms error:',
-      expect.any(Error)
-    )
+    const request = new NextRequest(`http://localhost/api/test?secret=${marker}`, { headers: { 'x-request-id': marker } })
+    const first = await handler(request, { params: Promise.resolve({}) })
+    const second = await handler(request, { params: Promise.resolve({}) })
+    expect(first.headers.get('x-pika-error-id')).toMatch(/^[a-f0-9-]{36}$/)
+    expect(first.headers.get('x-pika-error-id')).not.toBe(second.headers.get('x-pika-error-id'))
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(marker)
   })
 
   it('does not log AuthenticationError or AuthorizationError', async () => {
@@ -197,7 +199,7 @@ describe('withErrorHandler', () => {
     const result = await handler(request, { params: Promise.resolve({}) })
 
     expect(result.status).toBe(500)
-    expect(console.error).toHaveBeenCalledWith('TestRoute error:', error)
+    expect(console.error).toHaveBeenCalledWith('[pika-diagnostic]', expect.objectContaining({ event: 'api.unexpected', category: 'unexpected' }))
   })
 
   it('forwards request and params to the inner handler', async () => {

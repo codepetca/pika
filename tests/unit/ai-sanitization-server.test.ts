@@ -22,6 +22,15 @@ function buildQueryResult(data: unknown, error: unknown = null) {
 }
 
 describe('loadClassroomAiSanitizationContext', () => {
+  it('does not preserve raw database causes in sanitization errors', async () => {
+    const privateCause = { message: 'PRIVATE-STUDENT-NAME', details: 'PRIVATE-JOURNAL' }
+    const supabase = { from: vi.fn(() => buildQueryResult(null, privateCause)) }
+    const error = await loadClassroomAiSanitizationContext(supabase as any, 'classroom-1').catch(error => error)
+    expect(error).toBeInstanceOf(AiSanitizationContextLoadError)
+    expect(error.cause).toBeUndefined()
+    expect(JSON.stringify(error)).not.toContain('PRIVATE-')
+  })
+
   beforeEach(() => {
     mockLoadChunkedRows.mockReset()
   })
