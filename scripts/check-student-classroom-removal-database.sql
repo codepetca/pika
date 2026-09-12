@@ -329,7 +329,11 @@ set local role service_role;
 
 do $behavior$
 declare
-  v_final_removal boolean := to_regprocedure('private.guard_final_student_roster_write()') is not null;
+  v_final_removal boolean := exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.classroom_roster'::regclass
+      and tgname = 'guard_final_student_roster_write'
+  );
   v_result jsonb;
   v_counts jsonb;
   v_actors jsonb;
@@ -491,8 +495,8 @@ begin
     );
     raise exception 'Expected direct re-enrollment denial';
   exception when object_not_in_prerequisite_state then
-    if sqlerrm <> case when v_final_removal then 'student_class_data_pending_purge'
-      else 'classroom_membership_removed_teacher_restore_required' end then raise; end if;
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_membership_removed_teacher_restore_required' end) then raise; end if;
   end;
 
   begin
@@ -665,8 +669,8 @@ begin
     );
     raise exception 'Expected teacher-owned reused-email identity conflict';
   exception when invalid_parameter_value or object_not_in_prerequisite_state then
-    if sqlerrm <> case when v_final_removal then 'student_class_data_pending_purge'
-      else 'classroom_roster_restore_identity_conflict' end then raise; end if;
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_roster_restore_identity_conflict' end) then raise; end if;
   end;
   if exists (
     select 1 from public.classroom_enrollments
@@ -688,8 +692,8 @@ begin
     );
     raise exception 'Expected reused-email identity conflict';
   exception when invalid_parameter_value or object_not_in_prerequisite_state then
-    if sqlerrm <> case when v_final_removal then 'student_class_data_pending_purge'
-      else 'classroom_roster_restore_identity_conflict' end then raise; end if;
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_roster_restore_identity_conflict' end) then raise; end if;
   end;
   if exists (
     select 1 from public.classroom_enrollments
