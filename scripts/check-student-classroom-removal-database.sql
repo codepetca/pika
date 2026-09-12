@@ -1,8 +1,13 @@
--- Rollback-only migration 164 behavioral fixture. Run with psql against a
--- disposable database that has migrations 001-164 applied. This script never
+-- Rollback-only migration 164/165 behavioral fixture. Run with psql against a
+-- disposable database that has migrations 001-164 or 001-165 applied. This script never
 -- applies migrations and leaves no durable rows.
 
+\if :{?archive_placeholder_id}
+\else
+\set archive_placeholder_id c1640000-0000-4000-8000-000000000039
+\endif
 begin;
+set local pika.removal_test_placeholder_id = :'archive_placeholder_id';
 set local lock_timeout = '3s';
 set local statement_timeout = '20s';
 
@@ -137,6 +142,14 @@ insert into public.classroom_enrollments (
   'c1640000-0000-4000-8000-000000000040',
   '2026-08-20T15:00:00Z',
   '{}'::jsonb
+);
+
+-- An unrelated invitation can become an overlap when the member changes email.
+-- Seed it before that change so it remains unbound, as with a failed 164 re-add.
+insert into public.classroom_roster (id, classroom_id, email) values (
+  :'archive_placeholder_id'::uuid,
+  'c1640000-0000-4000-8000-000000000041',
+  'archive-renamed-164@example.invalid'
 );
 
 -- Stable roster identity, not mutable account email, selects the learner.
@@ -316,6 +329,11 @@ set local role service_role;
 
 do $behavior$
 declare
+  v_final_removal boolean := exists (
+    select 1 from pg_trigger
+    where tgrelid = 'public.classroom_roster'::regclass
+      and tgname = 'guard_final_student_roster_write'
+  );
   v_result jsonb;
   v_counts jsonb;
   v_actors jsonb;
@@ -324,6 +342,7 @@ declare
   v_resource record;
   v_archive_path text;
   v_original_roster jsonb;
+  v_original_placeholder jsonb;
   v_original_score jsonb;
   v_original_override jsonb;
   v_retained_before jsonb;
@@ -426,12 +445,17 @@ begin
     'override', (select to_jsonb(o) from public.gradebook_score_overrides o where id = 'c1640000-0000-4000-8000-000000000016')
   ) into v_retained_before;
   insert into public.classroom_roster (id, classroom_id, email) values
-    ('c1640000-0000-4000-8000-000000000080', 'c1640000-0000-4000-8000-000000000010', 'unrelated-164@example.invalid'),
+    ('c1640000-0000-4000-8000-000000000080', 'c1640000-0000-4000-8000-000000000010', 'unrelated-164@example.invalid');
+  if not v_final_removal then
+  insert into public.classroom_roster (id, classroom_id, email) values
     ('c1640000-0000-4000-8000-000000000081', 'c1640000-0000-4000-8000-000000000010', 'student-renamed-164@example.invalid');
-  foreach v_invitation in array array[
+  end if;
+  foreach v_invitation in array case when v_final_removal then
+    array['c1640000-0000-4000-8000-000000000080'::uuid]
+  else array[
     'c1640000-0000-4000-8000-000000000080'::uuid,
     'c1640000-0000-4000-8000-000000000081'::uuid
-  ] loop
+  ] end loop
     v_result := public.remove_classroom_roster_entries_atomic(
       'c1640000-0000-4000-8000-000000000010', array[v_invitation, v_invitation]);
     if v_result <> '{"requested_count":1,"deleted_roster_entries":1,"deleted_entries":0,"deleted_assignment_docs":0,"deleted_enrollments":0,"deleted_gradebook_score_overrides":0,"deleted_gradebook_item_scores":0}'::jsonb
@@ -447,6 +471,7 @@ begin
     end if;
   end loop;
 
+  if not v_final_removal then
   insert into public.classroom_roster (
     id, classroom_id, email, first_name, last_name, student_number,
     counselor_email, join_source
@@ -460,6 +485,7 @@ begin
     'counselor-renamed-164@example.invalid',
     'csv'
   );
+  end if;
 
   begin
     insert into public.classroom_enrollments (classroom_id, student_id)
@@ -469,7 +495,8 @@ begin
     );
     raise exception 'Expected direct re-enrollment denial';
   exception when object_not_in_prerequisite_state then
-    if sqlerrm <> 'classroom_membership_removed_teacher_restore_required' then raise; end if;
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_membership_removed_teacher_restore_required' end) then raise; end if;
   end;
 
   begin
@@ -491,6 +518,7 @@ begin
     raise exception 'Removal retry was not idempotent: %', v_result;
   end if;
 
+  if not v_final_removal then
   v_result := public.restore_removed_classroom_students(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000010',
@@ -553,9 +581,60 @@ begin
   if not exists (select 1 from public.pal_event_outbox where id = 'c1640000-0000-4000-8000-000000000017') then
     raise exception 'Restore rewrote Pal state';
   end if;
+  else
+    begin
+      perform public.restore_removed_classroom_students(
+        'c1640000-0000-4000-8000-000000000001', 'c1640000-0000-4000-8000-000000000010',
+        array[' STUDENT-RENAMED-164@EXAMPLE.INVALID ', 'inactive-164@example.invalid']);
+      raise exception 'Retired restoration RPC restored a removed learner';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
+    begin
+      insert into public.classroom_roster (classroom_id, email) values
+        ('c1640000-0000-4000-8000-000000000010', 'new-batch-165@example.invalid'),
+        ('c1640000-0000-4000-8000-000000000010', 'student-renamed-164@example.invalid');
+      raise exception 'Re-add admitted a removed learner under the changed email';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
+    if exists (select 1 from public.classroom_roster where email = 'new-batch-165@example.invalid') then
+      raise exception 'Blocked batch partially added an invitation';
+    end if;
+    begin
+      update public.classroom_roster set first_name = 'Overwritten'
+      where id = 'c1640000-0000-4000-8000-000000000011';
+      raise exception 'Re-add updated retained history';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
+    begin
+      perform set_config('pika.classroom_membership_restore', 'on', true);
+      insert into public.classroom_enrollments (classroom_id, student_id) values
+        ('c1640000-0000-4000-8000-000000000010', 'c1640000-0000-4000-8000-000000000003');
+      raise exception 'Retired restore setting bypassed final removal';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
+    select jsonb_build_object(
+      'work', (select to_jsonb(e) from public.entries e where id = 'c1640000-0000-4000-8000-000000000013'),
+      'score', (select to_jsonb(s) from public.gradebook_item_scores s where id = 'c1640000-0000-4000-8000-000000000015'),
+      'override', (select to_jsonb(o) from public.gradebook_score_overrides o where id = 'c1640000-0000-4000-8000-000000000016')
+    ) into v_retained_after;
+    if v_retained_after is distinct from v_retained_before then
+      raise exception 'Final removal or failed re-add erased retained records';
+    end if;
+  end if;
 
   -- A removed membership remains removed across hot-to-cold-to-hot archive,
   -- while retained roster metadata and grades round-trip byte-for-byte.
+  -- Preserve the unbound overlap without disabling triggers or applying SQL.
+  if exists (select 1 from public.classroom_roster_student_bindings
+    where roster_id = current_setting('pika.removal_test_placeholder_id')::uuid)
+  then raise exception 'Legacy overlap fixture must be unbound'; end if;
+  select to_jsonb(roster) into strict v_original_placeholder
+  from public.classroom_roster roster
+  where roster.id = current_setting('pika.removal_test_placeholder_id')::uuid;
   v_result := public.remove_classroom_students_preserving_data(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000041',
@@ -589,8 +668,9 @@ begin
       array['archive-164@example.invalid']
     );
     raise exception 'Expected teacher-owned reused-email identity conflict';
-  exception when invalid_parameter_value then
-    if sqlerrm <> 'classroom_roster_restore_identity_conflict' then raise; end if;
+  exception when invalid_parameter_value or object_not_in_prerequisite_state then
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_roster_restore_identity_conflict' end) then raise; end if;
   end;
   if exists (
     select 1 from public.classroom_enrollments
@@ -611,8 +691,9 @@ begin
       array['archive-164@example.invalid']
     );
     raise exception 'Expected reused-email identity conflict';
-  exception when invalid_parameter_value then
-    if sqlerrm <> 'classroom_roster_restore_identity_conflict' then raise; end if;
+  exception when invalid_parameter_value or object_not_in_prerequisite_state then
+    if sqlerrm <> (case when v_final_removal then 'student_class_data_pending_purge'
+      else 'classroom_roster_restore_identity_conflict' end) then raise; end if;
   end;
   if exists (
     select 1 from public.classroom_enrollments
@@ -661,7 +742,7 @@ begin
     raise exception 'Removed-student archive begin failed: %', v_result;
   end if;
   v_counts := v_result->'resource_counts';
-  if v_counts->>'classroom_roster' <> '1'
+  if v_counts->>'classroom_roster' <> '2'
     or v_counts->>'classroom_enrollments' <> '0'
     or v_counts->>'gradebook_item_scores' <> '1'
     or v_counts->>'gradebook_score_overrides' <> '1'
@@ -827,6 +908,9 @@ begin
   if (select to_jsonb(roster) from public.classroom_roster roster
       where roster.id = 'c1640000-0000-4000-8000-000000000042')
       is distinct from v_original_roster
+    or (select to_jsonb(roster) from public.classroom_roster roster
+      where roster.id = current_setting('pika.removal_test_placeholder_id')::uuid)
+      is distinct from v_original_placeholder
     or (select to_jsonb(score) from public.gradebook_item_scores score
       where score.id = 'c1640000-0000-4000-8000-000000000045')
       is distinct from v_original_score
@@ -845,6 +929,7 @@ begin
   update public.classrooms
   set archived_at = null
   where id = 'c1640000-0000-4000-8000-000000000041';
+  if not v_final_removal then
   v_result := public.restore_removed_classroom_students(
     'c1640000-0000-4000-8000-000000000001',
     'c1640000-0000-4000-8000-000000000041',
@@ -860,6 +945,23 @@ begin
     )
   then
     raise exception 'Explicit post-archive membership restore changed metadata: %', v_result;
+  end if;
+  else
+    begin
+      insert into public.classroom_enrollments (classroom_id, student_id) values (
+        'c1640000-0000-4000-8000-000000000041', 'c1640000-0000-4000-8000-000000000040');
+      raise exception 'Archive placeholder allowed removed-student re-enrollment';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
+    begin
+      perform public.restore_removed_classroom_students(
+        'c1640000-0000-4000-8000-000000000001', 'c1640000-0000-4000-8000-000000000041',
+        array['archive-164@example.invalid']);
+      raise exception 'Archive roundtrip made removed membership recoverable';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'student_class_data_pending_purge' then raise; end if;
+    end;
   end if;
   if not exists (
     select 1 from public.classroom_enrollments

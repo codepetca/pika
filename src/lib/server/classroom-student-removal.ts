@@ -33,20 +33,38 @@ export async function removeClassroomStudents(teacherId: string, classroomId: st
   return resultSchema.parse(data)
 }
 
-/** Explicit teacher re-addition restores retained membership, never erases data. */
-export async function restoreRemovedClassroomStudents(teacherId: string, classroomId: string, emails: string[]) {
+const removedStudentMessage = 'A removed student cannot be re-added to this class until their old class data has been permanently deleted. No students were added.'
+const retainedRosterSchema = z.array(z.object({
+  email: z.string(),
+  student: z.object({ email: z.string() }),
+}))
+
+/** Read-only UX preflight. Migration 165 also rejects races at the write boundary. */
+export async function assertStudentsCanBeAddedToRoster(classroomId: string, emails: string[]) {
   const client = getServiceRoleClient()
-  const normalized = [...new Set(emails.map((email) => email.trim().toLowerCase()))]
-  let restored = 0
-  for (let offset = 0; offset < normalized.length; offset += 100) {
-    const { data, error } = await client.rpc('restore_removed_classroom_students', {
-      p_teacher_id: teacherId, p_classroom_id: classroomId, p_emails: normalized.slice(offset, offset + 100),
-    })
-    // No retained memberships can exist before this migration. Preserve the
-    // existing add/import workflow during the application/schema rollout window.
-    if (error && ['42883', 'PGRST202'].includes(error.code ?? '')) return restored
-    if (error) throw new ApiError(409, 'Roster details were saved, but class access could not be restored. Please try adding the student again.')
-    restored += z.object({ restored_count: z.number().int().nonnegative() }).parse(data).restored_count
+  const requested = new Set(emails.map((email) => email.trim().toLowerCase()))
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client.from('classroom_roster')
+      .select('email, student:users!classroom_roster_removed_student_id_fkey(email)')
+      .eq('classroom_id', classroomId)
+      .not('removed_at', 'is', null)
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1)
+    const parsed = retainedRosterSchema.safeParse(data)
+    if (error || !parsed.success) {
+      throw new ApiError(503, 'Could not check whether these students can be added. No students were added. Please try again.')
+    }
+    if (parsed.data.some((row) => requested.has(row.email.trim().toLowerCase())
+      || requested.has(row.student.email.trim().toLowerCase()))) {
+      throw new ApiError(409, removedStudentMessage)
+    }
+    if (parsed.data.length < pageSize) return
   }
-  return restored
+}
+
+export function throwIfRemovedStudentRosterError(error: { code?: string; message?: string }) {
+  if (error.code === '55000' && error.message === 'student_class_data_pending_purge') {
+    throw new ApiError(409, removedStudentMessage)
+  }
 }

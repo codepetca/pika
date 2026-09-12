@@ -5,6 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/teacher/classrooms/[id]/roster/upload-csv/route'
 import { NextRequest } from 'next/server'
+import { assertStudentsCanBeAddedToRoster } from '@/lib/server/classroom-student-removal'
+import { ApiError } from '@/lib/api-error'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -26,6 +28,27 @@ function createRequest(body: object) {
 
 describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
   beforeEach(() => { vi.clearAllMocks() })
+
+  it.each([false, true])('rejects removed students before CSV preview or write (confirmed=%s)', async (confirmed) => {
+    vi.mocked(assertStudentsCanBeAddedToRoster).mockRejectedValueOnce(new ApiError(409, 'Student cannot be re-added'))
+    const response = await POST(createRequest({
+      csvData: 'First Name,Last Name,Email\nA,B,removed@example.com', confirmed,
+    }), { params: { id: 'c-1' } })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: 'Student cannot be re-added' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('maps a concurrent database removal denial without reporting a successful import', async () => {
+    mockSupabaseClient.from.mockReturnValue({ upsert: vi.fn(() => ({ select: vi.fn().mockResolvedValue({
+      data: null, error: { code: '55000', message: 'student_class_data_pending_purge' },
+    }) })) })
+    const response = await POST(createRequest({
+      csvData: 'First Name,Last Name,Email\nA,B,removed@example.com', confirmed: true,
+    }), { params: { id: 'c-1' } })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining('cannot be re-added') })
+  })
 
   it('should return 400 when csvData is missing', async () => {
     const request = createRequest({})
@@ -291,4 +314,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
     })
   })
 })
-vi.mock('@/lib/server/classroom-student-removal', () => ({ restoreRemovedClassroomStudents: vi.fn(async () => 0) }))
+vi.mock('@/lib/server/classroom-student-removal', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/server/classroom-student-removal')>(),
+  assertStudentsCanBeAddedToRoster: vi.fn(async () => {}),
+}))

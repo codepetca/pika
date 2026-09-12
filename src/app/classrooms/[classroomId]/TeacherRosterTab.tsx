@@ -599,14 +599,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the active roster. Submitted work, marks, attendance history, and Pal progress are kept. Their account and other classes are unaffected.`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the roster. This cannot be undone. They cannot be re-added until their old class data is permanently deleted. Removal does not delete that data immediately or guarantee its recovery. Their account and other classes are unaffected.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
 
-    return `${preview}${remaining}\n\nThey will lose access to this class and leave the active roster. Submitted work, marks, attendance history, and Pal progress are kept. Their accounts and other classes are unaffected.`
+    return `${preview}${remaining}\n\nThey will lose access to this class and leave the roster. This cannot be undone. They cannot be re-added until their old class data is permanently deleted. Removal does not delete that data immediately or guarantee its recovery. Their accounts and other classes are unaffected.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [

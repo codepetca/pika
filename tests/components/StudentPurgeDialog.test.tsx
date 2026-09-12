@@ -88,7 +88,7 @@ describe('StudentPurgeDialog', () => {
       onClose={vi.fn()}
       onCompleted={vi.fn()}
     />)
-    const explanation = 'Permanent deletion is unavailable because this student has linked Pal data. You can still remove them from the class without deleting their records.'
+    const explanation = 'Permanent deletion is unavailable because this student has linked Pal data. Removing them from the class is separate and cannot be undone; it does not erase their data.'
     expect(await screen.findByText(explanation)).toBeInTheDocument()
     expect(screen.getAllByText(explanation)).toHaveLength(1)
     expect(screen.queryByText('student_purge_external_erasure_required')).not.toBeInTheDocument()

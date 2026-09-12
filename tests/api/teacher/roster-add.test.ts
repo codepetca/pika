@@ -5,6 +5,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/teacher/classrooms/[id]/roster/add/route'
 import { NextRequest } from 'next/server'
+import { assertStudentsCanBeAddedToRoster } from '@/lib/server/classroom-student-removal'
+import { ApiError } from '@/lib/api-error'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -19,6 +21,29 @@ const mockSupabaseClient = { from: vi.fn() }
 
 describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
   beforeEach(() => { vi.clearAllMocks() })
+
+  it('rejects a removed student before any roster write', async () => {
+    vi.mocked(assertStudentsCanBeAddedToRoster).mockRejectedValueOnce(new ApiError(409, 'Student cannot be re-added'))
+    const request = new NextRequest('http://localhost/roster/add', {
+      method: 'POST', body: JSON.stringify({ students: [{ email: 'removed@example.com', firstName: 'A', lastName: 'B' }] }),
+    })
+    const response = await POST(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: 'Student cannot be re-added' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('maps a concurrent database removal denial to an actionable conflict', async () => {
+    mockSupabaseClient.from.mockReturnValue({ upsert: vi.fn(() => ({ select: vi.fn().mockResolvedValue({
+      data: null, error: { code: '55000', message: 'student_class_data_pending_purge' },
+    }) })) })
+    const request = new NextRequest('http://localhost/roster/add', {
+      method: 'POST', body: JSON.stringify({ students: [{ email: 'removed@example.com', firstName: 'A', lastName: 'B' }] }),
+    })
+    const response = await POST(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining('cannot be re-added') })
+  })
 
   it('should return 400 when students array is missing', async () => {
     const mockFrom = vi.fn(() => ({
@@ -93,4 +118,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
     ], { onConflict: 'classroom_id,email' })
   })
 })
-vi.mock('@/lib/server/classroom-student-removal', () => ({ restoreRemovedClassroomStudents: vi.fn(async () => 0) }))
+vi.mock('@/lib/server/classroom-student-removal', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/server/classroom-student-removal')>(),
+  assertStudentsCanBeAddedToRoster: vi.fn(async () => {}),
+}))

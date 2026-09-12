@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/classrooms/[id]/roster/remove/route'
-import { restoreRemovedClassroomStudents } from '@/lib/server/classroom-student-removal'
 
 const mocks = vi.hoisted(() => ({ role: vi.fn(), owner: vi.fn(), rpc: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role }))
@@ -68,22 +67,4 @@ describe('remove students from class without erasure', () => {
     expect(JSON.stringify(await response.json())).not.toContain('private student data')
   })
 
-  it('restores only the explicit teacher re-add selection', async () => {
-    mocks.rpc.mockResolvedValue({ data: { restored_count: 1 }, error: null })
-    expect(await restoreRemovedClassroomStudents(teacher, classroom, [' Ada@example.com ', 'ada@example.com'])).toBe(1)
-    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith('restore_removed_classroom_students', {
-      p_teacher_id: teacher, p_classroom_id: classroom, p_emails: ['ada@example.com'],
-    })
-  })
-
-  it('keeps ordinary roster addition working before retention exists', async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } })
-    expect(await restoreRemovedClassroomStudents(teacher, classroom, ['ada@example.com'])).toBe(0)
-  })
-
-  it('does not report successful restoration when the database rejects it', async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: { code: '55000', message: 'private error' } })
-    await expect(restoreRemovedClassroomStudents(teacher, classroom, ['ada@example.com']))
-      .rejects.toThrow('class access could not be restored')
-  })
 })
