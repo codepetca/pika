@@ -136,7 +136,7 @@ async function discoverClassroom(browser: Browser, baseURL: string | undefined) 
 }
 
 for (const entry of matrix) {
-  test(`captures preserving student removal (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+  test(`captures final student removal (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
     const classroomId = await discoverClassroom(browser, baseURL)
     const { context, page } = await newRolePage(
       () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
@@ -159,7 +159,7 @@ for (const entry of matrix) {
     await studentActionsMenu.getByRole('menuitem', { name: 'Remove student' }).click()
     const removalDialog = page.getByRole('dialog', { name: 'Remove student from class?' })
     await expect(removalDialog).toBeVisible()
-    await expect(removalDialog).toContainText('Submitted work, marks, attendance history, and Pal progress are kept.')
+    await expect(removalDialog).toContainText('This cannot be undone.')
     await expect(removalDialog).toContainText('Their account and other classes are unaffected.')
     await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`removal-confirmation-${entry.name}.png`), fullPage: true, animations: 'disabled' })
@@ -171,6 +171,30 @@ for (const entry of matrix) {
     await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`removal-success-${entry.name}.png`), fullPage: true, animations: 'disabled' })
 
+    await context.close()
+  })
+
+  test(`blocks re-adding a removed student (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+    const classroomId = await discoverClassroom(browser, baseURL)
+    const { context, page } = await newRolePage(
+      () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
+      entry.theme,
+    )
+    await mockTeacherStudentPurge(page, classroomId!)
+    const error = 'A removed student cannot be re-added to this class until their old class data has been permanently deleted. No students were added.'
+    await page.route(`**/api/teacher/classrooms/${classroomId}/roster/add`, (route) => route.fulfill({
+      status: 409, contentType: 'application/json', body: JSON.stringify({ error }),
+    }))
+    await page.goto(`/classrooms/${classroomId}?tab=roster`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: 'Add students', exact: true }).click()
+    await page.getByLabel('Enter student information').fill('Removed Student removed@example.com')
+    await page.getByRole('button', { name: 'Add 1 Student', exact: true }).click()
+    await expect(page.getByText(error, { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Enter student information')).toHaveValue('Removed Student removed@example.com')
+    await expectNoHorizontalOverflow(page)
+    await page.screenshot({ path: testInfo.outputPath(`removed-student-readd-${entry.name}.png`), fullPage: true, animations: 'disabled' })
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(page.getByLabel('Enter student information')).toHaveCount(0)
     await context.close()
   })
 

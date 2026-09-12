@@ -242,7 +242,7 @@ export function StudentPurgeDialog({
           {impact && !impact.deletion_available ? (
             <p className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
               {hasLinkedPalData
-                ? 'Permanent deletion is unavailable because this student has linked Pal data. You can still remove them from the class without deleting their records.'
+                ? 'Permanent deletion is unavailable because this student has linked Pal data. Removing them from the class is separate and cannot be undone; it does not erase their data.'
                 : impact.unavailable_reason || 'Student data deletion is not available yet.'}
             </p>
           ) : null}

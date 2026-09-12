@@ -3,12 +3,12 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
-import { restoreRemovedClassroomStudents } from '@/lib/server/classroom-student-removal'
+import { assertStudentsCanBeAddedToRoster, throwIfRemovedStudentRosterError } from '@/lib/server/classroom-student-removal'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// Add invitations; explicitly re-adding a removed learner restores their retained membership.
+// Add invitations, never restore a removed membership.
 export const POST = withErrorHandler('PostAddRosterStudents', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
@@ -62,12 +62,14 @@ export const POST = withErrorHandler('PostAddRosterStudents', async (request, co
     )
   }
 
+  await assertStudentsCanBeAddedToRoster(classroomId, rosterRows.map((row) => row.email))
   const { data: upserted, error: upsertError } = await supabase
     .from('classroom_roster')
     .upsert(rosterRows, { onConflict: 'classroom_id,email' })
     .select('id, email')
 
   if (upsertError) {
+    throwIfRemovedStudentRosterError(upsertError)
     console.error('Add roster error:', upsertError)
     return NextResponse.json(
       { error: 'Failed to add students' },
@@ -75,10 +77,8 @@ export const POST = withErrorHandler('PostAddRosterStudents', async (request, co
     )
   }
 
-  const restoredCount = await restoreRemovedClassroomStudents(user.id, classroomId, rosterRows.map((row) => row.email))
   return NextResponse.json({
     success: true,
-    restoredCount,
     upsertedCount: upserted?.length ?? 0,
     errors: errors.length > 0 ? errors : undefined,
   })

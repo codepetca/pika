@@ -1253,8 +1253,8 @@ describe('TeacherRosterTab', () => {
     const dialog = screen.getByRole('dialog', { name: 'Remove student from class?' })
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
-    expect(dialog).toHaveTextContent(/lose access to this class and leave the active roster/i)
-    expect(dialog).toHaveTextContent(/Submitted work, marks, attendance history, and Pal progress are kept/i)
+    expect(dialog).toHaveTextContent(/lose access to this class and leave the roster/i)
+    expect(dialog).toHaveTextContent(/This cannot be undone/i)
 
     await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
 
@@ -1326,7 +1326,7 @@ describe('TeacherRosterTab', () => {
     expect(screen.queryByRole('menuitem', { name: /Permanently delete class data/ })).not.toBeInTheDocument()
     await user.click(removeStudent)
     const dialog = screen.getByRole('dialog', { name: 'Remove student from class?' })
-    expect(dialog).toHaveTextContent('Submitted work, marks, attendance history, and Pal progress are kept.')
+    expect(dialog).toHaveTextContent('This cannot be undone.')
     expect(dialog).toHaveTextContent('Their account and other classes are unaffected.')
     await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
     expect(await screen.findByText('Student removed from class')).toBeInTheDocument()
@@ -1334,7 +1334,7 @@ describe('TeacherRosterTab', () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input).includes('/purge'))).toHaveLength(0)
   })
 
-  it('retains the preservation confirmation after a legacy joined-student conflict refresh', async () => {
+  it('retains the finality confirmation after a legacy joined-student conflict refresh', async () => {
     const user = userEvent.setup()
     let rosterLoads = 0
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -1393,7 +1393,7 @@ describe('TeacherRosterTab', () => {
 
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
-    expect(await screen.findByRole('dialog', { name: 'Remove student from class?' })).toHaveTextContent('Pal progress are kept')
+    expect(await screen.findByRole('dialog', { name: 'Remove student from class?' })).toHaveTextContent('This cannot be undone')
   })
 
   it('keeps comprehensive removal available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
@@ -1466,7 +1466,7 @@ describe('TeacherRosterTab', () => {
     expect(removeStudents).toBeEnabled()
     await user.click(removeStudents)
     const dialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
-    expect(dialog).toHaveTextContent('Pal progress are kept')
+    expect(dialog).toHaveTextContent('This cannot be undone')
     await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
     expect(await screen.findByText('Students removed from class')).toBeInTheDocument()
     expect(getRequestBody(getRemovalCalls(fetchMock)[0]).roster_ids).toEqual(expect.arrayContaining([rosterRow.id, secondRosterRow.id]))
@@ -1564,7 +1564,7 @@ describe('TeacherRosterTab', () => {
     expect(within(retryDialog).getByRole('alert')).toHaveTextContent('Failed to remove students')
     expect(screen.getByText('Ada')).toBeInTheDocument()
     expect(screen.getByText('Grace')).toBeInTheDocument()
-    expect(retryDialog).toHaveTextContent('Pal progress are kept')
+    expect(retryDialog).toHaveTextContent('This cannot be undone')
     expect(retryDialog).toContainElement(document.activeElement as HTMLElement)
     expect(within(retryDialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(within(retryDialog).getByText(/grace@example\.com/)).toBeInTheDocument()
