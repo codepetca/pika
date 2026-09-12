@@ -288,6 +288,15 @@ export function CreateClassroomModal({
           throw new Error(createData.error || 'Failed to create classroom')
         }
 
+        if (
+          !createData.classroom
+          || typeof createData.classroom !== 'object'
+          || typeof createData.classroom.id !== 'string'
+          || createData.classroom.id.length === 0
+        ) {
+          throw new Error('Failed to confirm the created classroom. Please try again.')
+        }
+
         classroom = createData.classroom
         blankClassroomOperationRef.current = null
         calendarBody.classroom_id = classroom.id
