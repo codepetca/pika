@@ -1,4 +1,5 @@
 import { getIronSession, IronSession } from 'iron-session'
+import { logServerError } from '@/lib/server/diagnostics'
 import { cookies } from 'next/headers'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { AuthenticatedUser, SessionData, UserRole } from '@/types'
@@ -95,7 +96,7 @@ export async function createSession(
       .eq('id', userId)
       .maybeSingle()
     if (versionError || !currentUser) {
-      console.error('Failed to resolve authentication credential version:', versionError)
+      logServerError('auth.session', versionError)
       throw new Error('Failed to create authentication session')
     }
     credentialVersion = currentUser.auth_credential_version
@@ -112,7 +113,7 @@ export async function createSession(
     p_previous_token_hash: previousToken ? hashSessionToken(previousToken) : null,
   })
   if (issueError || issued !== true) {
-    console.error('Failed to issue authentication session:', issueError)
+    logServerError('auth.session', issueError)
     throw new Error('Failed to create authentication session')
   }
 
@@ -146,7 +147,7 @@ export async function destroySession() {
   }
   session.destroy()
   if (revokeError) {
-    console.error('Failed to revoke authentication session:', revokeError)
+    logServerError('auth.session', revokeError)
     throw new Error('Failed to revoke authentication session')
   }
 }
@@ -176,7 +177,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     .maybeSingle()
 
   if (error) {
-    console.error('Failed to resolve authentication session:', error)
+    logServerError('auth.session', error)
     return null
   }
   if (!resolvedSession) return null

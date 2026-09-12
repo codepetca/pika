@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
 import { ApiError } from '@/lib/api-error'
+import { logServerError } from '@/lib/server/diagnostics'
 
 export { ApiError } from '@/lib/api-error'
 
@@ -67,7 +68,7 @@ function mapRequestJsonSyntaxErrors(request: NextRequest | undefined): void {
 /**
  * Maps known error types to HTTP status codes.
  */
-function mapErrorToResponse(error: unknown, routeName: string): NextResponse {
+function mapErrorToResponse(error: unknown): NextResponse {
   if (error instanceof ApiError) {
     return NextResponse.json({ error: error.message }, { status: error.statusCode })
   }
@@ -84,8 +85,11 @@ function mapErrorToResponse(error: unknown, routeName: string): NextResponse {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  console.error(`${routeName} error:`, error)
-  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  const diagnosticId = logServerError('api.unexpected', error)
+  return NextResponse.json({ error: 'Internal server error' }, {
+    status: 500,
+    headers: { 'x-pika-error-id': diagnosticId },
+  })
 }
 
 /**
@@ -124,13 +128,14 @@ function mapErrorToResponse(error: unknown, routeName: string): NextResponse {
  * })
  * ```
  */
-export function withErrorHandler(routeName: string, handler: RouteHandler): RouteHandler {
+// Retain the route-name argument for source compatibility, but never log caller-provided text.
+export function withErrorHandler(_routeName: string, handler: RouteHandler): RouteHandler {
   return async (request, context) => {
     try {
       mapRequestJsonSyntaxErrors(request)
       return await handler(request, context)
     } catch (error) {
-      return mapErrorToResponse(error, routeName)
+      return mapErrorToResponse(error)
     }
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { formatInTimeZone } from 'date-fns-tz'
 import { subDays } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -57,7 +58,7 @@ function getCronAuthHeader(request: NextRequest): string | null {
 async function handle(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
-    console.error('CRON_SECRET is not set')
+    logServerError('journal.summary')
     return NextResponse.json(
       { error: 'CRON_SECRET not configured' },
       { status: 500 }
@@ -107,7 +108,7 @@ async function handle(request: NextRequest) {
           skipped++
         }
       } else {
-        console.error('Error generating summary:', result.reason)
+        logServerError('journal.summary', result.reason)
         skipped++
       }
     }
@@ -133,7 +134,7 @@ async function getEligibleClassroomIds(
   )
 
   if (activeEntriesResult.error) {
-    console.error('Error fetching active classrooms:', activeEntriesResult.error)
+    logServerError('journal.query', activeEntriesResult.error)
     return {
       classroomIds: [],
       error: NextResponse.json(
@@ -151,7 +152,7 @@ async function getEligibleClassroomIds(
   const classDaysResult = await loadClassDayRowsForClassrooms(supabase, classroomIds, date)
 
   if (classDaysResult.error) {
-    console.error('Error fetching class days:', classDaysResult.error)
+    logServerError('journal.query', classDaysResult.error)
     return {
       classroomIds: [],
       error: NextResponse.json(
@@ -181,7 +182,7 @@ async function generateSummaryForClassroom(
   const enrollmentsResult = await loadEnrollmentStudentRows(supabase, classroomId)
 
   if (enrollmentsResult.error) {
-    console.error(`Error fetching roster for classroom ${classroomId}:`, enrollmentsResult.error)
+    logServerError('journal.query', enrollmentsResult.error)
     return false
   }
 
@@ -193,7 +194,7 @@ async function generateSummaryForClassroom(
   const entriesResult = await loadSummaryEntriesForClassroom(supabase, classroomId, rosterStudentIds, date)
 
   if (entriesResult.error) {
-    console.error(`Error fetching entries for classroom ${classroomId}:`, entriesResult.error)
+    logServerError('journal.query', entriesResult.error)
     return false
   }
 
@@ -208,13 +209,13 @@ async function generateSummaryForClassroom(
   const rosterRowsResult = await loadRosterNameRows(supabase, classroomId)
 
   if (rosterRowsResult.error) {
-    console.error(`Error fetching roster names for classroom ${classroomId}:`, rosterRowsResult.error)
+    logServerError('journal.query', rosterRowsResult.error)
     return false
   }
 
   const profilesResult = await loadStudentProfileRows(supabase, studentIdsForRedaction)
   if (profilesResult.error) {
-    console.error(`Error fetching student profiles for classroom ${classroomId}:`, profilesResult.error)
+    logServerError('journal.query', profilesResult.error)
     return false
   }
 
@@ -310,7 +311,7 @@ async function generateSummaryForClassroom(
   )
 
   if (upsertError) {
-    console.error(`Error upserting summary for classroom ${classroomId}:`, upsertError)
+    logServerError('journal.summary', upsertError)
     return false
   }
 
@@ -327,7 +328,7 @@ async function generateSummaryForClassroom(
       console.warn('Developer feedback candidates table is not available; skipping extraction storage.')
     }
   } catch (error) {
-    console.error(`Error extracting developer feedback for classroom ${classroomId}:`, error)
+    logServerError('journal.feedback', error)
   }
 
   return true

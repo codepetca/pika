@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import { logServerError } from '@/lib/server/diagnostics'
 import { isIP } from 'node:net'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
@@ -90,7 +91,7 @@ async function consumeAuthGlobalRateLimit(args: {
 
   const parsed = resultSchema.safeParse(data)
   if (error || !parsed.success) {
-    console.error('Authentication overload guard failed:', error || parsed.error)
+    logServerError('auth.rate_limit', error || parsed.error)
     throw new ApiError(503, 'Authentication is temporarily unavailable')
   }
   if (!parsed.data.ok) {
@@ -116,7 +117,7 @@ export async function consumeAuthRateLimit(args: {
 
   const parsed = resultSchema.safeParse(data)
   if (error || !parsed.success) {
-    console.error('Authentication rate limit failed:', error || parsed.error)
+    logServerError('auth.rate_limit', error || parsed.error)
     throw new ApiError(503, 'Authentication is temporarily unavailable')
   }
   if (!parsed.data.ok) {
@@ -135,7 +136,7 @@ export async function clearAuthRateLimit(args: {
     p_key_hash: hashAuthRateLimitKey(args.scope, args.value),
   })
   if (error || data !== true) {
-    console.error('Authentication rate limit reset failed:', error || data)
+    logServerError('auth.rate_limit', error || data)
     throw new ApiError(503, 'Authentication is temporarily unavailable')
   }
 }

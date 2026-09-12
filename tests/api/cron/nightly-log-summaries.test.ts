@@ -772,7 +772,7 @@ describe('cron nightly-log-summaries route', () => {
         return mockPagedTable([{ id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 'student-1' }])
       }
       if (table === 'classroom_roster') return mockPagedTable([])
-      if (table === 'student_profiles') return mockPagedTable([], { error: { message: 'profiles failed' } })
+      if (table === 'student_profiles') return mockPagedTable([], { error: { code: '42501', message: 'PRIVATE-PROFILE', details: 'PRIVATE-JOURNAL' } })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -785,6 +785,8 @@ describe('cron nightly-log-summaries route', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 1 })
     expect(callOpenAIForSummary).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('[pika-diagnostic]', expect.objectContaining({ event: 'journal.query', category: 'database' }))
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('PRIVATE-')
     errorSpy.mockRestore()
   })
 

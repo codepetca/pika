@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
 import { isTeacherEmail } from '@/lib/auth'
@@ -71,7 +72,7 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
       .single()
 
     if (createError) {
-      console.error('Error creating user:', createError)
+      logServerError('auth.signup', createError)
       throw new ApiError(500, 'Failed to create user')
     }
 
@@ -90,7 +91,7 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     })
 
   if (insertError) {
-    console.error('Error inserting verification code:', insertError)
+    logServerError('auth.signup', insertError)
     throw new ApiError(500, 'Failed to generate code')
   }
 

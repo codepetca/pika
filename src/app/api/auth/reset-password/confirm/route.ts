@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
@@ -58,7 +59,7 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
   )
 
   if (resetError) {
-    console.error('Error resetting password and revoking sessions:', resetError)
+    logServerError('auth.reset', resetError)
     throw new ApiError(500, 'Failed to reset password')
   }
   if (!credentialVersion) {
