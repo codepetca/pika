@@ -265,6 +265,28 @@ describe('classroom archive restore planning', () => {
     expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-134'])
   })
 
+  it('reconciles a removed-only roster actor without restoring class enrollment', () => {
+    const row = {
+      id: '72000000-0000-4000-8000-000000000099', classroom_id: V2_CLASSROOM_ID,
+      removed_student_id: V2_STUDENT_ID, removed_at: '2026-09-11T12:00:00Z',
+      retained_manual_attendance_marks: { '2026-09-02': 'late' },
+    }
+    const verification = verifyClassroomArchiveBundle(buildClassroomArchiveV2Fixture({
+      resources: { classroom_roster: [row] },
+    }).archive)
+    if (!verification.ok) throw new Error(verification.error)
+    const teacher = { id: V2_TEACHER_ID, email: 'teacher@example.test', role: 'teacher' as const }
+    const args = { verified: verification, artifactChecksumVerified: true, operationId: OPERATION_ID,
+      supabaseUrl: 'https://project.supabase.co' }
+    expect(() => buildClassroomArchiveV2RestorePlan({ ...args, currentActors: [teacher] }))
+      .toThrow(`Archive restore has unresolved actors: ${V2_STUDENT_ID}`)
+    const student = { id: V2_STUDENT_ID, email: 'changed-email@example.test', role: 'student' as const }
+    const plan = buildClassroomArchiveV2RestorePlan({ ...args, currentActors: [teacher, student] })
+    expect(plan.actors).toContainEqual(expect.objectContaining({ id: V2_STUDENT_ID, role: 'student' }))
+    expect(plan.resources.classroom_roster).toEqual([row])
+    expect(plan.resources.classroom_enrollments).toEqual([])
+  })
+
   it('converts unmarked archived Test drafts at the restore boundary', () => {
     const testId = '72000000-0000-4000-8000-000000000001'
     const firstRowId = '72000000-0000-4000-8000-000000000002'

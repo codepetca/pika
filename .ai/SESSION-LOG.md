@@ -11,48 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-07 — Bind atomic enrollment responses to the requested classroom
-
-- The reserved fifth cumulative Sol/high review found one merge-blocking response-boundary gap and one stale migration comment. Under the owner-approved review-budget extension, remediation batch 4 models exact created and already-enrolled success variants, models each failure code/status envelope, canonicalizes and binds the returned classroom UUID to the server-requested classroom, and rejects malformed or cross-class success as unavailable. Regression coverage proves wrong-classroom and inconsistent-status responses fail closed.
-- Corrected the installed function comment to migration 159 and bound it with a static assertion. The three targeted suites pass 11 tests. One targeted security review and, if clean, one final cumulative review remain under the explicit extension; no local/hosted migration, route adoption, cohort, deployment, or production change occurred.
-
-## 2026-09-08 — Resume privacy fix review for PR 1218
-
-- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
-- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
-
-## 2026-09-08 — Make the Gradebook percent control a true toggle
-
-- Kept the Gradebook `%` label visible in both states: pressed displays percentages and unpressed displays raw `x/y` marks. Added the requested `Show %` tooltip and explicit `aria-pressed` state.
-- Updated the live Gradebook and Pattern Lab semantic coverage. Focused checks pass 21 files / 232 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and 67 directly affected tests pass. Teacher desktop/mobile light/dark and on/off/hover states were visually inspected. Student view is not applicable because Gradebook is teacher-only.
-- Composite-widget checklist reviewed: native button keyboard behavior is preserved, semantic pressed state is covered by tests, and no manual follow-up remains. Risk profile: none; no schema, data, API, dependency, or new shared component.
-
-## 2026-09-08 — Rebase atomic enrollment after Gradebook toggle
-
-- Rebased PR #1193 onto main `6dbc2fcf` after #1219 merged. Preserved main's Gradebook toggle and resolved only the shared continuity journal; migration 159, the enrollment adapter, generated types, database harnesses, CI wiring, and their tests are unchanged by range comparison.
-- The previously reviewed exact-head CI was green before main advanced. Focused verification and fresh ready-PR CI must pass on the rebased head before merge. No reviewer launch, migration application, hosted change, route adoption, cohort, deployment, or production rollout occurred.
-
-## 2026-09-08 — Sync privacy PR 1218 for authorized merge
-
-- User authorized merging the reviewed privacy fixes. New main commits #1219/#1193 caused an archive-only conflict, so the PR returned to draft. Integrated current main without switching branches and preserved both continuity histories; the privacy implementation and regression tests remain byte-identical to independently reviewed `0e3ac63c`.
-- Prior exact-head CI passed 6,423 tests, 154 browser checks (17 skipped), database contracts, build and PR Gate. Fresh focused checks, a bounded sync-only review and new exact-head CI are required before retrying the squash merge. No migration application or production deployment is authorized or performed by this sync.
-
-## 2026-09-08 — Normalize Attendance timing minute inputs
-
-- Updated all four minute fields in the teacher Attendance timing dialog to select their current value on focus, immediately normalize typed values so `05` displays as `5`, and hide native number spinner arrows without changing saved bounds or validation.
-- Added focused interaction and styling coverage. The focused gate passes 15 files / 224 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Fixture-backed Playwright verification passes teacher desktop/mobile in light/dark, and a real browser check confirms clicking the zero value and typing `5` yields exactly `5`. Student is n/a because the dialog is teacher-only. No schema, API, dependency, or shared component change.
-
-## 2026-09-08 — Resolve the second privacy PR history conflict
-
-- Owner approved the review-limit checkpoint after #1220 landed during green CI. Integrated main `0fa59c42`, preserving both archive markers and unique history entries; privacy product code/tests and the incoming attendance fix are unchanged from their respective reviewed commits.
-- Scope is one documentation-only integration review and fresh exact-head CI before authorized main merge. Prior exact-head CI at `0339c5da` passed all lanes and PR Gate. No migration, production deployment, or new security implementation is included.
-
-## 2026-09-08 — Open blueprint-created classrooms directly
-
-- Removed the post-instantiation “Classroom Created” review step. Successful Blueprint creation now closes the wizard and opens the new classroom's Assignments tab immediately while preserving the class-day review prompt and parent-list refresh.
-- Updated component and browser coverage to assert the direct destination and absence of the old modal. Independent review caught that the removed modal had also named lesson plans that could not fit the calendar; remediation batch 1 now carries those titles into the classroom's existing review notice through a session-scoped handoff, while the no-overflow path retains the generic notice.
-- Focused checks pass 18 files / 260 tests plus architecture, UI/design policy, TypeScript, and lint; the pre-commit audit passes. Visual verification passed for the teacher destination and overflow notice on desktop/mobile in light/dark themes. Student is not applicable because classroom creation is teacher-only. Composite checklist reviewed: pending-operation Escape protection remains covered, the removed dialog state adds no semantic or keyboard obligation, and no manual follow-up remains. Risk profile: none.
-
 ## 2026-09-08 — Diagnose and resolve the privacy PR merge disagreement
 
 - Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
@@ -242,6 +200,54 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
 - One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.
+
+## 2026-09-11 — Plan coordinated student removal and add server processing
+
+- Task owns `codex/student-purge-background` in the matching named worktree. Recorded the cross-repository plan in `docs/guidance/student-purge-background-plan.md`; implementation remains partial pending the historical Pal erasure policy. Pal's aggregated daily/weekly facts lack full classroom provenance. Existing admission safeguards remain in place; no provider data, migrations, or UI were changed.
+- Added bounded post-response processing for accepted student purges using existing leases and daily cron recovery. Tests cover browser-independent progress, failures, lease contention, budgets, and rejected admission. Targeted purge suites pass 20 tests; broader focused gate passes 104 tests and architecture/UI/design policies, with remaining static checks recorded in the task.
+- Remaining: resolve historical Pal reconstruction/reset semantics, implement and verify the provider receipt and event fencing contract, pending access controls, roster/dialog UX and visual matrix, then coordinated rollout. The initial worker does not guarantee prompt completion after its runtime budget expires.
+
+## 2026-09-11 — Simplify student removal to preserve class records
+
+- User chose ordinary class removal rather than coordinated Pal erasure. Superseded the earlier background-purge proposal and removed its post-response worker. Added a separate preserving removal endpoint, explicit teacher re-add restoration, retained-roster filtering and clear removal versus permanent-deletion UI. No Pal calls or automatic erasure are part of normal removal.
+- Authored unapplied migration 164 to retain enrollment metadata/manual attendance and academic rows while removing active membership, block implicit rejoin/destructive legacy fallthrough, and preserve archive identity. A rollback-only database fixture is authored; actual behavior, archive/concurrency checks and generated types remain pending exact disposable-local migration authorization. No migration was applied and no production data changed.
+- Focused checks pass 214 tests plus TypeScript, lint and architecture/UI/design checks; separate migration-source tests pass; Pika audit passes. Teacher desktop/mobile light/dark visual scenarios pass after fixing menu alignment (desktop-light retried following a local navigation timeout). Student routing excludes teacher actions, but actual post-removal access needs the database fixture. Reused existing ConfirmDialog, AppMessage and action-menu primitives under the Pika UI brief. Nonblocking operation locks return a retryable conflict rather than waiting in reverse purge lock order.
+- PR #1244 remains draft; independent review of this replacement flow and schema execution are still required. Do not treat the previous worker review as review of the new design.
+
+## 2026-09-11 — Verify preserving removal in an isolated database
+
+- Owner authorized one application of migration 164 via SQL in a disposable local database. Cloned only schema/static archive registry to `supabase_db_pika` database `pika_removal_164_wgvpf4`; source public/private schema equality was verified before the single successful transactional application. Shared `postgres` remains migration 163 with no removed roster columns; no production changes. The SQL authorization is consumed.
+- Rollback-only tests pass for mixed removal, retained work/grades/Pal/manual attendance, exact attendance activation restore, owner denial, active decommission conflict, implicit rejoin denial, retry, email-change binding, cross-class preservation, and removed-student archive/compaction/restore without accidental reenrollment. Separate-session lock probes pass. Current standalone Gradebook archive contract also passes; obsolete generic archive scripts reference retired quizzes and are not applicable. Database lint reports no errors/warnings; all synthetic fixture users rolled back.
+- Generated public types directly from the isolated database with Supabase CLI and independently compared fresh output; removed temporary RPC casts and typed roster read results. The normal local types wrapper still targets the unchanged shared database; clean replay/types equality remain CI gates. Added the removal fixture runner to CI. Focused gate passes 209 tests plus static gates; targeted removal/API source checks pass 18 tests; UI is unchanged from the prior verified matrix. Initial Sol/high and Terra/high independent review follows against a fixed detached commit; keep PR #1244 draft pending that review.
+
+## 2026-09-11 — Batch preserving-removal review corrections
+
+- Initial independent review of fixed `32aed6aa` used Sol/high and Terra/high (2 launches, one full-diff wave). Full fixed-head suite passed 6,644 tests/734 files. Accepted P1s: application archive actor contract omitted `removed_student_id`; re-add after account email change missed retained identity; Gradebook enrollment check preceded serialization locks. One remediation batch updates current/v2 actor contracts while preserving immutable v1, resolves re-add via stable identity with transactional unbound-placeholder merge and identity-reuse rejection, and locks before mark checks. Added actor/preflight, fallback, email-reuse and actual grade-race regressions.
+- Corrected application archive tests pass 43; roster fallback tests pass5. Focused rerun with `VITEST_MAX_WORKERS=2` passes702 tests/56 files and all static checks; the earlier unrestricted run had worker/timeouts. Audit passes. No further UI changes. Original migration164 checksum `9d7213e90df51de55794af5aebd50e61cd8be22cf1bd504400cc7bf786414645` alone was applied to disposable `pika_removal_164_wgvpf4`; revised164 is unapplied, so new SQL/race regressions remain unverified. Renewed exact disposable-local SQL authorization was requested; no shared/prod migrations or data changes.
+- PR #1244 must remain draft. Next: after renewed permission, use a fresh schema-only disposable database to apply revised164 once, execute the full removal/archive/race runner and generated-types/lint checks, then one targeted Sol/high remediation review (launch3), final integration review if needed, and stable-SHA CI. The previous worker review does not substitute for review of this flow.
+
+## 2026-09-11 — Verify revised removal migration
+
+- Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
+- Full removal/archive/email-identity fixture and lock probes pass. Corrected grade-race harness to allow the existing archive-revision trigger to wait for removal commit before rejecting the mark; separate removal rounds test insert and update, with no attempted mark persisted. No migration change or reapplication. Database lint is clean and independently generated public types match. Synthetic users cleaned up. Targeted independent review and stable-head CI remain before ready handoff.
+
+## 2026-09-11 — Preserve pre164 archive inventory compatibility
+
+- Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
+- Synchronized main `b170b89d` (classroom join controls), preserving both continuity histories. Its join flow uses the same serialized RPC and removed-membership guard; no application merge conflicts. Targeted re-review (launch4) and cumulative integration (launch5) remain within the bounded review plan. No merge/deployment permission.
+
+## 2026-09-11 — Isolate legacy invitation removal from retained marks
+
+- Final review launch5 found the legacy remover still delegated to historical orphan-score cleanup. New rollback regression reproduced deletion of a retained standalone score when deleting an unrelated invitation. Owner approved one bounded correction, one fresh disposable-local application of revised164, and two additional review passes (launches6–7).
+- Batch3 replaces that delegation with a bounded, locked invitation-only delete. Removed/bound/joined identities are rejected; only exact requested invitation rows are deleted, with all academic-data deletion counters zero. Tests cover unrelated invitation, removed-identity re-add placeholder, duplicate targets and atomic mixed joined/invitation rejection. Updated the standalone Gradebook harness to require retained marks after enrollment removal. No UI or Pal changes.
+- Revised164 checksum `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7` awaits targeted review and the approved one-time application to fresh disposable `pika_removal_164_djwzbp`; shared/prod remain unchanged. Prior755-test focused gate passed; SQL behavior remains to be verified against the revision.
+- Targeted Sol/high review launch6 cleared fixed `dab31d44`. The approved single SQL application then succeeded in `pika_removal_164_djwzbp` (permission consumed). Full removal/archive/email/legacy-delete/race harness and standalone Gradebook archive/retention harness pass. Database lint clean, generated public types match, synthetic users0; shared postgres remains163 without removal columns. Latest focused709 tests/56files plus static checks and audit pass. Final cumulative review launch7 and exact-head CI remain; no merge/deployment authorization.
+
+## 2026-09-11 — Split removal browser contracts after CI timeout
+
+- Final review launch7 cleared `48c4a767`; exact-head CI passed full test/build and all database contracts, but the combined removal/purge/student visual test repeatedly exhausted its30s total budget (one final failure, other transient browser scenarios retried successfully). User requested the next correction and main synchronization; PR returned to draft before edits.
+- Split each viewport/theme into independent preserving-removal, permanent-deletion and student-boundary tests; retained every action/assertion/capture without raising timeouts. Authenticated exact-title API fixture discovery replaces unrelated index navigation; explicit baseURL and DOM-ready navigation avoid redundant load waits. Student content must resolve before absence assertions, preventing loading-state false positives.
+- Merged main `7ddd3873`, preserving both session histories; only archive-log marker conflict, no product/schema conflict. Focused817tests/63files and static gates/audit pass. Final local browser14/14 pass in30.3s, teacher/student desktop/mobile light/dark captures inspected (`/tmp/pika-removal-browser-final`). No product or SQL correction; migration checksum remains `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7`. Final available reviewer slot8 and fresh exact-head CI remain. No migration/merge/deployment authorization.
 
 ## 2026-09-11 — Restore classroom join controls
 

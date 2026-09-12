@@ -49,13 +49,13 @@ describe('StudentPurgeDialog', () => {
       onCompleted={vi.fn()}
     />)
 
-    const dialog = await screen.findByRole('dialog', { name: 'Remove this student?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Permanently delete class data?' })
     expect(dialog).toHaveTextContent(/submissions, tests, grades, attendance/)
     expect(dialog).toHaveTextContent(/user account and data in other classrooms are kept/i)
     expect(dialog).toHaveTextContent(/archive copies and Gradex extracts/)
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toContainElement(document.activeElement)
-    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
+    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
     expect(purge).toBeDisabled()
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'STUDENT@example.com' } })
     expect(purge).toBeDisabled()
@@ -65,17 +65,19 @@ describe('StudentPurgeDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
   })
 
-  it('keeps provider-blocked targets fail closed', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
+  it('explains the Pal restriction once and keeps deletion blocked even after email confirmation', async () => {
+    const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
         impact: impact({
           deletion_available: false,
           unavailable_reason: 'student_purge_external_erasure_required',
+          conflicting_operation: 'student_purge_external_erasure_required',
         }),
         operation: null,
       }),
-    })))
+    }))
+    vi.stubGlobal('fetch', fetchMock)
     render(<StudentPurgeDialog
       classroomId={CLASSROOM_ID}
       classroomTitle="Biology"
@@ -86,8 +88,16 @@ describe('StudentPurgeDialog', () => {
       onClose={vi.fn()}
       onCompleted={vi.fn()}
     />)
-    expect(await screen.findByText('student_purge_external_erasure_required')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Remove student' })).toBeDisabled()
+    const explanation = 'Permanent deletion is unavailable because this student has linked Pal data. You can still remove them from the class without deleting their records.'
+    expect(await screen.findByText(explanation)).toBeInTheDocument()
+    expect(screen.getAllByText(explanation)).toHaveLength(1)
+    expect(screen.queryByText('student_purge_external_erasure_required')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Finish the active classroom operation/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: EMAIL } })
+    const deleteButton = screen.getByRole('button', { name: 'Delete class data' })
+    expect(deleteButton).toBeDisabled()
+    fireEvent.click(deleteButton)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('uses the authoritative account email when the roster casing differs', async () => {
@@ -109,7 +119,7 @@ describe('StudentPurgeDialog', () => {
     const input = within(dialog).getByRole('textbox', {
       name: /Type “Joined@example\.com” to confirm/,
     })
-    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
+    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
     fireEvent.change(input, { target: { value: 'joined@example.com' } })
     expect(purge).toBeDisabled()
     fireEvent.change(input, { target: { value: 'Joined@example.com' } })
@@ -137,7 +147,7 @@ describe('StudentPurgeDialog', () => {
     />)
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: EMAIL } })
-    const purge = within(dialog).getByRole('button', { name: 'Remove student' })
+    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
     fireEvent.click(purge)
     await within(dialog).findByRole('alert')
     fireEvent.click(purge)

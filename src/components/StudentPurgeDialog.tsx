@@ -58,6 +58,7 @@ export function StudentPurgeDialog({
   )
   const finishedFiles = operation?.storage_object_counts.deleted || 0
   const confirmationEmail = impact?.student_email || studentEmail
+  const hasLinkedPalData = impact?.unavailable_reason === 'student_purge_external_erasure_required'
 
   useEffect(() => {
     mountedRef.current = true
@@ -112,13 +113,13 @@ export function StudentPurgeDialog({
       current = body.operation
       if (mountedRef.current) setOperation(current)
       if (body.advanced === false) {
-        throw new Error('Removal is waiting safely. Select Continue removal shortly.')
+        throw new Error('Deletion is waiting safely. Select Continue deletion shortly.')
       }
       if ((current.storage_object_counts.failed || 0) > 0) {
-        throw new Error('A storage request failed safely. Progress was saved; select Continue removal to retry.')
+        throw new Error('A storage request failed safely. Progress was saved; select Continue deletion to retry.')
       }
     }
-    throw new Error('Removal is still in progress. Select Continue removal to resume.')
+    throw new Error('Deletion is still in progress. Select Continue deletion to resume.')
   }
 
   async function startOrContinue() {
@@ -164,7 +165,7 @@ export function StudentPurgeDialog({
     <ContentDialog
       isOpen={isOpen}
       onClose={close}
-      title="Remove this student?"
+      title="Permanently delete class data?"
       subtitle={`${studentName} · ${classroomTitle}`}
       maxWidth="max-w-xl"
       showHeaderClose={!isWorking}
@@ -233,14 +234,16 @@ export function StudentPurgeDialog({
             </FormField>
           )}
 
-          {impact?.conflicting_operation ? (
+          {impact?.conflicting_operation && !hasLinkedPalData ? (
             <p className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
-              Finish the active classroom operation before purging this student.
+              Finish the active classroom operation before deleting this student’s class data.
             </p>
           ) : null}
           {impact && !impact.deletion_available ? (
             <p className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
-              {impact.unavailable_reason || 'Student data deletion is not available yet.'}
+              {hasLinkedPalData
+                ? 'Permanent deletion is unavailable because this student has linked Pal data. You can still remove them from the class without deleting their records.'
+                : impact.unavailable_reason || 'Student data deletion is not available yet.'}
             </p>
           ) : null}
           {error ? <p className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
@@ -260,7 +263,7 @@ export function StudentPurgeDialog({
                 || operation?.status === 'completed'
               }
             >
-              {operation ? 'Continue removal' : 'Remove student'}
+              {operation ? 'Continue deletion' : 'Delete class data'}
             </Button>
           </div>
         </div>
