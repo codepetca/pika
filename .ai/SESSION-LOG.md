@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-08 — Keep the classroom QR available when attendance is closed
-
-- Promoted the stable classroom poster from its separate canary gate to every classroom with server-confirmed QR attendance access. The Daily center `Classroom QR` action now remains enabled while attendance is scheduled or closed; archived classrooms remain excluded.
-- Preserved scan-time enforcement: Pika still requires an eligible occurrence, enabled attendance policy, active class day, open Bara session projection, current enrollment, and an active participant mapping before submitting a check-in.
-- Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
-- Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
-- Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
-
 ## 2026-09-09 — Dismiss the Daily student pane outside the table
 
 - Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
@@ -257,3 +249,7 @@ Prepared disabled membership identity ledger/resolver and red-first server tests
 ## 2026-09-12 — Pal isolated baseline verified
 
 User approved isolated `pika-pal-phase1` baseline migrations 001–165, without seeds or real data. Prepared runtime at `/Users/stew/.codex/worktrees/pika/.pal-phase1-db`, verified the exact dry run, and applied once via `supabase db push --local`. All 165 history names/numbers match; users/classrooms/enrollments are empty; generated public baseline types match committed types. Migration 168 remains absent; next gate is exact approval for its intentional rollback rehearsal. No shared or hosted database changes, flags, or provider calls.
+
+## 2026-09-12 — Pal migration rollback rehearsal passed
+
+User separately approved the intentional migration-168 rollback rehearsal on isolated `pika-pal-phase1`. Exact-target migration list/dry run showed only 168 pending. The approved harness produced the expected ambiguous-generation PK failure and verified complete rollback: no 168 objects/functions or synthetic users/classrooms/enrollments/roster; history stays at 165. Clean application of 168 remains the next one-time approval gate, then lifecycle contracts/types/PR. No shared or hosted database changes.

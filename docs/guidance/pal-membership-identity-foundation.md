@@ -1,7 +1,7 @@
 # Pal membership identity foundation — Phase 1
 
-Status: implementation prepared; isolated baseline 001–165 verified on 2026-09-12.
-Migration 168 has not been applied or replayed.
+Status: implementation prepared; isolated baseline 001–165 and migration-168
+rollback rehearsal verified on 2026-09-12. Clean application of 168 is pending.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -88,8 +88,9 @@ resurrection denial, evidence retention and modeled fresh re-add. The existing
 full archive/removal contracts must also pass against migration 168.
 
 The initial task did not authorize migration application. The user subsequently
-approved isolated baseline migrations 001–165 only; that application succeeded
-on 2026-09-12. Migration 168 replay, production operations, flag enablement,
+approved isolated baseline migrations 001–165, followed by a separate one-time
+approval for migration 168's intentional rollback rehearsal. Both succeeded on
+2026-09-12. Clean application of 168, production operations, flag enablement,
 real-data mutation and provider provisioning remain unauthorized. Before new
 public types can be generated, a separately approved
 disposable/local target must receive the exact migration
@@ -119,6 +120,13 @@ replays migration 168 with an ambiguous synthetic generation inside its
 transaction and checks complete rollback. That script's acknowledgement is an
 execution guard, not user authorization. A subsequent clean application of
 168 requires fresh authorization; the script never retries or applies it cleanly.
+The approved rehearsal passed with the reviewed migration checksum
+`30af63fcfd32932b13f21ddfef92c94611d646807984410e48df073e5210d4f1`:
+only 168 was pending in the dry run; the injected duplicate generation raised
+the expected primary-key failure; all migration objects and synthetic fixtures
+rolled back. Postflight found zero users, classrooms, enrollments and roster
+rows, zero migration-168 functions, and unchanged history through 165. This is
+failure-path execution evidence, not evidence of a successful 168 installation.
 After clean application, `PAL_MEMBERSHIP_PROJECT=pika-pal-phase1 bash
 scripts/check-pal-membership-database.sh` runs rollback-only lifecycle checks
 and two-session lock-barrier checks. These prove source-write exclusion and
@@ -139,4 +147,5 @@ wave, one fix batch. Final integration review is deferred until verified schema
 generation replaces the temporary adapter. No PR has been opened because the
 required pre-PR database type check cannot pass on the shared schema; no ready
 event or CI replay has been triggered. The goal is unfinished; the next approval
-is the intentional migration-168 rollback rehearsal on `pika-pal-phase1`.
+is one clean application of migration 168 on `pika-pal-phase1`, followed by
+synthetic lifecycle tests and generated public types.
