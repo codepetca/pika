@@ -22,10 +22,10 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 - Outcome: one account discovers classrooms it teaches and joins without changing account type.
 - Roles: teacher, student, and a mixed-relationship fixture; these are examples, not authorization.
 - Viewports: 1440×900 desktop and 390×844 mobile; light and dark.
-- States: All/Teaching/Joined, populated, new account, loading, error/retry, filtered empty,
+- States: populated, new account, loading, error/retry, active empty,
   creation unavailable, join validation/confirmation, create, edit, archive/restore and classroom preview.
 - Primary signal: one top-right menu above the list, live themed classroom cards
-  and quiet Teaching/Joined grouping. Filters have their own row above list actions.
+  and quiet Teaching/Joined grouping. Both active relationship groups remain visible together.
 - Exclusions: production routes, auth, API calls, persistence, schema, eligibility changes,
   subscription labels, payment UI, destructive deletion, broad visual redesign.
 - Composite accessibility: shared selection/menu/dialog owners; test keyboard, semantic state,
@@ -34,14 +34,14 @@ Model recommendation: GPT-5.6 Terra — bounded UI correctness and compatibility
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
 | Classroom rows | Live themed classroom-card composition | extend | Preserve compact title, term and dates while matching the current gradient identity treatment |
-| Home filters | SegmentedControl | reuse | Filter one list with shared pressed/keyboard semantics |
+| Relationship discovery | Teaching and Joined sections | reuse | The persistent grouped list communicates both relationships without a redundant selector |
 | Top-right menu | PageActionBar + TeacherWorkSurfaceIconMenuButton | reuse | Match PR #1179 placement, downward opening, checked edit state and archive divider |
 | Archived owner actions | Live archived-row Settings menu | reuse | Keep Reuse and Unarchive grouped; Delete is visible but disabled in this non-destructive fixture |
 | Back and list Escape | PageHeading | reuse | Return to Active/non-editing and focus the heading; nested menus/dialogs retain Escape |
 | Forms and previews | ContentDialog, FormField, Input, ConfirmDialog, PageState | reuse | Keep validation and focus in existing owners |
 | Review surface | Pattern Lab catalog | extend | Add a fixture-owned experiment; leave original Classrooms example intact |
 
-Teaching means owner; Joined means member. All groups both relationships. Creation availability
+Teaching means owner; Joined means member. The active view groups both relationships. Creation availability
 is a separate fixture control, not inferred from a plan label or the selected relationship.
 Join remains available in every account example. Only owned classes expose reordering,
 archiving and restore controls. Joined classes expose Hide in edit mode and Unhide in
@@ -57,6 +57,28 @@ No fake live-save success, network writes or persisted settings are introduced.
 Nearby refactor candidate: PR #1139 and this prototype share classroom-row structure. Keep the
 proposal local until human acceptance establishes a durable contract for a live adopter.
 Human promotion and separately reviewed server discovery/routing are required before adoption.
+
+## Always-grouped refinement — 2026-09-11
+
+- Removed the All/Teaching/Joined segmented selector from the active home. Teaching and Joined
+  remain as quiet section headings, so one account can scan both relationships without changing
+  views.
+- The top-right classroom actions menu remains the sole list control. Create/join success now
+  returns focus to the Active classrooms heading instead of the removed selector.
+- Empty active state, editing, Archived/Hidden, creation eligibility fixtures and relationship-
+  specific classroom previews retain their existing behavior. No production route, entitlement,
+  plan, persistence or rollout behavior changes.
+
+### Verification — 2026-09-11
+
+- Component coverage passes for the Owned/Joined mockup and Pattern Lab gallery, including
+  the selector's absence, persistent relationship sections, empty states and focus return.
+- Eight fixture-backed browser scenarios pass: teacher and student × desktop/mobile × light/dark.
+  Visual inspection covered the default student view in both themes and viewport sizes plus the
+  mixed Teaching/Joined view; the top-right menu remains aligned and no overflow was introduced.
+- The Pika pre-commit audit passes without violations. Composite checklist reviewed: existing
+  menu/dialog keyboard behavior and semantic state remain covered; the removed segmented control
+  leaves no new manual accessibility follow-up for this fixture-only scope.
 
 ## Current classroom-list visual alignment — 2026-09-08
 
