@@ -1,7 +1,7 @@
 # Pal membership identity foundation — Phase 1
 
-Status: implementation prepared; isolated baseline 001–165 and migration-168
-rollback rehearsal verified on 2026-09-12. Clean application of 168 is pending.
+Status: migration 168 applied and verified on isolated local `pika-pal-phase1`
+on 2026-09-12. Foundation remains disabled; final review and PR CI are pending.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -88,19 +88,18 @@ resurrection denial, evidence retention and modeled fresh re-add. The existing
 full archive/removal contracts must also pass against migration 168.
 
 The initial task did not authorize migration application. The user subsequently
-approved isolated baseline migrations 001–165, followed by a separate one-time
-approval for migration 168's intentional rollback rehearsal. Both succeeded on
-2026-09-12. Clean application of 168, production operations, flag enablement,
-real-data mutation and provider provisioning remain unauthorized. Before new
-public types can be generated, a separately approved
-disposable/local target must receive the exact migration
-`168_pal_membership_identity_foundation.sql` through the repository workflow.
-Run the targeted SQL fixture plus existing archive/removal contracts, generate
-public types from that verified schema, remove the temporary narrow RPC adapter
-in `pal-membership.ts`, and run `db:types:check`. Generated types must not be
-edited by hand. Keep the PR draft until that evidence and independent review
-are complete. Ready-event CI also replays migrations and must wait for replay
-authorization. Production application, rollout, and merge authority are separate.
+approved isolated baseline migrations 001–165, migration 168's intentional
+rollback rehearsal, and then one clean application of 168 in three separate
+instructions. Each succeeded on 2026-09-12. Production operations, flag
+enablement, real-data mutation and provider provisioning remain unauthorized.
+Public types were generated from the verified isolated schema with the
+repository's `db:types:generate` command and passed `db:types:check`. A temporary
+local CLI launcher pointed those commands at this isolated Supabase workdir;
+the shared database was not used. The only generated public change is the
+`resolve_pal_membership` RPC. The temporary RPC type adapter was removed.
+Keep the PR draft until final independent review is complete. Ready-event CI
+also replays migrations and must wait for replay authorization. Production
+application, rollout, and merge authority are separate.
 
 The shared local database contains unrelated migration 166, and another active
 worktree owns 167. This branch reserves 168 and must not generate types from
@@ -119,19 +118,38 @@ The separately gated `scripts/check-pal-membership-migration-rollback.sh` then
 replays migration 168 with an ambiguous synthetic generation inside its
 transaction and checks complete rollback. That script's acknowledgement is an
 execution guard, not user authorization. A subsequent clean application of
-168 requires fresh authorization; the script never retries or applies it cleanly.
+168 required fresh authorization; the script never retries or applies it cleanly.
 The approved rehearsal passed with the reviewed migration checksum
 `30af63fcfd32932b13f21ddfef92c94611d646807984410e48df073e5210d4f1`:
 only 168 was pending in the dry run; the injected duplicate generation raised
 the expected primary-key failure; all migration objects and synthetic fixtures
 rolled back. Postflight found zero users, classrooms, enrollments and roster
 rows, zero migration-168 functions, and unchanged history through 165. This is
-failure-path execution evidence, not evidence of a successful 168 installation.
-After clean application, `PAL_MEMBERSHIP_PROJECT=pika-pal-phase1 bash
-scripts/check-pal-membership-database.sh` runs rollback-only lifecycle checks
-and two-session lock-barrier checks. These prove source-write exclusion and
-normal removal ordering; they do not claim a completed production rollout or a
-full concurrent writer-between-statements migration rehearsal.
+failure-path execution evidence. Subsequently the user authorized one clean
+168 application to the same isolated local target. Its reviewed checksum and
+exact pending-only-168 dry run were rechecked; `supabase db push --local`
+succeeded and history now includes 168 with the expected name. The database
+gate remains false. No production or shared local schema was changed.
+
+The following checks passed against that schema:
+
+- Membership lifecycle SQL and both directions of the two-session source-lock
+  barrier (`check-pal-membership-database.sh`).
+- Existing classroom archive and compaction database contracts.
+- Existing student-removal/archive SQL fixture in both roster primary-key orders.
+- Existing standalone Gradebook contract, including archive round trip.
+- Full canonical archive recovery drill: 44-resource manifest, seven
+  representative rows, file-byte verification and four idempotent replays.
+- Public ownership graph/primary-key audit, warning-level database lint,
+  generated public types and type-drift check.
+
+These prove source-write exclusion and normal removal ordering, not a production
+rollout or full concurrent writer-between-statements migration rehearsal.
+An obsolete `check-classroom-archive-restore-database.sh` fixture stopped at its
+reference to the retired `quizzes` table; current CI does not run it. Verification
+used the current compaction, removal/archive and full recovery contracts above.
+The old migration-replay quiz harness was not run because its additional
+database creation/migration/deletion sequence is outside this local approval.
 
 Pre-application independent source review used Sol/high for security and
 Terra/high for compatibility against `9eee7313`. Both identified the unlocked
@@ -142,10 +160,11 @@ rehearsal and lock-barrier coverage. Database execution remains the next gate.
 Targeted Sol/high re-review cleared both findings at implementation commit
 `a553bf8ce0502ff5059e918a3a917803a3db446f`, with no new actionable defects.
 Local focused verification passed 113 tests plus architecture, UI/design policy,
-TypeScript and lint. Review usage: three launches, one full wave, one targeted
-wave, one fix batch. Final integration review is deferred until verified schema
-generation replaces the temporary adapter. No PR has been opened because the
-required pre-PR database type check cannot pass on the shared schema; no ready
-event or CI replay has been triggered. The goal is unfinished; the next approval
-is one clean application of migration 168 on `pika-pal-phase1`, followed by
-synthetic lifecycle tests and generated public types.
+TypeScript and lint again after the generated RPC and adapter removal.
+Review usage: three launches,
+one full wave, one targeted wave, one fix batch. Final integration review must
+cover the verified schema evidence, generated public RPC and adapter removal.
+The earlier review session's 45-minute elapsed-time limit expired while awaiting
+database approvals; another reviewer launch requires the skill's human
+checkpoint. No ready event or CI migration replay has been triggered. The goal
+remains unfinished pending final review, CI/replay authority, and the PR gates.

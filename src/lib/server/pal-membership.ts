@@ -18,13 +18,7 @@ export async function prepareMembershipPalReadRequest(input: unknown): Promise<{
     throw new ApiError(503, 'Classroom Pal identity is unavailable')
   }
 
-  // Temporary migration-168 boundary until authorized schema replay generates
-  // the public RPC type. Remove this adapter before marking the PR ready.
-  const client = getServiceRoleClient() as unknown as {
-    rpc(name: 'resolve_pal_membership', args: {
-      p_student_id: string; p_classroom_id: string
-    }): PromiseLike<{ data: unknown; error: unknown }>
-  }
+  const client = getServiceRoleClient()
   let response: { data: unknown; error: unknown }
   try {
     response = await client.rpc('resolve_pal_membership', {

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-09 — Dismiss the Daily student pane outside the table
-
-- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
-- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
-- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
-
 ## 2026-09-09 — Keep manual attendance available for existing occurrences
 
 - Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
@@ -253,3 +247,7 @@ User approved isolated `pika-pal-phase1` baseline migrations 001–165, without 
 ## 2026-09-12 — Pal migration rollback rehearsal passed
 
 User separately approved the intentional migration-168 rollback rehearsal on isolated `pika-pal-phase1`. Exact-target migration list/dry run showed only 168 pending. The approved harness produced the expected ambiguous-generation PK failure and verified complete rollback: no 168 objects/functions or synthetic users/classrooms/enrollments/roster; history stays at 165. Clean application of 168 remains the next one-time approval gate, then lifecycle contracts/types/PR. No shared or hosted database changes.
+
+## 2026-09-12 — Pal identity schema and lifecycle verified locally
+
+User authorized clean migration 168 on isolated `pika-pal-phase1`; exact pending set/checksum revalidated and one local push succeeded. Gate remains false. Membership lifecycle/lock contracts, archive/compaction, two removal/archive orders, Gradebook round trip, canonical full archive recovery, schema audit and warning-level DB lint passed. Generated public types through the verified isolated schema, passed type-drift check and removed the temporary RPC adapter. Obsolete pre-Quiz-removal restore fixture is superseded by current contracts. No shared/hosted DB changes. Draft PR preparation underway; final review needs elapsed-budget extension and CI replay needs separate authority.
