@@ -10526,6 +10526,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      resolve_pal_membership: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
       restore_removed_classroom_students: {
         Args: {
           p_classroom_id: string
