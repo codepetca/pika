@@ -136,6 +136,9 @@ jobs:
       - name: Standalone Gradebook item database contracts
         run: bash scripts/check-standalone-gradebook-items-database.sh
 
+      - name: Preserving classroom student removal database contracts
+        run: bash scripts/check-student-classroom-removal-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

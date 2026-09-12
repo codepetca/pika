@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { restoreRemovedClassroomStudents } from '@/lib/server/classroom-student-removal'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -183,8 +184,10 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     )
   }
 
+  const restoredCount = await restoreRemovedClassroomStudents(user.id, classroomId, rosterRows.map((row) => row.email))
   return NextResponse.json({
     success: true,
+    restoredCount,
     totalProcessed: students.length,
     upsertedCount: upserted?.length ?? 0,
   })

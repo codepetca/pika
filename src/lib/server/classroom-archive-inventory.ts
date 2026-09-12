@@ -147,7 +147,7 @@ export async function collectExactReadPages<T>(
   return rows
 }
 
-function expectedArchiveContract(includeOverrides = false, includeItems = false) {
+function expectedArchiveContract(includeOverrides = false, includeItems = false, includeRemovedRosterActor = false) {
   const v1Tables = new Set<string>(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
   )
@@ -169,7 +169,10 @@ function expectedArchiveContract(includeOverrides = false, includeItems = false)
         primary_key_columns: [...resource.primary_key],
         parent_table: resource.scope.kind === 'foreign_key' ? resource.scope.parent : null,
         parent_column: resource.scope.kind === 'foreign_key' ? resource.scope.column : null,
-        actor_columns: [...resource.actor_columns],
+        // Migration164 adds this nullable actor reference. Accept only the exact
+        // old/new shapes during rollout, while keeping other fields strict.
+        actor_columns: table === 'classroom_roster' && !includeRemovedRosterActor
+          ? [] : [...resource.actor_columns],
         restore_after: [...resource.restore_after],
         export_position: exportPosition,
       }
@@ -185,6 +188,7 @@ export function verifyRemoteClassroomContracts(
   if (canonicalJsonStringify(actualArchive) !== canonicalJsonStringify(expectedArchiveContract(
     actualArchive.some((row) => row.table_name === 'gradebook_score_overrides'),
     actualArchive.some((row) => row.table_name === 'gradebook_items'),
+    actualArchive.some((row) => row.table_name === 'classroom_roster' && row.actor_columns.includes('removed_student_id')),
   ))) {
     throw new Error('Remote archive resource contract does not match the checked-in contract')
   }
@@ -194,7 +198,7 @@ export function verifyRemoteClassroomContracts(
   }
 }
 
-export function auditClassroomOpenApiSchema(document: unknown, includeOverrides = true, includeItems = true) {
+export function auditClassroomOpenApiSchema(document: unknown, includeOverrides = true, includeItems = true, includeRemovedRosterActor = true) {
   const parsed = openApiSchema.parse(document)
   const relationships: Array<{
     child_table: string
@@ -218,7 +222,7 @@ export function auditClassroomOpenApiSchema(document: unknown, includeOverrides 
     }
     if (keyColumns.length > 0) primaryKeys.push({ table_name: table, columns: keyColumns })
   }
-  return auditClassroomResourceSchema(relationships, primaryKeys, includeOverrides, includeItems)
+  return auditClassroomResourceSchema(relationships, primaryKeys, includeOverrides, includeItems, includeRemovedRosterActor)
 }
 
 function comparePrimaryKey(left: Record<string, unknown>, right: Record<string, unknown>, key: string) {
@@ -369,6 +373,9 @@ export async function inventoryArchivedClassrooms(
     openApi,
     deployed.some((resource) => resource.table === 'gradebook_score_overrides'),
     deployed.some((resource) => resource.table === 'gradebook_items'),
+    archiveContractSchema.parse(archiveContract).some((row) =>
+      row.table_name === 'classroom_roster' && row.actor_columns.includes('removed_student_id'),
+    ),
   )
   if (!catalogAudit.ok) throw new Error('Remote classroom catalog does not match the checked-in contract')
 

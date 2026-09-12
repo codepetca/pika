@@ -52,6 +52,7 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
+  classroom_roster: ['removed_student_id'],
   classroom_retired_assessment_record_actors: ['actor_id'],
   classroom_resources: ['updated_by'],
   classrooms: ['teacher_id'],
@@ -505,6 +506,7 @@ export function auditClassroomResourceSchema(
   primaryKeys: ClassroomSchemaPrimaryKey[],
   includeGradebookOverrides = true,
   includeGradebookItems = true,
+  includeRemovedRosterActor = true,
 ): ClassroomResourceSchemaAudit {
   const relationalResources = CLASSROOM_RELATIONAL_RESOURCES.filter((resource) =>
     (resource.table !== 'gradebook_score_overrides' || includeGradebookOverrides)
@@ -639,7 +641,9 @@ export function auditClassroomResourceSchema(
   )
   const expectedActorReferences = new Set(
     relationalResources.flatMap((resource) =>
-      resource.actor_columns.map((column) => `${resource.table}.${column}`),
+      resource.actor_columns
+        .filter((column) => includeRemovedRosterActor || resource.table !== 'classroom_roster' || column !== 'removed_student_id')
+        .map((column) => `${resource.table}.${column}`),
     ),
   )
   const untrackedActorReferences = [...actualActorReferences]

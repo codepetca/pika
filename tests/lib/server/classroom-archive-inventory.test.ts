@@ -135,6 +135,33 @@ function reader(overrides: Partial<ClassroomArchiveInventoryReader> = {}): Class
 }
 
 describe('classroom archive production inventory', () => {
+  it.each([false, true])('inventories matching removal actor schema (migration164=%s)', async (migrated) => {
+    const contract = remoteArchiveContract()
+    const schema = openApiDocument()
+    if (!migrated) {
+      contract.find((row) => row.table_name === 'classroom_roster')!.actor_columns = []
+      delete schema.definitions.classroom_roster.properties.removed_student_id
+    }
+    await expect(inventoryArchivedClassrooms(reader({
+      readArchiveResourceContract: async () => contract,
+      readOpenApiSchema: async () => schema,
+    }))).resolves.toBeTruthy()
+  })
+
+  it.each(['missing', 'unexpected', 'unregistered'] as const)('rejects removal actor catalog drift: %s', async (drift) => {
+    const contract = remoteArchiveContract()
+    const schema = openApiDocument()
+    if (drift === 'missing') delete schema.definitions.classroom_roster.properties.removed_student_id
+    if (drift === 'unregistered') contract.find((row) => row.table_name === 'classroom_roster')!.actor_columns = []
+    if (drift === 'unexpected') schema.definitions.classroom_roster.properties.unexpected_actor_id = {
+      description: "<fk table='users' column='id'/>",
+    }
+    await expect(inventoryArchivedClassrooms(reader({
+      readArchiveResourceContract: async () => contract,
+      readOpenApiSchema: async () => schema,
+    }))).rejects.toThrow('Remote classroom catalog')
+  })
+
   it('continues exact-count pagination when the server returns less than requested', async () => {
     const source = ['a', 'b', 'c', 'd', 'e']
     const reads: number[] = []
@@ -373,6 +400,20 @@ describe('classroom archive production inventory', () => {
       contract,
       GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table })),
     )).toThrow('archive resource contract does not match')
+  })
+
+  it('accepts migration164 retained-roster actors and the exact pre-migration contract', () => {
+    const contract = remoteArchiveContract()
+    const roster = contract.find((row) => row.table_name === 'classroom_roster')!
+    const gradex = GRADEX_RESOURCE_TABLES.map((table) => ({ table_name: table }))
+    roster.actor_columns = ['removed_student_id']
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+    roster.actor_columns = []
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).not.toThrow()
+    roster.actor_columns = ['unexpected_actor_id']
+    expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow('archive resource contract')
+    expect(CLASSROOM_ARCHIVE_V1_RESOURCES.find((row) => row.table === 'classroom_roster')?.actor_columns).toEqual([])
+    expect(CLASSROOM_ARCHIVE_V2_RESOURCES.find((row) => row.table === 'classroom_roster')?.actor_columns).toEqual(['removed_student_id'])
   })
 
   it('audits primary keys and foreign keys from the validated PostgREST schema', () => {

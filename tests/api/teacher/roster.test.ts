@@ -42,6 +42,30 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
     expect(response.status).toBe(403)
   })
 
+  it.each(['42703', 'PGRST204'])('uses the legacy roster shape when removed_at is unavailable (%s)', async (code) => {
+    const rosterSelect = vi.fn()
+    let rosterReads = 0
+    mockSupabaseClient.from.mockImplementation((table: string) => ({
+      select: (columns: string) => {
+        if (table === 'classroom_roster') {
+          rosterSelect(columns)
+          rosterReads += 1
+          return { eq: vi.fn().mockResolvedValue(rosterReads === 1
+            ? { data: null, error: { code, message: 'removed_at unavailable' } }
+            : { data: [{ id: 'legacy-row', email: 'student@example.com', join_source: 'manual' }], error: null }) }
+        }
+        return { eq: vi.fn().mockResolvedValue({ data: [], error: null }) }
+      },
+    }))
+    const response = await GET(new NextRequest('http://localhost/roster'), { params: { id: 'c-1' } })
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.roster).toHaveLength(1)
+    expect(data.roster[0]).toMatchObject({ id: 'legacy-row', joined: false })
+    expect(rosterSelect.mock.calls[0][0]).toContain('removed_at')
+    expect(rosterSelect.mock.calls[1][0]).not.toContain('removed_at')
+  })
+
   it('returns roster rows annotated with joined enrollment metadata', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_roster') {
@@ -49,6 +73,9 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
           select: vi.fn(() => ({
             eq: vi.fn().mockResolvedValue({
               data: [
+                {
+                  id: 'removed-roster', email: 'removed@example.com', removed_at: '2026-09-11T12:00:00Z',
+                },
                 {
                   id: 'r-1',
                   email: 'Joined@Example.com',

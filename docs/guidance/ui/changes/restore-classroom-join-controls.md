@@ -1,0 +1,38 @@
+# Restore classroom join controls
+
+Surface: classroom Settings > Access and the classroom join QR dialog, plus the
+student `/join/[code]` open-join profile state and Attendance join handoff. Reference: the Settings Pattern
+Lab mockup, the shared `SettingsSwitchRow`, `DialogPanel`, `QrCode`, `FormField`,
+and `Input` contracts, and the existing classroom join success/error card.
+Roles: teacher and student. Viewports: 1440×900 and 390×844. Themes: light and
+dark. States: roster-only, open join, joining disabled, QR open, profile required,
+join success, and join errors.
+
+Primary signal: the join code is readable beside the existing join actions and
+inside the QR dialog; admission policy remains an explicit switch. The join QR
+reuses the attendance display modal's dimensions and responsive split layout while
+keeping only join-specific content: classroom name, join code, copy link, and QR.
+It must not add attendance actions or attendance wording.
+No new design-system pattern or human promotion is required. The composite-widget
+checklist was reviewed because the change extends a dialog: keyboard behavior is
+covered, semantic state is covered by tests, and no manual follow-up remains. The
+shared dialog keyboard and ARIA contracts are unchanged.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Join code in Settings | Settings Pattern Lab join-code action | reuse | The approved mockup already owns the visible, copyable code treatment |
+| Roster-only policy | `SettingsSwitchRow` and the existing classroom PATCH field | reuse | The persisted policy and canonical switch behavior already exist |
+| Join QR frame and sizing | attendance QR `DialogPanel` composition | reuse | The requested display uses the same desktop/mobile proportions and QR scale |
+| Join-specific QR content | `TeacherClassroomJoinQrDialog` | extend | The feature-local dialog keeps only classroom name, join code, copy link, and QR semantics |
+| Open-join identity form | `/join/[code]`, `FormField`, and `Input` | extend | The join route already returns `profile_required` and the page owns join outcomes |
+| Attendance code entry | existing `/join/[code]` profile flow | reuse | A profile-required response hands off with a non-authoritative query hint so the canonical join page shows identity fields without spending another rate-limited probe; profile submission still performs the authoritative server decision |
+
+Continuation verification (2026-09-11): History's empty and enrolled join forms reuse
+the canonical join retry message through `src/lib/classroom-join.ts`; Settings'
+copy action includes the displayed code in its accessible name. Pattern Lab
+Controls supplies the Button/FormField reference. Both roles, 1440×900 and
+390×844, light/dark, Settings open-join and History rate-limited states were
+captured with Playwright and visually inspected. Eight focused browser cases
+passed. Screenshots are in `test-results/experience-matrix-*` and the reference
+is `output/playwright/pr1245-pattern-controls.png` (local fixtures, mocked API
+responses, no hosted writes). No new composite contract or refactor candidate.

@@ -3,11 +3,12 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { restoreRemovedClassroomStudents } from '@/lib/server/classroom-student-removal'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// POST /api/teacher/classrooms/[id]/roster/add - Add roster allow-list rows manually (no auto-enrollment)
+// Add invitations; explicitly re-adding a removed learner restores their retained membership.
 export const POST = withErrorHandler('PostAddRosterStudents', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
@@ -74,8 +75,10 @@ export const POST = withErrorHandler('PostAddRosterStudents', async (request, co
     )
   }
 
+  const restoredCount = await restoreRemovedClassroomStudents(user.id, classroomId, rosterRows.map((row) => row.email))
   return NextResponse.json({
     success: true,
+    restoredCount,
     upsertedCount: upserted?.length ?? 0,
     errors: errors.length > 0 ? errors : undefined,
   })
