@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
 import { isTeacherEmail } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { signupSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 import {
@@ -18,6 +19,7 @@ const SIGNUP_RESPONSE = {
 }
 
 export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const startedAtMs = Date.now()
   const { email: normalizedEmail } = signupSchema.parse(await request.json())
 

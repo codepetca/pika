@@ -28042,6 +28042,44 @@ ShellCheck validation, and Codex skill validation pass.
 developer tooling with security-sensitive environment handling.
 
 <!-- pika-session-log-archive-batch:e6d440f4571063745170e0259a1a401eac18050e519e76802776016657bd8fa0 -->
+## 2026-08-28 — Gate legacy password auth behind the WorkOS pilot
+
+**Risk profile:** authentication — changes which auth endpoints are reachable.
+No schema, persistence, or session-format change; behavior is unchanged while
+`WORKOS_MAGIC_AUTH_PILOT` is off.
+
+- Security audit found the seven legacy email/password routes (`login`,
+  `signup`, `create-password`, `forgot-password`, `verify-signup`,
+  `reset-password/confirm`, `reset-password/verify`) carried no pilot gating,
+  unlike the four WorkOS routes. `/login` and `/signup` hide their password
+  forms when the pilot is on, but that is UI only.
+- Added `requireLegacyPasswordAuth()` to `src/lib/server/workos-pilot.ts`, the
+  inverse of `requireWorkOSMagicAuthPilot()`, and called it first in each of the
+  seven handlers. Both raise the same opaque 404 so neither reveals which flow
+  an environment runs. `/api/auth/logout` and `/api/auth/me` stay ungated.
+- Impact was limited before this change — `getCurrentUser()` already rejects an
+  `authSource: 'password'` cookie while the pilot is on — but the routes stayed
+  a credential-verification oracle plus account-enumeration and email
+  amplification surface, and would become live again on a flag rollback.
+- Verified no regression: `e2e/auth.setup.ts` and `scripts/pika-api.ts` log in
+  through `/api/auth/login` and are already non-functional against a
+  pilot-enabled environment, since every later request fails `getCurrentUser()`.
+  The guard turns that silent partial failure into an explicit 404.
+- New table-driven suite `tests/api/auth/legacy-password-routes-pilot-gate.test.ts`
+  covers all seven routes (14 cases). It sends a malformed body so flag-on gives
+  404 and flag-off gives 400, pinning the guard ahead of validation. Confirmed it
+  fails when the guard is reverted.
+- Bumped `vitest`/`@vitest/coverage-v8` to `^4.1.11` (was pinned at 4.0.18),
+  clearing the Vitest UI arbitrary file read/execute advisory reachable via the
+  `test:ui` script. `pnpm audit` criticals: 1 → 0.
+- Verification: auth suites 97/97, full suite 5,209/5,211, lint, `tsc --noEmit`,
+  architecture boundaries (801 modules), and production build all pass. The two
+  failures are pre-existing and unrelated: `tests/unit/ai-startup-docs.test.ts`
+  ("keeps verify-env fast by default") fails on a clean tree, and
+  `tests/components/TestDetailPanel.test.tsx` ("blocks apply when markdown is
+  invalid") is flaky on both vitest 4.0.18 and 4.1.11 — it passed and failed
+  across repeated runs of unchanged code.
+
 ## 2026-08-28 — Resequence Course Guide import rate-limit migration
 
 **Risk profile:** workspace-state/schema-numbering — migration filename and
