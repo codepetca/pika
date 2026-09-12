@@ -1,7 +1,8 @@
 # Pal membership identity foundation — Phase 1
 
 Status: migration 168 applied and verified on isolated local `pika-pal-phase1`
-on 2026-09-12. Foundation remains disabled; final review and PR CI are pending.
+on 2026-09-12. Foundation remains disabled. Draft PR #1253 is addressing a
+CI fixture-generation reuse failure after clear final integration review.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -164,7 +165,14 @@ TypeScript and lint again after the generated RPC and adapter removal.
 Review usage: three launches,
 one full wave, one targeted wave, one fix batch. Final integration review must
 cover the verified schema evidence, generated public RPC and adapter removal.
-The earlier review session's 45-minute elapsed-time limit expired while awaiting
-database approvals; another reviewer launch requires the skill's human
-checkpoint. No ready event or CI migration replay has been triggered. The goal
-remains unfinished pending final review, CI/replay authority, and the PR gates.
+The user approved a final Sol/high review extension and disposable CI schema
+replay/reset tests. Final cumulative review cleared `6d150f91` with no findings.
+The first ready-event CI run (`34705814298`) then exposed an existing test
+fixture that reinserted a removed enrollment UUID between its two grade-race
+cases. The new identity guard correctly rejected that closed generation. The
+failure reproduced locally before changing the fixture to use a fresh default
+enrollment UUID for each case. The test harness now accepts only the existing
+`pika` project or the explicitly named isolated `pika-pal-phase1` project, with
+matching container name and label checks. Product source and migration 168 are
+unchanged by this correction. PR #1253 was returned to draft before correction;
+focused re-review and CI on the corrected candidate remain required.
