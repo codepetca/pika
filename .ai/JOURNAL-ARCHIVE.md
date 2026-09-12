@@ -31692,11 +31692,11 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused checks pass 18 files / 260 tests plus architecture, UI/design policy, TypeScript, and lint; the pre-commit audit passes. Visual verification passed for the teacher destination and overflow notice on desktop/mobile in light/dark themes. Student is not applicable because classroom creation is teacher-only. Composite checklist reviewed: pending-operation Escape protection remains covered, the removed dialog state adds no semantic or keyboard obligation, and no manual follow-up remains. Risk profile: none.
 
 <!-- pika-session-log-archive-batch:66c32e27ec06682fca27495a5ac7079e09532699760f01eeee20ddcbc6a02ed0 -->
+<!-- pika-session-log-archive-batch:24242fe61c97979cfcada553abb6cf7a3af13f1c15a875f01c99eaa195c4eeb3 -->
 ## 2026-09-08 — Diagnose and resolve the privacy PR merge disagreement
 
 - Reproduced the remaining session-log conflict in an isolated Git clone with `.ai/SESSION-LOG.md` using normal text merging instead of the repository's local union rule. The earlier stale-GitHub explanation was incorrect: current main had another simultaneous log append hidden by local automatic union merging.
 - Integrated main `e9c6417d` and explicitly preserved both histories. No new privacy or incoming-main product edits; existing independent reviews apply to their unchanged content. Verify parent equality, history preservation, normal-text mergeability and fresh exact-head CI before authorized squash merge. No production deployment or migration application.
-
 <!-- pika-session-log-archive-batch:4010c52bc4598ade48ab4f9ea09e16458fa2329653cfe8896761dd458bed624c -->
 ## 2026-09-08 — Split-pane assignment editing
 

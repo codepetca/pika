@@ -3,13 +3,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Archive, ArchiveRestore, ArrowLeft, CircleDot, CopyPlus, Eye, EyeOff, GripVertical, LogIn, MoreVertical, Plus, RotateCw, Settings, Trash2 } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, SegmentedControl, Select, TabPanel, Tabs } from '@/ui'
+import { Button, Card, ConfirmDialog, ContentDialog, FormField, IconButton, Input, PageActionBar, PageHeading, PageState, Select, TabPanel, Tabs } from '@/ui'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { activeClassroomsForExample, classroomsForExample, JOIN_EXAMPLE, type HomeClassroomExample, type HomeExampleAccount, type HomeRelationship } from './owned-joined-home-fixtures'
 
-type HomeFilter = 'all' | HomeRelationship
 type HomeState = 'populated' | 'loading' | 'error'
-const FILTERS = [{ value: 'all', label: 'All' }, { value: 'teaching', label: 'Teaching' }, { value: 'joined', label: 'Joined' }] as const
 const PREVIEW_TABS = {
   teaching: ['Daily', 'Classwork', 'Tests', 'Gradebook', 'Roster', 'Settings'],
   joined: ['Today', 'Classwork', 'Tests', 'Grades', 'Resources'],
@@ -53,7 +51,6 @@ export function OwnedJoinedHomeMockup({ role }: { role: 'teacher' | 'student' })
 function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExampleAccount; canCreate: boolean; state: HomeState; onRetry: () => void }) {
   const [classrooms, setClassrooms] = useState(() => classroomsForExample(account))
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
-  const [filter, setFilter] = useState<HomeFilter>('all')
   const [archived, setArchived] = useState(false)
   const [editing, setEditing] = useState(false)
   const [dialog, setDialog] = useState<'create' | 'join' | null>(null)
@@ -68,12 +65,11 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
   const nextId = useRef(1)
   const backRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const filtersRef = useRef<HTMLDivElement>(null)
-  const pendingFocus = useRef<'back' | 'filters' | 'heading' | null>(null)
+  const pendingFocus = useRef<'back' | 'heading' | null>(null)
   const previewId = useId()
   const owned = classrooms.filter((classroom) => classroom.relationship === 'teaching')
-  const visible = activeClassroomsForExample(classrooms, hiddenIds).filter((classroom) => filter === 'all' || classroom.relationship === filter)
-  const relationships: HomeRelationship[] = filter === 'all' ? ['teaching', 'joined'] : [filter]
+  const visible = activeClassroomsForExample(classrooms, hiddenIds)
+  const relationships: HomeRelationship[] = ['teaching', 'joined']
   const groups = archived ? [
     { label: 'Archived', description: 'Classrooms you own.', rows: owned.filter((classroom) => classroom.archived) },
     { label: 'Hidden', description: 'Joined classrooms hidden from your active list. You’re still a member.', rows: classrooms.filter((classroom) => classroom.relationship === 'joined' && hiddenIds.has(classroom.id)) },
@@ -85,13 +81,12 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     pendingFocus.current = null
     if (target === 'back') backRef.current?.focus()
     if (target === 'heading') headingRef.current?.focus()
-    if (target === 'filters') filtersRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus()
   })
 
   function openForm(next: 'create' | 'join') {
     setName(''); setCode(''); setError(''); setJoinConfirmed(false); setDialog(next)
   }
-  function resetView() { setArchived(false); setEditing(false); setFilter('all') }
+  function resetView() { setArchived(false); setEditing(false) }
   function returnToActiveList() { pendingFocus.current = 'heading'; resetView() }
   function setHidden(classroom: HomeClassroomExample, hidden: boolean) {
     if (classroom.relationship !== 'joined') return
@@ -123,9 +118,9 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
     ...(canCreate ? [{ id: 'create', label: 'New Classroom', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('create') }] : []),
     { id: 'join', label: 'Join classroom', icon: <LogIn className="h-4 w-4" aria-hidden="true" />, onSelect: () => openForm('join') },
     ...(classrooms.length ? [
-      { id: 'edit', label: 'Edit classrooms', icon: <GripVertical className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, onSelect: () => { if (archived) setFilter('all'); setArchived(false); setEditing((value) => !value) } },
+      { id: 'edit', label: 'Edit classrooms', icon: <GripVertical className="h-4 w-4" aria-hidden="true" />, checked: editing, checkedRole: 'menuitemcheckbox' as const, onSelect: () => { setArchived(false); setEditing((value) => !value) } },
     ] : []),
-    { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => { setArchived((value) => !value); setFilter('all'); setEditing(false) } },
+    { id: 'archive', label: archived ? 'Show Active' : 'Show Archived', icon: archived ? <CircleDot className="h-4 w-4" aria-hidden="true" /> : <Archive className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => { setArchived((value) => !value); setEditing(false) } },
   ]
 
   return (
@@ -138,7 +133,6 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
       returnToActiveList()
     }}>
       <div className="min-h-96">
-        {!archived && <div ref={filtersRef} className="mb-3 flex justify-center"><SegmentedControl<HomeFilter> ariaLabel="Classroom relationship" value={filter} onChange={(value) => { setFilter(value); setEditing(false) }} options={[...FILTERS]} /></div>}
         <div className="mb-3">
           {(archived || editing) && <Button ref={backRef} variant="ghost" size="xs" className="-ml-2 mb-1 px-2 text-text-muted" onClick={returnToActiveList}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to classrooms</Button>}
           <PageActionBar className="px-0" primary={
@@ -152,7 +146,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
         {state === 'loading' ? <PageState compact kind="loading" title="Loading classrooms" /> : state === 'error' ? (
           <PageState compact kind="error" title="Classrooms couldn’t load" description="Try again to see your classrooms." action={<IconButton icon={RotateCw} label="Try again" onClick={onRetry} />} />
         ) : !archived && visible.length === 0 ? (
-          <PageState compact kind="empty" title={filter === 'teaching' ? 'No classrooms you’re teaching' : filter === 'joined' ? 'No joined classrooms' : classrooms.length ? 'No active classrooms' : 'No classrooms yet'} description={hiddenIds.size ? 'Find hidden classrooms under Show Archived in the classroom actions menu.' : undefined} action={(
+          <PageState compact kind="empty" title={classrooms.length ? 'No active classrooms' : 'No classrooms yet'} description={hiddenIds.size ? 'Find hidden classrooms under Show Archived in the classroom actions menu.' : undefined} action={(
             <div className="flex flex-wrap justify-center gap-2">
               <Button variant="primary" onClick={() => openForm('join')}>Join classroom</Button>
               {canCreate && <Button variant="secondary" onClick={() => openForm('create')}>New Classroom</Button>}
@@ -235,7 +229,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
           if (!canCreate) { setError('Classroom creation is not available in this example.'); return }
           if (!name.trim()) { setError('Enter a classroom name.'); return }
           setClassrooms((current) => [...current, { id: `new-example-${nextId.current++}`, title: name.trim(), term: 'Semester 1', dates: 'Sep 1, 2026 – Jan 29, 2027', detail: '0 students', themeColor: 'blue', relationship: 'teaching', archived: false }])
-          pendingFocus.current = 'filters'; resetView(); setFilter('teaching'); setDialog(null); setMessage('Classroom created in this example only.')
+          pendingFocus.current = 'heading'; resetView(); setDialog(null); setMessage('Classroom created in this example only.')
         }}>
           <FormField label="Classroom name" error={error || undefined}><Input value={name} maxLength={100} onChange={(event) => { setName(event.target.value); setError('') }} /></FormField>
           <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setDialog(null)}>Cancel</Button><Button type="submit" disabled={!canCreate}>Create example classroom</Button></div>
@@ -247,7 +241,7 @@ function HomeExample({ account, canCreate, state, onRetry }: { account: HomeExam
           <p className="text-sm text-text-muted">You’ll join as a student in this classroom.</p>
           <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setJoinConfirmed(false)}>Back</Button><Button onClick={() => {
             setClassrooms((current) => current.some((row) => row.id === JOIN_EXAMPLE.id) ? current : [...current, { ...JOIN_EXAMPLE }])
-            pendingFocus.current = 'filters'; resetView(); setFilter('joined'); setDialog(null); setMessage('Classroom joined in this example only.')
+            pendingFocus.current = 'heading'; resetView(); setDialog(null); setMessage('Classroom joined in this example only.')
           }}>Join example classroom</Button></div>
         </div> : <form className="space-y-4" onSubmit={(event) => {
           event.preventDefault()

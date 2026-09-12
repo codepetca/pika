@@ -47,7 +47,10 @@ describe('UiGallery accessibility contracts', () => {
     expect(home.getByRole('heading', { name: 'Owned / Joined home' })).toBeVisible()
     expect(home.getByRole('heading', { name: 'Active classrooms' })).toHaveAttribute('tabindex', '-1')
     expect(home.getByText(/current top-right classroom actions from PR 1179/)).toBeVisible()
-    expect(home.getByRole('group', { name: 'Classroom relationship' })).toBeVisible()
+    expect(home.queryByRole('group', { name: 'Classroom relationship' })).not.toBeInTheDocument()
+    expect(home.getByRole('region', { name: 'Joined classrooms' })).toBeVisible()
+    if (role === 'teacher') expect(home.getByRole('region', { name: 'Teaching classrooms' })).toBeVisible()
+    else expect(home.queryByRole('region', { name: 'Teaching classrooms' })).not.toBeInTheDocument()
     expect(home.getByRole('combobox', { name: 'Creation access' })).toBeVisible()
   })
 
