@@ -1,6 +1,7 @@
 # Pal membership identity foundation — Phase 1
 
-Status: implementation prepared; migration 168 has not been applied or replayed.
+Status: implementation prepared; isolated baseline 001–165 verified on 2026-09-12.
+Migration 168 has not been applied or replayed.
 Risk profile: runtime-platform (identity, authorization, schema lifecycle).
 Model recommendation: GPT-6 Astra for implementation; Sol/high for independent
 identity/security review and Terra/high for compatibility review.
@@ -86,9 +87,11 @@ immutable generations, removal retention, archive boundary replay, purged
 resurrection denial, evidence retention and modeled fresh re-add. The existing
 full archive/removal contracts must also pass against migration 168.
 
-No migration application, local replay, database fixture, production operation,
-flag enablement, real-data mutation, or provider provisioning is authorized by
-this task. Before public types can be generated, a separately approved
+The initial task did not authorize migration application. The user subsequently
+approved isolated baseline migrations 001–165 only; that application succeeded
+on 2026-09-12. Migration 168 replay, production operations, flag enablement,
+real-data mutation and provider provisioning remain unauthorized. Before new
+public types can be generated, a separately approved
 disposable/local target must receive the exact migration
 `168_pal_membership_identity_foundation.sql` through the repository workflow.
 Run the targeted SQL fixture plus existing archive/removal contracts, generate
@@ -100,9 +103,17 @@ authorization. Production application, rollout, and merge authority are separate
 
 The shared local database contains unrelated migration 166, and another active
 worktree owns 167. This branch reserves 168 and must not generate types from
-that shared database. Proposed verification target: isolated local Supabase
-project `pika-pal-phase1`, with seeding disabled and migrations 001–165 only as
-its empty baseline. Provisioning/replay of that baseline needs authorization.
+that shared database. Verification target: isolated local Supabase project
+`pika-pal-phase1`, with seeding disabled and migrations 001–165 as its empty
+baseline. Runtime files are at
+`/Users/stew/.codex/worktrees/pika/.pal-phase1-db`; the database container is
+`supabase_db_pika-pal-phase1` on port 56322. After an empty-project start,
+the exact migration list and dry run were checked against a 165-file checksum
+manifest, then one approved `supabase db push --local` applied the baseline.
+Read-only verification confirmed all 165 migration names/numbers, zero users,
+classrooms and enrollments, and no migration-168 ledger. Public types generated
+from this isolated baseline exactly match committed `database.generated.ts`.
+No shared database, hosted target, seed, or provider profile was changed.
 The separately gated `scripts/check-pal-membership-migration-rollback.sh` then
 replays migration 168 with an ambiguous synthetic generation inside its
 transaction and checks complete rollback. That script's acknowledgement is an
@@ -127,4 +138,5 @@ TypeScript and lint. Review usage: three launches, one full wave, one targeted
 wave, one fix batch. Final integration review is deferred until verified schema
 generation replaces the temporary adapter. No PR has been opened because the
 required pre-PR database type check cannot pass on the shared schema; no ready
-event or CI replay has been triggered. The goal remains active pending approval.
+event or CI replay has been triggered. The goal is unfinished; the next approval
+is the intentional migration-168 rollback rehearsal on `pika-pal-phase1`.
