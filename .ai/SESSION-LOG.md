@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-09 — Show selected work titles in teacher action bars
-
-- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
-- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
-- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
-- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
-
 ## 2026-09-09 — Preserve attendance QR signup handoff
 
 - Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
@@ -249,3 +242,7 @@ User authorized clean migration 168 on isolated `pika-pal-phase1`; exact pending
 ## 2026-09-12 — Pal final review and CI fixture correction
 
 User approved final Sol/high review extension and disposable CI replay/reset checks. Final review cleared 6d150f91; PR #1253 became ready and run 34705814298 exposed closed-generation reuse in the existing removal grade-race fixture. Returned PR to draft, reproduced the failure locally, and changed each fixture enrollment to a fresh default UUID; added exact isolated-project support while retaining target name/label checks. Product source and migration168 unchanged. Targeted correction review and new candidate CI pending.
+
+## 2026-09-12 — Pal review extension and migration dependency
+
+Terra cleared the fixture correction at15a6566e; five reviews and two fix batches completed. Full CI also found the contiguous-number requirement: 6718 tests passed, while migration filenames fail because166/167 remain in draft PR#1252. User approved a further review extension; reserve one Sol/high integration pass capped at20minutes after the prerequisite lands. Read-only integration against prerequisite1da0bc20 found only a JOURNAL-ARCHIVE conflict; source, workflow and generated types merge cleanly. Its owner is still remediating/reviewing that branch, so no duplicate writer, migration, merge or heavy CI was started. PR#1253 stays draft pending that dependency, combined-schema verification and stable-head CI.
