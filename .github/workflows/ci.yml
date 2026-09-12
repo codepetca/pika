@@ -139,6 +139,9 @@ jobs:
       - name: Preserving classroom student removal database contracts
         run: bash scripts/check-student-classroom-removal-database.sh
 
+      - name: Pal membership identity lifecycle contracts
+        run: bash scripts/check-pal-membership-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 
