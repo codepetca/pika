@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Standalone Gradebook items
-
-Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
-
 ## 2026-09-10 — Finish standalone Gradebook browser contract correction
 
 - User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
@@ -241,3 +237,7 @@ in unapplied171; initial source review requested before local application approv
 85 unit tests pass; local ledger001–170 and pending-only171 dry run verified.
 No provider/network erase, SQL application, rollout, merge or deployment performed.
 See docs/guidance/student-provider-cleanup-integration.md for pending verification.
+
+## 2026-09-13 — Phase3 initial review correction batch
+
+Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 application approval. Corrected three accepted blockers: provisional whole-class copy/intent policy and producer serialization, exact-reference attendance removal closure, and provider-pending ordinary-cron health. Added transaction-only SQL cases (unexecuted), plus43 passing cron/purge tests and passing TypeScript. Full initial source gate passed520 tests. No SQL/provider traffic/config/rollout or PR publication occurred. Further typed RPC integration, browser revocation, actual SQL and race verification remain incomplete.

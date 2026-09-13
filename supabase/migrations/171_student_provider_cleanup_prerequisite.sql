@@ -50,6 +50,43 @@ alter table private.student_provider_cleanup_bindings enable row level security;
 revoke all on private.student_provider_cleanup_settings, private.attendance_membership_generations,
   private.student_provider_cleanup_bindings from public, anon, authenticated, service_role;
 
+-- Whole-class copy producers share reservation's classroom lock. A producer
+-- that wins first leaves an object or provisional intent for reservation to
+-- reject; a reservation that wins first prevents subsequent copy creation.
+-- This also covers direct writes and archive-maintenance paths.
+create function private.guard_provider_whole_class_copy()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_row jsonb; v_classroom uuid;
+begin
+  for v_row in select value from jsonb_array_elements(jsonb_build_array(
+    case when tg_op<>'DELETE' then to_jsonb(new) end,
+    case when tg_op<>'INSERT' then to_jsonb(old) end)) where jsonb_typeof(value)='object' loop
+    if tg_table_name='managed_storage_objects' then
+      if v_row->>'purpose' not in ('classroom_archive','gradex_extract') then continue; end if;
+      v_classroom:=(v_row->>'classroom_id')::uuid;
+      if v_classroom is null and v_row->>'provisional_owner_id' is not null then
+        select target_classroom_id into v_classroom from public.managed_storage_provisional_owners
+          where id=(v_row->>'provisional_owner_id')::uuid for share;
+      end if;
+    else
+      v_classroom:=(v_row->>'target_classroom_id')::uuid;
+    end if;
+    if v_classroom is null then continue; end if;
+    perform private.try_lock_classroom_membership_change(v_classroom);
+    if exists(select 1 from private.student_provider_cleanup_bindings binding
+      join public.student_purge_operations operation on operation.id=binding.operation_id
+      where operation.classroom_id=v_classroom) then
+      raise exception using errcode='55000',message='student_provider_copy_policy_required';
+    end if;
+  end loop;
+  return case when tg_op='DELETE' then old else new end;
+end;
+$$;
+create trigger guard_provider_whole_class_copy before insert or update or delete
+  on public.managed_storage_objects for each row execute function private.guard_provider_whole_class_copy();
+create trigger guard_provider_provisional_copy before insert or update or delete
+  on public.managed_storage_provisional_owners for each row execute function private.guard_provider_whole_class_copy();
+
 create function private.guard_student_provider_binding()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
@@ -223,8 +260,12 @@ begin
     raise exception using errcode='55000',message='student_provider_operation_conflict';
   end if;
   -- A whole-class copy cannot be erased to settle an individual prerequisite.
-  if exists(select 1 from public.managed_storage_objects where classroom_id=p_classroom_id
-      and purpose in ('classroom_archive','gradex_extract')) then
+  if exists(select 1 from public.managed_storage_objects object
+      left join public.managed_storage_provisional_owners provisional on provisional.id=object.provisional_owner_id
+      where (object.classroom_id=p_classroom_id or provisional.target_classroom_id=p_classroom_id)
+        and object.purpose in ('classroom_archive','gradex_extract'))
+    or exists(select 1 from public.managed_storage_provisional_owners
+      where target_classroom_id=p_classroom_id and adopted_at is null) then
     raise exception using errcode='55000',message='student_provider_copy_policy_required';
   end if;
   select mapping.participant_ref into v_participant from public.attendance_participant_mappings mapping
@@ -400,28 +441,27 @@ create trigger guard_provider_generation_state before update on private.pal_memb
   for each row execute function private.guard_provider_generation_state();
 
 create function private.attendance_participant_generation_closed(p_participant_ref text)
-returns boolean language sql stable security definer set search_path = '' as $$
+returns boolean language sql volatile security definer set search_path = '' as $$
   select exists(select 1 from private.attendance_membership_generations attendance
     join private.pal_membership_generations generation using(generation_id)
     where attendance.participant_ref=p_participant_ref and generation.state<>'active');
 $$;
 
-create function private.attendance_payload_generation_closed(p_classroom_id uuid,p_payload jsonb)
-returns boolean language plpgsql stable security definer set search_path = '' as $$
+-- One exact-reference matcher serves current-state authorization and the removal
+-- transition. The transition supplies NEW's reference directly; it never needs
+-- to rediscover its own state change through a statement-start snapshot.
+create function private.attendance_payload_targets_participant(p_classroom_id uuid,p_payload jsonb,p_participant_ref text)
+returns boolean language plpgsql volatile security definer set search_path = '' as $$
 begin
-  if not exists(select 1 from private.attendance_membership_generations attendance
-    join private.pal_membership_generations generation using(generation_id)
-    join public.attendance_participant_mappings mapping on mapping.participant_ref=attendance.participant_ref
-    where mapping.classroom_id=p_classroom_id and generation.state<>'active') then return false; end if;
   if jsonb_typeof(p_payload) is distinct from 'object' then return true; end if;
   if exists(select 1 from jsonb_path_query(p_payload,'$.**.participant_ref') ref
-    where private.attendance_participant_generation_closed(ref #>> '{}')) then return true; end if;
+    where ref #>> '{}' = p_participant_ref) then return true; end if;
   if p_payload->>'message_type'='check_in.invalidate' then
-    -- The exact fact mapping must remain available until local inventory cleanup.
+    -- Unknown historical fact bindings cannot establish safe replay.
     if exists(select 1 from jsonb_path_query(p_payload,'$.**.check_in_ref') ref
       left join public.attendance_check_in_facts fact on fact.check_in_ref=ref #>> '{}'
         and fact.classroom_id=p_classroom_id
-      where fact.check_in_ref is null or private.attendance_participant_generation_closed(fact.participant_ref)) then
+      where fact.check_in_ref is null or fact.participant_ref=p_participant_ref) then
       return true;
     end if;
   elsif coalesce(p_payload->>'message_type','') not in ('roster.snapshot','schedule.snapshot','session.command')
@@ -432,6 +472,17 @@ begin
   return false;
 end;
 $$;
+
+-- Nested trigger reads must see writes from the removal command itself.
+create function private.attendance_payload_generation_closed(p_classroom_id uuid,p_payload jsonb)
+returns boolean language sql volatile security definer set search_path = '' as $$
+  select exists(select 1 from private.attendance_membership_generations attendance
+    join private.pal_membership_generations generation using(generation_id)
+    join public.attendance_participant_mappings mapping on mapping.participant_ref=attendance.participant_ref
+    where mapping.classroom_id=p_classroom_id and generation.state<>'active'
+      and private.attendance_payload_targets_participant(p_classroom_id,p_payload,attendance.participant_ref));
+$$;
+
 
 create function private.guard_attendance_closed_subject()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -501,17 +552,17 @@ create trigger guard_closed_attendance_inbox before insert or update on public.a
 
 create function private.close_removed_attendance_delivery()
 returns trigger language plpgsql security definer set search_path = '' as $$
-declare v_classroom uuid;
+declare v_classroom uuid; v_participant text;
 begin
   if old.state='active' and new.state='removed' then
-    select mapping.classroom_id into v_classroom from public.attendance_participant_mappings mapping
+    select mapping.classroom_id,mapping.participant_ref into v_classroom,v_participant from public.attendance_participant_mappings mapping
       join private.attendance_membership_generations generation using(participant_ref)
       where generation.generation_id=new.generation_id;
     if v_classroom is not null then
       update public.attendance_integration_outbox set status='superseded',lease_token=null,lease_expires_at=null,
         last_error_code='membership_removed',last_error_detail=null
       where classroom_id=v_classroom and status in ('pending','processing','non_retryable')
-        and private.attendance_payload_generation_closed(classroom_id,payload);
+        and private.attendance_payload_targets_participant(classroom_id,payload,v_participant);
     end if;
   end if;
   return new;
@@ -1230,6 +1281,8 @@ declare v_generation uuid; v_participant text;
 begin
   perform private.try_lock_classroom_membership_change(p_classroom_id,p_student_id);
   if exists(select 1 from public.student_purge_fences where classroom_id=p_classroom_id and student_id=p_student_id)
+    or exists(select 1 from public.classroom_purge_fences where classroom_id=p_classroom_id)
+    or exists(select 1 from public.cold_classroom_purge_fences where classroom_id=p_classroom_id)
     or exists(select 1 from public.classroom_roster where classroom_id=p_classroom_id
       and removed_student_id=p_student_id and removed_at is not null)
     or exists(select 1 from public.attendance_decommission_operations where classroom_id=p_classroom_id) then
@@ -1309,7 +1362,7 @@ returns jsonb language sql security definer set search_path = public as $$
   select jsonb_build_object(
     'captured_at', clock_timestamp(),
     'active_count', count(*) filter (where status in ('inventorying','deleting_objects','finalizing','provider_pending')),
-    'stuck_count', count(*) filter (where status in ('inventorying','deleting_objects','finalizing','provider_pending')
+    'stuck_count', count(*) filter (where status in ('inventorying','deleting_objects','finalizing')
       and updated_at < clock_timestamp() - make_interval(mins => greatest(p_stuck_minutes, 1))),
     'failed_count', count(*) filter (where status = 'failed'
       and updated_at < clock_timestamp() - make_interval(mins => greatest(p_failed_minutes, 1))),
@@ -1321,11 +1374,13 @@ returns jsonb language sql security definer set search_path = public as $$
   ) from public.student_purge_operations
 $$;
 
-revoke all on function private.guard_student_provider_binding(),private.guard_attendance_membership_generation(),
+revoke all on function private.guard_provider_whole_class_copy(),
+  private.guard_student_provider_binding(),private.guard_attendance_membership_generation(),
   private.capture_attendance_membership_generation(),private.guard_student_provider_operation(),
   private.guard_student_provider_purge_child(),private.close_removed_pal_delivery(),private.guard_closed_pal_delivery(),
   private.guard_provider_generation_state(),private.attendance_participant_generation_closed(text),
-  private.attendance_payload_generation_closed(uuid,jsonb),private.guard_attendance_closed_subject(),
+  private.attendance_payload_generation_closed(uuid,jsonb),private.attendance_payload_targets_participant(uuid,jsonb,text),
+  private.guard_attendance_closed_subject(),
   private.guard_attendance_closed_payload(),private.close_removed_attendance_delivery()
   from public,anon,authenticated,service_role;
 revoke all on function public.reserve_student_provider_cleanup(uuid,uuid,uuid,uuid,uuid),

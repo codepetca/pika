@@ -70,9 +70,15 @@ stay pending. These receipts cover provider-defined scope, not all Pika data.
   finalizer/callback paths), focused checks, remediation and final cumulative
   independent review, then draft-first exact-SHA PR Gate CI.
 
-Initial evidence: 85 focused unit tests pass; source TypeScript previously passed
-before the latest coordinator test additions. Database fixture is authored but
-unexecuted. The pending-only171 dry run is read-only. The current migration hash
+Initial evidence: full focused source checks passed (61 files / 520 tests,
+architecture, UI/design policies, TypeScript and lint). The first independent
+Sol/Terra wave found three blockers: provisional-copy coverage, same-command
+attendance lease closure, and provider-pending cron health. The correction batch
+adds both provisional-object and unfinished-intent checks, serializes copy
+producers with reservation, drives closure from the exact transitioning reference,
+and keeps pending visible while excluding it from ordinary stuck counts. The
+43 affected cron/purge tests and TypeScript pass. Rollback SQL cases for these
+findings are authored but unexecuted; cross-connection race evidence is pending. The pending-only171 dry run is read-only. The current migration hash
 and review checkpoint are recorded in the coordinator packet, not a claim of
 schema acceptance.
 

@@ -450,6 +450,22 @@ describe('cron cleanup-history route', () => {
     expect(studentPurgeMocks.run).toHaveBeenCalledOnce()
   })
 
+  it('keeps intentional provider-pending work visible without degrading ordinary cleanup', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+    studentPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    studentPurgeMocks.health.mockResolvedValue({ schemaAvailable: true, snapshot: {
+      captured_at: '2026-09-13T15:00:00.000Z', active_count: 1, stuck_count: 0,
+      failed_count: 0, orphan_fence_count: 0, processing_lease_drift_count: 0,
+    } })
+    const response = await GET(cronRequest())
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ status: 'ok' })
+    expect(studentPurgeMocks.run).toHaveBeenCalledOnce()
+    expect(studentPurgeMocks.health).toHaveBeenCalledOnce()
+  })
+
   it('fails observably when student purge work is stuck or partially failed', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
