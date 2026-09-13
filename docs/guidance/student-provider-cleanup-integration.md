@@ -10,8 +10,8 @@ concurrency review, Terra/high compatibility and coverage review.
 
 The selected [six-phase plan](classroom-pal-and-student-cleanup-plan.md) governs
 product intent and records the current academic/file-stage owner. Phase 2 PR1256
-is merged. Local Pika is verified through001–172; both exact local application
-permissions are consumed. Production remains through168. Provider and academic
+is merged. Local Pika is verified through001–173; exact local application
+permissions for171–173 are consumed. Production remains through168. Provider and academic
 cleanup remain disabled. The merge/Preview receipt is
 `/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
 
@@ -119,13 +119,14 @@ erasure, two-day promise, legacy profile retirement, historical-removal backfill
 achievement copying or reset is claimed. Phase4 worker policy and Phase5 pilot
 remain separate.
 
-## Next local academic stage — source checkpoint
+## Local academic stage — verification checkpoint
 
 Owner: `01a09bf4-0b2a-7762-8043-45c5698b8492`, branch
-`codex/removed-membership-academic-cleanup`. Forward173 is authored, unapplied,
-and awaiting independent source review. The database RPC bridge and canonical
-generated contract must follow approved schema verification before readiness.
-No runtime/database or committed-row rehearsal is claimed by this checkpoint.
+`codex/removed-membership-academic-cleanup`. Migration173 passed independent source review and was applied once to local Pika
+under direct approval. Its SHA256 is `df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd`; it is now immutable.
+Warning-level database lint and canonical generated types/check pass. The typed
+RPC bridge is implemented and mock-tested. Final cumulative review and runtime
+fixture verification remain required before readiness.
 
 Academic data ownership is the exact student/classroom pair. The saved current
 removed generation authenticates the operation; dates do not attribute rows to
@@ -167,7 +168,10 @@ reenrollment, reference rotation or overall finalizer is added.
 
 Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
 `scripts/check-removed-student-academic-database.sql` harness. The harness requires
-approved local173. It covers22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
-never be described as committed-row MVCC or storage-byte deletion proof. Required
-remaining evidence includes exact schema/types, isolation/callback/lease tests,
-independent review and stable-head CI. No schema application authority is implied.
+local173. It is designed to cover22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
+never be described as committed-row MVCC or storage-byte deletion proof. The first approved run failed during fixture setup because a check-in ID collided
+across two classrooms. All fixtures rolled back; no cleanup assertions executed.
+The fixture now includes both classroom and student in that ID. Its one-run
+authorization is consumed; a corrected rerun requires fresh permission. Remaining
+evidence: runtime isolation/callback/lease verification, final cumulative review
+and stable-head CI. Both database cleanup gates remain false.

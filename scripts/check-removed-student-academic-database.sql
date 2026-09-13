@@ -168,7 +168,7 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
   insert into public.attendance_check_in_facts(classroom_id,student_id,installation_ref,roster_ref,
     occurrence_ref,participant_ref,check_in_ref,check_in_revision,accepted_at)
     select mapping.classroom_id,mapping.student_id,'pika_synthetic_173',roster.roster_ref,
-      'occurrence_173',mapping.participant_ref,'check_173_'||replace(mapping.student_id::text,'-',''),1,clock_timestamp()
+      'occurrence_173',mapping.participant_ref,'check_173_'||replace(mapping.classroom_id::text,'-','')||'_'||replace(mapping.student_id::text,'-',''),1,clock_timestamp()
     from public.attendance_participant_mappings mapping join public.attendance_roster_mappings roster using(classroom_id)
     where mapping.classroom_id in(course_a,course_b);
   insert into public.attendance_record_projection(classroom_id,student_id,installation_ref,roster_ref,

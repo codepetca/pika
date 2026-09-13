@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Batch preserving-removal review corrections
-
-- Initial independent review of fixed `32aed6aa` used Sol/high and Terra/high (2 launches, one full-diff wave). Full fixed-head suite passed 6,644 tests/734 files. Accepted P1s: application archive actor contract omitted `removed_student_id`; re-add after account email change missed retained identity; Gradebook enrollment check preceded serialization locks. One remediation batch updates current/v2 actor contracts while preserving immutable v1, resolves re-add via stable identity with transactional unbound-placeholder merge and identity-reuse rejection, and locks before mark checks. Added actor/preflight, fallback, email-reuse and actual grade-race regressions.
-- Corrected application archive tests pass 43; roster fallback tests pass5. Focused rerun with `VITEST_MAX_WORKERS=2` passes702 tests/56 files and all static checks; the earlier unrestricted run had worker/timeouts. Audit passes. No further UI changes. Original migration164 checksum `9d7213e90df51de55794af5aebd50e61cd8be22cf1bd504400cc7bf786414645` alone was applied to disposable `pika_removal_164_wgvpf4`; revised164 is unapplied, so new SQL/race regressions remain unverified. Renewed exact disposable-local SQL authorization was requested; no shared/prod migrations or data changes.
-- PR #1244 must remain draft. Next: after renewed permission, use a fresh schema-only disposable database to apply revised164 once, execute the full removal/archive/race runner and generated-types/lint checks, then one targeted Sol/high remediation review (launch3), final integration review if needed, and stable-SHA CI. The previous worker review does not substitute for review of this flow.
-
 ## 2026-09-11 — Verify revised removal migration
 
 - Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
@@ -226,3 +220,8 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 ## 2026-09-13 — Register academic cleanup CI verification
 
 - Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.
+
+## 2026-09-13 — Apply local academic schema and connect generated RPC
+
+- Direct owning-task approval authorized one LOCAL173 application and one separate rollback fixture execution. Normal migration command applied only reviewed173 at SHA256 df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd. Ledger001–173 verified; warning-level lint clean; academic/provider gates remain false.171–173 are immutable. Canonical types generated and checked; typed service-only RPC bridge and failure-category/privacy tests added.
+- The single approved fixture run failed during setup: a student-only check-in reference collided across two classrooms. Transaction rolled back, zero synthetic users remain and both gates remain false. Corrected fixture ID to include classroom and student. No cleanup/runtime proof claimed; a fresh fixture-run approval is required. Final review extension (up to30minutes from runtime-complete final review launch, one cumulative plus one targeted correction review) has not started. No provider calls/live byte deletion/activation/merge.

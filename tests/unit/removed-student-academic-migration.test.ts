@@ -17,6 +17,7 @@ describe('removed academic source safety contract (not database execution)', () 
   it.each([
     ['171_student_provider_cleanup_prerequisite.sql', '598ee035bea90e47aade94acb7d79ce2227e110c343e57be0661e71ce4ccd587'],
     ['172_student_provider_receipt_authorization_lint.sql', '4aac47ce59b41d8b1de87ec07710ff4d4df8bb7e2292456335c1c836a6e65424'],
+    ['173_removed_student_academic_cleanup.sql', 'df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd'],
   ])('retains the approved immutable %s', (file, sha) => {
     expect(createHash('sha256').update(read(`supabase/migrations/${file}`)).digest('hex')).toBe(sha)
   })
