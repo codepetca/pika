@@ -4,7 +4,6 @@ import { z } from 'zod'
 
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isPalEnabled, requirePalEnvironment, isClassroomPalRequested, isClassroomPalEnabled } from '@/lib/server/pal-config'
-import { classroomPalRpc } from '@/lib/server/pal-classroom-rpc'
 import { v1 } from '@/vendor/pal-contract'
 
 export type PalOutboxClient = Pick<
@@ -212,7 +211,7 @@ async function deliverClaimedPalOutboxRow(input: {
   const authorizeMembership = async (): Promise<ClaimedDeliveryResult | null> => {
     if (!input.membership) return null
     try {
-      const { data, error } = await withAbortSignal(classroomPalRpc(input.supabase,
+      const { data, error } = await withAbortSignal(input.supabase.rpc(
         'authorize_pal_membership_delivery', {
           p_outbox_id: input.row.id, p_lease_token: input.row.lease_token,
         }), input.signal)
@@ -576,7 +575,7 @@ export async function deliverPalOutboxBatch(input: {
   const now = input.now ?? new Date()
   const clock = input.clock ?? Date.now
   const { data, error } = await withAbortSignal(
-    membership ? classroomPalRpc(supabase, 'claim_pal_membership_outbox', {
+    membership ? supabase.rpc('claim_pal_membership_outbox', {
       p_limit: input.limit ?? 10,
       p_lease_seconds: 60,
       ...(input.membershipScope ? { p_student_id: input.membershipScope.studentId,
@@ -758,7 +757,7 @@ async function drainPalOutboxWithinDeadline(
   const supabase = input.supabase ?? getServiceRoleClient()
   const { data, error } = await withAbortSignal(
     isClassroomPalRequested()
-      ? classroomPalRpc(supabase, 'count_pal_membership_outbox_ready', undefined)
+      ? supabase.rpc('count_pal_membership_outbox_ready', undefined)
       : supabase.rpc('count_pal_event_outbox_ready'),
     transitionSignal,
   )

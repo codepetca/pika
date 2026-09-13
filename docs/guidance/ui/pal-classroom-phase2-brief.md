@@ -34,8 +34,7 @@ shell/widget layout preserved. Screenshots are local ignored artifacts.
 Active widget evidence uses intercepted synthetic v1 responses and pinned local
 badge assets; the real local rollout gates remain disabled. Unit/API tests cover
 denied membership and provider failure. Actual database-backed active classroom
-end-to-end evidence remains pending migration approval and controlled rollout
-test authority; this fixture does not claim live provider compatibility.
+end-to-end evidence remains pending controlled rollout test authority; this fixture does not claim live provider compatibility.
 
 Composite checklist reviewed: yes. Existing semantic dialog, Escape and focus
 tests remain passing, with new scope/remount and late-refresh coverage. Keyboard

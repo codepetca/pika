@@ -1,8 +1,9 @@
 # Classroom Pal signals and presentation — Phase 2 implementation
 
-Status: disabled implementation in progress. Migration 169 is authored but not
-applied. Public type generation, database execution, independent review and
-exact-head ready-PR CI remain outstanding. This is not Phase 2 completion.
+Status: disabled implementation in progress. Migration169 applied once to the
+existing local Pika database with exact approval; contracts and generated types
+pass. Two database lint warnings, independent review and exact-head ready-PR CI
+remain outstanding. This is not Phase 2 completion.
 The [approved six-phase roadmap](classroom-pal-and-student-cleanup-plan.md) is
 the single phase/approval authority. Risk: runtime-platform.
 
@@ -61,10 +62,10 @@ cutover concern, not a completed rollout claim here. A classroom client that
 outlives flag disablement cannot obtain a fallback account token.
 
 The schema adds private tables and service-only JSON RPCs, with no browser
-database path. Migration 169 requires fresh exact-target approval. Until local
-schema execution is approved, `pal-classroom-rpc.ts` is an explicitly temporary
-typed adapter; replace it with the regenerated public schema contract before
-the final candidate is ready. No generated file is edited by hand.
+database path. Migration169 local approval was consumed by one successful
+application. Canonical public types were regenerated and checked; direct typed
+RPC calls replace the temporary adapter. Production remains through168. Any
+forward correction requires its own exact-target approval.
 
 ## Presentation and provider boundary
 
@@ -107,13 +108,16 @@ removal begins. No Pal or Bara repository code is changed here.
   including auth setup); all 12 resulting screenshots were inspected.
 - Database fixture: `check-pal-classroom-database.sh` targets only the existing
   local `pika` database and runs synthetic rows/settings in a rolled-back
-  transaction. It never applies migrations or resets a database. Execution is
-  pending separately approved application of 169.
-- Local preflight: migration history matches through 168; explicit local dry-run
-  previews only `169_pal_classroom_signals.sql`. `db:types:check` correctly stops
-  at the missing 169 schema. Do not create/reset another database to bypass this
-  permission boundary. Public type generation and the SQL fixture remain gates
-  before PR publication, independent review and ready-PR CI.
+  transaction. It never applies migrations or resets a database. Execution
+  passed after approved local169 application, including concurrent planner exclusion.
+- Local receipt: full ledger001–169 matches after pending-only169 preview and
+  one successful application of SHA256
+  `e98c01b2df3986aabf7f0539605f97ee742503a13020ec5b37331a3db55b63bd`.
+  Both database gates remain false and activation is null. Sanitized receipt is
+  `/Users/stew/.codex/metrics/pika-local-pal-migrations.jsonl`.
+- Database lint found two merge blockers: term-calendar volatility is overstated,
+  and the visit function retains an unread variable. A forward correction will
+  be batched with independent review findings; applied169 will not be rewritten.
 - [UI change brief](ui/pal-classroom-phase2-brief.md) records reuse and the
   required teacher/student, desktop/mobile, light/dark matrix.
 

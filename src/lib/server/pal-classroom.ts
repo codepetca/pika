@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomPalEnabled } from '@/lib/server/pal-config'
-import { classroomPalRpc } from '@/lib/server/pal-classroom-rpc'
 import { getPalReadTokenForMembership, type PalReadToken } from '@/lib/server/pal-read-token'
 
 const contextSchema = z.discriminatedUnion('status', [
@@ -24,7 +23,7 @@ export async function resolvePalClassroomContext(input: MembershipInput): Promis
   if (!isClassroomPalEnabled()) throw unavailable()
   let response: { data: unknown; error: unknown }
   try {
-    response = await classroomPalRpc(getServiceRoleClient(), 'resolve_pal_classroom_context', {
+    response = await getServiceRoleClient().rpc('resolve_pal_classroom_context', {
       p_student_id: input.studentId, p_classroom_id: input.classroomId,
     })
   } catch { throw unavailable() }
@@ -60,7 +59,7 @@ export const getMembershipPalReadToken = createMembershipPalReadTokenCoordinator
 
 export async function recordPalClassroomVisit(input: MembershipInput): Promise<void> {
   if (!isClassroomPalEnabled()) throw unavailable()
-  const { data, error } = await classroomPalRpc(getServiceRoleClient(), 'record_pal_classroom_visit', {
+  const { data, error } = await getServiceRoleClient().rpc('record_pal_classroom_visit', {
     p_student_id: input.studentId, p_classroom_id: input.classroomId,
   })
   const parsed = z.object({ status: z.enum(['recorded', 'disabled', 'forbidden']) }).strict().safeParse(data)

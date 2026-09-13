@@ -4,7 +4,6 @@ import {
   palPeriodKeyForActivityDay,
 } from '@/lib/server/pal-events'
 import { isPalEnabled, isClassroomPalRequested, isClassroomPalEnabled } from '@/lib/server/pal-config'
-import { classroomPalRpc } from '@/lib/server/pal-classroom-rpc'
 import { z } from 'zod'
 import {
   palTermCalendarForPeriodStart,
@@ -460,7 +459,7 @@ export async function syncPalWeeklyConfigurations(input: {
     if (!isClassroomPalEnabled()) {
       return { status: 'disabled', configured: 0, closed: 0, catchUpPeriods: 0, remainingCatchUp: false }
     }
-    const { data, error } = await classroomPalRpc(supabase, 'sync_pal_membership_weeks', { p_limit: 100 })
+    const { data, error } = await supabase.rpc('sync_pal_membership_weeks', { p_limit: 100 })
     const result = z.discriminatedUnion('status', [
       z.object({ status: z.enum(['disabled', 'busy']) }).strict(),
       z.object({ status: z.literal('ok'), scanned: z.number().int().nonnegative(),

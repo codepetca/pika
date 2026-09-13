@@ -268,9 +268,9 @@ production deletion in this step.
   `/Users/stew/.codex/worktrees/d432/pika`. Tool-backed goal confirmed active;
   branch `codex/pal-classroom-signals`. Disabled source implementation and all
   six event-family paths authored; 14 browser checks passed across both roles,
-  viewports and themes. Migration 169 is not applied: local preflight previews
-  only 169, and generated types/database execution await exact local approval.
-  No PR yet; publication, independent review and exact-head CI follow that gate.
+  viewports and themes. Exact local169 approval consumed by one successful
+  application; rollback-only contracts and canonical generated types pass. Two
+  database lint warnings require a forward correction; review and CI pending.
   See [implementation evidence](pal-classroom-signals.md). The owner will publish
   this existing roadmap through the normal reviewed PR workflow.
 - Coordinator heartbeat: `advance-classroom-pal-and-cleanup-phases`, active
