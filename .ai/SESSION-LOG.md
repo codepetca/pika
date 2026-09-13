@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Synchronize Gradebook with main through PR 1241
-
-- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
-- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
-- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.
-
-## 2026-09-10 — Close join-limiter maintenance release prerequisite
-
-- Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
-- One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.
-
-## 2026-09-11 — Plan coordinated student removal and add server processing
-
-- Task owns `codex/student-purge-background` in the matching named worktree. Recorded the cross-repository plan in `docs/guidance/student-purge-background-plan.md`; implementation remains partial pending the historical Pal erasure policy. Pal's aggregated daily/weekly facts lack full classroom provenance. Existing admission safeguards remain in place; no provider data, migrations, or UI were changed.
-- Added bounded post-response processing for accepted student purges using existing leases and daily cron recovery. Tests cover browser-independent progress, failures, lease contention, budgets, and rejected admission. Targeted purge suites pass 20 tests; broader focused gate passes 104 tests and architecture/UI/design policies, with remaining static checks recorded in the task.
-- Remaining: resolve historical Pal reconstruction/reset semantics, implement and verify the provider receipt and event fencing contract, pending access controls, roster/dialog UX and visual matrix, then coordinated rollout. The initial worker does not guarantee prompt completion after its runtime budget expires.
-
-## 2026-09-11 — Simplify student removal to preserve class records
-
-- User chose ordinary class removal rather than coordinated Pal erasure. Superseded the earlier background-purge proposal and removed its post-response worker. Added a separate preserving removal endpoint, explicit teacher re-add restoration, retained-roster filtering and clear removal versus permanent-deletion UI. No Pal calls or automatic erasure are part of normal removal.
-- Authored unapplied migration 164 to retain enrollment metadata/manual attendance and academic rows while removing active membership, block implicit rejoin/destructive legacy fallthrough, and preserve archive identity. A rollback-only database fixture is authored; actual behavior, archive/concurrency checks and generated types remain pending exact disposable-local migration authorization. No migration was applied and no production data changed.
-- Focused checks pass 214 tests plus TypeScript, lint and architecture/UI/design checks; separate migration-source tests pass; Pika audit passes. Teacher desktop/mobile light/dark visual scenarios pass after fixing menu alignment (desktop-light retried following a local navigation timeout). Student routing excludes teacher actions, but actual post-removal access needs the database fixture. Reused existing ConfirmDialog, AppMessage and action-menu primitives under the Pika UI brief. Nonblocking operation locks return a retryable conflict rather than waiting in reverse purge lock order.
-- PR #1244 remains draft; independent review of this replacement flow and schema execution are still required. Do not treat the previous worker review as review of the new design.
-
-## 2026-09-11 — Verify preserving removal in an isolated database
-
-- Owner authorized one application of migration 164 via SQL in a disposable local database. Cloned only schema/static archive registry to `supabase_db_pika` database `pika_removal_164_wgvpf4`; source public/private schema equality was verified before the single successful transactional application. Shared `postgres` remains migration 163 with no removed roster columns; no production changes. The SQL authorization is consumed.
-- Rollback-only tests pass for mixed removal, retained work/grades/Pal/manual attendance, exact attendance activation restore, owner denial, active decommission conflict, implicit rejoin denial, retry, email-change binding, cross-class preservation, and removed-student archive/compaction/restore without accidental reenrollment. Separate-session lock probes pass. Current standalone Gradebook archive contract also passes; obsolete generic archive scripts reference retired quizzes and are not applicable. Database lint reports no errors/warnings; all synthetic fixture users rolled back.
-- Generated public types directly from the isolated database with Supabase CLI and independently compared fresh output; removed temporary RPC casts and typed roster read results. The normal local types wrapper still targets the unchanged shared database; clean replay/types equality remain CI gates. Added the removal fixture runner to CI. Focused gate passes 209 tests plus static gates; targeted removal/API source checks pass 18 tests; UI is unchanged from the prior verified matrix. Initial Sol/high and Terra/high independent review follows against a fixed detached commit; keep PR #1244 draft pending that review.
-
-## 2026-09-11 — Batch preserving-removal review corrections
-
-- Initial independent review of fixed `32aed6aa` used Sol/high and Terra/high (2 launches, one full-diff wave). Full fixed-head suite passed 6,644 tests/734 files. Accepted P1s: application archive actor contract omitted `removed_student_id`; re-add after account email change missed retained identity; Gradebook enrollment check preceded serialization locks. One remediation batch updates current/v2 actor contracts while preserving immutable v1, resolves re-add via stable identity with transactional unbound-placeholder merge and identity-reuse rejection, and locks before mark checks. Added actor/preflight, fallback, email-reuse and actual grade-race regressions.
-- Corrected application archive tests pass 43; roster fallback tests pass5. Focused rerun with `VITEST_MAX_WORKERS=2` passes702 tests/56 files and all static checks; the earlier unrestricted run had worker/timeouts. Audit passes. No further UI changes. Original migration164 checksum `9d7213e90df51de55794af5aebd50e61cd8be22cf1bd504400cc7bf786414645` alone was applied to disposable `pika_removal_164_wgvpf4`; revised164 is unapplied, so new SQL/race regressions remain unverified. Renewed exact disposable-local SQL authorization was requested; no shared/prod migrations or data changes.
-- PR #1244 must remain draft. Next: after renewed permission, use a fresh schema-only disposable database to apply revised164 once, execute the full removal/archive/race runner and generated-types/lint checks, then one targeted Sol/high remediation review (launch3), final integration review if needed, and stable-SHA CI. The previous worker review does not substitute for review of this flow.
-
-## 2026-09-11 — Verify revised removal migration
-
-- Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
-- Full removal/archive/email-identity fixture and lock probes pass. Corrected grade-race harness to allow the existing archive-revision trigger to wait for removal commit before rejecting the mark; separate removal rounds test insert and update, with no attempted mark persisted. No migration change or reapplication. Database lint is clean and independently generated public types match. Synthetic users cleaned up. Targeted independent review and stable-head CI remain before ready handoff.
-
-## 2026-09-11 — Preserve pre164 archive inventory compatibility
-
-- Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
-- Synchronized main `b170b89d` (classroom join controls), preserving both continuity histories. Its join flow uses the same serialized RPC and removed-membership guard; no application merge conflicts. Targeted re-review (launch4) and cumulative integration (launch5) remain within the bounded review plan. No merge/deployment permission.
-
-## 2026-09-11 — Isolate legacy invitation removal from retained marks
-
-- Final review launch5 found the legacy remover still delegated to historical orphan-score cleanup. New rollback regression reproduced deletion of a retained standalone score when deleting an unrelated invitation. Owner approved one bounded correction, one fresh disposable-local application of revised164, and two additional review passes (launches6–7).
-- Batch3 replaces that delegation with a bounded, locked invitation-only delete. Removed/bound/joined identities are rejected; only exact requested invitation rows are deleted, with all academic-data deletion counters zero. Tests cover unrelated invitation, removed-identity re-add placeholder, duplicate targets and atomic mixed joined/invitation rejection. Updated the standalone Gradebook harness to require retained marks after enrollment removal. No UI or Pal changes.
-- Revised164 checksum `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7` awaits targeted review and the approved one-time application to fresh disposable `pika_removal_164_djwzbp`; shared/prod remain unchanged. Prior755-test focused gate passed; SQL behavior remains to be verified against the revision.
-- Targeted Sol/high review launch6 cleared fixed `dab31d44`. The approved single SQL application then succeeded in `pika_removal_164_djwzbp` (permission consumed). Full removal/archive/email/legacy-delete/race harness and standalone Gradebook archive/retention harness pass. Database lint clean, generated public types match, synthetic users0; shared postgres remains163 without removal columns. Latest focused709 tests/56files plus static checks and audit pass. Final cumulative review launch7 and exact-head CI remain; no merge/deployment authorization.
-
 ## 2026-09-11 — Split removal browser contracts after CI timeout
 
 - Final review launch7 cleared `48c4a767`; exact-head CI passed full test/build and all database contracts, but the combined removal/purge/student visual test repeatedly exhausted its30s total budget (one final failure, other transient browser scenarios retried successfully). User requested the next correction and main synchronization; PR returned to draft before edits.
@@ -208,6 +155,7 @@ DraftPR1256 at95c87afb received independent Sol/high and Terra/high review. Both
 - Task branch `codex/student-actionbar-spacing`: student-density `PageActionBar` now owns the existing 12px comfortable top inset, fixing Calendar and Classwork Instructions/Submit header collisions. Teacher/default spacing remains caller-owned. Updated the canonical API note and role-aware Pattern Lab example; reused existing controls and spacing tokens. Risk profile: none; no new visual pattern or interaction semantics.
 - Local Playwright matrix covers student/teacher Calendar, selected assignment, and Pattern Lab at 1440×900/390×844 in light/dark; student Calendar Week/Month/All and assignment focus/open-instructions states also captured. Evidence: ignored `output/playwright/`, capture script `/tmp/pika-actionbar-verify.cjs`, local port3137. No page overflow; student action bars have 12px padding and controls retain 44px targets.
 - Focused check passed 1,665 tests in168 files plus architecture, UI/design policy, TypeScript and lint. The optional audit flags unchanged composite semantics by scanning whole touched files; this spacing-only diff changes no ARIA or keyboard behavior and has direct browser focus/dialog verification. Draft-first independent review and final CI follow; no merge or production authorization.
+
 ## 2026-09-13 — Phase3 provider prerequisite checkpoint
 
 Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
@@ -236,3 +184,42 @@ Direct user approval authorized exactlocal171/hash598ee035 and bounded review ex
 ## 2026-09-13 — Phase3 final review correction batch
 
 DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
+
+## 2026-09-13 — Disabled removed-membership academic stage source checkpoint
+
+- Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
+- Authored forward173, existing-ledger local progress/claims, strict provider/no-copy fences, narrow retained marks redaction and rollback-only harness. Existing171/172 hashes preserved. No schema or provider action.
+-14 orchestration tests,10 source contracts and focused checks passed; TypeScript passed. Canonical types check correctly stops at unapplied173. DB/storage/MVCC proofs remain unexecuted; source review and exact local approval next. Refreshed existing roadmap/integration status.
+
+## 2026-09-13 — Batch academic cleanup source-review corrections
+
+- PR1259 initial Sol/high and Terra/high reviews found exact attendance overblocking and incomplete rollback coverage. One batch permits only staged exact attendance deletes, orders override events before parents, and tightens file ownership to exact assignment docs. All overall provider/re-add fences remain.
+- Expanded the unexecuted rollback harness to22 success resource categories, all29 allowlisted tables across success/blocked fixtures, two files, eight blocked cases, row-hash isolation and callback/backoff/lease scenarios. Source tests pass; SQL173 remains unapplied and database/types proof remains gated on direct local173 approval. Targeted source review follows; no migration or provider activation occurred.
+
+## 2026-09-13 — Fence mixed attendance parent links
+
+- PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.
+
+## 2026-09-13 — Register academic cleanup CI verification
+
+- Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.
+
+## 2026-09-13 — Apply local academic schema and connect generated RPC
+
+- Direct owning-task approval authorized one LOCAL173 application and one separate rollback fixture execution. Normal migration command applied only reviewed173 at SHA256 df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd. Ledger001–173 verified; warning-level lint clean; academic/provider gates remain false.171–173 are immutable. Canonical types generated and checked; typed service-only RPC bridge and failure-category/privacy tests added.
+- The single approved fixture run failed during setup: a student-only check-in reference collided across two classrooms. Transaction rolled back, zero synthetic users remain and both gates remain false. Corrected fixture ID to include classroom and student. No cleanup/runtime proof claimed; a fresh fixture-run approval is required. Final review extension (up to30minutes from runtime-complete final review launch, one cumulative plus one targeted correction review) has not started. No provider calls/live byte deletion/activation/merge.
+
+## 2026-09-13 — Correct rollback fixture integration assumptions
+
+- Direct approval allowed up to3 local rollback-only retries with fixture-only fixes. All3 attempts rolled back; failures exposed missing simulated storage-readiness fields, a PL/pgSQL variable/alias collision, then an existing Gradebook constraint intercepting the parent-move test. Fixed those fixture assumptions; parent-move now clears the category and requires the exact cleanup guard error. Latest run passed setup/inventory/blocked-case checks but did not reach storage/row deletion or final absence assertions.
+- Zero synthetic users, both cleanup gates false and storage mode compatibility verified after each attempt.173 remains byte-identical. Retry permission consumed; further fixture execution needs direct approval. Final review clock has not started because runtime verification is incomplete.
+
+## 2026-09-13 — Verify local academic cleanup end to end
+
+- Direct approval resumed same-local rollback-only fixture validation with fixture-only corrections. Adopted the existing managed-storage fixture pattern for Storage API SQL-delete permission inside the transaction; added exact denial checks without completed providers and with expired leases. The full fixture passes, including22 success categories, all29 allowlisted row tables across success/blocked cases, two file leases, target absence and preserved peer/other-class/account/roster/provider/fence evidence.
+- Postflight: zero synthetic users/managed objects/storage rows; both cleanup gates false; storage compatibility restored. Warning-level database lint clean and173 unchanged. No provider HTTP/live byte deletion or committed-row MVCC proof. Final cumulative review follows the runtime-complete committed head under the approved30-minute extension; PR1259 remains draft until review and actual stable-head CI pass.
+
+## 2026-09-13 — Fence late repository grading producers
+
+- Final cumulative Sol review found an unfenced repo-review run INSERT could race local cleanup after a route cached student data. Prepared forward174;173 remains immutable.174 extends the latest indirect purge guard to repo-review runs and installs insert/update/delete protection, preserving old/new scope locking and existing behavior.
+- Added route regressions proving denied/failed run creation stops cached-data analysis/AI grading, and deterministic fixture regressions for late run insertion after inventory/completion and moves into/out of fenced classrooms. These do not claim committed-row MVCC proof.174 application requires fresh exact local approval. One targeted review remains within the approved20:20:10–20:50:10 extension; PR1259 remains draft. Latest execution/CI receipts are recorded in that PR.

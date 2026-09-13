@@ -6473,6 +6473,7 @@ export type Database = {
           managed_storage_object_id: string | null
           next_attempt_at: string
           operation_id: string
+          owner_sha256: string | null
           status: string
           storage_bucket: string
           storage_path: string | null
@@ -6490,6 +6491,7 @@ export type Database = {
           managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id: string
+          owner_sha256?: string | null
           status?: string
           storage_bucket: string
           storage_path?: string | null
@@ -6507,6 +6509,7 @@ export type Database = {
           managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
+          owner_sha256?: string | null
           status?: string
           storage_bucket?: string
           storage_path?: string | null
@@ -6539,6 +6542,7 @@ export type Database = {
           id: string
           impact_summary: Json
           inventory_completed_at: string | null
+          local_academic_cleanup: Json | null
           request_sha256: string
           resource_counts: Json
           retryable: boolean | null
@@ -6560,6 +6564,7 @@ export type Database = {
           id: string
           impact_summary?: Json
           inventory_completed_at?: string | null
+          local_academic_cleanup?: Json | null
           request_sha256: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -6581,6 +6586,7 @@ export type Database = {
           id?: string
           impact_summary?: Json
           inventory_completed_at?: string | null
+          local_academic_cleanup?: Json | null
           request_sha256?: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -6616,18 +6622,21 @@ export type Database = {
           disposition: string
           operation_id: string
           row_id: string
+          row_sha256: string | null
           table_name: string
         }
         Insert: {
           disposition: string
           operation_id: string
           row_id: string
+          row_sha256?: string | null
           table_name: string
         }
         Update: {
           disposition?: string
           operation_id?: string
           row_id?: string
+          row_sha256?: string | null
           table_name?: string
         }
         Relationships: [
@@ -7764,6 +7773,20 @@ export type Database = {
           p_expected_draft_version: number
           p_teacher_id: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      advance_removed_student_academic_cleanup: {
+        Args: {
+          p_action: string
+          p_classroom_id: string
+          p_generation_id: string
+          p_lease_token?: string
+          p_object_id?: string
+          p_operation_id: string
+          p_revision?: number
+          p_student_id: string
+          p_teacher_id: string
         }
         Returns: Json
       }

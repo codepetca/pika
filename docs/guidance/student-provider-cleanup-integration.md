@@ -1,18 +1,19 @@
 # Student provider cleanup integration — Phase 3 prerequisite
 
-Status: initial source review and one correction review complete; runtime integration,
-canonical database types and local rollback verification complete at171. Final review
-corrections await targeted review and local172 verification. No provider requests.
-This is a prerequisite increment, not Phase 3
-completion. Owner: task `01a09b31-f9d8-7ce0-8a20-0bfd61f67009`, branch
+Status: disabled prerequisite delivered. PR #1258 merged at
+`29cde0b0df441cf1b55f305da5ed4a602ca1d642`; the automatic main Preview is READY.
+This is a prerequisite increment, not Phase 3 completion. Prior owner: task
+`01a09b31-f9d8-7ce0-8a20-0bfd61f67009`, preserved branch
 `codex/pal-student-cleanup-integration`. Risk: runtime-platform.
 Model recommendation: GPT-6 Astra for implementation; Sol/high security and
 concurrency review, Terra/high compatibility and coverage review.
 
 The selected [six-phase plan](classroom-pal-and-student-cleanup-plan.md) governs
-product intent. Main is `f67852cf` (Phase 2 PR1256 merged); local Pika is verified
-through001–171 after the direct user-approved local171 application. Production remains through168 according to the coordinator's
-verified ledger; this new worktree has no linked hosted target.
+product intent and records the current academic/file-stage owner. Phase 2 PR1256
+is merged. Local Pika was verified through001–173 before the174 correction; exact local application
+permissions for171–173 are consumed. Production remains through168. Provider and academic
+cleanup remain disabled. The merge/Preview receipt is
+`/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
 
 Pal PR104 is released at `5ef9070471e4d409082f1146b584ab76cfc3a1d3`. Its exact
 begin/status contract is implemented but disabled, and managed-copy proof is
@@ -78,61 +79,38 @@ retryable uncertainty using the same operation binding; definite authorization,
 binding and configuration errors remain blocked. No rejected reply is persisted
 as cleanup proof.
 
-## Verification and remaining review
+## Delivered verification and limitations
 
-- Exact reviewed migration171 (SHA256598ee035bea90e47aade94acb7d79ce2227e110c343e57be0661e71ce4ccd587)
-  applied once to the existing local Pika database. Ledger001–171, all private
-  gates off, no synthetic fixture rows retained. Canonical generated types and
-  their drift check passed at171. Generated types were not edited by hand.
-  Forward correction172 preserves the function signature and authorization call
-  while removing an unused return variable flagged by warning-level database lint.
-  It remains unapplied pending its own exact local approval; post172 lint/type
-  drift and database verification are not yet claimed.
-- The bounded coordinator's direct typed RPC bridge and generation-aware
-  attendance scan/pre-send/replay consumers are authored and covered by synthetic
-  tests. TypeScript passes against the generated contract; the nullable replay
-  lease has an application-level refinement because PostgreSQL metadata omits
-  input nullability. No generic RPC escape hatch is used.
-- Host browser invalidation is implemented and visually verified: every scoped
-  operation reauthorizes with Pika, denied membership invalidates token/memory and
-  ignores late replies without remounting academic children. Legacy caching stays.
-  Final independent integration review remains pending.
-- Rollback SQL covers held leases, source isolation, copy ownership/intents,
-  strict receipts, legacy finalizers/callbacks and aged-operation health. The
-  separate contention harness runs two real connections and verifies five RPC/
-  producer lock conflicts plus rollback and lock release. Fixtures remain
+- Exact migration171 SHA256
+  `598ee035bea90e47aade94acb7d79ce2227e110c343e57be0661e71ce4ccd587`
+  and correction172 SHA256
+  `4aac47ce59b41d8b1de87ec07710ff4d4df8bb7e2292456335c1c836a6e65424`
+  were each applied once to the existing local Pika database with direct approval.
+  Both files remain byte-immutable. Canonical generated types came from the
+  verified schema; no hand editing of generated types was used.
+- Independent source review and corrections completed at reviewed head
+  `215c805bf7c8d01ef92fc7d13536c36f91557eec`. Exact-head PR Gate passed before
+  normal merge. The merged tree matches that reviewed candidate.
+- The typed RPC coordinator and generation-aware attendance scan/pre-send/replay
+  consumers have synthetic regression coverage. Host browser invalidation was
+  visually verified: denied membership invalidates token/memory and ignores late
+  replies without remounting academic children; legacy caching stays.
+- Rollback SQL covers held leases, source isolation, provisional-copy ownership
+  and unfinished intents, strict receipts, legacy finalizers/callbacks and
+  aged-operation health. The separate contention harness uses two connections
+  and verifies RPC/producer lock conflicts and release. Fixtures remain
   uncommitted: this is not a committed-row MVCC claim/removal race rehearsal.
-- Complete final focused checks, remediation if needed and cumulative
-  independent review, then draft-first exact-SHA PR Gate CI.
-
-Initial evidence: full focused source checks passed (61 files / 520 tests,
-architecture, UI/design policies, TypeScript and lint). The first independent
-Sol/Terra wave found three blockers: provisional-copy coverage, same-command
-attendance lease closure, and provider-pending cron health. The correction batch
-adds both provisional-object and unfinished-intent checks, serializes copy
-producers with reservation, drives closure from the exact transitioning reference,
-and keeps pending visible while excluding it from ordinary stuck counts. The
-43 affected cron/purge tests and TypeScript passed at the correction checkpoint.
-The rollback SQL cases now pass against local171. Initial fixture setup was
-corrected to register objects before marking provisional owners adopted, and to
-accept the earlier lifecycle-conflict denial for unfinished restore intents.
-The applied migration itself is unchanged from the reviewed hash.
-
-The committed browser checkpoint97384ff8 passed605 tests and eight synthetic
-browser cases, with desktop/mobile and light/dark captures visually inspected.
-Subsequent runtime integration has its own attendance/provider regression coverage;
-those mocked checks do not establish real SQL race safety. The independent-review
-session ended at15:44UTC with three launches and one correction batch. The user
-approved an extension of up to30minutes and two additional launches; prior usage
-remains counted. Its clock starts when the final review begins.
-Final cumulative review found the Pal retry classification and the known SQL lint
-blocker; both are batched into the next source checkpoint for targeted review.
-The extension runs16:01–16:31UTC, with at most five launches total.
+- Unknown provider replies, Pal retry classification, copy ownership/intents and
+  provider-pending cron health were addressed during bounded independent review.
+  Local and mocked checks do not establish hosted erase safety.
+- Preview verification read deployment metadata only. It did not perform a
+  hosted smoke, provider request, manual redeployment, activation or live erase.
 
 ## Remaining release and product gates
 
-No merge, deployment, additional migration application, provider activation,
-live canary or scheduled cleanup is authorized by this implementation. Unknown managed copy
+The prerequisite merge and automatic Preview are delivered. Further merge, deployment,
+migration application, provider activation, live canary or scheduled cleanup need
+their applicable authority. Unknown managed copy
 classes remain blocked. Academic files, archive/Gradex copies, remote grading,
 restore-independent suppression, retention policy and complete local inventory
 remain independent obligations. Never delete a whole-class archive or invoke
@@ -140,3 +118,71 @@ whole-roster Bara decommission to satisfy one participant's cleanup. No physical
 erasure, two-day promise, legacy profile retirement, historical-removal backfill,
 achievement copying or reset is claimed. Phase4 worker policy and Phase5 pilot
 remain separate.
+
+## Local academic stage — verification checkpoint
+
+Owner: `01a09bf4-0b2a-7762-8043-45c5698b8492`, branch
+`codex/removed-membership-academic-cleanup`. Migration173 passed independent source review and was applied once to local Pika
+under direct approval. Its SHA256 is `df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd`; it is now immutable.
+Warning-level database lint and canonical generated types/check pass. The typed
+RPC bridge is implemented and mock-tested. Final cumulative review and runtime
+fixture verification remain required before readiness.
+
+Academic data ownership is the exact student/classroom pair. The saved current
+removed generation authenticates the operation; dates do not attribute rows to
+a generation. Every local RPC and physical storage deletion rechecks current
+teacher authority, the immutable operation/provider tuple, exact retained roster
+identity, absence of enrollment, private gates and the retained fence under the
+existing locks. Repeatable-read/serializable caller snapshots are rejected.
+
+The stage reuses `student_purge_operations`, `student_purge_resources` and
+`student_purge_objects`. Full row and managed-owner hashes freeze inventory
+revision1, including content changes that an ID/count-only hash would miss.
+Inventory replay preserves that revision; drift stops progress. An internal
+transaction-scoped capability permits narrow ledger/row mutations and is removed
+before the RPC returns. It is not a persisted work queue or a caller-set flag.
+The ordinary purger still stops at `provider_pending` and cannot call this stage.
+
+| Resource class | Treatment in this increment |
+|---|---|
+| Assignment docs, history, save operations, teacher feedback, student artifacts | Exact current inventory; row hashes; delete only after all gates pass |
+| Test attempts/history/responses/focus/availability, survey responses, announcement reads, report-card rows, daily entries | Reuse existing exact student/classroom inventory |
+| Gradebook overrides and standalone scores | Reuse157/163 inventory extensions |
+| Removed roster manual attendance marks | Inventory payload separately; clear to an empty object while retaining every identity/control field and timestamp |
+| Embedded managed-object references | Explicit inventory of exact doc/history references; forbid any shared owner |
+| Student-managed artifacts/images | Exact owner/purpose/bucket checks; existing object leases, retries and permanent path reservations; SQL absence verification |
+| Shared summaries, feedback candidates, grading runs, repo grading, AI provenance, retired assessment data | Block; no collateral deletion or shared-run redaction |
+| Archives, Gradex extracts, provisional intents, cleanup ledgers and cross-owner object references | Block; no whole-class copy cleanup |
+| Local attendance facts/projections/overrides/events | Exact student/classroom inventory and deletion; child events before overrides; mixed parent/event identities block and both scopes are fenced; immutable participant mapping retained |
+| Shared attendance override-request results | Block pending shared-result handling |
+| Pal/Bara delivery ledgers and identity evidence | Remain under the provider/integration obligation; never erased or declared complete by local academic evidence |
+| Account, profile, classmates, other classes, teacher materials and shared assets | Preserved |
+
+Inventory can run before provider completion. Every destructive step requires the
+saved exact Pal completion and Bara participant absence receipts plus all no-copy
+conditions. Pal's live managed-copy proof is unavailable, so synthetic receipts
+validate dormant behavior only. `local_completed` records local academic/file
+absence; overall remains `provider_pending`. Resources, path tombstones, immutable
+bindings and the re-add fence remain. No worker, cron, public route, teacher UI,
+reenrollment, reference rotation or overall finalizer is added.
+
+Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
+`scripts/check-removed-student-academic-database.sql` harness. The harness requires
+local173. It is designed to cover22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
+never be described as committed-row MVCC or storage-byte deletion proof. The corrected fixture passes end to end under direct local rollback-only approval.
+It follows the existing managed-storage fixtures by setting the Storage API's SQL
+metadata-delete permission only within its transaction; Pika's guards remain live.
+Negative checks require the exact storage-authority error without completed
+providers or with an expired lease. Successful cleanup preserves overall status,
+provider bindings, account/profile, roster controls, resource/path tombstones and
+re-add fences. Postflight confirms zero synthetic users/managed objects/storage
+rows, both cleanup gates false and storage mode compatibility. Warning-level
+database lint and canonical types/check pass. Final cumulative review found a late repo-review producer race. Forward174 adds
+`assignment_repo_review_runs` to the existing classroom-locking indirect purge
+guard for insert/update/delete, including old/new assignment scopes. Existing
+runs still block cleanup; a denied run insert stops the route before analysis or
+AI grading. Regression tests cover that route ordering and deterministic late
+inserts after inventory/completion, plus moves into/out of a fenced classroom.
+The expanded fixture requires174; its post174 runtime result, exact local
+application receipt and final CI verdict are tracked in PR1259. This is not a
+committed cross-connection race proof. Applied173 remains unchanged.
