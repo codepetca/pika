@@ -271,8 +271,10 @@ historical backfill, retention deadline or pilot belongs to this increment.
   `215c805bf7c8d01ef92fc7d13536c36f91557eec`. Normal PR Gate passed and the
   automatic main Preview is READY at that merge commit. The preserved prior owner
   is `01a09b31-f9d8-7ce0-8a20-0bfd61f67009`; it is no longer the implementation writer.
-- Local Pika ledger is 001–173. Exact local 171–173 permissions are consumed;
-  those files are immutable. Production remains 001–168; production 169–173 and
+- Before the174 correction, local Pika ledger001–173 was verified. Exact171–173
+  permissions are consumed;
+  those files are immutable. PR1259 records the174 local execution receipt.
+  Production remains001–168; production169–174 and
   every further migration application require their applicable exact approval.
 - Pal managed-copy completion proof remains unavailable. Bara's current deployed
   backend is an expiring Preview; a stable deployment remains a release gate.

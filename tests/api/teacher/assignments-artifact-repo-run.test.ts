@@ -65,6 +65,7 @@ function installRepoRunTables(opts: {
   profiles?: Array<{ user_id: string; first_name: string | null; last_name: string | null }>
   docs?: Array<Record<string, unknown>>
   targets?: Array<Record<string, unknown>>
+  runError?: { code: string; message: string }
 }) {
   const insertedRuns: unknown[] = []
   const insertedResults: unknown[] = []
@@ -116,7 +117,9 @@ function installRepoRunTables(opts: {
           insertedRuns.push(row)
           return {
             select: vi.fn(() => ({
-              single: vi.fn(async () => ({ data: { id: 'run-1', ...(row as object) }, error: null })),
+              single: vi.fn(async () => opts.runError
+                ? { data: null, error: opts.runError }
+                : { data: { id: 'run-1', ...(row as object) }, error: null }),
             })),
           }
         }),
@@ -228,6 +231,33 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       skipped_reasons: { 'No repo artifact has been submitted yet.': 1 },
     })
     expect(mockValidatePublicGitHubRepo).not.toHaveBeenCalled()
+  })
+
+  it.each(['55000', 'XX000'])('does not send cached student data when run creation fails with %s', async code => {
+    mockResolveAssignmentRepoTarget.mockReturnValue({
+      effectiveRepoUrl: 'https://github.com/codepetca/pika', effectiveGitHubUsername: 'student-login',
+      selectionMode: 'auto', validationMessage: null,
+    })
+    mockValidatePublicGitHubRepo.mockResolvedValue({
+      repoUrl: 'https://github.com/codepetca/pika', repoOwner: 'codepetca', repoName: 'pika',
+      defaultBranch: 'main', validationStatus: 'valid', validationMessage: null,
+    })
+    const harness = installRepoRunTables({
+      enrollments: [{ student_id: 'b0000000-0000-4000-8000-000000000001', users: { email: 'cached@example.invalid' } }],
+      docs: [{ student_id: 'b0000000-0000-4000-8000-000000000001', content: {},
+        repo_url: 'https://github.com/codepetca/pika', github_username: 'student-login' }],
+      runError: { code, message: 'student_purge_active' },
+    })
+    const response = await POST(new NextRequest(
+      'http://localhost/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/artifact-repo/run', {
+        method: 'POST', body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
+      }), { params: { id: 'a0000000-0000-4000-8000-000000000001' } })
+    expect(response.status).toBe(409)
+    expect(harness.insertedRuns).toHaveLength(1)
+    expect(mockAnalyzeRepoReviewAssignment).not.toHaveBeenCalled()
+    expect(mockGradeRepoReviewFeedback).not.toHaveBeenCalled()
+    expect(harness.runUpdates).toHaveLength(0)
+    expect(harness.insertedResults).toHaveLength(0)
   })
 
   it('groups valid repos, saves run results, and atomically saves draft grades', async () => {

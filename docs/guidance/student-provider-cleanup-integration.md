@@ -10,7 +10,7 @@ concurrency review, Terra/high compatibility and coverage review.
 
 The selected [six-phase plan](classroom-pal-and-student-cleanup-plan.md) governs
 product intent and records the current academic/file-stage owner. Phase 2 PR1256
-is merged. Local Pika is verified through001–173; exact local application
+is merged. Local Pika was verified through001–173 before the174 correction; exact local application
 permissions for171–173 are consumed. Production remains through168. Provider and academic
 cleanup remain disabled. The merge/Preview receipt is
 `/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
@@ -177,6 +177,12 @@ providers or with an expired lease. Successful cleanup preserves overall status,
 provider bindings, account/profile, roster controls, resource/path tombstones and
 re-add fences. Postflight confirms zero synthetic users/managed objects/storage
 rows, both cleanup gates false and storage mode compatibility. Warning-level
-database lint and canonical types/check pass. Final cumulative review and
-stable-head CI remain required. Earlier setup/assertion failures were corrected
-only in fixture SQL; applied173 remains unchanged.
+database lint and canonical types/check pass. Final cumulative review found a late repo-review producer race. Forward174 adds
+`assignment_repo_review_runs` to the existing classroom-locking indirect purge
+guard for insert/update/delete, including old/new assignment scopes. Existing
+runs still block cleanup; a denied run insert stops the route before analysis or
+AI grading. Regression tests cover that route ordering and deterministic late
+inserts after inventory/completion, plus moves into/out of a fenced classroom.
+The expanded fixture requires174; its post174 runtime result, exact local
+application receipt and final CI verdict are tracked in PR1259. This is not a
+committed cross-connection race proof. Applied173 remains unchanged.

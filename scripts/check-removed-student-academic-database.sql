@@ -1,4 +1,4 @@
--- Synthetic transaction only. Requires separately approved local migration173.
+-- Synthetic transaction only. Requires separately approved local migrations173–174.
 \set ON_ERROR_STOP on
 begin;
 set local lock_timeout='3s';
@@ -6,6 +6,9 @@ set local statement_timeout='45s';
 do $$ begin
   if to_regprocedure('public.advance_removed_student_academic_cleanup(uuid,uuid,uuid,uuid,uuid,text,integer,uuid,uuid)') is null then
     raise exception 'Migration173 is required'; end if;
+  if not exists(select 1 from pg_trigger where tgrelid='public.assignment_repo_review_runs'::regclass
+    and tgname='student_purge_indirect_guard_assignment_repo_review_runs' and not tgisinternal) then
+    raise exception 'Migration174 is required'; end if;
   if (select enabled from private.student_provider_cleanup_settings where singleton) then
     raise exception 'Fixture requires disabled provider cleanup'; end if;
 end $$;
@@ -55,6 +58,10 @@ begin
   insert into public.attendance_participant_mappings(classroom_id,student_id) values(course_a,student),(course_b,student),(course_a,peer);
   insert into public.assignments(id,classroom_id,title,due_at,created_by) values
     ('c1730000-0000-4000-8000-000000000070',course_a,'Shared assignment',clock_timestamp()+interval '1 day',teacher);
+  insert into public.assignments(id,classroom_id,title,due_at,created_by) values
+    ('c1730000-0000-4000-8000-000000000074',course_b,'Other class assignment',clock_timestamp()+interval '1 day',teacher);
+  insert into public.assignment_repo_review_runs(id,assignment_id,triggered_by,status)
+    values('c1730000-0000-4000-8000-000000000098','c1730000-0000-4000-8000-000000000074',teacher,'completed');
   insert into public.assignment_docs(id,assignment_id,student_id,content) values
     ('c1730000-0000-4000-8000-000000000071','c1730000-0000-4000-8000-000000000070',student,'{"type":"doc","content":[]}'),
     ('c1730000-0000-4000-8000-000000000072','c1730000-0000-4000-8000-000000000070',peer,'{"type":"doc","content":[]}');
@@ -296,6 +303,14 @@ insert into public.assignment_repo_targets(assignment_id,student_id) values('c17
     update private.removed_student_academic_settings set enabled=true where singleton;
     result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
     if not (result->'blockers' ? 'remote_grading_policy_required') then raise exception 'Missing repo_remote blocker'; end if;
+    begin
+      update public.assignment_repo_review_runs set assignment_id='c1730000-0000-4000-8000-000000000074'
+        where id='c1730000-0000-4000-8000-000000000090';
+      raise exception 'Repo run moved out of fenced classroom';
+    exception when sqlstate '55000' then
+      if sqlerrm<>'student_purge_active' then raise; end if;
+    end;
+
     if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_repo_review_results') then raise exception 'Missing blocked inventory assignment_repo_review_results'; end if;
     if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_repo_targets') then raise exception 'Missing blocked inventory assignment_repo_targets'; end if;
     for resource in select * from public.student_purge_resources where operation_id=op loop
@@ -499,6 +514,29 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
       if sqlerrm<>'academic_cleanup_attendance_reference_fenced' then raise; end if;
     end;
   end loop;
+  -- A request may have cached student data before removal. Its later run INSERT
+  -- must fail after inventory, before the route can dispatch any remote work.
+  begin
+    insert into public.assignment_repo_review_runs(assignment_id,triggered_by,status)
+      values('c1730000-0000-4000-8000-000000000070',teacher,'running');
+    raise exception 'Late repo grading run accepted after inventory';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'student_purge_active' then raise; end if;
+  end;
+  if exists(select 1 from public.assignment_repo_review_runs
+    where assignment_id='c1730000-0000-4000-8000-000000000070') then
+    raise exception 'Late repo grading run persisted'; end if;
+  begin
+    update public.assignment_repo_review_runs set assignment_id='c1730000-0000-4000-8000-000000000070'
+      where id='c1730000-0000-4000-8000-000000000098';
+    raise exception 'Repo run moved into fenced classroom';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'student_purge_active' then raise; end if;
+  end;
+  if not exists(select 1 from public.assignment_repo_review_runs
+    where id='c1730000-0000-4000-8000-000000000098'
+      and assignment_id='c1730000-0000-4000-8000-000000000074') then
+    raise exception 'Other-class repo run changed'; end if;
   -- Source drift is intentionally injected using the old superuser-only fixture
   -- bypass, then rolled back. It never authorizes local deletion.
   begin
@@ -604,6 +642,15 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
     insert into storage.objects(bucket_id,name) values('submission-images','fixture173/target.png');
     raise exception 'Late upload accepted';
   exception when sqlstate '55000' then null; end;
+  -- The retained fence must also reject a request that resumes after local
+  -- completion. This is deterministic late insertion, not committed-row MVCC proof.
+  begin
+    insert into public.assignment_repo_review_runs(assignment_id,triggered_by,status)
+      values('c1730000-0000-4000-8000-000000000070',teacher,'running');
+    raise exception 'Late repo grading run accepted after local completion';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'student_purge_active' then raise; end if;
+  end;
   foreach f in array array['claim_student_purge_object','finalize_student_purge','finalize_student_purge_without_attendance_v1'] loop
     begin
       execute format('select public.%I($1,$2)',f) into result using op,teacher;

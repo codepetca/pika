@@ -39,6 +39,18 @@ describe('removed academic source safety contract (not database execution)', () 
     expect(updated).toBe(original)
   })
 
+  it('extends the latest indirect guard to late repo-review writes without changing existing behavior', () => {
+    const correction = read('supabase/migrations/174_repo_review_student_purge_fence.sql')
+    const updated = body(correction, 'public.reject_student_indirect_change_during_purge')
+      .replace("elsif tg_table_name in ('assignment_ai_grading_runs', 'assignment_repo_review_runs') then",
+        "elsif tg_table_name = 'assignment_ai_grading_runs' then")
+    expect(updated).toBe(body(migration, 'public.reject_student_indirect_change_during_purge'))
+    expect(correction).toContain('before insert or update or delete on public.assignment_repo_review_runs')
+    const harness = read('scripts/check-removed-student-academic-database.sql')
+    expect(harness).toContain('Late repo grading run accepted after inventory')
+    expect(harness).toContain('Late repo grading run accepted after local completion')
+  })
+
   it('never grants a general finalizer bypass or erases identity fences', () => {
     expect(migration).not.toMatch(/set_config\('pika\.(student|classroom)_purge_finalize'/)
     expect(migration).not.toMatch(/delete from public\.(users|student_profiles|student_purge_fences|classroom_roster|classroom_archives)\b/)
