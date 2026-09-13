@@ -12,6 +12,7 @@ import {
   Input,
   IconButton,
   PageActionBar,
+  PageLayout,
   PageHeading,
   PageState,
   SaveStatus,
@@ -299,7 +300,7 @@ export function UiGallery({ role }: Props) {
             <div id="page-actions" data-testid="page-action-icons-example" className="scroll-mt-28">
               <Card tone="panel" padding="md">
                 <PatternHeading title="Page actions" owner="src/ui/Page.tsx; src/ui/IconButton.tsx" />
-                <div className="mt-4">
+                <PageLayout density={role} bleedX={false} className="mt-4">
                   <PageActionBar
                     primary={<PageHeading title="Assignments" size="section" />}
                     actions={[
@@ -308,8 +309,8 @@ export function UiGallery({ role }: Props) {
                       { id: 'unavailable', label: 'Archive selected', disabled: true, onSelect: () => undefined },
                     ]}
                   />
-                </div>
-                <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.</p>
+                </PageLayout>
+                <p className="mt-3 text-xs text-text-muted">Create with + in the center. Hover or focus for context. More actions stays at the far right.{role === 'student' ? ' Student density adds space above the controls.' : null}</p>
               </Card>
             </div>
             <div className="[&>section]:scroll-mt-28">
