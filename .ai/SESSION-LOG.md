@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Verify revised removal migration
-
-- Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
-- Full removal/archive/email-identity fixture and lock probes pass. Corrected grade-race harness to allow the existing archive-revision trigger to wait for removal commit before rejecting the mark; separate removal rounds test insert and update, with no attempted mark persisted. No migration change or reapplication. Database lint is clean and independently generated public types match. Synthetic users cleaned up. Targeted independent review and stable-head CI remain before ready handoff.
-
 ## 2026-09-11 — Preserve pre164 archive inventory compatibility
 
 - Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
@@ -225,3 +220,8 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 
 - Direct owning-task approval authorized one LOCAL173 application and one separate rollback fixture execution. Normal migration command applied only reviewed173 at SHA256 df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd. Ledger001–173 verified; warning-level lint clean; academic/provider gates remain false.171–173 are immutable. Canonical types generated and checked; typed service-only RPC bridge and failure-category/privacy tests added.
 - The single approved fixture run failed during setup: a student-only check-in reference collided across two classrooms. Transaction rolled back, zero synthetic users remain and both gates remain false. Corrected fixture ID to include classroom and student. No cleanup/runtime proof claimed; a fresh fixture-run approval is required. Final review extension (up to30minutes from runtime-complete final review launch, one cumulative plus one targeted correction review) has not started. No provider calls/live byte deletion/activation/merge.
+
+## 2026-09-13 — Correct rollback fixture integration assumptions
+
+- Direct approval allowed up to3 local rollback-only retries with fixture-only fixes. All3 attempts rolled back; failures exposed missing simulated storage-readiness fields, a PL/pgSQL variable/alias collision, then an existing Gradebook constraint intercepting the parent-move test. Fixed those fixture assumptions; parent-move now clears the category and requires the exact cleanup guard error. Latest run passed setup/inventory/blocked-case checks but did not reach storage/row deletion or final absence assertions.
+- Zero synthetic users, both cleanup gates false and storage mode compatibility verified after each attempt.173 remains byte-identical. Retry permission consumed; further fixture execution needs direct approval. Final review clock has not started because runtime verification is incomplete.

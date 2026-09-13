@@ -169,9 +169,12 @@ reenrollment, reference rotation or overall finalizer is added.
 Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
 `scripts/check-removed-student-academic-database.sql` harness. The harness requires
 local173. It is designed to cover22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
-never be described as committed-row MVCC or storage-byte deletion proof. The first approved run failed during fixture setup because a check-in ID collided
-across two classrooms. All fixtures rolled back; no cleanup assertions executed.
-The fixture now includes both classroom and student in that ID. Its one-run
-authorization is consumed; a corrected rerun requires fresh permission. Remaining
+never be described as committed-row MVCC or storage-byte deletion proof. Four approved executions have fully rolled back. Fixture corrections address a
+cross-class check-in ID collision, required simulated storage-readiness fields,
+a PL/pgSQL variable/alias collision, and a parent-move test intercepted by an
+existing Gradebook constraint. The latest run reached the parent-move assertion
+after setup, inventory and blocked-case checks; storage/row deletion and final
+absence assertions have not yet executed. The three-run retry authorization is
+consumed; further rollback-only execution requires fresh permission. Remaining
 evidence: runtime isolation/callback/lease verification, final cumulative review
 and stable-head CI. Both database cleanup gates remain false.

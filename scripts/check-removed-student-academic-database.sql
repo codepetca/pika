@@ -208,8 +208,10 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
     values('c1730000-0000-4000-8000-000000000071','c1730000-0000-4000-8000-000000000080',student,
       'image','fixture173/artifact.png','c1730000-0000-4000-8000-000000000081');
 
-  -- Enforcement changes and all fixtures are confined to this rollback transaction.
-  update public.managed_storage_settings set mode='enforced' where singleton;
+  -- Simulated readiness satisfies the settings constraint only inside this
+  -- rollback transaction; it is not live enforcement-readiness evidence.
+  update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),
+    readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
   -- Blocked fixture: assignment_remote; subtransaction restores the active baseline.
   begin
 insert into public.assignment_ai_grading_runs (
@@ -416,9 +418,9 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
     exception when sqlstate 'P1731' then null; end;
   end loop;
   create temporary table academic_preserved_rows on commit drop as
-    select resource.*,private.removed_academic_row_hash(table_name,row_id) expected_hash
+    select preserved_resource.*,private.removed_academic_row_hash(table_name,row_id) expected_hash
     from (select * from private.removed_academic_resources(course_a,peer)
-      union all select * from private.removed_academic_resources(course_b,student)) resource;
+      union all select * from private.removed_academic_resources(course_b,student)) preserved_resource;
   perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
   saved:=public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
   select to_jsonb(roster) into before_roster from public.classroom_roster roster where id='c1730000-0000-4000-8000-000000000030';
@@ -462,9 +464,12 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
     raise exception 'Fenced target write accepted';
   exception when sqlstate '55000' then null; end;
   begin
-    update public.assignments set classroom_id=course_b where id='c1730000-0000-4000-8000-000000000070';
+    update public.assignments set classroom_id=course_b,gradebook_category_id=null
+      where id='c1730000-0000-4000-8000-000000000070';
     raise exception 'Parent move accepted';
-  exception when sqlstate '55000' then null; end;
+  exception when sqlstate '55000' then
+    if sqlerrm<>'academic_cleanup_parent_fenced' then raise; end if;
+  end;
   begin
     insert into public.managed_storage_provisional_owners(owner_kind,target_classroom_id,operation_id,created_by_user_id,expires_at)
       values('restore_copy',course_a,gen_random_uuid(),teacher,clock_timestamp()+interval '1 day');
