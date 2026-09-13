@@ -1,7 +1,9 @@
 # Classroom-specific Pal and automatic student cleanup
 
 Date: 2026-09-12
-Status: Phase 1 delivered; Phase 2 dispatched. Live rollout remains disabled.
+Status: Phase 1 and Phase 2 disabled implementations delivered. Phase 3 provider
+prerequisite PR #1258 merged and Preview ready; Phase 3 remains incomplete.
+Live rollout remains disabled.
 Scope: Pika, Pal, and the required Bara attendance integration.
 Risk profile for implementation: runtime-platform; identity, authorization and
 irreversible data deletion.
@@ -41,14 +43,14 @@ The prior final-removal release already revokes class access and blocks re-add
 while old class data remains. Migration 165 and production PR #1251 were verified
 in this task; the committed startup summary predates that rollout.
 
-Current Pal integration uses an account-level learner token, cross-course daily
+The original Pal integration used an account-level learner token, cross-course daily
 facts/weekly opportunities and a shared widget provider. Pika blocks purge on
 any Pal row for that student. Pal documents a learner-delete API, but the reviewed
 main has no production route for it; a dev reset helper is not a substitute.
 Single-student Bara erasure and safe treatment of whole-classroom archive/Gradex
 copies are also missing. Merely scheduling the current purger is insufficient.
 
-The investigation used Pika `3d820f1a` and Pal `69c3c91`. Refresh repository heads,
+The original investigation used Pika `3d820f1a` and Pal `69c3c91`. Refresh repository heads,
 guidance, migration numbering and existing owners before each implementation
 slice; origin/main has advanced since that investigation.
 
@@ -243,12 +245,47 @@ not erased.
 
 ## Immediate next step
 
-Deliver Phase 2's disabled classroom-scoped signals and widget implementation,
-tracking provider compatibility and full-phase exit evidence separately from
-the implementation PR. No student-facing cutover, achievement reset or
-production deletion in this step.
+Deliver the disabled, explicitly invoked Phase 3 academic/file stage for one
+exact retained removed membership, using the existing purge engine. Inventory
+may precede provider completion; deletion requires saved exact-scope provider
+completion and proven no-copy conditions. Missing/ambiguous student-classroom ownership or removed-operation identity,
+shared resources, retained/provisional archive or Gradex copies, unfinished
+restore/export/grading work and unknown remote copies are blockers. Local evidence
+must remain distinct from overall completion; retain all re-add and identity fences.
+Academic data ownership is student + classroom: all unambiguously owned class
+data is in scope. The exact retained removed generation authenticates the operation;
+per-row generation attribution is neither inferred from dates nor required. No
+prospective provenance capture or historical relabeling is introduced.
 
-## Coordination handoff — 2026-09-12
+Current owner: task `01a09bf4-0b2a-7762-8043-45c5698b8492`, branch
+`codex/removed-membership-academic-cleanup`, worktree
+`/Users/stew/.codex/worktrees/b824/pika`. No worker, activation, eligibility change,
+historical backfill, retention deadline or pilot belongs to this increment.
+
+## Verified delivery update — 2026-09-13
+
+- Phase 1 PR #1253 and Phase 2 PR #1256 are merged. These deliver disabled
+  implementations; live cutover and the broader phase exit evidence remain gated.
+- Provider prerequisite PR #1258 merged as
+  `29cde0b0df441cf1b55f305da5ed4a602ca1d642`, from reviewed head
+  `215c805bf7c8d01ef92fc7d13536c36f91557eec`. Normal PR Gate passed and the
+  automatic main Preview is READY at that merge commit. The preserved prior owner
+  is `01a09b31-f9d8-7ce0-8a20-0bfd61f67009`; it is no longer the implementation writer.
+- Local Pika ledger is 001–172. Exact local 171/172 permissions are consumed;
+  both files are immutable. Production remains 001–168; production 169–172 and
+  every further migration application require their applicable exact approval.
+- Pal managed-copy completion proof remains unavailable. Bara's current deployed
+  backend is an expiring Preview; a stable deployment remains a release gate.
+  Provider source/receipt/deployment evidence does not establish full Phase 3 cleanup.
+- Academic/file isolation, exact ownership and operation identity, copy/remote-grading
+  treatment and committed-row MVCC/storage rehearsal remain outstanding. Earlier
+  rollback-only contention checks do not prove committed-row races. Worker policy,
+  retention, re-add release and the limited pilot remain later gates.
+- Merge/Preview receipt:
+  `/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
+  See [provider integration](student-provider-cleanup-integration.md) for its scope.
+
+## Historical coordination handoff — 2026-09-12
 
 - Coordinator: `01a09083-d907-7532-ae50-9b46d292bdb6`; tool-backed overall goal
   active. One implementation owner at a time; use the dispatch/orchestrate skills.

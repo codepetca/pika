@@ -31977,3 +31977,15 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
 - Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.
+
+<!-- pika-session-log-archive-batch:c5f39d45170f994e9b27c5aac8652c5af4a5640d6073ced9157bab012fa65a5b -->
+## 2026-09-10 — Synchronize Gradebook with main through PR 1241
+
+- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
+- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.
+
+## 2026-09-10 — Close join-limiter maintenance release prerequisite
+
+- Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
+- One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.

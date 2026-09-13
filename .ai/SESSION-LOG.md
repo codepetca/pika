@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Synchronize Gradebook with main through PR 1241
-
-- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
-- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
-- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.
-
-## 2026-09-10 — Close join-limiter maintenance release prerequisite
-
-- Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
-- One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.
-
 ## 2026-09-11 — Plan coordinated student removal and add server processing
 
 - Task owns `codex/student-purge-background` in the matching named worktree. Recorded the cross-repository plan in `docs/guidance/student-purge-background-plan.md`; implementation remains partial pending the historical Pal erasure policy. Pal's aggregated daily/weekly facts lack full classroom provenance. Existing admission safeguards remain in place; no provider data, migrations, or UI were changed.
@@ -208,6 +197,7 @@ DraftPR1256 at95c87afb received independent Sol/high and Terra/high review. Both
 - Task branch `codex/student-actionbar-spacing`: student-density `PageActionBar` now owns the existing 12px comfortable top inset, fixing Calendar and Classwork Instructions/Submit header collisions. Teacher/default spacing remains caller-owned. Updated the canonical API note and role-aware Pattern Lab example; reused existing controls and spacing tokens. Risk profile: none; no new visual pattern or interaction semantics.
 - Local Playwright matrix covers student/teacher Calendar, selected assignment, and Pattern Lab at 1440×900/390×844 in light/dark; student Calendar Week/Month/All and assignment focus/open-instructions states also captured. Evidence: ignored `output/playwright/`, capture script `/tmp/pika-actionbar-verify.cjs`, local port3137. No page overflow; student action bars have 12px padding and controls retain 44px targets.
 - Focused check passed 1,665 tests in168 files plus architecture, UI/design policy, TypeScript and lint. The optional audit flags unchanged composite semantics by scanning whole touched files; this spacing-only diff changes no ARIA or keyboard behavior and has direct browser focus/dialog verification. Draft-first independent review and final CI follow; no merge or production authorization.
+
 ## 2026-09-13 — Phase3 provider prerequisite checkpoint
 
 Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
@@ -236,3 +226,9 @@ Direct user approval authorized exactlocal171/hash598ee035 and bounded review ex
 ## 2026-09-13 — Phase3 final review correction batch
 
 DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
+
+## 2026-09-13 — Disabled removed-membership academic stage source checkpoint
+
+- Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
+- Authored forward173, existing-ledger local progress/claims, strict provider/no-copy fences, narrow retained marks redaction and rollback-only harness. Existing171/172 hashes preserved. No schema or provider action.
+-14 orchestration tests,10 source contracts and focused checks passed; TypeScript passed. Canonical types check correctly stops at unapplied173. DB/storage/MVCC proofs remain unexecuted; source review and exact local approval next. Refreshed existing roadmap/integration status.
