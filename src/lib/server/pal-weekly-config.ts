@@ -3,7 +3,8 @@ import {
   buildDailyLogWeekConfiguredEvent,
   palPeriodKeyForActivityDay,
 } from '@/lib/server/pal-events'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested, isClassroomPalEnabled } from '@/lib/server/pal-config'
+import { z } from 'zod'
 import {
   palTermCalendarForPeriodStart,
   type PalTermCalendar,
@@ -454,6 +455,25 @@ export async function syncPalWeeklyConfigurations(input: {
   }
 
   const supabase = input.supabase ?? getServiceRoleClient()
+  if (isClassroomPalRequested()) {
+    if (!isClassroomPalEnabled()) {
+      return { status: 'disabled', configured: 0, closed: 0, catchUpPeriods: 0, remainingCatchUp: false }
+    }
+    const { data, error } = await supabase.rpc('sync_pal_membership_weeks', { p_limit: 100 })
+    const result = z.discriminatedUnion('status', [
+      z.object({ status: z.enum(['disabled', 'busy']) }).strict(),
+      z.object({ status: z.literal('ok'), scanned: z.number().int().nonnegative(),
+        configured: z.number().int().nonnegative(), closed: z.number().int().nonnegative(),
+        remaining: z.boolean() }).strict(),
+    ]).safeParse(data)
+    if (error || !result.success) throw new Error('Membership Pal weekly synchronization is unavailable')
+    if (result.data.status !== 'ok') {
+      return { status: result.data.status === 'disabled' ? 'disabled' : 'ok',
+        configured: 0, closed: 0, catchUpPeriods: 0, remainingCatchUp: result.data.status === 'busy' }
+    }
+    return { status: 'ok', configured: result.data.configured, closed: result.data.closed,
+      catchUpPeriods: 0, remainingCatchUp: result.data.remaining }
+  }
   const now = input.now ?? new Date()
   const activityDay = formatDateInToronto(now)
   const currentPeriodStart = palPeriodKeyForActivityDay(activityDay)

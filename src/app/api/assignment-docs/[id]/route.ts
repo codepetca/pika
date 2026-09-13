@@ -15,7 +15,7 @@ import {
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
 import { assignmentDocSaveRequestSchema } from '@/lib/validations/assignment-doc-submissions'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildLearningItemViewedEvent } from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
@@ -188,7 +188,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
         if (!effectiveReleaseAt) {
           throw new Error('Assignment is missing its authoritative release timestamp')
         }
-        const palEvent = buildLearningItemViewedEvent({
+        const palEvent = isClassroomPalRequested() ? null : buildLearningItemViewedEvent({
           learnerId: user.id,
           itemId: assignmentId,
           occurredAt: viewedAt,
@@ -206,6 +206,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           created = result.doc
           createdByThisRequest = result.created
           palDelivery = await attemptImmediatePalEventDelivery({
+            membership: { studentId: user.id, classroomId: assignment.classroom_id },
             event: palEvent,
             supabase,
           })

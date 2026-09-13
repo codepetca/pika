@@ -24,6 +24,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/pal-config', () => ({
+  isClassroomPalRequested: () => false,
   getPalApiUrl: () => mocks.getPalApiUrl(),
 }))
 

@@ -108,6 +108,28 @@ describe('StudentPalExperience', () => {
     vi.unstubAllGlobals()
   })
 
+  it('clears pending celebrations and ignores late refresh notifications from a different classroom', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')))
+    const getSnapshot = vi.fn().mockResolvedValueOnce(withReward()).mockResolvedValue(createFixtureSnapshot())
+    mockCreatePikaPalClient.mockReturnValue({ getSnapshot, markRewardSeen: vi.fn() })
+    const view = render(<ThemeProvider><StudentPalExperience apiBaseUrl="https://pal.example.test"
+      scopeKey="generation-a" membership={{ classroomId: 'class-a', scopeKey: 'generation-a' }}>
+      <div>Academic work</div>
+    </StudentPalExperience></ThemeProvider>)
+    expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    view.rerender(<ThemeProvider><StudentPalExperience apiBaseUrl="https://pal.example.test"
+      scopeKey="generation-b" membership={{ classroomId: 'class-b', scopeKey: 'generation-b' }}>
+      <div>Academic work</div>
+    </StudentPalExperience></ThemeProvider>)
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(2))
+    expect(screen.queryByRole('dialog', { name: 'Reward earned' })).toBeNull()
+    act(() => window.dispatchEvent(new CustomEvent(PIKA_PAL_REFRESH_EVENT, { detail: { classroomId: 'class-a' } })))
+    expect(getSnapshot).toHaveBeenCalledTimes(2)
+    act(() => window.dispatchEvent(new CustomEvent(PIKA_PAL_REFRESH_EVENT, { detail: { classroomId: 'class-b' } })))
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(3))
+    expect(screen.queryByText('A fish for Pip')).toBeNull()
+  })
+
   it('mounts roadmap, companion, and one Pika-owned reward dialog', async () => {
     const snapshot = withReward()
     renderExperience({

@@ -8007,6 +8007,10 @@ export type Database = {
         }
         Returns: Json
       }
+      authorize_pal_membership_delivery: {
+        Args: { p_lease_token: string; p_outbox_id: string }
+        Returns: Json
+      }
       begin_attendance_decommission: {
         Args: {
           p_classroom_id: string
@@ -8784,6 +8788,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pal_membership_outbox: {
+        Args: {
+          p_classroom_id?: string
+          p_lease_seconds?: number
+          p_limit?: number
+          p_student_id?: string
+        }
+        Returns: Json
+      }
       claim_student_purge_object: {
         Args: {
           p_lease_seconds?: number
@@ -9191,6 +9204,7 @@ export type Database = {
         Returns: number
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
+      count_pal_membership_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
         Args: { p_value: Json }
         Returns: string
@@ -10265,6 +10279,10 @@ export type Database = {
         }
         Returns: Json
       }
+      record_pal_classroom_visit: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
       record_pal_daily_log_week_configuration_atomic: {
         Args: {
           p_config_version: number
@@ -10525,6 +10543,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resolve_pal_classroom_context: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
       }
       resolve_pal_membership: {
         Args: { p_classroom_id: string; p_student_id: string }
@@ -11067,6 +11089,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_pal_membership_weeks: { Args: { p_limit?: number }; Returns: Json }
       sync_test_document_snapshot_atomic: {
         Args: {
           p_document_id: string

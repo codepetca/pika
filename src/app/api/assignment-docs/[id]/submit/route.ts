@@ -20,7 +20,7 @@ import { assignmentDocSubmitRequestSchema } from '@/lib/validations/assignment-d
 import { submitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 import { createJsonPatch } from '@/lib/json-patch'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
 import { attemptImmediatePalEventDelivery } from '@/lib/server/pal-outbox'
 
@@ -169,7 +169,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   }
 
   const palEnabled = isPalEnabled()
-  const palEvent = palEnabled
+  const palEvent = palEnabled && !isClassroomPalRequested()
     ? buildLearningItemCompletedEvent({
         learnerId: user.id,
         itemId: assignmentId,
@@ -219,8 +219,8 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
-  const palDelivery = palEvent
-    ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+  const palDelivery = palEnabled && (palEvent || isClassroomPalRequested())
+    ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: assignment.classroom_id } })
     : undefined
 
   const doc = submitResult.doc

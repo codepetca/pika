@@ -467,7 +467,9 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     expect(historyInsert).not.toHaveBeenCalled()
   })
 
-  it('submits work atomically and keeps private authenticity results out of the response', async () => {
+  it.each([[false, false], [true, false], [true, true]])('submits work atomically and keeps private authenticity results out of the response (classroom %s, identity %s)', async (classroomRequested, identityEnabled) => {
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
+    vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(identityEnabled))
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -627,10 +629,11 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       studentId: 'student-1',
       content: submittedContent,
       expectedUpdatedAt: savedRevision,
-      palEvent: expect.objectContaining({ event_type: 'learning_item.completed' }),
+      palEvent: classroomRequested ? null : expect.objectContaining({ event_type: 'learning_item.completed' }),
     }))
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
-      event: expect.objectContaining({ event_type: 'learning_item.completed' }),
+      membership: { studentId: 'student-1', classroomId: 'class-1' },
+      event: classroomRequested ? null : expect.objectContaining({ event_type: 'learning_item.completed' }),
       supabase: mockSupabaseClient,
     })
     expect(historyInsert).not.toHaveBeenCalled()

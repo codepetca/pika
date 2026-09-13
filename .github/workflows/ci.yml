@@ -145,6 +145,9 @@ jobs:
       - name: Pal membership identity lifecycle contracts
         run: bash scripts/check-pal-membership-database.sh
 
+      - name: Classroom Pal signal and delivery contracts
+        run: bash scripts/check-pal-classroom-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

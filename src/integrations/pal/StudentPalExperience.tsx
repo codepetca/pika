@@ -19,10 +19,10 @@ import {
 import { useTheme } from '@/contexts/ThemeContext'
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
-import { PIKA_PAL_REFRESH_EVENT } from '@/lib/pal-browser-events'
+import { PIKA_PAL_REFRESH_EVENT, notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import { ModalLayer } from '@/ui'
 
-import { createPikaPalClient } from './pal-client'
+import { createPikaPalClient, type PalMembershipScope } from './pal-client'
 import { PalWidgetThemeBoundary } from './PalWidgetThemeBoundary'
 
 const PAL_REFRESH_INTERVAL_MS = 60_000
@@ -118,18 +118,19 @@ function StudentPalHostLayers() {
   )
 }
 
-function StudentPalRefreshListener() {
+function StudentPalRefreshListener({ classroomId }: { classroomId?: string }) {
   const { refresh } = usePalWidget()
 
   useEffect(() => {
-    const refreshAfterDelivery = () => {
+    const refreshAfterDelivery = (event: Event) => {
+      if (classroomId && (!(event instanceof CustomEvent) || event.detail?.classroomId !== classroomId)) return
       void refresh()
     }
     window.addEventListener(PIKA_PAL_REFRESH_EVENT, refreshAfterDelivery)
     return () => {
       window.removeEventListener(PIKA_PAL_REFRESH_EVENT, refreshAfterDelivery)
     }
-  }, [refresh])
+  }, [refresh, classroomId])
 
   return null
 }
@@ -148,11 +149,13 @@ export function StudentPalExperience({
   children,
   scopeKey,
   showAmbientSurfaces = true,
+  membership,
 }: {
   apiBaseUrl: string
   children: ReactNode
   scopeKey: string
   showAmbientSurfaces?: boolean
+  membership?: PalMembershipScope
 }) {
   const { theme } = useTheme()
   const narrowViewport = useIsBreakpoint('max', 768)
@@ -160,13 +163,29 @@ export function StudentPalExperience({
     () => {
       // A scope transition must also discard the previous learner's token cache.
       void scopeKey
-      return createPikaPalClient(apiBaseUrl)
+      return membership ? createPikaPalClient(apiBaseUrl, { membership }) : createPikaPalClient(apiBaseUrl)
     },
-    [apiBaseUrl, scopeKey],
+    [apiBaseUrl, scopeKey, membership],
   )
+
+  useEffect(() => {
+    if (!membership) return
+    const controller = new AbortController()
+    void fetch('/api/student/pal/classroom-visit', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classroomId: membership.classroomId }), signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok || controller.signal.aborted) return
+      const result = await response.json()
+      if (!controller.signal.aborted) notifyImmediatePalDelivery(result.pal_delivery, membership.classroomId)
+    }).catch(() => undefined)
+    return () => controller.abort()
+  }, [membership])
 
   return (
     <PalProvider
+      key={scopeKey}
       client={client}
       scopeKey={scopeKey}
       theme={theme}
@@ -175,7 +194,7 @@ export function StudentPalExperience({
       motion="system"
       refreshIntervalMs={PAL_REFRESH_INTERVAL_MS}
     >
-      <StudentPalRefreshListener />
+      <StudentPalRefreshListener classroomId={membership?.classroomId} />
       {children}
       {showAmbientSurfaces ? (
         <StudentPalAmbientSurfaces scopeKey={scopeKey} />

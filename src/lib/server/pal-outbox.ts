@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 import { getServiceRoleClient } from '@/lib/supabase'
-import { isPalEnabled, requirePalEnvironment } from '@/lib/server/pal-config'
+import { isPalEnabled, requirePalEnvironment, isClassroomPalRequested, isClassroomPalEnabled } from '@/lib/server/pal-config'
 import { v1 } from '@/vendor/pal-contract'
 
 export type PalOutboxClient = Pick<
@@ -194,6 +194,7 @@ async function deliverClaimedPalOutboxRow(input: {
   clock: () => number
   signal?: AbortSignal
   transitionSignal?: AbortSignal
+  membership?: boolean
 }): Promise<ClaimedDeliveryResult> {
   const validation = v1.validateV1Event(input.row.payload)
   if (!validation.ok) {
@@ -206,6 +207,30 @@ async function deliverClaimedPalOutboxRow(input: {
     )
     return 'non_retryable'
   }
+
+  const authorizeMembership = async (): Promise<ClaimedDeliveryResult | null> => {
+    if (!input.membership) return null
+    try {
+      const { data, error } = await withAbortSignal(input.supabase.rpc(
+        'authorize_pal_membership_delivery', {
+          p_outbox_id: input.row.id, p_lease_token: input.row.lease_token,
+        }), input.signal)
+      const parsed = z.object({ status: z.enum(['active', 'disabled', 'forbidden', 'legacy']) }).strict().safeParse(data)
+      if (!error && parsed.success && parsed.data.status === 'active') return null
+      if (!error && parsed.success && ['forbidden', 'legacy'].includes(parsed.data.status)) {
+        await markNonRetryable(input.supabase, input.row, 'membership_denied',
+          'Membership is unavailable or event namespace is invalid', input.transitionSignal)
+        return 'non_retryable'
+      }
+    } catch {
+      // Uncertain authorization is retryable, never permission to send.
+    }
+    await markRetry(input.supabase, input.row, input.now, 'membership_unavailable',
+      'Membership authorization is temporarily unavailable', input.transitionSignal)
+    return 'retrying'
+  }
+  const beforeAuthorization = await authorizeMembership()
+  if (beforeAuthorization) return beforeAuthorization
 
   const remainingMs = input.deadlineAtMs === undefined
     ? 3_000
@@ -248,6 +273,8 @@ async function deliverClaimedPalOutboxRow(input: {
   }
 
   if (response.ok) {
+    const afterAuthorization = await authorizeMembership()
+    if (afterAuthorization) return afterAuthorization
     await transition(input.supabase, {
       functionName: 'complete_pal_event_outbox',
       args: {
@@ -407,14 +434,18 @@ async function attemptImmediatePalEventDeliveryWithinDeadline(input: {
 }
 
 export async function attemptImmediatePalEventDelivery(input: {
-  event: v1.V1Envelope
+  event: v1.V1Envelope | null
   supabase?: PalImmediateDeliveryClient
   fetchImpl?: typeof fetch
   now?: Date
   timeoutMs?: number
   clock?: () => number
+  membership?: { studentId: string; classroomId: string }
 }): Promise<PalImmediateDeliveryStatus> {
-  if (!isPalEnabled()) return 'disabled'
+  if (isClassroomPalRequested()) {
+    return input.membership ? attemptMembershipPalActionDelivery({ ...input, membership: input.membership }) : 'disabled'
+  }
+  if (!isPalEnabled() || !input.event) return 'disabled'
 
   const timeoutMs = Math.max(1, input.timeoutMs ?? 2_000)
   const clock = input.clock ?? Date.now
@@ -455,6 +486,34 @@ export async function attemptImmediatePalEventDelivery(input: {
   return result
 }
 
+/** Best effort after the academic transaction; every failure remains queued. */
+export async function attemptMembershipPalActionDelivery(input: {
+  membership: { studentId: string; classroomId: string }
+  supabase?: PalOutboxClient
+  fetchImpl?: typeof fetch
+  timeoutMs?: number
+}): Promise<PalImmediateDeliveryStatus> {
+  if (!isClassroomPalEnabled()) return 'disabled'
+  const timeoutMs = Math.max(1, Math.min(input.timeoutMs ?? 2_000, 2_000))
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      deliverPalOutboxBatch({
+        ...input, membershipScope: input.membership, limit: 3, concurrency: 1,
+        deadlineAtMs: Date.now() + timeoutMs,
+        signal: AbortSignal.timeout(Math.max(1, timeoutMs - 500)),
+        transitionSignal: AbortSignal.timeout(timeoutMs),
+      }).then((result): PalImmediateDeliveryStatus => result.status === 'disabled' ? 'disabled'
+        : result.delivered > 0 ? 'delivered' : 'pending'),
+      new Promise<PalImmediateDeliveryStatus>(resolve => { timer = setTimeout(() => resolve('pending'), timeoutMs) }),
+    ])
+  } catch {
+    return 'pending'
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export async function enqueueStandalonePalEvent(input: {
   studentId: string
   sourceKind: string
@@ -462,7 +521,7 @@ export async function enqueueStandalonePalEvent(input: {
   event: v1.V1Envelope
   supabase?: PalOutboxClient
 }): Promise<'disabled' | 'enqueued'> {
-  if (!isPalEnabled()) return 'disabled'
+  if (isClassroomPalRequested() || !isPalEnabled()) return 'disabled'
 
   const validation = v1.validateV1Event(input.event)
   if (!validation.ok) {
@@ -497,8 +556,10 @@ export async function deliverPalOutboxBatch(input: {
   clock?: () => number
   signal?: AbortSignal
   transitionSignal?: AbortSignal
+  membershipScope?: { studentId: string; classroomId: string }
 } = {}): Promise<PalOutboxDeliverySummary> {
-  if (!isPalEnabled()) {
+  const membership = isClassroomPalRequested()
+  if (!isPalEnabled() || (membership && !isClassroomPalEnabled())) {
     return {
       status: 'disabled',
       claimed: 0,
@@ -514,7 +575,12 @@ export async function deliverPalOutboxBatch(input: {
   const now = input.now ?? new Date()
   const clock = input.clock ?? Date.now
   const { data, error } = await withAbortSignal(
-    supabase.rpc('claim_pal_event_outbox', {
+    membership ? supabase.rpc('claim_pal_membership_outbox', {
+      p_limit: input.limit ?? 10,
+      p_lease_seconds: 60,
+      ...(input.membershipScope ? { p_student_id: input.membershipScope.studentId,
+        p_classroom_id: input.membershipScope.classroomId } : {}),
+    }) : supabase.rpc('claim_pal_event_outbox', {
       p_limit: input.limit ?? 10,
       p_lease_seconds: 60,
     }),
@@ -522,10 +588,11 @@ export async function deliverPalOutboxBatch(input: {
   )
 
   if (error) {
-    if (error.code === '42883' || error.code === 'PGRST202') {
+    const rpcError = error as { code?: string; message?: string }
+    if (rpcError.code === '42883' || rpcError.code === 'PGRST202') {
       throw new Error('Pal outbox migration is required')
     }
-    throw new Error(`Failed to claim Pal outbox rows: ${error.message ?? 'unknown error'}`)
+    throw new Error(`Failed to claim Pal outbox rows: ${rpcError.message ?? 'unknown error'}`)
   }
 
   const rows = z.array(claimedOutboxRowSchema).parse(data ?? [])
@@ -555,6 +622,7 @@ export async function deliverPalOutboxBatch(input: {
       clock,
       signal: input.signal,
       transitionSignal: input.transitionSignal,
+      membership,
     })
     if (result === 'delivered') summary.delivered += 1
     else if (result === 'retrying') summary.retrying += 1
@@ -688,11 +756,13 @@ async function drainPalOutboxWithinDeadline(
 
   const supabase = input.supabase ?? getServiceRoleClient()
   const { data, error } = await withAbortSignal(
-    supabase.rpc('count_pal_event_outbox_ready'),
+    isClassroomPalRequested()
+      ? supabase.rpc('count_pal_membership_outbox_ready', undefined)
+      : supabase.rpc('count_pal_event_outbox_ready'),
     transitionSignal,
   )
   if (error) {
-    throw new Error(`Failed to count ready Pal outbox rows: ${error.message ?? 'unknown error'}`)
+    throw new Error('Failed to count ready Pal outbox rows')
   }
   summary.remainingReady = z.number().int().nonnegative().parse(data)
   return summary

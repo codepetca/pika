@@ -11,6 +11,7 @@ const {
 
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/server/pal-config', () => ({
+  isClassroomPalRequested: () => false,
   getPalApiUrl: mockGetPalApiUrl,
 }))
 vi.mock('@/integrations/pal', () => ({

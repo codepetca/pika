@@ -251,7 +251,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
     expect(screen.queryByText(/not submitted.*try again/i)).not.toBeInTheDocument()
-    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered', 'classroom-1')
   })
 
   it('submits the pending editor snapshot before React rerenders', async () => {
@@ -392,7 +392,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
 
     expect(ref.current?.isSubmitted).toBe(true)
-    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered', 'classroom-1')
     expect(screen.queryByText(/newer local edits/i)).not.toBeInTheDocument()
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
   })

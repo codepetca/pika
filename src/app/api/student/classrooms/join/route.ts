@@ -14,7 +14,7 @@ import {
   type ContextualClassroomJoinGuessResult,
   type ContextualClassroomJoinResult,
 } from '@/lib/server/contextual-classroom-enrollment'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
@@ -311,7 +311,8 @@ async function joinClassroomContextually(args: {
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
-      event: buildClassroomJoinedEvent({
+      membership: { studentId: user.id, classroomId: classroom.id },
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: classroom.id,
         occurredAt,
@@ -394,7 +395,8 @@ async function joinClassroomByCode(
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
-      event: buildClassroomJoinedEvent({
+      membership: { studentId: user.id, classroomId: result.classroom.id },
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,
         occurredAt,
@@ -514,7 +516,8 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
   let palDelivery: PalImmediateDeliveryStatus | undefined
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
-      event: buildClassroomJoinedEvent({
+      membership: { studentId: user.id, classroomId: result.classroom.id },
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,
         occurredAt,

@@ -1153,7 +1153,7 @@ describe('StudentTodayTab history section', () => {
     expect(patchBodies[1].version).toBe(2)
   })
 
-  it('stores unsaved daily log content locally and clears it after a current save succeeds', async () => {
+  it('clears the saved draft and refreshes only its classroom after confirmed Pal delivery', async () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
@@ -1180,6 +1180,7 @@ describe('StudentTodayTab history section', () => {
             updated_at: '2025-12-16T14:00:00Z',
             on_time: true,
           },
+          pal_delivery: 'delivered',
         })
       }
       throw new Error(`Unhandled fetch: ${url}`)
@@ -1199,6 +1200,7 @@ describe('StudentTodayTab history section', () => {
       expect(screen.getByText('Saved')).toBeInTheDocument()
     })
     expect(window.sessionStorage.getItem(draftKey)).toBeNull()
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered', classroom.id)
   })
 
   it('redirects to login when saving fails because the session expired', async () => {

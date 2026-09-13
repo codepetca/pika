@@ -19,6 +19,29 @@ function tokenResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Pika Pal learner client', () => {
+  it('binds the token request and response to the resolved membership scope', async () => {
+    const membership = { classroomId: 'classroom-a', scopeKey: 'scope-a' }
+    const fetchImplementation = vi.fn(async () => tokenResponse({ scope_key: 'scope-a' }))
+    const getToken = createPalReadTokenProvider({ membership, fetchImplementation, now: () => NOW })
+    await expect(getToken()).resolves.toBe('learner-scoped-token')
+    expect(fetchImplementation).toHaveBeenCalledWith('/api/student/pal/read-token',
+      expect.objectContaining({ body: JSON.stringify(membership) }))
+    const wrongScope = createPalReadTokenProvider({ membership: { ...membership, scopeKey: 'scope-b' },
+      fetchImplementation, now: () => NOW })
+    await expect(wrongScope()).rejects.toThrow(/scope/)
+  })
+
+  it('discards a previous classroom request when its provider aborts', async () => {
+    const lifetime = new AbortController()
+    const fetchImplementation = vi.fn(async () => tokenResponse({ scope_key: 'scope-a' }))
+    const getToken = createPalReadTokenProvider({ membership: { classroomId: 'a', scopeKey: 'scope-a' },
+      fetchImplementation, now: () => NOW })
+    await getToken(lifetime.signal)
+    lifetime.abort()
+    await expect(getToken(lifetime.signal)).rejects.toThrow()
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+  })
+
   it('obtains only a short-lived token from the student same-origin route', async () => {
     const fetchImplementation = vi.fn(async () => tokenResponse())
 
