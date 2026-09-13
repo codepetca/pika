@@ -735,6 +735,10 @@ export async function postBaraStudentCheckIn(
       status,
     )
   }
+  if (validation.value.participant_ref && result.checkIn
+    && result.checkIn.participantRef !== validation.value.participant_ref) {
+    throw new BaraAttendanceClientError('Bara returned a mismatched attendance participant', 'resource_mismatch', false, status)
+  }
   return result
 }
 

@@ -31958,3 +31958,16 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 
 - User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
 - The two earlier independent-review findings are corrected: category removal retracts returned marks, and identical score saves preserve return state. The extension permits one test-only correction, focused verification, one Terra review, and fresh exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:747ae0b23c42283c6a1ae8701901cbd42112e83ab2664bfa59aff6b8c39b3f36 -->
+## 2026-09-10 — Synchronize standalone Gradebook with corrected enrollment lineage
+
+- User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
+- The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:d5bfcd8063013c154fdc31c0253af30ec6524b7b80c96b180f2d52751170b9e2 -->
+## 2026-09-10 — Clarify other assessment creation in Gradebook
+
+- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
+- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.

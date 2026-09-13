@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Synchronize standalone Gradebook with corrected enrollment lineage
-
-- User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
-- The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
-
-## 2026-09-10 — Clarify other assessment creation in Gradebook
-
-- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
-- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
-- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
-
 ## 2026-09-10 — Order and group Gradebook menu actions
 
 - Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
@@ -240,3 +229,11 @@ Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 appl
 ## 2026-09-13 — Phase3 browser revocation and independent provider steps
 
 Finished membership browser reauthorization/cache-memory clearing on revoked access, preserving academic children and dismissing pending rewards/late replies. Synthetic Playwright8cases desktop/mobile/light/dark passed and screenshots inspected;45focused unit tests and full source605tests/types/policies/lint passed, Pikaauditpassed. Provider advancement now explicitly selects one provider per bounded step so Pal pending does not starve Bara. SQL171 remains unchanged at reviewedhash598ee035 and unapplied; exactlocalpacket sent coordinator. Typed RPC bridge, attendance consumers, actual SQL/concurrency verification and final review/PR remain pending. No rollout/provider calls.
+
+## 2026-09-13 — Phase3 runtime integration pending generated contract
+
+Authored direct typed provider reservation/read/authorization/receipt RPC bridge and attendance generation consumers. Scans recheck before retry and response; exact participant joins enabled payload/idempotency scope; delivery and stored replay authorize exact payload/lease. Pre171 missing-RPC fallback is restricted to disabled rollout, with real permission/malformed failures closed. Attendance/provider regression:191 tests in28files pass; architecture, lint and all11changedTypeScriptfile audit pass. TypeScript has exactly six missing new RPC names until authorized171 application and canonical generation; no generated contract edits or generic RPC workaround. Changes remain uncommitted pending that validation. Migration hash598ee035 remains unchanged; no SQL/provider requests. Review45minute cap expired15:44UTC after3launches/1batch; final independent review requires explicit extension. Full SQL and cross-connection race evidence remain unexecuted.
+
+## 2026-09-13 — Approved local171 application and runtime verification
+
+Direct user approval authorized exactlocal171/hash598ee035 and bounded review extension. Single application succeeded; ledger001–171 and membership/signals/cleanup gates remainoff. Canonical types generated and drift check pass; nullable replay input refined in application contract. Fixed two SQL fixture assumptions, then rollback suite passed with no retained c171rows. Two-connection harness verifies five real RPC/producer lock conflicts and rollback/release; no committed-row MVCC rehearsal or fixture seed is claimed. Full focused checks passed622tests/types/policies/lint; prior8browsercases and visuals remain applicable. Review extension up30minutes/MAX2extra launches begins at final review, prior3launches/1batch retained. No hosted rollout/provider requests/merge; stable draft PR and cumulative review follow.

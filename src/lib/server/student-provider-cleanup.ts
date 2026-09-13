@@ -78,7 +78,10 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
   }
   async function load(read: typeof dependencies.read, scope: StudentProviderScope) {
     let raw: unknown
-    try { raw = await read(scope) } catch { throw new StudentProviderCleanupError('persistence_unavailable', true) }
+    try { raw = await read(scope) } catch (error) {
+      if (error instanceof StudentProviderCleanupError) throw error
+      throw new StudentProviderCleanupError('persistence_unavailable', true)
+    }
     return validateBinding(raw, scope)
   }
   return {

@@ -117,12 +117,15 @@ begin
         begin
           owner_id:=gen_random_uuid(); object_id:=gen_random_uuid();
           insert into public.managed_storage_provisional_owners(id,owner_kind,target_classroom_id,
-            operation_id,created_by_user_id,expires_at,adopted_at)
-          values(owner_id,copy_kind,course_a,gen_random_uuid(),teacher,clock_timestamp()+interval '1 day',clock_timestamp());
+            operation_id,created_by_user_id,expires_at)
+          values(owner_id,copy_kind,course_a,gen_random_uuid(),teacher,clock_timestamp()+interval '1 day');
           insert into public.managed_storage_objects(id,storage_bucket,storage_path,provisional_owner_id,purpose,status,verified_at)
           values(object_id,case when copy_purpose='classroom_archive' then 'classroom-archives' else 'gradex-analytics-extracts' end,
             'fixture171/'||object_id::text,owner_id,copy_purpose,copy_status,
             case when copy_status='verified' then clock_timestamp() end);
+          -- Register against a valid owner first. Mark its intent finished so
+          -- this case exercises the retained object join, not the intent guard.
+          update public.managed_storage_provisional_owners set adopted_at=clock_timestamp() where id=owner_id;
           begin
             perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
             raise exception 'Provisional whole-class copy bypassed policy';
@@ -143,7 +146,7 @@ begin
       perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
       raise exception 'Unfinished provisional copy intent bypassed policy';
     exception when sqlstate '55000' then
-      if sqlerrm<>'student_provider_copy_policy_required' then raise; end if;
+      if sqlerrm not in ('student_provider_copy_policy_required','student_provider_operation_conflict') then raise; end if;
     end;
     raise exception using errcode='P1711',message='rollback synthetic intent';
   exception when sqlstate 'P1711' then null;

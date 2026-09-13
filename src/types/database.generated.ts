@@ -8007,8 +8007,22 @@ export type Database = {
         }
         Returns: Json
       }
+      authorize_attendance_generation_delivery: {
+        Args: { p_lease_token: string; p_outbox_id: string; p_payload: Json }
+        Returns: boolean
+      }
       authorize_pal_membership_delivery: {
         Args: { p_lease_token: string; p_outbox_id: string }
+        Returns: Json
+      }
+      authorize_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
         Returns: Json
       }
       begin_attendance_decommission: {
@@ -9929,6 +9943,16 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       get_student_purge_health_snapshot: {
         Args: { p_failed_minutes?: number; p_stuck_minutes?: number }
         Returns: Json
@@ -10295,6 +10319,18 @@ export type Database = {
         }
         Returns: Json
       }
+      record_student_provider_cleanup_receipt: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_provider: string
+          p_receipt: Json
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       recover_managed_storage_blueprint_copy_owner: {
         Args: {
           p_confirm_no_live_worker: boolean
@@ -10487,6 +10523,20 @@ export type Database = {
       requeue_pal_event_outbox: {
         Args: { p_outbox_id: string }
         Returns: boolean
+      }
+      reserve_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      resolve_attendance_scan_generation: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
       }
       resolve_classroom_archive_resource_classroom_id: {
         Args: { p_row_id: string; p_table_name: string }
