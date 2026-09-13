@@ -93,16 +93,16 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
       const scope = studentProviderScopeSchema.parse(input)
       return status(await load(dependencies.read, scope))
     },
-    async advance(input: unknown) {
+    async advance(input: unknown, requestedProvider: 'pal' | 'bara') {
       gate()
       const scope = studentProviderScopeSchema.parse(input)
+      const provider = z.enum(['pal', 'bara']).parse(requestedProvider)
       const binding = await load(dependencies.authorize, scope)
       invalidate(binding.pal_reference)
-      let provider: 'pal' | 'bara'
       let receipt: PalErasureReceipt | ParticipantErasureReceipt
       try {
-        if (binding.pal_receipt?.status !== 'completed') {
-          provider = 'pal'
+        if (provider === 'pal') {
+          if (binding.pal_receipt?.status === 'completed') return status(binding)
           const response = await pal('begin', { operation_id: binding.operation_id, learner_id: binding.pal_reference },
             { binding: { origin: binding.pal_origin, integrationId: binding.pal_integration_id } })
           const verified = parsePalErasureReceipt(response, { operation_id: binding.operation_id, learner_id: binding.pal_reference })
@@ -111,7 +111,6 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
         } else {
           const saved = parseParticipantErasureReceipt(binding.bara_receipt, baraRequest(binding, 'status'))
           if (saved?.state === 'deleted') return status(binding)
-          provider = 'bara'
           const request = baraRequest(binding, saved ? 'tick' : 'begin')
           const response = await bara(request, { expectedOrigin: binding.bara_origin })
           const verified = parseParticipantErasureReceipt(response, request)
@@ -125,6 +124,10 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
       }
       const after = await load(current => dependencies.record(current, provider, receipt), scope)
       if (!sameBinding(binding, after)) throw new StudentProviderCleanupError('binding_invalid')
+      const recorded = provider === 'pal' ? after.pal_receipt : after.bara_receipt
+      if (!recorded || typeof recorded !== 'object'
+        || !Object.entries(receipt).every(([key, value]) => (recorded as Record<string, unknown>)[key] === value))
+        throw new StudentProviderCleanupError('binding_invalid')
       return status(after)
     },
   }

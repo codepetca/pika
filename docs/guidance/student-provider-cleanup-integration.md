@@ -36,6 +36,11 @@ Provider receipts cannot mark a Pika generation purged, complete the operation,
 rotate references or release re-add. Active-operation conflicts and health counts
 continue to recognize the pending stage; the ordinary cron excludes it.
 
+Provider advancement explicitly selects Pal or Bara and makes at most one HTTP
+attempt. One provider's pending copy policy cannot prevent beginning the other's
+fence. Returned persistence evidence must contain the exact receipt just recorded;
+both providers can complete without advancing Pika beyond provider_pending.
+
 All gates default off. New attendance generation capture also requires the new
 private database gate and an enrollment created after its eligibility boundary.
 No historical participant mapping is attributed or backfilled. Missing or
@@ -64,8 +69,10 @@ stay pending. These receipts cover provider-defined scope, not all Pika data.
   after exact local171 application approval. Never hand-edit generated types.
 - Connect the bounded coordinator to generated typed RPC calls and add the
   generation-aware attendance scan/pre-send/replay consumers.
-- Finish host browser token/provider-memory invalidation and synthetic visual
-  verification using the existing Phase2 widget owners.
+- Host browser invalidation is implemented and visually verified: every scoped
+  operation reauthorizes with Pika, denied membership invalidates token/memory and
+  ignores late replies without remounting academic children. Legacy caching stays.
+  Final independent integration review remains pending.
 - Extend adversarial SQL coverage (held leases, source races, restore and legacy
   finalizer/callback paths), focused checks, remediation and final cumulative
   independent review, then draft-first exact-SHA PR Gate CI.
