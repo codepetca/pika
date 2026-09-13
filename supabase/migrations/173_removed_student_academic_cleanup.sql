@@ -76,13 +76,13 @@ language sql stable set search_path = '' as $$
     from public.classroom_roster roster where roster.classroom_id=p_classroom_id
       and roster.removed_student_id=p_student_id and roster.removed_at is not null
       and roster.retained_manual_attendance_marks <> '{}'::jsonb
-  union all select 'attendance_check_in_facts',id,'redact' from public.attendance_check_in_facts
+  union all select 'attendance_check_in_facts',id,'delete' from public.attendance_check_in_facts
     where classroom_id=p_classroom_id and student_id=p_student_id
-  union all select 'attendance_record_projection',id,'redact' from public.attendance_record_projection
+  union all select 'attendance_record_projection',id,'delete' from public.attendance_record_projection
     where classroom_id=p_classroom_id and student_id=p_student_id
-  union all select 'attendance_status_overrides',id,'redact' from public.attendance_status_overrides
+  union all select 'attendance_status_overrides',id,'delete' from public.attendance_status_overrides
     where classroom_id=p_classroom_id and student_id=p_student_id
-  union all select 'attendance_status_override_events',id,'redact' from public.attendance_status_override_events
+  union all select 'attendance_status_override_events',id,'delete' from public.attendance_status_override_events
     where classroom_id=p_classroom_id and student_id=p_student_id
   union all select 'managed_storage_json_references',reference.id,'delete'
     from public.managed_storage_json_references reference
@@ -187,6 +187,11 @@ begin
           or response.ai_grading_provenance is not null or response.ai_grading_review is not null)) then
     v_blockers:=array_append(v_blockers,'remote_grading_policy_required');
   end if;
+  if exists(select 1 from public.assignment_feedback_entries feedback
+    join public.assignments assignment on assignment.id=feedback.assignment_id
+    where assignment.classroom_id=v_op.classroom_id and feedback.student_id=v_op.student_id and feedback.author_type='ai') then
+    v_blockers:=array_append(v_blockers,'remote_grading_policy_required');
+  end if;
   if exists(select 1 from public.classroom_retired_assessment_record_actors actor
     join public.classroom_retired_assessment_records record on record.id=actor.record_id
     where record.classroom_id=v_op.classroom_id and actor.actor_id=v_op.student_id) then
@@ -197,7 +202,10 @@ begin
       or object.data_subject_user_id is distinct from v_op.student_id
       or object.provisional_owner_id is not null or object.course_blueprint_id is not null
       or object.status<>'ready' or object.purpose not in ('student_assignment_artifact','student_inline_image')
-      or object.storage_bucket not in ('assignment-artifacts','submission-images')) then
+      or object.storage_bucket not in ('assignment-artifacts','submission-images')
+      or object.resource_type is distinct from 'assignment_doc'
+      or not exists(select 1 from public.assignment_docs doc join public.assignments assignment on assignment.id=doc.assignment_id
+        where doc.id=object.resource_id and doc.student_id=v_op.student_id and assignment.classroom_id=v_op.classroom_id)) then
     v_blockers:=array_append(v_blockers,'object_ownership_unknown');
   end if;
   if exists(select 1 from public.assignment_submission_artifacts artifact
@@ -759,6 +767,7 @@ begin
         order by case table_name when 'managed_storage_json_references' then 0
           when 'assignment_doc_history' then 10 when 'assignment_doc_save_operations' then 11
           when 'assignment_submission_artifacts' then 12 when 'test_attempt_history' then 15
+          when 'attendance_status_override_events' then 20 when 'attendance_status_overrides' then 70
           when 'assignment_docs' then 80 when 'test_attempts' then 81 else 30 end,table_name,row_id loop
         if v_resource.table_name='retained_manual_attendance_marks' then
           update public.classroom_roster set retained_manual_attendance_marks='{}'::jsonb where id=v_resource.row_id;
@@ -970,4 +979,43 @@ grant execute on function public.advance_removed_student_academic_cleanup(uuid,u
   to service_role;
 comment on column public.student_purge_operations.local_academic_cleanup is
   'Local academic/file evidence only. Overall remains provider_pending; identity, resources, path tombstones and re-add fence are retained.';
+create or replace function private.guard_attendance_closed_subject()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_scope text; v_row jsonb;
+begin
+  if tg_op='DELETE' and private.removed_academic_delete_allowed(tg_table_name,to_jsonb(old)) then return old; end if;
+  if tg_table_name='attendance_participant_mappings' and tg_op<>'INSERT'
+    and exists(select 1 from private.attendance_membership_generations where participant_ref=to_jsonb(old)->>'participant_ref') then
+    if tg_op='DELETE' or to_jsonb(new)->'participant_ref' is distinct from to_jsonb(old)->'participant_ref'
+      or new.classroom_id is distinct from old.classroom_id or new.student_id is distinct from old.student_id then
+      raise exception using errcode='55000',message='attendance_membership_generation_immutable';
+    end if;
+  end if;
+  for v_row in select value from jsonb_array_elements(jsonb_build_array(
+    case when tg_op<>'DELETE' then to_jsonb(new) end,
+    case when tg_op<>'INSERT' then to_jsonb(old) end)) where jsonb_typeof(value)='object' loop
+    perform private.try_lock_classroom_membership_change((v_row->>'classroom_id')::uuid,(v_row->>'student_id')::uuid);
+    v_scope:=private.pal_membership_scope((v_row->>'classroom_id')::uuid,(v_row->>'student_id')::uuid);
+    if exists(select 1 from private.attendance_membership_generations attendance
+      join private.pal_membership_generations generation using(generation_id)
+      where attendance.scope_digest=v_scope and generation.state<>'active') then
+      -- The retained-roster trigger closes Pal before removal deactivates Bara.
+      if tg_table_name='attendance_participant_mappings' and tg_op='UPDATE'
+        and to_jsonb(new)->'active'='false'::jsonb and to_jsonb(old)->'active'='true'::jsonb
+        and (to_jsonb(new)-'active'-'updated_at')=(to_jsonb(old)-'active'-'updated_at') then return new; end if;
+      raise exception using errcode='55000',message='attendance_membership_generation_closed';
+    end if;
+  end loop;
+  return case when tg_op='DELETE' then old else new end;
+end;
+$$;
+create trigger guard_removed_academic_attendance_delete before delete on public.attendance_check_in_facts
+  for each row execute function private.guard_attendance_closed_subject();
+create trigger guard_removed_academic_attendance_delete before delete on public.attendance_record_projection
+  for each row execute function private.guard_attendance_closed_subject();
+create trigger guard_removed_academic_attendance_delete before delete on public.attendance_status_overrides
+  for each row execute function private.guard_attendance_closed_subject();
+create trigger guard_removed_academic_attendance_delete before delete on public.attendance_status_override_events
+  for each row execute function private.guard_attendance_closed_subject();
+
 commit;

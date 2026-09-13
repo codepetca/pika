@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Plan coordinated student removal and add server processing
-
-- Task owns `codex/student-purge-background` in the matching named worktree. Recorded the cross-repository plan in `docs/guidance/student-purge-background-plan.md`; implementation remains partial pending the historical Pal erasure policy. Pal's aggregated daily/weekly facts lack full classroom provenance. Existing admission safeguards remain in place; no provider data, migrations, or UI were changed.
-- Added bounded post-response processing for accepted student purges using existing leases and daily cron recovery. Tests cover browser-independent progress, failures, lease contention, budgets, and rejected admission. Targeted purge suites pass 20 tests; broader focused gate passes 104 tests and architecture/UI/design policies, with remaining static checks recorded in the task.
-- Remaining: resolve historical Pal reconstruction/reset semantics, implement and verify the provider receipt and event fencing contract, pending access controls, roster/dialog UX and visual matrix, then coordinated rollout. The initial worker does not guarantee prompt completion after its runtime budget expires.
-
 ## 2026-09-11 — Simplify student removal to preserve class records
 
 - User chose ordinary class removal rather than coordinated Pal erasure. Superseded the earlier background-purge proposal and removed its post-response worker. Added a separate preserving removal endpoint, explicit teacher re-add restoration, retained-roster filtering and clear removal versus permanent-deletion UI. No Pal calls or automatic erasure are part of normal removal.
@@ -232,3 +226,8 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 - Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
 - Authored forward173, existing-ledger local progress/claims, strict provider/no-copy fences, narrow retained marks redaction and rollback-only harness. Existing171/172 hashes preserved. No schema or provider action.
 -14 orchestration tests,10 source contracts and focused checks passed; TypeScript passed. Canonical types check correctly stops at unapplied173. DB/storage/MVCC proofs remain unexecuted; source review and exact local approval next. Refreshed existing roadmap/integration status.
+
+## 2026-09-13 — Batch academic cleanup source-review corrections
+
+- PR1259 initial Sol/high and Terra/high reviews found exact attendance overblocking and incomplete rollback coverage. One batch permits only staged exact attendance deletes, orders override events before parents, and tightens file ownership to exact assignment docs. All overall provider/re-add fences remain.
+- Expanded the unexecuted rollback harness to22 success resource categories, all29 allowlisted tables across success/blocked fixtures, two files, eight blocked cases, row-hash isolation and callback/backoff/lease scenarios. Source tests pass; SQL173 remains unapplied and database/types proof remains gated on direct local173 approval. Targeted source review follows; no migration or provider activation occurred.

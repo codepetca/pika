@@ -35,6 +35,8 @@ declare
   gen_b uuid:='c1730000-0000-4000-8000-000000000021';
   op uuid:='c1730000-0000-4000-8000-000000000040';
   object_id uuid:='c1730000-0000-4000-8000-000000000060';
+  subject uuid; resource record; actual jsonb; expected_tables text[]:=array[
+'announcement_reads','assignment_doc_history','assignment_doc_save_operations','assignment_submission_artifacts','assignment_docs','assignment_feedback_entries','entries','report_card_rows','survey_responses','test_attempt_history','test_attempts','test_focus_events','test_responses','test_student_availability','gradebook_score_overrides','gradebook_item_scores','retained_manual_attendance_marks','managed_storage_json_references','attendance_check_in_facts','attendance_record_projection','attendance_status_overrides','attendance_status_override_events'];
   result jsonb; saved jsonb; claim jsonb; receipt jsonb; before_roster jsonb;
   before_peer jsonb; before_other jsonb; before_operation jsonb; wrong uuid; f text;
 begin
@@ -67,13 +69,334 @@ begin
     ('c1730000-0000-4000-8000-000000000073',course_a,'Shared grade',100,teacher);
   insert into public.gradebook_item_scores(classroom_id,item_id,student_id,earned)
     values(course_a,'c1730000-0000-4000-8000-000000000073',student,75);
+insert into public.announcements (id, classroom_id, content, created_by) values (
+  'c1730000-0000-4000-8000-000000000030',
+  'c1730000-0000-4000-8000-000000000010', 'fixture',
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.announcement_reads (id, announcement_id, user_id) values
+  ('c1730000-0000-4000-8000-000000000031', 'c1730000-0000-4000-8000-000000000030', 'c1730000-0000-4000-8000-000000000002'),
+  ('c1730000-0000-4000-8000-000000000032', 'c1730000-0000-4000-8000-000000000030', 'c1730000-0000-4000-8000-000000000003');
+
+insert into public.assignments (id, classroom_id, title, due_at, created_by) values (
+  'c1730000-0000-4000-8000-000000000040',
+  'c1730000-0000-4000-8000-000000000010', 'Shared assignment',
+  clock_timestamp() + interval '1 day', 'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.assignment_docs (id, assignment_id, student_id, content) values
+  ('c1730000-0000-4000-8000-000000000041', 'c1730000-0000-4000-8000-000000000040', 'c1730000-0000-4000-8000-000000000002', '{"type":"doc","content":[]}'::jsonb),
+  ('c1730000-0000-4000-8000-000000000042', 'c1730000-0000-4000-8000-000000000040', 'c1730000-0000-4000-8000-000000000003', '{"type":"doc","content":[]}'::jsonb);
+insert into public.assignment_doc_history (
+  id, assignment_doc_id, snapshot, trigger, word_count, char_count
+) values (
+  'c1730000-0000-4000-8000-000000000043',
+  'c1730000-0000-4000-8000-000000000041', '{"type":"doc","content":[]}'::jsonb,
+  'autosave', 0, 0
+);
+insert into public.assignment_doc_save_operations (
+  id, assignment_doc_id, save_session_id, save_sequence, metric_session_id,
+  paste_word_count, keystroke_count, content_sha256, document_updated_at
+) values (
+  'c1730000-0000-4000-8000-000000000044',
+  'c1730000-0000-4000-8000-000000000041',
+  'c1730000-0000-4000-8000-000000000045', 1,
+  'c1730000-0000-4000-8000-000000000046', 0, 1, repeat('c', 64), clock_timestamp()
+);
+insert into public.assignment_feedback_entries (
+  id, assignment_id, student_id, author_type, entry_kind, body, created_by
+) values (
+  'c1730000-0000-4000-8000-000000000047',
+  'c1730000-0000-4000-8000-000000000040',
+  'c1730000-0000-4000-8000-000000000002', 'teacher', 'teacher_feedback', 'target feedback',
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.tests (id, classroom_id, title, status, created_by) values (
+  'c1730000-0000-4000-8000-000000000050',
+  'c1730000-0000-4000-8000-000000000010', 'Shared test', 'closed',
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.test_questions (id, test_id, question_type, question_text) values (
+  'c1730000-0000-4000-8000-000000000051',
+  'c1730000-0000-4000-8000-000000000050', 'open_response', 'Explain'
+);
+insert into public.test_attempts (id, test_id, student_id, responses, is_submitted, submitted_at) values
+  ('c1730000-0000-4000-8000-000000000052', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000002', '{}', true, clock_timestamp()),
+  ('c1730000-0000-4000-8000-000000000053', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000003', '{}', true, clock_timestamp());
+insert into public.test_attempt_history (id, test_attempt_id, snapshot, trigger) values (
+  'c1730000-0000-4000-8000-000000000054',
+  'c1730000-0000-4000-8000-000000000052', '{}', 'submit'
+);
+insert into public.test_responses (
+  id, test_id, question_id, student_id, response_text, revision
+) values
+  ('c1730000-0000-4000-8000-000000000055', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000051', 'c1730000-0000-4000-8000-000000000002', 'target response', 1),
+  ('c1730000-0000-4000-8000-000000000056', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000051', 'c1730000-0000-4000-8000-000000000003', 'classmate response', 1);
+insert into public.test_focus_events (id, test_id, student_id, session_id, event_type) values (
+  'c1730000-0000-4000-8000-000000000057',
+  'c1730000-0000-4000-8000-000000000050',
+  'c1730000-0000-4000-8000-000000000002',
+  'c1730000-0000-4000-8000-000000000058', 'away_start'
+);
+insert into public.test_student_availability (id, test_id, student_id, state, updated_by) values (
+  'c1730000-0000-4000-8000-000000000059',
+  'c1730000-0000-4000-8000-000000000050',
+  'c1730000-0000-4000-8000-000000000002', 'closed',
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.surveys (id, classroom_id, title, position, created_by) values (
+  'c1730000-0000-4000-8000-000000000060',
+  'c1730000-0000-4000-8000-000000000010', 'Shared survey', 0,
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.survey_questions (id, survey_id, question_type, question_text) values (
+  'c1730000-0000-4000-8000-000000000061',
+  'c1730000-0000-4000-8000-000000000060', 'short_text', 'Reflection'
+);
+insert into public.survey_responses (id, survey_id, question_id, student_id, response_text) values
+  ('c1730000-0000-4000-8000-000000000062', 'c1730000-0000-4000-8000-000000000060', 'c1730000-0000-4000-8000-000000000061', 'c1730000-0000-4000-8000-000000000002', 'target survey'),
+  ('c1730000-0000-4000-8000-000000000063', 'c1730000-0000-4000-8000-000000000060', 'c1730000-0000-4000-8000-000000000061', 'c1730000-0000-4000-8000-000000000003', 'classmate survey');
+insert into public.report_cards (id, classroom_id, term, created_by) values (
+  'c1730000-0000-4000-8000-000000000070',
+  'c1730000-0000-4000-8000-000000000010', 'final',
+  'c1730000-0000-4000-8000-000000000001'
+);
+insert into public.report_card_rows (id, report_card_id, student_id, final_percent) values
+  ('c1730000-0000-4000-8000-000000000071', 'c1730000-0000-4000-8000-000000000070', 'c1730000-0000-4000-8000-000000000002', 80),
+  ('c1730000-0000-4000-8000-000000000072', 'c1730000-0000-4000-8000-000000000070', 'c1730000-0000-4000-8000-000000000003', 90);
+
+  -- Every exact attendance family has target, classmate and other-class evidence.
+  insert into public.attendance_check_in_facts(classroom_id,student_id,installation_ref,roster_ref,
+    occurrence_ref,participant_ref,check_in_ref,check_in_revision,accepted_at)
+    select mapping.classroom_id,mapping.student_id,'pika_synthetic_173',roster.roster_ref,
+      'occurrence_173',mapping.participant_ref,'check_173_'||replace(mapping.student_id::text,'-',''),1,clock_timestamp()
+    from public.attendance_participant_mappings mapping join public.attendance_roster_mappings roster using(classroom_id)
+    where mapping.classroom_id in(course_a,course_b);
+  insert into public.attendance_record_projection(classroom_id,student_id,installation_ref,roster_ref,
+    occurrence_ref,participant_ref,record_revision,status,source,actor_type,last_event_id,last_event_at)
+    select classroom_id,student_id,installation_ref,roster_ref,occurrence_ref,participant_ref,1,
+      'present','student_qr','student',check_in_ref,accepted_at from public.attendance_check_in_facts
+    where classroom_id in(course_a,course_b);
+  insert into public.attendance_status_overrides(classroom_id,student_id,occurrence_ref,status,active,updated_by)
+    select classroom_id,student_id,occurrence_ref,'present',true,teacher from public.attendance_check_in_facts
+    where classroom_id in(course_a,course_b);
+  insert into public.attendance_status_override_events(override_id,request_id,classroom_id,student_id,
+    occurrence_ref,revision,action,status,actor_user_id)
+    select id,gen_random_uuid(),classroom_id,student_id,occurrence_ref,1,'set','present',teacher
+    from public.attendance_status_overrides where classroom_id in(course_a,course_b);
+
   perform public.begin_managed_storage_upload(object_id,'submission-images','fixture173/target.png',course_a,
-    null,null,'student_inline_image',student,student,'fixture',null,'image/png',1);
+    null,null,'student_inline_image',student,student,'assignment_doc','c1730000-0000-4000-8000-000000000071','image/png',1);
   insert into storage.objects(bucket_id,name) values('submission-images','fixture173/target.png');
   perform public.verify_managed_storage_upload(object_id,repeat('a',64));
   perform public.managed_storage_mark_ready(object_id);
+
+  update public.assignment_docs set content=jsonb_build_object('type','doc','content',jsonb_build_array(
+    jsonb_build_object('type','image','attrs',jsonb_build_object('src',
+      'https://fixture.example.invalid/storage/v1/object/public/submission-images/fixture173/target.png',
+      'managed_object_id',object_id)))) where id='c1730000-0000-4000-8000-000000000071';
+  insert into public.assignment_doc_history(assignment_doc_id,snapshot,trigger,word_count,char_count)
+    select id,content,'autosave',0,0 from public.assignment_docs where id='c1730000-0000-4000-8000-000000000071';
+  insert into public.assignment_submission_requirements(id,assignment_id,type,label)
+    values('c1730000-0000-4000-8000-000000000080','c1730000-0000-4000-8000-000000000070','image','Synthetic image');
+  perform public.begin_managed_storage_upload('c1730000-0000-4000-8000-000000000081',
+    'assignment-artifacts','fixture173/artifact.png',course_a,null,null,'student_assignment_artifact',
+    student,student,'assignment_doc','c1730000-0000-4000-8000-000000000071','image/png',1);
+  insert into storage.objects(bucket_id,name) values('assignment-artifacts','fixture173/artifact.png');
+  perform public.verify_managed_storage_upload('c1730000-0000-4000-8000-000000000081',repeat('b',64));
+  perform public.managed_storage_mark_ready('c1730000-0000-4000-8000-000000000081');
+  insert into public.assignment_submission_artifacts(assignment_doc_id,requirement_id,student_id,type,storage_path,managed_object_id)
+    values('c1730000-0000-4000-8000-000000000071','c1730000-0000-4000-8000-000000000080',student,
+      'image','fixture173/artifact.png','c1730000-0000-4000-8000-000000000081');
+
   -- Enforcement changes and all fixtures are confined to this rollback transaction.
   update public.managed_storage_settings set mode='enforced' where singleton;
+  -- Blocked fixture: assignment_remote; subtransaction restores the active baseline.
+  begin
+insert into public.assignment_ai_grading_runs (
+  id, assignment_id, status, triggered_by, selection_hash,
+  requested_student_ids_json, requested_count, gradable_count, processed_count, completed_count
+) values (
+  'c1730000-0000-4000-8000-000000000048',
+  'c1730000-0000-4000-8000-000000000040', 'completed',
+  'c1730000-0000-4000-8000-000000000001', 'student-purge-shared-assignment',
+  '["c1730000-0000-4000-8000-000000000002","c1730000-0000-4000-8000-000000000003"]'::jsonb,
+  2, 2, 2, 2
+);
+insert into public.assignment_ai_grading_run_items (
+  id, run_id, assignment_id, student_id, assignment_doc_id, queue_position, status, completed_at
+) values
+  ('c1730000-0000-4000-8000-000000000049', 'c1730000-0000-4000-8000-000000000048', 'c1730000-0000-4000-8000-000000000040', 'c1730000-0000-4000-8000-000000000002', 'c1730000-0000-4000-8000-000000000041', 0, 'completed', clock_timestamp()),
+  ('c1730000-0000-4000-8000-00000000004a', 'c1730000-0000-4000-8000-000000000048', 'c1730000-0000-4000-8000-000000000040', 'c1730000-0000-4000-8000-000000000003', 'c1730000-0000-4000-8000-000000000042', 1, 'completed', clock_timestamp());
+
+
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'remote_grading_policy_required') then raise exception 'Missing assignment_remote blocker'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_ai_grading_run_items') then raise exception 'Missing blocked inventory assignment_ai_grading_run_items'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_ai_grading_runs') then raise exception 'Missing blocked inventory assignment_ai_grading_runs'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: test_remote; subtransaction restores the active baseline.
+  begin
+insert into public.test_ai_grading_runs (
+  id, test_id, status, triggered_by, selection_hash, requested_student_ids_json,
+  requested_count, eligible_student_count, queued_response_count, processed_count, completed_count
+) values (
+  'c1730000-0000-4000-8000-00000000005a',
+  'c1730000-0000-4000-8000-000000000050', 'completed',
+  'c1730000-0000-4000-8000-000000000001', 'student-purge-shared-test',
+  '["c1730000-0000-4000-8000-000000000002","c1730000-0000-4000-8000-000000000003"]'::jsonb,
+  2, 2, 2, 2, 2
+);
+insert into public.test_ai_grading_run_items (
+  id, run_id, test_id, student_id, question_id, response_id, response_revision,
+  queue_position, status, completed_at
+) values
+  ('c1730000-0000-4000-8000-00000000005b', 'c1730000-0000-4000-8000-00000000005a', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000002', 'c1730000-0000-4000-8000-000000000051', 'c1730000-0000-4000-8000-000000000055', 1, 0, 'completed', clock_timestamp()),
+  ('c1730000-0000-4000-8000-00000000005c', 'c1730000-0000-4000-8000-00000000005a', 'c1730000-0000-4000-8000-000000000050', 'c1730000-0000-4000-8000-000000000003', 'c1730000-0000-4000-8000-000000000051', 'c1730000-0000-4000-8000-000000000056', 1, 1, 'completed', clock_timestamp());
+
+
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'remote_grading_policy_required') then raise exception 'Missing test_remote blocker'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='test_ai_grading_run_items') then raise exception 'Missing blocked inventory test_ai_grading_run_items'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='test_ai_grading_runs') then raise exception 'Missing blocked inventory test_ai_grading_runs'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: repo_remote; subtransaction restores the active baseline.
+  begin
+insert into public.assignment_repo_review_runs(id,assignment_id,triggered_by,status) values
+('c1730000-0000-4000-8000-000000000090','c1730000-0000-4000-8000-000000000040',teacher,'completed');
+insert into public.assignment_repo_review_results(run_id,assignment_id,student_id) values
+('c1730000-0000-4000-8000-000000000090','c1730000-0000-4000-8000-000000000040',student);
+insert into public.assignment_repo_targets(assignment_id,student_id) values('c1730000-0000-4000-8000-000000000040',student);
+
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'remote_grading_policy_required') then raise exception 'Missing repo_remote blocker'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_repo_review_results') then raise exception 'Missing blocked inventory assignment_repo_review_results'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='assignment_repo_targets') then raise exception 'Missing blocked inventory assignment_repo_targets'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: shared_summary; subtransaction restores the active baseline.
+  begin
+insert into public.log_summaries(classroom_id,date,model) values(course_a,'2026-09-11','fixture');
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'shared_resource_policy_required') then raise exception 'Missing shared_summary blocker'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='log_summaries') then raise exception 'Missing blocked inventory log_summaries'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: shared_feedback; subtransaction restores the active baseline.
+  begin
+insert into public.developer_feedback_candidates(dedupe_key,title,original_request,refined_request,source_keys) values('fixture173','fixture','fixture','fixture',array[course_a::text||':2026-09-11']);
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'shared_resource_policy_required') then raise exception 'Missing shared_feedback blocker'; end if;
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name='developer_feedback_candidates') then raise exception 'Missing blocked inventory developer_feedback_candidates'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: attendance_shared; subtransaction restores the active baseline.
+  begin
+insert into public.attendance_override_requests(request_id,classroom_id,request_fingerprint,result) values(gen_random_uuid(),course_a,'fixture','{}');
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'shared_attendance_request_policy_required') then raise exception 'Missing attendance_shared blocker'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: unknown_file; subtransaction restores the active baseline.
+  begin
+update public.managed_storage_objects set resource_type='unknown' where id=object_id;
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'object_ownership_unknown') then raise exception 'Missing unknown_file blocker'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  -- Blocked fixture: shared_file; subtransaction restores the active baseline.
+  begin
+insert into public.managed_storage_json_references(managed_object_id,storage_bucket,storage_path,assignment_doc_id,reference_role,evidence_sha256)
+values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000-8000-000000000072','content',repeat('f',64));
+    perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+    perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    update private.removed_student_academic_settings set enabled=true where singleton;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+    if not (result->'blockers' ? 'shared_object_policy_required') then raise exception 'Missing shared_file blocker'; end if;
+    for resource in select * from public.student_purge_resources where operation_id=op loop
+      if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.row_sha256 then
+        raise exception 'Blocked inventory altered a row'; end if;
+    end loop;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
+    raise exception using errcode='P1731',message='rollback blocked case';
+  exception when sqlstate 'P1731' then null; end;
+
+  create temporary table academic_preserved_rows on commit drop as
+    select resource.*,private.removed_academic_row_hash(table_name,row_id) expected_hash
+    from (select * from private.removed_academic_resources(course_a,peer)
+      union all select * from private.removed_academic_resources(course_b,student)) resource;
   perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
   saved:=public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
   select to_jsonb(roster) into before_roster from public.classroom_roster roster where id='c1730000-0000-4000-8000-000000000030';
@@ -87,7 +410,15 @@ begin
   update private.removed_student_academic_settings set enabled=true where singleton;
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
   if not (result->'blockers' ? 'provider_completion_required') then raise exception 'Unknown provider did not block'; end if;
-  if (select count(*) from public.student_purge_resources where operation_id=op)<6 then raise exception 'Incomplete retained inventory'; end if;
+  foreach f in array expected_tables loop
+    if not exists(select 1 from public.student_purge_resources where operation_id=op and table_name=f
+      and disposition=case when f='retained_manual_attendance_marks' then 'redact' else 'delete' end) then
+      raise exception 'Missing explicit inventory/disposition: %',f; end if;
+  end loop;
+  if exists(select 1 from public.student_purge_resources where operation_id=op and not(table_name=any(expected_tables))) then
+    raise exception 'Unclassified success resource'; end if;
+  create temporary table academic_target_rows on commit drop as
+    select table_name,row_id from public.student_purge_resources where operation_id=op and disposition='delete';
   if result<>public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory') then
     raise exception 'Inventory retry changed receipt'; end if;
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
@@ -149,12 +480,42 @@ begin
       (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
     raise exception 'Present object acknowledged';
   exception when sqlstate '55000' then if sqlerrm<>'academic_cleanup_object_still_present' then raise; end if; end;
+  -- Failure/backoff and expired-lease recovery are simulated only inside rolled-back
+  -- subtransactions. Superuser clock-state injection is not committed-row MVCC proof.
+  begin
+    perform public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'fail',1,
+      (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
+    if not exists(select 1 from public.student_purge_objects where id=(claim->'object'->>'id')::uuid
+      and status='failed' and last_error_code='storage_delete_failed' and next_attempt_at>clock_timestamp()
+      and lease_token is null) then raise exception 'Failure lost retry/backoff state'; end if;
+    raise exception using errcode='P1731',message='rollback retry';
+  exception when sqlstate 'P1731' then null; end;
+  begin
+    insert into private.removed_academic_mutations(transaction_id,operation_id,action) values(txid_current(),op,'claim');
+    update public.student_purge_objects set lease_expires_at=clock_timestamp()-interval '1 second'
+      where id=(claim->'object'->>'id')::uuid;
+    delete from private.removed_academic_mutations where transaction_id=txid_current();
+    begin
+      perform public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'acknowledge',1,
+        (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
+      raise exception 'Expired callback accepted';
+    exception when sqlstate '55000' then if sqlerrm<>'academic_cleanup_lease_lost' then raise; end if; end;
+    result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+    if result->'object'->>'lease_token'=claim->'object'->>'lease_token' then raise exception 'Expired lease reused'; end if;
+    raise exception using errcode='P1731',message='rollback expiry';
+  exception when sqlstate 'P1731' then null; end;
   -- Metadata deletion models SQL storage authorization only, not a live byte erase.
-  delete from storage.objects where bucket_id='submission-images' and name='fixture173/target.png';
+  delete from storage.objects where bucket_id=claim->'object'->>'storage_bucket' and name=claim->'object'->>'storage_path';
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'acknowledge',1,
     (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
   if result<>public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'acknowledge',1,
     (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid) then raise exception 'Lost ack replay changed evidence'; end if;
+  -- Drain the second independently leased file, preserving the same exact scope.
+  claim:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+  if claim->'object'='null'::jsonb then raise exception 'Second file claim missing'; end if;
+  delete from storage.objects where bucket_id=claim->'object'->>'storage_bucket' and name=claim->'object'->>'storage_path';
+  perform public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'acknowledge',1,
+    (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
   if result->>'local_status'<>'local_completed' or result->>'overall_status'<>'provider_pending' then
     raise exception 'Wrong local completion'; end if;
@@ -162,7 +523,15 @@ begin
     raise exception 'Completion replay changed evidence'; end if;
   if exists(select 1 from private.removed_academic_resources(course_a,student))
     or exists(select 1 from private.removed_academic_objects(course_a,student)) then raise exception 'Target rows remain'; end if;
-  if before_roster-'retained_manual_attendance_marks' is distinct from
+  for resource in select * from academic_target_rows loop
+    execute format('select to_jsonb(row) from public.%I row where id=$1',resource.table_name) into actual using resource.row_id;
+    if actual is not null then raise exception 'Exact target row remains: %',resource.table_name; end if;
+  end loop;
+  for resource in select * from academic_preserved_rows loop
+    if private.removed_academic_row_hash(resource.table_name,resource.row_id) is distinct from resource.expected_hash then
+      raise exception 'Classmate/other-class row changed: %',resource.table_name; end if;
+  end loop;
+  if before_roster-'retained_manual_attendance_marks'  is distinct from
     (select to_jsonb(roster)-'retained_manual_attendance_marks' from public.classroom_roster roster where id='c1730000-0000-4000-8000-000000000030') then
     raise exception 'Tombstone identity/control drift'; end if;
   if before_peer is distinct from (select to_jsonb(doc) from public.assignment_docs doc where id='c1730000-0000-4000-8000-000000000072')

@@ -28,6 +28,7 @@ describe('removed academic source safety contract (not database execution)', () 
     ['163_standalone_gradebook_items.sql', 'public.guard_gradebook_item_score'],
     ['118_hot_archived_classroom_purge_managed_ownership.sql', 'public.enqueue_deleted_assignment_artifact_storage_cleanup'],
     ['165_final_student_classroom_removal.sql', 'private.guard_final_student_roster_write'],
+    ['171_student_provider_cleanup_prerequisite.sql', 'private.guard_attendance_closed_subject'],
   ])('preserves ordinary behavior in %s / %s outside its exact private capability', (file, name) => {
     const original = body(read(`supabase/migrations/${file}`), name)
     const updated = body(migration, name)
@@ -43,6 +44,33 @@ describe('removed academic source safety contract (not database execution)', () 
     expect(migration).not.toMatch(/set status\s*=\s*'completed'/)
     expect(migration).toContain('enabled boolean not null default false')
     expect(migration).toContain("current_setting('transaction_isolation') <> 'read committed'")
+  })
+
+  it('requires a fixture classification for every allowlisted resource', () => {
+    const harness = read('scripts/check-removed-student-academic-database.sql')
+    const allowlist = body(migration, 'private.removed_academic_row_hash')
+      .split('elsif p_table=any(array[')[1].split(']) then')[0]
+    const tables = [...allowlist.matchAll(/'([a-z_]+)'/g)].map(match => match[1])
+    expect(tables).toHaveLength(29)
+    for (const table of tables) {
+      expect(harness, `missing fixture for ${table}`).toContain(`insert into public.${table}`)
+      expect(harness, `missing explicit expected inventory for ${table}`).toContain(`'${table}'`)
+    }
+    expect(harness).toContain('Exact target row remains')
+    expect(harness).toContain('Classmate/other-class row changed')
+    expect(harness).toContain('Blocked inventory altered a row')
+  })
+
+  it('keeps all archive and pending reference families fail-closed', () => {
+    const blockers = body(migration, 'private.removed_academic_blockers')
+    for (const table of ['classroom_archives', 'classroom_gradex_extracts', 'classroom_archive_operations',
+      'classroom_cold_tombstones', 'managed_storage_provisional_owners', 'assignment_artifact_storage_cleanup',
+      'test_document_snapshot_storage_cleanup', 'classroom_archive_object_upload_cleanup',
+      'classroom_archive_restore_expected_objects', 'classroom_archive_source_object_cleanup',
+      'classroom_gradex_extract_cleanup', 'classroom_retired_assessment_record_actors']) {
+      expect(blockers).toContain(`from public.${table}`)
+      expect(migration).not.toContain(`delete from public.${table} `)
+    }
   })
 
   it('keeps the fixture rollback-only and separate from schema application', () => {
