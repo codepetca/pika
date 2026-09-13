@@ -62,7 +62,9 @@ describe('GET /api/assignment-docs/[id]', () => {
     expect(response.status).toBe(404)
   })
 
-  it('atomically creates a first-view doc and immediately delivers its Pal fact', async () => {
+  it.each([[false, false], [true, false], [true, true]])('atomically creates a first-view doc and immediately delivers its Pal fact (classroom %s, identity %s)', async (classroomRequested, identityEnabled) => {
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
+    vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(identityEnabled))
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -150,12 +152,12 @@ describe('GET /api/assignment-docs/[id]', () => {
       expect.objectContaining({
         p_assignment_id: 'assign-1',
         p_student_id: 'student-1',
-        p_pal_event: expect.objectContaining({ event_type: 'learning_item.viewed' }),
+        p_pal_event: classroomRequested ? null : expect.objectContaining({ event_type: 'learning_item.viewed' }),
       }),
     )
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
       membership: { studentId: 'student-1', classroomId: 'class-1' },
-      event: expect.objectContaining({ event_type: 'learning_item.viewed' }),
+      event: classroomRequested ? null : expect.objectContaining({ event_type: 'learning_item.viewed' }),
       supabase: mockSupabaseClient,
     })
   })

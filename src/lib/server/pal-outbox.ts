@@ -434,7 +434,7 @@ async function attemptImmediatePalEventDeliveryWithinDeadline(input: {
 }
 
 export async function attemptImmediatePalEventDelivery(input: {
-  event: v1.V1Envelope
+  event: v1.V1Envelope | null
   supabase?: PalImmediateDeliveryClient
   fetchImpl?: typeof fetch
   now?: Date
@@ -445,7 +445,7 @@ export async function attemptImmediatePalEventDelivery(input: {
   if (isClassroomPalRequested()) {
     return input.membership ? attemptMembershipPalActionDelivery({ ...input, membership: input.membership }) : 'disabled'
   }
-  if (!isPalEnabled()) return 'disabled'
+  if (!isPalEnabled() || !input.event) return 'disabled'
 
   const timeoutMs = Math.max(1, input.timeoutMs ?? 2_000)
   const clock = input.clock ?? Date.now

@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Make manual attendance optimistic
-
-- Manual attendance status changes now render immediately while the existing API write completes. A failed first write restores the exact prior overrides; a partially saved class-wide batch retains the existing authoritative refresh and warning behavior.
-- Added hook regressions for pre-response projection and rollback, plus a browser scenario that holds the write open and verifies the selected status across teacher desktop/mobile and light/dark. Student is n/a because this interaction exists only on the teacher Daily surface.
-- Focused verification passes 199 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit is clean, and all four optimistic-state captures were visually inspected; one desktop-light Playwright teardown timed out after the body passed and then passed cleanly alone.
-- Independent review found that a partial-save recovery refresh could finish after a date switch and show the old date's warning in the new scope. Remediation rechecks mount and scope after the awaited refresh; the delayed-refresh/date-switch regression passes with the hook suite 8/8.
-- Final cumulative review found two remaining recovery edges: an A-to-B-to-A scope cycle could reuse the same value key, and a failed recovery read could leave the unsaved optimistic tail visible. Remediation binds rollback/notification to the original command ID and reconstructs only server-acknowledged chunks when refresh fails, with focused regressions for both scope cycles and failed reconciliation.
-- Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
-
 ## 2026-09-10 — Put roster removal in Student Actions
 
 - Moved student removal from page-level More actions into the centered selection-aware Student Actions menu. Direct row selection now enables the same menu as checkbox selection.
@@ -239,3 +230,7 @@ Prerequisite#1252 merged to main as0aeba623 after all exact-head CI gates passed
 ## 2026-09-12 — Apply approved local classroom Pal schema
 
 Coordinator relayed explicit one-time approval for169 on the existing local Pika database. Verified checkpoint6c8ab914, approved SHA256 e98c01b2df3986aabf7f0539605f97ee742503a13020ec5b37331a3db55b63bd, container/project pika, matching001–168 and pending-only169 dry run. One db push --local succeeded; ledger001–169 matches, both private gates false and activation null. Rollback-only six-family/isolation/week/lease/removal/academic rollback and concurrent-planner contracts pass. Canonical public types generated and checked; replaced temporary RPC adapter with direct typed calls. Source focused gate passes1854tests/203files and static checks. DB lint reports two warnings (calendar volatility, unread visit variable), to correct forward after initial independent review. Production remains168; no provider calls, activation, reset or erasure. Sanitized receipt: ~/.codex/metrics/pika-local-pal-migrations.jsonl. Draft PR/review/CI next; no Pika merge authority.
+
+## 2026-09-12 — Correct reviewed classroom Pal producer boundaries
+
+DraftPR1256 at95c87afb received independent Sol/high and Terra/high review. Both found the enabled contextual join would demand suppressed legacy evidence and roll back; Terra also found partial classroom flags still constructed legacy daily/assignment/join events. One remediation batch suppresses legacy payloads on every touched source whenever classroom routing is requested while preserving atomic academic RPCs and scoped immediate delivery. Added actual contextual-join/daily/view/submit database contracts, including no legacy events under partial gates and no residual roster/enrollment/outbox on failed join. Those rollback-only contracts pass on local169; app flag-matrix and null-payload/no-HTTP tests pass. Authored forward170 for calendar volatility and unused visit variable; hash70ffa9a3ed187fa95e66f59d87946437b58711b09cac66068045e7259f7decb8, exact local approval pending.169 remains unchanged. Two reviewer launches/one batch consumed; targeted/final review and exact-head CI pending. UI unchanged, visual evidence reused. No provider/production/activation/erasure or merge action.

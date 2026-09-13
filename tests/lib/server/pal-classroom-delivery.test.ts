@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { attemptMembershipPalActionDelivery, deliverPalOutboxBatch, enqueueStandalonePalEvent } from '@/lib/server/pal-outbox'
+import { attemptImmediatePalEventDelivery, attemptMembershipPalActionDelivery, deliverPalOutboxBatch, enqueueStandalonePalEvent } from '@/lib/server/pal-outbox'
 
 const event = {
   schema_version: 1 as const, idempotency_key: 'pika:membership:v1:test',
@@ -28,6 +28,19 @@ describe('membership Pal outbox delivery', () => {
     })
     return { rpc }
   }
+
+  it.each(['false', 'true'])('routes a null legacy payload safely with identity gate %s', async identityEnabled => {
+    vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', identityEnabled)
+    const supabase = client()
+    const send = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    const result = await attemptImmediatePalEventDelivery({
+      event: null, membership: { studentId: 'student', classroomId: 'classroom' },
+      supabase: supabase as never, fetchImpl: send,
+    })
+    expect(result).toBe(identityEnabled === 'true' ? 'delivered' : 'disabled')
+    expect(send).toHaveBeenCalledTimes(identityEnabled === 'true' ? 1 : 0)
+    if (identityEnabled === 'false') expect(supabase.rpc).not.toHaveBeenCalled()
+  })
 
   it('claims only fresh events, checks membership around HTTP and uses the existing lease transition', async () => {
     const supabase = client()

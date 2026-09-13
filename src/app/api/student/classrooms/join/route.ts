@@ -14,7 +14,7 @@ import {
   type ContextualClassroomJoinGuessResult,
   type ContextualClassroomJoinResult,
 } from '@/lib/server/contextual-classroom-enrollment'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
@@ -312,7 +312,7 @@ async function joinClassroomContextually(args: {
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
       membership: { studentId: user.id, classroomId: classroom.id },
-      event: buildClassroomJoinedEvent({
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: classroom.id,
         occurredAt,
@@ -396,7 +396,7 @@ async function joinClassroomByCode(
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
       membership: { studentId: user.id, classroomId: result.classroom.id },
-      event: buildClassroomJoinedEvent({
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,
         occurredAt,
@@ -517,7 +517,7 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
   if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
       membership: { studentId: user.id, classroomId: result.classroom.id },
-      event: buildClassroomJoinedEvent({
+      event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
         learnerId: user.id,
         classroomId: result.classroom.id,
         occurredAt,

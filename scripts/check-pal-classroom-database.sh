@@ -12,6 +12,8 @@ trap 'rm -f "$pal_classroom_log"' EXIT
 docker exec -i "$pal_classroom_container" psql -U postgres -d postgres -X -At -v ON_ERROR_STOP=1 \
   < "$(dirname "$0")/check-pal-classroom-database.sql" > "$pal_classroom_log"
 pnpm exec tsx "$(dirname "$0")/validate-pal-classroom-fixture.ts" "$pal_classroom_log"
+docker exec -i "$pal_classroom_container" psql -U postgres -d postgres -X -At -v ON_ERROR_STOP=1 \
+  < "$(dirname "$0")/check-pal-classroom-producer-database.sql"
 
 # Two-session planner exclusion without committing any rollout gate or fixture.
 pal_classroom_probe="pal_classroom_planner_$$"

@@ -269,8 +269,10 @@ production deletion in this step.
   branch `codex/pal-classroom-signals`. Disabled source implementation and all
   six event-family paths authored; 14 browser checks passed across both roles,
   viewports and themes. Exact local169 approval consumed by one successful
-  application; rollback-only contracts and canonical generated types pass. Two
-  database lint warnings require a forward correction; review and CI pending.
+  application; rollback-only contracts and canonical generated types pass. Draft
+  PR#1256 completed initial Sol/Terra review; one correction batch addresses
+  contextual joins and residual legacy producers. Forward170 approval and
+  targeted/final review/CI remain. Applied169 is immutable.
   See [implementation evidence](pal-classroom-signals.md). The owner will publish
   this existing roadmap through the normal reviewed PR workflow.
 - Coordinator heartbeat: `advance-classroom-pal-and-cleanup-phases`, active

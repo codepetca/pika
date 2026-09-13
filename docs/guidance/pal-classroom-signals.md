@@ -2,7 +2,8 @@
 
 Status: disabled implementation in progress. Migration169 applied once to the
 existing local Pika database with exact approval; contracts and generated types
-pass. Two database lint warnings, independent review and exact-head ready-PR CI
+pass. Initial independent review complete; one remediation batch authored.
+Forward migration170 approval, targeted/final review and exact-head ready-PR CI
 remain outstanding. This is not Phase 2 completion.
 The [approved six-phase roadmap](classroom-pal-and-student-cleanup-plan.md) is
 the single phase/approval authority. Risk: runtime-platform.
@@ -115,11 +116,34 @@ removal begins. No Pal or Bara repository code is changed here.
   `e98c01b2df3986aabf7f0539605f97ee742503a13020ec5b37331a3db55b63bd`.
   Both database gates remain false and activation is null. Sanitized receipt is
   `/Users/stew/.codex/metrics/pika-local-pal-migrations.jsonl`.
-- Database lint found two merge blockers: term-calendar volatility is overstated,
-  and the visit function retains an unread variable. A forward correction will
-  be batched with independent review findings; applied169 will not be rewritten.
+- Forward migration170 corrects the calendar volatility declaration and removes
+  an unread visit variable. It has no rollout, privilege or public type-shape
+  change. It is authored but not applied; exact local170 approval is pending.
+  Its SHA256 is `70ffa9a3ed187fa95e66f59d87946437b58711b09cac66068045e7259f7decb8`.
+  Applied169 remains byte-for-byte unchanged.
 - [UI change brief](ui/pal-classroom-phase2-brief.md) records reuse and the
   required teacher/student, desktop/mobile, light/dark matrix.
 
 Source-local evidence is not deployed provider compatibility, end-to-end
 revocation/removal security, production rollout, or full-phase completion.
+
+## PR1256 review and remediation
+
+Initial Sol/high security and Terra/high architecture reviews inspected detached
+`95c87afb` against `3a225b0f`. Both identified the enabled contextual-join rollback;
+Terra also identified residual legacy event construction under partial classroom
+gates. These are blocking enabled-path defects, not live incidents while gates
+remain off. One correction batch passes null legacy payloads whenever classroom
+routing is requested, retaining the production atomic academic RPCs and their
+membership triggers. Post-commit delivery accepts the null legacy payload and
+continues through the scoped queue. Legacy mode retains its existing payloads.
+
+New actual-RPC rollback contracts exercise contextual joins, daily logs, assignment
+views and submissions under disabled and enabled database gates; they prove one
+scoped fact per family, no legacy facts and no partial join/roster/outbox state
+when enqueue fails. API/adapter tests cover legacy, partially enabled and fully
+enabled application flags. The delivery regression verifies no HTTP call while
+the foundation flag is absent. UI is unchanged; previous visual evidence applies.
+
+Review budget: two initial launches, one remediation batch, no targeted/final
+launch yet. Initial wave began2026-09-13 00:17:54UTC;45minute session cap.

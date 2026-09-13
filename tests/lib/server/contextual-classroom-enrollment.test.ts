@@ -183,7 +183,9 @@ describe('contextual classroom enrollment server adapter', () => {
       .rejects.toMatchObject({ statusCode: 503 })
   })
 
-  it('builds the closed, pseudonymous Pal event only when Pal is enabled', async () => {
+  it.each([[false, false], [true, false], [true, true]])('builds the closed, pseudonymous Pal event only when Pal is enabled (classroom %s, identity %s)', async (classroomRequested, identityEnabled) => {
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
+    vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(identityEnabled))
     vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'http://localhost:4321')
@@ -211,6 +213,10 @@ describe('contextual classroom enrollment server adapter', () => {
     })
 
     const event = client.rpc.mock.calls[0][1].p_pal_event
+    if (classroomRequested) {
+      expect(event).toBeNull()
+      return
+    }
     expect(v1.validateV1Event(event)).toMatchObject({ ok: true })
     expect(event).toMatchObject({
       schema_version: 1,
