@@ -195,3 +195,22 @@ describe('Pal learner read token', () => {
     expect(secondMint).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('exact token invalidation', () => {
+  it('drops cached and in-flight tokens for A while preserving B and cooldown', async () => {
+    let release!: (value: { token: string; expires_at: string }) => void
+    const mint = vi.fn(({ studentId }: { studentId: string }) => studentId === 'A'
+      ? new Promise<{ token: string; expires_at: string }>(resolve => { release = resolve })
+      : Promise.resolve({ token: 'B-token', expires_at: '2026-09-13T15:05:00Z' }))
+    const broker = createPalReadTokenBroker({ mint, now: () => Date.parse('2026-09-13T15:00:00Z'), mintStarts: new Map() })
+    const a = broker({ studentId: 'A' })
+    await broker({ studentId: 'B' })
+    broker.invalidate('A')
+    const rejected = expect(a).rejects.toThrow('invalidated')
+    release({ token: 'stale-A-token', expires_at: '2026-09-13T15:05:00Z' })
+    await rejected
+    await expect(broker({ studentId: 'A' })).rejects.toBeInstanceOf(PalReadTokenRateLimitError)
+    await expect(broker({ studentId: 'B' })).resolves.toMatchObject({ token: 'B-token' })
+    expect(mint).toHaveBeenCalledTimes(2)
+  })
+})

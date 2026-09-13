@@ -48,7 +48,7 @@ const operationRowSchema = z.object({
   teacher_id: z.string().uuid(),
   student_id: z.string().uuid().nullable(),
   student_binding_sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  status: z.enum(['inventorying', 'deleting_objects', 'finalizing', 'completed', 'failed']),
+  status: z.enum(['provider_pending', 'inventorying', 'deleting_objects', 'finalizing', 'completed', 'failed']),
   retryable: z.boolean().nullable(),
   error_code: z.string().nullable(),
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
@@ -265,7 +265,7 @@ export async function getActiveStudentPurgeStatus(
     .eq('teacher_id', teacherId)
     .eq('classroom_id', classroomId)
     .eq('student_id', studentId)
-    .in('status', ['inventorying', 'deleting_objects', 'finalizing', 'failed'])
+    .in('status', ['provider_pending', 'inventorying', 'deleting_objects', 'finalizing', 'failed'])
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -311,7 +311,7 @@ export async function deleteStudentPurgeStorageObject(
 
 export async function advanceStudentPurge(teacherId: string, operationId: string) {
   const before = await getStudentPurgeStatus(teacherId, operationId)
-  if (before.status === 'completed' || (before.status === 'failed' && before.retryable === false)) {
+  if (before.status === 'provider_pending' || before.status === 'completed' || (before.status === 'failed' && before.retryable === false)) {
     return { operation: before, advanced: false }
   }
 

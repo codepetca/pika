@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const studentPurgeOperationStatusSchema = z.enum([
+  'provider_pending',
   'inventorying',
   'deleting_objects',
   'finalizing',

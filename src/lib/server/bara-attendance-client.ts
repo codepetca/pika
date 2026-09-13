@@ -1,5 +1,9 @@
 import { createV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
 import {
+  PARTICIPANT_ERASURE_PATH, parseParticipantErasureRequest, parseParticipantErasureReceipt,
+  type ParticipantErasureRequest, type ParticipantErasureReceipt,
+} from '@/vendor/attendance-contract/participant-erasure'
+import {
   DECOMMISSION_PATH, parseDecommissionRequest, parseDecommissionReceipt,
   type DecommissionRequest, type DecommissionReceipt,
 } from '@/vendor/attendance-contract/decommission'
@@ -777,5 +781,38 @@ export async function postBaraDecommission(
   const { parsed, status } = await signedRequest(config, 'POST', DECOMMISSION_PATH, JSON.stringify(validated), options)
   const receipt = parseDecommissionReceipt(parsed, validated)
   if (!receipt) throw new BaraAttendanceClientError('Unverified deletion response', 'invalid_response', true, status)
+  return receipt
+}
+
+/** Exact participant transport; caller must commit its generation fence first. */
+export async function postBaraParticipantErasure(
+  payload: ParticipantErasureRequest,
+  options: ClientOptions & { expectedOrigin?: string } = {},
+): Promise<ParticipantErasureReceipt> {
+  if (process.env.PIKA_BARA_PARTICIPANT_ERASURE_ENABLED !== 'true') {
+    throw new BaraAttendanceClientError('Participant cleanup is disabled', 'disabled', false)
+  }
+  const validated = parseParticipantErasureRequest(payload)
+  if (!validated) throw new BaraAttendanceClientError('Invalid participant cleanup request', 'invalid_payload', false)
+  const config = configuration(true)
+  if (validated.installation_ref !== config.installationRef
+    || (options.expectedOrigin !== undefined && options.expectedOrigin !== config.baseUrl)) {
+    throw new BaraAttendanceClientError('Invalid participant cleanup scope', 'resource_mismatch', false)
+  }
+  let result: Awaited<ReturnType<typeof signedRequest>>
+  try {
+    result = await signedRequest(config, 'POST', PARTICIPANT_ERASURE_PATH, JSON.stringify(validated), options)
+  } catch (error) {
+    // Do not retain arbitrary provider error codes or stream/JSON error text.
+    if (error instanceof BaraAttendanceClientError) {
+      throw new BaraAttendanceClientError('Participant cleanup could not be verified',
+        error.code === 'network_error' ? 'network_error' : 'remote_rejected', error.retryable, error.status)
+    }
+    throw new BaraAttendanceClientError('Participant cleanup could not be verified', 'network_error', true)
+  }
+  const receipt = parseParticipantErasureReceipt(result.parsed, validated)
+  if (result.status !== 200 || !receipt) {
+    throw new BaraAttendanceClientError('Unverified participant cleanup response', 'invalid_response', false, result.status)
+  }
   return receipt
 }

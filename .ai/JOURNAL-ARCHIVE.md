@@ -31940,6 +31940,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
 
 <!-- pika-session-log-archive-batch:fa819c173956ebe0ae76cddd938f2b96052cbf375f2d77ce77c8cd8aac6f04da -->
+<!-- pika-session-log-archive-batch:7f5b5776487a70d21c3f1734240b695654d6e4ab51b6b6110026147944654d64 -->
 ## 2026-09-10 — Put roster removal in Student Actions
 
 - Moved student removal from page-level More actions into the centered selection-aware Student Actions menu. Direct row selection now enables the same menu as checkbox selection.

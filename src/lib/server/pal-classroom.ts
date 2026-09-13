@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomPalEnabled } from '@/lib/server/pal-config'
-import { getPalReadTokenForMembership, type PalReadToken } from '@/lib/server/pal-read-token'
+import { getPalReadTokenForMembership, invalidatePalReadTokenForMembership, type PalReadToken } from '@/lib/server/pal-read-token'
 
 const contextSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('disabled') }).strict(),
@@ -39,19 +39,38 @@ function forbidden() { return new ApiError(403, 'Classroom achievements access i
 export function createMembershipPalReadTokenCoordinator(options: {
   resolve?: (input: MembershipInput) => Promise<ActiveContext>
   mint?: (input: { learnerReference: string }) => Promise<PalReadToken>
+  invalidate?: (learnerReference: string) => void
 } = {}) {
   const resolve = options.resolve ?? resolvePalClassroomContext
   const mint = options.mint ?? getPalReadTokenForMembership
+  const invalidate = options.invalidate ?? invalidatePalReadTokenForMembership
+  const references = new Map<string, string>()
+  function discard(scope: string) {
+    const reference = references.get(scope)
+    if (reference) {
+      references.delete(scope)
+      invalidate(reference)
+    }
+  }
   return async (input: MembershipInput & { scopeKey: string }) => {
-    const before = await resolve(input)
-    if (before.scope_key !== input.scopeKey) throw forbidden()
-    const token = await mint({ learnerReference: before.learner_id })
-    const after = await resolve(input)
-    if (before.generation_id !== after.generation_id || before.learner_id !== after.learner_id
-      || before.scope_key !== after.scope_key) throw forbidden()
-    // This drops an in-flight result on observed removal; it cannot revoke a
-    // provider-issued token. That provider boundary remains a Phase 3 gate.
-    return { ...token, scope_key: after.scope_key }
+    const cacheScope = JSON.stringify([input.studentId, input.classroomId, input.scopeKey])
+    try {
+      const before = await resolve(input)
+      if (before.scope_key !== input.scopeKey) throw forbidden()
+      references.delete(cacheScope)
+      references.set(cacheScope, before.learner_id)
+      while (references.size > 1000) discard(references.keys().next().value!)
+      const token = await mint({ learnerReference: before.learner_id })
+      const after = await resolve(input)
+      if (before.generation_id !== after.generation_id || before.learner_id !== after.learner_id
+        || before.scope_key !== after.scope_key) throw forbidden()
+      return { ...token, scope_key: after.scope_key }
+    } catch (error) {
+      // Failures clear the exact scoped cache and invalidate any concurrent mint.
+      // Pal's permanent guard remains the authority for previously issued JWTs.
+      discard(cacheScope)
+      throw error
+    }
   }
 }
 
