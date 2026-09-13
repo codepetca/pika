@@ -169,12 +169,14 @@ reenrollment, reference rotation or overall finalizer is added.
 Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
 `scripts/check-removed-student-academic-database.sql` harness. The harness requires
 local173. It is designed to cover22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
-never be described as committed-row MVCC or storage-byte deletion proof. Four approved executions have fully rolled back. Fixture corrections address a
-cross-class check-in ID collision, required simulated storage-readiness fields,
-a PL/pgSQL variable/alias collision, and a parent-move test intercepted by an
-existing Gradebook constraint. The latest run reached the parent-move assertion
-after setup, inventory and blocked-case checks; storage/row deletion and final
-absence assertions have not yet executed. The three-run retry authorization is
-consumed; further rollback-only execution requires fresh permission. Remaining
-evidence: runtime isolation/callback/lease verification, final cumulative review
-and stable-head CI. Both database cleanup gates remain false.
+never be described as committed-row MVCC or storage-byte deletion proof. The corrected fixture passes end to end under direct local rollback-only approval.
+It follows the existing managed-storage fixtures by setting the Storage API's SQL
+metadata-delete permission only within its transaction; Pika's guards remain live.
+Negative checks require the exact storage-authority error without completed
+providers or with an expired lease. Successful cleanup preserves overall status,
+provider bindings, account/profile, roster controls, resource/path tombstones and
+re-add fences. Postflight confirms zero synthetic users/managed objects/storage
+rows, both cleanup gates false and storage mode compatibility. Warning-level
+database lint and canonical types/check pass. Final cumulative review and
+stable-head CI remain required. Earlier setup/assertion failures were corrected
+only in fixture SQL; applied173 remains unchanged.

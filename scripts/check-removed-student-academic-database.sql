@@ -447,6 +447,16 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
     raise exception 'Inventory retry changed receipt'; end if;
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
   if result->'object'<>'null'::jsonb then raise exception 'Unknown provider allowed claim'; end if;
+  -- Match existing managed-storage fixtures: emulate the Storage API's SQL
+  -- delete permission within this rollback transaction, leaving Pika guards live.
+  perform set_config('storage.allow_delete_query','true',true);
+  begin
+    delete from storage.objects where bucket_id='submission-images' and name='fixture173/target.png';
+    raise exception 'Storage deletion accepted without provider completion/lease';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'academic_cleanup_storage_authority_required' then raise; end if;
+  end;
+
   foreach f in array array['teacher','classroom','student','generation'] loop
     begin
       perform public.advance_removed_student_academic_cleanup(op,
@@ -541,6 +551,12 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
         (claim->'object'->>'id')::uuid,(claim->'object'->>'lease_token')::uuid);
       raise exception 'Expired callback accepted';
     exception when sqlstate '55000' then if sqlerrm<>'academic_cleanup_lease_lost' then raise; end if; end;
+    begin
+      delete from storage.objects where bucket_id=claim->'object'->>'storage_bucket' and name=claim->'object'->>'storage_path';
+      raise exception 'Storage deletion accepted with expired lease';
+    exception when sqlstate '55000' then
+      if sqlerrm<>'academic_cleanup_storage_authority_required' then raise; end if;
+    end;
     result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
     if result->'object'->>'lease_token'=claim->'object'->>'lease_token' then raise exception 'Expired lease reused'; end if;
     raise exception using errcode='P1731',message='rollback expiry';

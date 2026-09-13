@@ -277,9 +277,10 @@ historical backfill, retention deadline or pilot belongs to this increment.
 - Pal managed-copy completion proof remains unavailable. Bara's current deployed
   backend is an expiring Preview; a stable deployment remains a release gate.
   Provider source/receipt/deployment evidence does not establish full Phase 3 cleanup.
-- Academic/file isolation, exact ownership and operation identity, copy/remote-grading
-  treatment and committed-row MVCC/storage rehearsal remain outstanding. Earlier
-  rollback-only contention checks do not prove committed-row races. Worker policy,
+- PR1259 now verifies disabled academic/file cleanup with rollback-only exact
+  ownership, operation identity, copy/remote-grading blockers and isolation checks.
+  Final review/CI and committed-row MVCC/storage rehearsal remain outstanding.
+  Rollback-only checks do not prove committed-row races. Worker policy,
   retention, re-add release and the limited pilot remain later gates.
 - Merge/Preview receipt:
   `/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
