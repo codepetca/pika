@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createFixtureSnapshot } from '@codepet/pal-widget'
 
 import {
   createPalReadTokenProvider,
@@ -19,6 +20,69 @@ function tokenResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Pika Pal learner client', () => {
+  it('rechecks membership with Pika even while the earlier token is unexpired', async () => {
+    const onRevoked = vi.fn()
+    const fetchImplementation = vi.fn()
+      .mockImplementationOnce(async () => tokenResponse({ scope_key: 'scope-a' }))
+      .mockImplementationOnce(async () => new Response(JSON.stringify(createFixtureSnapshot())))
+      .mockImplementationOnce(async () => new Response('{}', { status: 403 }))
+    const client = createPikaPalClient('https://pal.example.test', { fetchImplementation, now: () => NOW,
+      membership: { classroomId: 'a', scopeKey: 'scope-a' }, onRevoked })
+    await client.getSnapshot()
+    await expect(client.getSnapshot()).rejects.toThrow()
+    expect(fetchImplementation.mock.calls.map(call => call[0])).toEqual([
+      '/api/student/pal/read-token', 'https://pal.example.test/api/v1/learner/snapshot', '/api/student/pal/read-token',
+    ])
+    expect(onRevoked).toHaveBeenCalledOnce()
+  })
+
+  it('invalidates a cached token and rejects a late mint without an abort signal', async () => {
+    let release: (response: Response) => void = () => undefined
+    const fetchImplementation = vi.fn().mockImplementationOnce(() => new Promise<Response>(resolve => { release = resolve }))
+      .mockImplementation(async () => tokenResponse())
+    const getToken = createPalReadTokenProvider({ fetchImplementation, now: () => NOW })
+    const pending = getToken()
+    const rejected = expect(pending).rejects.toThrow(/invalidated/)
+    getToken.invalidate()
+    release(tokenResponse())
+    await rejected
+    await expect(getToken()).resolves.toBe('learner-scoped-token')
+    getToken.invalidate()
+    await getToken()
+    expect(fetchImplementation).toHaveBeenCalledTimes(3)
+  })
+
+  it.each([401, 403, 404, 410])('clears denied membership state on HTTP %s and rejects late responses without affecting another classroom', async status => {
+    const snapshot = createFixtureSnapshot()
+    let release: (value: unknown) => void = () => undefined
+    const fetchImplementation = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (input === '/api/student/pal/read-token') {
+        const scope = JSON.parse(String(init?.body)).scopeKey
+        return tokenResponse({ scope_key: scope })
+      }
+      if (String(input).endsWith('/seen')) return new Response('{}', { status })
+      const response = new Response('{}')
+      response.json = () => new Promise(resolve => { release = resolve })
+      return response
+    })
+    const onRevoked = vi.fn()
+    const client = createPikaPalClient('https://pal.example.test', { fetchImplementation, now: () => NOW,
+      membership: { classroomId: 'a', scopeKey: 'scope-a' }, onRevoked })
+    const pending = client.getSnapshot()
+    const rejected = expect(pending).rejects.toThrow()
+    await vi.waitFor(() => expect(fetchImplementation).toHaveBeenCalledTimes(2))
+    await expect(client.markRewardSeen('reward-a')).rejects.toThrow()
+    expect(onRevoked).toHaveBeenCalledOnce()
+    release(snapshot)
+    await rejected
+    const calls = fetchImplementation.mock.calls.length
+    await expect(client.getSnapshot()).rejects.toThrow(/access ended/)
+    expect(fetchImplementation).toHaveBeenCalledTimes(calls)
+    const other = createPalReadTokenProvider({ membership: { classroomId: 'b', scopeKey: 'scope-b' },
+      fetchImplementation, now: () => NOW })
+    await expect(other()).resolves.toBe('learner-scoped-token')
+  })
+
   it('binds the token request and response to the resolved membership scope', async () => {
     const membership = { classroomId: 'classroom-a', scopeKey: 'scope-a' }
     const fetchImplementation = vi.fn(async () => tokenResponse({ scope_key: 'scope-a' }))

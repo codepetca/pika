@@ -31940,9 +31940,40 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
 
 <!-- pika-session-log-archive-batch:fa819c173956ebe0ae76cddd938f2b96052cbf375f2d77ce77c8cd8aac6f04da -->
+<!-- pika-session-log-archive-batch:7f5b5776487a70d21c3f1734240b695654d6e4ab51b6b6110026147944654d64 -->
 ## 2026-09-10 — Put roster removal in Student Actions
 
 - Moved student removal from page-level More actions into the centered selection-aware Student Actions menu. Direct row selection now enables the same menu as checkbox selection.
 - Unified the teacher-facing behavior after product clarification: removing a joined student uses the existing comprehensive purge, which also removes roster membership; unjoined invitations retain the lightweight roster-only path because no classroom data exists. The duplicate purge menu item is gone. Joined students must be removed one at a time for per-student impact review and typed confirmation, and unavailable comprehensive removal fails closed instead of falling back to partial deletion.
 - The comprehensive dialog now consistently uses removal language and states that all classroom data is permanently deleted while the account and other-class data remain. Independent review found a join-after-page-load race in the legacy lightweight endpoint; forward migration 162 now serializes with classroom joining and rejects joined targets before any deletion, while the UI refreshes into the comprehensive flow. Targeted re-review found the legacy UUID-link enrollment path did not share that lock, so new direct-ID enrollments now use the existing atomic join transaction while already-enrolled compatibility links remain supported. The migration was not applied locally or remotely. Targeted race/API/migration/join coverage passes 70/70; the focused application/database/browser gate passes 19 files / 220 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit was clean before this follow-up. Teacher desktop/mobile light/dark menu, confirmation, and progress states plus the student authorization boundary pass the six-test browser matrix with no horizontal overflow.
 - Exact-head CI exposed an older cross-operation database check that still expected lightweight roster removal to delete joined memberships. The contract now explicitly requires that call to fail atomically and preserve both joined roster and enrollment rows for the comprehensive purge path; the focused 220-test/static gate remains green. The PR returned to draft before this correction and requires fresh exact-head CI.
+
+<!-- pika-session-log-archive-batch:0053eb286c9bae09a5294f0a58fb618e08de3f9c3e6d39c4d9b9e0b8affb8128 -->
+## 2026-09-10 — Standalone Gradebook items
+
+Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
+
+<!-- pika-session-log-archive-batch:2d0fa99e2029773fd171b374b052cb5b4560f5ce1368d27cb1cea1bbfba159d2 -->
+## 2026-09-10 — Finish standalone Gradebook browser contract correction
+
+- User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
+- The two earlier independent-review findings are corrected: category removal retracts returned marks, and identical score saves preserve return state. The extension permits one test-only correction, focused verification, one Terra review, and fresh exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:747ae0b23c42283c6a1ae8701901cbd42112e83ab2664bfa59aff6b8c39b3f36 -->
+## 2026-09-10 — Synchronize standalone Gradebook with corrected enrollment lineage
+
+- User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
+- The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:d5bfcd8063013c154fdc31c0253af30ec6524b7b80c96b180f2d52751170b9e2 -->
+## 2026-09-10 — Clarify other assessment creation in Gradebook
+
+- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
+- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
+
+<!-- pika-session-log-archive-batch:be4de9a49425eb9d6c57a1f324a1a0a0b4d69f031beb3c3fe34cca3077e8499c -->
+## 2026-09-10 — Order and group Gradebook menu actions
+
+- Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
+- Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.

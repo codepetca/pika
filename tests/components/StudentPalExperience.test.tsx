@@ -29,6 +29,7 @@ import {
   StudentPalAmbientSurfaces,
 } from '@/integrations/pal/StudentPalExperience'
 import { StudentAchievementsTab } from '@/app/classrooms/[classroomId]/StudentAchievementsTab'
+import { PalClassroomFixture } from '@/app/e2e-fixtures/pal-classroom/preview'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
 import { PIKA_PAL_REFRESH_EVENT } from '@/lib/pal-browser-events'
 
@@ -108,6 +109,27 @@ describe('StudentPalExperience', () => {
     vi.unstubAllGlobals()
   })
 
+  it('clears a revoked reward and provider snapshot while preserving academic child state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')))
+    const getSnapshot = vi.fn().mockResolvedValue(withReward())
+    const markRewardSeen = vi.fn(() => new Promise<void>(() => undefined))
+    const client = { getSnapshot, markRewardSeen }
+    mockCreatePikaPalClient.mockReturnValue(client)
+    render(<ThemeProvider><PalClassroomFixture /></ThemeProvider>)
+    const input = screen.getByRole('textbox', { name: 'Academic draft' })
+    fireEvent.change(input, { target: { value: 'Unsaved work' } })
+    expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(markRewardSeen).toHaveBeenCalledOnce())
+    getSnapshot.mockRejectedValue(new Error('Pal membership access ended'))
+    act(() => mockCreatePikaPalClient.mock.calls.at(-1)![1].onRevoked())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Reward earned' })).toBeNull())
+    expect(screen.queryByText('A fish for Pip')).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'Academic draft' })).toBe(input)
+    expect(input).toHaveValue('Unsaved work')
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
   it('clears pending celebrations and ignores late refresh notifications from a different classroom', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')))
     const getSnapshot = vi.fn().mockResolvedValueOnce(withReward()).mockResolvedValue(createFixtureSnapshot())
@@ -137,7 +159,8 @@ describe('StudentPalExperience', () => {
       markRewardSeen: async () => undefined,
     }, <StudentAchievementsTab />)
 
-    expect(await screen.findByRole('region', { name: 'Achievement trail' })).toBeVisible()
+    // The open reward correctly hides the background from assistive technology.
+    expect(await screen.findByRole('region', { name: 'Achievement trail', hidden: true })).toBeVisible()
     expect(document.querySelector('aside.pal-companion')).toHaveAttribute(
       'aria-label',
       expect.stringContaining(snapshot.companion.name),

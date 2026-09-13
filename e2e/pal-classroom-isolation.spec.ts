@@ -49,7 +49,7 @@ test('classroom switching, reload, logout and stale reward isolation', async ({ 
   await expect(page.getByText('Class A progress', { exact: true })).toHaveCount(0)
   expect(tokens).toContain(scopeA)
   expect(tokens).toContain(`pika-classroom-v1-${'b'.repeat(64)}`)
-  await page.screenshot({ path: `output/playwright/pal-phase2/${testInfo.project.name}-class-b.png`, fullPage: true })
+  await page.screenshot({ path: `output/playwright/pal-phase2/${testInfo.project.name}-class-b.png`, fullPage: true, animations: 'disabled' })
   delayA = true
   await page.getByRole('button', { name: 'Switch classroom' }).click()
   await expect.poll(() => Boolean(releaseA)).toBe(true)
@@ -66,6 +66,66 @@ test('classroom switching, reload, logout and stale reward isolation', async ({ 
   await page.reload()
   await expect(page.getByText('Class A progress', { exact: true })).toBeVisible()
   expect(requests).toBeGreaterThan(2)
+})
+
+test('membership revocation clears pending rewards and retains academic draft state', async ({ page }, testInfo) => {
+  let state: 'active' | 'reward' | 'revoked' = 'active'
+  let releaseSeen: (() => void) | undefined
+  let providerRequests = 0
+  await page.route('**/api/student/pal/classroom-visit', route => route.fulfill({ json: { status: 'recorded' } }))
+  await page.route('**/api/student/pal/read-token', route => {
+    const body = route.request().postDataJSON()
+    return route.fulfill({ json: { token: body.scopeKey, scope_key: body.scopeKey,
+      expires_at: new Date(Date.now() + 300_000).toISOString() } })
+  })
+  await page.route(/\/(api\/v1\/learner\/|assets\/badges\/)/, async route => {
+    const url = new URL(route.request().url())
+    const asset = url.pathname.split('/').at(-1)
+    if (asset === 'badge-checkin-7-day-v1.png' || asset === 'badge-first-classroom-login-v1.png') {
+      return route.fulfill({ path: `e2e/fixtures/pal/${asset}`, contentType: 'image/png' })
+    }
+    providerRequests += 1
+    if (url.pathname.endsWith('/seen')) {
+      await new Promise<void>(resolve => { releaseSeen = resolve })
+      await route.fulfill({ json: {} }).catch(() => undefined)
+      return
+    }
+    if (state === 'revoked') return route.fulfill({ status: 403, json: { error: 'Membership unavailable' } })
+    const snapshot = structuredClone(fixtureSnapshot) as PalWidgetSnapshot
+    snapshot.roadmap.weeks[0].label = 'Current classroom progress'
+    snapshot.rewards = state === 'reward' ? [{ id: 'revoked-reward', title: 'Pending classroom reward', description: 'Synthetic reward' }] : []
+    return route.fulfill({ json: snapshot })
+  })
+  await page.addInitScript(theme => localStorage.setItem('theme', String(theme)), testInfo.project.metadata.theme ?? 'light')
+  await page.goto('/e2e-fixtures/pal-classroom')
+  await expect(page.getByText('Current classroom progress', { exact: true })).toBeVisible()
+  const draft = page.getByRole('textbox', { name: 'Academic draft' })
+  await draft.fill('Keep my unsaved work')
+  await page.screenshot({ path: `output/playwright/pal-phase3/${testInfo.project.name}-active.png`, fullPage: true, animations: 'disabled' })
+  const refresh = () => page.evaluate(() => window.dispatchEvent(new CustomEvent('pika:pal-refresh', {
+    detail: { classroomId: 'c1690000-0000-4000-8000-000000000010' },
+  })))
+  state = 'reward'
+  await refresh()
+  await expect(page.getByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+  await page.screenshot({ path: `output/playwright/pal-phase3/${testInfo.project.name}-reward.png`, fullPage: true, animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await expect.poll(() => Boolean(releaseSeen)).toBe(true)
+  state = 'revoked'
+  await refresh()
+  await expect(page.getByRole('dialog', { name: 'Reward earned' })).toHaveCount(0)
+  await expect(page.getByText('Current classroom progress', { exact: true })).toHaveCount(0)
+  await expect(draft).toHaveValue('Keep my unsaved work')
+  await draft.focus()
+  await expect(draft).toBeFocused()
+  releaseSeen?.()
+  const callsAfterRevocation = providerRequests
+  await refresh()
+  await expect(page.getByText('Pending classroom reward', { exact: true })).toHaveCount(0)
+  expect(providerRequests).toBe(callsAfterRevocation)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden')
+  await page.screenshot({ path: `output/playwright/pal-phase3/${testInfo.project.name}-revoked.png`, fullPage: true, animations: 'disabled' })
 })
 
 for (const role of ['teacher', 'student'] as const) {
@@ -90,7 +150,7 @@ for (const role of ['teacher', 'student'] as const) {
       await expect(page.getByRole('region', { name: 'Achievement trail' })).toHaveCount(0)
       expect(tokenRequests).toBe(0)
       expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
-      await page.screenshot({ path: `output/playwright/pal-phase2/${testInfo.project.name}-${role}-disabled.png`, fullPage: true })
+      await page.screenshot({ path: `output/playwright/pal-phase2/${testInfo.project.name}-${role}-disabled.png`, fullPage: true, animations: 'disabled' })
     })
   })
 }

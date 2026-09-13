@@ -102,7 +102,7 @@ export function createPalReadTokenBroker(options: {
   const cachedTokens = new Map<string, PalReadToken>()
   const inFlightMints = new Map<string, Promise<PalReadToken>>()
 
-  return async ({ studentId }: { studentId: string }): Promise<PalReadToken> => {
+  const getToken = async ({ studentId }: { studentId: string }): Promise<PalReadToken> => {
     const cached = cachedTokens.get(studentId)
     if (
       cached
@@ -145,6 +145,9 @@ export function createPalReadTokenBroker(options: {
 
     const nextMint = mint({ studentId })
       .then((token) => {
+        if (inFlightMints.get(studentId) !== nextMint) {
+          throw new Error('Pal token request was invalidated')
+        }
         if (
           Date.parse(token.expires_at) - PAL_READ_TOKEN_REFRESH_BUFFER_MS
           > now()
@@ -166,6 +169,21 @@ export function createPalReadTokenBroker(options: {
     inFlightMints.set(studentId, nextMint)
     return nextMint
   }
+  return Object.assign(getToken, {
+    invalidate(studentId: string) {
+      cachedTokens.delete(studentId)
+      inFlightMints.delete(studentId)
+      // Keep the mint cooldown: revocation cannot become a rate-limit bypass.
+    },
+    invalidateMatching(matches: (key: string) => boolean) {
+      for (const key of new Set([...cachedTokens.keys(), ...inFlightMints.keys()])) {
+        if (matches(key)) {
+          cachedTokens.delete(key)
+          inFlightMints.delete(key)
+        }
+      }
+    },
+  })
 }
 
 export const getPalReadTokenForStudent = createPalReadTokenBroker()
@@ -181,4 +199,8 @@ export async function getPalReadTokenForMembership(input: { learnerReference: st
   const { apiUrl, integrationSecret } = requirePalEnvironment()
   const integrationKey = createHash('sha256').update(JSON.stringify([apiUrl, integrationSecret])).digest('hex')
   return membershipBroker({ studentId: `${integrationKey}:${input.learnerReference}` })
+}
+
+export function invalidatePalReadTokenForMembership(learnerReference: string): void {
+  membershipBroker.invalidateMatching(key => key.endsWith(`:${learnerReference}`))
 }

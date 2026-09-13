@@ -5,6 +5,7 @@ import {
   PalProvider,
   PalRewardCelebration,
   usePalWidget,
+  type PalClient,
 } from '@codepet/pal-widget'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -159,14 +160,18 @@ export function StudentPalExperience({
 }) {
   const { theme } = useTheme()
   const narrowViewport = useIsBreakpoint('max', 768)
+  const [revokedClient, setRevokedClient] = useState<PalClient | null>(null)
   const client = useMemo(
     () => {
       // A scope transition must also discard the previous learner's token cache.
       void scopeKey
-      return membership ? createPikaPalClient(apiBaseUrl, { membership }) : createPikaPalClient(apiBaseUrl)
+      if (!membership) return createPikaPalClient(apiBaseUrl)
+      const next = createPikaPalClient(apiBaseUrl, { membership, onRevoked: () => setRevokedClient(next) })
+      return next
     },
     [apiBaseUrl, scopeKey, membership],
   )
+  const revoked = revokedClient === client
 
   useEffect(() => {
     if (!membership) return
@@ -187,12 +192,14 @@ export function StudentPalExperience({
     <PalProvider
       key={scopeKey}
       client={client}
-      scopeKey={scopeKey}
+      // Changing the provider scope clears its memory without remounting the
+      // academic children beneath the stable React key.
+      scopeKey={revoked ? `${scopeKey}:revoked` : scopeKey}
       theme={theme}
       density={narrowViewport ? 'compact' : 'comfortable'}
       viewport={narrowViewport ? 'narrow' : 'wide'}
       motion="system"
-      refreshIntervalMs={PAL_REFRESH_INTERVAL_MS}
+      refreshIntervalMs={revoked ? 0 : PAL_REFRESH_INTERVAL_MS}
     >
       <StudentPalRefreshListener classroomId={membership?.classroomId} />
       {children}

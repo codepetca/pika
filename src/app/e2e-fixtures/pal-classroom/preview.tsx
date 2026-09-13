@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { StudentPalExperience } from '@/integrations/pal'
 import { StudentAchievementsTab } from '@/app/classrooms/[classroomId]/StudentAchievementsTab'
-import { Button, PageHeading, PageLayout } from '@/ui'
+import { Button, Input, PageHeading, PageLayout } from '@/ui'
 
 /** Synthetic browser harness. Network fixtures are supplied by Playwright. */
 export function PalClassroomFixture() {
@@ -26,6 +26,7 @@ export function PalClassroomFixture() {
       {loggedIn && origin ? (
         <StudentPalExperience key={membership.scopeKey} apiBaseUrl={origin}
           scopeKey={membership.scopeKey} membership={membership}>
+          <Input aria-label="Academic draft" placeholder="Academic draft" />
           <StudentAchievementsTab />
         </StudentPalExperience>
       ) : null}
