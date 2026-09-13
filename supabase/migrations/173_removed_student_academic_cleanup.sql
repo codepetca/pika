@@ -168,6 +168,16 @@ begin
     where disposition='collateral_delete' or (disposition='redact' and table_name<>'retained_manual_attendance_marks')) then
     v_blockers:=array_append(v_blockers,'shared_resource_policy_required');
   end if;
+  -- Events carry independent scope columns; the legacy FK alone permits mixed
+  -- children. Either selected side must agree exactly before any deletion claim.
+  if exists(select 1 from public.attendance_status_override_events event
+    join public.attendance_status_overrides parent on parent.id=event.override_id
+    where ((parent.classroom_id=v_op.classroom_id and parent.student_id=v_op.student_id)
+      or (event.classroom_id=v_op.classroom_id and event.student_id=v_op.student_id))
+      and (event.classroom_id,event.student_id,event.occurrence_ref) is distinct from
+        (parent.classroom_id,parent.student_id,parent.occurrence_ref)) then
+    v_blockers:=array_append(v_blockers,'attendance_ownership_unknown');
+  end if;
   if exists(select 1 from public.attendance_override_requests where classroom_id=v_op.classroom_id) then
     v_blockers:=array_append(v_blockers,'shared_attendance_request_policy_required');
   end if;
@@ -647,6 +657,39 @@ do $$ declare v_table text; begin
       for each row execute function private.guard_removed_academic_reference()',v_table);
   end loop;
 end $$;
+
+-- Lock and fence the referenced parent as well as the event's own scope. This
+-- closes cross-scope inserts between inventory, file deletion and finalization,
+-- and rejects any unstaged child reached through the legacy cascading FK.
+create function private.guard_removed_academic_attendance_reference()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_row jsonb; v_parent public.attendance_status_overrides;
+begin
+  if tg_op='DELETE' and private.removed_academic_delete_allowed(tg_table_name,to_jsonb(old)) then return old; end if;
+  if tg_op='DELETE' and exists(select 1 from private.removed_academic_mutations
+    where transaction_id=txid_current() and action='finalize') then
+    raise exception using errcode='55000',message='academic_cleanup_unstaged_attendance_child';
+  end if;
+  for v_row in select value from jsonb_array_elements(jsonb_build_array(
+    case when tg_op<>'DELETE' then to_jsonb(new) end,case when tg_op<>'INSERT' then to_jsonb(old) end))
+    where jsonb_typeof(value)='object' loop
+    perform private.try_lock_classroom_membership_change((v_row->>'classroom_id')::uuid,(v_row->>'student_id')::uuid);
+    select * into v_parent from public.attendance_status_overrides where id=(v_row->>'override_id')::uuid;
+    if not found then continue; end if;
+    perform private.try_lock_classroom_membership_change(v_parent.classroom_id,v_parent.student_id);
+    if exists(select 1 from public.student_purge_fences fence
+      join private.student_provider_cleanup_bindings binding on binding.operation_id=fence.operation_id
+      where (fence.classroom_id=v_parent.classroom_id and fence.student_id=v_parent.student_id)
+        or (fence.classroom_id=(v_row->>'classroom_id')::uuid and fence.student_id=(v_row->>'student_id')::uuid)) then
+      raise exception using errcode='55000',message='academic_cleanup_attendance_reference_fenced';
+    end if;
+  end loop;
+  return case when tg_op='DELETE' then old else new end;
+end;
+$$;
+revoke all on function private.guard_removed_academic_attendance_reference() from public,anon,authenticated,service_role;
+create trigger removed_academic_attendance_reference before insert or update or delete
+  on public.attendance_status_override_events for each row execute function private.guard_removed_academic_attendance_reference();
 
 create function private.removed_academic_receipt(p_operation_id uuid,p_object jsonb default null)
 returns jsonb language plpgsql volatile set search_path = '' as $$

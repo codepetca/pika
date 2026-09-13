@@ -152,7 +152,7 @@ The ordinary purger still stops at `provider_pending` and cannot call this stage
 | Student-managed artifacts/images | Exact owner/purpose/bucket checks; existing object leases, retries and permanent path reservations; SQL absence verification |
 | Shared summaries, feedback candidates, grading runs, repo grading, AI provenance, retired assessment data | Block; no collateral deletion or shared-run redaction |
 | Archives, Gradex extracts, provisional intents, cleanup ledgers and cross-owner object references | Block; no whole-class copy cleanup |
-| Local attendance facts/projections/overrides/events | Exact student/classroom inventory and deletion; child events before overrides; immutable participant mapping retained |
+| Local attendance facts/projections/overrides/events | Exact student/classroom inventory and deletion; child events before overrides; mixed parent/event identities block and both scopes are fenced; immutable participant mapping retained |
 | Shared attendance override-request results | Block pending shared-result handling |
 | Pal/Bara delivery ledgers and identity evidence | Remain under the provider/integration obligation; never erased or declared complete by local academic evidence |
 | Account, profile, classmates, other classes, teacher materials and shared assets | Preserved |
@@ -167,7 +167,7 @@ reenrollment, reference rotation or overall finalizer is added.
 
 Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
 `scripts/check-removed-student-academic-database.sql` harness. The harness requires
-approved local173. It covers22 exact deletion/redaction categories, two leased files, eight blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
+approved local173. It covers22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
 never be described as committed-row MVCC or storage-byte deletion proof. Required
 remaining evidence includes exact schema/types, isolation/callback/lease tests,
 independent review and stable-head CI. No schema application authority is implied.

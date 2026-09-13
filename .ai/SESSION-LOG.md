@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Simplify student removal to preserve class records
-
-- User chose ordinary class removal rather than coordinated Pal erasure. Superseded the earlier background-purge proposal and removed its post-response worker. Added a separate preserving removal endpoint, explicit teacher re-add restoration, retained-roster filtering and clear removal versus permanent-deletion UI. No Pal calls or automatic erasure are part of normal removal.
-- Authored unapplied migration 164 to retain enrollment metadata/manual attendance and academic rows while removing active membership, block implicit rejoin/destructive legacy fallthrough, and preserve archive identity. A rollback-only database fixture is authored; actual behavior, archive/concurrency checks and generated types remain pending exact disposable-local migration authorization. No migration was applied and no production data changed.
-- Focused checks pass 214 tests plus TypeScript, lint and architecture/UI/design checks; separate migration-source tests pass; Pika audit passes. Teacher desktop/mobile light/dark visual scenarios pass after fixing menu alignment (desktop-light retried following a local navigation timeout). Student routing excludes teacher actions, but actual post-removal access needs the database fixture. Reused existing ConfirmDialog, AppMessage and action-menu primitives under the Pika UI brief. Nonblocking operation locks return a retryable conflict rather than waiting in reverse purge lock order.
-- PR #1244 remains draft; independent review of this replacement flow and schema execution are still required. Do not treat the previous worker review as review of the new design.
-
 ## 2026-09-11 — Verify preserving removal in an isolated database
 
 - Owner authorized one application of migration 164 via SQL in a disposable local database. Cloned only schema/static archive registry to `supabase_db_pika` database `pika_removal_164_wgvpf4`; source public/private schema equality was verified before the single successful transactional application. Shared `postgres` remains migration 163 with no removed roster columns; no production changes. The SQL authorization is consumed.
@@ -231,3 +224,7 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 
 - PR1259 initial Sol/high and Terra/high reviews found exact attendance overblocking and incomplete rollback coverage. One batch permits only staged exact attendance deletes, orders override events before parents, and tightens file ownership to exact assignment docs. All overall provider/re-add fences remain.
 - Expanded the unexecuted rollback harness to22 success resource categories, all29 allowlisted tables across success/blocked fixtures, two files, eight blocked cases, row-hash isolation and callback/backoff/lease scenarios. Source tests pass; SQL173 remains unapplied and database/types proof remains gated on direct local173 approval. Targeted source review follows; no migration or provider activation occurred.
+
+## 2026-09-13 — Fence mixed attendance parent links
+
+- PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.

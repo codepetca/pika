@@ -393,6 +393,28 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
     raise exception using errcode='P1731',message='rollback blocked case';
   exception when sqlstate 'P1731' then null; end;
 
+  -- Pre-existing mixed children on both peer and other-class scopes must block.
+  foreach f in array array['peer','other_class'] loop
+    begin
+      insert into public.attendance_status_override_events(id,override_id,request_id,classroom_id,student_id,
+        occurrence_ref,revision,action,status,actor_user_id)
+        select 'c1730000-0000-4000-8000-000000000099',id,gen_random_uuid(),
+          case when f='peer' then course_a else course_b end,case when f='peer' then peer else student end,
+          occurrence_ref,1,'set','present',teacher from public.attendance_status_overrides
+        where classroom_id=course_a and student_id=student;
+      actual:=to_jsonb(private.removed_academic_row_hash('attendance_status_override_events','c1730000-0000-4000-8000-000000000099'));
+      perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+      perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+      update private.removed_student_academic_settings set enabled=true where singleton;
+      result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'inventory');
+      if not(result->'blockers' ? 'attendance_ownership_unknown') then raise exception 'Mixed attendance link unblocked'; end if;
+      result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'claim');
+      if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed'
+        or actual is distinct from to_jsonb(private.removed_academic_row_hash('attendance_status_override_events',
+          'c1730000-0000-4000-8000-000000000099')) then raise exception 'Mixed attendance child changed'; end if;
+      raise exception using errcode='P1731',message='rollback mixed attendance';
+    exception when sqlstate 'P1731' then null; end;
+  end loop;
   create temporary table academic_preserved_rows on commit drop as
     select resource.*,private.removed_academic_row_hash(table_name,row_id) expected_hash
     from (select * from private.removed_academic_resources(course_a,peer)
@@ -448,6 +470,20 @@ values(object_id,'submission-images','fixture173/target.png','c1730000-0000-4000
       values('restore_copy',course_a,gen_random_uuid(),teacher,clock_timestamp()+interval '1 day');
     raise exception 'Restore intent accepted';
   exception when sqlstate '55000' then null; end;
+  -- Attempts arriving after inventory must consult the parent's fenced scope.
+  -- These are serialized mutation checks, not a committed-row MVCC race proof.
+  foreach f in array array['peer','other_class'] loop
+    begin
+      insert into public.attendance_status_override_events(override_id,request_id,classroom_id,student_id,
+        occurrence_ref,revision,action,status,actor_user_id)
+        select id,gen_random_uuid(),case when f='peer' then course_a else course_b end,
+          case when f='peer' then peer else student end,occurrence_ref,1,'set','present',teacher
+        from public.attendance_status_overrides where classroom_id=course_a and student_id=student;
+      raise exception 'Late cross-scope attendance link accepted';
+    exception when sqlstate '55000' then
+      if sqlerrm<>'academic_cleanup_attendance_reference_fenced' then raise; end if;
+    end;
+  end loop;
   -- Source drift is intentionally injected using the old superuser-only fixture
   -- bypass, then rolled back. It never authorizes local deletion.
   begin
