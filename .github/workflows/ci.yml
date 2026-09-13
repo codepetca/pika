@@ -148,6 +148,9 @@ jobs:
       - name: Classroom Pal signal and delivery contracts
         run: bash scripts/check-pal-classroom-database.sh
 
+      - name: Removed-membership academic cleanup database contracts
+        run: bash scripts/check-removed-student-academic-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

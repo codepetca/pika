@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Verify preserving removal in an isolated database
-
-- Owner authorized one application of migration 164 via SQL in a disposable local database. Cloned only schema/static archive registry to `supabase_db_pika` database `pika_removal_164_wgvpf4`; source public/private schema equality was verified before the single successful transactional application. Shared `postgres` remains migration 163 with no removed roster columns; no production changes. The SQL authorization is consumed.
-- Rollback-only tests pass for mixed removal, retained work/grades/Pal/manual attendance, exact attendance activation restore, owner denial, active decommission conflict, implicit rejoin denial, retry, email-change binding, cross-class preservation, and removed-student archive/compaction/restore without accidental reenrollment. Separate-session lock probes pass. Current standalone Gradebook archive contract also passes; obsolete generic archive scripts reference retired quizzes and are not applicable. Database lint reports no errors/warnings; all synthetic fixture users rolled back.
-- Generated public types directly from the isolated database with Supabase CLI and independently compared fresh output; removed temporary RPC casts and typed roster read results. The normal local types wrapper still targets the unchanged shared database; clean replay/types equality remain CI gates. Added the removal fixture runner to CI. Focused gate passes 209 tests plus static gates; targeted removal/API source checks pass 18 tests; UI is unchanged from the prior verified matrix. Initial Sol/high and Terra/high independent review follows against a fixed detached commit; keep PR #1244 draft pending that review.
-
 ## 2026-09-11 — Batch preserving-removal review corrections
 
 - Initial independent review of fixed `32aed6aa` used Sol/high and Terra/high (2 launches, one full-diff wave). Full fixed-head suite passed 6,644 tests/734 files. Accepted P1s: application archive actor contract omitted `removed_student_id`; re-add after account email change missed retained identity; Gradebook enrollment check preceded serialization locks. One remediation batch updates current/v2 actor contracts while preserving immutable v1, resolves re-add via stable identity with transactional unbound-placeholder merge and identity-reuse rejection, and locks before mark checks. Added actor/preflight, fallback, email-reuse and actual grade-race regressions.
@@ -228,3 +222,7 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 ## 2026-09-13 — Fence mixed attendance parent links
 
 - PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.
+
+## 2026-09-13 — Register academic cleanup CI verification
+
+- Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.
