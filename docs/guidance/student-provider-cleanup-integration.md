@@ -1,8 +1,9 @@
 # Student provider cleanup integration — Phase 3 prerequisite
 
 Status: initial source review and one correction review complete; runtime integration,
-canonical database types and local rollback verification complete. Final cumulative
-review remains pending. No provider requests. This is a prerequisite increment, not Phase 3
+canonical database types and local rollback verification complete at171. Final review
+corrections await targeted review and local172 verification. No provider requests.
+This is a prerequisite increment, not Phase 3
 completion. Owner: task `01a09b31-f9d8-7ce0-8a20-0bfd61f67009`, branch
 `codex/pal-student-cleanup-integration`. Risk: runtime-platform.
 Model recommendation: GPT-6 Astra for implementation; Sol/high security and
@@ -72,13 +73,21 @@ is versioned, structurally strict and bound to the saved operation/reference.
 404, 202 completion, timeouts, transport failures, malformed responses and scope
 mismatches never prove cleanup. Pal pending/copy-blocked and Bara blocked states
 stay pending. These receipts cover provider-defined scope, not all Pika data.
+Pal generic404, malformed receipts and unexpected successful HTTP statuses are
+retryable uncertainty using the same operation binding; definite authorization,
+binding and configuration errors remain blocked. No rejected reply is persisted
+as cleanup proof.
 
 ## Verification and remaining review
 
 - Exact reviewed migration171 (SHA256598ee035bea90e47aade94acb7d79ce2227e110c343e57be0661e71ce4ccd587)
   applied once to the existing local Pika database. Ledger001–171, all private
   gates off, no synthetic fixture rows retained. Canonical generated types and
-  their drift check pass. Generated types were not edited by hand.
+  their drift check passed at171. Generated types were not edited by hand.
+  Forward correction172 preserves the function signature and authorization call
+  while removing an unused return variable flagged by warning-level database lint.
+  It remains unapplied pending its own exact local approval; post172 lint/type
+  drift and database verification are not yet claimed.
 - The bounded coordinator's direct typed RPC bridge and generation-aware
   attendance scan/pre-send/replay consumers are authored and covered by synthetic
   tests. TypeScript passes against the generated contract; the nullable replay
@@ -116,6 +125,9 @@ those mocked checks do not establish real SQL race safety. The independent-revie
 session ended at15:44UTC with three launches and one correction batch. The user
 approved an extension of up to30minutes and two additional launches; prior usage
 remains counted. Its clock starts when the final review begins.
+Final cumulative review found the Pal retry classification and the known SQL lint
+blocker; both are batched into the next source checkpoint for targeted review.
+The extension runs16:01–16:31UTC, with at most five launches total.
 
 ## Remaining release and product gates
 

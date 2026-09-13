@@ -31971,3 +31971,9 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 - Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
 - Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
 - `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
+
+<!-- pika-session-log-archive-batch:be4de9a49425eb9d6c57a1f324a1a0a0b4d69f031beb3c3fe34cca3077e8499c -->
+## 2026-09-10 — Order and group Gradebook menu actions
+
+- Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
+- Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.

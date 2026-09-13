@@ -32,15 +32,28 @@ describe('Pal exact membership erasure', () => {
     { begun_at: '2026-09-13T15:00:00-04:00' }])('rejects malformed or foreign receipts %j', async patch => {
     expect(parsePalErasureReceipt({ ...completed, ...patch }, binding)).toBeNull()
     await expect(requestPalProfileErasure('begin', binding, { fetcher: vi.fn(async () => Response.json({ ...completed, ...patch })) }))
-      .rejects.toMatchObject({ code: 'invalid_receipt', retryable: false })
+      .rejects.toMatchObject({ code: 'invalid_receipt', retryable: true })
   })
   it.each([202, 201, 206])('rejects completion returned with status %i', async status => {
     await expect(requestPalProfileErasure('begin', binding, { fetcher: vi.fn(async () => Response.json(completed, { status })) }))
-      .rejects.toMatchObject({ code: 'invalid_receipt' })
+      .rejects.toMatchObject({ code: 'invalid_receipt', retryable: true })
   })
-  it.each([[404, false], [409, false], [403, false], [422, false], [429, true], [503, true], [408, true]])('never treats HTTP %i as cleanup', async (status, retryable) => {
+  it.each([[404, true], [409, false], [401, false], [403, false], [422, false], [429, true], [503, true], [408, true]])('never treats HTTP %i as cleanup', async (status, retryable) => {
     await expect(requestPalProfileErasure('begin', binding, { fetcher: vi.fn(async () => Response.json({ error: 'sensitive_upstream_text' }, { status: Number(status) })) }))
       .rejects.toMatchObject({ code: 'remote_rejected', retryable })
+  })
+  it.each(['not JSON', 'x'.repeat(4097)])('retries unproven receipt bodies without changing operation identity', async body => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(body))
+      .mockResolvedValueOnce(Response.json(pending, { status: 202 }))
+    await expect(requestPalProfileErasure('begin', binding, { fetcher }))
+      .rejects.toMatchObject({ code: 'invalid_receipt', retryable: true })
+    expect(await requestPalProfileErasure('begin', binding, { fetcher })).toEqual(pending)
+    expect(fetcher.mock.calls[0][1]?.body).toBe(fetcher.mock.calls[1][1]?.body)
+  })
+  it('preserves terminal authorization classification even with an oversized error body', async () => {
+    await expect(requestPalProfileErasure('begin', binding, {
+      fetcher: vi.fn(async () => new Response('x'.repeat(4097), { status: 403 })),
+    })).rejects.toMatchObject({ code: 'remote_rejected', retryable: false, status: 403 })
   })
   it('keeps operation identity after lost response and never echoes the thrown error', async () => {
     const fetcher = vi.fn<typeof fetch>().mockRejectedValueOnce(new Error('secret token and learner content'))

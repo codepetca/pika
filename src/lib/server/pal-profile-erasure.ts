@@ -58,19 +58,20 @@ export async function requestPalProfileErasure(
       ...(action === 'begin' ? { body: JSON.stringify(parsed.data) } : {}),
       cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(5_000),
     })
+    if (!response.ok) {
+      throw new PalErasureError('remote_rejected', [404, 408, 429].includes(response.status) || response.status >= 500, response.status)
+    }
     const text = await response.text()
-    if (text.length > 4_096) throw new PalErasureError('invalid_receipt', false)
+    if (text.length > 4_096) throw new PalErasureError('invalid_receipt', true, response.status)
     try { body = JSON.parse(text) as unknown } catch { body = null }
   } catch (error) {
     if (error instanceof PalErasureError) throw error
     throw new PalErasureError('network_error', true)
   }
-  if (!response.ok) {
-    throw new PalErasureError('remote_rejected', [408, 429].includes(response.status) || response.status >= 500, response.status)
-  }
   const receipt = parsePalErasureReceipt(body, parsed.data)
   // A 202 can establish pending state only. GET has a single success status.
+  // Unproven replies remain retryable with the same durable operation binding.
   if (!receipt || (response.status !== 200 && !(action === 'begin' && response.status === 202 && receipt.status === 'pending')))
-    throw new PalErasureError('invalid_receipt', false, response.status)
+    throw new PalErasureError('invalid_receipt', true, response.status)
   return receipt
 }

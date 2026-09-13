@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-10 — Order and group Gradebook menu actions
-
-- Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
-- Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.
-
 ## 2026-09-10 — Synchronize Gradebook with main through PR 1241
 
 - Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
@@ -237,3 +232,7 @@ Authored direct typed provider reservation/read/authorization/receipt RPC bridge
 ## 2026-09-13 — Approved local171 application and runtime verification
 
 Direct user approval authorized exactlocal171/hash598ee035 and bounded review extension. Single application succeeded; ledger001–171 and membership/signals/cleanup gates remainoff. Canonical types generated and drift check pass; nullable replay input refined in application contract. Fixed two SQL fixture assumptions, then rollback suite passed with no retained c171rows. Two-connection harness verifies five real RPC/producer lock conflicts and rollback/release; no committed-row MVCC rehearsal or fixture seed is claimed. Full focused checks passed622tests/types/policies/lint; prior8browsercases and visuals remain applicable. Review extension up30minutes/MAX2extra launches begins at final review, prior3launches/1batch retained. No hosted rollout/provider requests/merge; stable draft PR and cumulative review follow.
+
+## 2026-09-13 — Phase3 final review correction batch
+
+DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
