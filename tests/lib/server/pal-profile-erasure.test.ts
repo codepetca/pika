@@ -63,3 +63,26 @@ describe('Pal exact membership erasure', () => {
     expect(fetcher.mock.calls[0][1]?.body).toBe(fetcher.mock.calls[1][1]?.body)
   })
 })
+
+const liveBinding = { ...binding, schema_version: 2 as const, policy: 'pika-live-v1' as const }
+const liveCompleted = { ...completed, schema_version: 2, policy: 'pika-live-v1', historical_backups: 'excluded', backup_retention: 'not_attested' }
+describe('Pal live policy compatibility', () => {
+  it('uses exact v2 POST and GET-only policy header with stable retries', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(liveCompleted))
+    await requestPalProfileErasure('begin', liveBinding, { fetcher })
+    await requestPalProfileErasure('status', liveBinding, { fetcher })
+    expect(JSON.parse(fetcher.mock.calls[0][1]!.body as string)).toEqual(liveBinding)
+    expect(fetcher.mock.calls[0][1]!.headers).not.toHaveProperty('Pal-Erasure-Policy')
+    expect(fetcher.mock.calls[1][1]!.headers).toHaveProperty('Pal-Erasure-Policy', 'pika-live-v1')
+    expect(fetcher.mock.calls[1][1]!.body).toBeUndefined()
+  })
+  it('never upgrades strict receipts or accepts strict proof for a live operation', () => {
+    expect(parsePalErasureReceipt(liveCompleted, binding)).toBeNull()
+    expect(parsePalErasureReceipt(completed, liveBinding)).toBeNull()
+  })
+  it.each([{ policy: 'strict-v1' }, { historical_backups: 'erased' }, { backup_retention: '7 days' },
+    { begun_at: '2026-09-13T15:00:00Z' }, { completed_at: '2026-09-13T15:01:00.0000Z' },
+    { begun_at: '2026-02-30T15:00:00.000Z' }, { extra: true }, { status: 'pending' }])('fails closed for invalid live proof %j', patch => {
+    expect(parsePalErasureReceipt({ ...liveCompleted, ...patch }, liveBinding)).toBeNull()
+  })
+})

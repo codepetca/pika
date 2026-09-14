@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Split removal browser contracts after CI timeout
-
-- Final review launch7 cleared `48c4a767`; exact-head CI passed full test/build and all database contracts, but the combined removal/purge/student visual test repeatedly exhausted its30s total budget (one final failure, other transient browser scenarios retried successfully). User requested the next correction and main synchronization; PR returned to draft before edits.
-- Split each viewport/theme into independent preserving-removal, permanent-deletion and student-boundary tests; retained every action/assertion/capture without raising timeouts. Authenticated exact-title API fixture discovery replaces unrelated index navigation; explicit baseURL and DOM-ready navigation avoid redundant load waits. Student content must resolve before absence assertions, preventing loading-state false positives.
-- Merged main `7ddd3873`, preserving both session histories; only archive-log marker conflict, no product/schema conflict. Focused817tests/63files and static gates/audit pass. Final local browser14/14 pass in30.3s, teacher/student desktop/mobile light/dark captures inspected (`/tmp/pika-removal-browser-final`). No product or SQL correction; migration checksum remains `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7`. Final available reviewer slot8 and fresh exact-head CI remain. No migration/merge/deployment authorization.
-
 ## 2026-09-11 — Restore classroom join controls
 
 - Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
@@ -223,3 +217,11 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 
 - Final cumulative Sol review found an unfenced repo-review run INSERT could race local cleanup after a route cached student data. Prepared forward174;173 remains immutable.174 extends the latest indirect purge guard to repo-review runs and installs insert/update/delete protection, preserving old/new scope locking and existing behavior.
 - Added route regressions proving denied/failed run creation stops cached-data analysis/AI grading, and deterministic fixture regressions for late run insertion after inventory/completion and moves into/out of fenced classrooms. These do not claim committed-row MVCC proof.174 application requires fresh exact local approval. One targeted review remains within the approved20:20:10–20:50:10 extension; PR1259 remains draft. Latest execution/CI receipts are recorded in that PR.
+
+## 2026-09-13 — Explicit live membership purge integration
+
+Task01a09d38, branch codex/explicit-live-membership-purge: added default-off explicit
+Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
+synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
+shared-data blockers; updates existing roadmap to settled historical-backup
+exclusion. No persistent DB/provider/config action. Review/CI still pending.

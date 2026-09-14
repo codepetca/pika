@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import {
   palErasureReceiptSchema, parsePalErasureReceipt, requestPalProfileErasure,
-  PalErasureError, type PalErasureReceipt,
+  PalErasureError, type PalErasureReceipt, type PalErasureBinding,
 } from '@/lib/server/pal-profile-erasure'
 import { postBaraParticipantErasure, BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
 import { invalidatePalReadTokenForMembership } from '@/lib/server/pal-read-token'
@@ -15,11 +15,15 @@ export const studentProviderScopeSchema = z.object({
 export type StudentProviderScope = z.infer<typeof studentProviderScopeSchema>
 const bindingSchema = z.object({
   schema_version: z.literal(1), operation_id: uuid, generation_id: uuid,
-  status: z.literal('provider_pending'), pal_origin: z.string().url(), pal_integration_id: uuid,
+  status: z.enum(['provider_pending', 'completed']),
+  pal_schema_version: z.union([z.literal(1), z.literal(2)]).optional(),
+  pal_policy: z.enum(['strict-v1', 'pika-live-v1']).optional(), pal_origin: z.string().url(), pal_integration_id: uuid,
   pal_reference: z.string().regex(/^pika-membership-v1-[a-f0-9]{32}$/),
   bara_origin: z.string().url(), installation_ref: opaque, roster_ref: opaque,
   participant_ref: opaque, actor_principal_ref: opaque,
   pal_receipt: palErasureReceiptSchema.nullable(), bara_receipt: z.unknown(),
+  local_status: z.enum(['not_started','inventoried','deleting','local_completed']).optional(),
+  blockers: z.array(z.string()).optional(),
 }).strict()
 export type StudentProviderBinding = z.infer<typeof bindingSchema>
 
@@ -38,26 +42,39 @@ function baraRequest(binding: StudentProviderBinding, action: 'begin' | 'tick' |
     operation_ref: `erase_participant_${binding.operation_id.replaceAll('-', '')}`,
     actor_principal_ref: binding.actor_principal_ref }
 }
+function palRequest(binding: StudentProviderBinding): PalErasureBinding {
+  const identity = { operation_id: binding.operation_id, learner_id: binding.pal_reference }
+  return binding.pal_schema_version === 2 ? { ...identity, schema_version: 2, policy: 'pika-live-v1' } : identity
+}
 function validateBinding(raw: unknown, scope: StudentProviderScope): StudentProviderBinding {
   const parsed = bindingSchema.safeParse(raw)
   if (!parsed.success || parsed.data.operation_id !== scope.operationId
     || parsed.data.generation_id !== scope.generationId) throw new StudentProviderCleanupError('binding_invalid')
   const binding = parsed.data
+  if (!((binding.pal_schema_version === undefined && binding.pal_policy === undefined)
+    || (binding.pal_schema_version === 1 && binding.pal_policy === 'strict-v1')
+    || (binding.pal_schema_version === 2 && binding.pal_policy === 'pika-live-v1')))
+    throw new StudentProviderCleanupError('binding_invalid')
   if (binding.pal_receipt && !parsePalErasureReceipt(binding.pal_receipt,
-    { operation_id: binding.operation_id, learner_id: binding.pal_reference })) throw new StudentProviderCleanupError('binding_invalid')
+    palRequest(binding))) throw new StudentProviderCleanupError('binding_invalid')
   if (binding.bara_receipt !== null && !parseParticipantErasureReceipt(binding.bara_receipt, baraRequest(binding, 'status')))
+    throw new StudentProviderCleanupError('binding_invalid')
+  if (binding.status === 'completed' && (binding.pal_schema_version !== 2
+    || binding.local_status !== 'local_completed' || binding.pal_receipt?.status !== 'completed'
+    || parseParticipantErasureReceipt(binding.bara_receipt, baraRequest(binding, 'status'))?.state !== 'deleted'))
     throw new StudentProviderCleanupError('binding_invalid')
   return binding
 }
 function sameBinding(before: StudentProviderBinding, after: StudentProviderBinding) {
-  return Object.keys(before).filter(key => key !== 'pal_receipt' && key !== 'bara_receipt')
+  return Object.keys(before).filter(key => !['pal_receipt', 'bara_receipt', 'local_status', 'blockers'].includes(key))
     .every(key => before[key as keyof StudentProviderBinding] === after[key as keyof StudentProviderBinding])
 }
 function status(binding: StudentProviderBinding) {
-  return { operation_id: binding.operation_id, status: 'provider_pending' as const,
+  return { operation_id: binding.operation_id, status: binding.status,
     pal: binding.pal_receipt?.status ?? 'not_started',
     bara: binding.bara_receipt === null ? 'not_started' : parseParticipantErasureReceipt(binding.bara_receipt, baraRequest(binding, 'status'))!.state,
-    cleanup_completed: false as const }
+    cleanup_completed: binding.status === 'completed',
+    ...(binding.local_status ? { local_status: binding.local_status, blockers: binding.blockers ?? [] } : {}) }
 }
 
 /** One bounded provider request on the existing database-owned prerequisite. */
@@ -66,6 +83,7 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
   read: (scope: StudentProviderScope) => Promise<unknown>
   authorize: (scope: StudentProviderScope) => Promise<unknown>
   record: (scope: StudentProviderScope, provider: 'pal' | 'bara', receipt: PalErasureReceipt | ParticipantErasureReceipt) => Promise<unknown>
+  finish?: (scope: StudentProviderScope) => Promise<unknown>
   pal?: typeof requestPalProfileErasure
   bara?: typeof postBaraParticipantErasure
   invalidate?: typeof invalidatePalReadTokenForMembership
@@ -92,6 +110,14 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
       invalidate(binding.pal_reference)
       return status(binding)
     },
+    async finish(input: unknown) {
+      gate()
+      const scope = studentProviderScopeSchema.parse(input)
+      if (!dependencies.finish) throw new StudentProviderCleanupError('disabled')
+      const binding = await load(dependencies.finish, scope)
+      if (binding.status !== 'completed') throw new StudentProviderCleanupError('binding_invalid')
+      return status(binding)
+    },
     async read(input: unknown) {
       const scope = studentProviderScopeSchema.parse(input)
       return status(await load(dependencies.read, scope))
@@ -106,9 +132,9 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
       try {
         if (provider === 'pal') {
           if (binding.pal_receipt?.status === 'completed') return status(binding)
-          const response = await pal('begin', { operation_id: binding.operation_id, learner_id: binding.pal_reference },
+          const response = await pal('begin', palRequest(binding),
             { binding: { origin: binding.pal_origin, integrationId: binding.pal_integration_id } })
-          const verified = parsePalErasureReceipt(response, { operation_id: binding.operation_id, learner_id: binding.pal_reference })
+          const verified = parsePalErasureReceipt(response, palRequest(binding))
           if (!verified) throw new StudentProviderCleanupError('binding_invalid')
           receipt = verified
         } else {
