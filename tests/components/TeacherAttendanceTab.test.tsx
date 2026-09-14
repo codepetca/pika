@@ -813,6 +813,31 @@ describe('TeacherAttendanceTab', () => {
     expect(window.localStorage.getItem('teacher-daily:show-id')).toBe('false')
   })
 
+  it('keeps pinned attendance cells beneath the sticky column header', async () => {
+    // The pinned status and undo row cells must not outrank the sticky header layer,
+    // otherwise rows paint over the sortable header while the table scrolls.
+    mockCombinedFetch()
+
+    const view = render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const presentHeader = await screen.findByRole('columnheader', { name: /present/i })
+    expect(presentHeader.closest('thead')).toHaveClass('sticky', 'top-0', 'z-sticky-table')
+    expect(presentHeader).toHaveClass('sticky', 'z-sticky-table')
+
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' }).closest('td')).toHaveClass(
+      'sticky',
+    )
+    const pinnedCells = view.container.querySelectorAll('tbody td.sticky')
+    expect(pinnedCells.length).toBeGreaterThan(0)
+    pinnedCells.forEach((cell) => expect(cell).not.toHaveClass('z-sticky-table'))
+  })
+
   it('keeps manual corrections available while QR is not yet open', async () => {
     mockCombinedFetch(combinedAttendanceView({
       session: {
