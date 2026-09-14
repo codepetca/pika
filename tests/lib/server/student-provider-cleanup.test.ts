@@ -125,3 +125,20 @@ describe('saved live policy', () => {
     expect(f.pal).not.toHaveBeenCalled()
   })
 })
+
+it.each(['strict', 'generation', 'operation', 'authorization'] as const)('live-only guard rejects %s before either provider request', async mismatch => {
+  const live = { ...binding, pal_schema_version: 2 as const, pal_policy: 'pika-live-v1' as const }
+  const invalid = mismatch === 'strict' ? binding : mismatch === 'generation' ? { ...live, generation_id: scope.studentId }
+    : mismatch === 'operation' ? { ...live, operation_id: scope.studentId } : live
+  const authorize = vi.fn().mockImplementation(async () => {
+    if (mismatch === 'authorization') throw new Error('Exact teacher/classroom/student authorization rejected')
+    return invalid
+  })
+  const pal = vi.fn(), bara = vi.fn(), record = vi.fn(), invalidate = vi.fn()
+  const coordinator = createStudentProviderCleanupCoordinator({ liveOnly: true, reserve: authorize,
+    read: authorize, authorize, record, pal, bara, invalidate })
+  await expect(coordinator.advance(scope, 'pal')).rejects.toThrow()
+  await expect(coordinator.advance(scope, 'bara')).rejects.toThrow()
+  expect(pal).not.toHaveBeenCalled(); expect(bara).not.toHaveBeenCalled()
+  expect(record).not.toHaveBeenCalled(); expect(invalidate).not.toHaveBeenCalled()
+})

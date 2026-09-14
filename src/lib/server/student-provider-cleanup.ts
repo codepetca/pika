@@ -83,6 +83,7 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
   read: (scope: StudentProviderScope) => Promise<unknown>
   authorize: (scope: StudentProviderScope) => Promise<unknown>
   record: (scope: StudentProviderScope, provider: 'pal' | 'bara', receipt: PalErasureReceipt | ParticipantErasureReceipt) => Promise<unknown>
+  liveOnly?: boolean
   finish?: (scope: StudentProviderScope) => Promise<unknown>
   pal?: typeof requestPalProfileErasure
   bara?: typeof postBaraParticipantErasure
@@ -100,7 +101,10 @@ export function createStudentProviderCleanupCoordinator(dependencies: {
       if (error instanceof StudentProviderCleanupError) throw error
       throw new StudentProviderCleanupError('persistence_unavailable', true)
     }
-    return validateBinding(raw, scope)
+    const binding = validateBinding(raw, scope)
+    if (dependencies.liveOnly && (binding.pal_schema_version !== 2 || binding.pal_policy !== 'pika-live-v1'))
+      throw new StudentProviderCleanupError('binding_invalid')
+    return binding
   }
   return {
     async reserve(input: unknown) {

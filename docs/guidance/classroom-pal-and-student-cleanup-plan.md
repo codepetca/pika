@@ -1,13 +1,13 @@
 # Classroom-specific Pal and student cleanup roadmap
 
 Status: Phase1 and Phase2 delivered; provider and academic prerequisites delivered;
-Phase3 explicit live-purge integration in review, default disabled. The automatic
+Phase3 backend PR1260 merged; teacher dialog implemented in PR1261, default disabled. The automatic
 worker follows the usable explicit flow. This is the existing six-phase roadmap,
 updated to the user's settled live-data policy on2026-09-13.
 
 Coordinator: `01a09083-d907-7532-ae50-9b46d292bdb6`. Current implementation owner:
-`01a09d38-cc38-7850-b061-e3575db13c17`, branch
-`codex/explicit-live-membership-purge`. Provider contract, exact invocation,
+`01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch
+`codex/teacher-live-purge-dialog`. Provider contract, exact invocation,
 limitations and rollout evidence are maintained in
 [student-provider-cleanup-integration.md](student-provider-cleanup-integration.md).
 
@@ -53,7 +53,7 @@ Read-token caching and client memory are invalidated on denial/context changes,
 and stale replies cannot repopulate closed state. Academic children are not
 remounted merely to invalidate Pal. No Pal engine rewrite was required.
 
-## Phase3 — explicit removed-membership live purge: implementation in review
+## Phase3 — explicit removed-membership live purge: backend merged, UI review in PR1261
 
 Delivered prerequisites:
 

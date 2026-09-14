@@ -103,9 +103,12 @@ Use the existing authenticated teacher session and the exact target URL:
 `/api/teacher/classrooms/{classroomId}/students/{studentId}/purge/live`.
 The caller cannot supply a teacher identity or provider tenant.
 
-1. GET without a query returns the exact retained `generation_id` after current
-   teacher ownership validation. It does not reserve or send a provider request.
-2. Generate one operation UUID and save it with that generation. POST:
+1. GET without a query returns the retained `generation_id`, existing live
+   `operation` (or null), and application `enabled` state after teacher ownership
+   validation. Existing operations remain readable while paused. It does not
+   reserve or send a provider request.
+2. Reuse any existing operation. Otherwise generate one operation UUID and save
+   it with that generation before the first request. POST:
 
    ```json
    {
@@ -186,7 +189,8 @@ The SQL fixture `scripts/check-live-student-cleanup-database.sql` is rollback-on
 its Storage metadata deletion is not committed-row MVCC or real-byte evidence.
 The existing storage coordinator mocks cover physical adapter calls and lost
 callbacks. Existing Pal client tests cover memory/token invalidation and late
-reply rejection without losing academic input. No rendered UI change is made.
+reply rejection without losing academic input. PR1260 did not change rendered UI;
+the teacher dialog integration is recorded below.
 
 PR1260 records the exact reviewed migration hash, fixed review SHA, PR Gate and
 CI result as they become available. Until those checks finish this is an
@@ -216,3 +220,70 @@ are the rollback floor. Never revert to a writer that can reopen a saved identit
 or misread v2 as strict proof. Migration application follows the
 [schema authorization checklist](schema-rollout-checklist.md); no prior approval
 can be reused for175 or another target.
+
+## Teacher dialog integration — 2026-09-13
+
+Owner: `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch
+`codex/teacher-live-purge-dialog`; based on merged backend PR1260 / `80505399`.
+The roster's More actions menu opens **Clean up live class data** for retained
+removed memberships. Active roster rows and ordinary Remove from class keep their
+existing behavior. No live operation falls back to a legacy purge endpoint.
+Existing strict-policy operations cannot advance through this dialog; the
+original strict APIs retain their policy and behavior.
+
+The server projects only authorized removed-membership selector fields. Pending
+operations are recovered through the existing exact-scope binding reader,
+including while activation is paused. Completed operations do not restore cleared
+public student identifiers. The browser saves an opaque operation/classroom/
+student/generation key in session storage before reservation; a lost completion
+reply can be checked using that key even after the removed roster row disappears.
+A new browser can discover a still-pending operation; uncertain completion recovery
+requires the already-held exact key. Validated completion clears that key before
+roster refresh, so subsequent reloads do not reconstruct completed targets.
+A concurrent reservation loser reconciles a rejected saved UUID through read-only,
+exact-generation server discovery; it never generates a third operation or advances
+while reconciling. Storage failure prevents starting new work.
+
+The dialog requires case-sensitive email confirmation before reservation. One
+explicit Continue performs one bounded advance. No timer or background worker
+continues after closure. Reads validate the operation and guarded terminal status;
+HTTP success alone and local completion do not release re-add. Retry preserves
+the original operation, including uncertain reservation responses. Response epochs
+and a per-membership request lock suppress stale updates and overlapping requests.
+Provider or ownership blockers remain pending and require status refresh.
+
+Every live reservation/advance requires all five documented application gates;
+pausing any one leaves exact status readable. Incompatible operation/policy reads
+return a stable 409 ineligible response without transport or legacy fallback.
+The existing provider coordinator now supports a live-only binding check before
+any provider request. It rejects strict policy and mismatched operation/generation
+without modifying strict behavior or adding schema. Client responses contain no
+provider origins, credentials, private receipt bindings, or reconstructed identity.
+
+### UI brief and verification contract
+
+Surface: existing roster menu and `StudentPurgeDialog`. Reference: governed
+`ContentDialog` and `/pattern-lab` Controls / QR sizing dialog, with the roster's
+existing teacher work-surface menu. Primary signal: danger action and short
+irreversible-scope copy. No dashboard, progress percentages, background promises,
+whole-class archive deletion, restore action, or invitation redesign.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Removed membership entry | Roster More actions | extend | Active rows stay unchanged |
+| Overlay and focus | ContentDialog | reuse | Shared modal behavior |
+| Scope and confirmation | Select, FormField, Input, Button | reuse | Canonical accessible controls |
+| Request lifecycle | Feature hook/client module | create | Feature logic outside generic UI |
+
+Teacher desktop/mobile, light/dark: loading, confirmation, pending, provider
+waiting, error, retry, paused, and completed. Keyboard containment, Escape,
+reopen, reload, saved-key recovery, and default-off entry are covered with mocked
+API fixtures. Student dialog role is n/a because no student surface or shared
+primitive changes; existing student Pal privacy/input-preservation fixture tests
+are the regression evidence. Composite checklist reviewed; no experimental shared
+pattern or human promotion is required. No nearby duplication warrants extraction.
+
+Reproduction: `e2e/teacher-live-cleanup.spec.ts` (fixture API only); captures under
+`output/playwright/live-cleanup`. Exact commit and reviewed capture evidence belong
+in the PR handoff. No real purge, provider request, gate change, migration, or
+production release is part of this UI verification.
