@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — PR #1245 reviewed-blocker continuation
-
-- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
-- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.
-
-## 2026-09-11 — PR #1245 cumulative review remediation
-
-- Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
-- Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.
-
 ## 2026-09-11 — Compact Daily attendance rows
 
 - Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
@@ -226,3 +216,9 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 - Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
 - Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
 - Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
+
+## 2026-09-14 — Deduplicate the Daily sticky-column offsets
+
+- Owner `codex/dedupe-daily-sticky-offsets`, follow-up to PR1262. The pinned-column right offsets existed as a duplicated literal map in both `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; moved it to the shared `TeacherAttendanceControls.tsx` that both already import, as `STICKY_ATTENDANCE_OFFSETS`, and deleted both copies so the reference surface and its Pattern Lab twin cannot drift. The mockup keeps its own local `AttendanceMark` alias, so its diff is only the import plus the removed map.
+- Strengthened `tests/ui/PageMockups.test.tsx` to assert the mockup pins each status column at the same offset class as production (`right-attendance-one`/`two`/`three`) plus the trailing `right-0` undo column. Focused gate 19 files/249 tests plus architecture, UI policy, design policy, TypeScript and lint.
+- No visual change: the mockup table captured before and after the refactor is byte-identical (same SHA-256, zero pixel difference). Deliberately left the table's `border-collapse` model alone: pinned cells carry no borders to drop, and the row dividers come from `divide-y` row borders that the collapsed model paints and `border-separate` would remove (the Gradebook pays for separate borders with per-cell `border-b`).

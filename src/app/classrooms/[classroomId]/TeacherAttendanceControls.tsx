@@ -18,6 +18,13 @@ export const SORTABLE_ATTENDANCE_STATUSES: TeacherAttendanceMark[] = [
   'absent',
 ]
 
+/** Right-edge offsets that pin each status column while the Daily table scrolls. */
+export const STICKY_ATTENDANCE_OFFSETS: Record<TeacherAttendanceMark, string> = {
+  present: 'right-attendance-three',
+  late: 'right-attendance-two',
+  absent: 'right-attendance-one',
+}
+
 const STATUS_CHIP_CLASSES: Record<TeacherAttendanceMark, string> = {
   present: 'bg-attendance-present text-attendance-present-text',
   late: 'bg-attendance-late text-attendance-late-text',
