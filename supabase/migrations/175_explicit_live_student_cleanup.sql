@@ -140,7 +140,7 @@ end;
 $$;
 
 create function private.live_student_cleanup_instant(p_value text)
-returns boolean language plpgsql immutable set search_path='' as $$
+returns boolean language plpgsql stable set search_path='' as $$
 begin
   return coalesce(p_value ~ '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$'
     and to_char(p_value::timestamptz at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')=p_value,false);
