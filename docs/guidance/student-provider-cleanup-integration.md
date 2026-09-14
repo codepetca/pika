@@ -237,8 +237,12 @@ including while activation is paused. Completed operations do not restore cleare
 public student identifiers. The browser saves an opaque operation/classroom/
 student/generation key in session storage before reservation; a lost completion
 reply can be checked using that key even after the removed roster row disappears.
-A new browser can discover a still-pending operation; completed recovery requires
-the already-held exact key. Storage failure prevents starting new work.
+A new browser can discover a still-pending operation; uncertain completion recovery
+requires the already-held exact key. Validated completion clears that key before
+roster refresh, so subsequent reloads do not reconstruct completed targets.
+A concurrent reservation loser reconciles a rejected saved UUID through read-only,
+exact-generation server discovery; it never generates a third operation or advances
+while reconciling. Storage failure prevents starting new work.
 
 The dialog requires case-sensitive email confirmation before reservation. One
 explicit Continue performs one bounded advance. No timer or background worker
@@ -248,6 +252,9 @@ the original operation, including uncertain reservation responses. Response epoc
 and a per-membership request lock suppress stale updates and overlapping requests.
 Provider or ownership blockers remain pending and require status refresh.
 
+Every live reservation/advance requires all five documented application gates;
+pausing any one leaves exact status readable. Incompatible operation/policy reads
+return a stable 409 ineligible response without transport or legacy fallback.
 The existing provider coordinator now supports a live-only binding check before
 any provider request. It rejects strict policy and mismatched operation/generation
 without modifying strict behavior or adding schema. Client responses contain no

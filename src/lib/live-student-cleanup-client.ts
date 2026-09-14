@@ -15,6 +15,9 @@ export function saveCleanup(key: string, operationId: string) {
   // Persist before mutation. Storage failure must prevent a destructive request.
   sessionStorage.setItem(key, JSON.stringify({ operation_id: operationId, policy: 'pika-live-v1' }))
 }
+export function forgetCleanup(key: string) {
+  sessionStorage.removeItem(key)
+}
 export function parseCleanupStatus(raw: unknown, operationId: string) {
   const status = liveCleanupStatusSchema.parse(raw)
   if (status.operation_id !== operationId) throw new Error('Cleanup identity could not be verified.')
@@ -22,8 +25,9 @@ export function parseCleanupStatus(raw: unknown, operationId: string) {
 }
 export class CleanupRequestError extends Error {
   constructor(readonly status: number) {
-    super(status === 404 ? 'Cleanup is paused or unavailable. Saved progress can still be checked.'
-      : status === 403 || status === 409 ? 'This membership cannot be cleaned up here. Refresh its status.'
+    super(status === 409 ? 'This operation is not eligible for live cleanup here. Its membership or cleanup policy may differ.'
+      : status === 404 ? 'Cleanup is paused or unavailable. Saved progress can still be checked.'
+      : status === 403 ? 'This membership cannot be cleaned up here. Refresh its status.'
         : 'The request could not be verified. Check saved progress before continuing.')
   }
 }

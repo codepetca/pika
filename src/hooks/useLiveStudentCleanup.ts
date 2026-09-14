@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { liveCleanupDiscoverySchema, type LiveCleanupStatus, type LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
-import { cleanupKey, cleanupRequest, parseCleanupStatus, savedCleanup, saveCleanup, withCleanupLock } from '@/lib/live-student-cleanup-client'
+import { CleanupRequestError, cleanupKey, cleanupRequest, forgetCleanup, parseCleanupStatus, savedCleanup, saveCleanup, withCleanupLock } from '@/lib/live-student-cleanup-client'
 
 const envelope = z.object({ operation: z.unknown(), enabled: z.boolean().optional() }).strict()
 export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTarget | null, onCompleted: () => void) {
@@ -22,6 +22,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
   const path = target ? `/api/teacher/classrooms/${classroomId}/students/${target.student_id}/purge/live` : ''
 
   function accept(status: LiveCleanupStatus) {
+    if (status.cleanup_completed) { forgetCleanup(identity); setHasSaved(false) }
     setOperation(status)
     if (status.cleanup_completed && notified.current !== status.operation_id) {
       notified.current = status.operation_id
@@ -31,17 +32,28 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
   async function refresh() {
     if (!target || running.current) return
     const version = epoch.current
-    running.current = true; setBusy(true); setError(''); setReady(false)
+    running.current = true; setBusy(true); setError(''); setReady(false); setEnabled(false)
     try {
       const saved = savedCleanup(identity)
       setHasSaved(Boolean(saved))
       if (saved) {
-        const raw = envelope.parse(await cleanupRequest(`${path}?operation_id=${saved.operation_id}&generation_id=${target.generation_id}`))
-        const status = parseCleanupStatus(raw.operation, saved.operation_id)
-        if (version !== epoch.current) return
-        accept(status); setReady(true)
-        // Status reads work while activation is paused. Each POST still rechecks all gates.
-        setEnabled(raw.enabled === true)
+        try {
+          const raw = envelope.parse(await cleanupRequest(`${path}?operation_id=${saved.operation_id}&generation_id=${target.generation_id}`))
+          const status = parseCleanupStatus(raw.operation, saved.operation_id)
+          if (version !== epoch.current) return
+          accept(status); setReady(true); setEnabled(raw.enabled === true)
+        } catch (savedReadError) {
+          if (!(savedReadError instanceof CleanupRequestError) || savedReadError.status !== 409) throw savedReadError
+          // Another tab may have won reservation. Discover only; never mint or advance.
+          const discovery = liveCleanupDiscoverySchema.parse(await cleanupRequest(path).catch(() => { throw savedReadError }))
+          if (discovery.generation_id !== target.generation_id)
+            throw new Error('This membership changed. Close and refresh the roster.')
+          if (version !== epoch.current) return
+          setEnabled(discovery.enabled)
+          if (!discovery.operation) throw savedReadError
+          saveCleanup(identity, discovery.operation.operation_id)
+          accept(discovery.operation); setReady(true); setEnabled(discovery.enabled)
+        }
       } else {
         const discovery = liveCleanupDiscoverySchema.parse(await cleanupRequest(path))
         if (discovery.generation_id !== target.generation_id) throw new Error('This membership changed. Close and refresh the roster.')
@@ -91,6 +103,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
       })
     } catch (reason) {
       if (version === epoch.current) {
+        if (reason instanceof CleanupRequestError && [403, 404, 409].includes(reason.status)) setEnabled(false)
         setError(reason instanceof z.ZodError ? 'Cleanup status could not be verified.' : reason instanceof Error ? reason.message : 'Cleanup could not be verified.')
         setReady(false)
       }

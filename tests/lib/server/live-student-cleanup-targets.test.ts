@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { StudentProviderCleanupError } from '@/lib/server/student-provider-cleanup'
 import { getLiveStudentCleanupTarget, listLiveStudentCleanupTargets } from '@/lib/server/live-student-cleanup'
 const mocks = vi.hoisted(() => ({ from: vi.fn(), read: vi.fn(), factory: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
@@ -47,4 +48,12 @@ it('never creates an operation when no pending operation exists and activation i
   mocks.from.mockReturnValueOnce(query({ id: classroom })).mockReturnValueOnce(query({ removed_enrollment_id: generation })).mockReturnValueOnce(query(null))
   await expect(getLiveStudentCleanupTarget(teacher, classroom, student)).rejects.toThrow('not enabled')
   expect(mocks.read).not.toHaveBeenCalled()
+})
+
+
+it('reports strict-policy discovery as a stable ineligible conflict without transport', async () => {
+  mocks.from.mockReturnValueOnce(query({ id: classroom })).mockReturnValueOnce(query({ removed_enrollment_id: generation })).mockReturnValueOnce(query({ id: operation }))
+  mocks.read.mockRejectedValue(new StudentProviderCleanupError('binding_invalid'))
+  await expect(getLiveStudentCleanupTarget(teacher, classroom, student)).rejects.toMatchObject({ statusCode: 409 })
+  expect(mocks.factory).toHaveBeenCalledExactlyOnceWith(undefined, { live: true })
 })

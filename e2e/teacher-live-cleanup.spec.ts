@@ -107,10 +107,13 @@ for (const viewport of ['desktop', 'mobile'] as const) for (const theme of ['lig
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toHaveCount(0)
     expect(posts).toHaveLength(5)
-    // A reload after completion can read the saved opaque operation even though the roster row is gone.
+    // Verified completion clears recovery identity before roster refresh and reload.
+    const statusReads: string[] = []
+    page.on('request', request => { if (request.url().includes('/purge/live')) statusReads.push(request.url()) })
     await page.reload()
-    await open()
-    await expect(page.getByText(/Cleanup verified/)).toBeVisible()
+    await page.getByRole('button', { name: 'More actions' }).click()
+    await expect(page.getByRole('menuitem', { name: /Clean up live class data/ })).toHaveCount(0)
+    expect(statusReads).toEqual([])
     expect(posts).toHaveLength(5)
   })
 }
@@ -140,4 +143,51 @@ test('governed ContentDialog reference across viewport and theme', async ({ page
     await page.keyboard.press('Escape')
     await expect(page.getByRole('button', { name: 'Open QR example' })).toBeFocused()
   }
+})
+
+test('concurrent tabs reconcile to the server operation without a third reservation or advance', async ({ page, context }) => {
+  const second = await context.newPage()
+  let winner = '', reserveCount = 0, advances = 0
+  let releaseWinner!: () => void
+  const winnerWait = new Promise<void>(resolve => { releaseWinner = resolve })
+  const generated = new Set<string>()
+  await context.route('**/api/**', async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/roster')) { await route.fulfill({ json: { roster: [], live_cleanup_targets: [target] } }); return }
+    if (!url.pathname.endsWith('/purge/live')) { await route.fulfill({ status: 403, json: {} }); return }
+    if (route.request().method() === 'GET') {
+      if (url.search && url.searchParams.get('operation_id') !== winner) {
+        await route.fulfill({ status: 409, json: { error: 'Unknown operation' } }); return
+      }
+      const operation = winner ? { ...pending, operation_id: winner } : null
+      await route.fulfill({ json: url.search ? { operation, enabled: true }
+        : { generation_id: target.generation_id, operation, enabled: true } }); return
+    }
+    const body = route.request().postDataJSON()
+    if (body.action === 'advance') advances += 1
+    else reserveCount += 1
+    generated.add(body.operation_id)
+    if (winner) { await route.fulfill({ status: 409, json: { error: 'Existing cleanup' } }); return }
+    winner = body.operation_id
+    await winnerWait
+    await route.fulfill({ status: 202, json: { operation: { ...pending, operation_id: winner }, enabled: true } })
+  })
+  for (const tab of [page, second]) {
+    await tab.goto('/e2e-fixtures/teacher-live-cleanup')
+    await tab.getByRole('button', { name: 'More actions' }).click()
+    await tab.getByRole('menuitem', { name: /Clean up live class data/ }).click()
+    await tab.getByRole('combobox').selectOption(target.generation_id)
+    await tab.getByRole('textbox').fill(target.email)
+  }
+  await page.getByRole('button', { name: 'Delete live class data' }).click()
+  await expect.poll(() => winner.length > 0).toBe(true)
+  await second.getByRole('button', { name: 'Delete live class data' }).click()
+  await expect(second.getByRole('alert')).toBeVisible()
+  releaseWinner()
+  await second.getByRole('button', { name: 'Check progress' }).click()
+  await expect(second.getByText('Waiting for linked services.')).toBeVisible()
+  const saved = await second.evaluate(() => Object.values(sessionStorage).map(value => JSON.parse(value)))
+  expect(saved).toEqual([{ operation_id: winner, policy: 'pika-live-v1' }])
+  expect(reserveCount).toBe(2); expect(generated.size).toBe(2); expect(advances).toBe(0)
+  await second.close()
 })

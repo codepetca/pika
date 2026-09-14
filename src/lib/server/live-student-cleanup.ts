@@ -6,7 +6,7 @@ import { createRemovedStudentAcademicCleanupDatabaseCoordinator } from '@/lib/se
 import { StudentProviderCleanupError, type StudentProviderScope } from '@/lib/server/student-provider-cleanup'
 
 export function requireLiveStudentCleanupEnabled() {
-  if (process.env.PIKA_LIVE_STUDENT_CLEANUP_ENABLED !== 'true') throw new ApiError(404, 'Live classroom cleanup is not enabled')
+  if (!isLiveStudentCleanupEnabled()) throw new ApiError(404, 'Live classroom cleanup is not enabled')
 }
 
 /** Bounded explicit progress: both providers get a chance, then at most one file.
@@ -47,10 +47,32 @@ export function createLiveStudentCleanup(dependencies: {
 export function liveStudentCleanup() {
   requireLiveStudentCleanupEnabled()
   const supabase = getServiceRoleClient()
-  return createLiveStudentCleanup({
+  const coordinator = createLiveStudentCleanup({
     providers: createStudentProviderCleanupDatabaseCoordinator(supabase, { live: true }),
     academic: createRemovedStudentAcademicCleanupDatabaseCoordinator(supabase),
   })
+  return {
+    reserve: (scope: StudentProviderScope) => {
+      requireLiveStudentCleanupEnabled()
+      return publicLiveCleanupResult(() => coordinator.reserve(scope))
+    },
+    advance: (scope: StudentProviderScope) => {
+      requireLiveStudentCleanupEnabled()
+      return publicLiveCleanupResult(() => coordinator.advance(scope))
+    },
+  }
+}
+
+async function publicLiveCleanupResult<T>(work: () => Promise<T>): Promise<T> {
+  try { return await work() } catch (error) {
+    if (error instanceof StudentProviderCleanupError) {
+      if (error.code === 'binding_invalid') throw new ApiError(409,
+        'This operation does not match the live membership policy. It cannot be continued here.')
+      if (error.code === 'disabled') throw new ApiError(404, 'Live classroom cleanup is not enabled')
+      throw new ApiError(503, 'Classroom cleanup is unavailable')
+    }
+    throw error
+  }
 }
 
 /** Discovery is read-only, scoped to the current teacher and retained removal. */
@@ -77,12 +99,14 @@ export async function getLiveStudentCleanupTarget(teacherId: string, classroomId
 
 /** Pausing activation must not hide durable evidence or progress a provider. */
 export function readLiveStudentCleanup(scope: StudentProviderScope) {
-  return createStudentProviderCleanupDatabaseCoordinator(undefined, { live: true }).read(scope)
+  return publicLiveCleanupResult(() => createStudentProviderCleanupDatabaseCoordinator(undefined, { live: true }).read(scope))
 }
 
 export function isLiveStudentCleanupEnabled() {
   return process.env.PIKA_LIVE_STUDENT_CLEANUP_ENABLED === 'true'
     && process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true'
+    && process.env.PAL_PROFILE_ERASURE_ENABLED === 'true'
+    && process.env.PIKA_BARA_PARTICIPANT_ERASURE_ENABLED === 'true'
     && process.env.PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED === 'true'
 }
 

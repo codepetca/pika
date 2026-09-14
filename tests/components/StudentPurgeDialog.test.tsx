@@ -23,7 +23,7 @@ async function confirm() {
   fireEvent.click(screen.getByRole('button', { name: 'Delete live class data' }))
 }
 beforeEach(() => {
-  sessionStorage.clear(); vi.clearAllMocks(); invalidateCachedJSONMatching('live-cleanup:')
+  sessionStorage.clear(); vi.clearAllMocks(); props.onCompleted.mockReset(); invalidateCachedJSONMatching('live-cleanup:')
   vi.spyOn(crypto, 'randomUUID').mockReturnValue(opId)
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
@@ -60,15 +60,15 @@ describe('teacher live cleanup dialog', () => {
   })
   it('recovers a lost reserve response across unmount and reuses the saved operation', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(discovery()).mockRejectedValueOnce(new Error('Lost response'))
-      .mockResolvedValueOnce(response({}, 404)).mockResolvedValueOnce(response({ operation: pending }, 202))
+      .mockResolvedValueOnce(response({}, 409)).mockResolvedValueOnce(discovery()).mockResolvedValueOnce(response({ operation: pending }, 202))
     vi.stubGlobal('fetch', fetch)
     const view = await open(); await confirm(); await screen.findByRole('alert')
     view.unmount(); await open()
     expect(fetch.mock.calls[2][0]).toContain(`operation_id=${opId}&generation_id=${target.generation_id}`)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: target.email } })
     fireEvent.click(screen.getByRole('button', { name: 'Retry saved request' }))
-    await screen.findByText('Cleanup is paused. Saved progress is available.')
-    expect(JSON.parse(fetch.mock.calls[3][1].body).operation_id).toBe(opId)
+    await screen.findByText('Waiting for linked services.')
+    expect(JSON.parse(fetch.mock.calls[4][1].body).operation_id).toBe(opId)
     expect(crypto.randomUUID).toHaveBeenCalledOnce()
   })
   it('reads saved progress while paused and does not authorize Continue', async () => {
@@ -87,6 +87,7 @@ describe('teacher live cleanup dialog', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(discovery({ operation: done })))
     await open()
     expect(props.onCompleted).toHaveBeenCalledOnce()
+    expect(sessionStorage.getItem(cleanupKey(classroomId, target))).toBeNull()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled()
   })
@@ -149,4 +150,20 @@ it('retains the displayed operation if session storage is cleared between steps'
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
   expect(JSON.parse(fetch.mock.calls[1][1].body).operation_id).toBe(opId)
   expect(crypto.randomUUID).not.toHaveBeenCalled()
+})
+
+it('recovers a lost final reply, then clears the completed identity before refreshing the roster', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(discovery({ operation: pending }))
+    .mockRejectedValueOnce(new Error('Lost final reply'))
+    .mockResolvedValueOnce(response({ operation: done, enabled: false }))
+  vi.stubGlobal('fetch', fetch)
+  const view = await open()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue cleanup' }))
+  await screen.findByRole('alert'); view.unmount()
+  props.onCompleted.mockImplementation(() => {
+    expect(sessionStorage.getItem(cleanupKey(classroomId, target))).toBeNull()
+  })
+  await open()
+  expect(props.onCompleted).toHaveBeenCalledOnce()
+  expect(fetch).toHaveBeenCalledTimes(3)
 })

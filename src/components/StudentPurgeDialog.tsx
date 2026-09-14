@@ -69,7 +69,7 @@ function CleanupDetails({ classroomId, target, onCompleted, onClose }: {
       <Button variant="secondary" onClick={onClose}>{done ? 'Done' : 'Close'}</Button>
       {!done && <Button variant="secondary" onClick={() => void state.refresh()} disabled={busy}>Check progress</Button>}
       {!done && (ready || (hasSaved && !operation)) && <Button variant="danger" loading={busy}
-        disabled={busy || (!(hasSaved && !operation) && (!ready || !enabled)) || blocked || (!operation && (!target.email || confirmation !== target.email))}
+        disabled={busy || !enabled || (!(hasSaved && !operation) && !ready) || blocked || (!operation && (!target.email || confirmation !== target.email))}
         onClick={() => void state.advance(Boolean(operation) || confirmation === target.email)}>
         {operation ? 'Continue cleanup' : hasSaved ? 'Retry saved request' : 'Delete live class data'}
       </Button>}

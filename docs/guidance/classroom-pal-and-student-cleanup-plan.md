@@ -1,7 +1,7 @@
 # Classroom-specific Pal and student cleanup roadmap
 
 Status: Phase1 and Phase2 delivered; provider and academic prerequisites delivered;
-Phase3 backend PR1260 merged; teacher dialog integration in progress, default disabled. The automatic
+Phase3 backend PR1260 merged; teacher dialog implemented in PR1261, default disabled. The automatic
 worker follows the usable explicit flow. This is the existing six-phase roadmap,
 updated to the user's settled live-data policy on2026-09-13.
 
@@ -53,7 +53,7 @@ Read-token caching and client memory are invalidated on denial/context changes,
 and stale replies cannot repopulate closed state. Academic children are not
 remounted merely to invalidate Pal. No Pal engine rewrite was required.
 
-## Phase3 — explicit removed-membership live purge: backend merged, UI in progress
+## Phase3 — explicit removed-membership live purge: backend merged, UI review in PR1261
 
 Delivered prerequisites:
 

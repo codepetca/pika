@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-error'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/students/[studentId]/purge/live/route'
@@ -63,4 +63,21 @@ describe('teacher explicit live purge boundary', () => {
     expect(mocks.advance).not.toHaveBeenCalled()
     expect(mocks.gate).not.toHaveBeenCalled()
   })
+})
+
+
+afterEach(() => vi.unstubAllEnvs())
+const liveFlags = ['PIKA_LIVE_STUDENT_CLEANUP_ENABLED', 'STUDENT_PROVIDER_CLEANUP_ENABLED',
+  'PAL_PROFILE_ERASURE_ENABLED', 'PIKA_BARA_PARTICIPANT_ERASURE_ENABLED',
+  'PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED']
+it.each(liveFlags)('rejects reserve and advance before coordinator calls when %s is off, but reads status', async disabled => {
+  const actual = await vi.importActual<typeof import('@/lib/server/live-student-cleanup')>('@/lib/server/live-student-cleanup')
+  liveFlags.forEach(flag => vi.stubEnv(flag, flag === disabled ? 'false' : 'true'))
+  mocks.gate.mockImplementation(actual.requireLiveStudentCleanupEnabled)
+  expect((await POST(request(), context)).status).toBe(404)
+  expect((await POST(request({ action: 'advance' }), context)).status).toBe(404)
+  expect(mocks.reserve).not.toHaveBeenCalled()
+  expect(mocks.advance).not.toHaveBeenCalled()
+  expect((await GET(new NextRequest(`http://localhost/live?operation_id=${operation}&generation_id=${generation}`), context)).status).toBe(200)
+  expect(mocks.read).toHaveBeenCalledOnce()
 })
