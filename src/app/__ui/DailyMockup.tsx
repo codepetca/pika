@@ -8,6 +8,7 @@ import {
   ATTENDANCE_STATUS_LABELS,
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
+  STICKY_ATTENDANCE_OFFSETS,
 } from '@/app/classrooms/[classroomId]/TeacherAttendanceControls'
 import { DateNavigator } from '@/components/DateNavigator'
 import {
@@ -62,12 +63,6 @@ type AttendanceMark = (typeof SORTABLE_ATTENDANCE_STATUSES)[number]
 type AttendanceTime = { startsAt: string; endsAt: string }
 export type DailyAttendanceMode = 'qr' | 'manual'
 type ManualAttendanceMode = 'log' | 'manual'
-
-const STICKY_ATTENDANCE_OFFSETS: Record<AttendanceMark, string> = {
-  present: 'right-attendance-three',
-  late: 'right-attendance-two',
-  absent: 'right-attendance-one',
-}
 
 function initialStudentRecord<T>(getValue: (student: (typeof DAILY_STUDENTS)[number]) => T) {
   return Object.fromEntries(DAILY_STUDENTS.map((student) => [student.id, getValue(student)])) as Record<DailyStudentId, T>
