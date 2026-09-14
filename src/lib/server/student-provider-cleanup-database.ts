@@ -29,6 +29,7 @@ export function createStudentProviderCleanupDatabaseCoordinator(
   options: { live?: boolean } = {},
 ) {
   return createStudentProviderCleanupCoordinator({
+    liveOnly: options.live,
     reserve: scope => options.live
       ? result(supabase.rpc('advance_removed_student_academic_cleanup', { ...args(scope), p_action: 'live_reserve' }))
       : result(supabase.rpc('reserve_student_provider_cleanup', args(scope))),

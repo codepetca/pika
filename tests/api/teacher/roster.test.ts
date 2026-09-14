@@ -7,6 +7,8 @@ import { GET } from '@/app/api/teacher/classrooms/[id]/roster/route'
 import { NextRequest } from 'next/server'
 
 const purgeAvailability = vi.hoisted(() => vi.fn())
+const cleanupTargets = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/server/live-student-cleanup', () => ({ listLiveStudentCleanupTargets: cleanupTargets }))
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -27,6 +29,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
     vi.clearAllMocks()
     mockSupabaseClient.from = vi.fn()
     purgeAvailability.mockResolvedValue([])
+    cleanupTargets.mockResolvedValue([])
   })
 
   it('should return 403 when not classroom owner', async () => {

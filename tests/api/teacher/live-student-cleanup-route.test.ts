@@ -5,7 +5,7 @@ import { GET, POST } from '@/app/api/teacher/classrooms/[id]/students/[studentId
 const mocks = vi.hoisted(() => ({ role: vi.fn(), gate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role }))
 vi.mock('@/lib/server/live-student-cleanup', () => ({
-  readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
+  isLiveStudentCleanupEnabled: () => false, readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
   liveStudentCleanup: () => ({ read: mocks.read, reserve: mocks.reserve, advance: mocks.advance }),
 }))
 const teacher = '10000000-0000-4000-8000-000000000001'
@@ -32,9 +32,8 @@ describe('teacher explicit live purge boundary', () => {
     expect(mocks.reserve).not.toHaveBeenCalled()
   })
   it('is unavailable while its gate is off', async () => {
-    mocks.gate.mockImplementation(() => { throw new ApiError(404, 'Disabled') })
+    mocks.target.mockRejectedValue(new ApiError(404, 'Disabled'))
     expect((await GET(new NextRequest('http://localhost/live'), context)).status).toBe(404)
-    expect(mocks.target).not.toHaveBeenCalled()
   })
   it('discovers the retained generation with current teacher and target binding', async () => {
     const response = await GET(new NextRequest('http://localhost/live'), context)

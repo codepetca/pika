@@ -1267,50 +1267,25 @@ describe('TeacherRosterTab', () => {
     expect(await screen.findByText('Student removed from class')).toBeInTheDocument()
   })
 
-  it('opens permanent deletion only through its separate action for a rollout-enabled joined student', async () => {
+  it('opens live cleanup for a server-supplied removed membership without changing active rows', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      const method = init?.method ?? 'GET'
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
-        return mockJson({
-          roster: [rosterRow, secondRosterRow],
-          student_purge_enabled_ids: [rosterRow.student_id],
-        })
-      }
-      if (url === `/api/teacher/classrooms/${classroom.id}/students/${rosterRow.student_id}/purge`) {
-        return mockJson({
-          impact: {
-            classroom_id: '10000000-0000-4000-8000-000000000001',
-            classroom_title: classroom.title,
-            student_id: '20000000-0000-4000-8000-000000000001',
-            student_email: rosterRow.email,
-            source_revision: 1,
-            storage_inventory_sha256: 'a'.repeat(64),
-            relational_inventory_sha256: 'b'.repeat(64),
-            relational_row_count: 2,
-            managed_file_count: 0,
-            managed_file_bytes: 0,
-            archive_count: 0,
-            gradex_extract_count: 0,
-            resource_counts: {}, storage_counts: {}, conflicting_operation: null,
-            deletion_available: true, unavailable_reason: null,
-          },
-          operation: null,
-        })
-      }
-      throw new Error(`Unhandled fetch: ${method} ${url}`)
-    }))
+    const target = { student_id: '20000000-0000-4000-8000-000000000001',
+      generation_id: '30000000-0000-4000-8000-000000000001', email: 'removed@example.com', name: 'Removed Student' }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/roster')) return mockJson({ roster: [rosterRow], live_cleanup_targets: [target] })
+      if (String(input).endsWith('/purge/live')) return mockJson({ generation_id: target.generation_id, operation: null, enabled: true })
+      throw new Error('Unexpected request')
+    })
+    vi.stubGlobal('fetch', fetchMock)
     renderRoster()
-    await user.click(await screen.findByText('Ada'))
-    await user.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeEnabled()
-    await user.click(screen.getByRole('menuitem', { name: /Permanently delete class data/ }))
-    const dialog = await screen.findByRole('dialog', { name: 'Permanently delete class data?' })
-    expect(dialog).toHaveTextContent(/removes the student from this class and permanently deletes/i)
-    expect(dialog).toHaveTextContent(/data in other classrooms are kept/i)
-    expect(within(dialog).getByRole('button', { name: 'Delete class data' })).toBeDisabled()
+    await screen.findByText('Ada')
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: /Clean up live class data/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Clean up live class data' })
+    await user.selectOptions(within(dialog).getByRole('combobox'), target.generation_id)
+    expect(await within(dialog).findByRole('textbox')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete live class data' })).toBeDisabled()
+    expect(fetchMock.mock.calls.every(([input]) => !String(input).endsWith('/purge'))).toBe(true)
   })
 
   it('allows joined student removal without permanent-deletion rollout access', async () => {
@@ -1396,7 +1371,7 @@ describe('TeacherRosterTab', () => {
     expect(await screen.findByRole('dialog', { name: 'Remove student from class?' })).toHaveTextContent('This cannot be undone')
   })
 
-  it('keeps comprehensive removal available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
+  it('keeps archived roster edits disabled and does not offer new live cleanup', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
@@ -1410,7 +1385,7 @@ describe('TeacherRosterTab', () => {
     expect(screen.getByRole('button', { name: 'Add students' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '1 selected' }))
     expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeDisabled()
-    expect(screen.getByRole('menuitem', { name: /Permanently delete class data/ })).toBeEnabled()
+    expect(screen.queryByRole('menuitem', { name: /Permanently delete class data|Clean up live class data/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Purge classroom data' })).not.toBeInTheDocument()
   })
 

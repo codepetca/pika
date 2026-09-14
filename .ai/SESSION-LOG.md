@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Restore classroom join controls
-
-- Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
-- Reused the Settings Pattern Lab composition and shared switch, dialog, QR, field and input owners. Teacher/student desktop/mobile light/dark browser coverage passes for roster-only, open-join, QR-open, profile-required, success and error states; screenshots were visually inspected with no overflow. Composite checklist reviewed: keyboard behavior and semantic state are covered, with no manual follow-up.
-- Focused unit/API coverage passes 61 tests, the rollback-only contextual enrollment database contract passes, the Pika audit passes, and the application/database/browser focused gate passes 211 tests plus architecture, UI/design policy, TypeScript and lint. No migration, dependency, hosted data, configuration or deployment change.
-- Independent review found two compatibility gaps in open joining: Attendance code entry could not continue when a profile was required, and legacy UUID join links dropped submitted profile fields. Attendance now hands off to the canonical profile-aware join page, UUID retries retain the profile, and both paths have component regressions. The remediated focused gate passes 218 tests plus architecture, UI/design policy, TypeScript and lint; final integration review follows on the stable head.
-- Final integration review found that trimming the Attendance handoff could break space-padded legacy codes already accepted by the bounded server fallback. The handoff now URL-encodes the exact entered code and its regression retains surrounding spaces. The default five-launch review budget is exhausted after this correction, so the PR remains draft pending an explicitly authorized final-review extension.
-- Simplified the join QR at owner direction to reuse the attendance display modal's `max-w-6xl`, portrait-mobile and widescreen-desktop frame and QR scale. The dialog now shows only the classroom name, join-code label/value, Copy link, QR, and close control; all introductory/instructional text is removed. Teacher desktop/mobile light/dark open-dialog screenshots were inspected, QR contrast is asserted in both themes, and the student role is unaffected.
-- Extended review raised possible clipping at 390×844, but explicit bounds for the wrapped classroom title, join code, Copy link, and complete QR all remain within the dialog in mobile light/dark runs, matching the inspected captures. The claim was rejected as unsupported; the bounds assertion remains as a responsive regression.
-- Final integration review found the Attendance profile handoff spent a second rate-limited probe before profile submission, leaving no budget for one transient retry. The handoff now carries a non-authoritative profile-required UI hint, skips only that redundant client probe, preserves the exact code, and still submits the profile through the authoritative join endpoint. Rate-limited profile responses show the server retry delay instead of claiming an immediate retry is safe; integrated component and browser regressions cover the three-attempt sequence and wait message.
-
 ## 2026-09-11 — PR #1245 reviewed-blocker continuation
 
 - Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
@@ -225,3 +214,7 @@ Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
 synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
 shared-data blockers; updates existing roadmap to settled historical-backup
 exclusion. No persistent DB/provider/config action. Review/CI still pending.
+
+## 2026-09-13 — Teacher live classroom cleanup integration
+
+Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.

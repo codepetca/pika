@@ -23,6 +23,8 @@ import {
 } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
+import { recoverCleanupTargets } from '@/lib/live-student-cleanup-client'
+import { liveCleanupTargetSchema, type LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
 import { StudentPurgeDialog } from '@/components/StudentPurgeDialog'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
@@ -115,7 +117,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
   const [isRetryingRoster, setIsRetryingRoster] = useState(false)
   const [roster, setRoster] = useState<RosterRow[]>([])
-  const [studentPurgeEnabledIds, setStudentPurgeEnabledIds] = useState<Set<string>>(new Set())
+  const [liveCleanupTargets, setLiveCleanupTargets] = useState<LiveCleanupTarget[]>([])
   const [loadError, setLoadError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
@@ -128,7 +130,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [removalError, setRemovalError] = useState('')
-  const [pendingPurge, setPendingPurge] = useState<RosterRow | null>(null)
+  const [pendingPurge, setPendingPurge] = useState(false)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
@@ -269,7 +271,10 @@ export function TeacherRosterTab({ classroom }: Props) {
         || rosterMutationVersionRef.current !== mutationVersion
       ) return
       setRoster(normalizeRosterRows(data.roster || []))
-      setStudentPurgeEnabledIds(new Set(data.student_purge_enabled_ids || []))
+      const cleanupTargets = liveCleanupTargetSchema.array().parse(data.live_cleanup_targets ?? [])
+      const savedTargets = recoverCleanupTargets(classroomId).filter(saved =>
+        !cleanupTargets.some(target => target.generation_id === saved.generation_id))
+      setLiveCleanupTargets([...cleanupTargets, ...savedTargets])
       setLoadedClassroomId(classroomId)
       setLoadError('')
       clearSelection()
@@ -281,7 +286,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       ) return
       if (!preserveRoster) {
         setRoster([])
-        setStudentPurgeEnabledIds(new Set())
+        setLiveCleanupTargets([])
         setLoadedClassroomId(null)
       }
       setLoadError(err.message || 'Failed to load roster')
@@ -299,7 +304,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     counselorEditEpochRef.current += 1
     loadRequestIdRef.current += 1
     setRoster([])
-    setStudentPurgeEnabledIds(new Set())
+    setLiveCleanupTargets([])
     setLoadedClassroomId(null)
     setLoadError('')
     setIsRetryingRoster(false)
@@ -309,7 +314,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     setUploadModalOpen(false)
     setAddModalOpen(false)
     setIsRemoving(false)
-    setPendingPurge(null)
+    setPendingPurge(false)
     setEditingCounselorId(null)
     setEditingCounselorValue('')
     setSavingCounselor(null)
@@ -636,12 +641,12 @@ export function TeacherRosterTab({ classroom }: Props) {
     },
   ]
 
-  const purgeTarget = removalTargetRows.length === 1
-    && removalTargetRows[0].joined
-    && removalTargetRows[0].student_id
-    && studentPurgeEnabledIds.has(removalTargetRows[0].student_id)
-    ? removalTargetRows[0]
-    : null
+  if (liveCleanupTargets.length && !isReadOnly) rosterActionOptions.push({
+    id: 'cleanup-removed-student', label: 'Clean up live class data',
+    description: 'Review cleanup for one removed student.',
+    onSelect: () => setPendingPurge(true), disabled: isRosterLoading || isRemoving,
+    destructive: true,
+  })
 
   if (hasStudentActionRows) {
     studentActionOptions.push({
@@ -654,16 +659,6 @@ export function TeacherRosterTab({ classroom }: Props) {
         || isReadOnly,
       destructive: true,
     })
-    if (purgeTarget) {
-      studentActionOptions.push({
-        id: 'delete-student-data',
-        label: <span className="text-danger">Permanently delete class data</span>,
-        description: 'Delete this student’s data from this class. External-service restrictions may apply.',
-        onSelect: () => setPendingPurge(purgeTarget),
-        disabled: isRosterLoading || isRemoving,
-        destructive: true,
-      })
-    }
   }
 
   const actionBar = (
@@ -1045,19 +1040,12 @@ export function TeacherRosterTab({ classroom }: Props) {
         onConfirm={confirmRemoveStudent}
       />
 
-      {pendingPurge?.student_id ? (
-        <StudentPurgeDialog
-          classroomId={classroom.id}
-          classroomTitle={classroom.title}
-          studentId={pendingPurge.student_id}
-          studentEmail={pendingPurge.email}
-          studentName={[pendingPurge.first_name, pendingPurge.last_name].filter(Boolean).join(' ') || 'Unnamed student'}
-          isOpen
-          onClose={() => setPendingPurge(null)}
-          onCompleted={() => {
-            setPendingPurge(null)
-            refreshRosterAfterMutation(classroom.id)
-          }}
+      {pendingPurge ? (
+        <StudentPurgeDialog key={classroom.id}
+          classroomId={classroom.id} classroomTitle={classroom.title}
+          targets={liveCleanupTargets} isOpen
+          onClose={() => setPendingPurge(false)}
+          onCompleted={() => { void refreshRosterAfterMutation(classroom.id) }}
         />
       ) : null}
     </>
