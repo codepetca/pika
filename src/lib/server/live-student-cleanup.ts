@@ -65,3 +65,8 @@ export async function getLiveStudentCleanupTarget(teacherId: string, classroomId
   if (!removed.data?.removed_enrollment_id) throw new ApiError(409, 'An exact removed membership is required')
   return { generation_id: removed.data.removed_enrollment_id }
 }
+
+/** Pausing activation must not hide durable evidence or progress a provider. */
+export function readLiveStudentCleanup(scope: StudentProviderScope) {
+  return createStudentProviderCleanupDatabaseCoordinator().read(scope)
+}

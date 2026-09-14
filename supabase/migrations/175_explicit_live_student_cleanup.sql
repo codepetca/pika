@@ -23,7 +23,7 @@ begin
   select * into v_op from public.student_purge_operations where id=p_operation_id;
   select * into v_binding from private.student_provider_cleanup_bindings where operation_id=p_operation_id;
   if v_op.teacher_id is distinct from p_teacher_id or v_op.classroom_id is distinct from p_classroom_id
-    or v_op.student_id is distinct from p_student_id or v_binding.generation_id is distinct from p_generation_id
+    or (v_op.status<>'completed' and v_op.student_id is distinct from p_student_id) or v_binding.generation_id is distinct from p_generation_id
     or v_binding.scope_digest is distinct from private.pal_membership_scope(p_classroom_id,p_student_id)
     or not exists(select 1 from public.classrooms where id=p_classroom_id and teacher_id=p_teacher_id)
     or (v_op.status<>'completed' and not exists(select 1 from public.student_purge_fences where operation_id=p_operation_id
@@ -70,7 +70,7 @@ begin
   if found then
     select * into v_binding from private.student_provider_cleanup_bindings where operation_id=p_operation_id;
     if v_existing.teacher_id is distinct from p_teacher_id or v_existing.classroom_id is distinct from p_classroom_id
-      or v_existing.student_id is distinct from p_student_id or v_binding.generation_id is distinct from p_generation_id
+      or (v_existing.status<>'completed' and v_existing.student_id is distinct from p_student_id) or v_binding.generation_id is distinct from p_generation_id
       or v_binding.scope_digest is distinct from v_scope or v_binding.pal_schema_version is distinct from 2 then
       raise exception using errcode='55000',message='student_provider_binding_conflict';
     end if;
@@ -273,7 +273,9 @@ begin
   v_id := case when tg_op='DELETE' then old.id else new.id end;
   if exists(select 1 from private.student_provider_cleanup_bindings where operation_id=v_id) then
     if tg_op='UPDATE' and old.status='provider_pending' and new.status='completed'
-      and (to_jsonb(new)-array['status','completed_at','updated_at'])=(to_jsonb(old)-array['status','completed_at','updated_at'])
+      and new.student_id is null and new.student_email is null
+      and (to_jsonb(new)-array['status','completed_at','updated_at','student_id','student_email'])=
+        (to_jsonb(old)-array['status','completed_at','updated_at','student_id','student_email'])
       and private.removed_academic_capability(v_id,array['live_finalize']) then return new; end if;
     if tg_op='DELETE' then raise exception using errcode='55000',message='student_provider_stage_required'; end if;
     if tg_op='UPDATE' and (to_jsonb(new)-'local_academic_cleanup')=(to_jsonb(old)-'local_academic_cleanup')
@@ -722,12 +724,59 @@ begin
 end;
 $$;
 
+-- Current stored replies are aggregate-only normalized adapter results. Unknown
+-- shapes cannot be assumed to contain no student data merely for lacking a ref.
+create function private.live_attendance_ack_known(p_type text,p_value jsonb,p_request jsonb)
+returns boolean language plpgsql immutable set search_path='' as $$
+declare keys text[]; expected text[]; field text; positive_fields text[];
+begin
+  if p_value is null then return true; end if;
+  if jsonb_typeof(p_value) is distinct from 'object' then return false; end if;
+  select array_agg(key order by key) into keys from jsonb_object_keys(p_value) key;
+  if p_type='roster.snapshot' then
+    expected:=array['createdCount','deactivatedCount','outcome','revision','rosterRef','updatedCount'];
+    positive_fields:=array['revision'];
+  elsif p_type='schedule.snapshot' then
+    expected:=array['cancelledCount','outcome','preservedCount','revision','rosterRef','scheduledCount','updatedCount'];
+    positive_fields:=array['revision'];
+  elsif p_type='session.command' then
+    expected:=array['occurrenceRef','outcome','sessionRevision','status'];
+    positive_fields:=array['sessionRevision'];
+    if coalesce(p_value->>'status','') not in ('open','closed') then return false; end if;
+  elsif p_type='check_in.invalidate' then
+    expected:=array['appliedCount','occurrenceRef','outcome','sessionRevision','unchangedCount'];
+    positive_fields:=array['sessionRevision'];
+  else return false;
+  end if;
+  if keys is distinct from expected
+    or coalesce(p_value->>'outcome','') not in ('applied','duplicate','unchanged')
+    or (p_value->>'outcome'='unchanged' and p_type<>'session.command') then return false; end if;
+  if p_type in ('roster.snapshot','schedule.snapshot') then
+    if p_value->>'rosterRef' is distinct from p_request->>'roster_ref' then return false; end if;
+  elsif p_value->>'occurrenceRef' is distinct from p_request->>'occurrence_ref' then return false;
+  end if;
+  foreach field in array keys loop
+    if field in ('outcome','rosterRef','occurrenceRef','status') then
+      if jsonb_typeof(p_value->field)<>'string' then return false; end if;
+    else
+      if jsonb_typeof(p_value->field) is distinct from 'number'
+        or p_value->>field !~ '^[0-9]+$' or (p_value->>field)::numeric>9007199254740991
+        or (field=any(positive_fields) and (p_value->>field)::numeric=0) then return false; end if;
+    end if;
+  end loop;
+  return true;
+end;
+$$;
+revoke all on function private.live_attendance_ack_known(text,jsonb,jsonb) from public,anon,authenticated,service_role;
+
 create function private.live_student_attendance_blockers(p_operation_id uuid)
 returns boolean language sql volatile set search_path='' as $$
   select exists(select 1 from private.student_provider_cleanup_bindings binding
     join public.student_purge_operations operation on operation.id=binding.operation_id
     join public.attendance_integration_outbox outbox on outbox.classroom_id=operation.classroom_id
     where binding.operation_id=p_operation_id and (
+      not private.live_attendance_ack_known(outbox.message_type,outbox.response_payload,outbox.payload)
+      or
       -- Unknown/legacy invalidations lose their fact lookup during academic cleanup.
       (outbox.message_type='check_in.invalidate' and outbox.payload->>'participant_ref' is null)
       or exists(select 1 from jsonb_path_query(outbox.response_payload,'$.**.participant_ref') ref
@@ -805,7 +854,10 @@ begin
   update private.pal_membership_generations set state='purged',scope_digest=null
     where generation_id=p_generation_id and state='removed';
   if not found then raise exception using errcode='55000',message='student_live_generation_changed'; end if;
-  update public.student_purge_operations set status='completed',completed_at=clock_timestamp(),updated_at=clock_timestamp()
+  -- Preserve the existing public completion privacy constraint. The private
+  -- immutable scope digest authenticates exact-subject replay after this clear.
+  update public.student_purge_operations set status='completed',student_id=null,student_email=null,
+    completed_at=clock_timestamp(),updated_at=clock_timestamp()
     where id=p_operation_id;
   delete from public.student_purge_fences where operation_id=p_operation_id;
   delete from private.removed_academic_mutations where transaction_id=txid_current();

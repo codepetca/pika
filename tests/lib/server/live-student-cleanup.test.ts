@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createLiveStudentCleanup, requireLiveStudentCleanupEnabled } from '@/lib/server/live-student-cleanup'
+import { createRemovedStudentAcademicCleanup } from '@/lib/server/removed-student-academic-cleanup'
 import { StudentProviderCleanupError } from '@/lib/server/student-provider-cleanup'
 const scope = { operationId: 'a0000000-0000-4000-8000-000000000001', teacherId: 'a0000000-0000-4000-8000-000000000002', classroomId: 'a0000000-0000-4000-8000-000000000003', studentId: 'a0000000-0000-4000-8000-000000000004', generationId: 'a0000000-0000-4000-8000-000000000005' }
 function fixture() {
@@ -68,4 +69,25 @@ describe('explicit live membership purge', () => {
     expect(f.providers.advance).not.toHaveBeenCalled()
     expect(f.academic.advance).not.toHaveBeenCalled()
   })
+})
+
+it('keeps the independent academic gate authoritative after provider completion', async () => {
+  const f = fixture()
+  const execute = vi.fn().mockResolvedValue({
+    schema_version: 1, operation_id: scope.operationId, teacher_id: scope.teacherId,
+    classroom_id: scope.classroomId, student_id: scope.studentId, generation_id: scope.generationId,
+    overall_status: 'provider_pending', local_status: 'local_completed', revision: 1,
+    relational_inventory_sha256: 'a'.repeat(64), storage_inventory_sha256: 'b'.repeat(64), blockers: [], object: null,
+  })
+  const remove = vi.fn().mockResolvedValue({ error: null })
+  const academic = createRemovedStudentAcademicCleanup({ execute, storage: { from: () => ({ remove }) } })
+  const coordinator = createLiveStudentCleanup({ providers: f.providers, academic })
+  vi.stubEnv('PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED', 'false')
+  await expect(coordinator.advance(scope)).rejects.toThrow('academic_cleanup_disabled')
+  expect(execute).not.toHaveBeenCalled()
+  expect(f.providers.finish).not.toHaveBeenCalled()
+  vi.stubEnv('PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED', 'true')
+  expect(await coordinator.advance(scope)).toMatchObject({ cleanup_completed: true })
+  expect(f.providers.finish).toHaveBeenCalledExactlyOnceWith(scope)
+  expect(remove).not.toHaveBeenCalled()
 })

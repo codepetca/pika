@@ -5,7 +5,7 @@ import { GET, POST } from '@/app/api/teacher/classrooms/[id]/students/[studentId
 const mocks = vi.hoisted(() => ({ role: vi.fn(), gate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role }))
 vi.mock('@/lib/server/live-student-cleanup', () => ({
-  requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
+  readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
   liveStudentCleanup: () => ({ read: mocks.read, reserve: mocks.reserve, advance: mocks.advance }),
 }))
 const teacher = '10000000-0000-4000-8000-000000000001'
@@ -57,9 +57,11 @@ describe('teacher explicit live purge boundary', () => {
     mocks.advance.mockResolvedValue({ status: 'provider_pending', cleanup_completed: false })
     expect((await POST(request({ action: 'advance' }), context)).status).toBe(202)
   })
-  it('reads exact status without progressing any provider', async () => {
+  it('reads exact status with activation off without progressing any provider', async () => {
+    mocks.gate.mockImplementation(() => { throw new ApiError(404, 'Disabled') })
     expect((await GET(new NextRequest(`http://localhost/live?operation_id=${operation}&generation_id=${generation}`), context)).status).toBe(200)
     expect(mocks.read).toHaveBeenCalledWith({ teacherId: teacher, classroomId: classroom, studentId: student, operationId: operation, generationId: generation })
     expect(mocks.advance).not.toHaveBeenCalled()
+    expect(mocks.gate).not.toHaveBeenCalled()
   })
 })

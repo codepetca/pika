@@ -82,8 +82,20 @@ configuration, private gates, the retained removal and absence of enrollment.
 ## Explicit invocation and status
 
 The API is disabled unless `PIKA_LIVE_STUDENT_CLEANUP_ENABLED=true`.
-Existing provider/Pal/Bara/academic gates must also be enabled under separate
-rollout authority. Ordinary roster removal and the legacy purge endpoints retain
+The complete Pika application gate set is `PIKA_LIVE_STUDENT_CLEANUP_ENABLED`,
+`STUDENT_PROVIDER_CLEANUP_ENABLED`, `PAL_PROFILE_ERASURE_ENABLED`,
+`PIKA_BARA_PARTICIPANT_ERASURE_ENABLED`, and
+`PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED`, each exactly `true` for writes.
+All are default-false in `.env.example`; changing real configuration requires
+separate rollout authority. Existing Pal/Bara credentials and the saved
+`PAL_PROFILE_ERASURE_INTEGRATION_ID` must match the reviewed provider binding.
+Database prerequisites are `private.student_provider_cleanup_settings.enabled`
+and `.live_enabled`, exact tenant configuration/eligibility,
+`private.removed_student_academic_settings.enabled`, and verified
+`managed_storage_settings.mode='enforced'`. The existing generation/signal
+capture gates must already have established eligible exact Pal/Bara membership
+mappings. Pal's exact authenticated integration allowlist and Bara's participant
+erasure activation require separate provider authority. None is enabled here. Ordinary roster removal and the legacy purge endpoints retain
 their current behavior while these gates are off. No scheduled worker or
 removal hook calls this flow.
 
@@ -111,7 +123,7 @@ The caller cannot supply a teacher identity or provider tenant.
    existing academic inventory and at most one physical file deletion. Repeat
    the same operation/generation to progress bounded work or recover a lost reply.
 4. GET `?operation_id=<saved-UUID>&generation_id=<saved-generation-UUID>` reads
-   durable status without progressing providers. Responses use `no-store`.
+   durable status without progressing providers, even when new-work activation is off. Responses use `no-store`.
    Status includes Pal, Bara, local stage and concrete blockers. An advance may
    include sanitized per-provider retryability; upstream bodies are never echoed.
 5. `cleanup_completed:true` and overall `completed` mean the guarded final
@@ -148,7 +160,10 @@ and week configuration data. Final verification checks delivery absence.
 
 Then it deletes only the target inactive current Bara mapping and retained roster
 deny row, marks the old Pal generation purged, completes the operation and removes
-its fence atomically. Provider receipts, immutable attendance/Pal generation
+its fence atomically. The public completed operation clears `student_id` and
+`student_email` as required by its existing privacy constraint; completed replay
+still verifies the exact teacher/classroom/generation and immutable private
+student+classroom scope digest. Provider receipts, immutable attendance/Pal generation
 identities, scoped delivery bindings, resource IDs and storage path tombstones
 remain as control evidence. Fresh enrollment/mapping insertion generates new
 opaque references. Old participant payload checks no longer depend on the deleted
@@ -159,7 +174,7 @@ Genuine unsupported current-data boundaries still fail closed: remote grading
 provenance/current external grading copies, mixed summaries/feedback candidates,
 shared grading-run payloads, shared attendance override-request results, retired
 assessment ownership, unknown/shared object ownership, and legacy invalidations
-without an exact participant or unknown provider-response participant content.
+without an exact participant or unknown stored provider-response shapes.
 These cases are reported as blockers; the flow does not claim completion or
 silently delete classmates. No worker, queue, dashboard, broad cron scheduling,
 legacy sitewide Pal retirement, historical backfill or two-day guarantee is added.
@@ -173,9 +188,9 @@ The existing storage coordinator mocks cover physical adapter calls and lost
 callbacks. Existing Pal client tests cover memory/token invalidation and late
 reply rejection without losing academic input. No rendered UI change is made.
 
-The exact reviewed migration hash, fixed review SHA, PR Gate and CI result will
-be added here after independent review. Until then this is an implementation
-candidate, not a ready or applied release.
+PR1260 records the exact reviewed migration hash, fixed review SHA, PR Gate and
+CI result as they become available. Until those checks finish this is an
+implementation candidate, not a ready or applied release.
 
 The rollout approval packet must name each separate action:
 

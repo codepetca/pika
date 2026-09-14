@@ -221,6 +221,10 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
   update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),
     readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
 
+  if private.live_attendance_ack_known('roster.snapshot','{"studentName":"target"}'::jsonb,'{}'::jsonb)
+    or not private.live_attendance_ack_known('roster.snapshot',
+      '{"outcome":"applied","rosterRef":"roster_known","revision":1,"createdCount":1,"updatedCount":0,"deactivatedCount":0}'::jsonb,
+      '{"roster_ref":"roster_known"}'::jsonb) then raise exception 'Unknown live response was accepted or aggregate reply blocked'; end if;
   update private.student_provider_cleanup_settings set live_enabled=true where singleton;
   update private.removed_student_academic_settings set enabled=true where singleton;
   select participant_ref into f from public.attendance_participant_mappings where classroom_id=course_a and student_id=student;
@@ -282,6 +286,14 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
   exception when sqlstate '55000' then null; end;
   result:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'live_complete');
   if result->>'status'<>'completed' or result->>'local_status'<>'local_completed' then raise exception 'Live completion missing'; end if;
+  if exists(select 1 from public.student_purge_operations where id=op and (student_id is not null or student_email is not null)) then
+    raise exception 'Completed public operation retained subject identifiers'; end if;
+  begin
+    perform public.get_student_provider_cleanup(op,teacher,course_a,peer,gen_a);
+    raise exception 'Wrong-subject completed replay accepted';
+  exception when sqlstate '42501' then null; end;
+  if (public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'live_reserve'))->>'status'<>'completed' then
+    raise exception 'Completed reservation retry lost its private scope binding'; end if;
   if result<>public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'live_complete') then
     raise exception 'Lost final response changed completion'; end if;
   if exists(select 1 from public.student_purge_fences where operation_id=op)

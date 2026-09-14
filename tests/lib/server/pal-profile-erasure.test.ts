@@ -86,3 +86,12 @@ describe('Pal live policy compatibility', () => {
     expect(parsePalErasureReceipt({ ...liveCompleted, ...patch }, liveBinding)).toBeNull()
   })
 })
+
+it('retries identical v2 POST after a lost reply without sending the GET-only header', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockRejectedValueOnce(new Error('lost reply'))
+    .mockImplementationOnce(async () => Response.json(liveCompleted))
+  await expect(requestPalProfileErasure('begin', liveBinding, { fetcher })).rejects.toMatchObject({ code: 'network_error' })
+  expect(await requestPalProfileErasure('begin', liveBinding, { fetcher })).toEqual(liveCompleted)
+  expect(fetcher.mock.calls[0][1]?.body).toBe(fetcher.mock.calls[1][1]?.body)
+  expect(fetcher.mock.calls[1][1]?.headers).not.toHaveProperty('Pal-Erasure-Policy')
+})
