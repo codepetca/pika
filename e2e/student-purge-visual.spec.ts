@@ -135,6 +135,8 @@ async function discoverClassroom(browser: Browser, baseURL: string | undefined) 
   }
 }
 
+// The removed-membership live cleanup matrix is in teacher-live-cleanup.spec.ts.
+// Keep ordinary removal, re-add denial, and student permission contracts here.
 for (const entry of matrix) {
   test(`captures final student removal (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
     const classroomId = await discoverClassroom(browser, baseURL)
@@ -148,7 +150,7 @@ for (const entry of matrix) {
     await page.getByRole('button', { name: '1 selected' }).click()
     const studentActionsMenu = page.getByRole('menu', { name: 'Student actions' })
     await expect(studentActionsMenu.getByRole('menuitem', { name: 'Remove student' })).toBeVisible()
-    await expect(studentActionsMenu.getByRole('menuitem', { name: /Permanently delete class data/ })).toBeVisible()
+    await expect(studentActionsMenu.getByRole('menuitem', { name: /Permanently delete class data|Clean up live class data/ })).toHaveCount(0)
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
       path: testInfo.outputPath(`student-actions-${entry.name}.png`),
@@ -198,40 +200,6 @@ for (const entry of matrix) {
     await context.close()
   })
 
-  test(`captures separate permanent student deletion (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
-    const classroomId = await discoverClassroom(browser, baseURL)
-    const { context, page } = await newRolePage(
-      () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
-      entry.theme,
-    )
-    await mockTeacherStudentPurge(page, classroomId!)
-    await page.goto(`/classrooms/${classroomId}?tab=roster`, { waitUntil: 'domcontentloaded' })
-    await page.getByText('Student1', { exact: true }).click()
-    await page.getByRole('button', { name: '1 selected' }).click()
-    await page.getByRole('menuitem', { name: /Permanently delete class data/ }).click()
-    const dialog = page.getByRole('dialog', { name: 'Permanently delete class data?' })
-    await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
-    await expect(dialog).toContainText('user account and data in other classrooms are kept')
-    await expectNoHorizontalOverflow(page)
-    await page.screenshot({
-      path: testInfo.outputPath(`dialog-${entry.name}.png`),
-      fullPage: true,
-      animations: 'disabled',
-    })
-
-    await dialog.getByRole('textbox').fill(STUDENT_EMAIL)
-    await dialog.getByRole('button', { name: 'Delete class data' }).click()
-    await expect(dialog.getByRole('alert')).toContainText('waiting safely')
-    await expect(dialog).toContainText('Deleting files 2 of 6')
-    await page.screenshot({
-      path: testInfo.outputPath(`progress-${entry.name}.png`),
-      fullPage: true,
-      animations: 'disabled',
-    })
-    await context.close()
-  })
-
   test(`captures student removal permission boundary (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
     const classroomId = await discoverClassroom(browser, baseURL)
     const { context: studentContext, page: studentPage } = await newRolePage(
@@ -249,6 +217,7 @@ for (const entry of matrix) {
     await expect(studentPage.getByText(/^(Daily Log|No class today)$/)).toBeVisible()
     await expect(studentPage.getByRole('button', { name: 'More actions' })).toHaveCount(0)
     await expect(studentPage.getByText('Purge classroom data')).toHaveCount(0)
+    await expect(studentPage.getByText('Clean up live class data')).toHaveCount(0)
     expect(studentPurgeRequestCount).toBe(0)
     await expectNoHorizontalOverflow(studentPage)
     await studentPage.screenshot({
