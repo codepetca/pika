@@ -106,3 +106,22 @@ describe('durable provider prerequisite coordination', () => {
     await expect(f.coordinator.advance(scope, 'pal')).rejects.toMatchObject({ code: 'binding_invalid' })
   })
 })
+
+describe('saved live policy', () => {
+  it('uses the saved version and rejects a strict reply', async () => {
+    const f = fixture()
+    f.set({ ...binding, pal_schema_version: 2, pal_policy: 'pika-live-v1' })
+    await f.coordinator.reserve(scope)
+    await expect(f.coordinator.advance(scope, 'pal')).rejects.toMatchObject({ code: 'binding_invalid' })
+    expect(f.pal).toHaveBeenCalledWith('begin', {
+      schema_version: 2, policy: 'pika-live-v1', operation_id: scope.operationId, learner_id: binding.pal_reference,
+    }, { binding: { origin: binding.pal_origin, integrationId: binding.pal_integration_id } })
+    expect(f.record).not.toHaveBeenCalled()
+  })
+  it('rejects incomplete or mixed policy metadata before sending', async () => {
+    const f = fixture()
+    f.set({ ...binding, pal_schema_version: 2, pal_policy: 'strict-v1' })
+    await expect(f.coordinator.reserve(scope)).rejects.toMatchObject({ code: 'binding_invalid' })
+    expect(f.pal).not.toHaveBeenCalled()
+  })
+})

@@ -4,18 +4,32 @@ import { requirePalEnvironment } from '@/lib/server/pal-config'
 const operationId = z.string().uuid().regex(/^[0-9a-f-]{36}$/)
 const learnerId = z.string().regex(/^pika-membership-v1-[0-9a-f]{32}$/)
 const instant = z.string().datetime().regex(/Z$/)
-export const palErasureBindingSchema = z.object({
+const identitySchema = z.object({
   operation_id: operationId,
   learner_id: learnerId,
 }).strict()
+export const palErasureBindingSchema = z.union([
+  identitySchema,
+  identitySchema.extend({ schema_version: z.literal(2), policy: z.literal('pika-live-v1') }).strict(),
+])
 export type PalErasureBinding = z.infer<typeof palErasureBindingSchema>
-export const palErasureReceiptSchema = palErasureBindingSchema.extend({
+const strictReceiptSchema = identitySchema.extend({
   schema_version: z.literal(1),
   status: z.enum(['pending', 'completed']),
   begun_at: instant,
   completed_at: instant.nullable(),
 }).strict().refine(value => (value.status === 'completed') === (value.completed_at !== null))
   .refine(value => value.completed_at === null || Date.parse(value.completed_at) >= Date.parse(value.begun_at))
+const canonicalInstant = z.string().datetime().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  .refine(value => Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value)
+const liveReceiptSchema = identitySchema.extend({
+  schema_version: z.literal(2), policy: z.literal('pika-live-v1'),
+  status: z.enum(['pending', 'completed']), begun_at: canonicalInstant,
+  completed_at: canonicalInstant.nullable(), historical_backups: z.literal('excluded'),
+  backup_retention: z.literal('not_attested'),
+}).strict().refine(value => (value.status === 'completed') === (value.completed_at !== null))
+  .refine(value => value.completed_at === null || Date.parse(value.completed_at) >= Date.parse(value.begun_at))
+export const palErasureReceiptSchema = z.union([strictReceiptSchema, liveReceiptSchema])
 export type PalErasureReceipt = z.infer<typeof palErasureReceiptSchema>
 
 export class PalErasureError extends Error {
@@ -28,9 +42,12 @@ export class PalErasureError extends Error {
 
 /** A provider receipt proves only its saved binding, never complete Pika cleanup. */
 export function parsePalErasureReceipt(value: unknown, binding: PalErasureBinding): PalErasureReceipt | null {
+  const expected = palErasureBindingSchema.safeParse(binding)
+  if (!expected.success) return null
   const parsed = palErasureReceiptSchema.safeParse(value)
   if (!parsed.success || parsed.data.operation_id !== binding.operation_id
-    || parsed.data.learner_id !== binding.learner_id) return null
+    || parsed.data.learner_id !== binding.learner_id
+    || parsed.data.schema_version !== ('schema_version' in expected.data ? 2 : 1)) return null
   return parsed.data
 }
 
@@ -54,7 +71,9 @@ export async function requestPalProfileErasure(
   try {
     response = await (options.fetcher ?? fetch)(`${config.apiUrl}${path}${action === 'status' ? `/${parsed.data.operation_id}` : ''}`, {
       method: action === 'begin' ? 'POST' : 'GET',
-      headers: { Authorization: `Bearer ${config.integrationSecret}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${config.integrationSecret}`, 'Content-Type': 'application/json',
+        ...(action === 'status' && 'schema_version' in parsed.data ? { 'Pal-Erasure-Policy': 'pika-live-v1' } : {}),
+      },
       ...(action === 'begin' ? { body: JSON.stringify(parsed.data) } : {}),
       cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(5_000),
     })

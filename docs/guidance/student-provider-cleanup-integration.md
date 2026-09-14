@@ -1,188 +1,218 @@
-# Student provider cleanup integration — Phase 3 prerequisite
+# Student provider cleanup integration
 
-Status: disabled prerequisite delivered. PR #1258 merged at
-`29cde0b0df441cf1b55f305da5ed4a602ca1d642`; the automatic main Preview is READY.
-This is a prerequisite increment, not Phase 3 completion. Prior owner: task
-`01a09b31-f9d8-7ce0-8a20-0bfd61f67009`, preserved branch
-`codex/pal-student-cleanup-integration`. Risk: runtime-platform.
+Status: explicit live-flow implementation in review; default disabled. Owner:
+`01a09d38-cc38-7850-b061-e3575db13c17`, branch
+`codex/explicit-live-membership-purge`. Coordinator:
+`01a09083-d907-7532-ae50-9b46d292bdb6`. Risk: runtime-platform
+(authorization, immutable policy, concurrency and destructive cleanup).
 Model recommendation: GPT-6 Astra for implementation; Sol/high security and
 concurrency review, Terra/high compatibility and coverage review.
 
-The selected [six-phase plan](classroom-pal-and-student-cleanup-plan.md) governs
-product intent and records the current academic/file-stage owner. Phase 2 PR1256
-is merged. Local Pika was verified through001–173 before the174 correction; exact local application
-permissions for171–173 are consumed. Production remains through168. Provider and academic
-cleanup remain disabled. The merge/Preview receipt is
-`/Users/stew/.codex/metrics/pika-phase3-merge-preview-receipt-2026-09-13.md`.
+The existing [six-phase roadmap](classroom-pal-and-student-cleanup-plan.md)
+remains the plan. This record supersedes its earlier blanket backup/restore-proof
+requirements for newly selected `pika-live-v1` operations only.
 
-Pal PR104 is released at `5ef9070471e4d409082f1146b584ab76cfc3a1d3`. Its exact
-begin/status contract is implemented but disabled, and managed-copy proof is
-unconditionally unavailable. No hosted completion is possible. Bara PR60 is
-merged at `39660c0e207f087cf96923a975ea0f55e6472943`; its deployed backend is the
-expiring Preview `cautious-tortoise-152` (September18), not a stable production
-backend. No provider code or configuration is modified here.
+## Settled product policy
 
-## Compatibility boundary
+Remove the student immediately using the existing roster action. An explicit
+later purge removes their LIVE data in that classroom. Keep the account,
+other classrooms, classmates, teacher materials and shared assets. There is no
+restore-student action. Verified completion permits a fresh invitation/join,
+a new enrollment generation, a new Pal reference and a new Bara participant.
+Old generations and their delivery identities remain closed forever.
 
-Migration171 adds `provider_pending` to the EXISTING student purge operation
-record plus private immutable generation and provider bindings. Reservation
-requires an exact retained removed enrollment generation, current classroom
-owner, fresh policy eligibility and verified participant mapping. Operation and
-provider references are captured atomically with the existing student fence
-before the first HTTP attempt. There is no public route, removal autoenqueue,
-new scheduler, or temporary reenrollment. Legacy typed-email purge remains.
+Historical backups, retained historical classroom archives and archive-derived
+exports may remain under their actual retention. Their physical absence, expiry,
+restore rehearsal or independent restore suppression is not a live completion
+requirement. Retention is not attested here. A privileged administrator restoring
+an old database can revive historical data; this flow makes no contrary promise.
+An active replica, current provider store, cache, mixed live resource or in-flight
+writer is not historical merely because it is called a backup.
 
-A provider prerequisite has no academic inventory and cannot enter the ordinary
-object/finalization stages. Binding-backed operation and child triggers block
-both exposed and legacy finalizers, callbacks, status mutation and fence removal.
-Provider receipts cannot mark a Pika generation purged, complete the operation,
-rotate references or release re-add. Active-operation conflicts and health counts
-continue to recognize the pending stage; the ordinary cron excludes it.
+## Delivered dependencies and release distinctions
 
-Provider advancement explicitly selects Pal or Bara and makes at most one HTTP
-attempt. One provider's pending copy policy cannot prevent beginning the other's
-fence. Returned persistence evidence must contain the exact receipt just recorded;
-both providers can complete without advancing Pika beyond provider_pending.
+- Pika Phase1 PR1253 and Phase2 PR1256 are merged. Provider prerequisite PR1258
+  merged at `29cde0b0df441cf1b55f305da5ed4a602ca1d642`; academic stage PR1259
+  merged at `ea9f45a5376b15b4d5cd44c57f1f0683598e8e16`. PR1259 main CI
+  `34784421380` passed6919 tests plus database/browser/build; automatic Preview
+  was READY. Those are source/CI/Preview receipts, not live activation.
+- Pal schema PR105 merged at `d032945`; production0014 is applied. Runtime
+  PR106 merged at `60e9befb0b31fa164663658f5f09c2615596cc14`; exact-main CI
+  `34791160069` succeeded. Production deployment
+  `dpl_3n6iej97hKRGSfVdyHq5RqFXXdXL`, GitHub deployment6427990973, is READY
+  at pal.codepet.ca. Its erasure allowlist remains absent/off; no live purge
+  is evidenced. Canonical contracts: Pal `docs/profile-erasure-contract.md`
+  and `docs/profile-erasure-runtime.md` at that commit.
+- Bara participant PR60 merged at
+  `39660c0e207f087cf96923a975ea0f55e6472943`,234 tests passed. The verified
+  `cautious-tortoise-152` backend was an expiring Convex preview (September18),
+  not a stable production release. A stable Bara release remains a rollout gate.
+- Reported Pika ledgers: local001–174, production001–168. All earlier exact
+  application approvals are consumed. Applied migrations remain immutable.
+  Migration175 below is forward source, not an application receipt.
 
-All gates default off. New attendance generation capture also requires the new
-private database gate and an enrollment created after its eligibility boundary.
-No historical participant mapping is attributed or backfilled. Missing or
-ambiguous mappings stop reservation. Captured mappings cannot be renamed, moved
-or deleted; eventual rotation needs verified full cleanup and a separately
-implemented fresh-generation transition. No such transition exists in this slice.
+## Immutable provider contracts
 
-Removal closes scoped Pal delivery leases and tracked attendance leases. The
-same permanent generation predicate governs attendance source construction,
-preparation, strict stage comparison, inbox replay and fact writes. Reconciliation
-omits closed-generation check-ins while preserving classmates. No old payload is
-reinterpreted with a fresh mapping. Provider fences remain necessary for the
-network gap after host authorization; already transmitted bytes cannot be recalled.
+New explicit live reservation uses the existing
+`advance_removed_student_academic_cleanup` RPC with action `live_reserve`.
+It reserves the same operation, student/classroom fence, retained generation,
+provider references, origin/integration/installation and teacher binding before
+any network attempt. It saves `pal_schema_version=2`, `pal_policy=pika-live-v1`.
+The new private `live_enabled` gate defaults false.
 
-Student scans resolve the current membership before sending, before a bounded
-retry, and before returning the result. Changed or removed generations discard
-the response; enabled scans bind the exact participant in both the request and
-idempotency digest, and reject a response for another participant. Outbox delivery
-and stored-response replay authorize the exact payload and lease immediately
-before use. Missing generation RPCs preserve pre171 behavior only while the new
-application gate is off; permission errors and malformed results fail closed.
-Once the RPCs exist, their durable fences apply even when that gate is paused.
+Existing `reserve_student_provider_cleanup` still creates strict v1 bindings.
+Existing pending/completed strict operations are never upgraded or reused; their
+six-key Pal receipts and existing public binding shape stay compatible. Migration175 defaults
+existing policy fields to strict v1 and the existing immutability trigger protects
+them. No nullable-policy transition or receipt-driven policy selection exists.
 
-Pal uses the existing backend bearer credential; Bara uses its existing signed
-attendance envelope and fresh nonce for each attempt. Saved origin/integration
-or installation bindings must match current server configuration. Every receipt
-is versioned, structurally strict and bound to the saved operation/reference.
-404, 202 completion, timeouts, transport failures, malformed responses and scope
-mismatches never prove cleanup. Pal pending/copy-blocked and Bara blocked states
-stay pending. These receipts cover provider-defined scope, not all Pika data.
-Pal generic404, malformed receipts and unexpected successful HTTP statuses are
-retryable uncertainty using the same operation binding; definite authorization,
-binding and configuration errors remain blocked. No rejected reply is persisted
-as cleanup proof.
+Pal POST sends exactly `{schema_version:2, policy:"pika-live-v1", operation_id,
+learner_id}`. It never sends the GET-only `Pal-Erasure-Policy` header. Pal GET
+sends that header with value `pika-live-v1` and has no body; it only reads status.
+An exact POST retry progresses Pal. V2 receipts require exactly nine keys,
+canonical UTC millisecond timestamps, valid chronology, exact operation/reference,
+`historical_backups:"excluded"` and `backup_retention:"not_attested"`.
+Wrong policy, extra/missing keys, generic404, timeouts, malformed replies and
+202 completion never establish cleanup. Lost responses reuse the saved binding.
+Bara retains its strict participant-scoped receipt and signed transport; whole
+class decommission is never called. Independent attempts prevent pending Pal
+from starving Bara. Recording and finalization recheck current teacher authority,
+configuration, private gates, the retained removal and absence of enrollment.
 
-## Delivered verification and limitations
+## Explicit invocation and status
 
-- Exact migration171 SHA256
-  `598ee035bea90e47aade94acb7d79ce2227e110c343e57be0661e71ce4ccd587`
-  and correction172 SHA256
-  `4aac47ce59b41d8b1de87ec07710ff4d4df8bb7e2292456335c1c836a6e65424`
-  were each applied once to the existing local Pika database with direct approval.
-  Both files remain byte-immutable. Canonical generated types came from the
-  verified schema; no hand editing of generated types was used.
-- Independent source review and corrections completed at reviewed head
-  `215c805bf7c8d01ef92fc7d13536c36f91557eec`. Exact-head PR Gate passed before
-  normal merge. The merged tree matches that reviewed candidate.
-- The typed RPC coordinator and generation-aware attendance scan/pre-send/replay
-  consumers have synthetic regression coverage. Host browser invalidation was
-  visually verified: denied membership invalidates token/memory and ignores late
-  replies without remounting academic children; legacy caching stays.
-- Rollback SQL covers held leases, source isolation, provisional-copy ownership
-  and unfinished intents, strict receipts, legacy finalizers/callbacks and
-  aged-operation health. The separate contention harness uses two connections
-  and verifies RPC/producer lock conflicts and release. Fixtures remain
-  uncommitted: this is not a committed-row MVCC claim/removal race rehearsal.
-- Unknown provider replies, Pal retry classification, copy ownership/intents and
-  provider-pending cron health were addressed during bounded independent review.
-  Local and mocked checks do not establish hosted erase safety.
-- Preview verification read deployment metadata only. It did not perform a
-  hosted smoke, provider request, manual redeployment, activation or live erase.
+The API is disabled unless `PIKA_LIVE_STUDENT_CLEANUP_ENABLED=true`.
+The complete Pika application gate set is `PIKA_LIVE_STUDENT_CLEANUP_ENABLED`,
+`STUDENT_PROVIDER_CLEANUP_ENABLED`, `PAL_PROFILE_ERASURE_ENABLED`,
+`PIKA_BARA_PARTICIPANT_ERASURE_ENABLED`, and
+`PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED`, each exactly `true` for writes.
+All are default-false in `.env.example`; changing real configuration requires
+separate rollout authority. Existing Pal/Bara credentials and the saved
+`PAL_PROFILE_ERASURE_INTEGRATION_ID` must match the reviewed provider binding.
+Database prerequisites are `private.student_provider_cleanup_settings.enabled`
+and `.live_enabled`, exact tenant configuration/eligibility,
+`private.removed_student_academic_settings.enabled`, and verified
+`managed_storage_settings.mode='enforced'`. The existing generation/signal
+capture gates must already have established eligible exact Pal/Bara membership
+mappings. Pal's exact authenticated integration allowlist and Bara's participant
+erasure activation require separate provider authority. None is enabled here. Ordinary roster removal and the legacy purge endpoints retain
+their current behavior while these gates are off. No scheduled worker or
+removal hook calls this flow.
 
-## Remaining release and product gates
+Use the existing authenticated teacher session and the exact target URL:
+`/api/teacher/classrooms/{classroomId}/students/{studentId}/purge/live`.
+The caller cannot supply a teacher identity or provider tenant.
 
-The prerequisite merge and automatic Preview are delivered. Further merge, deployment,
-migration application, provider activation, live canary or scheduled cleanup need
-their applicable authority. Unknown managed copy
-classes remain blocked. Academic files, archive/Gradex copies, remote grading,
-restore-independent suppression, retention policy and complete local inventory
-remain independent obligations. Never delete a whole-class archive or invoke
-whole-roster Bara decommission to satisfy one participant's cleanup. No physical
-erasure, two-day promise, legacy profile retirement, historical-removal backfill,
-achievement copying or reset is claimed. Phase4 worker policy and Phase5 pilot
-remain separate.
+1. GET without a query returns the exact retained `generation_id` after current
+   teacher ownership validation. It does not reserve or send a provider request.
+2. Generate one operation UUID and save it with that generation. POST:
 
-## Local academic stage — verification checkpoint
+   ```json
+   {
+     "action": "reserve",
+     "operation_id": "<saved-operation-UUID>",
+     "generation_id": "<retained-generation-UUID>",
+     "confirmation": "PURGE LIVE CLASSROOM DATA"
+   }
+   ```
 
-Owner: `01a09bf4-0b2a-7762-8043-45c5698b8492`, branch
-`codex/removed-membership-academic-cleanup`. Migration173 passed independent source review and was applied once to local Pika
-under direct approval. Its SHA256 is `df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd`; it is now immutable.
-Warning-level database lint and canonical generated types/check pass. The typed
-RPC bridge is implemented and mock-tested. Final cumulative review and runtime
-fixture verification remain required before readiness.
+   Reservation performs no provider HTTP or academic deletion. The confirmation
+   declares the explicit destructive scope; it does not replace authentication.
+3. POST the same body with `action:"advance"`. Each invocation attempts both
+   providers independently, then, only with verified provider completion, the
+   existing academic inventory and at most one physical file deletion. Repeat
+   the same operation/generation to progress bounded work or recover a lost reply.
+4. GET `?operation_id=<saved-UUID>&generation_id=<saved-generation-UUID>` reads
+   durable status without progressing providers, even when new-work activation is off. Responses use `no-store`.
+   Status includes Pal, Bara, local stage and concrete blockers. An advance may
+   include sanitized per-provider retryability; upstream bodies are never echoed.
+5. `cleanup_completed:true` and overall `completed` mean the guarded final
+   transaction succeeded. Local `local_completed` alone cannot release re-add.
+   A failed/unknown HTTP response is uncertainty: read the same operation.
+   After completion, use ordinary roster invitation and student join. There is
+   no restore action and no old-generation reopening.
 
-Academic data ownership is the exact student/classroom pair. The saved current
-removed generation authenticates the operation; dates do not attribute rows to
-a generation. Every local RPC and physical storage deletion rechecks current
-teacher authority, the immutable operation/provider tuple, exact retained roster
-identity, absence of enrollment, private gates and the retained fence under the
-existing locks. Repeatable-read/serializable caller snapshots are rejected.
+## Local scope, shared data and finalization
 
-The stage reuses `student_purge_operations`, `student_purge_resources` and
-`student_purge_objects`. Full row and managed-owner hashes freeze inventory
-revision1, including content changes that an ID/count-only hash would miss.
-Inventory replay preserves that revision; drift stops progress. An internal
-transaction-scoped capability permits narrow ledger/row mutations and is removed
-before the RPC returns. It is not a persisted work queue or a caller-set flag.
-The ordinary purger still stops at `provider_pending` and cannot call this stage.
+The173/174 academic inventory remains authoritative: student+classroom ownership
+selects rows; the removed generation authenticates the operation rather than
+attributing individual rows by dates. The existing29-table allowlist, row/owner
+hashes, exact object ownership, two file buckets, leases, retry/backoff, callback
+checks, mixed attendance-child checks and storage absence verification are reused.
+No generation-provenance capture or retrospective relabeling is introduced.
 
-| Resource class | Treatment in this increment |
-|---|---|
-| Assignment docs, history, save operations, teacher feedback, student artifacts | Exact current inventory; row hashes; delete only after all gates pass |
-| Test attempts/history/responses/focus/availability, survey responses, announcement reads, report-card rows, daily entries | Reuse existing exact student/classroom inventory |
-| Gradebook overrides and standalone scores | Reuse157/163 inventory extensions |
-| Removed roster manual attendance marks | Inventory payload separately; clear to an empty object while retaining every identity/control field and timestamp |
-| Embedded managed-object references | Explicit inventory of exact doc/history references; forbid any shared owner |
-| Student-managed artifacts/images | Exact owner/purpose/bucket checks; existing object leases, retries and permanent path reservations; SQL absence verification |
-| Shared summaries, feedback candidates, grading runs, repo grading, AI provenance, retired assessment data | Block; no collateral deletion or shared-run redaction |
-| Archives, Gradex extracts, provisional intents, cleanup ledgers and cross-owner object references | Block; no whole-class copy cleanup |
-| Local attendance facts/projections/overrides/events | Exact student/classroom inventory and deletion; child events before overrides; mixed parent/event identities block and both scopes are fenced; immutable participant mapping retained |
-| Shared attendance override-request results | Block pending shared-result handling |
-| Pal/Bara delivery ledgers and identity evidence | Remain under the provider/integration obligation; never erased or declared complete by local academic evidence |
-| Account, profile, classmates, other classes, teacher materials and shared assets | Preserved |
+Completed verified archive objects and completed archive-derived Gradex extracts
+are retained historical artifacts: `classroom-gradex-operations.ts` builds its
+extract from a verified archived snapshot. A completed copy is not erased to
+settle one student. In-progress/retryable archive/export operations, unfinished
+provisional owners and unbound managed copy objects remain live/unknown blockers.
+Cold classroom lifecycle state remains ineligible for this hot-classroom flow.
+Exact selected-file references from any shared copy continue to block deletion;
+this is an ownership constraint, not a backup-retention test.
 
-Inventory can run before provider completion. Every destructive step requires the
-saved exact Pal completion and Bara participant absence receipts plus all no-copy
-conditions. Pal's live managed-copy proof is unavailable, so synthetic receipts
-validate dormant behavior only. `local_completed` records local academic/file
-absence; overall remains `provider_pending`. Resources, path tombstones, immutable
-bindings and the re-add fence remain. No worker, cron, public route, teacher UI,
-reenrollment, reference rotation or overall finalizer is added.
+Finalization reuses the transaction-scoped academic capability, existing locks,
+READ COMMITTED checks and exact teacher/generation binding. It requires local
+absence, both provider receipts, no unfinished file and a fresh blocker check.
+It removes exact participant check-in inbox/invalidation payloads, removes only
+the target participant from mixed roster snapshots, supersedes those snapshots,
+and preserves their classmates. It removes scoped Pika Pal delivery payloads
+and week configuration data. Final verification checks delivery absence.
 
-Verification authored: orchestration/storage mocks, a source contract that requires fixtures for all29 allowlisted row tables, and the rollback-only
-`scripts/check-removed-student-academic-database.sql` harness. The harness requires
-local173. It is designed to cover22 exact deletion/redaction categories, two leased files, ten blocked scenarios, exact target absence and classmate/other-class row hashes. Failed callbacks/backoff and lease expiry are simulated in rolled-back subtransactions. It changes only synthetic transaction-local fixtures; it must
-never be described as committed-row MVCC or storage-byte deletion proof. The corrected fixture passes end to end under direct local rollback-only approval.
-It follows the existing managed-storage fixtures by setting the Storage API's SQL
-metadata-delete permission only within its transaction; Pika's guards remain live.
-Negative checks require the exact storage-authority error without completed
-providers or with an expired lease. Successful cleanup preserves overall status,
-provider bindings, account/profile, roster controls, resource/path tombstones and
-re-add fences. Postflight confirms zero synthetic users/managed objects/storage
-rows, both cleanup gates false and storage mode compatibility. Warning-level
-database lint and canonical types/check pass. Final cumulative review found a late repo-review producer race. Forward174 adds
-`assignment_repo_review_runs` to the existing classroom-locking indirect purge
-guard for insert/update/delete, including old/new assignment scopes. Existing
-runs still block cleanup; a denied run insert stops the route before analysis or
-AI grading. Regression tests cover that route ordering and deterministic late
-inserts after inventory/completion, plus moves into/out of a fenced classroom.
-The expanded fixture requires174; its post174 runtime result, exact local
-application receipt and final CI verdict are tracked in PR1259. This is not a
-committed cross-connection race proof. Applied173 remains unchanged.
+Then it deletes only the target inactive current Bara mapping and retained roster
+deny row, marks the old Pal generation purged, completes the operation and removes
+its fence atomically. The public completed operation clears `student_id` and
+`student_email` as required by its existing privacy constraint; completed replay
+still verifies the exact teacher/classroom/generation and immutable private
+student+classroom scope digest. Provider receipts, immutable attendance/Pal generation
+identities, scoped delivery bindings, resource IDs and storage path tombstones
+remain as control evidence. Fresh enrollment/mapping insertion generates new
+opaque references. Old participant payload checks no longer depend on the deleted
+current mapping. Deleted resource IDs cannot be reinserted and old Pal references
+cannot create outbox work. Permanent fences survive disabled activation gates.
+
+Genuine unsupported current-data boundaries still fail closed: remote grading
+provenance/current external grading copies, mixed summaries/feedback candidates,
+shared grading-run payloads, shared attendance override-request results, retired
+assessment ownership, unknown/shared object ownership, and legacy invalidations
+without an exact participant or unknown stored provider-response shapes.
+These cases are reported as blockers; the flow does not claim completion or
+silently delete classmates. No worker, queue, dashboard, broad cron scheduling,
+legacy sitewide Pal retirement, historical backfill or two-day guarantee is added.
+
+## Verification and rollout approval packet
+
+Source verification and normal disposable CI database fixtures are authorized.
+The SQL fixture `scripts/check-live-student-cleanup-database.sql` is rollback-only:
+its Storage metadata deletion is not committed-row MVCC or real-byte evidence.
+The existing storage coordinator mocks cover physical adapter calls and lost
+callbacks. Existing Pal client tests cover memory/token invalidation and late
+reply rejection without losing academic input. No rendered UI change is made.
+
+PR1260 records the exact reviewed migration hash, fixed review SHA, PR Gate and
+CI result as they become available. Until those checks finish this is an
+implementation candidate, not a ready or applied release.
+
+The rollout approval packet must name each separate action:
+
+- Local schema: existing Pika local target `supabase_db_pika`, database `postgres`,
+  only `175_explicit_live_student_cleanup.sql` after rechecking ledger001–174.
+  This migration defines destructive runtime functions but performs no student
+  data purge and enables no gate. It adds only private metadata and changes
+  existing public RPC bodies; generated public signatures are unchanged.
+- Production schema: reverify the recorded001–168 ledger and prepare exact
+  immutable169–175 filenames/hashes and prerequisites as a separate batch.
+  A local approval never authorizes production or schema-history repair.
+- Application release: reviewed Pika commit and normal deployment approval;
+  stable Bara participant runtime; Pal released60e9bef with verified live
+  topology and fenced writers. Historical retention is not a gate.
+- Activation/canary: exact environment, teacher, classroom, removed generation,
+  operation, provider tenant/reference bindings and explicit live purge authority.
+  Confirm current Pika/Pal/Bara writers and serving caches match reviewed paths;
+  configure existing gates only under that separate authority. No live provider
+  request, allowlist change or actual deletion is authorized by this source PR.
+
+Rollback disables new begins/advances; retained guards and policy-aware readers
+are the rollback floor. Never revert to a writer that can reopen a saved identity
+or misread v2 as strict proof. Migration application follows the
+[schema authorization checklist](schema-rollout-checklist.md); no prior approval
+can be reused for175 or another target.
