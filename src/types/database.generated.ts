@@ -8834,6 +8834,10 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_removed_student_cleanup_job: {
+        Args: { p_lease_token: string }
+        Returns: Json
+      }
       claim_student_purge_object: {
         Args: {
           p_lease_seconds?: number
@@ -10441,6 +10445,16 @@ export type Database = {
       }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }
+        Returns: boolean
+      }
+      release_removed_student_cleanup_job: {
+        Args: {
+          p_completed: boolean
+          p_error_code?: string
+          p_job_id: string
+          p_lease_token: string
+          p_retry_delay_seconds?: number
+        }
         Returns: boolean
       }
       remove_classroom_roster_entries_atomic: {

@@ -96,12 +96,14 @@ and `.live_enabled`, exact tenant configuration/eligibility,
 capture gates must already have established eligible exact Pal/Bara membership
 mappings. Pal's exact authenticated integration allowlist and Bara's participant
 erasure activation require separate provider authority. None is enabled here. Ordinary roster removal and the legacy purge endpoints retain
-their current behavior while these gates are off. No scheduled worker or
-removal hook calls this flow.
+their current behavior while these gates are off. Migration176 and the automatic
+worker are a later default-off layer; they do not alter historical removals.
 
-Use the existing authenticated teacher session and the exact target URL:
+The Phase3 explicit contract used an authenticated teacher session and the exact target URL:
 `/api/teacher/classrooms/{classroomId}/students/{studentId}/purge/live`.
-The caller cannot supply a teacher identity or provider tenant.
+The caller cannot supply a teacher identity or provider tenant. Phase4 retires
+teacher POST access with a404 response; GET remains a read-only recovery/status
+boundary. The automatic worker invokes the same server coordinator directly.
 
 1. GET without a query returns the retained `generation_id`, existing live
    `operation` (or null), and application `enabled` state after teacher ownership
@@ -221,7 +223,7 @@ or misread v2 as strict proof. Migration application follows the
 [schema authorization checklist](schema-rollout-checklist.md); no prior approval
 can be reused for175 or another target.
 
-## Teacher dialog integration — 2026-09-13
+## Teacher dialog integration — 2026-09-13 (superseded in Phase4)
 
 Owner: `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch
 `codex/teacher-live-purge-dialog`; based on merged backend PR1260 / `80505399`.
@@ -251,6 +253,35 @@ HTTP success alone and local completion do not release re-add. Retry preserves
 the original operation, including uncertain reservation responses. Response epochs
 and a per-membership request lock suppress stale updates and overlapping requests.
 Provider or ownership blockers remain pending and require status refresh.
+
+The 2026-09-15 product decision removed this teacher-directed cleanup entry.
+Teachers keep the existing Remove from class confirmation; the system queues and
+advances cleanup. The dialog behavior above remains historical Phase3 evidence,
+not an available product command.
+
+## Automatic worker — 2026-09-15 source checkpoint
+
+Migration176 queues only removals committed after its independent
+`automatic_enabled` database gate is activated. It never scans or backfills
+historical retained rows. The private queue assigns the stable operation UUID in
+the removal transaction, uses two-minute leases and redacts teacher, classroom,
+student and generation identifiers at verified completion.
+
+The removal trigger asks `pg_net` for one asynchronous callback after commit;
+batch rows are coalesced. A `pg_cron` job runs `*/5 * * * *`, first checks for due
+queue work in SQL, and makes no HTTP request while idle. Its HTTPS worker URL and
+shared secret are read from Supabase Vault names
+`pika_removed_student_cleanup_worker_url` and
+`pika_removed_student_cleanup_worker_secret`; neither value is stored in source.
+The protected Vercel route is `/api/cron/removed-student-cleanup`, authenticated
+with the existing `CRON_SECRET` value and independently gated by
+`PIKA_AUTOMATIC_REMOVED_STUDENT_CLEANUP_ENABLED` plus every live-cleanup gate.
+
+One invocation claims at most three jobs, gives each operation at most ten bounded
+advances, stops starting work after a45-second budget, and records completion or
+a sanitized retry. Pending work becomes eligible after240seconds so the next
+five-minute boundary can recover it. Provider and finalization receipts remain
+the only cleanup proof; queue or HTTP success never releases re-add.
 
 Every live reservation/advance requires all five documented application gates;
 pausing any one leaves exact status readable. Incompatible operation/policy reads

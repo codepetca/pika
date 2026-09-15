@@ -11,6 +11,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-11 — Compact Daily attendance rows
+
+- Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
+- Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
+- Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.
+
 ## 2026-09-11 — Final student removal, no re-add before purge
 
 - User explicitly approved no recovery promise and blocking re-add to the same class until old class data is purged. Owner branch: `codex/final-student-removal`. Removed application restoration calls, added a read-only identity-aware add/CSV preflight, mapped concurrent write denial to409, and revised removal/Pal copy using existing UI owners.
@@ -221,3 +227,8 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 ## 2026-09-15 — Past logs without paging
 - User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
 - Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
+## 2026-09-15 — Automatic removed-student cleanup source checkpoint
+
+- User selected a five-minute conditional watchdog and automatic system-owned cleanup for new removals. On `codex/removed-student-cleanup`, added migration 176: a private future-only queue, redacted completion evidence, leased service-only claims, an asynchronous Vault-backed immediate callback, callback coalescing, and a conditional Supabase Cron schedule. Historical removals are not backfilled.
+- Direct user approval authorized the exact local migration. It applied successfully at SHA256 `274fb228880248e982287c643f1f49d8c03fd7bd91c9082e6134508d2f3f8f71`; the local ledger now matches 001–176, database lint is clean, and all cleanup gates remain false. Canonical generated types include the claim/release RPCs.
+- Added the default-off protected worker route and bounded retry orchestration. Removed the teacher-owned live cleanup action and documented system ownership. Focused unit/API/component coverage passes 71 tests; teacher and student Playwright verification passes 20 tests across desktop/mobile and light/dark, with screenshots inspected. No Vault configuration, schedule execution, provider request, student removal, purge, hosted migration, rollout, or production change occurred.
