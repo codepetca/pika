@@ -382,7 +382,12 @@ export function PageActionBar({
   const hasCenter = center != null || primaryActions.length > 0
 
   return (
-    <div className={cn('w-full bg-page', PAGE_DENSITY_CLASSES[density].gutter, className)}>
+    <div className={cn(
+      'w-full bg-page',
+      PAGE_DENSITY_CLASSES[density].gutter,
+      density === 'student' && PAGE_DENSITY_CLASSES[density].contentTop,
+      className,
+    )}>
       <div className={cn(
         'min-w-0 items-center gap-3',
         hasCenter ? 'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'flex',

@@ -1,157 +1,169 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StudentPurgeDialog } from '@/components/StudentPurgeDialog'
+import { cleanupKey } from '@/lib/live-student-cleanup-client'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 
-const CLASSROOM_ID = '10000000-0000-4000-8000-000000000001'
-const STUDENT_ID = '20000000-0000-4000-8000-000000000001'
-const EMAIL = 'student@example.com'
-
-function impact(overrides: Record<string, unknown> = {}) {
-  return {
-    classroom_id: CLASSROOM_ID,
-    classroom_title: 'Biology',
-    student_id: STUDENT_ID,
-    student_email: EMAIL,
-    source_revision: 7,
-    storage_inventory_sha256: 'a'.repeat(64),
-    relational_inventory_sha256: 'b'.repeat(64),
-    relational_row_count: 18,
-    managed_file_count: 3,
-    managed_file_bytes: 2048,
-    archive_count: 1,
-    gradex_extract_count: 1,
-    resource_counts: { entries: 2 },
-    storage_counts: { student_inline_image: 1, classroom_archive: 1, gradex_extract: 1 },
-    conflicting_operation: null,
-    deletion_available: true,
-    unavailable_reason: null,
-    ...overrides,
-  }
+const classroomId = '10000000-0000-4000-8000-000000000001'
+const target = { student_id: '20000000-0000-4000-8000-000000000001', generation_id: '30000000-0000-4000-8000-000000000001', email: 'student@example.com', name: 'Ada Lovelace' }
+const opId = '40000000-0000-4000-8000-000000000001'
+const pending = { operation_id: opId, status: 'provider_pending', cleanup_completed: false, pal: 'pending', bara: 'deleting', local_status: 'not_started', blockers: [] }
+const done = { ...pending, status: 'completed', cleanup_completed: true, pal: 'completed', bara: 'deleted', local_status: 'local_completed' }
+const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+const discovery = (patch = {}) => response({ generation_id: target.generation_id, enabled: true, operation: null, ...patch })
+const props = { classroomId, classroomTitle: 'Biology', targets: [target], isOpen: true, onClose: vi.fn(), onCompleted: vi.fn() }
+async function open() {
+  const view = render(<StudentPurgeDialog {...props} />)
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: target.generation_id } })
+  await waitFor(() => expect(screen.getByRole('button', { name: /^(Check progress|Done)$/ })).toBeEnabled())
+  return view
 }
+async function confirm() {
+  fireEvent.change(await screen.findByRole('textbox'), { target: { value: target.email } })
+  fireEvent.click(screen.getByRole('button', { name: 'Delete live class data' }))
+}
+beforeEach(() => {
+  sessionStorage.clear(); vi.clearAllMocks(); props.onCompleted.mockReset(); invalidateCachedJSONMatching('live-cleanup:')
+  vi.spyOn(crypto, 'randomUUID').mockReturnValue(opId)
+})
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-describe('StudentPurgeDialog', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
-  it('states the exact deletion and preservation contract and requires the case-sensitive email', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ impact: impact(), operation: null }),
-    })))
-    const onClose = vi.fn()
-    render(<StudentPurgeDialog
-      classroomId={CLASSROOM_ID}
-      classroomTitle="Biology"
-      studentId={STUDENT_ID}
-      studentEmail={EMAIL}
-      studentName="Ada Lovelace"
-      isOpen
-      onClose={onClose}
-      onCompleted={vi.fn()}
-    />)
-
-    const dialog = await screen.findByRole('dialog', { name: 'Permanently delete class data?' })
-    expect(dialog).toHaveTextContent(/submissions, tests, grades, attendance/)
-    expect(dialog).toHaveTextContent(/user account and data in other classrooms are kept/i)
-    expect(dialog).toHaveTextContent(/archive copies and Gradex extracts/)
-    expect(dialog).toHaveAttribute('aria-modal', 'true')
-    expect(dialog).toContainElement(document.activeElement)
-    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
-    expect(purge).toBeDisabled()
-    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'STUDENT@example.com' } })
-    expect(purge).toBeDisabled()
-    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: EMAIL } })
-    expect(purge).toBeEnabled()
+describe('teacher live cleanup dialog', () => {
+  it('discovers read-only, describes truthful scope, and requires exact confirmation', async () => {
+    const fetch = vi.fn().mockResolvedValue(discovery()); vi.stubGlobal('fetch', fetch)
+    await open()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch.mock.calls[0][0]).toMatch(/\/purge\/live$/)
+    expect(screen.getByRole('dialog')).toHaveTextContent(/Historical backups and inactive archives or exports are outside/)
+    expect(screen.getByRole('dialog')).toHaveTextContent(/Their account, other classes, classmates, and shared materials are kept/)
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('button', { name: 'Delete live class data' })).toBeDisabled()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: target.email.toUpperCase() } })
+    expect(screen.getByRole('button', { name: 'Delete live class data' })).toBeDisabled()
     fireEvent.keyDown(document, { key: 'Escape' })
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(props.onClose).toHaveBeenCalledOnce()
   })
+  it('persists before reserve and advances at most once per explicit click', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(discovery()).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(init.body)
+      expect(JSON.parse(sessionStorage.getItem(cleanupKey(classroomId, target))!)).toMatchObject({ operation_id: body.operation_id, policy: 'pika-live-v1' })
+      return response({ operation: pending }, 202)
+    }); vi.stubGlobal('fetch', fetch)
+    await open(); await confirm()
+    await screen.findByText('Waiting for linked services.')
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ action: 'reserve', operation_id: opId, generation_id: target.generation_id, confirmation: 'PURGE LIVE CLASSROOM DATA' })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue cleanup' }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    expect(JSON.parse(fetch.mock.calls[2][1].body).action).toBe('advance')
+    expect(props.onCompleted).not.toHaveBeenCalled()
+  })
+  it('recovers a lost reserve response across unmount and reuses the saved operation', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(discovery()).mockRejectedValueOnce(new Error('Lost response'))
+      .mockResolvedValueOnce(response({}, 409)).mockResolvedValueOnce(discovery()).mockResolvedValueOnce(response({ operation: pending }, 202))
+    vi.stubGlobal('fetch', fetch)
+    const view = await open(); await confirm(); await screen.findByRole('alert')
+    view.unmount(); await open()
+    expect(fetch.mock.calls[2][0]).toContain(`operation_id=${opId}&generation_id=${target.generation_id}`)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: target.email } })
+    fireEvent.click(screen.getByRole('button', { name: 'Retry saved request' }))
+    await screen.findByText('Waiting for linked services.')
+    expect(JSON.parse(fetch.mock.calls[4][1].body).operation_id).toBe(opId)
+    expect(crypto.randomUUID).toHaveBeenCalledOnce()
+  })
+  it('reads saved progress while paused and does not authorize Continue', async () => {
+    sessionStorage.setItem(cleanupKey(classroomId, target), JSON.stringify({ operation_id: opId, policy: 'pika-live-v1' }))
+    const fetch = vi.fn().mockResolvedValue(response({ operation: pending, enabled: false })); vi.stubGlobal('fetch', fetch)
+    await open()
+    expect(screen.getByRole('button', { name: 'Continue cleanup' })).toBeDisabled()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it.each([{}, { ...done, operation_id: target.student_id }, { ...done, bara: 'blocked' }])('rejects unverified completion %j', async invalid => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(discovery()).mockResolvedValue(response({ operation: invalid })))
+    await open(); await confirm(); await screen.findByRole('alert')
+    expect(props.onCompleted).not.toHaveBeenCalled()
+  })
+  it('notifies completion only after server status proves all stages complete', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(discovery({ operation: done })))
+    await open()
+    expect(props.onCompleted).toHaveBeenCalledOnce()
+    expect(sessionStorage.getItem(cleanupKey(classroomId, target))).toBeNull()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled()
+  })
+  it('never falls back to legacy endpoints on discovery failure or stale generation', async () => {
+    const fetch = vi.fn().mockResolvedValue(discovery({ generation_id: opId })); vi.stubGlobal('fetch', fetch)
+    await open()
+    expect(screen.getByRole('alert')).toHaveTextContent('membership changed')
+    expect(screen.queryByRole('button', { name: 'Delete live class data' })).not.toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('suppresses duplicate requests and ignores a response after unmount', async () => {
+    let resolve!: (result: Response) => void
+    const fetch = vi.fn().mockResolvedValueOnce(discovery()).mockImplementation(() => new Promise<Response>(r => { resolve = r }))
+    vi.stubGlobal('fetch', fetch)
+    const view = await open(); await confirm()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry saved request' }))
+    expect(fetch).toHaveBeenCalledTimes(2)
+    view.unmount()
+    await act(async () => { resolve(response({ operation: done })) })
+    expect(props.onCompleted).not.toHaveBeenCalled()
+  })
+})
 
-  it('explains the Pal restriction once and keeps deletion blocked even after email confirmation', async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        impact: impact({
-          deletion_available: false,
-          unavailable_reason: 'student_purge_external_erasure_required',
-          conflicting_operation: 'student_purge_external_erasure_required',
-        }),
-        operation: null,
-      }),
-    }))
-    vi.stubGlobal('fetch', fetchMock)
-    render(<StudentPurgeDialog
-      classroomId={CLASSROOM_ID}
-      classroomTitle="Biology"
-      studentId={STUDENT_ID}
-      studentEmail={EMAIL}
-      studentName="Ada Lovelace"
-      isOpen
-      onClose={vi.fn()}
-      onCompleted={vi.fn()}
-    />)
-    const explanation = 'Permanent deletion is unavailable because this student has linked Pal data. Removing them from the class is separate and cannot be undone; it does not erase their data.'
-    expect(await screen.findByText(explanation)).toBeInTheDocument()
-    expect(screen.getAllByText(explanation)).toHaveLength(1)
-    expect(screen.queryByText('student_purge_external_erasure_required')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Finish the active classroom operation/)).not.toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: EMAIL } })
-    const deleteButton = screen.getByRole('button', { name: 'Delete class data' })
-    expect(deleteButton).toBeDisabled()
-    fireEvent.click(deleteButton)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
+it('blocks reservation when durable browser recovery storage cannot be written', async () => {
+  const fetch = vi.fn().mockResolvedValue(discovery()); vi.stubGlobal('fetch', fetch)
+  await open()
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Recovery storage unavailable') })
+  await confirm(); await screen.findByRole('alert')
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(props.onCompleted).not.toHaveBeenCalled()
+})
 
-  it('uses the authoritative account email when the roster casing differs', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ operation: null, impact: impact({ student_email: 'Joined@example.com' }) }),
-    })))
-    render(<StudentPurgeDialog
-      classroomId={CLASSROOM_ID}
-      classroomTitle="Biology"
-      studentId={STUDENT_ID}
-      studentEmail="joined@example.com"
-      studentName="Ada Lovelace"
-      isOpen
-      onClose={vi.fn()}
-      onCompleted={vi.fn()}
-    />)
-    const dialog = await screen.findByRole('dialog')
-    const input = within(dialog).getByRole('textbox', {
-      name: /Type “Joined@example\.com” to confirm/,
-    })
-    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
-    fireEvent.change(input, { target: { value: 'joined@example.com' } })
-    expect(purge).toBeDisabled()
-    fireEvent.change(input, { target: { value: 'Joined@example.com' } })
-    expect(purge).toBeEnabled()
-  })
+it('keeps unsupported live-data blockers pending and does not permit an advance', async () => {
+  const fetch = vi.fn().mockResolvedValue(discovery({ operation: { ...pending, blockers: ['shared_resource_policy_required'] } }))
+  vi.stubGlobal('fetch', fetch); await open()
+  expect(screen.getByText(/Cleanup needs attention/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Continue cleanup' })).toBeDisabled()
+  expect(screen.queryByText('shared_resource_policy_required')).not.toBeInTheDocument()
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
 
-  it('reuses the same operation id when the initial start response is lost', async () => {
-    const operationId = '30000000-0000-4000-8000-000000000001'
-    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => operationId) })
-    const bodies: Array<{ operation_id: string }> = []
-    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      if (!init?.method) return { ok: true, json: async () => ({ operation: null, impact: impact() }) }
-      bodies.push(JSON.parse(String(init.body)))
-      return { ok: false, json: async () => ({ error: 'Response lost after request' }) }
-    }))
-    render(<StudentPurgeDialog
-      classroomId={CLASSROOM_ID}
-      classroomTitle="Biology"
-      studentId={STUDENT_ID}
-      studentEmail={EMAIL}
-      studentName="Ada Lovelace"
-      isOpen
-      onClose={vi.fn()}
-      onCompleted={vi.fn()}
-    />)
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: EMAIL } })
-    const purge = within(dialog).getByRole('button', { name: 'Delete class data' })
-    fireEvent.click(purge)
-    await within(dialog).findByRole('alert')
-    fireEvent.click(purge)
-    await waitFor(() => expect(bodies).toHaveLength(2))
-    expect(bodies.map((body) => body.operation_id)).toEqual([operationId, operationId])
+it('ignores completion from a previous classroom after the scope changes', async () => {
+  let resolve!: (result: Response) => void
+  const fetch = vi.fn().mockResolvedValueOnce(discovery()).mockImplementationOnce(() => new Promise<Response>(r => { resolve = r }))
+    .mockResolvedValue(discovery())
+  vi.stubGlobal('fetch', fetch)
+  const view = await open(); await confirm()
+  view.rerender(<StudentPurgeDialog key="new-classroom" {...props} classroomId={target.student_id} />)
+  await act(async () => { resolve(response({ operation: done })) })
+  expect(props.onCompleted).not.toHaveBeenCalled()
+  expect(screen.queryByText(/Cleanup verified/)).not.toBeInTheDocument()
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+it('retains the displayed operation if session storage is cleared between steps', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(discovery({ operation: pending })).mockResolvedValue(response({ operation: pending }))
+  vi.stubGlobal('fetch', fetch); await open()
+  sessionStorage.clear()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue cleanup' }))
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+  expect(JSON.parse(fetch.mock.calls[1][1].body).operation_id).toBe(opId)
+  expect(crypto.randomUUID).not.toHaveBeenCalled()
+})
+
+it('recovers a lost final reply, then clears the completed identity before refreshing the roster', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(discovery({ operation: pending }))
+    .mockRejectedValueOnce(new Error('Lost final reply'))
+    .mockResolvedValueOnce(response({ operation: done, enabled: false }))
+  vi.stubGlobal('fetch', fetch)
+  const view = await open()
+  fireEvent.click(screen.getByRole('button', { name: 'Continue cleanup' }))
+  await screen.findByRole('alert'); view.unmount()
+  props.onCompleted.mockImplementation(() => {
+    expect(sessionStorage.getItem(cleanupKey(classroomId, target))).toBeNull()
   })
+  await open()
+  expect(props.onCompleted).toHaveBeenCalledOnce()
+  expect(fetch).toHaveBeenCalledTimes(3)
 })

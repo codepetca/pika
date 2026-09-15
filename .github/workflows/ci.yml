@@ -130,6 +130,9 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify classroom creation entitlements and active-limit concurrency
+        run: bash scripts/check-classroom-creation-entitlements-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
@@ -138,6 +141,18 @@ jobs:
 
       - name: Preserving classroom student removal database contracts
         run: bash scripts/check-student-classroom-removal-database.sh
+
+      - name: Pal membership identity lifecycle contracts
+        run: bash scripts/check-pal-membership-database.sh
+
+      - name: Classroom Pal signal and delivery contracts
+        run: bash scripts/check-pal-classroom-database.sh
+
+      - name: Removed-membership academic cleanup database contracts
+        run: bash scripts/check-removed-student-academic-database.sh
+
+      - name: Explicit live membership purge and fresh rejoin contracts
+        run: bash scripts/check-live-student-cleanup-database.sh
 
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh

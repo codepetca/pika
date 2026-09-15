@@ -1143,7 +1143,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       <DataTableCell
                         key={status}
                         className={cn(
-                          'sticky z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover',
+                          'sticky !p-0 bg-surface text-center group-hover:bg-surface-hover',
                           isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
                           STICKY_ATTENDANCE_OFFSETS[status],
                         )}
@@ -1168,7 +1168,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     {showAttendance ? (
                     <DataTableCell
                       className={cn(
-                        'sticky right-0 z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover',
+                        'sticky right-0 !p-0 bg-surface text-center group-hover:bg-surface-hover',
                         isSelected && 'bg-info-bg group-hover:bg-info-bg-hover',
                       )}
                     >

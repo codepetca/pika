@@ -110,6 +110,17 @@ describe('student purge server boundaries', () => {
     }, true)).toBe(false)
   })
 
+  it('never selects provider-pending operations for the ordinary safety net', async () => {
+    const selectStates = vi.fn(() => query)
+    const query = { in: selectStates, or: vi.fn(() => query), order: vi.fn(() => query),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }) }
+    serviceClient.from.mockReturnValue({ select: vi.fn(() => query) })
+    await expect(runStudentPurgeSafetyNet()).resolves.toEqual({ processed: 0, completed: 0, failed: 0 })
+    expect(selectStates).toHaveBeenCalledWith('status', ['deleting_objects', 'finalizing', 'failed'])
+    expect(serviceClient.rpc).not.toHaveBeenCalled()
+    expect(serviceClient.storage.from).not.toHaveBeenCalled()
+  })
+
   it('is a safe no-op before migration 123 exists', async () => {
     serviceClient.from.mockReturnValue({
       select: vi.fn(() => ({

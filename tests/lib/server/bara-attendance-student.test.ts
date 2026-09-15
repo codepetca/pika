@@ -12,7 +12,12 @@ import {
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const { withAuth } = vi.hoisted(() => ({ withAuth: vi.fn() }))
+const { resolveGeneration } = vi.hoisted(() => ({ resolveGeneration: vi.fn() }))
 vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth }))
+vi.mock('@/lib/server/attendance-generation', async importOriginal => ({
+  ...await importOriginal<typeof import('@/lib/server/attendance-generation')>(),
+  resolveAttendanceScanGeneration: resolveGeneration,
+}))
 
 const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
 const studentId = '30000000-0000-4000-8000-000000000001'
@@ -34,10 +39,50 @@ function entryToken() {
 describe('native Pika student attendance check-in', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resolveGeneration.mockReset().mockResolvedValue({ status: 'legacy' })
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', entrySecret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test')
   })
   afterEach(() => vi.unstubAllEnvs())
+
+  it('uses the exact current participant on enabled scans and checks the same generation after the response', async () => {
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'true')
+    const generation = { status: 'active', generation_id: attemptId, participant_ref: `participant_${'a'.repeat(32)}` }
+    resolveGeneration.mockResolvedValue(generation)
+    const send = vi.fn().mockResolvedValue({ outcome: 'no_op', resultCode: 'not_authorized',
+      occurrenceRef: 'occurrence_one', sessionRevision: 1 })
+    await executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ participant_ref: generation.participant_ref }))
+    expect(resolveGeneration).toHaveBeenCalledTimes(2)
+    expect(resolveGeneration).toHaveBeenLastCalledWith({ supabase: {}, classroomId, studentId })
+  })
+
+  it('still rejects removed membership when the new rollout gate is paused', async () => {
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
+    resolveGeneration.mockResolvedValue({ status: 'forbidden' })
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })).resolves.toMatchObject({ state: 'needs_staff' })
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it.each(['retry', 'response'] as const)('discards a removed generation during the %s gap', async gap => {
+    resolveGeneration.mockResolvedValueOnce({ status: 'active', generation_id: attemptId,
+      participant_ref: `participant_${'a'.repeat(32)}` }).mockResolvedValue({ status: 'forbidden' })
+    const send = vi.fn()
+    if (gap === 'retry') send.mockRejectedValueOnce(new BaraAttendanceClientError('timeout', 'network_error', true))
+    else send.mockResolvedValue({ outcome: 'applied', resultCode: 'check_in_accepted',
+      occurrenceRef: 'occurrence_one', sessionRevision: 1,
+      checkIn: { checkInRef: 'check_in_one', participantRef: 'participant_one', checkInRevision: 1,
+        acceptedAt: '2026-09-02T13:01:00.000Z' } })
+    const result = await executeStudentAttendanceCheckIn({ supabase: {}, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send,
+      loadPresentThroughAt: vi.fn().mockResolvedValue('2026-09-02T13:05:00.000Z') })
+    expect(result).toMatchObject({ state: 'needs_staff' })
+    expect(result).not.toHaveProperty('recordedAt')
+    expect(send).toHaveBeenCalledTimes(1)
+  })
 
   it('maps the verified local WorkOS link to an opaque Pika principal', async () => {
     withAuth.mockResolvedValue({

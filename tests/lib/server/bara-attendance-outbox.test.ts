@@ -54,7 +54,7 @@ function rpcClient(
   implementation: (name: string, args?: Record<string, unknown>) => unknown,
 ) {
   const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => ({
-    data: implementation(name, args),
+    data: name === 'authorize_attendance_generation_delivery' ? true : implementation(name, args),
     error: null,
   }))
   return { rpc } as unknown as AttendanceOutboxClient & { rpc: typeof rpc }
@@ -65,6 +65,7 @@ describe('Bara attendance outbound outbox', () => {
     const supabase = {
       async rpc(this: unknown, name: string) {
         expect(this).toBe(supabase)
+        if (name === 'authorize_attendance_generation_delivery') return { data: true, error: null }
         expect(name).toBe('enqueue_attendance_outbound_message_v1')
         return { data: row('delivered', { response: result }), error: null }
       },
@@ -133,7 +134,23 @@ describe('Bara attendance outbound outbox', () => {
       deliver,
     })).resolves.toEqual(result)
     expect(deliver).not.toHaveBeenCalled()
-    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+    expect(supabase.rpc).toHaveBeenLastCalledWith('authorize_attendance_generation_delivery', {
+      p_outbox_id: outboxId, p_lease_token: null, p_payload: message,
+    })
+  })
+
+  it.each(['processing', 'delivered'] as const)('blocks a removed generation before %s delivery or replay', async status => {
+    const rpc = vi.fn(async (name: string) => ({ error: null,
+      data: name === 'authorize_attendance_generation_delivery' ? false
+        : name.startsWith('enqueue_') ? row(status === 'delivered' ? 'delivered' : 'pending', { response: result })
+        : row('processing'),
+    }))
+    const deliver = vi.fn()
+    await expect(deliverBaraAttendanceMessage({ supabase: { rpc } as unknown as AttendanceOutboxClient,
+      classroomId, message, deliver })).rejects.toMatchObject({ code: status === 'delivered' ? 'delivery_pending' : 'lease_lost' })
+    expect(deliver).not.toHaveBeenCalled()
+    expect(rpc.mock.calls.at(-1)?.[0]).toBe('authorize_attendance_generation_delivery')
   })
 
   it('records retryable failures without placing payload or remote details in error fields', async () => {

@@ -31707,6 +31707,7 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - The focused gate passes 18 files / 266 tests plus architecture, UI/design policy, TypeScript, and lint; the Pika audit passes. Pattern Lab and the authenticated production edit modal were verified and visually inspected across desktop/mobile and light/dark, including Preview focus restoration. Student is not applicable because this is teacher-only editing. Risk profile: standard UI behavior.
 
 <!-- pika-session-log-archive-batch:b7dc8fddc28004c6649f7f6527b7626bf8af0ae4358a2b310b9751aacbb5f8d1 -->
+<!-- pika-session-log-archive-batch:be56998305dd7dc5f830dcafb72a2fc4b25759218d02ec90c3bd02d94c575ebc -->
 ## 2026-09-08 — Split-pane assignment editing
 
 - Implemented the Pattern Lab prototype in the production assignment edit modal: desktop uses one-third details and two-thirds assignment authoring panes, while mobile stacks the same controls. Assignment creation remains unchanged.
@@ -31733,8 +31734,326 @@ Doubled announcement content width from 14rem to 28rem on desktop, including wee
 - Focused component coverage passes 84 tests. Browser verification passes teacher desktop/mobile light/dark for poster, print, download, rotation/recovery, closed/scheduled/unconfigured states and occurrence fallback, plus student desktop/mobile light/dark open/closed/revoked/roster/error outcomes. Visual inspection caught and fixed a dark-mode SVG rendering defect by inheriting the fixed semantic QR foreground over the QR background; refreshed dark captures show a scannable dark-on-white code.
 - The first ready-PR Test & Build run correctly rejected a fixed poster padding utility outside the registered QR geometry. Returned PR #1222 to draft, restored the governed 10% quiet zone with a semantic regression, and reran design policy, audit, 56 affected tests, and teacher desktop/mobile light/dark browser captures successfully. Targeted re-review and fresh exact-head CI remain.
 
+<!-- pika-session-log-archive-batch:96c075f0c98811dec5bd1ac9b237dd4d1f742f86664b6aae313a70a06632a45c -->
 ## 2026-09-08 — Refine the classroom QR for monitor display
 
 - Replaced the poster dialog's visible `Classroom QR` header with a responsive monitor-shaped composition: the large classroom name and one settings control occupy the left side while the scan-safe QR uses the maximum available height on the right. Compact screens stack the same content so the QR remains visible and contained.
 - Moved Print poster beside Rotate QR inside the existing settings menu and removed the separate SVG download action. The print-only view now mirrors the landscape label-left/code-right composition; rotation retains its invalidation warning and recovery behavior.
 - Focused component tests pass 78/78, TypeScript and UI/design policy pass, and the production Daily browser contract passes desktop/mobile in light/dark (4/4), including print and rotation recovery. The broad focused gate exposed one stale QR assertion, now corrected and covered by that 78-test rerun; its other failure passed alone and was unrelated Student Assignments timing. QR-specific Pattern Lab checks passed; its full broad run retained one unrelated Gradebook raw-score failure. All four poster captures and the print capture were visually inspected.
+
+<!-- pika-session-log-archive-batch:81aea61cf507a53fec3e5f6832cd5d1f2d9f45c49aa1293a5b6ed1d9e42bc562 -->
+<!-- pika-session-log-archive-batch:8a4c58a3e790115107f908ad320c28c55f1f39182cfc6b1ec5e848ad41c5f5e5 -->
+<!-- pika-session-log-archive-batch:3853115929b4e6756906f1409d03934cb292d553ae098dc36b1628a53e879ee2 -->
+## 2026-09-08 — Center and expose classroom QR poster actions
+
+- Centered and enlarged the classroom label in the poster's left pane, replaced the explanatory subtitle with a prominent `Scan Attendance` label and the configured attendance hours, and moved Print poster and Rotate QR from the settings menu into visible labeled buttons below the information.
+- Preserved the maximum-height QR and 16:9 desktop monitor composition. Compact screens now use a portrait panel with vertically stacked actions so the larger content and full QR remain contained. The print-only poster mirrors the centered label, scan instruction, and hours without printing controls.
+- Focused component tests pass 78/78; TypeScript, UI/design policy, design policy, and the Pika audit pass. Teacher desktop/mobile light/dark captures were visually inspected, and the production desktop poster/print plus mobile-dark poster/print were inspected. One full desktop browser scenario passed; three subsequent product-wide variants timed out in unrelated date/navigation steps under local server contention, after the mobile-dark run had already exercised and captured the revised poster and print state. Exact-head CI remains authoritative.
+- Composite-widget checklist reviewed: shared dialog Escape/focus behavior is unchanged, both actions are native labeled buttons, semantic action/confirmation coverage is present, and no manual accessibility follow-up remains. Student view is n/a because this poster is teacher-only.
+- Final targeted review found the stacked QR pane still claimed full height and could clip the lower Rotate QR edge at 390×844. Removed that mobile height claim in the live and Pattern Lab compositions, visually confirmed the full control and QR in compact dark mode, and added browser geometry assertions requiring both action rectangles to stay inside the dialog with Rotate fully above the QR.
+- Split printing from the monitor composition: `@page` now requests portrait with zero page margin, the classroom name is centered at the top, the QR fills the main page area, and larger configured hours plus a subordinate `Scan Attendance` label sit below it. The desktop production browser flow passes with assertions for portrait page CSS and heading/QR/hours/subtitle vertical order; an actual CSS-sized PDF was rendered to PNG and visually inspected with no clipping or overlap.
+- Post-print verification passes the 78 affected tests, TypeScript, UI/design policy, audit, and the complete desktop production browser scenario. The broad focused gate passed 1,591/1,592 tests before one unrelated UiGallery history hover test hit its five-second timeout; that file passed alone 8/8 immediately afterward. Exact-head CI remains authoritative.
+- Restored the visible Download SVG action below the classroom information alongside Print poster and Rotate QR. It serializes only the live QR SVG with its governed quiet zone and excludes the portrait poster's classroom name, hours, and scan label. Component coverage inspects the downloaded SVG payload, and the production browser flow verifies the filename and desktop/mobile light/dark action layout; compact mode preserves a measured gap between Rotate and the QR.
+- Simplified compact screen mode to the classroom title and a larger QR, with Print poster, Download SVG, and Rotate QR in the governed `QR options` menu. Desktop keeps Scan Attendance, hours, and visible actions in its left pane. The production browser matrix passes desktop/mobile in light/dark and covers the compact menu-open state; student is n/a because this is a teacher-only poster.
+- Tightened compact screen spacing by centering the classroom title and QR as one group with a small fixed gap; browser geometry now constrains the visible title-to-QR gap to 8–32px. Mobile light/dark pass and were visually inspected; desktop and portrait print compositions remain unchanged.
+- Returned the desktop Print poster, Download SVG, and Rotate QR actions to one governed `Poster settings` menu beneath the left-pane information. Compact mode retains its separate `QR options` menu; action handlers and export/print outputs are unchanged. Desktop light/dark closed and menu-open states were visually inspected, and both desktop themes plus compact dark pass the production browser flow.
+
+<!-- pika-session-log-archive-batch:98a56fc68c98c01ec28bf52b9e86f028cdda693a3ead0390595ffccb9b19b25b -->
+## 2026-09-08 — Align the Owned / Joined home prototype with the live classroom list
+
+- Updated only the development-only Pattern Lab Owned / Joined home: classroom rows now use the live themed gradient cards, current owner edit grip/archive treatment, the top-right classroom actions menu, and the archived owner Settings menu. Joined rows retain relationship-correct Hide/Unhide actions and never gain owner operations.
+- Independent review found that the reused shared work-surface menu did not honor the repository's roving-focus and Tab-dismissal contract. The shared owner now handles Arrow/Home/End navigation, disabled-item skipping, Escape focus return and Tab dismissal; direct component and archived Settings regressions pass.
+- Targeted re-review found that preview cleanup could retain a callback from before a parent rerender or drop a removed handler before clearing it. Active previews now refresh their callback by stable action ID and clear before a handler disappears; both regressions and the existing inspector compatibility case pass.
+- Focused checks pass 44 files / 641 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit passes. Eight browser scenarios pass across teacher/student, desktop/mobile and light/dark with zero API writes. Visual inspection found and fixed a clipped archived Settings menu, then confirmed the corrected menu and classroom cards across the matrix. Exact-head review/CI are recorded on PR #1225.
+- No production route, authorization, persistence, API, schema, entitlement, dependency or rollout availability changed. The prototype remains gated off in production and still requires later adoption approval; only the shared menu's existing keyboard behavior is corrected in live consumers.
+
+<!-- pika-session-log-archive-batch:0783bf03283c7565a535f69182d71b10b1c31b1a5a668d578524432d478c4e54 -->
+<!-- pika-session-log-archive-batch:681c0fcc0fd5b4e728fc946a5107e15ed6ddaad8bb1d8ea0c17600a23033d18c -->
+## 2026-09-08 — Keep the classroom QR available when attendance is closed
+
+- Promoted the stable classroom poster from its separate canary gate to every classroom with server-confirmed QR attendance access. The Daily center `Classroom QR` action now remains enabled while attendance is scheduled or closed; archived classrooms remain excluded.
+- Preserved scan-time enforcement: Pika still requires an eligible occurrence, enabled attendance policy, active class day, open Bara session projection, current enrollment, and an active participant mapping before submitting a check-in.
+- Focused verification passes 122 tests plus architecture, UI/design policy, TypeScript and lint. The attendance browser flow passes desktop/mobile in light/dark, including opening the poster from the closed state; all four closed-state captures were inspected. No schema, migration, dependency, hosted data, deployment, publish, or merge action.
+- Draft PR #1226 independent review found stale environment/documentation references to the retired poster canary and a scheduled-state coverage gap. Remediation removes those obsolete settings, marks the old canary guidance historical, clarifies that migration 151 is required rather than falling back to the occurrence UI, and verifies scheduled and closed poster availability through successful permanent-QR rendering. The corrected focused gate passes 172 tests plus architecture, UI/design policy, TypeScript and lint; the production browser flow passes desktop/mobile in light/dark, and the Pika audit is clean. A reported migration-deployment-skew fallback was not implemented because the stable classroom handle has no safe legacy occurrence equivalent and migration 151 is already a documented deployment prerequisite.
+- Current main advanced to `6c41deeb` during final review. Rebased PR #1226 and resolved its only conflict by retaining main's complete continuity archive; range comparison confirms the QR product and remediation commits are otherwise unchanged. Fresh focused verification, a sync-only final review, and exact-head CI are required before the authorized merge.
+
+<!-- pika-session-log-archive-batch:d1875ba1a58cb025ec753cb3d758954118faab46aabd71e837e7bdefd415cb43 -->
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
+
+<!-- pika-session-log-archive-batch:b89933dc60df2225907d87f4e73758332c4830ab1b920f684ac4c8ddec664544 -->
+## 2026-09-09 — Keep manual attendance available for existing occurrences
+
+- Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
+- Extended the existing attendance controller and reused the current row status buttons and Edit attendance dialog; no new component, API, schema, migration, dependency, entitlement, or hosted-data change.
+- Focused component coverage passes 60 tests; the full focused gate passes 200 tests plus architecture, UI/design policy, TypeScript, and lint, and the Pika audit is clean. The teacher attendance browser flow passes desktop/mobile in light/dark, including the cancelled-state correction controls, and all four captures were visually inspected. The related student attendance matrix also passes across the same four view/theme combinations.
+
+<!-- pika-session-log-archive-batch:a6af3ac98001079a9617432e5c97e8514437a2712a7834889f721954c6d80375 -->
+## 2026-09-09 — Show selected work titles in teacher action bars
+
+- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
+- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
+- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
+- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
+
+<!-- pika-session-log-archive-batch:890a07678b4f324978204e00d3a36610c0eb85cd2f754c3a13d279df6d0d18e4 -->
+## 2026-09-09 — Preserve attendance QR signup handoff
+
+- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
+- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
+- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
+
+<!-- pika-session-log-archive-batch:ce655293d126c6e3bf705deb11e8a81b979cdd88355e256c1c8038a389a7b137 -->
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
+
+## 2026-09-09 — Keep manual attendance available for existing occurrences
+
+- Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
+- Extended the existing attendance controller and reused the current row status buttons and Edit attendance dialog; no new component, API, schema, migration, dependency, entitlement, or hosted-data change.
+- Focused component coverage passes 60 tests; the full focused gate passes 200 tests plus architecture, UI/design policy, TypeScript, and lint, and the Pika audit is clean. The teacher attendance browser flow passes desktop/mobile in light/dark, including the cancelled-state correction controls, and all four captures were visually inspected. The related student attendance matrix also passes across the same four view/theme combinations.
+
+## 2026-09-09 — Show selected work titles in teacher action bars
+
+- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
+- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
+- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
+- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
+
+## 2026-09-09 — Preserve attendance QR signup handoff
+
+- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
+- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
+- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
+
+## 2026-09-09 — Prepare outbound transport hardening
+
+- User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
+- Created isolated `codex/outbound-transport-hardening` from main `6173d863`, checked active tasks/PRs for overlap, installed locked dependencies and passed environment verification. Confirmed existing redirect-policy and optional Gradex URL/error-boundary gaps; documented the scoped next package in the student-data egress audit.
+- Paused at the session-start concrete-plan approval gate. No source implementation, tests, new PR, migration, feature-flag or production change in this preparation step.
+
+## 2026-09-09 — Implement approved outbound transport hardening
+
+- User approved the scoped package. Eight authenticated runtime OpenAI/Brevo/Pal/Gradex request sites reject redirects. Optional Gradex requires an HTTPS origin, with loopback HTTP allowed only in explicit development; its HTTP/parser/mapping diagnostics discard provider-controlled content, and request timeouts cover response-body consumption.
+- Synthetic loopback regressions first reproduced redirect forwarding and now prove no second-destination requests. URL, safe-error, retry and timeout regressions added; full focused checks and independent review gate publication/readiness. No real provider requests, student records, migration, feature flag or production change.
+- Initial fixed-head Sol/security and Terra/compatibility reviews approved without findings; bounded local checks passed 1,758 tests and all CI jobs passed (two browser cases passed on retry). After owner merge approval, main advanced through #1231 and conflicted only in this shared log. Rebased while draft, preserving both tasks and unchanged transport implementation; targeted integration review and fresh exact-head CI gate the merge. No migration files changed or stash created.
+
+## 2026-09-09 — Resume final outbound transport merge sync
+
+- The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
+- Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.
+
+## 2026-09-09 — Remove counts from Owned / Joined prototype headings
+
+- Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
+- Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
+- Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
+
+<!-- pika-session-log-archive-batch:c282499fb0032dfd9839046d3f72d0c09753f056bad170a0ca44e7200287ca8e -->
+## 2026-09-09 — Dismiss the Daily student pane outside the table
+
+- Daily now clears the selected student when the teacher clicks page-level controls outside the student table workspace; Escape and clicks elsewhere already use the same deselection path, while the student history pane remains interactive.
+- Added component regressions for Escape, page background, date controls, More actions, dialogs, and in-pane clicks. Focused checks pass 13 files / 191 tests plus architecture, UI/design policy, TypeScript and lint; the direct component suite passes 51/51 and the Pika audit is clean.
+- Playwright verification exercises selection, Escape dismissal, and outside-control dismissal at desktop/mobile in light/dark. The selected split/stacked layouts were visually inspected. Composite-widget checklist reviewed: keyboard behavior and semantic selection remain covered; no manual accessibility follow-up remains. Student role is unchanged and was captured by the standard UI verification script.
+
+## 2026-09-09 — Keep manual attendance available for existing occurrences
+
+- Daily now permits teacher-entered attendance and corrections for every existing occurrence state: scheduled, open, closed, and cancelled. QR session controls retain their narrower lifecycle rules, archived classrooms remain read-only, and dates without an occurrence remain unavailable because there is no attendance record to correct.
+- Extended the existing attendance controller and reused the current row status buttons and Edit attendance dialog; no new component, API, schema, migration, dependency, entitlement, or hosted-data change.
+- Focused component coverage passes 60 tests; the full focused gate passes 200 tests plus architecture, UI/design policy, TypeScript, and lint, and the Pika audit is clean. The teacher attendance browser flow passes desktop/mobile in light/dark, including the cancelled-state correction controls, and all four captures were visually inspected. The related student attendance matrix also passes across the same four view/theme combinations.
+
+## 2026-09-09 — Show selected work titles in teacher action bars
+
+- Added the selected assignment or test name as quiet, truncated left context in the teacher action bar above the student table. The Pattern Lab prototype mirrors production, and the rejected back arrow was removed; the parent Classwork/Tests tab remains the return path.
+- Narrow teacher layouts place the readable title on a first row while preserving the work-mode and trailing controls below it. Desktop retains the centered one-line control hierarchy. Teacher desktop/mobile light/dark states were visually inspected; student is n/a because the changed workspace is teacher-only.
+- Assignment, test, and Pattern Lab component coverage passes 149/149. The focused gate passes 18 files / 315 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit is clean.
+- The first ready-PR browser matrix caught that the narrow-layout refinement left-aligned the primary control by 55px. Returned PR #1231 to draft and changed the mobile grid to keep the title on its own row while restoring the shared bar's mathematically centered primary column. The exact failing Test grading browser contract now passes in both mobile themes; targeted re-review and fresh exact-head CI remain.
+
+## 2026-09-09 — Preserve attendance QR signup handoff
+
+- Signed-out classroom attendance scans now retain their validated internal destination through login, classic signup verification/password creation, and WorkOS magic-auth signup, then return through a full navigation so the new session reaches the existing check-in boundary.
+- Signup still grants no classroom enrollment or attendance access. Unsafe external continuations are discarded. Security review found that an older pending WorkOS signup challenge could retain classroom A after scanning classroom B; remediation resumes a pending challenge only when its sealed destination exactly matches the current safe path, otherwise requiring a fresh code.
+- Cumulative review found the symmetric stale-challenge risk for ordinary sign-in. Remediation applies the same exact sealed-destination match to login, so a pending code for classroom A cannot resume after scanning classroom B. Final focused checks pass 33 files / 264 tests plus architecture, UI/design policy, TypeScript and lint; refreshed unauthenticated desktop/mobile visuals remain clean. Risk profile: high authentication navigation; bounded review checkpoint and exact-head CI remain before merge.
+
+## 2026-09-09 — Prepare outbound transport hardening
+
+- User reports students checked production with no issue and asks to continue; recorded as user-reported acceptance, not an agent-run draft/schedule canary. Prior privacy release #1227 is deployed.
+- Created isolated `codex/outbound-transport-hardening` from main `6173d863`, checked active tasks/PRs for overlap, installed locked dependencies and passed environment verification. Confirmed existing redirect-policy and optional Gradex URL/error-boundary gaps; documented the scoped next package in the student-data egress audit.
+- Paused at the session-start concrete-plan approval gate. No source implementation, tests, new PR, migration, feature-flag or production change in this preparation step.
+
+## 2026-09-09 — Implement approved outbound transport hardening
+
+- User approved the scoped package. Eight authenticated runtime OpenAI/Brevo/Pal/Gradex request sites reject redirects. Optional Gradex requires an HTTPS origin, with loopback HTTP allowed only in explicit development; its HTTP/parser/mapping diagnostics discard provider-controlled content, and request timeouts cover response-body consumption.
+- Synthetic loopback regressions first reproduced redirect forwarding and now prove no second-destination requests. URL, safe-error, retry and timeout regressions added; full focused checks and independent review gate publication/readiness. No real provider requests, student records, migration, feature flag or production change.
+- Initial fixed-head Sol/security and Terra/compatibility reviews approved without findings; bounded local checks passed 1,758 tests and all CI jobs passed (two browser cases passed on retry). After owner merge approval, main advanced through #1231 and conflicted only in this shared log. Rebased while draft, preserving both tasks and unchanged transport implementation; targeted integration review and fresh exact-head CI gate the merge. No migration files changed or stash created.
+
+## 2026-09-09 — Resume final outbound transport merge sync
+
+- The first sync passed targeted independent review, 1,758 local tests, static checks and all CI jobs, but #1233 landed during CI and conflicted in shared continuity logs. User authorized another final sync with a brief hold on other main merges.
+- Preserved both tasks' entries and main's archive history while rebasing onto `8698cb95`; transport source and tests remain unchanged. A bounded rebase review, local checks and exact-head CI gate the authorized main merge. Production rollout remains separate; no migration or hosted-data changes.
+
+## 2026-09-09 — Remove counts from Owned / Joined prototype headings
+
+- Removed the numeric totals beside Teaching, Joined, Archived and Hidden in the development-only Owned / Joined Pattern Lab prototype. Filters, semantic regions, classroom cards and actions are unchanged.
+- Added component coverage that requires the active Teaching and Joined group headings to contain only their labels. The existing browser scenario passes for teacher/student across desktop/mobile and light/dark, and all eight default grouped-list captures were visually inspected.
+- Risk profile: none. No production route, API, authorization, persistence, entitlement, schema, migration, dependency or rollout availability changed.
+
+## 2026-09-10 — Adopt contextual enrollment in the guarded join route
+
+- Merged prototype heading cleanup PR #1236, synchronized main, and started the next compatibility-batch-C slice in an isolated worktree.
+- The regular join endpoint now authenticates before body parsing and preserves the existing student path unless the exact mixed-role pilot flag and user/classroom pair are configured. The contextual branch scopes code resolution to that pair, evaluates server-built relationship/roster evidence, creates membership only through migration 159's atomic transaction, projects no code/owner data, and allows direct classroom IDs only to recognize an existing membership.
+- Added a service-only rejected-guess wrapper to migration 159 so invalid, out-of-scope and pre-atomic policy-denied non-empty codes consume the same actor and actor-invitation windows. Exact normalized server comparison rejects wildcard/prefix patterns. Successful joins retain atomic roster, binding, profile and optional Pal outbox writes; immediate Pal delivery occurs only for a newly committed membership and uses the same event instant.
+- Independent security and compatibility review found and cleared bounded-input, post-lockout denial-oracle and wildcard-pattern issues. Focused verification passes 104 files / 1,102 tests plus architecture, UI/design policy, TypeScript and lint; the Pika audit and database-harness shell syntax pass. The rollback-only database harness was not run because the revised, resequenced migration 159 has not been applied under a new exact local permission. No migration, cohort, flag, hosted data, deployment or production availability changed.
+
+<!-- pika-session-log-archive-batch:aa07d242f699846045c1c069264056988a79e9b785a29a4daf0f57ba387fb4ed -->
+## 2026-09-10 — Correct contextual enrollment migration lineage
+
+- Verified that local and production databases already record migrations 159 and 160. Both expose migration 159's atomic join foundation and migration 160's announcement fields, but neither has the rejected-guess wrapper later added to the already-applied 159 source.
+- Restored migration 159 byte-for-byte to its deployed definition and moved the rejected-guess wrapper plus adopter comment into additive forward migration 161. Updated current access guidance, database-harness prerequisites and static migration contracts to preserve the boundary.
+- Targeted coverage passes 24 tests; the focused application/database gate passes 99 tests plus architecture, TypeScript and lint. The complete database harness passes with migration 161 installed inside one rollback-only transaction, and the function is absent afterward. The Pika audit is clean. No local or hosted migration was applied, no cohort or flag changed, and current production requests remain on the legacy path.
+- Initial high-risk review found no security or migration-design defect, but identified two verification gaps. Remediation pins migration 159's deployed SHA-256 and makes the database-type preflight parse both current JSON and legacy table migration-list output, with fixtures proving pending migration 161 fails before type generation. Targeted coverage passes 13 tests; focused revalidation and targeted compatibility review remain.
+- Targeted compatibility review cleared that batch. Final cumulative review then found recognized but empty/malformed JSON could still pass as matching history; remediation batch 2 now requires a nonempty migration array and strict string `local`/`remote` fields with at least one numeric side. Malformed, renamed, empty and non-string fixture coverage passes; the focused gate passes 106 tests plus all static checks.
+- The approved extended final review and targeted parser re-review cleared the cumulative diff. Exact-head CI then found one stale attendance contract still pinned `.ai/CURRENT.md` to production migration 156; remediation batch 3 updates that assertion to the independently verified 160 boundary. The affected 47 tests and focused 110-test/static gate pass. The PR remains draft pending an additional targeted review authorization and fresh CI.
+
+<!-- pika-session-log-archive-batch:05d790e8c881cb0aaa68a1574c4a46d59e69f1ac8df2f64afcf5a917cc3462d4 -->
+## 2026-09-10 — Separate classroom joining from attendance QR
+
+- Replaced the draft attendance-driven enrollment design with two explicit flows. Teachers share a roster-matched `Join this classroom` link/QR from Settings > Access; students authenticate, join only on one safe existing roster match, and see an explicit joined/already joined/no match/ambiguous result. The join operation reuses migration 159's atomic transaction and does not record attendance.
+- Classroom attendance QR is read-only for nonmembers: an existing enrollment plus active participant can check in, while a rostered nonmember, roster miss, conflicting identity, closed window, or revoked token receives a distinct non-writing result. Attendance never enrolls, binds, synchronizes sources, or offers an inline join action.
+- Updated Daily/live/poster wording to `Check in for attendance`, added governed join/attendance guidance and a teacher access fixture, and visually inspected desktop/mobile light/dark join QR and student result captures. Browser contracts pass 10/10 across the two focused scenarios; focused checks pass 35 files / 431 tests plus architecture, UI/design policy, TypeScript and lint, and the Pika audit is clean. No migration was added or applied; no hosted data, configuration, dependency, deployment, or production state changed. Independent fixed-head review and exact-head CI still gate readiness.
+- Initial independent review found an existing Dashboard UUID-link compatibility break, an unbounded attendance roster read, and a case-sensitive join prelookup. Remediation preserves issued UUID links while making all new teacher links code-based, and uses wildcard-safe maximum-two server-side candidate reads for join and attendance identity classification. Targeted compatibility re-review approved the first fix; targeted security re-review and fresh exact-head gates remain.
+
+<!-- pika-session-log-archive-batch:9790835d208ea60836ab527c8588c6e2033da215d9d07e4874198ba4d7ac9a2b -->
+## 2026-09-10 — Make manual attendance optimistic
+
+- Manual attendance status changes now render immediately while the existing API write completes. A failed first write restores the exact prior overrides; a partially saved class-wide batch retains the existing authoritative refresh and warning behavior.
+- Added hook regressions for pre-response projection and rollback, plus a browser scenario that holds the write open and verifies the selected status across teacher desktop/mobile and light/dark. Student is n/a because this interaction exists only on the teacher Daily surface.
+- Focused verification passes 199 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit is clean, and all four optimistic-state captures were visually inspected; one desktop-light Playwright teardown timed out after the body passed and then passed cleanly alone.
+- Independent review found that a partial-save recovery refresh could finish after a date switch and show the old date's warning in the new scope. Remediation rechecks mount and scope after the awaited refresh; the delayed-refresh/date-switch regression passes with the hook suite 8/8.
+- Final cumulative review found two remaining recovery edges: an A-to-B-to-A scope cycle could reuse the same value key, and a failed recovery read could leave the unsaved optimistic tail visible. Remediation binds rollback/notification to the original command ID and reconstructs only server-acknowledged chunks when refresh fails, with focused regressions for both scope cycles and failed reconciliation.
+- Post-remediation focused verification passes 203 tests and all static checks; the optimistic browser scenario passes desktop/mobile in light/dark 4/4 on the updated tree.
+
+<!-- pika-session-log-archive-batch:fa819c173956ebe0ae76cddd938f2b96052cbf375f2d77ce77c8cd8aac6f04da -->
+<!-- pika-session-log-archive-batch:7f5b5776487a70d21c3f1734240b695654d6e4ab51b6b6110026147944654d64 -->
+## 2026-09-10 — Put roster removal in Student Actions
+
+- Moved student removal from page-level More actions into the centered selection-aware Student Actions menu. Direct row selection now enables the same menu as checkbox selection.
+- Unified the teacher-facing behavior after product clarification: removing a joined student uses the existing comprehensive purge, which also removes roster membership; unjoined invitations retain the lightweight roster-only path because no classroom data exists. The duplicate purge menu item is gone. Joined students must be removed one at a time for per-student impact review and typed confirmation, and unavailable comprehensive removal fails closed instead of falling back to partial deletion.
+- The comprehensive dialog now consistently uses removal language and states that all classroom data is permanently deleted while the account and other-class data remain. Independent review found a join-after-page-load race in the legacy lightweight endpoint; forward migration 162 now serializes with classroom joining and rejects joined targets before any deletion, while the UI refreshes into the comprehensive flow. Targeted re-review found the legacy UUID-link enrollment path did not share that lock, so new direct-ID enrollments now use the existing atomic join transaction while already-enrolled compatibility links remain supported. The migration was not applied locally or remotely. Targeted race/API/migration/join coverage passes 70/70; the focused application/database/browser gate passes 19 files / 220 tests plus architecture, UI/design policy, TypeScript and lint. The Pika audit was clean before this follow-up. Teacher desktop/mobile light/dark menu, confirmation, and progress states plus the student authorization boundary pass the six-test browser matrix with no horizontal overflow.
+- Exact-head CI exposed an older cross-operation database check that still expected lightweight roster removal to delete joined memberships. The contract now explicitly requires that call to fail atomically and preserve both joined roster and enrollment rows for the comprehensive purge path; the focused 220-test/static gate remains green. The PR returned to draft before this correction and requires fresh exact-head CI.
+
+<!-- pika-session-log-archive-batch:0053eb286c9bae09a5294f0a58fb618e08de3f9c3e6d39c4d9b9e0b8affb8128 -->
+## 2026-09-10 — Standalone Gradebook items
+
+Implemented original standalone items/scores, explicit return/retraction, teacher desktop/mobile editing, and returned-only student Classwork entries. No live student Grades aggregate exists; contract documented in standalone-gradebook-items.md. Migration 161 prepared; persistent databases untouched. Isolated ephemeral replay/types, weighted/API/interaction checks, actual archive-compaction-restore equality, and student-purge preservation passed. Teacher/student light/dark desktop/mobile screenshots and real create-score-return-clear flow verified. Draft PR and independent review follow before ready handoff; no merge/deployment permission.
+
+<!-- pika-session-log-archive-batch:2d0fa99e2029773fd171b374b052cb5b4560f5ce1368d27cb1cea1bbfba159d2 -->
+## 2026-09-10 — Finish standalone Gradebook browser contract correction
+
+- User approved extending the bounded review after the first full CI run passed tests/build and database contracts but caught an ambiguous Pattern Lab assertion in eight role/view/theme cases. Scoped the existing Grades assertion to its preview and independently checked the standalone Not counted label and absence of feedback links; product behavior is unchanged.
+- The two earlier independent-review findings are corrected: category removal retracts returned marks, and identical score saves preserve return state. The extension permits one test-only correction, focused verification, one Terra review, and fresh exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:747ae0b23c42283c6a1ae8701901cbd42112e83ab2664bfa59aff6b8c39b3f36 -->
+## 2026-09-10 — Synchronize standalone Gradebook with corrected enrollment lineage
+
+- User approved the final synchronization after main PR #1239 consumed migration 161 during the previously successful CI run. Rebased onto d0a23a4b, preserved both continuity histories, and renamed the standalone migration to 162 with matching database-contract and rollout references. Product logic remains unchanged.
+- The previous reviewed head passed all CI lanes and PR Gate; this synchronized candidate requires a fresh disposable combined-history replay/types check, focused verification, one approved independent review, and new exact-head CI. No merge, deployment, or persistent migration application is authorized.
+
+<!-- pika-session-log-archive-batch:d5bfcd8063013c154fdc31c0253af30ec6524b7b80c96b180f2d52751170b9e2 -->
+## 2026-09-10 — Clarify other assessment creation in Gradebook
+
+- Renamed creation to “Add other assessment” and moved it into the existing More actions menu on desktop/mobile; added the requested dividers after Edit categories and before Export gradebook. Updated production and Pattern Lab together; the creation dialog explains that Classwork and Tests appear automatically.
+- Reused the shared action menu and item editor; no new shared pattern. Teacher-only refinement (student n/a); menu/dialog, keyboard opening, disabled-item skipping, Escape/focus return verified. Desktop 1440×900 and phone 389×843, light/dark captures reviewed in `/tmp/pika-other-*`; full-page captures worked around blank viewport captures. Existing Gradebook menu is the reference; primary signal is its secondary action label.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main`: 855 tests/73 files and all static checks passed. Pika audit passed. No migration or deployment.
+
+<!-- pika-session-log-archive-batch:be4de9a49425eb9d6c57a1f324a1a0a0b4d69f031beb3c3fe34cca3077e8499c -->
+## 2026-09-10 — Order and group Gradebook menu actions
+
+- Put Edit categories first with the existing Lucide Settings icon, followed by Add other assessment. Per the final user direction, the first divider follows Add other assessment; the export divider stays in place. Production and Pattern Lab match. Reused the existing menu/icon pattern; teacher only, student n/a.
+- Keyboard regression expectations now cover Edit categories as the first item and ArrowDown to creation. Focused gate: 855 tests/73 files plus all static checks pass; audit passed. Final menu screenshots reviewed at desktop 1440×900 and phone 389×843, light/dark (`/tmp/pika-menu-final-*`). No shared behavior, schema, or deployment changes.
+
+<!-- pika-session-log-archive-batch:c5f39d45170f994e9b27c5aac8652c5af4a5640d6073ced9157bab012fa65a5b -->
+## 2026-09-10 — Synchronize Gradebook with main through PR 1241
+
+- Rebased standalone Gradebook onto main `007b516a`; only archive-log batch-marker conflicts required resolution, preserving all entries. Code/test patches remain equivalent. Main now owns migration 162, so renamed byte-identical standalone SQL to `163_standalone_gradebook_items.sql` and updated harness/restore/rollout references. No stash was needed or popped.
+- The combined history preserves main's joined-roster removal guard. Extended the rollback-only Gradebook contract to require that rejection before exercising orphan-score cleanup after fixture enrollment removal. Fresh disposable 001–163 replay, standalone archive/restore contract, comprehensive student purge, generated types equality, and warning-free database lint pass.
+- `VITEST_MAX_WORKERS=2 pnpm check:focused -- --base origin/main` passes 856 tests/73 files and all static checks; audit passes. Gradebook UI/source is unchanged by the rebase, retaining the reviewed menu/icon/divider evidence. Persistent migration application, merge, and deployment remain separate owner actions.
+
+## 2026-09-10 — Close join-limiter maintenance release prerequisite
+
+- Cumulative review of authorized production promotion #1242 found ordinary class-code joins now use the limiter, but its required scheduled cleanup/health owner was missing. Added a bounded call to migration 159's existing service-only cleanup RPC within the already authenticated nightly history cron; no new migration, schedule, secret, or runtime flag.
+- One 10,000-row batch deletes only database-qualified entries older than one day. Database/transport errors, invalid results, and exhausted batch capacity fail the existing durable cron ledger with a sanitized code; successful calls log only the aggregate count. Targeted tests cover auth, health recording, valid/invalid/capacity responses, and failure sanitization. Risk profile runtime-platform; one Terra/high targeted review of the bounded maintenance addition, then cumulative promotion confirmation.
+
+<!-- pika-session-log-archive-batch:b78616cb37fcd34854a97f840f525c07d45e6925879f2b3554c8c72cf23da41e -->
+## 2026-09-11 — Plan coordinated student removal and add server processing
+
+- Task owns `codex/student-purge-background` in the matching named worktree. Recorded the cross-repository plan in `docs/guidance/student-purge-background-plan.md`; implementation remains partial pending the historical Pal erasure policy. Pal's aggregated daily/weekly facts lack full classroom provenance. Existing admission safeguards remain in place; no provider data, migrations, or UI were changed.
+- Added bounded post-response processing for accepted student purges using existing leases and daily cron recovery. Tests cover browser-independent progress, failures, lease contention, budgets, and rejected admission. Targeted purge suites pass 20 tests; broader focused gate passes 104 tests and architecture/UI/design policies, with remaining static checks recorded in the task.
+- Remaining: resolve historical Pal reconstruction/reset semantics, implement and verify the provider receipt and event fencing contract, pending access controls, roster/dialog UX and visual matrix, then coordinated rollout. The initial worker does not guarantee prompt completion after its runtime budget expires.
+
+<!-- pika-session-log-archive-batch:f3fbf3b737881926f7fa633b3ffcb5653874b9257a4470ae4977f84fa844a64f -->
+## 2026-09-11 — Simplify student removal to preserve class records
+
+- User chose ordinary class removal rather than coordinated Pal erasure. Superseded the earlier background-purge proposal and removed its post-response worker. Added a separate preserving removal endpoint, explicit teacher re-add restoration, retained-roster filtering and clear removal versus permanent-deletion UI. No Pal calls or automatic erasure are part of normal removal.
+- Authored unapplied migration 164 to retain enrollment metadata/manual attendance and academic rows while removing active membership, block implicit rejoin/destructive legacy fallthrough, and preserve archive identity. A rollback-only database fixture is authored; actual behavior, archive/concurrency checks and generated types remain pending exact disposable-local migration authorization. No migration was applied and no production data changed.
+- Focused checks pass 214 tests plus TypeScript, lint and architecture/UI/design checks; separate migration-source tests pass; Pika audit passes. Teacher desktop/mobile light/dark visual scenarios pass after fixing menu alignment (desktop-light retried following a local navigation timeout). Student routing excludes teacher actions, but actual post-removal access needs the database fixture. Reused existing ConfirmDialog, AppMessage and action-menu primitives under the Pika UI brief. Nonblocking operation locks return a retryable conflict rather than waiting in reverse purge lock order.
+- PR #1244 remains draft; independent review of this replacement flow and schema execution are still required. Do not treat the previous worker review as review of the new design.
+
+<!-- pika-session-log-archive-batch:60637412cedc3a46f32ac4c334ecf7cda6863c3c52a09e729106d7026d8fadf5 -->
+## 2026-09-11 — Verify preserving removal in an isolated database
+
+- Owner authorized one application of migration 164 via SQL in a disposable local database. Cloned only schema/static archive registry to `supabase_db_pika` database `pika_removal_164_wgvpf4`; source public/private schema equality was verified before the single successful transactional application. Shared `postgres` remains migration 163 with no removed roster columns; no production changes. The SQL authorization is consumed.
+- Rollback-only tests pass for mixed removal, retained work/grades/Pal/manual attendance, exact attendance activation restore, owner denial, active decommission conflict, implicit rejoin denial, retry, email-change binding, cross-class preservation, and removed-student archive/compaction/restore without accidental reenrollment. Separate-session lock probes pass. Current standalone Gradebook archive contract also passes; obsolete generic archive scripts reference retired quizzes and are not applicable. Database lint reports no errors/warnings; all synthetic fixture users rolled back.
+- Generated public types directly from the isolated database with Supabase CLI and independently compared fresh output; removed temporary RPC casts and typed roster read results. The normal local types wrapper still targets the unchanged shared database; clean replay/types equality remain CI gates. Added the removal fixture runner to CI. Focused gate passes 209 tests plus static gates; targeted removal/API source checks pass 18 tests; UI is unchanged from the prior verified matrix. Initial Sol/high and Terra/high independent review follows against a fixed detached commit; keep PR #1244 draft pending that review.
+
+<!-- pika-session-log-archive-batch:693c9b750e38d29aa62eba4a9148e82a8828821eba665242838c1d07d8a9495c -->
+## 2026-09-11 — Batch preserving-removal review corrections
+
+- Initial independent review of fixed `32aed6aa` used Sol/high and Terra/high (2 launches, one full-diff wave). Full fixed-head suite passed 6,644 tests/734 files. Accepted P1s: application archive actor contract omitted `removed_student_id`; re-add after account email change missed retained identity; Gradebook enrollment check preceded serialization locks. One remediation batch updates current/v2 actor contracts while preserving immutable v1, resolves re-add via stable identity with transactional unbound-placeholder merge and identity-reuse rejection, and locks before mark checks. Added actor/preflight, fallback, email-reuse and actual grade-race regressions.
+- Corrected application archive tests pass 43; roster fallback tests pass5. Focused rerun with `VITEST_MAX_WORKERS=2` passes702 tests/56 files and all static checks; the earlier unrestricted run had worker/timeouts. Audit passes. No further UI changes. Original migration164 checksum `9d7213e90df51de55794af5aebd50e61cd8be22cf1bd504400cc7bf786414645` alone was applied to disposable `pika_removal_164_wgvpf4`; revised164 is unapplied, so new SQL/race regressions remain unverified. Renewed exact disposable-local SQL authorization was requested; no shared/prod migrations or data changes.
+- PR #1244 must remain draft. Next: after renewed permission, use a fresh schema-only disposable database to apply revised164 once, execute the full removal/archive/race runner and generated-types/lint checks, then one targeted Sol/high remediation review (launch3), final integration review if needed, and stable-SHA CI. The previous worker review does not substitute for review of this flow.
+
+<!-- pika-session-log-archive-batch:9beb30d15c39a8a59ebec9b500bbd86a2a3c6b17fe90e81e688908c9097d6ffb -->
+## 2026-09-11 — Verify revised removal migration
+
+- Renewed one-time permission consumed successfully applying revised164 (SHA256 `3a6db70c40ceb103b8627b53ef0856d0d9c1e95b7f144d117ea2c008a6f44cb8`) transactionally to fresh schema-only disposable `pika_removal_164_7vacjt`. Shared postgres remains163 without removal columns; production untouched.
+- Full removal/archive/email-identity fixture and lock probes pass. Corrected grade-race harness to allow the existing archive-revision trigger to wait for removal commit before rejecting the mark; separate removal rounds test insert and update, with no attempted mark persisted. No migration change or reapplication. Database lint is clean and independently generated public types match. Synthetic users cleaned up. Targeted independent review and stable-head CI remain before ready handoff.
+
+<!-- pika-session-log-archive-batch:cf842f939a07d1b6eebdb81ab357e758e4f78d1966e0e87dc297aaabaff6d7a9 -->
+## 2026-09-11 — Preserve pre164 archive inventory compatibility
+
+- Targeted Sol/high review (launch3) found the catalog audit still required the new roster actor despite accepting the old deployed registry. Batch2 derives the exact actor expectation from the validated live contract; full inventory tests cover matching old/new schemas and missing/unexpected/unregistered actor drift. No SQL changes or reapplication.
+- Synchronized main `b170b89d` (classroom join controls), preserving both continuity histories. Its join flow uses the same serialized RPC and removed-membership guard; no application merge conflicts. Targeted re-review (launch4) and cumulative integration (launch5) remain within the bounded review plan. No merge/deployment permission.
+
+<!-- pika-session-log-archive-batch:1a4ed48668575720865e58c8c44d8f0ba2641c4133d0b56ff496a32c8427763b -->
+## 2026-09-11 — Isolate legacy invitation removal from retained marks
+
+- Final review launch5 found the legacy remover still delegated to historical orphan-score cleanup. New rollback regression reproduced deletion of a retained standalone score when deleting an unrelated invitation. Owner approved one bounded correction, one fresh disposable-local application of revised164, and two additional review passes (launches6–7).
+- Batch3 replaces that delegation with a bounded, locked invitation-only delete. Removed/bound/joined identities are rejected; only exact requested invitation rows are deleted, with all academic-data deletion counters zero. Tests cover unrelated invitation, removed-identity re-add placeholder, duplicate targets and atomic mixed joined/invitation rejection. Updated the standalone Gradebook harness to require retained marks after enrollment removal. No UI or Pal changes.
+- Revised164 checksum `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7` awaits targeted review and the approved one-time application to fresh disposable `pika_removal_164_djwzbp`; shared/prod remain unchanged. Prior755-test focused gate passed; SQL behavior remains to be verified against the revision.
+- Targeted Sol/high review launch6 cleared fixed `dab31d44`. The approved single SQL application then succeeded in `pika_removal_164_djwzbp` (permission consumed). Full removal/archive/email/legacy-delete/race harness and standalone Gradebook archive/retention harness pass. Database lint clean, generated public types match, synthetic users0; shared postgres remains163 without removal columns. Latest focused709 tests/56files plus static checks and audit pass. Final cumulative review launch7 and exact-head CI remain; no merge/deployment authorization.
+
+<!-- pika-session-log-archive-batch:3f8209ea1b6b206542a1f7813a2a1079e698a98146d4f4c8c44ed9efd33fe800 -->
+## 2026-09-11 — Split removal browser contracts after CI timeout
+
+- Final review launch7 cleared `48c4a767`; exact-head CI passed full test/build and all database contracts, but the combined removal/purge/student visual test repeatedly exhausted its30s total budget (one final failure, other transient browser scenarios retried successfully). User requested the next correction and main synchronization; PR returned to draft before edits.
+- Split each viewport/theme into independent preserving-removal, permanent-deletion and student-boundary tests; retained every action/assertion/capture without raising timeouts. Authenticated exact-title API fixture discovery replaces unrelated index navigation; explicit baseURL and DOM-ready navigation avoid redundant load waits. Student content must resolve before absence assertions, preventing loading-state false positives.
+- Merged main `7ddd3873`, preserving both session histories; only archive-log marker conflict, no product/schema conflict. Focused817tests/63files and static gates/audit pass. Final local browser14/14 pass in30.3s, teacher/student desktop/mobile light/dark captures inspected (`/tmp/pika-removal-browser-final`). No product or SQL correction; migration checksum remains `e9c0abdf9426065815a5b2919d35f3aacb8739839f717bece9282f326b6d05b7`. Final available reviewer slot8 and fresh exact-head CI remain. No migration/merge/deployment authorization.
+
+<!-- pika-session-log-archive-batch:3eab4260044b9104e3d5d70db8aafbda014b7f14ea41ab86982ca41266839285 -->
+## 2026-09-11 — Restore classroom join controls
+
+- Restored the visible/copyable join code and roster-only policy switch in Settings > Access, added the join code to the classroom QR dialog, and restored the open-join student profile step while preserving the separate attendance QR boundary.
+- Reused the Settings Pattern Lab composition and shared switch, dialog, QR, field and input owners. Teacher/student desktop/mobile light/dark browser coverage passes for roster-only, open-join, QR-open, profile-required, success and error states; screenshots were visually inspected with no overflow. Composite checklist reviewed: keyboard behavior and semantic state are covered, with no manual follow-up.
+- Focused unit/API coverage passes 61 tests, the rollback-only contextual enrollment database contract passes, the Pika audit passes, and the application/database/browser focused gate passes 211 tests plus architecture, UI/design policy, TypeScript and lint. No migration, dependency, hosted data, configuration or deployment change.
+- Independent review found two compatibility gaps in open joining: Attendance code entry could not continue when a profile was required, and legacy UUID join links dropped submitted profile fields. Attendance now hands off to the canonical profile-aware join page, UUID retries retain the profile, and both paths have component regressions. The remediated focused gate passes 218 tests plus architecture, UI/design policy, TypeScript and lint; final integration review follows on the stable head.
+- Final integration review found that trimming the Attendance handoff could break space-padded legacy codes already accepted by the bounded server fallback. The handoff now URL-encodes the exact entered code and its regression retains surrounding spaces. The default five-launch review budget is exhausted after this correction, so the PR remains draft pending an explicitly authorized final-review extension.
+- Simplified the join QR at owner direction to reuse the attendance display modal's `max-w-6xl`, portrait-mobile and widescreen-desktop frame and QR scale. The dialog now shows only the classroom name, join-code label/value, Copy link, QR, and close control; all introductory/instructional text is removed. Teacher desktop/mobile light/dark open-dialog screenshots were inspected, QR contrast is asserted in both themes, and the student role is unaffected.
+- Extended review raised possible clipping at 390×844, but explicit bounds for the wrapped classroom title, join code, Copy link, and complete QR all remain within the dialog in mobile light/dark runs, matching the inspected captures. The claim was rejected as unsupported; the bounds assertion remains as a responsive regression.
+- Final integration review found the Attendance profile handoff spent a second rate-limited probe before profile submission, leaving no budget for one transient retry. The handoff now carries a non-authoritative profile-required UI hint, skips only that redundant client probe, preserves the exact code, and still submits the profile through the authoritative join endpoint. Rate-limited profile responses show the server retry delay instead of claiming an immediate retry is safe; integrated component and browser regressions cover the three-attempt sequence and wait message.

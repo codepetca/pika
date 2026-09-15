@@ -25,6 +25,7 @@ import type {
 import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
+import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const dateTimeSchema = z.string().datetime({ offset: true })
@@ -474,7 +475,18 @@ async function executeBlueprintOperation(
       rpc_name: rpcName,
       database_error_code: error.code ?? 'unknown',
     }))
-    const result: BlueprintOperationResult = isMissingBlueprintOperationRpcError(error)
+    const classroomCreationDenial = mapClassroomCreationDatabaseError(error)
+    const result: BlueprintOperationResult = classroomCreationDenial
+      ? {
+          ok: false,
+          status: classroomCreationDenial.status,
+          operation_id: operationId,
+          operation_type: operationType,
+          error_code: classroomCreationDenial.errorCode,
+          error: classroomCreationDenial.message,
+          retryable: classroomCreationDenial.retryable,
+        }
+      : isMissingBlueprintOperationRpcError(error)
       ? {
           ok: false,
           status: 503,

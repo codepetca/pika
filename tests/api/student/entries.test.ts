@@ -1023,7 +1023,9 @@ describe('PATCH /api/student/entries', () => {
     vi.clearAllMocks()
   })
 
-  it('atomically creates the first autosaved log with its Pal fact', async () => {
+  it.each([[false, false], [true, false], [true, true]])('atomically creates the first autosaved log with its Pal fact (classroom %s, identity %s)', async (classroomRequested, identityEnabled) => {
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
+    vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(identityEnabled))
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -1099,14 +1101,15 @@ describe('PATCH /api/student/entries', () => {
         p_student_id: 'student-1',
         p_classroom_id: 'classroom-1',
         p_date: '2024-10-15',
-        p_pal_event: expect.objectContaining({
+        p_pal_event: classroomRequested ? null : expect.objectContaining({
           event_type: 'daily_log.completed',
           metadata: expect.objectContaining({ activity_day: '2024-10-15' }),
         }),
       }),
     )
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
-      event: expect.objectContaining({ event_type: 'daily_log.completed' }),
+      membership: { studentId: 'student-1', classroomId: 'classroom-1' },
+      event: classroomRequested ? null : expect.objectContaining({ event_type: 'daily_log.completed' }),
       supabase: mockSupabaseClient,
     })
   })

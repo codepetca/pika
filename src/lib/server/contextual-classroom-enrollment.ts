@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { isPalEnabled } from '@/lib/server/pal-config'
+import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
 
 const canonicalUuidSchema = z.string().uuid().transform((value) => value.toLowerCase())
@@ -215,7 +215,7 @@ export async function joinClassroomByCodeAtomic(args: {
   const expectedClassroomId = expectedClassroomIdResult.data
   const classCode = normalizeClassroomJoinCode(args.classCode)
   const keys = buildClassroomJoinRateLimitKeys(args.actorId, classCode)
-  const palEvent = isPalEnabled()
+  const palEvent = isPalEnabled() && !isClassroomPalRequested()
     ? buildClassroomJoinedEvent({
         learnerId: args.actorId,
         classroomId: expectedClassroomId,

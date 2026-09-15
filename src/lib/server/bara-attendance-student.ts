@@ -17,6 +17,7 @@ import {
   getBaraAttendanceClassroomIdIntegrationState,
 } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
+import { resolveAttendanceScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
 
 const actorUserSchema = z.object({
   email: z.string().email(),
@@ -145,12 +146,13 @@ function mapResult(
       }
     case 'not_on_roster':
     case 'not_authorized':
-      return {
-        state: 'needs_staff',
-        title: 'Your teacher needs to help',
-        description: 'Ask your teacher to check your roster and attendance.',
-      }
+      return membershipUnavailable()
   }
+}
+
+function membershipUnavailable(): StudentAttendanceCheckInView {
+  return { state: 'needs_staff', title: 'Your teacher needs to help',
+    description: 'Ask your teacher to check your roster and attendance.' }
 }
 
 export async function executeStudentAttendanceCheckIn(input: {
@@ -163,6 +165,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
   loadPresentThroughAt?: (input: { classroomId: string; occurrenceRef: string }) => Promise<string>
   verifyCanaryClassroom?: (input: { supabase: any; classroomId: string }) => Promise<void>
+  resolveGeneration?: typeof resolveAttendanceScanGeneration
 }) {
   const transportState = input.integrationState ?? getBaraAttendanceIntegrationState()
   if (transportState !== 'ready') {
@@ -216,9 +219,22 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (!z.string().uuid().safeParse(input.attemptId).success) {
     throw new StudentAttendanceCheckInError('invalid_entry')
   }
+  const resolveGeneration = input.resolveGeneration ?? resolveAttendanceScanGeneration
+  const readGeneration = async () => {
+    try {
+      return await resolveGeneration({ supabase: input.supabase, classroomId: entry.classroomId, studentId: input.pikaUser.id })
+    } catch { throw new StudentAttendanceCheckInError('upstream_unavailable') }
+  }
+  const generation = await readGeneration()
+  if (generation.status === 'forbidden') return membershipUnavailable()
+  // Emit the new optional wire field only under the explicit rollout gate.
+  // Current-state checks still run when that gate is paused.
+  const participantRef = generation.status === 'active' && process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true'
+    ? generation.participant_ref : undefined
   const digest = createHash('sha256')
     .update(
-      `${entry.occurrenceRef}\0${entry.checkInToken}\0${actor.principalRef}\0${input.attemptId}`,
+      `${entry.occurrenceRef}\0${entry.checkInToken}\0${actor.principalRef}\0${input.attemptId}`
+        + (participantRef && generation.status === 'active' ? `\0${generation.generation_id}\0${participantRef}` : ''),
     )
     .digest('hex')
     .slice(0, 40)
@@ -233,6 +249,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     check_in_token: entry.checkInToken,
     actor_principal_ref: actor.principalRef,
     actor_display_name: actor.displayName,
+    ...(participantRef ? { participant_ref: participantRef } : {}),
   }
 
   const send = input.send ?? postBaraStudentCheckIn
@@ -248,11 +265,14 @@ export async function executeStudentAttendanceCheckIn(input: {
       // A timeout has an uncertain outcome. Retry once with the same command
       // body/idempotency key and a fresh transport nonce before telling the
       // student that the result is unavailable.
+      if (!sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
       result = await send(payload)
     } catch {
       throw new StudentAttendanceCheckInError('upstream_unavailable')
     }
   }
+  if (participantRef && result.checkIn && result.checkIn.participantRef !== participantRef)
+    throw new StudentAttendanceCheckInError('upstream_unavailable')
   let presentThroughAt: string | undefined
   if (result.checkIn) {
     if (input.loadPresentThroughAt) {
@@ -272,6 +292,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     presentThroughAt = parsed.data.present_through_at
     }
   }
+  if (!sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
   const mapped = mapResult(result, presentThroughAt)
   return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
     ? {

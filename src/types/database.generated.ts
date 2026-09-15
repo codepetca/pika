@@ -3056,6 +3056,48 @@ export type Database = {
           },
         ]
       }
+      classroom_creation_operations: {
+        Row: {
+          classroom_id: string | null
+          completed_at: string
+          created_at: string
+          operation_id: string
+          request_sha256: string
+          subject_user_id: string
+        }
+        Insert: {
+          classroom_id?: string | null
+          completed_at?: string
+          created_at?: string
+          operation_id: string
+          request_sha256: string
+          subject_user_id: string
+        }
+        Update: {
+          classroom_id?: string | null
+          completed_at?: string
+          created_at?: string
+          operation_id?: string
+          request_sha256?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_creation_operations_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_creation_operations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_enrollments: {
         Row: {
           classroom_id: string
@@ -5176,6 +5218,119 @@ export type Database = {
           },
         ]
       }
+      effective_feature_entitlement_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          entitlement_revision: number
+          feature_key: string
+          id: string
+          new_enabled: boolean
+          new_expires_at: string | null
+          new_quota_limit: number | null
+          new_source: string
+          new_starts_at: string
+          operation_id: string
+          previous_enabled: boolean | null
+          previous_expires_at: string | null
+          previous_quota_limit: number | null
+          previous_source: string | null
+          previous_starts_at: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          entitlement_revision: number
+          feature_key: string
+          id?: string
+          new_enabled: boolean
+          new_expires_at?: string | null
+          new_quota_limit?: number | null
+          new_source: string
+          new_starts_at: string
+          operation_id: string
+          previous_enabled?: boolean | null
+          previous_expires_at?: string | null
+          previous_quota_limit?: number | null
+          previous_source?: string | null
+          previous_starts_at?: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          entitlement_revision?: number
+          feature_key?: string
+          id?: string
+          new_enabled?: boolean
+          new_expires_at?: string | null
+          new_quota_limit?: number | null
+          new_source?: string
+          new_starts_at?: string
+          operation_id?: string
+          previous_enabled?: boolean | null
+          previous_expires_at?: string | null
+          previous_quota_limit?: number | null
+          previous_source?: string | null
+          previous_starts_at?: string | null
+          reason_code?: string
+          request_fingerprint?: string
+          subject_user_id?: string
+        }
+        Relationships: []
+      }
+      effective_feature_entitlements: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          expires_at: string | null
+          feature_key: string
+          quota_limit: number | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled: boolean
+          expires_at?: string | null
+          feature_key: string
+          quota_limit?: number | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          expires_at?: string | null
+          feature_key?: string
+          quota_limit?: number | null
+          revision?: number
+          source?: string
+          starts_at?: string
+          subject_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "effective_feature_entitlements_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entries: {
         Row: {
           classroom_id: string
@@ -6318,6 +6473,7 @@ export type Database = {
           managed_storage_object_id: string | null
           next_attempt_at: string
           operation_id: string
+          owner_sha256: string | null
           status: string
           storage_bucket: string
           storage_path: string | null
@@ -6335,6 +6491,7 @@ export type Database = {
           managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id: string
+          owner_sha256?: string | null
           status?: string
           storage_bucket: string
           storage_path?: string | null
@@ -6352,6 +6509,7 @@ export type Database = {
           managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
+          owner_sha256?: string | null
           status?: string
           storage_bucket?: string
           storage_path?: string | null
@@ -6384,6 +6542,7 @@ export type Database = {
           id: string
           impact_summary: Json
           inventory_completed_at: string | null
+          local_academic_cleanup: Json | null
           request_sha256: string
           resource_counts: Json
           retryable: boolean | null
@@ -6405,6 +6564,7 @@ export type Database = {
           id: string
           impact_summary?: Json
           inventory_completed_at?: string | null
+          local_academic_cleanup?: Json | null
           request_sha256: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -6426,6 +6586,7 @@ export type Database = {
           id?: string
           impact_summary?: Json
           inventory_completed_at?: string | null
+          local_academic_cleanup?: Json | null
           request_sha256?: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -6461,18 +6622,21 @@ export type Database = {
           disposition: string
           operation_id: string
           row_id: string
+          row_sha256: string | null
           table_name: string
         }
         Insert: {
           disposition: string
           operation_id: string
           row_id: string
+          row_sha256?: string | null
           table_name: string
         }
         Update: {
           disposition?: string
           operation_id?: string
           row_id?: string
+          row_sha256?: string | null
           table_name?: string
         }
         Relationships: [
@@ -7612,6 +7776,20 @@ export type Database = {
         }
         Returns: Json
       }
+      advance_removed_student_academic_cleanup: {
+        Args: {
+          p_action: string
+          p_classroom_id: string
+          p_generation_id: string
+          p_lease_token?: string
+          p_object_id?: string
+          p_operation_id: string
+          p_revision?: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       apply_archived_classroom_blueprint_proposal_atomic: {
         Args: {
           p_candidate_sha256: string
@@ -7783,6 +7961,14 @@ export type Database = {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
       }
+      assert_classroom_creation_allowed_v1: {
+        Args: {
+          p_at?: string
+          p_exclude_classroom_id?: string
+          p_subject_user_id: string
+        }
+        Returns: undefined
+      }
       attendance_classroom_has_state_v1: {
         Args: { p_classroom_id: string }
         Returns: boolean
@@ -7840,6 +8026,24 @@ export type Database = {
         Args: {
           p_classroom_id: string
           p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      authorize_attendance_generation_delivery: {
+        Args: { p_lease_token: string; p_outbox_id: string; p_payload: Json }
+        Returns: boolean
+      }
+      authorize_pal_membership_delivery: {
+        Args: { p_lease_token: string; p_outbox_id: string }
+        Returns: Json
+      }
+      authorize_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
           p_teacher_id: string
         }
         Returns: Json
@@ -8621,6 +8825,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pal_membership_outbox: {
+        Args: {
+          p_classroom_id?: string
+          p_lease_seconds?: number
+          p_limit?: number
+          p_student_id?: string
+        }
+        Returns: Json
+      }
       claim_student_purge_object: {
         Args: {
           p_lease_seconds?: number
@@ -9028,6 +9241,7 @@ export type Database = {
         Returns: number
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
+      count_pal_membership_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
         Args: { p_value: Json }
         Returns: string
@@ -9112,6 +9326,18 @@ export type Database = {
           p_pal_event: Json
           p_student_id: string
           p_viewed_at: string
+        }
+        Returns: Json
+      }
+      create_classroom_atomic_v1: {
+        Args: {
+          p_class_code: string
+          p_operation_id: string
+          p_request_sha256: string
+          p_subject_user_id: string
+          p_term_label: string
+          p_theme_color: string
+          p_title: string
         }
         Returns: Json
       }
@@ -9703,6 +9929,10 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_classroom_creation_access_v1: {
+        Args: { p_at?: string; p_subject_user_id: string }
+        Returns: Json
+      }
       get_cleanup_history_cron_health_snapshot: {
         Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
@@ -9734,6 +9964,16 @@ export type Database = {
       }
       get_managed_storage_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: Json
+      }
+      get_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
         Returns: Json
       }
       get_student_purge_health_snapshot: {
@@ -9798,6 +10038,18 @@ export type Database = {
         Returns: Json
       }
       instantiate_course_blueprint_atomic_v2: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      instantiate_course_blueprint_atomic_v2_pre_create_entitlement: {
         Args: {
           p_blueprint_id: string
           p_blueprint_version_id: string
@@ -9893,6 +10145,10 @@ export type Database = {
       list_attendance_sync_targets_v3: {
         Args: { p_at: string; p_limit?: number }
         Returns: Json
+      }
+      lock_effective_feature_entitlement_v1: {
+        Args: { p_feature_key: string; p_subject_user_id: string }
+        Returns: undefined
       }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
       managed_storage_blueprint_protocol_ready: {
@@ -10070,6 +10326,10 @@ export type Database = {
         }
         Returns: Json
       }
+      record_pal_classroom_visit: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
       record_pal_daily_log_week_configuration_atomic: {
         Args: {
           p_config_version: number
@@ -10079,6 +10339,18 @@ export type Database = {
           p_period_key: string
           p_period_status: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      record_student_provider_cleanup_receipt: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_provider: string
+          p_receipt: Json
+          p_student_id: string
+          p_teacher_id: string
         }
         Returns: Json
       }
@@ -10275,6 +10547,20 @@ export type Database = {
         Args: { p_outbox_id: string }
         Returns: boolean
       }
+      reserve_student_provider_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      resolve_attendance_scan_generation: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
       resolve_classroom_archive_resource_classroom_id: {
         Args: { p_row_id: string; p_table_name: string }
         Returns: string
@@ -10330,6 +10616,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resolve_pal_classroom_context: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
+      resolve_pal_membership: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
       }
       restore_removed_classroom_students: {
         Args: {
@@ -10603,6 +10897,22 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      set_effective_feature_entitlement_v1: {
+        Args: {
+          p_actor_ref: string
+          p_enabled: boolean
+          p_expected_revision?: number
+          p_expires_at: string
+          p_feature_key: string
+          p_operation_id: string
+          p_quota_limit: number
+          p_reason_code: string
+          p_source: string
+          p_starts_at: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       set_gradebook_item_score: {
         Args: {
           p_classroom_id: string
@@ -10852,6 +11162,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_pal_membership_weeks: { Args: { p_limit?: number }; Returns: Json }
       sync_test_document_snapshot_atomic: {
         Args: {
           p_document_id: string

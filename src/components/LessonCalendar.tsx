@@ -593,12 +593,12 @@ export function LessonCalendar({
       >
         {presentedDayDetails && (
           <div className="flex min-h-[76vh] flex-col">
-            <div className="flex items-center justify-between gap-3">
+            <div className="-mx-8 -mt-8 flex shrink-0 items-center justify-between gap-3 rounded-t-dialog border-b border-border bg-surface-accent px-8 py-6">
               <h2
                 id="calendar-day-presentation-title"
                 className="text-4xl font-semibold tracking-tight text-text-default sm:text-5xl"
               >
-                {format(presentedDayDetails.day, 'EEEE, MMMM d, yyyy')}
+                {format(presentedDayDetails.day, 'EEE MMM d, yyyy')}
               </h2>
               <div className="flex shrink-0 items-center gap-1">
                 <button

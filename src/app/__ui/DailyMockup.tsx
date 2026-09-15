@@ -507,7 +507,7 @@ export function DailyMockup({
                           key={status}
                           density="tight"
                           className={cn(
-                            'sticky z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover',
+                            'sticky !p-0 bg-surface text-center group-hover:bg-surface-hover',
                             STICKY_ATTENDANCE_OFFSETS[status],
                           )}
                         >
@@ -519,7 +519,7 @@ export function DailyMockup({
                           />
                         </DataTableCell>
                       ))}
-                      <DataTableCell density="tight" className="sticky right-0 z-sticky-table !p-0 bg-surface text-center group-hover:bg-surface-hover">
+                      <DataTableCell density="tight" className="sticky right-0 !p-0 bg-surface text-center group-hover:bg-surface-hover">
                         {manualChanges[student.id] ? (
                           <IconButton
                             label={`Undo override for ${student.first} ${student.last}`}

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { Json } from '@/types/database.generated'
+import { authorizeAttendanceGenerationDelivery } from '@/lib/server/attendance-generation'
 import {
   BaraAttendanceClientError,
   type BaraCheckInInvalidationResult,
@@ -310,6 +312,11 @@ async function deliverClaimed(input: {
     )
   }
 
+  if (!input.row.lease_token) throw new BaraAttendanceOutboxError('Attendance delivery lease was lost', 'lease_lost', true)
+  if (!await authorizeAttendanceGenerationDelivery({ supabase: input.supabase, outboxId: input.row.id,
+    leaseToken: input.row.lease_token, payload: validation.value as unknown as Json })) {
+    throw new BaraAttendanceOutboxError('Attendance delivery is no longer authorized', 'lease_lost', true)
+  }
   try {
     const result = await (input.deliver ?? sendMessage)(validation.value)
     if (!input.row.lease_token) {
@@ -405,6 +412,10 @@ export async function deliverBaraAttendanceMessage(input: {
   if (error) mapDatabaseError(error, 'persist attendance message')
   const enqueued = parseOutboxRow(data)
   if (enqueued.status === 'delivered') {
+    if (!await authorizeAttendanceGenerationDelivery({ supabase: input.supabase, outboxId: enqueued.id,
+      leaseToken: null, payload: validation.value as unknown as Json })) {
+      throw new BaraAttendanceOutboxError('Attendance replay is no longer authorized', 'delivery_pending', false)
+    }
     return parseResult(validation.value.message_type, enqueued.response_payload)
   }
   if (enqueued.status === 'non_retryable') {

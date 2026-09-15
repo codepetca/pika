@@ -182,6 +182,9 @@ wrappers:
   visible at every width; an optional `icon` renders them as a named IconButton. Secondary actions
   use the keyboard-accessible More actions menu at the far right, after any trailing content.
 - Action-bar controls and menu items preserve the shared 44px target and focus-visible treatment.
+- Student action bars include the comfortable content-top inset above their controls so they
+  remain separated from the classroom header. Teacher and default density retain caller-owned
+  top spacing.
 
 ### Page states
 

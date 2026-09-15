@@ -7,6 +7,7 @@ import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
 import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
 import { isMissingClassroomFeatureVisibilityColumnError } from '@/lib/classroom-feature-visibility'
+import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -222,6 +223,14 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     ? await selectedUpdate.maybeSingle() : await selectedUpdate.single()
 
   if (updateError) {
+    const creationDenial = mapClassroomCreationDatabaseError(updateError)
+    if (creationDenial) {
+      return NextResponse.json({
+        error: creationDenial.message,
+        error_code: creationDenial.errorCode,
+        retryable: creationDenial.retryable,
+      }, { status: creationDenial.status })
+    }
     if (isMissingClassroomFeatureVisibilityColumnError(updateError)) {
       return NextResponse.json(
         { error: 'Classroom feature controls are not available until migration 128 is applied' },

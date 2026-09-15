@@ -6,7 +6,9 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
-import { getPalApiUrl } from '@/lib/server/pal-config'
+import { getPalApiUrl, isClassroomPalRequested } from '@/lib/server/pal-config'
+import { resolvePalClassroomContext } from '@/lib/server/pal-classroom'
+import { StudentPalExperience } from '@/integrations/pal'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import {
   isClassroomTabAvailable,
@@ -139,7 +141,11 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     notFound()
   }
 
-  const palEnabled = getPalApiUrl() !== null
+  const palApiUrl = getPalApiUrl()
+  const membershipContext = palApiUrl && isClassroomPalRequested()
+    ? await resolvePalClassroomContext({ studentId: user.id, classroomId }).catch(() => null)
+    : null
+  const palEnabled = palApiUrl !== null && (!isClassroomPalRequested() || membershipContext !== null)
   const hydratedClassroom = hydrateClassroomRecord(classroom as Record<string, any>)
   if (
     tab &&
@@ -153,7 +159,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     redirect(`/classrooms/${classroomId}?tab=today`)
   }
 
-  return (
+  const studentPage = (
     <ClassroomPageClient
       classroom={hydratedClassroom}
       user={{
@@ -168,4 +174,14 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
       palEnabled={palEnabled}
     />
   )
+  if (palApiUrl && membershipContext) {
+    return (
+      <StudentPalExperience key={membershipContext.scope_key} apiBaseUrl={palApiUrl}
+        scopeKey={membershipContext.scope_key} showAmbientSurfaces={false}
+        membership={{ classroomId, scopeKey: membershipContext.scope_key }}>
+        {studentPage}
+      </StudentPalExperience>
+    )
+  }
+  return studentPage
 }

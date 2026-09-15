@@ -398,7 +398,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )
 
       setAssignment(data.assignment)
-      notifyImmediatePalDelivery(data.pal_delivery)
+      notifyImmediatePalDelivery(data.pal_delivery, classroomId)
       setDoc(data.doc)
       setFeedbackEntries(data.feedback_entries || [])
       setSubmissionRequirements(data.submission_requirements || [])
@@ -1197,7 +1197,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         throw new Error(data.error || 'Failed to submit')
       }
 
-      notifyImmediatePalDelivery(data.pal_delivery)
+      notifyImmediatePalDelivery(data.pal_delivery, classroomId)
 
       applySubmittedDoc(
         data.doc,

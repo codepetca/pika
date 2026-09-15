@@ -125,6 +125,31 @@ describe('classroom data inventory', () => {
     expect(CLASSROOM_ARCHIVE_V2_RESOURCES.some(row => row.table === relation.child_table)).toBe(false)
     expect(GRADEX_RESOURCE_TABLES).not.toContain(relation.child_table)
   })
+
+  it('classifies classroom creation retries as account-owned workflow state', () => {
+    const relationships = [
+      {
+        child_table: 'classroom_creation_operations',
+        parent_table: 'classrooms',
+        child_columns: ['classroom_id'],
+      },
+      {
+        child_table: 'classroom_creation_operations',
+        parent_table: 'users',
+        child_columns: ['subject_user_id'],
+      },
+    ]
+
+    expect(CLASSROOM_NON_OWNING_REFERENCES).toEqual(
+      expect.arrayContaining(relationships),
+    )
+    expect(auditClassroomResourceSchema(contractRelationships(), contractPrimaryKeys()).ok).toBe(true)
+    expect(CLASSROOM_ARCHIVE_V2_RESOURCES.some(
+      (resource) => resource.table === 'classroom_creation_operations',
+    )).toBe(false)
+    expect(GRADEX_RESOURCE_TABLES).not.toContain('classroom_creation_operations')
+  })
+
   it('is a valid, complete 44-resource classroom ownership graph', () => {
     expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
     expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)

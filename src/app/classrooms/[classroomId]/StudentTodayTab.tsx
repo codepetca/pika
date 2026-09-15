@@ -466,7 +466,7 @@ export function StudentTodayTab({
         throw new Error(data.error || 'Failed to save')
       }
 
-      notifyImmediatePalDelivery(data.pal_delivery)
+      notifyImmediatePalDelivery(data.pal_delivery, classroom.id)
 
       const savedEntry = data.entry as Entry
       const savedContentStillCurrent = JSON.stringify(currentContentRef.current) === newContentStr

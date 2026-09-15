@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Rollback-only fixture; never applies migrations or accepts a hosted URL.
-REMOVAL_DB_CONTAINER="${REMOVAL_DB_CONTAINER:-supabase_db_pika}"
+# Synthetic fixture contracts; never applies migrations or accepts a hosted URL.
+REMOVAL_PROJECT="${REMOVAL_PROJECT:-pika}"
+REMOVAL_DB_CONTAINER="${REMOVAL_DB_CONTAINER:-supabase_db_$REMOVAL_PROJECT}"
 REMOVAL_DATABASE_NAME="${REMOVAL_DATABASE_NAME:-postgres}"
-if [[ "$REMOVAL_DB_CONTAINER" != supabase_db_pika ]] \
-  || [[ "$(docker inspect "$REMOVAL_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" != pika ]] \
+if [[ "$REMOVAL_PROJECT" != pika && "$REMOVAL_PROJECT" != pika-pal-phase1 ]] \
+  || [[ "$REMOVAL_DB_CONTAINER" != "supabase_db_$REMOVAL_PROJECT" ]] \
+  || [[ "$(docker inspect "$REMOVAL_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" != "$REMOVAL_PROJECT" ]] \
   || [[ ! "$REMOVAL_DATABASE_NAME" =~ ^(postgres|pika_removal_(164|165)_[a-z0-9_]+)$ ]]; then
   echo 'Refusing unexpected classroom-removal test target.' >&2
   exit 2
@@ -85,8 +87,9 @@ insert into public.classroom_roster (id, classroom_id, email) values (
   'd1640000-0000-4000-8000-000000000010',
   'grade-race-student-164@example.invalid'
 );
-insert into public.classroom_enrollments (id, classroom_id, student_id) values (
-  'd1640000-0000-4000-8000-000000000012',
+-- Each fixture setup is a fresh membership. Removed generations deliberately
+-- survive classroom/user teardown and must never be reused on the next pass.
+insert into public.classroom_enrollments (classroom_id, student_id) values (
   'd1640000-0000-4000-8000-000000000010',
   'd1640000-0000-4000-8000-000000000002'
 );

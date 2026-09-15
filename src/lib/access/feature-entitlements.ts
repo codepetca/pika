@@ -8,7 +8,9 @@ const timestamp = z.string().datetime({ offset: true })
 
 /**
  * One effective, server-resolved entitlement, not a billing record or client claim.
- * Grant precedence, plan mapping, persistence and atomic quota consumption are deferred.
+ * Grant precedence and plan mapping are deferred. Migration 166 separately persists
+ * effective snapshots and atomically enforces active classroom creation; this pure
+ * evaluator still does not reserve or consume quota.
  * Explicit null means no expiry/quota; omitted values fail closed.
  */
 export const featureEntitlementSchema = z.object({

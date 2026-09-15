@@ -2,6 +2,16 @@ function isPalFlagEnabled(): boolean {
   return process.env.PAL_ENABLED?.trim().toLowerCase() === 'true'
 }
 
+/** Routing intent never falls back to the account profile when a second gate is missing. */
+export function isClassroomPalRequested(): boolean {
+  return process.env.PAL_CLASSROOM_ENABLED === 'true'
+}
+
+export function isClassroomPalEnabled(): boolean {
+  return isClassroomPalRequested()
+    && process.env.PAL_MEMBERSHIP_IDENTITY_ENABLED === 'true'
+}
+
 export function isPalEnabled(): boolean {
   if (!isPalFlagEnabled()) return false
   requirePalEnvironment()

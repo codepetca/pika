@@ -1,0 +1,580 @@
+{
+  "schemaVersion": 1,
+  "featurePolicy": {
+    "achievements": {
+      "titles": false
+    }
+  },
+  "roadmap": {
+    "semesterLabel": "Fall semester",
+    "currentWeek": 4,
+    "weeks": [
+      {
+        "id": "week-1",
+        "number": 1,
+        "label": "Week 1",
+        "dateLabel": "Semester week 1",
+        "status": "past",
+        "summary": "Weekly goal earned",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-1",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "earned",
+            "statusLabel": "Earned",
+            "progress": {
+              "current": 4,
+              "target": 4,
+              "label": "4 of 4 eligible days"
+            },
+            "rewardLabel": "Happy companion"
+          },
+          {
+            "id": "first-pika-login",
+            "key": "first-pika-login",
+            "title": "First Pika Login",
+            "description": "Started your first authenticated Pika session.",
+            "badge": {
+              "label": "First Pika Login",
+              "assetUrl": "/assets/badges/badge-first-classroom-login-v1.png"
+            },
+            "status": "earned",
+            "statusLabel": "Earned"
+          }
+        ]
+      },
+      {
+        "id": "week-2",
+        "number": 2,
+        "label": "Week 2",
+        "dateLabel": "Semester week 2",
+        "status": "past",
+        "summary": "Weekly goal earned",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-2",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "earned",
+            "statusLabel": "Earned",
+            "progress": {
+              "current": 4,
+              "target": 4,
+              "label": "4 of 4 eligible days"
+            },
+            "rewardLabel": "Happy companion"
+          }
+        ]
+      },
+      {
+        "id": "week-3",
+        "number": 3,
+        "label": "Week 3",
+        "dateLabel": "Semester week 3",
+        "status": "past",
+        "summary": "Weekly goal earned",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-3",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "earned",
+            "statusLabel": "Earned",
+            "progress": {
+              "current": 3,
+              "target": 3,
+              "label": "3 of 3 eligible days"
+            },
+            "rewardLabel": "Happy companion"
+          }
+        ]
+      },
+      {
+        "id": "week-4",
+        "number": 4,
+        "label": "Week 4",
+        "dateLabel": "Semester week 4",
+        "status": "current",
+        "summary": "Your current progress",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-4",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "in-progress",
+            "statusLabel": "2 of 4 days",
+            "progress": {
+              "current": 2,
+              "target": 4,
+              "label": "2 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-5",
+        "number": 5,
+        "label": "Week 5",
+        "dateLabel": "Semester week 5",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-5",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-6",
+        "number": 6,
+        "label": "Week 6",
+        "dateLabel": "Semester week 6",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-6",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-7",
+        "number": 7,
+        "label": "Week 7",
+        "dateLabel": "Semester week 7",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-7",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-8",
+        "number": 8,
+        "label": "Week 8",
+        "dateLabel": "Semester week 8",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-8",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-9",
+        "number": 9,
+        "label": "Week 9",
+        "dateLabel": "Semester week 9",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-9",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-10",
+        "number": 10,
+        "label": "Week 10",
+        "dateLabel": "Semester week 10",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-10",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-11",
+        "number": 11,
+        "label": "Week 11",
+        "dateLabel": "Semester week 11",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-11",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-12",
+        "number": 12,
+        "label": "Week 12",
+        "dateLabel": "Semester week 12",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-12",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-13",
+        "number": 13,
+        "label": "Week 13",
+        "dateLabel": "Semester week 13",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-13",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-14",
+        "number": 14,
+        "label": "Week 14",
+        "dateLabel": "Semester week 14",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-14",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-15",
+        "number": 15,
+        "label": "Week 15",
+        "dateLabel": "Semester week 15",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-15",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      },
+      {
+        "id": "week-16",
+        "number": 16,
+        "label": "Week 16",
+        "dateLabel": "Semester week 16",
+        "status": "future",
+        "summary": "Opens when the week begins",
+        "achievements": [
+          {
+            "id": "weekly-rhythm-16",
+            "key": "weekly-rhythm",
+            "title": "Weekly Rhythm",
+            "description": "Complete the target number of daily logs to bring this week's keepsake to life in color.",
+            "badge": {
+              "label": "Weekly Rhythm",
+              "assetUrl": "/assets/badges/badge-checkin-7-day-v1.png"
+            },
+            "status": "upcoming",
+            "statusLabel": "Upcoming",
+            "progress": {
+              "current": 0,
+              "target": 4,
+              "label": "0 of 4 eligible days"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "companion": {
+    "name": "Mystery companion",
+    "mood": "happy",
+    "moodLabel": "Happy",
+    "level": 2,
+    "streak": 3,
+    "xp": 230,
+    "xpToNextLevel": 270,
+    "message": "Two daily-log days complete this week."
+  },
+  "collection": {
+    "items": []
+  },
+  "rewards": [],
+  "progression": {
+    "companionReveal": {
+      "status": "locked",
+      "label": "Mystery companion. Keep building your Weekly Rhythm to reveal it."
+    },
+    "collectibles": [
+      {
+        "id": "locked-collectible-week-1",
+        "roadmapWeek": 1,
+        "status": "next",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-2",
+        "roadmapWeek": 2,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-3",
+        "roadmapWeek": 3,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-4",
+        "roadmapWeek": 4,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-5",
+        "roadmapWeek": 5,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-6",
+        "roadmapWeek": 6,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-7",
+        "roadmapWeek": 7,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-8",
+        "roadmapWeek": 8,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-9",
+        "roadmapWeek": 9,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-10",
+        "roadmapWeek": 10,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-11",
+        "roadmapWeek": 11,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-12",
+        "roadmapWeek": 12,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-13",
+        "roadmapWeek": 13,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-14",
+        "roadmapWeek": 14,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-15",
+        "roadmapWeek": 15,
+        "status": "locked",
+        "statusLabel": "Locked"
+      },
+      {
+        "id": "locked-collectible-week-16",
+        "roadmapWeek": 16,
+        "status": "locked",
+        "statusLabel": "Locked"
+      }
+    ],
+    "titles": []
+  }
+}

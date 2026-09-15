@@ -195,6 +195,19 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
   },
+  // Account-scoped retry ledger, not portable classroom content. Deleting a
+  // classroom clears only the replay result pointer; deleting the account
+  // removes its operation history.
+  {
+    child_table: 'classroom_creation_operations',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_creation_operations',
+    parent_table: 'users',
+    child_columns: ['subject_user_id'],
+  },
   {
     child_table: 'course_blueprint_change_proposals',
     parent_table: 'classrooms',

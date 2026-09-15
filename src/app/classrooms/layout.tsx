@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { StudentPalExperience } from '@/integrations/pal'
-import { getPalApiUrl } from '@/lib/server/pal-config'
+import { getPalApiUrl, isClassroomPalRequested } from '@/lib/server/pal-config'
 
 /**
  * Minimal layout for classrooms - just handles auth check.
@@ -22,7 +22,7 @@ export default async function ClassroomsLayout({
 
   const palApiUrl = user.role === 'student' ? getPalApiUrl() : null
 
-  if (palApiUrl) {
+  if (palApiUrl && !isClassroomPalRequested()) {
     return (
       <StudentPalExperience apiBaseUrl={palApiUrl} scopeKey={randomUUID()} showAmbientSurfaces={false}>
         {children}

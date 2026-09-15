@@ -510,6 +510,13 @@ describe('Bara attendance server client', () => {
       'https://attendance-api.example/api/integrations/pika/v1/sessions/occurrence_one/student-check-ins',
     )
 
+    await expect(postBaraStudentCheckIn({ ...studentCheckInPayload, participant_ref: 'participant_one' }, {
+      fetcher: fetcher as typeof fetch,
+    })).resolves.toMatchObject({ checkIn: { participantRef: 'participant_one' } })
+    await expect(postBaraStudentCheckIn({ ...studentCheckInPayload, participant_ref: 'participant_another' }, {
+      fetcher: fetcher as typeof fetch,
+    })).rejects.toMatchObject({ code: 'resource_mismatch', retryable: false })
+
     const leaked = vi.fn(async () => new Response(JSON.stringify({
       ...response,
       app_user_id: 'convex-internal-id',
