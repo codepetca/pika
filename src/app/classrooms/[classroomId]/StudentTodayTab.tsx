@@ -8,7 +8,7 @@ import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { format, parseISO } from 'date-fns'
+import { StudentPastLogs } from './StudentPastLogs'
 import {
   safeSessionGetJson,
   safeSessionRemove,
@@ -111,7 +111,6 @@ export function StudentTodayTab({
   const [today, setToday] = useState('')
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
-  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(() => new Set())
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [saveError, setSaveError] = useState('')
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
@@ -696,18 +695,6 @@ export function StudentTodayTab({
       entry: historyEntries.find(entry => entry.date === day.date) ?? null,
     }))
 
-  function toggleHistoryEntry(entryId: string) {
-    setExpandedHistoryIds(prev => {
-      const next = new Set(prev)
-      if (next.has(entryId)) {
-        next.delete(entryId)
-      } else {
-        next.add(entryId)
-      }
-      return next
-    })
-  }
-
   const todayContent = (
     <PageStack>
       {classDaysError && hasClassDaysSnapshot && (
@@ -769,65 +756,9 @@ export function StudentTodayTab({
         )}
       </div>
 
+      <StudentPastLogs key={classroom.id} logs={pastHistoryEntries} />
+
       {mobilePlanContent}
-
-      <div className="bg-surface border border-border rounded-lg">
-        <div className="px-4 py-3 border-b border-border">
-          <h2 className="text-sm font-semibold text-text-default">Past logs</h2>
-        </div>
-        <div className="divide-y divide-border">
-          {pastHistoryEntries.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-text-muted">
-              No past logs yet
-            </div>
-          ) : (
-            pastHistoryEntries.map(({ date, entry }) => {
-              const entryDateLabel = format(parseISO(date), 'EEE MMM d')
-
-              if (!entry) {
-                return (
-                  <div
-                    key={`missing-${date}`}
-                    className="px-4 py-3"
-                  >
-                    <p className="text-sm font-medium text-text-default">
-                      {entryDateLabel}
-                    </p>
-                    <p className="mt-1 text-sm text-text-muted">
-                      No log submitted
-                    </p>
-                  </div>
-                )
-              }
-
-              const isExpanded = expandedHistoryIds.has(entry.id)
-
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  className="block w-full px-4 py-3 text-left transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
-                  aria-expanded={isExpanded}
-                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} log from ${entryDateLabel}`}
-                  onClick={() => toggleHistoryEntry(entry.id)}
-                >
-                  <p className="text-sm font-medium text-text-default">
-                    {entryDateLabel}
-                  </p>
-                  <p
-                    className={[
-                      'mt-1 text-sm text-text-muted whitespace-pre-wrap',
-                      isExpanded ? '' : 'line-clamp-2',
-                    ].join(' ')}
-                  >
-                    {entry.text || ''}
-                  </p>
-                </button>
-              )
-            })
-          )}
-        </div>
-      </div>
     </PageStack>
   )
 

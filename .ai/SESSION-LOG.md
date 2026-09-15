@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — PR #1245 reviewed-blocker continuation
-
-- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
-- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.
-
-## 2026-09-11 — PR #1245 cumulative review remediation
-
-- Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
-- Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.
-
-## 2026-09-11 — Compact Daily attendance rows
-
-- Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
-- Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
-- Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.
-
 ## 2026-09-11 — Final student removal, no re-add before purge
 
 - User explicitly approved no recovery promise and blocking re-add to the same class until old class data is purged. Owner branch: `codex/final-student-removal`. Removed application restoration calls, added a read-only identity-aware add/CSV preflight, mapped concurrent write denial to409, and revised removal/Pal copy using existing UI owners.
@@ -226,3 +210,14 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 - Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
 - Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
 - Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
+
+## 2026-09-15 — Compact student past logs
+- Task/branch: student past logs, `codex/student-past-logs-compact`.
+- Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
+- Reused canonical Button (Pattern Lab controls); removed the retired native-button exception. Feature-owned composition only; no shared pattern promotion or unrelated refactor.
+- Verification: history and paging interaction tests; focused checks; Playwright student light/dark at 1440×900, 1280×720, and 390×844, collapsed/expanded/focus/paging. Desktop fits 10 rows at 900px and 5 at 720px; mobile fits 10 rows. Teacher n/a (student-only owner). Local screenshots: `output/playwright/past-logs-*`.
+- Risk profile: none. Model recommendation: GPT-6 — bounded student UI behavior and visual verification. No schema or data mutations.
+
+## 2026-09-15 — Past logs without paging
+- User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
+- Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.

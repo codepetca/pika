@@ -32057,3 +32057,21 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 - Simplified the join QR at owner direction to reuse the attendance display modal's `max-w-6xl`, portrait-mobile and widescreen-desktop frame and QR scale. The dialog now shows only the classroom name, join-code label/value, Copy link, QR, and close control; all introductory/instructional text is removed. Teacher desktop/mobile light/dark open-dialog screenshots were inspected, QR contrast is asserted in both themes, and the student role is unaffected.
 - Extended review raised possible clipping at 390×844, but explicit bounds for the wrapped classroom title, join code, Copy link, and complete QR all remain within the dialog in mobile light/dark runs, matching the inspected captures. The claim was rejected as unsupported; the bounds assertion remains as a responsive regression.
 - Final integration review found the Attendance profile handoff spent a second rate-limited probe before profile submission, leaving no budget for one transient retry. The handoff now carries a non-authoritative profile-required UI hint, skips only that redundant client probe, preserves the exact code, and still submits the profile through the authoritative join endpoint. Rate-limited profile responses show the server retry delay instead of claiming an immediate retry is safe; integrated component and browser regressions cover the three-attempt sequence and wait message.
+
+<!-- pika-session-log-archive-batch:55ab2491caa2f27937a2099479afe09463969cb7dc3c1d16e295ab5c74f9cdca -->
+## 2026-09-11 — PR #1245 reviewed-blocker continuation
+
+- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
+- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.
+
+## 2026-09-11 — PR #1245 cumulative review remediation
+
+- Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
+- Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.
+
+<!-- pika-session-log-archive-batch:698edeb5b3aededbb8b27ad9babcd5e610fddd1ea1fdd5ef6d6c594afc013e15 -->
+## 2026-09-11 — Compact Daily attendance rows
+
+- Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
+- Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
+- Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.
