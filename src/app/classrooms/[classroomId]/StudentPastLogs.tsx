@@ -7,11 +7,10 @@ import type { Entry } from '@/types'
 
 type PastLog = { date: string; entry: Entry | null }
 
-/** Daily history owns its viewport-sized pages; expanding a log may grow the page. */
+/** Daily history owns its viewport-sized list; expanding a log may grow the page. */
 export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
   const panelRef = useRef<HTMLElement>(null)
-  const [pageSize, setPageSize] = useState(10)
-  const [start, setStart] = useState(0)
+  const [visibleCount, setVisibleCount] = useState(10)
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
 
   useLayoutEffect(() => {
@@ -31,9 +30,7 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
       const row = panel.querySelector<HTMLElement>('[data-past-log-row]')
       const rowHeight = row ? parseFloat(getComputedStyle(row).minHeight) || 44 : 44
       const available = bottom - top - header - 2
-      const allFit = logs.length * (rowHeight + 1) <= available
-      const size = Math.max(1, Math.floor((available - (allFit ? 0 : rowHeight + 1)) / (rowHeight + 1)))
-      setPageSize(size)
+      setVisibleCount(Math.max(0, Math.min(10, Math.floor(available / (rowHeight + 1)))))
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
@@ -46,14 +43,7 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
     }
   }, [logs.length])
 
-  const hasPages = pageSize < logs.length
-  const pageStart = hasPages ? Math.min(start, Math.max(0, logs.length - 1)) : 0
-  const visibleLogs = logs.slice(pageStart, pageStart + pageSize)
-
-  function changePage(nextStart: number) {
-    setStart(Math.max(0, nextStart))
-    setExpandedDate(null)
-  }
+  const visibleLogs = logs.slice(0, visibleCount)
 
   return (
     <section ref={panelRef} aria-label="Past logs" className="rounded-lg border border-border bg-surface">
@@ -93,13 +83,7 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
           )
         })}
       </div>
-      {hasPages && (
-        <nav aria-label="Past log pages" className="flex items-center justify-between border-t border-border px-2">
-          <Button type="button" size="sm" variant="ghost" disabled={pageStart === 0} onClick={() => changePage(pageStart - pageSize)}>Newer</Button>
-          <span className="text-xs text-text-muted" aria-live="polite">{pageStart + 1}–{Math.min(pageStart + pageSize, logs.length)} of {logs.length}</span>
-          <Button type="button" size="sm" variant="ghost" disabled={pageStart + pageSize >= logs.length} onClick={() => changePage(pageStart + pageSize)}>Older</Button>
-        </nav>
-      )}
+
     </section>
   )
 }

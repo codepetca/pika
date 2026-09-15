@@ -16,7 +16,7 @@ afterEach(() => {
 })
 
 describe('StudentPastLogs', () => {
-  it('pages through every log, collapses on page changes, and adapts to resizing', () => {
+  it('shows only recent logs that fit, up to ten, and adapts to resizing', () => {
     let availableHeight = 270
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       return { top: this.tagName === 'SECTION' ? window.innerHeight - availableHeight : 0, bottom: window.innerHeight, height: this.tagName === 'HEADER' ? 45 : 0 } as DOMRect
@@ -27,26 +27,22 @@ describe('StudentPastLogs', () => {
       observe() {}
       disconnect() {}
     })
-    render(<StudentPastLogs logs={logs} />)
-    expect(screen.getByText('1–3 of 10')).toBeInTheDocument()
-    expect(screen.queryByText('Student log 3')).not.toBeInTheDocument()
+    render(<StudentPastLogs logs={[...logs, { date: '2026-09-01', entry: { id: 'extra', text: 'Eleventh log' } as Entry }]} />)
+    expect(screen.getAllByRole('button')).toHaveLength(4)
+    expect(screen.getByText('Student log 0')).toBeInTheDocument()
+    expect(screen.queryByText('Student log 4')).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Newer|Older/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Expand log from Mon Sep 14' }))
     expect(screen.getByRole('button', { name: 'Collapse log from Mon Sep 14' })).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Older' }))
-    expect(screen.getByText('4–6 of 10')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Older' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Older' }))
-    expect(screen.getByText('Student log 9')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Older' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Newer' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Newer' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Newer' }))
-    expect(screen.getByRole('button', { name: 'Expand log from Mon Sep 14' })).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(screen.getByRole('button', { name: 'Older' }))
     availableHeight = 900
     act(() => resize())
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(10)
     expect(screen.getByText('Student log 9')).toBeInTheDocument()
+    expect(screen.queryByText('Eleventh log')).not.toBeInTheDocument()
+    availableHeight = 60
+    act(() => resize())
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('preserves missing-log and empty states', () => {
