@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(join(process.cwd(), 'supabase/migrations/176_automatic_removed_student_cleanup.sql'), 'utf8')
+const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
+const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
 
 describe('automatic removed-student cleanup migration', () => {
   it('keeps automatic deletion disabled and limits enrollment to future removals', () => {
@@ -34,5 +36,14 @@ describe('automatic removed-student cleanup migration', () => {
     expect(sql).toContain("body=>jsonb_build_object('source',p_source)")
     expect(sql).toContain("not exists (\n      select 1 from private.removed_student_cleanup_jobs")
     expect(sql).not.toMatch(/Bearer [A-Za-z0-9_-]{20,}/)
+  })
+
+  it('registers a rollback-only synthetic queue and lease lifecycle', () => {
+    expect(harness.trimEnd()).toMatch(/rollback;$/)
+    expect(harness).not.toMatch(/^commit;/m)
+    expect(harness).toContain('Active lease was claimed twice')
+    expect(harness).toContain('Stale lease release was accepted')
+    expect(harness).toContain('Completed job retained student identity')
+    expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
   })
 })

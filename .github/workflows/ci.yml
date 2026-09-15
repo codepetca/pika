@@ -154,6 +154,9 @@ jobs:
       - name: Explicit live membership purge and fresh rejoin contracts
         run: bash scripts/check-live-student-cleanup-database.sh
 
+      - name: Automatic removed-student cleanup queue contracts
+        run: bash scripts/check-automatic-removed-student-cleanup-database.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 
