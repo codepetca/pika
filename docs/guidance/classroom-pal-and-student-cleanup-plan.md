@@ -122,10 +122,13 @@ of scope and must not be backfilled. Reuse the existing live cleanup engine with
 a private durable queue, stable operation ids, bounded leases/retries, current
 authority, provider independence and truthful status.
 
-Migrations176–177, the protected worker route and the conditional watchdog are
-implemented and locally verified. Hosted migration, Vault/Vercel configuration,
-all cleanup gates and the approved canary remain pending; the feature is inert
-until that separate rollout is authorized.
+Migrations176–178, the protected worker route and the conditional watchdog are
+implemented. Migration178 is not yet applied locally or in production. It makes
+queue enrollment fail closed unless the exact post-activation generation has
+immutable Pal and attendance evidence plus matching participant, roster and
+teacher-principal mappings. Historical and partially provisioned memberships
+remain removable but never enter the automatic queue. Hosted migration and all
+cleanup gates remain pending; the feature is inert until that rollout completes.
 
 The selected Free-plan topology is event-driven: a committed new removal queues
 one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog
