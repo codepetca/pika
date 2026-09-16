@@ -69,9 +69,38 @@ unchanged, the anchors are not the bottleneck and the instructions probably are.
 
 ## Stage 2 — persistence and a read-only teacher surface
 
-Only worth building once stage 1's gate passes. Requires a local Supabase, since
-`src/types/database.generated.ts` must be regenerated in the same commit as the
-migration or the CI `Database Contract` job fails.
+Only worth building once stage 1's gate passes. `src/types/database.generated.ts`
+must be regenerated in the same commit as the migration or the CI
+`Database Contract` job fails.
+
+### Regenerating types without Docker images
+
+`pnpm db:types:generate` needs `supabase start`, and `supabase gen types` shells
+out to the `supabase/postgres-meta` image, so both need image pulls. In a sandbox
+where the registry is unreachable the whole chain can still be run locally, and
+this was verified against the 175 migrations on this branch:
+
+1. Run a plain PostgreSQL 16 server as a non-root user.
+2. Apply a small bootstrap: roles (`anon`, `authenticated`, `service_role`,
+   `authenticator`, `supabase_admin`, `supabase_storage_admin`), schemas `auth`,
+   `storage` and `extensions`, `pgcrypto` and `uuid-ossp` into `extensions`, and
+   stubs for `auth.uid()`, `auth.role()`, `storage.buckets`, `storage.objects`
+   and `storage.foldername()`. That is the entire Supabase-specific surface the
+   migration set touches.
+3. Replay `supabase/migrations/*.sql` in filename order with `ON_ERROR_STOP=1`.
+4. Generate with the `@supabase/postgres-meta` npm package instead of the image:
+   `getGeneratorMetadata(pgMeta, { includedSchemas: ['public'] })` piped into the
+   package's `templates/typescript.js` `apply`, then the blank-line normalization
+   from `scripts/supabase-types.sh`.
+
+Result: all 11,370-odd lines of table, column, relationship and function types
+match the committed file exactly. The only difference is prettier formatting of
+the static helper types in the footer, because postgres-meta bundles its own
+prettier. Splice the committed footer back, or run the repo's formatter, before
+committing a regenerated file produced this way.
+
+This is a fallback for constrained environments. A normal checkout with Docker
+should still use `pnpm db:types:generate`.
 
 ### Migration 176
 
