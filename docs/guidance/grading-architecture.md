@@ -306,8 +306,19 @@ For a new rubric, prompt, assessment type, or provider:
 | Teacher review metrics | `tests/lib/grading/teacher-correction-evals.test.ts` and `pnpm eval:grading-reviews ...` |
 | Full integration gate | `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, and exact-head CI |
 
+## Assignment Score Anchors
+
+Stage 1 of per-assignment score anchors is implemented and disabled by default
+behind `ASSIGNMENT_GRADING_ANCHORS_ENABLED`. When enabled and anchors are
+supplied, grading runs `pika-assignment-anchored` instead of `pika-assignment`:
+the same rubric, output schema and normalization, with band descriptors added to
+the prompt and distinct prompt/profile versions so provenance records which
+prompt produced a grade. Nothing persists yet. See
+[Assignment score anchors](../plans/assignment-grading-anchors.md).
+
 ## Related Guides
 
+- [Assignment score anchors](../plans/assignment-grading-anchors.md)
 - [AI grading egress](./ai-grading-egress.md)
 - [Teacher grading evaluations](./teacher-grading-evals.md)
 - [Atomic assignment grading rollout](./atomic-assignment-grading-rollout.md)

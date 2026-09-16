@@ -12,16 +12,16 @@ export interface PikaAssignmentGradingInput {
   submission: string
 }
 
-const assignmentOutputSchema = z.object({
+export const assignmentOutputSchema = z.object({
   score_completion: z.number().int().min(0).max(10),
   score_thinking: z.number().int().min(0).max(10),
   score_workflow: z.number().int().min(0).max(10),
   feedback: z.string().min(1),
 }).strict()
 
-type AssignmentOutput = z.infer<typeof assignmentOutputSchema>
+export type AssignmentOutput = z.infer<typeof assignmentOutputSchema>
 
-const assignmentJsonSchema = {
+export const assignmentJsonSchema = {
   type: 'object',
   properties: {
     score_completion: { type: 'integer', minimum: 0, maximum: 10 },
