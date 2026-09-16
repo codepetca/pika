@@ -38,7 +38,7 @@ import type {
   AssignmentDocHistoryEntry,
 } from '@/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
@@ -98,7 +98,7 @@ type SupabaseSchemaError = {
 }
 
 function getModelAlias(): string {
-  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
 function getAssignmentRunModelAlias(): string {

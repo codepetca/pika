@@ -4,7 +4,7 @@ import type { GradingProfile } from '@/lib/grading/profiles/types'
 export const PIKA_ASSIGNMENT_GRADING_PROFILE_VERSION = 'pika-assignment-v1'
 export const PIKA_ASSIGNMENT_PROMPT_VERSION = 'pika-assignment-prompt-v1'
 export const PIKA_ASSIGNMENT_RUBRIC_VERSION = 'pika-essay-ctw-v1'
-export const PIKA_ASSIGNMENT_POLICY_VERSION = 'pika-grading-policy-v1'
+export const PIKA_ASSIGNMENT_POLICY_VERSION = 'pika-grading-policy-v2'
 
 export interface PikaAssignmentGradingInput {
   assignmentTitle: string
@@ -72,8 +72,8 @@ export const PIKA_ASSIGNMENT_GRADING_PROFILE: GradingProfile<
   output: {
     schemaName: 'assignment_grade',
     jsonSchema: assignmentJsonSchema,
-    initialMaxOutputTokens: 220,
-    fallbackMaxOutputTokens: 420,
+    initialMaxOutputTokens: 800,
+    fallbackMaxOutputTokens: 1600,
   },
   buildPrompt(input) {
     return {

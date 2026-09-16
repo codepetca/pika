@@ -18,12 +18,12 @@ import {
   PIKA_ASSIGNMENT_POLICY_VERSION,
   type PikaAssignmentGradingInput,
 } from '@/lib/grading/profiles/pika-assignment'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
 import { GradingProviderError } from '@/lib/grading/providers/types'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 
 export type AssignmentAiErrorKind =
   | 'config'
@@ -68,8 +68,8 @@ interface AssignmentGradingTelemetryContext {
   attempt?: number | null
 }
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
+function getDeepSeekKey(): string | null {
+  const key = process.env.DEEPSEEK_API_KEY
   if (!key) return null
   return key.trim() || null
 }
@@ -174,7 +174,7 @@ export function buildAssignmentGradingRequest(opts: {
   submissionArtifacts?: AssignmentArtifact[]
   sanitizationContext?: AiSanitizationContext | null
 }): AssignmentGradingRequest {
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
   const assignmentTitle = sanitizeAiText(opts.assignmentTitle, opts.sanitizationContext ?? undefined)
   const instructions = sanitizeAiText(opts.instructions, opts.sanitizationContext ?? undefined)
@@ -238,11 +238,11 @@ export async function gradeStudentWork(opts: {
   telemetry?: AssignmentGradingTelemetryContext
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<GradeResult> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
     throw new AssignmentAiGradingError({
       kind: 'config',
-      message: 'OPENAI_API_KEY is not configured',
+      message: 'DEEPSEEK_API_KEY is not configured',
       retryable: false,
     })
   }
@@ -259,12 +259,12 @@ export async function gradeStudentWork(opts: {
     const gradingResult = await executeGrading({
       input: request.input,
       profile: PIKA_ASSIGNMENT_GRADING_PROFILE,
-      provider: createOpenAiResponsesProvider({ apiKey }),
+      provider: createDeepSeekChatProvider({ apiKey }),
       policy: {
         version: PIKA_ASSIGNMENT_POLICY_VERSION,
         model: request.model,
         requestTimeoutMs: opts.requestTimeoutMs,
-        reasoningEffort: 'minimal',
+        reasoningEffort: 'medium',
       },
     })
     const scores = new Map(

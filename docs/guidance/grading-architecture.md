@@ -14,8 +14,9 @@ guides before changing schema or deploying a grading contract.
   an enforced architecture rule.
 - Pika-specific adapters sanitize classroom data, build core inputs, map results
   back to Pika fields, and coordinate durable work.
-- OpenAI Responses is the only implemented runtime provider. The default model
-  is `gpt-5-nano`, configurable through `OPENAI_GRADING_MODEL`.
+- DeepSeek chat completions is the only implemented runtime provider. The
+  default model is `deepseek-flash` (DeepSeek-V4.1-Flash), configurable through
+  `DEEPSEEK_GRADING_MODEL`, and authenticated with `DEEPSEEK_API_KEY`.
 - Assignment and test suggestions persist with bounded versioned provenance.
 - Teacher actions create identity-free review snapshots for offline metrics.
 - Normal grading does not call remote Gradex. The remote Gradex worker remains
@@ -94,11 +95,21 @@ The core is organized around five contracts:
 5. `evals.ts` validates teacher-review snapshots and calculates offline quality
    metrics without model or API calls.
 
-The OpenAI adapter uses the Responses API with `store: false` and strict JSON
-Schema output. It retries once with a larger output-token limit only when the
-first response is incomplete because of `max_output_tokens`. Network, timeout,
-rate-limit, server, configuration, and invalid-response failures remain distinct
-so Pika coordinators can make bounded retry decisions.
+The DeepSeek adapter uses the OpenAI-compatible chat-completions API at
+`https://api.deepseek.com/chat/completions` with `response_format:
+{"type":"json_object"}`. DeepSeek JSON output only guarantees syntactic validity,
+so the adapter appends the profile's JSON Schema to the system prompt and the
+engine still validates every field, criterion, and score range before a result is
+accepted. The provider-neutral `reasoningEffort` levels map onto DeepSeek's
+thinking tiers (`minimal`/`low` to `low`, `medium` to `high`, `high` to `max`).
+The adapter retries once with a larger `max_tokens` budget only when the first
+choice stops with `finish_reason: "length"`. Network, timeout, rate-limit,
+server, configuration, and invalid-response failures remain distinct so Pika
+coordinators can make bounded retry decisions.
+
+DeepSeek exposes no per-request retention switch equivalent to OpenAI's
+`store: false`. Grading retention is therefore an account-level setting, and that
+gap is tracked in the egress audit rather than in code.
 
 ## Versioning Model
 
@@ -107,7 +118,7 @@ These versions have different meanings and should not be collapsed:
 
 | Field | Meaning | Increment when |
 |---|---|---|
-| Provider | Runtime implementation, currently `openai` | The provider implementation changes |
+| Provider | Runtime implementation, currently `deepseek` | The provider implementation changes |
 | Model | Provider model selected at runtime | The configured model changes |
 | Policy version | Execution settings such as reasoning effort, timeout, and retry policy | Execution behavior changes materially |
 | Prompt version | Exact prompt/guideline behavior | Prompt wording or prompt assembly changes grading behavior |
@@ -170,10 +181,10 @@ persists results. `src/lib/repo-review-ai.ts` sanitizes evidence and uses
 provider-safe change refs before invoking versioned profile helpers in
 `src/lib/grading/profiles/pika-repo-review.ts`.
 
-If OpenAI is unavailable or unconfigured, repository-review feedback can use the
-documented local heuristic result. That path records `pika-local`, its heuristic
-model/profile versions, zero provider requests, and null token usage. It is not
-reported as an OpenAI result.
+If DeepSeek is unavailable or unconfigured, repository-review feedback can use
+the documented local heuristic result. That path records `pika-local`, its
+heuristic model/profile versions, zero provider requests, and null token usage.
+It is not reported as a DeepSeek result.
 
 Repository-review results use the assignment-document persistence and teacher
 review contract.
@@ -285,6 +296,7 @@ For a new rubric, prompt, assessment type, or provider:
 | Surface | Primary verification |
 |---|---|
 | Core contracts and engine | `tests/lib/grading/engine.test.ts` and profile tests under `tests/lib/grading/` |
+| Provider adapter | `tests/lib/grading/deepseek-chat.test.ts` and `tests/integration/outbound-redirects.test.ts` |
 | Assignment adapter | `tests/unit/ai-grading.test.ts` |
 | Test adapter | `tests/unit/ai-test-grading.test.ts` |
 | Repository review adapter | `tests/unit/repo-review-ai.test.ts` |

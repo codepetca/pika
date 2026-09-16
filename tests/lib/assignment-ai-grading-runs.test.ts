@@ -365,7 +365,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       expect.objectContaining({
         p_assignment_id: 'assignment-1',
         p_teacher_id: 'teacher-1',
-        p_model: 'gpt-5-nano',
+        p_model: 'deepseek-flash',
         p_requested_student_ids: ['student-missing', 'student-empty', 'student-gradable'],
         p_gradable_count: 1,
         p_skipped_missing_count: 1,
@@ -761,13 +761,15 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
   })
 
   it.each(['http', 'json', 'output', 'network'])('does not persist private provider content on %s failure', async (stage) => {
-    const originalApiKey = process.env.OPENAI_API_KEY
-    process.env.OPENAI_API_KEY = 'synthetic-key'
+    const originalApiKey = process.env.DEEPSEEK_API_KEY
+    process.env.DEEPSEEK_API_KEY = 'synthetic-key'
     const privateMarker = 'PRIVATE synthetic@example.invalid code-123456 student-work'
     const fetchMock = vi.fn()
     if (stage === 'network') fetchMock.mockRejectedValue(new Error(privateMarker))
     else fetchMock.mockResolvedValue(new Response(
-      stage === 'output' ? JSON.stringify({ output_text: privateMarker }) : privateMarker,
+      stage === 'output'
+        ? JSON.stringify({ choices: [{ message: { content: privateMarker }, finish_reason: 'stop' }] })
+        : privateMarker,
       { status: stage === 'http' ? 400 : 200 },
     ))
     vi.stubGlobal('fetch', fetchMock)
@@ -787,21 +789,21 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       expect(harness.items[0]).toMatchObject({
         status: stage === 'network' ? 'queued' : 'failed',
         last_error_code: stage === 'output' ? 'invalid_output' : stage === 'network' ? 'network' : 'bad_response',
-        last_error_message: stage === 'http' ? 'OpenAI request failed (400)'
-          : stage === 'json' ? 'OpenAI returned invalid JSON (status 200)'
-            : stage === 'output' ? 'Grading provider returned invalid output' : 'OpenAI request failed',
+        last_error_message: stage === 'http' ? 'DeepSeek request failed (400)'
+          : stage === 'json' ? 'DeepSeek returned invalid JSON (status 200)'
+            : stage === 'output' ? 'Grading provider returned invalid output' : 'DeepSeek request failed',
       })
       expect(JSON.stringify(harness.items)).not.toContain(privateMarker)
       expect(JSON.stringify(result)).not.toContain(privateMarker)
     } finally {
-      process.env.OPENAI_API_KEY = originalApiKey
+      process.env.DEEPSEEK_API_KEY = originalApiKey
       vi.unstubAllGlobals()
     }
   })
 
   it('requeues an item when the provider response body times out', async () => {
-    const originalApiKey = process.env.OPENAI_API_KEY
-    process.env.OPENAI_API_KEY = 'test-key'
+    const originalApiKey = process.env.DEEPSEEK_API_KEY
+    process.env.DEEPSEEK_API_KEY = 'test-key'
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -847,16 +849,16 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         status: 'queued',
         attempt_count: 1,
         last_error_code: 'timeout',
-        last_error_message: 'OpenAI grading response timed out',
+        last_error_message: 'DeepSeek grading response timed out',
         completed_at: null,
       }))
       expect(new Date(harness.items[0]!.next_retry_at!).getTime()).toBeGreaterThan(Date.now())
       expect(fetchMock).toHaveBeenCalledWith(
-        'https://api.openai.com/v1/responses',
+        'https://api.deepseek.com/chat/completions',
         expect.objectContaining({ signal: expect.any(AbortSignal) }),
       )
     } finally {
-      process.env.OPENAI_API_KEY = originalApiKey
+      process.env.DEEPSEEK_API_KEY = originalApiKey
       vi.unstubAllGlobals()
     }
   })

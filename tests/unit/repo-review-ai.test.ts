@@ -7,24 +7,24 @@ import {
 
 describe('repo-review AI egress', () => {
   const originalFetch = global.fetch
-  const originalApiKey = process.env.OPENAI_API_KEY
+  const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key'
+    process.env.DEEPSEEK_API_KEY = 'test-key'
   })
 
   afterEach(() => {
     global.fetch = originalFetch
-    process.env.OPENAI_API_KEY = originalApiKey
+    process.env.DEEPSEEK_API_KEY = originalApiKey
     vi.restoreAllMocks()
   })
 
   it('sends provider refs and sanitized summaries for ambiguous classification', async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({
-        output_text: JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
           items: [{ id: 'change_1', category: 'bugfix' }],
-        }),
+        }) }, finish_reason: 'stop' }],
       }), { status: 200 }),
     )
     global.fetch = fetchMock as typeof fetch
@@ -41,15 +41,11 @@ describe('repo-review AI egress', () => {
     })
 
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
-    expect(body.store).toBe(false)
-    expect(body.reasoning).toEqual({ effort: 'minimal' })
-    expect(body.max_output_tokens).toBe(1200)
-    expect(body.text?.format).toMatchObject({
-      type: 'json_schema',
-      name: 'repo_review_change_classification',
-      strict: true,
-    })
-    const userPrompt = body.input[1].content[0].text
+    expect(body.reasoning_effort).toBe('high')
+    expect(body.max_tokens).toBe(1200)
+    expect(body.response_format).toEqual({ type: 'json_object' })
+    expect(body.messages[0].content).toContain('repo_review_change_classification')
+    const userPrompt = body.messages[1].content
     expect(userPrompt).toContain('change_1')
     expect(userPrompt).not.toContain('018f3f57-7b4b-7123-8c04-48ac061c1111')
     expect(userPrompt).toContain('[email redacted]')
@@ -58,12 +54,12 @@ describe('repo-review AI egress', () => {
   it('chunks ambiguous classification into bounded provider requests', async () => {
     const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body))
-      const userPrompt = String(body.input[1].content[0].text)
+      const userPrompt = String(body.messages[1].content)
       const ids = [...userPrompt.matchAll(/change_[0-9]+/g)].map((match) => match[0])
       return new Response(JSON.stringify({
-        output_text: JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
           items: ids.map((id) => ({ id, category: 'feature' })),
-        }),
+        }) }, finish_reason: 'stop' }],
       }), { status: 200 })
     })
     global.fetch = fetchMock as typeof fetch
@@ -80,14 +76,14 @@ describe('repo-review AI egress', () => {
     expect(result['local-51']).toBe('feature')
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body))
-    expect(firstBody.input[1].content[0].text.match(/change_[0-9]+/g)).toHaveLength(50)
-    expect(secondBody.input[1].content[0].text.match(/change_[0-9]+/g)).toHaveLength(1)
+    expect(firstBody.messages[1].content.match(/change_[0-9]+/g)).toHaveLength(50)
+    expect(secondBody.messages[1].content.match(/change_[0-9]+/g)).toHaveLength(1)
   })
 
   it('sanitizes repo-review grading prompts and returned feedback', async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({
-        output_text: JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
           score_completion: 8,
           score_thinking: 7,
           score_workflow: 6,
@@ -96,7 +92,7 @@ describe('repo-review AI egress', () => {
           concerns: ['Call 416-555-1212.'],
           feedback: 'Solid evidence for Sam Lee.',
           confidence: 0.8,
-        }),
+        }) }, finish_reason: 'stop' }],
       }), { status: 200 }),
     )
     global.fetch = fetchMock as typeof fetch
@@ -134,15 +130,11 @@ describe('repo-review AI egress', () => {
     })
 
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
-    expect(body.store).toBe(false)
-    expect(body.reasoning).toEqual({ effort: 'minimal' })
-    expect(body.max_output_tokens).toBe(700)
-    expect(body.text?.format).toMatchObject({
-      type: 'json_schema',
-      name: 'repo_review_feedback',
-      strict: true,
-    })
-    const promptPayload = JSON.parse(body.input[1].content[0].text)
+    expect(body.reasoning_effort).toBe('high')
+    expect(body.max_tokens).toBe(700)
+    expect(body.response_format).toEqual({ type: 'json_object' })
+    expect(body.messages[0].content).toContain('repo_review_feedback')
+    const promptPayload = JSON.parse(body.messages[1].content)
     expect(promptPayload).toMatchObject({
       assignment_title: 'Essay for S.L.',
       repo_ref: 'repo_1',
@@ -156,12 +148,12 @@ describe('repo-review AI egress', () => {
     expect(result.summary).toBe('Email [email redacted] for details.')
     expect(result.concerns[0]).toBe('Call [phone redacted].')
     expect(result.feedback).toContain('[email redacted]')
-    expect(result.model).toBe('gpt-5-nano')
+    expect(result.model).toBe('deepseek-flash')
     expect(result.provenance).toMatchObject({
       schemaVersion: 'assignment-grading-provenance-v1',
-      provider: 'openai',
-      model: 'gpt-5-nano',
-      policyVersion: 'pika-repo-review-feedback-policy-v1',
+      provider: 'deepseek',
+      model: 'deepseek-flash',
+      policyVersion: 'pika-repo-review-feedback-policy-v2',
       promptVersion: 'pika-repo-review-feedback-prompt-v1',
       gradingProfileVersion: 'pika-repo-review-feedback-v1',
       rubricVersion: 'pika-repo-review-rubric-v1',
@@ -170,7 +162,7 @@ describe('repo-review AI egress', () => {
   })
 
   it('sanitizes heuristic fallback feedback before persistence', async () => {
-    delete process.env.OPENAI_API_KEY
+    delete process.env.DEEPSEEK_API_KEY
     const sanitizationContext = buildAiSanitizationContext([
       { firstName: 'Sam', lastName: 'Lee' },
     ])
