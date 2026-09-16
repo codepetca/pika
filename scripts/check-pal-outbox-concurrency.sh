@@ -122,9 +122,21 @@ create schema public;
 SQL
 
 for migration in "$ROOT"/supabase/migrations/*.sql; do
-  docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
-    psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
-    < "$migration" >/dev/null
+  if [[ "$(basename "$migration")" == "176_automatic_removed_student_cleanup.sql" ]]; then
+    # pg_cron can only be installed and scheduled from its configured database
+    # (postgres locally). This disposable database still replays every schema and
+    # function change from the migration, but omits those host-specific statements.
+    sed \
+      -e '/^create extension if not exists pg_cron;$/d' \
+      -e '/^select cron\.schedule(/,/^);$/d' \
+      "$migration" \
+      | docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+        psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null
+  else
+    docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+      psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+      < "$migration" >/dev/null
+  fi
 done
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
