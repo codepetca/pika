@@ -36,8 +36,14 @@ use independently generated high-entropy values rather than human phrases.
 `PAL_API_URL` must be an HTTPS origin with no credentials, path, query, or
 fragment. Loopback HTTP is allowed only outside production. When
 `PAL_ENABLED=true`, incomplete or unsafe configuration fails at the feature
-gate instead of silently running authoritative learner actions without their
-achievement fact. The optional browser widget is contained separately: invalid
+gate for Pal operations. Daily-log saves contain that failure: an invalid
+configuration or event preparation error logs a content-free diagnostic and uses
+the ordinary academic save path without a Pal fact. No fact is promised or
+automatically backfilled for that save. With valid configuration, logs retain
+the atomic academic-write/outbox transaction; database errors and version
+conflicts remain save failures rather than triggering an unsafe second write.
+After a successful atomic save, delivery failures return the committed entry
+with `pal_delivery: "pending"`, preserving the queued event for retry. The optional browser widget is contained separately: invalid
 widget configuration removes its navigation and shell surfaces instead of
 blocking academic pages. Authenticated-session telemetry remains best-effort so
 an adapter outage cannot invalidate a genuine login.

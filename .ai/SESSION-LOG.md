@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Verify final-removal migration in disposable database
-
-- Explicit one-time approval created `pika_removal_165_final` from shared-local164 schema only, with static archive table/column contracts and no student/class records. Applied reviewed165 checksum `77d2f3911fb4bcb3c67d1a520884ff9c9ea746bf010cb6719c9a77adb29689ee` once transactionally via SQL. Permission is consumed. Shared local remains164; production untouched.
-- Removal/retention, historical/current-email denial, both archive overlap UUID orders, exact retained-row/grade equality, post-restore enrollment denial, and insert/update grade races pass. Fixtures cleaned synthetic records; users/classrooms return to zero. Direct postgres-meta generation from the disposable schema matches committed public types byte-for-byte. Standard shared-local type check correctly stops on missing165; full ephemeral replay/type CI remains required.
-- Test-only remediation batch2 adds parentheses around three CASE expressions and uses readable trigger metadata for service-role schema detection; migration/product source unchanged. Evidence `/tmp/pika-removal-165.cMaDGo/`. The legacy standalone archive-restore diagnostic references retired quizzes and is inapplicable to this current schema; the current removal harness passes its full cold archive roundtrip. Final review and CI follow; no merge/deployment authorization.
-- CI run34669681601 failed only the startup-doc budget (16019/16000 characters); returned #1249 to draft and cancelled remaining lanes. User approved a bounded extension for a short CURRENT note, one focused documentation review, and CI rerun. This batch preserves rollout status and changes no product code or migration. Prior final-review lock-order concern was adjudicated pre-existing: the earlier classroom purge fence already takes the same classroom lock before the unchanged student-purge subject lock; evidence and separate follow-up recorded in PR #1249.
-- CI run34669986715 passed startup contracts and the feature's migration/type/removal checks, then the full unit suite exposed one stale attendance-doc assertion (6676passed/1failed): an exact old production160/date string. With a second explicit bounded extension, batch4 replaces that brittle equality with a parsed production migration floor of160; missing/malformed state still fails, and all attendance-specific rollout assertions remain. No product/migration changes; full local tests and one targeted review precede the next CI run. Shared local/prod remain164;165onlydisposable.
-- Batch4 verification: full local suite6677/6677tests across737files passes (94.21s); targeted attendance/startup47tests pass. Evidence `/tmp/pika-removal-165.cMaDGo/full-tests.log` and `rollout-contract-tests.log`. Prior visual/database evidence remains applicable because product/migration source is unchanged.
-
-## 2026-09-11 — Remove redundant Owned / Joined home selector
-
-- Removed the All/Teaching/Joined segmented selector from the development-only Owned / Joined home prototype. Active classrooms now always show applicable Teaching and Joined sections together; the accepted top-right actions menu, edit/archive/hidden states and independent creation-access fixture remain unchanged.
-- Updated component and browser contracts, including heading focus after create/join. Eight teacher/student × desktop/mobile × light/dark Playwright scenarios pass and representative captures were inspected without overflow. Focused gate passes 129 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes and the composite accessibility checklist has no remaining manual follow-up.
-- This changes no live route, API, entitlement, persistence, plan, migration or deployment behavior. Current production classroom creation remains teacher-role gated without a paid-plan quota; server-authoritative creation limits across every creation path remain required before broader rollout.
-
-## 2026-09-11 — Adopt content-free application diagnostics
-
-- User approved the next log-privacy package. This task owns `codex/application-log-privacy`, based on main `e289fd18`; separate active student-purge work is untouched. Startup passed with locked dependencies. Risk profile: runtime-platform; high privacy review risk.
-- Synthetic tests reproduced raw exception/database-cause exposure. Added allowlisted diagnostics with random error references, adopting the shared API boundary, authentication error sites, and journal-summary processing. Preserve existing response bodies, auth/rate-limit/summary behavior; no student-data mutations, migrations, dependencies or production changes.
-- Scope and exclusions recorded in the student-data egress audit; remaining direct logs need later adoption batches. Focused-plan commands passed 1,869 tests across 217 files (Vitest capped at two workers), architecture/UI/design checks, TypeScript and lint (three pre-existing component warnings). Pika audit passed. Independent security/compatibility review and exact-head CI remain required. Earlier transport release #1235 is live; its signed-in canaries are not claimed complete.
-
 ## 2026-09-12 — Sync logging privacy PR for authorized merge
 
 - User authorized conflict resolution, verification and merge of #1248 to main, not production. Rebased onto `3d820f1a`; only the session archive conflicted. Preserved both histories, with no changes to the reviewed privacy application/tests or incoming main behavior. No local changes needed stashing; existing unrelated stashes remain untouched. No migration added, renamed or applied.
@@ -222,3 +201,21 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 - `docs/guidance/application-log-privacy.md` records the diagnostic contract, debugging tradeoff, coverage limits and remaining audit inventory. No production records inspected, historical logs deleted, vendor settings changed or deployment performed. Kept the separate cleanup task and dirty hub context untouched.
 - PR1267 initial review: Terra/high found no blockers; Sol/high identified the adjacent student test-history read endpoint as a coverage gap. Remediation batch1 adopts its four raw error sites, adds exact-output/fail-closed tests for each and expands the static boundary. Initial focused gate passed223suites/1993tests; updated focused checks, targeted privacy re-review and final integration review follow. No changes to query/access/response behavior.
 - History remediation passed223suites/1998tests and Sol targeted/Terra final review. First ready CI35048462094 exposed one stale architecture-test import allowlist (7013passed/1failed), not a runtime failure. Returned PR to draft and stopped remaining CI. Remediation batch2 adds only the intentional diagnostics import to that exact allowlist; all retired-Quiz/transport guards remain. Final allowed targeted review and fresh exact-head CI follow; no production changes.
+
+## 2026-09-15 Daily log save failure investigation
+
+- Task owns `codex/fix-daily-log-save`. Production logs confirm PATCH student entries and Pal read-token HTTP 500s.
+- Production environment had PAL_ENABLED=true and missing PAL_INTEGRATION_SECRET. Correction on 2026-09-16: PAL_PSEUDONYM_SECRET is sensitive and its empty export did not prove it was empty. Reproduced requirePalEnvironment exception with current production config; PAL_ENABLED=false bypasses the failing integration check. No secret values recorded.
+- Proposed immediate recovery: disable Pal in production and redeploy the existing production revision. Awaiting live deployment approval; no application or database changes made.
+
+## 2026-09-15 Daily log production recovery
+
+- User approved temporarily disabling Pal achievements and redeploying the existing production revision. Set production PAL_ENABLED=false; verified configuration and removed temporary environment file.
+- Redeployed existing production deployment dpl_12DNkzWZKgxpW95KCzPcCMLh8hL9 (production commit 08fae08) to dpl_AbQSHr2x2eDUADM5kfGugmztsLiB. Ready with pika.codepet.ca alias.
+- Verification: login HTTP 200; real production PATCH /api/student/entries HTTP 200 at 13:57:52 Toronto; no HTTP 500 logs on new deployment at verification. Achievements remain disabled pending credential repair. No application or database changes.
+
+## 2026-09-16 Daily log Pal failure containment and credential repair
+
+- Owner `codex/fix-daily-log-save`. Added best-effort preparation/delivery boundaries for POST and PATCH daily logs; malformed Pal configuration/event construction cannot block an authorized save, and delivery exceptions cannot turn a committed entry into a failure. Atomic RPC errors and version conflicts still fail without a second write. Content-free diagnostics; no UI, schema, dependency, or authorization change.
+- Regression: 20 failures reproduced before the fix. Initial focused gate passed 2,028 tests plus static checks; added classroom-delivery and preparation privacy checks pass 35 tests. Final focused gate and independent review follow.
+- Production metadata corrects prior diagnosis: original sensitive pseudonym secret remains present and unchanged; only shared integration credential was missing from both Pika and Pal. Restored a new matching sensitive integration credential to both projects. Pal current production revision is being redeployed; Pika achievements remain disabled pending provider verification and code release. Existing Pal profiles preserved; no learner data written by verification.
