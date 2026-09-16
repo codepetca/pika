@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { GET } from '@/app/api/student/tests/[id]/history/route'
 import * as serverTests from '@/lib/server/tests'
 
@@ -76,6 +77,7 @@ function mockSingle(result: { data: unknown; error: unknown }) {
 }
 
 describe('GET /api/student/tests/[id]/history', () => {
+  afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValue({
@@ -113,6 +115,40 @@ describe('GET /api/student/tests/[id]/history', () => {
     expect(response.status).toBe(200)
     expect(data.history).toEqual([])
     expect(data.attemptId).toBeNull()
+  })
+
+  it.each(['attempt', 'responses', 'availability', 'read'] as const)('keeps history %s failures private and fails closed', async (failure) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return mockMaybeSingle({
+          data: { id: 'attempt-1', is_submitted: true, returned_at: null, closed_for_grading_at: null },
+          error: failure === 'attempt' ? privateDiagnosticError : null,
+        })
+      }
+      if (table === 'test_responses') {
+        return mockThenableRows({ data: [], error: failure === 'responses' ? privateDiagnosticError : null })
+      }
+      if (table === 'test_attempt_history') {
+        return mockHistoryRows({ data: null, error: privateDiagnosticError })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    if (failure === 'availability') {
+      vi.mocked(serverTests.getTestStudentAvailabilityState).mockResolvedValueOnce({
+        state: null, missingTable: false, error: privateDiagnosticError,
+      })
+    }
+    const response = await GET(new NextRequest('http://localhost:3000/api/student/tests/test-1/history'), {
+      params: Promise.resolve({ id: 'test-1' }),
+    })
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch history' })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `test.history_${failure}`)
+    const queriedTables = mockSupabaseClient.from.mock.calls.map(([table]) => table)
+    expect(queriedTables).toEqual(failure === 'attempt' ? ['test_attempts']
+      : failure === 'read' ? ['test_attempts', 'test_responses', 'test_attempt_history']
+        : ['test_attempts', 'test_responses'])
   })
 
   it('hides draft tests from student history', async () => {

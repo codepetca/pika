@@ -34,7 +34,7 @@ email error handling, and journal summaries/queries/feedback diagnostics.
 The second batch covers direct logging in:
 
 - Student test save/submit, validation of RPC success results, versioned history
-  failures, and finalization for grading.
+  write failures, history-read endpoint lookups, and finalization for grading.
 - Gradebook roster, profiles, assessment data, categories, weights and overrides.
 - Assignment/test auto-grade entry-point enrollment/document checks.
 - Test AI suggestion enrollment checks and reference-cache writes in both the

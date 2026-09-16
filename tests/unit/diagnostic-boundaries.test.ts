@@ -21,6 +21,7 @@ const coveredFiles = [
   'src/lib/server/finalize-test-attempts.ts',
   'src/lib/server/gradebook.ts',
   'src/lib/server/test-ai-grading-runs.ts',
+  'src/app/api/student/tests/[id]/history/route.ts',
   'src/app/api/teacher/tests/[id]/auto-grade/route.ts',
   'src/app/api/teacher/tests/[id]/responses/[responseId]/ai-suggest/route.ts',
   'src/app/api/teacher/assignments/[id]/auto-grade/route.ts',
