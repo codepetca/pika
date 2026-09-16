@@ -114,13 +114,18 @@ Exit: a reviewed, CI-green, default-disabled explicit path with truthful support
 scope, exact commands/status, fresh rejoin proof and a concrete rollout packet.
 Unsupported live-resource cases cannot be declared erased merely to finish Phase3.
 
-## Phase4 — automatic worker: approved direction, implementation pending
+## Phase4 — automatic worker: source implemented; activation pending
 
 The user approved automatic cleanup for new removals on 2026-09-15. Teachers
 remove students; the system owns purge progress. Historical removals remain out
 of scope and must not be backfilled. Reuse the existing live cleanup engine with
 a private durable queue, stable operation ids, bounded leases/retries, current
 authority, provider independence and truthful status.
+
+Migrations176–177, the protected worker route and the conditional watchdog are
+implemented and locally verified. Hosted migration, Vault/Vercel configuration,
+all cleanup gates and the approved canary remain pending; the feature is inert
+until that separate rollout is authorized.
 
 The selected Free-plan topology is event-driven: a committed new removal queues
 one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog

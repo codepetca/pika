@@ -1,4 +1,4 @@
--- Synthetic rollback-only queue and lease lifecycle. Requires migration 176.
+-- Synthetic rollback-only queue and lease lifecycle. Requires migrations176–177.
 -- It never performs provider HTTP calls or durable cleanup.
 \set ON_ERROR_STOP on
 begin;
@@ -8,6 +8,11 @@ set local statement_timeout='30s';
 do $$ begin
   if to_regprocedure('public.claim_removed_student_cleanup_job(uuid)') is null then
     raise exception 'Migration176 is required';
+  end if;
+  if not exists(select 1 from information_schema.columns
+      where table_schema='private' and table_name='removed_student_cleanup_jobs'
+        and column_name='quarantined_at') then
+    raise exception 'Migration177 is required';
   end if;
   if (select enabled or live_enabled or automatic_enabled
       from private.student_provider_cleanup_settings where singleton) then
