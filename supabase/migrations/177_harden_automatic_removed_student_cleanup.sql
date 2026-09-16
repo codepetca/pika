@@ -138,6 +138,43 @@ begin
 end;
 $$;
 
+-- Claim readiness can change while the worker is running. Recheck the complete
+-- local-deletion envelope at the authorization boundary immediately before
+-- every live Pal/Bara transport request.
+create or replace function public.authorize_student_provider_cleanup(
+  p_operation_id uuid,p_teacher_id uuid,p_classroom_id uuid,p_student_id uuid,p_generation_id uuid
+) returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_op jsonb; v_settings private.student_provider_cleanup_settings;
+begin
+  v_op:=public.get_student_provider_cleanup(p_operation_id,p_teacher_id,p_classroom_id,p_student_id,p_generation_id);
+  select * into v_settings from private.student_provider_cleanup_settings where singleton for share;
+  if (v_op->>'pal_schema_version'='2' and not v_settings.live_enabled)
+    or not coalesce(v_settings.enabled,false) or v_settings.pal_origin is distinct from v_op->>'pal_origin'
+    or v_settings.pal_integration_id::text is distinct from v_op->>'pal_integration_id'
+    or v_settings.bara_origin is distinct from v_op->>'bara_origin'
+    or v_settings.installation_ref is distinct from v_op->>'installation_ref' then
+    raise exception using errcode='55000',message='student_provider_cleanup_disabled';
+  end if;
+  if v_op->>'pal_schema_version'='2' then
+    perform 1 from private.removed_student_academic_settings
+      where singleton and enabled for share;
+    if not found then
+      raise exception using errcode='55000',message='student_live_cleanup_prerequisite_paused';
+    end if;
+    perform 1 from public.managed_storage_settings
+      where singleton and mode='enforced' for share;
+    if not found then
+      raise exception using errcode='55000',message='student_live_cleanup_prerequisite_paused';
+    end if;
+  end if;
+  if exists(select 1 from public.classroom_enrollments where classroom_id=p_classroom_id and student_id=p_student_id)
+    or not exists(select 1 from private.pal_membership_generations where generation_id=p_generation_id and state='removed') then
+    raise exception using errcode='55000',message='student_provider_removed_generation_required';
+  end if;
+  return v_op;
+end;
+$$;
+
 comment on column private.removed_student_cleanup_jobs.quarantined_at is
   'Terminal automatic failure requiring operator investigation; the job is excluded from future claims.';
 

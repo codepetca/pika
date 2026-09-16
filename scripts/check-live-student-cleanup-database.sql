@@ -239,6 +239,24 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
   perform public.remove_classroom_students_preserving_data(teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
   saved:=public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'live_reserve');
   if saved->>'pal_schema_version'<>'2' or saved->>'pal_policy'<>'pika-live-v1' then raise exception 'Live policy not bound'; end if;
+  update private.removed_student_academic_settings set enabled=false where singleton;
+  begin
+    perform public.authorize_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    raise exception 'Provider authorization ignored paused academic cleanup';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'student_live_cleanup_prerequisite_paused' then raise; end if;
+  end;
+  update private.removed_student_academic_settings set enabled=true where singleton;
+  update public.managed_storage_settings set mode='compatibility',activated_at=null,
+    readiness_verified_at=null,readiness_digest=null where singleton;
+  begin
+    perform public.authorize_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+    raise exception 'Provider authorization ignored managed storage pause';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'student_live_cleanup_prerequisite_paused' then raise; end if;
+  end;
+  update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),
+    readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
   if saved<>public.advance_removed_student_academic_cleanup(op,teacher,course_a,student,gen_a,'live_reserve') then
     raise exception 'Lost reserve response changed binding'; end if;
   begin

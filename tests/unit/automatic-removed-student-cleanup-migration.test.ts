@@ -53,6 +53,8 @@ describe('automatic removed-student cleanup migration', () => {
     expect(hardening).toContain("mode='enforced'")
     expect(hardening).toContain("message='removed_student_cleanup_academic_disabled'")
     expect(hardening).toContain("message='removed_student_cleanup_storage_not_enforced'")
+    expect(hardening).toContain('create or replace function public.authorize_student_provider_cleanup(')
+    expect(hardening).toContain("message='student_live_cleanup_prerequisite_paused'")
   })
 
   it('adds a terminal quarantine excluded from due claims', () => {
