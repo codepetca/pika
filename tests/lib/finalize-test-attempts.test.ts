@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../helpers/diagnostics'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
+  afterEach(() => vi.restoreAllMocks())
   it('delegates all-attempt finalization to the atomic RPC', async () => {
     const rpc = vi.fn(async () => ({
       data: { finalized_attempts: 2, inserted_responses: 3 },
@@ -69,9 +71,10 @@ describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
   })
 
   it('returns a server error when the atomic RPC fails unexpectedly', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const rpc = vi.fn(async () => ({
       data: null,
-      error: { code: '23514', message: 'constraint violation' },
+      error: privateDiagnosticError,
     }))
     const mockSupabase = { rpc }
 
@@ -82,5 +85,6 @@ describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
       status: 500,
       error: 'Failed to finalize test submissions',
     })
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'test.finalize')
   })
 })

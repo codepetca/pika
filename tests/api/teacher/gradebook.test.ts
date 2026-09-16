@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET, PATCH, PUT } from '@/app/api/teacher/gradebook/route'
 
@@ -6,6 +7,8 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabas
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
+
+afterEach(() => vi.restoreAllMocks())
 
 type SupabaseReadError = { code?: string; message?: string; details?: string; hint?: string }
 
@@ -1087,7 +1090,7 @@ describe('GET /api/teacher/gradebook', () => {
       assignments: [
         { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
       ],
-      docsError: { message: 'database unavailable' },
+      docsError: privateDiagnosticError,
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -1096,7 +1099,27 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(500)
     expect(body.error).toBe('Failed to load assignment docs for gradebook')
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'gradebook.documents')
     consoleError.mockRestore()
+  })
+
+  it.each([
+    ['categoriesError', 'gradebook.categories', 'Failed to load gradebook categories'],
+    ['profilesError', 'gradebook.profiles', 'Failed to load student profiles for gradebook'],
+    ['scoreOverridesError', 'gradebook.overrides', 'Failed to load Gradebook overrides'],
+    ['testQuestionsError', 'gradebook.questions', 'Failed to load test questions for gradebook'],
+    ['testResponsesError', 'gradebook.responses', 'Failed to load test responses for gradebook'],
+    ['testAttemptsError', 'gradebook.attempts', 'Failed to load test attempts for gradebook'],
+  ])('keeps %s failures content-free without changing the API response', async (field, event, message) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = buildMockFrom({
+      tests: [{ id: 'test-1', title: 'Synthetic test', position: 1, status: 'closed' }],
+      [field]: privateDiagnosticError,
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: message })
+    expectContentFreeDiagnostic(consoleError.mock.calls, event)
   })
 
   it('falls back when assignment doc teacher_cleared_at is not migrated yet', async () => {

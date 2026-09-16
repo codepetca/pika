@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/server/diagnostics'
 import { NextResponse } from 'next/server'
 import { hasGradableAssignmentSubmission } from '@/lib/ai-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -39,7 +40,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   )
 
   if (!enrollmentValidation.ok) {
-    console.error('Error validating enrollments for auto-grade:', enrollmentValidation.error)
+    logServerError('grading.assignment_enrollment', enrollmentValidation.error)
     return NextResponse.json({ error: 'Failed to validate student enrollment' }, { status: 500 })
   }
 
@@ -86,7 +87,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     .maybeSingle()
 
   if (docError) {
-    console.error('Error fetching docs for auto-grade:', docError)
+    logServerError('grading.assignment_document', docError)
     return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
   }
 

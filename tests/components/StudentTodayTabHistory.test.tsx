@@ -230,7 +230,7 @@ describe('StudentTodayTab history section', () => {
     expect(dailyPlanPrompt).toHaveClass('font-medium')
     expect(editor).toHaveAttribute('placeholder', 'What is your plan today?')
     expect(dailyPlanPrompt.compareDocumentPosition(mobilePlan)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(mobilePlan.compareDocumentPosition(pastLogsHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(pastLogsHeading.compareDocumentPosition(mobilePlan)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(mobilePlan.parentElement).toHaveClass('lg:hidden')
     expect(editor.className).toContain('[&_.tiptap.ProseMirror]:!min-h-[100px]')
     expect(editor.className).toContain('lg:[&_.tiptap.ProseMirror]:!min-h-[200px]')
@@ -243,21 +243,21 @@ describe('StudentTodayTab history section', () => {
     const logText = screen.getByText(entries[1].text)
 
     expect(logButton).toHaveAttribute('aria-expanded', 'false')
-    expect(logText).toHaveClass('line-clamp-2')
+    expect(logText).toHaveClass('truncate')
 
     fireEvent.click(logButton)
     expect(screen.getByRole('button', { name: 'Collapse log from Mon Dec 15' })).toHaveAttribute(
       'aria-expanded',
       'true'
     )
-    expect(logText).not.toHaveClass('line-clamp-2')
+    expect(logText).not.toHaveClass('truncate')
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse log from Mon Dec 15' }))
     expect(screen.getByRole('button', { name: 'Expand log from Mon Dec 15' })).toHaveAttribute(
       'aria-expanded',
       'false'
     )
-    expect(logText).toHaveClass('line-clamp-2')
+    expect(logText).toHaveClass('truncate')
 
     const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
       String(arg).includes('/api/student/entries?')

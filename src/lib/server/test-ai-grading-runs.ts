@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
 import {
@@ -976,11 +977,7 @@ async function processQuestionBatch(opts: {
         .eq('updated_at', question.updated_at)
 
       if (cacheUpdateError) {
-        console.error('Error caching generated reference answers for test grading run:', {
-          runId: run.id,
-          questionId: question.id,
-          error: cacheUpdateError,
-        })
+        logServerError('grading.test_run_reference_cache', cacheUpdateError)
       }
     }
   } catch (error) {

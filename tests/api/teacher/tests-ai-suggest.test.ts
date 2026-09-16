@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
+
+afterEach(() => vi.restoreAllMocks())
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/responses/[responseId]/ai-suggest/route'
 
@@ -90,10 +93,10 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     })
   })
 
-  function setupResponseRow() {
+  function setupResponseRow(cacheError: unknown = null) {
     const questionUpdateChain = {
       eq: vi.fn(),
-      error: null,
+      error: cacheError,
     }
     questionUpdateChain.eq.mockReturnValue(questionUpdateChain)
     const questionUpdate = vi.fn(() => questionUpdateChain)
@@ -208,7 +211,8 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     expect(data.ai_provenance_token).toEqual(expect.any(String))
   })
 
-  it('fences generated-reference cache writes with the question version', async () => {
+  it.each([null, privateDiagnosticError])('fences reference cache writes and preserves suggestions on cache failure (%j)', async (cacheError) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     resolveReusableTestOpenResponseReferenceAnswers.mockReturnValueOnce({
       expectedCacheKey: 'new-cache-key',
       cacheHit: false,
@@ -228,7 +232,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       model: 'gpt-5-nano',
       provenance: gradingProvenance,
     })
-    const { questionUpdate, questionUpdateChain } = setupResponseRow()
+    const { questionUpdate, questionUpdateChain } = setupResponseRow(cacheError)
 
     const response = await POST(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
@@ -248,6 +252,12 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       ['test_id', 'test-1'],
       ['updated_at', '2026-07-14T12:00:00.000Z'],
     ])
+    if (cacheError) {
+      expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.suggestion_reference_cache')
+    } else {
+      expect(consoleError).not.toHaveBeenCalled()
+    }
+    expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
   })
 
   it('rejects suggestions when the response student is no longer enrolled', async () => {
@@ -274,10 +284,11 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
   })
 
   it('fails closed when response student enrollment validation errors', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     setupResponseRow()
     mockValidateSelectedTestStudentEnrollment.mockResolvedValueOnce({
       ok: false,
-      error: { message: 'boom' },
+      error: privateDiagnosticError,
     })
 
     const response = await POST(
@@ -290,6 +301,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to validate student enrollment')
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.suggestion_enrollment')
     expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
     expect(mockLoadClassroomAiSanitizationContext).not.toHaveBeenCalled()
     expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()

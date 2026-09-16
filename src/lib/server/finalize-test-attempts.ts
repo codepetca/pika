@@ -1,3 +1,5 @@
+import { logServerError } from '@/lib/server/diagnostics'
+
 type SupabaseLike = any
 
 type FinalizeResult =
@@ -35,7 +37,7 @@ export async function finalizeUnsubmittedTestAttemptsOnClose(
         error: 'Finalizing test attempts requires migrations 061-063 to be applied',
       }
     }
-    console.error('Error finalizing test attempts for grading:', error)
+    logServerError('test.finalize', error)
     return { ok: false, status: 500, error: 'Failed to finalize test submissions' }
   }
 

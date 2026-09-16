@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — PR #1245 reviewed-blocker continuation
-
-- Explicit handoff: this task owns `codex/restore-classroom-join-controls`. Fixed History retry-delay feedback and Settings copy-code accessible name; added component regressions and History browser fixture coverage.
-- Validation: 54 affected component tests, focused gate 221 tests plus architecture/UI/design/TypeScript/lint, audit, and 8 browser cases across desktop/mobile light/dark passed. Visual captures inspected. Fresh cumulative independent review and exact-head CI/merge follow; no migration or deployment.
-
-## 2026-09-11 — PR #1245 cumulative review remediation
-
-- Sol found one explicit compatibility gap: raw Settings join URLs could drop legacy trailing spaces. Encoded the path segment and added Settings link/QR/copy regressions; Terra's initial cumulative review had no blockers.
-- Validation: new regression reproduced failure first; focused gate 222 tests plus architecture/UI/design/TypeScript/lint passed; 4 join-flow browser variants passed again. Targeted and final integration review follow on the corrected commit.
-
-## 2026-09-11 — Compact Daily attendance rows
-
-- Reduced Daily's repeated Present/Late/Absent and Undo row targets from 44px to 32px while preserving accessible names, tooltips, pressed state, keyboard operation and visible focus. Daily now owns its tight density once through the shared `DataTable` preset instead of repeating overrides on every header and cell. The production owner and deterministic Pattern Lab reference remain aligned; no shared primitive or student UI changed.
-- Documented the Daily-specific dense-row exception in the teacher operational-table family guidance. Focused component coverage passes 79 tests, and the application-browser focused gate passes 248 tests plus architecture, UI/design policy, TypeScript and lint.
-- Visually inspected teacher desktop/mobile in light/dark plus hover, active and keyboard-focus states. Rows measure 33px including the divider with 32px controls and no overflow. Student is n/a because the changed controls are teacher-only. No dependency, API, schema, migration, hosted data or deployment change.
-
-## 2026-09-11 — Final student removal, no re-add before purge
-
-- User explicitly approved no recovery promise and blocking re-add to the same class until old class data is purged. Owner branch: `codex/final-student-removal`. Removed application restoration calls, added a read-only identity-aware add/CSV preflight, mapped concurrent write denial to409, and revised removal/Pal copy using existing UI owners.
-- Forward migration165 retires the restoring RPC, removes its enrollment bypass, and adds a private roster-write guard. No erasure, new cron, Pal change or public type-shape change; immutable164 checksum preserved. The existing DB harness covers legacy164 and final165 boundaries and keeps archive/data preservation plus grade-race checks; fresh race fixtures replace membership restoration.
-- Verification: affected80tests and focused214tests/19files plus static gates pass;14existing browser scenarios and4blocked re-add scenarios pass. Teacher/student desktop/mobile light/dark captures and Pattern Lab confirmation inspected; audit and shell syntax clean. Evidence `/tmp/pika-final-removal-*`, `test-results/`, and `output/playwright/`. Migration165 remains unapplied; disposable-local verification permission requested separately. No shared-local/prod mutation, deployment or merge authorization. Draft-first independent review follows.
-- Draft PR #1249 initial Sol/Terra review found one archive replay edge. Remediation batch1 permits INSERT-only replay of an existing overlapping invitation during archive maintenance while retaining unconditional enrollment denial and removed-row edit denial. The rollback fixture now round-trips overlap in both UUID orders without bypassing triggers; migration-source tests pass4/4. Database execution remains permission-gated. Review budget2/5 launches before targeted review; no live migration or deployment.
-
 ## 2026-09-11 — Verify final-removal migration in disposable database
 
 - Explicit one-time approval created `pika_removal_165_final` from shared-local164 schema only, with static archive table/column contracts and no student/class records. Applied reviewed165 checksum `77d2f3911fb4bcb3c67d1a520884ff9c9ea746bf010cb6719c9a77adb29689ee` once transactionally via SQL. Permission is consumed. Shared local remains164; production untouched.
@@ -226,3 +203,22 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 - Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
 - Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
 - Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
+
+## 2026-09-15 — Compact student past logs
+- Task/branch: student past logs, `codex/student-past-logs-compact`.
+- Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
+- Reused canonical Button (Pattern Lab controls); removed the retired native-button exception. Feature-owned composition only; no shared pattern promotion or unrelated refactor.
+- Verification: history and paging interaction tests; focused checks; Playwright student light/dark at 1440×900, 1280×720, and 390×844, collapsed/expanded/focus/paging. Desktop fits 10 rows at 900px and 5 at 720px; mobile fits 10 rows. Teacher n/a (student-only owner). Local screenshots: `output/playwright/past-logs-*`.
+- Risk profile: none. Model recommendation: GPT-6 — bounded student UI behavior and visual verification. No schema or data mutations.
+
+## 2026-09-15 — Past logs without paging
+- User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
+- Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
+
+## 2026-09-15 — Student-work diagnostic privacy, second batch
+
+- Owner `codex/log-privacy-grading-batch`, based on `main@d0971c02`. Replaced direct raw error logging in test save/submit/history/finalization, Gradebook reads/writes, assignment/test auto-grade entry points and test reference-cache writes with allowlisted content-free diagnostics. Existing authorization, queries, responses, retries and best-effort behavior unchanged.
+- Added synthetic failure assertions using the real logger and extended the static adoption boundary. Targeted 9 suites/147 tests pass; required focused gate and independent draft-first review follow. Risk profiles: async-grading and runtime-platform. No UI, dependency or migration changes.
+- `docs/guidance/application-log-privacy.md` records the diagnostic contract, debugging tradeoff, coverage limits and remaining audit inventory. No production records inspected, historical logs deleted, vendor settings changed or deployment performed. Kept the separate cleanup task and dirty hub context untouched.
+- PR1267 initial review: Terra/high found no blockers; Sol/high identified the adjacent student test-history read endpoint as a coverage gap. Remediation batch1 adopts its four raw error sites, adds exact-output/fail-closed tests for each and expands the static boundary. Initial focused gate passed223suites/1993tests; updated focused checks, targeted privacy re-review and final integration review follow. No changes to query/access/response behavior.
+- History remediation passed223suites/1998tests and Sol targeted/Terra final review. First ready CI35048462094 exposed one stale architecture-test import allowlist (7013passed/1failed), not a runtime failure. Returned PR to draft and stopped remaining CI. Remediation batch2 adds only the intentional diagnostics import to that exact allowlist; all retired-Quiz/transport guards remain. Final allowed targeted review and fresh exact-head CI follow; no production changes.

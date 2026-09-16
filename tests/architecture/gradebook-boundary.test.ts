@@ -38,6 +38,7 @@ describe('gradebook feature boundary', () => {
       '@/lib/api-error',
       '@/lib/assignments',
       '@/lib/gradebook',
+      '@/lib/server/diagnostics',
       '@/lib/server/query-chunks',
       '@/lib/supabase',
       '@/lib/validations/gradebook',

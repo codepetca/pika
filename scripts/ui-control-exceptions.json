@@ -35,17 +35,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/StudentTodayTab.tsx",
-      "reviewBy": "phase-3-daily-attendance",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/TeacherAnnouncementsSection.tsx",
       "reviewBy": "phase-3-calendar-announcements",
       "controls": [

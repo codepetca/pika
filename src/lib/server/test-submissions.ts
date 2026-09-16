@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -106,13 +107,13 @@ export async function submitStudentTestAttempt(input: {
 
   if (error) {
     const mapped = mapSubmitError(error)
-    if (mapped.status === 500) console.error('Error submitting test attempt atomically:', error)
+    if (mapped.status === 500) logServerError('test.submit', error)
     return mapped
   }
 
   const parsedResult = submitTestAttemptResultSchema.safeParse(data)
   if (!parsedResult.success) {
-    console.error('Invalid submit_test_attempt_atomic result:', parsedResult.error)
+    logServerError('test.submit_result', parsedResult.error)
     return { ok: false, status: 500, error: 'Failed to submit responses' }
   }
 
@@ -128,7 +129,7 @@ export async function submitStudentTestAttempt(input: {
       buildMetrics: (responses) => buildTestAttemptHistoryMetrics(responses),
     })
   } catch (historyError) {
-    console.error('Error writing test attempt submit history:', historyError)
+    logServerError('test.submit_history', historyError)
   }
 
   return { ok: true }
@@ -162,13 +163,13 @@ export async function saveStudentTestAttempt(input: {
     if (error.code === 'P0002' || error.code === '22P02') {
       return { ok: false, status: 404, error: 'Test not found' }
     }
-    console.error('Error saving test attempt atomically:', error)
+    logServerError('test.save', error)
     return { ok: false, status: 500, error: 'Failed to save responses' }
   }
 
   const parsedResult = saveTestAttemptResultSchema.safeParse(data)
   if (!parsedResult.success) {
-    console.error('Invalid save_test_attempt_atomic result:', parsedResult.error)
+    logServerError('test.save_result', parsedResult.error)
     return { ok: false, status: 500, error: 'Failed to save responses' }
   }
 
@@ -210,7 +211,7 @@ export async function saveStudentTestAttempt(input: {
       })
     }
   } catch (historyError) {
-    console.error('Error saving test attempt history:', historyError)
+    logServerError('test.save_history', historyError)
   }
 
   return { ok: true, attempt: result.attempt, historyEntry }
