@@ -261,11 +261,17 @@ not an available product command.
 
 ## Automatic worker — 2026-09-15 source checkpoint
 
-Migration176 queues only removals committed after its independent
-`automatic_enabled` database gate is activated. It never scans or backfills
-historical retained rows. The private queue assigns the stable operation UUID in
-the removal transaction, uses two-minute leases and redacts teacher, classroom,
-student and generation identifiers at verified completion.
+Migration176 creates the future-only queue and independent `automatic_enabled`
+gate. Migration178, which remains unapplied locally and in production, narrows
+enrollment to removals committed while the provider, live and automatic gates
+are active and whose exact generation has immutable Pal and attendance evidence
+plus matching participant, roster and teacher-principal mappings. The trigger
+takes the settings update lock to serialize this decision with operator
+gate/cutoff changes without a later lock upgrade. It never scans or backfills
+retained rows; historical or partially provisioned memberships remain
+removable but are not queued. The private queue assigns the stable operation UUID
+in the removal transaction, uses two-minute leases and redacts teacher,
+classroom, student and generation identifiers at verified completion.
 
 Migration177 hardens activation before any provider request: academic cleanup
 must be enabled and managed storage must be enforced in the same database claim.

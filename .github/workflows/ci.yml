@@ -157,6 +157,9 @@ jobs:
       - name: Automatic removed-student cleanup queue contracts
         run: bash scripts/check-automatic-removed-student-cleanup-database.sh
 
+      - name: Automatic cleanup gate serialization contracts
+        run: bash scripts/check-automatic-removed-student-cleanup-concurrency.sh
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 
