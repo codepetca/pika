@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Sync logging privacy PR for authorized merge
-
-- User authorized conflict resolution, verification and merge of #1248 to main, not production. Rebased onto `3d820f1a`; only the session archive conflicted. Preserved both histories, with no changes to the reviewed privacy application/tests or incoming main behavior. No local changes needed stashing; existing unrelated stashes remain untouched. No migration added, renamed or applied.
-- Prior Sol/high security and Terra/high compatibility reviews had no blockers, and all exact-head CI checks passed on `f7fd6ad6`. The conservative native-timeout categorization advisory remains documented as non-blocking. A bounded independent integration review and fresh rebased-head checks are required before merge; full security-goal completion and production rollout are not claimed.
-
 ## 2026-09-12 — Pal membership Phase 1 preparation
 
 Prepared disabled membership identity ledger/resolver and red-first server tests on `codex/pal-membership-foundation`. Migration 168 reserved after discovering separate local creation migrations 166/167. Focused checks passed (113 tests after remediation, architecture, policies, TypeScript, lint); database replay/types blocked pending exact target/migration approval. No migration, rollout, provider calls or data deletion performed. Independent Sol/high and Terra/high source review found migration atomicity and concurrent-backfill gaps; one batch adds explicit transaction/source locks and prepared rollback/lock rehearsals. Targeted Sol re-review cleared both at a553bf8c (3 launches, 1 fix batch); PR/final integration review await database approval and generated types. See `docs/guidance/pal-membership-identity-foundation.md`.
@@ -213,6 +208,25 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 - User approved temporarily disabling Pal achievements and redeploying the existing production revision. Set production PAL_ENABLED=false; verified configuration and removed temporary environment file.
 - Redeployed existing production deployment dpl_12DNkzWZKgxpW95KCzPcCMLh8hL9 (production commit 08fae08) to dpl_AbQSHr2x2eDUADM5kfGugmztsLiB. Ready with pika.codepet.ca alias.
 - Verification: login HTTP 200; real production PATCH /api/student/entries HTTP 200 at 13:57:52 Toronto; no HTTP 500 logs on new deployment at verification. Achievements remain disabled pending credential repair. No application or database changes.
+
+## 2026-09-16 — Pal empty-request follow-up
+
+- Daily-log resilience PR1269 and production PR1270 merged; production SHA `6375ca1591cf271ecf746e93680383218929e520` deployed, then PAL_ENABLED restored true on deployment `dpl_GE22YKr7oTSgbGhP6brhfW6oEPJ5`. Shared integration credential repaired on both services; original pseudonym secret preserved.
+- Live achievement-token requests returned404 without500s. Found account-token route used request.body non-null as a classroom-request signal, but Next server adapters can supply an empty stream for a bodyless POST. Added regression reproducing404 before fix; use actual content length, continuing to reject every nonempty request when classroom rollout is off.
+- No classroom rollout flags enabled, no migrations, no student data changed. User authorized release and restoration in this task.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-09-16 Daily log Pal failure containment and credential repair
 
