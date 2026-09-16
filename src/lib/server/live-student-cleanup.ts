@@ -29,10 +29,15 @@ export function createLiveStudentCleanup(dependencies: {
         stage: index === 0 ? 'pal' : 'bara',
         retryable: result.reason instanceof StudentProviderCleanupError && result.reason.retryable,
       }])
+      if (errors.some(error => !error.retryable))
+        throw new StudentProviderCleanupError('terminal_failure')
       const providers = await dependencies.providers.read(scope)
       // Pending and failed receipts never authorize an academic delete or rejoin.
       if (!errors.length && providers.pal === 'completed' && providers.bara === 'deleted') {
         const inventory = await dependencies.academic.inventory(scope)
+        if (inventory.blockers.some(blocker => ![
+          'provider_completion_required', 'managed_storage_enforcement_required', 'live_copy_work_pending',
+        ].includes(blocker))) throw new StudentProviderCleanupError('terminal_failure')
         if (!inventory.blockers.length) {
           const local = await dependencies.academic.advance(scope)
           if (local.local_status === 'local_completed' && !local.blockers.length)
@@ -68,6 +73,8 @@ async function publicLiveCleanupResult<T>(work: () => Promise<T>): Promise<T> {
     if (error instanceof StudentProviderCleanupError) {
       if (error.code === 'binding_invalid') throw new ApiError(409,
         'This operation does not match the live membership policy. It cannot be continued here.')
+      if (error.code === 'terminal_failure') throw new ApiError(409,
+        'This cleanup requires operator investigation before it can continue.')
       if (error.code === 'disabled') throw new ApiError(404, 'Live classroom cleanup is not enabled')
       throw new ApiError(503, 'Classroom cleanup is unavailable')
     }

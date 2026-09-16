@@ -4,7 +4,6 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getStudentPurgeEnabledStudentIds } from '@/lib/server/student-purge'
-import { listLiveStudentCleanupTargets } from '@/lib/server/live-student-cleanup'
 import type { TableRow } from '@/types/database'
 
 type RosterListRow = Pick<TableRow<'classroom_roster'>,
@@ -125,8 +124,5 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     roster.flatMap((row) => row.student_id ? [row.student_id] : []),
   )
 
-  // Cleanup availability must not make the ordinary active roster unavailable.
-  const liveCleanupTargets = await listLiveStudentCleanupTargets(user.id, classroomId).catch(() => [])
-  return NextResponse.json({ roster, student_purge_enabled_ids: studentPurgeEnabledIds,
-    live_cleanup_targets: liveCleanupTargets })
+  return NextResponse.json({ roster, student_purge_enabled_ids: studentPurgeEnabledIds })
 })
