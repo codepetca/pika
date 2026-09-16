@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import {
   saveStudentTestAttempt,
   submitStudentTestAttempt,
@@ -116,6 +117,49 @@ const savedAttempt = {
   created_at: '2026-07-14T12:00:00.000Z',
   updated_at: '2026-07-14T12:01:00.000Z',
 }
+
+describe('test attempt diagnostic privacy', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each(['submit', 'save'] as const)('keeps %s RPC failures content-free', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: null, error: privateDiagnosticError })
+    const input = { testId: 'private-test', studentId: 'private-student', responses, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual({ ok: false, status: 500, error: `Failed to ${operation} responses` })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `test.${operation}`)
+    expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
+    expect(persistVersionedHistory).not.toHaveBeenCalled()
+  })
+
+  it.each(['submit', 'save'] as const)('keeps malformed %s results content-free', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: {
+      attempt_id: privateDiagnosticError.message,
+      attempt: { ...savedAttempt, responses: { PRIVATE_ANSWER: null } },
+    }, error: null })
+    const input = { testId: 'private-test', studentId: 'private-student', responses, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual({ ok: false, status: 500, error: `Failed to ${operation} responses` })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `test.${operation}_result`, 'unexpected')
+    expect(insertVersionedBaselineHistory).not.toHaveBeenCalled()
+    expect(persistVersionedHistory).not.toHaveBeenCalled()
+  })
+
+  it.each(['submit', 'baseline', 'patch'] as const)('preserves a committed attempt when %s history fails without logging content', async (operation) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: operation === 'submit'
+      ? { attempt_id: savedAttempt.id, submitted_at: '2026-07-14T12:00:00.000Z', inserted_responses: 2 }
+      : { created: operation === 'baseline', previous_responses: responses, attempt: savedAttempt }, error: null })
+    vi.mocked(operation === 'patch' ? persistVersionedHistory : insertVersionedBaselineHistory)
+      .mockRejectedValueOnce(privateDiagnosticError)
+    const input = { testId: savedAttempt.test_id, studentId: savedAttempt.student_id, responses, pasteWordCount: 0, keystrokeCount: 0 }
+    const result = await (operation === 'submit' ? submitStudentTestAttempt(input) : saveStudentTestAttempt(input))
+    expect(result).toEqual(operation === 'submit' ? { ok: true } : { ok: true, attempt: savedAttempt, historyEntry: null })
+    expectContentFreeDiagnostic(consoleError.mock.calls, operation === 'submit' ? 'test.submit_history' : 'test.save_history')
+  })
+})
 
 describe('saveStudentTestAttempt', () => {
   beforeEach(() => {

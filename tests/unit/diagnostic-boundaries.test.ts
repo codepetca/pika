@@ -17,6 +17,14 @@ const coveredFiles = [
   'src/app/api/auth/reset-password/confirm/route.ts',
   'src/app/api/cron/nightly-log-summaries/route.ts',
   'src/app/api/teacher/log-summary/route.ts',
+  'src/lib/server/test-submissions.ts',
+  'src/lib/server/finalize-test-attempts.ts',
+  'src/lib/server/gradebook.ts',
+  'src/lib/server/test-ai-grading-runs.ts',
+  'src/app/api/student/tests/[id]/history/route.ts',
+  'src/app/api/teacher/tests/[id]/auto-grade/route.ts',
+  'src/app/api/teacher/tests/[id]/responses/[responseId]/ai-suggest/route.ts',
+  'src/app/api/teacher/assignments/[id]/auto-grade/route.ts',
 ]
 
 describe('adopted diagnostic boundaries', () => {

@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
+
+afterEach(() => vi.restoreAllMocks())
 import { NextRequest } from 'next/server'
 
 const {
@@ -191,6 +194,34 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
         }),
       }),
     )
+  })
+
+  it.each(['enrollment', 'document'] as const)('keeps assignment %s lookup errors private and does not start grading', async (failure) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const studentId = 'b0000000-0000-4000-8000-000000000001'
+    mockAutoGradeTables({
+      enrolledIds: [studentId],
+      enrollmentError: failure === 'enrollment' ? privateDiagnosticError : null,
+      assignmentDocsTable: {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: privateDiagnosticError }),
+            })),
+          })),
+        })),
+      },
+    })
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
+      method: 'POST', body: JSON.stringify({ student_ids: [studentId] }),
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: failure === 'enrollment'
+      ? 'Failed to validate student enrollment' : 'Failed to fetch student docs' })
+    expectContentFreeDiagnostic(consoleError.mock.calls, `grading.assignment_${failure}`)
+    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
+    expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
   })
 
   it('uses a background run for a single student when Gradex assignment grading is enabled', async () => {
