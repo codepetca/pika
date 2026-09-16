@@ -48,7 +48,6 @@
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
     "eval:daily-log-summaries": "node --env-file=.env.local --import tsx scripts/evaluate-daily-log-summary-prompt.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",
-    "export:anchor-sample": "node --env-file=.env.local --import tsx scripts/export-assignment-anchor-sample.ts",
     "eval:assignment-anchors": "node --env-file=.env.local --import tsx scripts/eval-assignment-anchors.ts",
     "eval:grading-reviews": "tsx scripts/summarize-grading-reviews.ts",
     "eval:test-ai-grading-gold-set": "tsx scripts/eval-test-ai-grading-gold-set.ts",

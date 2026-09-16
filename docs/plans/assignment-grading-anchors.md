@@ -42,7 +42,7 @@ Landed in this branch. Nothing persists; anchors are passed in memory.
 | Anchored grading profile | `src/lib/grading/profiles/pika-assignment-anchored.ts` |
 | Adapter entry points | `generateAssignmentAnchors`, `gradeStudentWork({ anchors })` |
 | Flag | `ASSIGNMENT_GRADING_ANCHORS_ENABLED` (default false) |
-| Offline A/B | `pnpm eval:assignment-anchors <sample.json>` |
+| Offline A/B | `pnpm eval:assignment-anchors <class-code> <title>` (add `--show` to print the payload without calling the provider) |
 
 Design decisions worth keeping:
 
@@ -63,9 +63,20 @@ Design decisions worth keeping:
 
 ### Gate before stage 2
 
-Run the A/B on real, de-identified A1 submissions. Proceed only if the anchored
-arm widens score spread without inverting the teacher's own ranking. If spread is
-unchanged, the anchors are not the bottleneck and the instructions probably are.
+Run the A/B on real A1 submissions. The evaluation reads them through
+`buildAssignmentGradingRequest`, so the text it sends is byte-for-byte the text
+normal grading sends: same instruction extraction, same submission body, same
+attached artifacts, same roster-aware sanitization. `--show` prints that payload
+and makes no provider calls.
+
+Sanitization replaces roster names with initials and redacts emails, phone
+numbers, URLs and identifiers. It does not remove the substance of what a student
+wrote, so a sanitized reflection is still that student's reflection. Treat the
+output as classroom data.
+
+Proceed only if the anchored arm widens score spread without inverting the
+teacher's own ranking. If spread is unchanged, the anchors are not the bottleneck
+and the instructions probably are.
 
 ## Stage 2 — persistence and a read-only teacher surface
 
