@@ -1255,6 +1255,8 @@ describe('TeacherRosterTab', () => {
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/lose access to this class and leave the roster/i)
     expect(dialog).toHaveTextContent(/This cannot be undone/i)
+    expect(dialog).toHaveTextContent('The system handles any required live-data cleanup separately.')
+    expect(dialog).not.toHaveTextContent('will permanently delete')
 
     await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
 
@@ -1267,25 +1269,21 @@ describe('TeacherRosterTab', () => {
     expect(await screen.findByText('Student removed from class')).toBeInTheDocument()
   })
 
-  it('opens live cleanup for a server-supplied removed membership without changing active rows', async () => {
+  it('does not offer teacher-directed cleanup for a removed membership', async () => {
     const user = userEvent.setup()
     const target = { student_id: '20000000-0000-4000-8000-000000000001',
       generation_id: '30000000-0000-4000-8000-000000000001', email: 'removed@example.com', name: 'Removed Student' }
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       if (String(input).endsWith('/roster')) return mockJson({ roster: [rosterRow], live_cleanup_targets: [target] })
-      if (String(input).endsWith('/purge/live')) return mockJson({ generation_id: target.generation_id, operation: null, enabled: true })
       throw new Error('Unexpected request')
     })
     vi.stubGlobal('fetch', fetchMock)
     renderRoster()
     await screen.findByText('Ada')
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitem', { name: /Clean up live class data/ }))
-    const dialog = screen.getByRole('dialog', { name: 'Clean up live class data' })
-    await user.selectOptions(within(dialog).getByRole('combobox'), target.generation_id)
-    expect(await within(dialog).findByRole('textbox')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Delete live class data' })).toBeDisabled()
-    expect(fetchMock.mock.calls.every(([input]) => !String(input).endsWith('/purge'))).toBe(true)
+    expect(screen.queryByRole('menuitem', { name: /Clean up live class data/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Clean up live class data' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.every(([input]) => !String(input).includes('/purge'))).toBe(true)
   })
 
   it('allows joined student removal without permanent-deletion rollout access', async () => {
@@ -1405,6 +1403,8 @@ describe('TeacherRosterTab', () => {
     expect(getRemovalCalls(fetchMock)).toHaveLength(0)
 
     const dialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
+    expect(dialog).toHaveTextContent('The system handles any required live-data cleanup separately.')
+    expect(dialog).not.toHaveTextContent('will permanently delete')
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(within(dialog).getByText(/grace@example\.com/)).toBeInTheDocument()

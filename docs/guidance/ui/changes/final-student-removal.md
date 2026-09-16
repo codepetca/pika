@@ -55,3 +55,24 @@ now permits INSERT-only archive replay of that existing state; removed-row edits
 and enrollment remain denied. The database fixture covers both placeholder/tombstone
 UUID orders and exact preservation without granting readmission. These checks now
 pass in the disposable database. No shared-local or hosted migration was applied.
+
+## 2026-09-15 — System-owned cleanup follow-up
+
+Surface: teacher Roster removal confirmation and action menus. Reference: the
+existing final-removal `ConfirmDialog` and Student Actions removal command. Roles:
+teacher; student is n/a because no student surface changes. Verify desktop/mobile,
+light/dark, the open removal confirmation, and the open global action menu after a
+removed membership exists. Primary signal: teachers remove a student once; no
+separate destructive cleanup command remains. Exclusions: no cleanup dashboard,
+progress UI, new status treatment, component API, or layout change.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Student removal | Roster `ConfirmDialog` | reuse | It remains the sole teacher-owned destructive action. |
+| Background cleanup | Automatic server worker | reuse | Cleanup is system responsibility and needs no teacher control. |
+| Removed-student action | Global Roster action menu | reuse | Removing the obsolete item preserves the existing menu owner and geometry. |
+
+Composite checklist: removing one menu item does not alter menu role, roving
+keyboard behavior, focus return, Escape handling, or selection semantics. Existing
+owners and tests remain authoritative; add an absence regression for the retired
+cleanup command. No Pattern Lab change or experimental pattern is required.

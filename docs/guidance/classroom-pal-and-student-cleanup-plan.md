@@ -114,14 +114,25 @@ Exit: a reviewed, CI-green, default-disabled explicit path with truthful support
 scope, exact commands/status, fresh rejoin proof and a concrete rollout packet.
 Unsupported live-resource cases cannot be declared erased merely to finish Phase3.
 
-## Phase4 — automatic worker: later
+## Phase4 — automatic worker: source implemented; activation pending
 
-After the explicit path is usable and its rollout is separately approved, decide
-whether and how automatic progress should use the existing engine. Preserve
-stable operations, bounded retries, current authority, provider independence and
-truthful status. Do not add a new queue/engine/dashboard or broad cron scheduling
-as a prerequisite to the explicit flow. No removal backfill or destructive
-automatic-on-removal enrollment policy is approved here.
+The user approved automatic cleanup for new removals on 2026-09-15. Teachers
+remove students; the system owns purge progress. Historical removals remain out
+of scope and must not be backfilled. Reuse the existing live cleanup engine with
+a private durable queue, stable operation ids, bounded leases/retries, current
+authority, provider independence and truthful status.
+
+Migrations176–177, the protected worker route and the conditional watchdog are
+implemented and locally verified. Hosted migration, Vault/Vercel configuration,
+all cleanup gates and the approved canary remain pending; the feature is inert
+until that separate rollout is authorized.
+
+The selected Free-plan topology is event-driven: a committed new removal queues
+one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog
+runs every five minutes, checks for due work in SQL, and makes no HTTP/serverless
+invocation while the queue is idle. Batch removals coalesce immediate callbacks.
+The queue, worker and schedule remain independently disabled until reviewed
+schema, application, provider and rollout gates are explicitly activated.
 
 ## Phase5 — scoped rollout and live canary: separately approved
 
