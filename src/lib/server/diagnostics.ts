@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 // Add events deliberately. Do not accept free-form context, messages, URLs or IDs.
 const EVENTS = [
+  'daily_log.pal_prepare', 'daily_log.pal_delivery',
   'api.unexpected', 'auth.session', 'auth.rate_limit', 'auth.signup',
   'auth.reset', 'auth.verify', 'auth.email', 'journal.summary',
   'journal.query', 'journal.feedback',

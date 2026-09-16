@@ -11,11 +11,9 @@ import {
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { withErrorHandler } from '@/lib/api-handler'
-import { hasQualifyingDailyLogContent } from '@/lib/attendance'
-import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
-import { buildDailyLogCompletedEvent } from '@/lib/server/pal-events'
+import { isClassroomPalRequested } from '@/lib/server/pal-config'
+import { prepareDailyLogPal, deliverDailyLogPal } from '@/lib/server/daily-log-pal'
 import {
-  attemptImmediatePalEventDelivery,
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
@@ -259,18 +257,13 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   let entry
   let palDelivery: PalImmediateDeliveryStatus | undefined
 
-  if (isPalEnabled()) {
+  const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+  const palEvent = pal.event
+  if (pal.enabled) {
     const preservedMinutes = minutes_reported === undefined
       ? existing?.minutes_reported
       : minutes_reported
     const preservedMood = mood === undefined ? existing?.mood : mood
-    const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-      ? buildDailyLogCompletedEvent({
-        learnerId: user.id,
-        activityDay: date,
-        occurredAt: now,
-      })
-      : null
 
     try {
       const result = await upsertStudentEntryWithPalEvent({
@@ -294,7 +287,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       }
       entry = result.entry
       if (palEvent || isClassroomPalRequested()) {
-        palDelivery = await attemptImmediatePalEventDelivery({
+        palDelivery = await deliverDailyLogPal({
           membership: { studentId: user.id, classroomId: classroom_id },
           event: palEvent,
           supabase,
@@ -476,15 +469,9 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     const now = new Date()
     const onTime = isOnTime(now, date)
 
-    if (isPalEnabled()) {
-      const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-        ? buildDailyLogCompletedEvent({
-          learnerId: user.id,
-          activityDay: date,
-          occurredAt: now,
-        })
-        : null
-
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const palEvent = pal.event
+    if (pal.enabled) {
       try {
         const result = await upsertStudentEntryWithPalEvent({
           supabase,
@@ -504,7 +491,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
           )
         }
         const palDelivery = palEvent || isClassroomPalRequested()
-          ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+          ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
           : undefined
         return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
       } catch (error) {
@@ -580,15 +567,9 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
   const onTime = isOnTime(now, date)
   const nextVersion = currentVersion + 1
 
-  if (isPalEnabled()) {
-    const palEvent = !isClassroomPalRequested() && hasQualifyingDailyLogContent(entryText)
-      ? buildDailyLogCompletedEvent({
-        learnerId: user.id,
-        activityDay: date,
-        occurredAt: now,
-      })
-      : null
-
+  const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+  const palEvent = pal.event
+  if (pal.enabled) {
     try {
       const result = await upsertStudentEntryWithPalEvent({
         supabase,
@@ -610,7 +591,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
         )
       }
       const palDelivery = palEvent || isClassroomPalRequested()
-        ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+        ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
         : undefined
       return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
     } catch (error) {
