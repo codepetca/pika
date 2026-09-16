@@ -162,7 +162,7 @@ for (const entry of matrix) {
     const removalDialog = page.getByRole('dialog', { name: 'Remove student from class?' })
     await expect(removalDialog).toBeVisible()
     await expect(removalDialog).toContainText('This cannot be undone.')
-    await expect(removalDialog).toContainText('The system will permanently delete their live data for this class in the background.')
+    await expect(removalDialog).toContainText('The system handles any required live-data cleanup separately.')
     await expect(removalDialog).toContainText('Their account and other classes are unaffected.')
     await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`removal-confirmation-${entry.name}.png`), fullPage: true, animations: 'disabled' })

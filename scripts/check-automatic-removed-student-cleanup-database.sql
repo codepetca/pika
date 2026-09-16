@@ -60,6 +60,26 @@ update private.student_provider_cleanup_settings set
   bara_origin='https://bara.example.invalid',installation_ref='pika_synthetic_176'
 where singleton;
 
+do $$ begin
+  begin
+    perform public.claim_removed_student_cleanup_job('c1760000-0000-4000-8000-000000000050');
+    raise exception 'Claim ignored disabled academic cleanup';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'removed_student_cleanup_academic_disabled' then raise; end if;
+  end;
+end $$;
+update private.removed_student_academic_settings set enabled=true where singleton;
+do $$ begin
+  begin
+    perform public.claim_removed_student_cleanup_job('c1760000-0000-4000-8000-000000000050');
+    raise exception 'Claim ignored managed storage compatibility mode';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'removed_student_cleanup_storage_not_enforced' then raise; end if;
+  end;
+end $$;
+update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),
+  readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
+
 do $$
 declare first_claim jsonb; second_claim jsonb; reclaimed jsonb; job_id uuid;
 begin
@@ -87,6 +107,21 @@ begin
     raise exception 'Stale lease release was accepted';
   exception when serialization_failure then null;
   end;
+  if not public.release_removed_student_cleanup_job(job_id,
+      'c1760000-0000-4000-8000-000000000052',false,'cleanup_quarantined',30) then
+    raise exception 'Quarantine release was not recorded';
+  end if;
+  if not exists(select 1 from private.removed_student_cleanup_jobs
+      where id=job_id and status='quarantined' and quarantined_at is not null
+        and student_id='c1760000-0000-4000-8000-000000000002') then
+    raise exception 'Quarantined job lost evidence or remained claimable';
+  end if;
+  if public.claim_removed_student_cleanup_job('c1760000-0000-4000-8000-000000000053') is not null then
+    raise exception 'Quarantined job was reclaimed';
+  end if;
+  update private.removed_student_cleanup_jobs set status='processing',quarantined_at=null,
+    lease_token='c1760000-0000-4000-8000-000000000052',
+    lease_expires_at=clock_timestamp()+interval '1 minute' where id=job_id;
   if not public.release_removed_student_cleanup_job(job_id,
       'c1760000-0000-4000-8000-000000000052',true,null,30) then
     raise exception 'Completed release was not recorded';

@@ -1255,6 +1255,8 @@ describe('TeacherRosterTab', () => {
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/lose access to this class and leave the roster/i)
     expect(dialog).toHaveTextContent(/This cannot be undone/i)
+    expect(dialog).toHaveTextContent('The system handles any required live-data cleanup separately.')
+    expect(dialog).not.toHaveTextContent('will permanently delete')
 
     await user.click(within(dialog).getByRole('button', { name: 'Remove from class' }))
 
@@ -1401,6 +1403,8 @@ describe('TeacherRosterTab', () => {
     expect(getRemovalCalls(fetchMock)).toHaveLength(0)
 
     const dialog = screen.getByRole('dialog', { name: 'Remove students from class?' })
+    expect(dialog).toHaveTextContent('The system handles any required live-data cleanup separately.')
+    expect(dialog).not.toHaveTextContent('will permanently delete')
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/ada@example\.com/)).toBeInTheDocument()
     expect(within(dialog).getByText(/grace@example\.com/)).toBeInTheDocument()

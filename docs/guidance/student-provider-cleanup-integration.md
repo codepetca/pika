@@ -267,6 +267,12 @@ historical retained rows. The private queue assigns the stable operation UUID in
 the removal transaction, uses two-minute leases and redacts teacher, classroom,
 student and generation identifiers at verified completion.
 
+Migration177 hardens activation before any provider request: academic cleanup
+must be enabled and managed storage must be enforced in the same database claim.
+Terminal policy/binding failures and jobs that exhaust the bounded attempt limit
+enter a private quarantine, emit an unhealthy worker result for operators and no
+longer consume claims ahead of later valid removals.
+
 The removal trigger asks `pg_net` for one asynchronous callback after commit;
 batch rows are coalesced. A `pg_cron` job runs `*/5 * * * *`, first checks for due
 queue work in SQL, and makes no HTTP request while idle. Its HTTPS worker URL and

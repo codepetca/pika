@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(join(process.cwd(), 'supabase/migrations/176_automatic_removed_student_cleanup.sql'), 'utf8')
+const hardening = readFileSync(join(process.cwd(), 'supabase/migrations/177_harden_automatic_removed_student_cleanup.sql'), 'utf8')
 const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
 const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
 
@@ -45,5 +46,19 @@ describe('automatic removed-student cleanup migration', () => {
     expect(harness).toContain('Stale lease release was accepted')
     expect(harness).toContain('Completed job retained student identity')
     expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
+  })
+
+  it('requires academic and storage readiness before callbacks or claims', () => {
+    expect(hardening).toContain('private.removed_student_academic_settings')
+    expect(hardening).toContain("mode='enforced'")
+    expect(hardening).toContain("message='removed_student_cleanup_academic_disabled'")
+    expect(hardening).toContain("message='removed_student_cleanup_storage_not_enforced'")
+  })
+
+  it('adds a terminal quarantine excluded from due claims', () => {
+    expect(hardening).toContain("'queued','processing','retry_wait','quarantined','completed'")
+    expect(hardening).toContain("p_error_code='cleanup_quarantined'")
+    expect(hardening).toContain("status='quarantined'")
+    expect(hardening).not.toMatch(/job\.status in \([^)]*quarantined/)
   })
 })

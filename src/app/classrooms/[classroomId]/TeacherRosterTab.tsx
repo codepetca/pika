@@ -592,14 +592,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system will permanently delete their live data for this class in the background. They cannot be re-added until cleanup is verified. Their account and other classes are unaffected.`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system handles any required live-data cleanup separately. They cannot be re-added until cleanup is verified. Their account and other classes are unaffected.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
 
-    return `${preview}${remaining}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system will permanently delete their live data for this class in the background. They cannot be re-added until cleanup is verified. Their accounts and other classes are unaffected.`
+    return `${preview}${remaining}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system handles any required live-data cleanup separately. They cannot be re-added until cleanup is verified. Their accounts and other classes are unaffected.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
