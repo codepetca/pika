@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 // Explicit adoption list, not a claim about all application logging.
 const coveredFiles = [
+  'src/lib/server/daily-log-pal.ts',
   'src/lib/api-handler.ts',
   'src/lib/auth.ts',
   'src/lib/server/auth-response.ts',
