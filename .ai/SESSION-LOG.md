@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-11 — Final student removal, no re-add before purge
-
-- User explicitly approved no recovery promise and blocking re-add to the same class until old class data is purged. Owner branch: `codex/final-student-removal`. Removed application restoration calls, added a read-only identity-aware add/CSV preflight, mapped concurrent write denial to409, and revised removal/Pal copy using existing UI owners.
-- Forward migration165 retires the restoring RPC, removes its enrollment bypass, and adds a private roster-write guard. No erasure, new cron, Pal change or public type-shape change; immutable164 checksum preserved. The existing DB harness covers legacy164 and final165 boundaries and keeps archive/data preservation plus grade-race checks; fresh race fixtures replace membership restoration.
-- Verification: affected80tests and focused214tests/19files plus static gates pass;14existing browser scenarios and4blocked re-add scenarios pass. Teacher/student desktop/mobile light/dark captures and Pattern Lab confirmation inspected; audit and shell syntax clean. Evidence `/tmp/pika-final-removal-*`, `test-results/`, and `output/playwright/`. Migration165 remains unapplied; disposable-local verification permission requested separately. No shared-local/prod mutation, deployment or merge authorization. Draft-first independent review follows.
-- Draft PR #1249 initial Sol/Terra review found one archive replay edge. Remediation batch1 permits INSERT-only replay of an existing overlapping invitation during archive maintenance while retaining unconditional enrollment denial and removed-row edit denial. The rollback fixture now round-trips overlap in both UUID orders without bypassing triggers; migration-source tests pass4/4. Database execution remains permission-gated. Review budget2/5 launches before targeted review; no live migration or deployment.
-
 ## 2026-09-11 — Verify final-removal migration in disposable database
 
 - Explicit one-time approval created `pika_removal_165_final` from shared-local164 schema only, with static archive table/column contracts and no student/class records. Applied reviewed165 checksum `77d2f3911fb4bcb3c67d1a520884ff9c9ea746bf010cb6719c9a77adb29689ee` once transactionally via SQL. Permission is consumed. Shared local remains164; production untouched.
@@ -221,3 +214,9 @@ Browser CI follow-up: replaced obsolete active-student purge expectations with a
 ## 2026-09-15 — Past logs without paging
 - User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
 - Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
+
+## 2026-09-15 — Student-work diagnostic privacy, second batch
+
+- Owner `codex/log-privacy-grading-batch`, based on `main@d0971c02`. Replaced direct raw error logging in test save/submit/history/finalization, Gradebook reads/writes, assignment/test auto-grade entry points and test reference-cache writes with allowlisted content-free diagnostics. Existing authorization, queries, responses, retries and best-effort behavior unchanged.
+- Added synthetic failure assertions using the real logger and extended the static adoption boundary. Targeted 9 suites/147 tests pass; required focused gate and independent draft-first review follow. Risk profiles: async-grading and runtime-platform. No UI, dependency or migration changes.
+- `docs/guidance/application-log-privacy.md` records the diagnostic contract, debugging tradeoff, coverage limits and remaining audit inventory. No production records inspected, historical logs deleted, vendor settings changed or deployment performed. Kept the separate cleanup task and dirty hub context untouched.

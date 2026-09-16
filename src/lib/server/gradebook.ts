@@ -1,3 +1,4 @@
+import { logServerError } from '@/lib/server/diagnostics'
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import {
@@ -308,7 +309,7 @@ export async function loadTeacherGradebook(opts: {
   if (categoryResult.error && isMissingTableError(categoryResult.error)) {
     categorySchemaAvailable = false
   } else if (categoryResult.error) {
-    console.error('Error loading gradebook categories:', categoryResult.error)
+    logServerError('gradebook.categories', categoryResult.error)
     throw new ApiError(500, 'Failed to load gradebook categories')
   } else {
     categories = (categoryResult.data || []).map((category) => ({
@@ -332,7 +333,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (enrollmentError) {
-    console.error('Error loading enrollments:', enrollmentError)
+    logServerError('gradebook.enrollments', enrollmentError)
     throw new ApiError(500, 'Failed to load roster')
   }
 
@@ -359,7 +360,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (profilesError) {
-    console.error('Error loading student profiles for gradebook:', profilesError)
+    logServerError('gradebook.profiles', profilesError)
     throw new ApiError(500, 'Failed to load student profiles for gradebook')
   }
 
@@ -438,7 +439,7 @@ export async function loadTeacherGradebook(opts: {
     )
 
     if (assignmentsLegacyError) {
-      console.error('Error loading assignments for gradebook:', assignmentsWithMetaError, assignmentsLegacyError)
+      logServerError('gradebook.assignments', assignmentsLegacyError)
       throw new ApiError(500, 'Failed to load assignments for gradebook')
     }
 
@@ -487,7 +488,7 @@ export async function loadTeacherGradebook(opts: {
     }
 
     if (docsResult.error) {
-      console.error('Error loading assignment docs for gradebook:', docsResult.error)
+      logServerError('gradebook.documents', docsResult.error)
       throw new ApiError(500, 'Failed to load assignment docs for gradebook')
     }
   }
@@ -617,11 +618,11 @@ export async function loadTeacherGradebook(opts: {
         gradebook_category_id: test.gradebook_category_id ?? null,
       }))
     } else if (!isMissingTableError(testsLegacyError)) {
-      console.error('Error loading tests for gradebook:', testsWithMetaError, testsLegacyError)
+      logServerError('gradebook.tests', testsLegacyError)
       throw new ApiError(500, 'Failed to load tests for gradebook')
     }
   } else if (!isMissingTableError(testsWithMetaError)) {
-    console.error('Error loading tests for gradebook:', testsWithMetaError)
+    logServerError('gradebook.tests', testsWithMetaError)
     throw new ApiError(500, 'Failed to load tests for gradebook')
   }
   tests.sort(comparePositionThenTitle)
@@ -648,7 +649,7 @@ export async function loadTeacherGradebook(opts: {
   if (scoreOverridesError && isMissingTableError(scoreOverridesError)) {
     scoreOverridesAvailable = false
   } else if (scoreOverridesError) {
-    console.error('Error loading Gradebook score overrides:', scoreOverridesError)
+    logServerError('gradebook.overrides', scoreOverridesError)
     throw new ApiError(500, 'Failed to load Gradebook overrides')
   } else {
     for (const override of scoreOverrides || []) {
@@ -677,7 +678,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testQuestionsError && !isMissingTableError(testQuestionsError)) {
-    console.error('Error loading test questions for gradebook:', testQuestionsError)
+    logServerError('gradebook.questions', testQuestionsError)
     throw new ApiError(500, 'Failed to load test questions for gradebook')
   }
 
@@ -694,7 +695,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testResponsesError && !isMissingTableError(testResponsesError)) {
-    console.error('Error loading test responses for gradebook:', testResponsesError)
+    logServerError('gradebook.responses', testResponsesError)
     throw new ApiError(500, 'Failed to load test responses for gradebook')
   }
 
@@ -711,7 +712,7 @@ export async function loadTeacherGradebook(opts: {
   )
 
   if (testAttemptsError && !isMissingTableError(testAttemptsError)) {
-    console.error('Error loading test attempts for gradebook:', testAttemptsError)
+    logServerError('gradebook.attempts', testAttemptsError)
     throw new ApiError(500, 'Failed to load test attempts for gradebook')
   }
 
@@ -1229,7 +1230,7 @@ export async function updateTeacherGradebook(opts: {
       throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
     }
     if (categoryError) {
-      console.error('Error checking gradebook category:', categoryError)
+      logServerError('gradebook.category_validation', categoryError)
       throw new ApiError(500, 'Failed to validate gradebook category')
     }
     if (!category) throw new ApiError(400, 'Gradebook category does not belong to this classroom')
@@ -1258,7 +1259,7 @@ export async function updateTeacherGradebook(opts: {
   }
 
   if (error) {
-    console.error('Error saving assessment weight:', error)
+    logServerError('gradebook.weight_save', error)
     throw new ApiError(500, 'Failed to save assessment weight')
   }
 
@@ -1292,7 +1293,7 @@ async function assertGradebookOverrideTarget(input: {
     .maybeSingle()
 
   if (enrollmentError) {
-    console.error('Error checking Gradebook override enrollment:', enrollmentError)
+    logServerError('gradebook.override_enrollment', enrollmentError)
     throw new ApiError(500, 'Failed to validate student')
   }
   if (!enrollment) throw new ApiError(404, 'Student is not enrolled in this classroom')
@@ -1308,7 +1309,7 @@ async function assertGradebookOverrideTarget(input: {
     .eq('classroom_id', input.classroomId)
     .maybeSingle()
   if (assessmentError) {
-    console.error('Error checking Gradebook override assessment:', assessmentError)
+    logServerError('gradebook.override_assessment', assessmentError)
     throw new ApiError(500, 'Failed to validate assessment')
   }
   if (!assessment) throw new ApiError(404, 'Assessment not found')
@@ -1341,7 +1342,7 @@ export async function saveTeacherGradebookScoreOverride(opts: {
     throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error saving Gradebook override:', error)
+    logServerError('gradebook.override_save', error)
     throw new ApiError(500, 'Failed to save override')
   }
   return { saved: true }
@@ -1379,7 +1380,7 @@ export async function deleteTeacherGradebookScoreOverride(opts: {
     throw new ApiError(409, 'Gradebook overrides are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error undoing Gradebook overrides:', error)
+    logServerError('gradebook.override_undo', error)
     throw new ApiError(500, 'Failed to undo overrides')
   }
   return { deleted: true }
@@ -1410,7 +1411,7 @@ export async function replaceTeacherGradebookCategories(opts: {
     throw new ApiError(409, 'Gradebook categories are not available until the database migration is applied')
   }
   if (error) {
-    console.error('Error saving gradebook categories:', error)
+    logServerError('gradebook.categories_save', error)
     throw new ApiError(500, 'Failed to save gradebook categories')
   }
 

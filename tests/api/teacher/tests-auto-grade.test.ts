@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
+
+afterEach(() => vi.restoreAllMocks())
 import { NextRequest } from 'next/server'
 
 const { createOrResumeTestAiGradingRun } = vi.hoisted(() => ({
@@ -184,9 +187,10 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
   })
 
   it('returns 500 when selected student enrollment validation fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
       ok: false,
-      error: { message: 'enrollment lookup failed' },
+      error: privateDiagnosticError,
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
@@ -201,6 +205,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to validate selected students')
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.test_enrollment')
     expect(createOrResumeTestAiGradingRun).not.toHaveBeenCalled()
   })
 

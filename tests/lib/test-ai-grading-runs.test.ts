@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../helpers/diagnostics'
 import { inspect } from 'node:util'
 
 const {
@@ -122,6 +123,7 @@ function buildTickHarness(opts: {
   loseLeaseOnFinalize?: boolean
   changeQuestionBeforeFinalize?: boolean
   questionAnswerKey?: string
+  referenceCacheError?: unknown
 }) {
   const run = {
     id: 'run-1',
@@ -372,7 +374,10 @@ function buildTickHarness(opts: {
     }
 
     if (table === 'test_questions') {
+      const cacheUpdateChain = { eq: vi.fn(), error: opts.referenceCacheError ?? null }
+      cacheUpdateChain.eq.mockReturnValue(cacheUpdateChain)
       return {
+        update: vi.fn(() => cacheUpdateChain),
         select: vi.fn(() => ({
           eq: vi.fn((field: string, value: string) => ({
             eq: vi.fn(async (innerField: string, innerValue: string) => ({
@@ -413,6 +418,7 @@ function buildTickHarness(opts: {
 }
 
 describe('tickTestAiGradingRun', () => {
+  afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.from.mockReset()
@@ -499,6 +505,34 @@ describe('tickTestAiGradingRun', () => {
         p_lease_seconds: 120,
       }),
     )
+  })
+
+  it('continues grading after a reference-cache failure without logging content or record IDs', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { items } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Synthetic answer one' },
+        { id: 'response-2', response_text: 'Synthetic answer two' },
+      ],
+      referenceCacheError: privateDiagnosticError,
+    })
+    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValueOnce({
+      expectedCacheKey: 'new-cache-key', cacheHit: false, referenceAnswers: null,
+    })
+    prepareTestOpenResponseGradingContext.mockResolvedValueOnce({
+      ...buildPreparedContext(),
+      grading_basis: 'generated_reference',
+      reference_answers_source: 'generated',
+    })
+    suggestTestOpenResponseGradesBatchWithContext.mockResolvedValueOnce(['response-1', 'response-2'].map((responseId) => ({
+      responseId, score: 5, feedback: 'Correct.', model: 'gpt-5-nano',
+      grading_basis: 'generated_reference', reference_answers: ['Use a hash map.'], provenance: gradingProvenance,
+    })))
+    const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+    expect(result.run.status).toBe('completed')
+    expect(result.run.completed_count).toBe(2)
+    expect(items.map((item) => item.status)).toEqual(['completed', 'completed'])
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.test_run_reference_cache')
   })
 
   it('fails a single active item cleanly when finalization fails', async () => {
