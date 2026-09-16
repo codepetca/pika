@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Pal membership Phase 1 preparation
-
-Prepared disabled membership identity ledger/resolver and red-first server tests on `codex/pal-membership-foundation`. Migration 168 reserved after discovering separate local creation migrations 166/167. Focused checks passed (113 tests after remediation, architecture, policies, TypeScript, lint); database replay/types blocked pending exact target/migration approval. No migration, rollout, provider calls or data deletion performed. Independent Sol/high and Terra/high source review found migration atomicity and concurrent-backfill gaps; one batch adds explicit transaction/source locks and prepared rollback/lock rehearsals. Targeted Sol re-review cleared both at a553bf8c (3 launches, 1 fix batch); PR/final integration review await database approval and generated types. See `docs/guidance/pal-membership-identity-foundation.md`.
-
 ## 2026-09-12 — Pal isolated baseline verified
 
 User approved isolated `pika-pal-phase1` baseline migrations 001–165, without seeds or real data. Prepared runtime at `/Users/stew/.codex/worktrees/pika/.pal-phase1-db`, verified the exact dry run, and applied once via `supabase db push --local`. All 165 history names/numbers match; users/classrooms/enrollments are empty; generated public baseline types match committed types. Migration 168 remains absent; next gate is exact approval for its intentional rollback rehearsal. No shared or hosted database changes, flags, or provider calls.
@@ -233,3 +229,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Owner `codex/fix-daily-log-save`. Added best-effort preparation/delivery boundaries for POST and PATCH daily logs; malformed Pal configuration/event construction cannot block an authorized save, and delivery exceptions cannot turn a committed entry into a failure. Atomic RPC errors and version conflicts still fail without a second write. Content-free diagnostics; no UI, schema, dependency, or authorization change.
 - Regression: 20 failures reproduced before the fix. Initial focused gate passed 2,028 tests plus static checks; added classroom-delivery and preparation privacy checks pass 35 tests. Final focused gate and independent review follow.
 - Production metadata corrects prior diagnosis: original sensitive pseudonym secret remains present and unchanged; only shared integration credential was missing from both Pika and Pal. Restored a new matching sensitive integration credential to both projects. Pal current production revision is being redeployed; Pika achievements remain disabled pending provider verification and code release. Existing Pal profiles preserved; no learner data written by verification.
+
+## 2026-09-16 — Student past-log date wrapping
+- Keep the StudentPastLogs date label on one line with whitespace-nowrap; reuse existing date column and Button, following stable classroom date language and Pattern Lab controls. No new pattern or composite behavior; teacher n/a.
+- Playwright rendered the production component with deterministic September 14/11 fixtures at 1440, 390, and 320px in light/dark, collapsed/expanded and missing-entry states. Date text occupied one line in all 12 captures (/tmp/pika-date-*.png); temporary fixture removed.
