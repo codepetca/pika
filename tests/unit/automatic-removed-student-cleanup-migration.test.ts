@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(join(process.cwd(), 'supabase/migrations/176_automatic_removed_student_cleanup.sql'), 'utf8')
 const hardening = readFileSync(join(process.cwd(), 'supabase/migrations/177_harden_automatic_removed_student_cleanup.sql'), 'utf8')
+const eligibilityGuard = readFileSync(join(process.cwd(), 'supabase/migrations/178_guard_automatic_cleanup_eligibility.sql'), 'utf8')
 const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
 const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
 
@@ -13,6 +14,20 @@ describe('automatic removed-student cleanup migration', () => {
     expect(sql).toContain('old.removed_at is not null or new.removed_at is null')
     expect(sql).toContain('after update of removed_at,removed_student_id,removed_enrollment_id')
     expect(sql).not.toMatch(/insert into private\.removed_student_cleanup_jobs[\s\S]*select[\s\S]*from public\.classroom_roster/i)
+  })
+
+  it('queues only exact post-activation provider-bound membership generations', () => {
+    expect(eligibilityGuard).toContain('settings.enabled and settings.live_enabled')
+    expect(eligibilityGuard).toContain('settings.automatic_enabled')
+    expect(eligibilityGuard).toContain('new.removed_at>=settings.eligible_after')
+    expect(eligibilityGuard).toContain('attendance.generation_id=new.removed_enrollment_id')
+    expect(eligibilityGuard).toContain('attendance.scope_digest=v_scope')
+    expect(eligibilityGuard).toContain('participant.participant_ref=attendance.participant_ref')
+    expect(eligibilityGuard).toContain('participant.classroom_id=new.classroom_id')
+    expect(eligibilityGuard).toContain('participant.student_id=new.removed_student_id')
+    expect(eligibilityGuard).toContain('join public.attendance_roster_mappings roster')
+    expect(eligibilityGuard).toContain('join public.attendance_principal_mappings actor')
+    expect(eligibilityGuard).not.toMatch(/insert into private\.attendance_membership_generations/i)
   })
 
   it('stores work privately and redacts completed identities', () => {
@@ -45,6 +60,7 @@ describe('automatic removed-student cleanup migration', () => {
     expect(harness).toContain('Active lease was claimed twice')
     expect(harness).toContain('Stale lease release was accepted')
     expect(harness).toContain('Completed job retained student identity')
+    expect(harness).toContain('Ineligible historical removal entered the automatic queue')
     expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
   })
 
