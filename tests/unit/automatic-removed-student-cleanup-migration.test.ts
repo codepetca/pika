@@ -7,6 +7,7 @@ const hardening = readFileSync(join(process.cwd(), 'supabase/migrations/177_hard
 const eligibilityGuard = readFileSync(join(process.cwd(), 'supabase/migrations/178_guard_automatic_cleanup_eligibility.sql'), 'utf8')
 const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
 const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
+const concurrencyRunner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-concurrency.sh'), 'utf8')
 
 describe('automatic removed-student cleanup migration', () => {
   it('keeps automatic deletion disabled and limits enrollment to future removals', () => {
@@ -17,9 +18,11 @@ describe('automatic removed-student cleanup migration', () => {
   })
 
   it('queues only exact post-activation provider-bound membership generations', () => {
-    expect(eligibilityGuard).toContain('settings.enabled and settings.live_enabled')
-    expect(eligibilityGuard).toContain('settings.automatic_enabled')
-    expect(eligibilityGuard).toContain('new.removed_at>=settings.eligible_after')
+    expect(eligibilityGuard).toContain('v_settings.enabled,false')
+    expect(eligibilityGuard).toContain('v_settings.live_enabled,false')
+    expect(eligibilityGuard).toContain('v_settings.automatic_enabled,false')
+    expect(eligibilityGuard).toContain('new.removed_at<v_settings.eligible_after')
+    expect(eligibilityGuard).toMatch(/student_provider_cleanup_settings[\s\S]*where singleton[\s\S]*for update;/)
     expect(eligibilityGuard).toContain('attendance.generation_id=new.removed_enrollment_id')
     expect(eligibilityGuard).toContain('attendance.scope_digest=v_scope')
     expect(eligibilityGuard).toContain('participant.participant_ref=attendance.participant_ref')
@@ -60,8 +63,14 @@ describe('automatic removed-student cleanup migration', () => {
     expect(harness).toContain('Active lease was claimed twice')
     expect(harness).toContain('Stale lease release was accepted')
     expect(harness).toContain('Completed job retained student identity')
-    expect(harness).toContain('Ineligible historical removal entered the automatic queue')
+    expect(harness).toContain('Generation eligibility capture boundary is incorrect')
+    expect(harness).toContain('Ineligible historical or partial removal entered the automatic queue')
     expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
+    expect(concurrencyRunner).toContain('pika_automatic_cleanup_concurrency_')
+    expect(concurrencyRunner).toContain('dropdb -U postgres --if-exists "$TMP_DB"')
+    expect(concurrencyRunner).toContain('automatic_cleanup_removal_after_gate_off Lock')
+    expect(concurrencyRunner).toContain('automatic_cleanup_gate_after_removal Lock')
+    expect(concurrencyRunner).not.toMatch(/--linked|db push|db reset/)
   })
 
   it('requires academic and storage readiness before callbacks or claims', () => {

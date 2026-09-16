@@ -29,19 +29,23 @@ end $$;
 insert into public.users(id,email,role,workos_user_id) values
 ('c1760000-0000-4000-8000-000000000001','teacher-176@example.invalid','teacher','user_176_teacher'),
 ('c1760000-0000-4000-8000-000000000002','student-176@example.invalid','student','user_176_student'),
-('c1760000-0000-4000-8000-000000000003','legacy-176@example.invalid','student','user_176_legacy');
+('c1760000-0000-4000-8000-000000000003','legacy-176@example.invalid','student','user_176_legacy'),
+('c1760000-0000-4000-8000-000000000004','partial-176@example.invalid','student','user_176_partial');
 insert into public.student_profiles(user_id,first_name,last_name)
 values
 ('c1760000-0000-4000-8000-000000000002','Synthetic','Queue'),
-('c1760000-0000-4000-8000-000000000003','Historical','Skipped');
+('c1760000-0000-4000-8000-000000000003','Historical','Skipped'),
+('c1760000-0000-4000-8000-000000000004','Partial','Skipped');
 insert into public.classrooms(id,teacher_id,title,class_code)
 values('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000001','Automatic cleanup fixture','C176Q');
 insert into public.classroom_roster(id,classroom_id,email)
 values
 ('c1760000-0000-4000-8000-000000000020','c1760000-0000-4000-8000-000000000010','student-176@example.invalid'),
-('c1760000-0000-4000-8000-000000000021','c1760000-0000-4000-8000-000000000010','legacy-176@example.invalid');
-insert into public.classroom_enrollments(id,classroom_id,student_id)
-values('c1760000-0000-4000-8000-000000000031','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000003');
+('c1760000-0000-4000-8000-000000000021','c1760000-0000-4000-8000-000000000010','legacy-176@example.invalid'),
+('c1760000-0000-4000-8000-000000000022','c1760000-0000-4000-8000-000000000010','partial-176@example.invalid');
+insert into public.classroom_enrollments(id,classroom_id,student_id,created_at)
+values('c1760000-0000-4000-8000-000000000031','c1760000-0000-4000-8000-000000000010',
+  'c1760000-0000-4000-8000-000000000003',clock_timestamp()-interval '1 day');
 
 update private.student_provider_cleanup_settings set
   enabled=true,live_enabled=true,automatic_enabled=true,
@@ -50,21 +54,36 @@ update private.student_provider_cleanup_settings set
   bara_origin='https://bara.example.invalid',installation_ref='pika_synthetic_176'
 where singleton;
 insert into public.classroom_enrollments(id,classroom_id,student_id)
-values('c1760000-0000-4000-8000-000000000030','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002');
+values
+('c1760000-0000-4000-8000-000000000030','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002'),
+('c1760000-0000-4000-8000-000000000032','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000004');
 insert into public.attendance_roster_mappings(classroom_id)
 values('c1760000-0000-4000-8000-000000000010');
 insert into public.attendance_principal_mappings(user_id)
 values('c1760000-0000-4000-8000-000000000001');
 insert into public.attendance_participant_mappings(classroom_id,student_id)
-values('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002');
+values
+('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002'),
+('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000003');
+
+do $$ begin
+  if exists(select 1 from private.attendance_membership_generations
+      where generation_id in ('c1760000-0000-4000-8000-000000000031',
+        'c1760000-0000-4000-8000-000000000032'))
+    or not exists(select 1 from private.attendance_membership_generations
+      where generation_id='c1760000-0000-4000-8000-000000000030') then
+    raise exception 'Generation eligibility capture boundary is incorrect';
+  end if;
+end $$;
 
 select public.remove_classroom_students_preserving_data(
   'c1760000-0000-4000-8000-000000000001',
   'c1760000-0000-4000-8000-000000000010',
-  array['c1760000-0000-4000-8000-000000000021'::uuid]);
+  array['c1760000-0000-4000-8000-000000000021'::uuid,
+    'c1760000-0000-4000-8000-000000000022'::uuid]);
 do $$ begin
   if exists(select 1 from private.removed_student_cleanup_jobs) then
-    raise exception 'Ineligible historical removal entered the automatic queue';
+    raise exception 'Ineligible historical or partial removal entered the automatic queue';
   end if;
 end $$;
 
