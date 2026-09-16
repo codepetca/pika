@@ -269,6 +269,8 @@ student and generation identifiers at verified completion.
 
 Migration177 hardens activation before any provider request: academic cleanup
 must be enabled and managed storage must be enforced in the same database claim.
+Those prerequisites are rechecked under shared locks at every live provider
+authorization boundary, so pausing either after a claim prevents transport.
 Terminal policy/binding failures and jobs that exhaust the bounded attempt limit
 enter a private quarantine, emit an unhealthy worker result for operators and no
 longer consume claims ahead of later valid removals.
