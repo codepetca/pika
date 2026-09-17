@@ -97,9 +97,12 @@ and `.live_enabled`, exact tenant configuration/eligibility,
 `managed_storage_settings.mode='enforced'`. The existing generation/signal
 capture gates must already have established eligible exact Pal/Bara membership
 mappings. Pal's exact authenticated integration allowlist and Bara's participant
-erasure activation require separate provider authority. None is enabled here. Ordinary roster removal and the legacy purge endpoints retain
-their current behavior while these gates are off. Migration176 and the automatic
-worker are a later default-off layer; they do not alter historical removals.
+erasure activation require separate provider authority. At the superseded Phase3
+source checkpoint, none was enabled and migration176 plus the automatic worker
+were still a later default-off layer. Phase4 has since deployed that worker and
+queue; their current state is documented below. They do not alter historical
+removals. Ordinary roster removal and the legacy purge endpoints retain their
+current behavior while the applicable gates are off.
 
 The Phase3 explicit contract used an authenticated teacher session and the exact target URL:
 `/api/teacher/classrooms/{classroomId}/students/{studentId}/purge/live`.
@@ -186,8 +189,11 @@ invalidates target-derived summary/feedback caches while preserving their source
 entries. It preserves only canonical aggregate attendance receipts, which contain
 no student identity and therefore do not block exact membership cleanup.
 These cases are reported as blockers; the flow does not claim completion or
-silently delete classmates. No worker, queue, dashboard, broad cron scheduling,
-legacy sitewide Pal retirement, historical backfill or two-day guarantee is added.
+silently delete classmates. The superseded Phase3 explicit flow added no worker,
+queue, dashboard or broad cron schedule. Phase4 subsequently added the deployed
+automatic queue, worker and five-minute conditional watchdog documented below;
+migration179 adds no second scheduler. No legacy sitewide Pal retirement,
+historical backfill or two-day guarantee is added.
 
 ## Verification and rollout approval packet
 
