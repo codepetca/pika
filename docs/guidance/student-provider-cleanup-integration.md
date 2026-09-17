@@ -262,16 +262,23 @@ not an available product command.
 ## Automatic worker — 2026-09-15 source checkpoint
 
 Migration176 creates the future-only queue and independent `automatic_enabled`
-gate. Migration178, which remains unapplied locally and in production, narrows
-enrollment to removals committed while the provider, live and automatic gates
-are active and whose exact generation has immutable Pal and attendance evidence
-plus matching participant, roster and teacher-principal mappings. The trigger
-takes the settings update lock to serialize this decision with operator
-gate/cutoff changes without a later lock upgrade. It never scans or backfills
-retained rows; historical or partially provisioned memberships remain
-removable but are not queued. The private queue assigns the stable operation UUID
-in the removal transaction, uses two-minute leases and redacts teacher,
-classroom, student and generation identifiers at verified completion.
+gate. Migrations176–178 are deployed in production. Migration179 is the pending
+reliability correction: for a removal whose retained enrollment timestamp is
+post-cutoff and whose exact Pal generation and active classroom/student
+participant mapping agree, the trigger reconstructs a missing attendance
+generation before queue admission. The trigger takes the settings update lock
+to serialize this decision with operator gate/cutoff changes without a later
+lock upgrade. It never scans or backfills retained rows, and pre-cutoff or
+nonexact Pal generations remain outside automation.
+
+An eligible post-cutoff removal that still lacks an exact participant, roster,
+teacher-principal or attendance binding is inserted into the private queue as
+`quarantined` with `last_error_code='cleanup_eligibility_missing'` and a
+`quarantined_at` timestamp. This admission quarantine is the operator-visible
+evidence; it is not claimable and does not send an immediate worker callback.
+The private queue assigns the stable operation UUID in the removal transaction,
+uses two-minute leases and redacts teacher, classroom, student and generation
+identifiers at verified completion.
 
 Migration177 hardens activation before any provider request: academic cleanup
 must be enabled and managed storage must be enforced in the same database claim.

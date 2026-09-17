@@ -83,6 +83,9 @@ begin
   insert into public.entries(student_id,classroom_id,date,text,on_time) values
     (student,course_a,'2026-09-11','target',true),(peer,course_a,'2026-09-11','peer',true),
     (student,course_b,'2026-09-11','other class',true);
+  insert into public.attendance_occurrence_mappings(
+    classroom_id,class_date,occurrence_ref)
+    values(course_a,'2026-09-11','occurrence_'||repeat('1',32));
   insert into public.log_summaries(classroom_id,date,model)
     values(course_a,'2026-09-11','fixture');
   insert into public.developer_feedback_candidates(
@@ -91,7 +94,8 @@ begin
   insert into public.attendance_override_requests(
     request_id,classroom_id,request_fingerprint,result)
     values('c1730000-0000-4000-8000-000000000077',course_a,repeat('a',32),
-      '{"outcome":"applied","occurrence_ref":"occurrence_173","applied_count":1,"unchanged_count":0}');
+      jsonb_build_object('outcome','applied','occurrence_ref','occurrence_'||repeat('1',32),
+        'applied_count',1,'unchanged_count',0));
   insert into public.gradebook_score_overrides(classroom_id,student_id,assessment_type,assessment_id,earned,created_by)
     values(course_a,student,'assignment','c1730000-0000-4000-8000-000000000070',80,teacher);
   insert into public.gradebook_items(id,classroom_id,title,points_possible,created_by) values
@@ -343,6 +347,46 @@ insert into public.assignment_repo_targets(assignment_id,student_id) values('c17
     if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then raise exception 'Blocked case allowed deletion'; end if;
     raise exception using errcode='P1731',message='rollback blocked case';
   exception when sqlstate 'P1731' then null; end;
+
+  -- Legacy or malformed request receipts must retain the shared-data blocker.
+  foreach f in array array['extra_key','nested_ref','invalid_count','malformed_fingerprint'] loop
+    begin
+      insert into public.attendance_override_requests(
+        request_id,classroom_id,request_fingerprint,result)
+      values(gen_random_uuid(),course_a,
+        case when f='malformed_fingerprint' then 'not-an-md5' else repeat('b',32) end,
+        case f
+          when 'extra_key' then jsonb_build_object(
+            'outcome','applied','occurrence_ref','occurrence_'||repeat('1',32),
+            'applied_count',1,'unchanged_count',0,'student_id',student)
+          when 'nested_ref' then jsonb_build_object(
+            'outcome','applied','occurrence_ref','occurrence_'||repeat('1',32),
+            'applied_count',1,'unchanged_count',0,
+            'metadata',jsonb_build_object('participant_ref','participant_unknown'))
+          when 'invalid_count' then jsonb_build_object(
+            'outcome','applied','occurrence_ref','occurrence_'||repeat('1',32),
+            'applied_count','one','unchanged_count',0)
+          else jsonb_build_object(
+            'outcome','applied','occurrence_ref','occurrence_'||repeat('1',32),
+            'applied_count',1,'unchanged_count',0)
+        end);
+      perform public.remove_classroom_students_preserving_data(
+        teacher,course_a,array['c1730000-0000-4000-8000-000000000030'::uuid]);
+      perform public.reserve_student_provider_cleanup(op,teacher,course_a,student,gen_a);
+      update private.removed_student_academic_settings set enabled=true where singleton;
+      result:=public.advance_removed_student_academic_cleanup(
+        op,teacher,course_a,student,gen_a,'inventory');
+      if not (result->'blockers' ? 'shared_attendance_request_policy_required') then
+        raise exception 'Malformed attendance receipt was unblocked: %',f;
+      end if;
+      result:=public.advance_removed_student_academic_cleanup(
+        op,teacher,course_a,student,gen_a,'claim');
+      if result->'object'<>'null'::jsonb or result->>'local_status'='local_completed' then
+        raise exception 'Malformed attendance receipt allowed deletion: %',f;
+      end if;
+      raise exception using errcode='P1731',message='rollback malformed attendance receipt';
+    exception when sqlstate 'P1731' then null; end;
+  end loop;
 
   -- Blocked fixture: unknown_file; subtransaction restores the active baseline.
   begin

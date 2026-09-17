@@ -114,7 +114,7 @@ Exit: a reviewed, CI-green, default-disabled explicit path with truthful support
 scope, exact commands/status, fresh rejoin proof and a concrete rollout packet.
 Unsupported live-resource cases cannot be declared erased merely to finish Phase3.
 
-## Phase4 — automatic worker: source implemented; activation pending
+## Phase4 — automatic worker: production active; reliability correction pending
 
 The user approved automatic cleanup for new removals on 2026-09-15. Teachers
 remove students; the system owns purge progress. Historical removals remain out
@@ -123,19 +123,20 @@ a private durable queue, stable operation ids, bounded leases/retries, current
 authority, provider independence and truthful status.
 
 Migrations176–178, the protected worker route and the conditional watchdog are
-implemented. Migration178 is not yet applied locally or in production. It makes
-queue enrollment fail closed unless the exact post-activation generation has
-immutable Pal and attendance evidence plus matching participant, roster and
-teacher-principal mappings. Historical and partially provisioned memberships
-remain removable but never enter the automatic queue. Hosted migration and all
-cleanup gates remain pending; the feature is inert until that rollout completes.
+deployed and broadly active in production. Migration179 is the pending
+reliability correction. It reconstructs missing attendance-generation evidence
+only for an exact post-cutoff Pal generation plus active classroom/student
+participant mapping. Eligible incomplete mappings become durable private
+`quarantined` jobs with `cleanup_eligibility_missing` and `quarantined_at`, so
+operators can identify them; no worker callback is made for that admission
+quarantine. Pre-cutoff or nonexact Pal generations remain outside automation.
 
 The selected Free-plan topology is event-driven: a committed new removal queues
 one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog
 runs every five minutes, checks for due work in SQL, and makes no HTTP/serverless
 invocation while the queue is idle. Batch removals coalesce immediate callbacks.
-The queue, worker and schedule remain independently disabled until reviewed
-schema, application, provider and rollout gates are explicitly activated.
+The queue, worker and schedule retain independent gates so operators can pause
+new work without discarding existing jobs, fences or receipts.
 
 ## Phase5 — scoped rollout and live canary: separately approved
 

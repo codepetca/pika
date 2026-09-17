@@ -1,3 +1,3 @@
-Prod DB 001–168; local rollout: PR1259. Pal#1253, Phase2#1256, prerequisite#1258 merged, disabled. Phase3 underway; see classroom-pal-and-student-cleanup-plan.md. Deletion canary complete; see attendance-decommission.md.
-Attendance timing released; Bara automation healthy; teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority. Sole Class isolation pending. Student purge on; other cleanup off.
+Prod DB 001–178. Auto removed-student cleanup live (5-minute conditional watchdog); migration179 fix in PR1278, unapplied. See classroom-pal-and-student-cleanup-plan.md. Deletion canary: attendance-decommission.md.
+Attendance live; Bara healthy; entitlement smoke 4/4 passed 2026-08-28. CI authority. Sole Class isolation pending. Student purge on; other cleanup off.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.
