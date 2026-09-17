@@ -1,4 +1,4 @@
--- Synthetic rollback-only queue and lease lifecycle. Requires migrations176–177.
+-- Synthetic rollback-only queue and lease lifecycle. Requires migrations176–179.
 -- It never performs provider HTTP calls or durable cleanup.
 \set ON_ERROR_STOP on
 begin;
@@ -13,6 +13,10 @@ do $$ begin
       where table_schema='private' and table_name='removed_student_cleanup_jobs'
         and column_name='quarantined_at') then
     raise exception 'Migration177 is required';
+  end if;
+  if obj_description('private.enqueue_removed_student_cleanup()'::regprocedure)
+      not like '%repairs missing attendance generation evidence%' then
+    raise exception 'Migration179 is required';
   end if;
   if (select enabled or live_enabled or automatic_enabled
       from private.student_provider_cleanup_settings where singleton) then
@@ -30,19 +34,22 @@ insert into public.users(id,email,role,workos_user_id) values
 ('c1760000-0000-4000-8000-000000000001','teacher-176@example.invalid','teacher','user_176_teacher'),
 ('c1760000-0000-4000-8000-000000000002','student-176@example.invalid','student','user_176_student'),
 ('c1760000-0000-4000-8000-000000000003','legacy-176@example.invalid','student','user_176_legacy'),
-('c1760000-0000-4000-8000-000000000004','partial-176@example.invalid','student','user_176_partial');
+('c1760000-0000-4000-8000-000000000004','partial-176@example.invalid','student','user_176_partial'),
+('c1760000-0000-4000-8000-000000000005','repair-176@example.invalid','student','user_176_repair');
 insert into public.student_profiles(user_id,first_name,last_name)
 values
 ('c1760000-0000-4000-8000-000000000002','Synthetic','Queue'),
 ('c1760000-0000-4000-8000-000000000003','Historical','Skipped'),
-('c1760000-0000-4000-8000-000000000004','Partial','Skipped');
+('c1760000-0000-4000-8000-000000000004','Partial','Visible'),
+('c1760000-0000-4000-8000-000000000005','Missing','Generation');
 insert into public.classrooms(id,teacher_id,title,class_code)
 values('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000001','Automatic cleanup fixture','C176Q');
 insert into public.classroom_roster(id,classroom_id,email)
 values
 ('c1760000-0000-4000-8000-000000000020','c1760000-0000-4000-8000-000000000010','student-176@example.invalid'),
 ('c1760000-0000-4000-8000-000000000021','c1760000-0000-4000-8000-000000000010','legacy-176@example.invalid'),
-('c1760000-0000-4000-8000-000000000022','c1760000-0000-4000-8000-000000000010','partial-176@example.invalid');
+('c1760000-0000-4000-8000-000000000022','c1760000-0000-4000-8000-000000000010','partial-176@example.invalid'),
+('c1760000-0000-4000-8000-000000000023','c1760000-0000-4000-8000-000000000010','repair-176@example.invalid');
 insert into public.classroom_enrollments(id,classroom_id,student_id,created_at)
 values('c1760000-0000-4000-8000-000000000031','c1760000-0000-4000-8000-000000000010',
   'c1760000-0000-4000-8000-000000000003',clock_timestamp()-interval '1 day');
@@ -56,7 +63,8 @@ where singleton;
 insert into public.classroom_enrollments(id,classroom_id,student_id)
 values
 ('c1760000-0000-4000-8000-000000000030','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002'),
-('c1760000-0000-4000-8000-000000000032','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000004');
+('c1760000-0000-4000-8000-000000000032','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000004'),
+('c1760000-0000-4000-8000-000000000033','c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000005');
 insert into public.attendance_roster_mappings(classroom_id)
 values('c1760000-0000-4000-8000-000000000010');
 insert into public.attendance_principal_mappings(user_id)
@@ -66,10 +74,18 @@ values
 ('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000002'),
 ('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000003');
 
+-- Simulate a participant mapping provisioned while cleanup capture was off.
+-- Migration179 must reconstruct this exact evidence during removal.
+update private.student_provider_cleanup_settings set enabled=false where singleton;
+insert into public.attendance_participant_mappings(classroom_id,student_id)
+values('c1760000-0000-4000-8000-000000000010','c1760000-0000-4000-8000-000000000005');
+update private.student_provider_cleanup_settings set enabled=true where singleton;
+
 do $$ begin
   if exists(select 1 from private.attendance_membership_generations
       where generation_id in ('c1760000-0000-4000-8000-000000000031',
-        'c1760000-0000-4000-8000-000000000032'))
+        'c1760000-0000-4000-8000-000000000032',
+        'c1760000-0000-4000-8000-000000000033'))
     or not exists(select 1 from private.attendance_membership_generations
       where generation_id='c1760000-0000-4000-8000-000000000030') then
     raise exception 'Generation eligibility capture boundary is incorrect';
@@ -82,26 +98,39 @@ select public.remove_classroom_students_preserving_data(
   array['c1760000-0000-4000-8000-000000000021'::uuid,
     'c1760000-0000-4000-8000-000000000022'::uuid]);
 do $$ begin
-  if exists(select 1 from private.removed_student_cleanup_jobs) then
-    raise exception 'Ineligible historical or partial removal entered the automatic queue';
+  if (select count(*) from private.removed_student_cleanup_jobs)<>1
+    or not exists(select 1 from private.removed_student_cleanup_jobs
+      where generation_id='c1760000-0000-4000-8000-000000000032'
+        and status='quarantined' and last_error_code='cleanup_eligibility_missing'
+        and quarantined_at is not null) then
+    raise exception 'Eligible incomplete removal was not durably quarantined: %',
+      (select coalesce(jsonb_agg(to_jsonb(job)),'[]'::jsonb)
+        from private.removed_student_cleanup_jobs job);
   end if;
 end $$;
 
 select public.remove_classroom_students_preserving_data(
   'c1760000-0000-4000-8000-000000000001',
   'c1760000-0000-4000-8000-000000000010',
-  array['c1760000-0000-4000-8000-000000000020'::uuid]);
+  array['c1760000-0000-4000-8000-000000000023'::uuid]);
 
 do $$ begin
-  if (select count(*) from private.removed_student_cleanup_jobs)<>1 then
+  if (select count(*) from private.removed_student_cleanup_jobs where status='queued')<>1 then
     raise exception 'Removal did not enqueue exactly one job';
+  end if;
+  if not exists(select 1 from private.attendance_membership_generations
+      where generation_id='c1760000-0000-4000-8000-000000000033'
+        and scope_digest=private.pal_membership_scope(
+          'c1760000-0000-4000-8000-000000000010',
+          'c1760000-0000-4000-8000-000000000005')) then
+    raise exception 'Removal did not repair exact attendance generation evidence';
   end if;
   if not exists(
     select 1 from private.removed_student_cleanup_jobs
     where teacher_id='c1760000-0000-4000-8000-000000000001'
       and classroom_id='c1760000-0000-4000-8000-000000000010'
-      and student_id='c1760000-0000-4000-8000-000000000002'
-      and generation_id='c1760000-0000-4000-8000-000000000030'
+      and student_id='c1760000-0000-4000-8000-000000000005'
+      and generation_id='c1760000-0000-4000-8000-000000000033'
       and status='queued' and attempt_count=0) then
     raise exception 'Queued job identity is incorrect';
   end if;
@@ -160,7 +189,7 @@ begin
   end if;
   if not exists(select 1 from private.removed_student_cleanup_jobs
       where id=job_id and status='quarantined' and quarantined_at is not null
-        and student_id='c1760000-0000-4000-8000-000000000002') then
+        and student_id='c1760000-0000-4000-8000-000000000005') then
     raise exception 'Quarantined job lost evidence or remained claimable';
   end if;
   if public.claim_removed_student_cleanup_job('c1760000-0000-4000-8000-000000000053') is not null then

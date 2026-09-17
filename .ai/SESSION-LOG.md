@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Pal final review and CI fixture correction
-
-User approved final Sol/high review extension and disposable CI replay/reset checks. Final review cleared 6d150f91; PR #1253 became ready and run 34705814298 exposed closed-generation reuse in the existing removal grade-race fixture. Returned PR to draft, reproduced the failure locally, and changed each fixture enrollment to a fresh default UUID; added exact isolated-project support while retaining target name/label checks. Product source and migration168 unchanged. Targeted correction review and new candidate CI pending.
-
 ## 2026-09-12 — Pal review extension and migration dependency
 
 Terra cleared the fixture correction at15a6566e; five reviews and two fix batches completed. Full CI also found the contiguous-number requirement: 6718 tests passed, while migration filenames fail because166/167 remain in draft PR#1252. User approved a further review extension; reserve one Sol/high integration pass capped at20minutes after the prerequisite lands. Read-only integration against prerequisite1da0bc20 found only a JOURNAL-ARCHIVE conflict; source, workflow and generated types merge cleanly. Its owner is still remediating/reviewing that branch, so no duplicate writer, migration, merge or heavy CI was started. PR#1253 stays draft pending that dependency, combined-schema verification and stable-head CI.
@@ -244,3 +240,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Reused LessonDayCell's expanded due-label wording in compact cells: `Due: <assignment title>`; added compact coverage to the existing chip test.
 - Reference: existing expanded calendar chip and Pattern Lab calendar owner. Risk: none. Both roles, desktop/mobile, light/dark default chips captured using a temporary fixture of the production LessonCalendar (output/playwright); narrow cells retain ellipsis. No new design pattern or composite interaction.
 - First focused run hit two unrelated 5-second test timeouts while the preview compiled; rerunning without the preview server.
+
+## 2026-09-17 — Removed-student cleanup reliability follow-up
+
+- Owner `codex/student-purge-reliability`, based on `origin/main@f8d0e514`. Production investigation found Zoe's post-activation removal was silently skipped because her exact Pal generation and active attendance mapping existed but the immutable attendance-generation row did not.
+- Migration179 repairs that exact evidence at removal time only when the retained enrollment timestamp is post-cutoff, the Pal generation/scope match, and the active classroom/student participant mapping is exact. Eligible incomplete mappings become durable quarantined jobs instead of invisible skips; pre-cutoff memberships remain excluded.
+- Local finalization now invalidates target-tainted daily summary/feedback derivative caches while preserving classmate source rows, ignores aggregate-only attendance override receipts, and permits exact ledger-authorized deletion of immutable submit history. Full migration replay plus queue, local academic cleanup, and failure-concurrency rollback harnesses pass in a disposable database; focused checks pass 10 files/91 tests plus architecture, TypeScript and lint. Migration179 remains source-only pending exact local approval and reviewed PR/canary rollout.
