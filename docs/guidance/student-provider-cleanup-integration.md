@@ -47,9 +47,11 @@ writer is not historical merely because it is called a backup.
   `39660c0e207f087cf96923a975ea0f55e6472943`,234 tests passed. The verified
   `cautious-tortoise-152` backend was an expiring Convex preview (September18),
   not a stable production release. A stable Bara release remains a rollout gate.
-- Reported Pika ledgers: local001–174, production001–168. All earlier exact
-  application approvals are consumed. Applied migrations remain immutable.
-  Migration175 below is forward source, not an application receipt.
+- At the Phase3 source checkpoint, the reported Pika ledgers were local001–174
+  and production001–168. That rollout packet is historical and superseded. The
+  current recorded local and production ledgers are001–178; migration179 is the
+  only pending schema change in this reliability PR. All earlier exact
+  application approvals are consumed, and applied migrations remain immutable.
 
 ## Immutable provider contracts
 
@@ -176,10 +178,13 @@ current mapping. Deleted resource IDs cannot be reinserted and old Pal reference
 cannot create outbox work. Permanent fences survive disabled activation gates.
 
 Genuine unsupported current-data boundaries still fail closed: remote grading
-provenance/current external grading copies, mixed summaries/feedback candidates,
-shared grading-run payloads, shared attendance override-request results, retired
-assessment ownership, unknown/shared object ownership, and legacy invalidations
-without an exact participant or unknown stored provider-response shapes.
+provenance/current external grading copies, shared grading-run payloads, retired
+assessment ownership, unknown/shared object ownership, legacy invalidations
+without an exact participant, unknown stored provider-response shapes, and
+unknown or malformed legacy attendance override-request receipts. Migration179
+invalidates target-derived summary/feedback caches while preserving their source
+entries. It preserves only canonical aggregate attendance receipts, which contain
+no student identity and therefore do not block exact membership cleanup.
 These cases are reported as blockers; the flow does not claim completion or
 silently delete classmates. No worker, queue, dashboard, broad cron scheduling,
 legacy sitewide Pal retirement, historical backfill or two-day guarantee is added.
@@ -198,15 +203,16 @@ PR1260 records the exact reviewed migration hash, fixed review SHA, PR Gate and
 CI result as they become available. Until those checks finish this is an
 implementation candidate, not a ready or applied release.
 
-The rollout approval packet must name each separate action:
+The former Phase3 migration175 packet is consumed and superseded. The current
+rollout approval packet must name each separate action:
 
 - Local schema: existing Pika local target `supabase_db_pika`, database `postgres`,
-  only `175_explicit_live_student_cleanup.sql` after rechecking ledger001–174.
-  This migration defines destructive runtime functions but performs no student
-  data purge and enables no gate. It adds only private metadata and changes
-  existing public RPC bodies; generated public signatures are unchanged.
-- Production schema: reverify the recorded001–168 ledger and prepare exact
-  immutable169–175 filenames/hashes and prerequisites as a separate batch.
+  only `179_harden_removed_student_cleanup_reliability.sql` after rechecking
+  ledger001–178. This migration changes cleanup functions and trigger enforcement
+  but performs no student data purge and enables no gate. Generated public
+  signatures are unchanged.
+- Production schema: separately reverify the recorded001–178 ledger and prepare
+  the exact immutable migration179 filename/hash and prerequisites.
   A local approval never authorizes production or schema-history repair.
 - Application release: reviewed Pika commit and normal deployment approval;
   stable Bara participant runtime; Pal released60e9bef with verified live
