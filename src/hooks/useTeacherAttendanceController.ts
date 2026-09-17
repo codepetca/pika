@@ -8,11 +8,13 @@ import type {
   TeacherAttendanceStatus,
   TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
+import { deriveAutomaticTeacherAttendance } from '@/lib/teacher-attendance'
 import type { Classroom } from '@/types'
 import { useAppMessage } from '@/ui'
 
 export type TeacherAttendanceMark = Exclude<TeacherAttendanceStatus, 'unmarked'>
 export type TeacherAttendanceSessionCommand = 'open' | 'close'
+type TeacherAttendanceStudent = TeacherAttendanceView['students'][number]
 
 const STATUS_LABELS: Record<TeacherAttendanceStatus, string> = {
   unmarked: 'Unmarked',
@@ -64,6 +66,49 @@ function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
+function automaticAttendanceRecord(
+  view: TeacherAttendanceView,
+  student: TeacherAttendanceStudent,
+): Pick<TeacherAttendanceStudent, 'status' | 'source' | 'hasManualOverride'> {
+  return {
+    ...deriveAutomaticTeacherAttendance({
+      checkedInAt: student.checkedInAt,
+      presentThroughAt: view.session.presentThroughAt,
+      opensAt: view.session.opensAt,
+      absentAt: view.session.absentAt,
+      closesAt: view.session.closesAt,
+    }),
+    hasManualOverride: false,
+  }
+}
+
+function projectAttendanceMarks(
+  view: TeacherAttendanceView,
+  studentIds: string[],
+  status: 'automatic' | TeacherAttendanceMark,
+): TeacherAttendanceView {
+  const idSet = new Set(studentIds)
+  return {
+    ...view,
+    students: view.students.map((student) => {
+      if (!idSet.has(student.studentId)) return student
+      return status === 'automatic'
+        ? { ...student, ...automaticAttendanceRecord(view, student) }
+        : { ...student, status, source: 'staff', hasManualOverride: true }
+    }),
+  }
+}
+
+function restoreAttendanceRecords(
+  view: TeacherAttendanceView,
+  previousRecords: Record<string, TeacherAttendanceStudent>,
+): TeacherAttendanceView {
+  return {
+    ...view,
+    students: view.students.map((student) => previousRecords[student.studentId] ?? student),
+  }
+}
+
 type AttendanceConfirmationOutcome = 'confirmed' | 'failed' | 'pending'
 type AttendancePollOutcome = AttendanceConfirmationOutcome | 'cancelled'
 
@@ -85,10 +130,7 @@ type PendingAttendanceConfirmation =
       kind: 'marks'
       studentIds: string[]
       status: 'automatic' | TeacherAttendanceMark
-      previousRecords: Record<string, {
-        status: TeacherAttendanceStatus
-        revision: number | null
-      }>
+      previousRecords: Record<string, TeacherAttendanceStudent>
       clearSelectionAfter: boolean
     })
   | (PendingConfirmationBase & {
@@ -350,6 +392,7 @@ export function useTeacherAttendanceController({
     viewKey: string,
     generation: number,
     getOutcome: (next: TeacherAttendanceView) => AttendanceConfirmationOutcome,
+    projectPending?: (next: TeacherAttendanceView) => TeacherAttendanceView,
   ): Promise<AttendancePollOutcome> => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
       if (attempt > 0) await wait(750)
@@ -365,8 +408,8 @@ export function useTeacherAttendanceController({
           || currentViewKeyRef.current !== viewKey
           || viewGenerationRef.current !== generation
         ) return 'cancelled'
-        setView(next)
         const outcome = getOutcome(next)
+        setView(outcome === 'pending' && projectPending ? projectPending(next) : next)
         if (outcome !== 'pending') return outcome
       } catch {
         // Keep the last confirmed projection visible and retry within this bounded window.
@@ -403,14 +446,22 @@ export function useTeacherAttendanceController({
             || currentViewKeyRef.current !== viewKey
             || viewGenerationRef.current !== generation
           ) return
-          setView(next)
-
-          const resolved = confirmations
-            .map((confirmation) => ({
+          const outcomes = confirmations.map((confirmation) => ({
               confirmation,
               outcome: confirmationOutcome(confirmation, next),
             }))
-            .filter((result) => result.outcome !== 'pending')
+          const projected = outcomes.reduce((current, result) => (
+            result.outcome === 'pending' && result.confirmation.kind === 'marks'
+              ? projectAttendanceMarks(
+                  current,
+                  result.confirmation.studentIds,
+                  result.confirmation.status,
+                )
+              : current
+          ), next)
+          setView(projected)
+
+          const resolved = outcomes.filter((result) => result.outcome !== 'pending')
           if (resolved.length === 0) {
             scheduleRevalidation()
             return
@@ -571,10 +622,7 @@ export function useTeacherAttendanceController({
     const previousRecords = Object.fromEntries(
       view.students
         .filter((student) => idSet.has(student.studentId))
-        .map((student) => [student.studentId, {
-          status: student.status,
-          revision: student.revision,
-        }]),
+        .map((student) => [student.studentId, student]),
     )
     const requestId = createRequestId()
     const confirmation: PendingAttendanceConfirmation = {
@@ -594,6 +642,13 @@ export function useTeacherAttendanceController({
     activeCommandRequestRef.current = requestId
     setActiveCommand(`marks:${status}`)
     addLocalPendingStudents(ids)
+    setView((current) => (
+      current
+      && current.classroomId === classroom.id
+      && current.classDate === selectedDate
+        ? projectAttendanceMarks(current, ids, status)
+        : current
+    ))
     try {
       await fetchJSON('/api/teacher/attendance/marks', {
         init: {
@@ -616,6 +671,7 @@ export function useTeacherAttendanceController({
         commandViewKey,
         commandGeneration,
         (next) => confirmationOutcome(confirmation, next),
+        (next) => projectAttendanceMarks(next, ids, status),
       )
       if (outcome === 'confirmed') {
         clearLocalPendingStudents(ids)
@@ -631,6 +687,13 @@ export function useTeacherAttendanceController({
         && viewGenerationRef.current === commandGeneration
       ) {
         clearLocalPendingStudents(ids)
+        setView((current) => (
+          current
+          && current.classroomId === classroom.id
+          && current.classDate === selectedDate
+            ? restoreAttendanceRecords(current, previousRecords)
+            : current
+        ))
         showMessage({
           text: commandError instanceof Error ? commandError.message : 'Attendance is temporarily unavailable',
           tone: 'warning',
