@@ -178,6 +178,17 @@ function confirmationOutcome(
   return confirmed ? 'confirmed' : 'pending'
 }
 
+function projectUnresolvedMarkConfirmations(
+  view: TeacherAttendanceView,
+  confirmations: PendingAttendanceConfirmation[],
+): TeacherAttendanceView {
+  return confirmations.reduce((current, confirmation) => (
+    confirmation.kind === 'marks' && confirmationOutcome(confirmation, view) === 'pending'
+      ? projectAttendanceMarks(current, confirmation.studentIds, confirmation.status)
+      : current
+  ), view)
+}
+
 interface UseTeacherAttendanceControllerOptions {
   classroom: Classroom
   selectedDate: string
@@ -217,6 +228,7 @@ export function useTeacherAttendanceController({
   const activeCommandRequestRef = useRef<string | null>(null)
   const localPendingStudentIdsRef = useRef<Set<string>>(new Set())
   const localSessionPendingRef = useRef(false)
+  const pendingConfirmationsRef = useRef<PendingAttendanceConfirmation[]>([])
   currentViewKeyRef.current = currentViewKey
   if (currentScopeKeyRef.current !== currentScopeKey) {
     currentScopeKeyRef.current = currentScopeKey
@@ -238,7 +250,7 @@ export function useTeacherAttendanceController({
     try {
       const next = await readView()
       if (!mountedRef.current || sequence !== requestSequenceRef.current) return null
-      setView(next)
+      setView(projectUnresolvedMarkConfirmations(next, pendingConfirmationsRef.current))
       return next
     } catch (loadError) {
       if (!mountedRef.current || sequence !== requestSequenceRef.current) return null
@@ -271,6 +283,7 @@ export function useTeacherAttendanceController({
     setLocalPendingStudentIds(new Set())
     localSessionPendingRef.current = false
     setLocalSessionPending(false)
+    pendingConfirmationsRef.current = []
     setPendingConfirmations([])
     setQrOpen(false)
     setQrLoading(false)
@@ -409,7 +422,13 @@ export function useTeacherAttendanceController({
           || viewGenerationRef.current !== generation
         ) return 'cancelled'
         const outcome = getOutcome(next)
-        setView(outcome === 'pending' && projectPending ? projectPending(next) : next)
+        const currentProjection = outcome === 'pending' && projectPending
+          ? projectPending(next)
+          : next
+        setView(projectUnresolvedMarkConfirmations(
+          currentProjection,
+          pendingConfirmationsRef.current,
+        ))
         if (outcome !== 'pending') return outcome
       } catch {
         // Keep the last confirmed projection visible and retry within this bounded window.
@@ -450,15 +469,7 @@ export function useTeacherAttendanceController({
               confirmation,
               outcome: confirmationOutcome(confirmation, next),
             }))
-          const projected = outcomes.reduce((current, result) => (
-            result.outcome === 'pending' && result.confirmation.kind === 'marks'
-              ? projectAttendanceMarks(
-                  current,
-                  result.confirmation.studentIds,
-                  result.confirmation.status,
-                )
-              : current
-          ), next)
+          const projected = projectUnresolvedMarkConfirmations(next, confirmations)
           setView(projected)
 
           const resolved = outcomes.filter((result) => result.outcome !== 'pending')
@@ -468,9 +479,11 @@ export function useTeacherAttendanceController({
           }
 
           const resolvedIds = new Set(resolved.map(({ confirmation }) => confirmation.id))
-          setPendingConfirmations((current) =>
-            current.filter((confirmation) => !resolvedIds.has(confirmation.id))
-          )
+          setPendingConfirmations((current) => {
+            const remaining = current.filter((confirmation) => !resolvedIds.has(confirmation.id))
+            pendingConfirmationsRef.current = remaining
+            return remaining
+          })
           const studentIds = resolved.flatMap(({ confirmation }) =>
             confirmation.kind === 'session' ? [] : confirmation.studentIds
           )
@@ -566,7 +579,11 @@ export function useTeacherAttendanceController({
         setLocalSessionPendingState(false)
         showMessage({ text: confirmation.failureText, tone: 'warning' })
       } else if (outcome === 'pending') {
-        setPendingConfirmations((current) => [...current, confirmation])
+        setPendingConfirmations((current) => {
+          const next = [...current, confirmation]
+          pendingConfirmationsRef.current = next
+          return next
+        })
         showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
       }
     } catch (commandError) {
@@ -678,7 +695,11 @@ export function useTeacherAttendanceController({
         if (options?.clearSelectionAfter) clearSelection()
         showMessage({ text: confirmation.successText, tone: 'info' })
       } else if (outcome === 'pending') {
-        setPendingConfirmations((current) => [...current, confirmation])
+        setPendingConfirmations((current) => {
+          const next = [...current, confirmation]
+          pendingConfirmationsRef.current = next
+          return next
+        })
         showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
       }
     } catch (commandError) {
@@ -788,7 +809,11 @@ export function useTeacherAttendanceController({
         clearLocalPendingStudents(ids)
         showMessage({ text: confirmation.failureText, tone: 'warning' })
       } else if (outcome === 'pending') {
-        setPendingConfirmations((current) => [...current, confirmation])
+        setPendingConfirmations((current) => {
+          const next = [...current, confirmation]
+          pendingConfirmationsRef.current = next
+          return next
+        })
         showMessage({ text: 'Removal sent; waiting for confirmation', tone: 'info' })
       }
     } catch (commandError) {

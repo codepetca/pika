@@ -293,6 +293,79 @@ describe('useTeacherAttendanceController', () => {
     ))).toHaveLength(1)
   })
 
+  it('preserves an earlier optimistic mark while a different student is confirmed', async () => {
+    let submittedMarks = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        next.students.push({
+          ...next.students[0],
+          studentId: secondStudentId,
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          ...(submittedMarks >= 2 ? {
+            status: 'absent' as const,
+            source: 'staff' as const,
+            revision: 2,
+            hasManualOverride: true,
+          } : {}),
+        })
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        submittedMarks += 1
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ outcome: 'applied', appliedCount: 1 }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    vi.useFakeTimers()
+
+    let firstCommand!: Promise<void>
+    await act(async () => {
+      firstCommand = result.current.submitMarks([studentId], 'late')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+      await firstCommand
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+
+    await act(async () => {
+      await result.current.submitMarks([secondStudentId], 'absent')
+    })
+
+    expect(result.current.studentsById.get(secondStudentId)).toMatchObject({
+      status: 'absent',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+    expect(result.current.pendingStudentIds.has(studentId)).toBe(true)
+  })
+
   it.each([
     ['mark', (controller: ReturnType<typeof useTeacherAttendanceController>) =>
       controller.submitMarks([studentId], 'late')],
