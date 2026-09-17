@@ -406,6 +406,7 @@ export function useTeacherAttendanceController({
     generation: number,
     getOutcome: (next: TeacherAttendanceView) => AttendanceConfirmationOutcome,
     projectPending?: (next: TeacherAttendanceView) => TeacherAttendanceView,
+    activeConfirmation?: PendingAttendanceConfirmation,
   ): Promise<AttendancePollOutcome> => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
       if (attempt > 0) await wait(750)
@@ -422,6 +423,11 @@ export function useTeacherAttendanceController({
           || viewGenerationRef.current !== generation
         ) return 'cancelled'
         const outcome = getOutcome(next)
+        if (outcome !== 'pending' && activeConfirmation) {
+          pendingConfirmationsRef.current = pendingConfirmationsRef.current.filter(
+            (confirmation) => confirmation.id !== activeConfirmation.id,
+          )
+        }
         const currentProjection = outcome === 'pending' && projectPending
           ? projectPending(next)
           : next
@@ -469,19 +475,22 @@ export function useTeacherAttendanceController({
               confirmation,
               outcome: confirmationOutcome(confirmation, next),
             }))
-          const projected = projectUnresolvedMarkConfirmations(next, confirmations)
-          setView(projected)
-
           const resolved = outcomes.filter((result) => result.outcome !== 'pending')
+          const resolvedIds = new Set(resolved.map(({ confirmation }) => confirmation.id))
+          if (resolvedIds.size > 0) {
+            pendingConfirmationsRef.current = pendingConfirmationsRef.current.filter(
+              (confirmation) => !resolvedIds.has(confirmation.id),
+            )
+          }
+          setView(projectUnresolvedMarkConfirmations(next, pendingConfirmationsRef.current))
+
           if (resolved.length === 0) {
             scheduleRevalidation()
             return
           }
 
-          const resolvedIds = new Set(resolved.map(({ confirmation }) => confirmation.id))
           setPendingConfirmations((current) => {
             const remaining = current.filter((confirmation) => !resolvedIds.has(confirmation.id))
-            pendingConfirmationsRef.current = remaining
             return remaining
           })
           const studentIds = resolved.flatMap(({ confirmation }) =>
@@ -659,6 +668,10 @@ export function useTeacherAttendanceController({
     activeCommandRequestRef.current = requestId
     setActiveCommand(`marks:${status}`)
     addLocalPendingStudents(ids)
+    pendingConfirmationsRef.current = [
+      ...pendingConfirmationsRef.current.filter((current) => current.id !== confirmation.id),
+      confirmation,
+    ]
     setView((current) => (
       current
       && current.classroomId === classroom.id
@@ -689,6 +702,7 @@ export function useTeacherAttendanceController({
         commandGeneration,
         (next) => confirmationOutcome(confirmation, next),
         (next) => projectAttendanceMarks(next, ids, status),
+        confirmation,
       )
       if (outcome === 'confirmed') {
         clearLocalPendingStudents(ids)
@@ -703,6 +717,9 @@ export function useTeacherAttendanceController({
         showMessage({ text: 'Update sent; waiting for attendance confirmation', tone: 'info' })
       }
     } catch (commandError) {
+      pendingConfirmationsRef.current = pendingConfirmationsRef.current.filter(
+        (current) => current.id !== confirmation.id,
+      )
       if (
         currentViewKeyRef.current === commandViewKey
         && viewGenerationRef.current === commandGeneration
