@@ -49,9 +49,10 @@ writer is not historical merely because it is called a backup.
   not a stable production release. A stable Bara release remains a rollout gate.
 - At the Phase3 source checkpoint, the reported Pika ledgers were local001–174
   and production001–168. That rollout packet is historical and superseded. The
-  current recorded local and production ledgers are001–178; migration179 is the
-  only pending schema change in this reliability PR. All earlier exact
-  application approvals are consumed, and applied migrations remain immutable.
+  current recorded local ledger is001–179 and production is001–178. Migration179
+  is applied locally and is the only pending production schema change in this
+  reliability PR. All earlier exact application approvals are consumed, and
+  applied migrations remain immutable.
 
 ## Immutable provider contracts
 
@@ -212,11 +213,10 @@ implementation candidate, not a ready or applied release.
 The former Phase3 migration175 packet is consumed and superseded. The current
 rollout approval packet must name each separate action:
 
-- Local schema: existing Pika local target `supabase_db_pika`, database `postgres`,
-  only `179_harden_removed_student_cleanup_reliability.sql` after rechecking
-  ledger001–178. This migration changes cleanup functions and trigger enforcement
-  but performs no student data purge and enables no gate. Generated public
-  signatures are unchanged.
+- Local schema: applied migrations178 and179 in one authorized push after a dry
+  run showed both as the only pending local files. The local ledger is001–179;
+  both migrations performed no student data purge and enabled no gate. Generated
+  public signatures are unchanged.
 - Production schema: separately reverify the recorded001–178 ledger and prepare
   the exact immutable migration179 filename/hash and prerequisites.
   A local approval never authorizes production or schema-history repair.
@@ -274,9 +274,9 @@ not an available product command.
 ## Automatic worker — 2026-09-15 source checkpoint
 
 Migration176 creates the future-only queue and independent `automatic_enabled`
-gate. Migrations176–178 are deployed in production. Migration179 is the pending
-reliability correction: for a removal whose retained enrollment timestamp is
-post-cutoff and whose exact Pal generation and active classroom/student
+gate. Migrations176–178 are deployed in production. Migration179 is applied
+locally and pending production: for a removal whose retained enrollment timestamp
+is post-cutoff and whose exact Pal generation and active classroom/student
 participant mapping agree, the trigger reconstructs a missing attendance
 generation before queue admission. The trigger takes the settings update lock
 to serialize this decision with operator gate/cutoff changes without a later

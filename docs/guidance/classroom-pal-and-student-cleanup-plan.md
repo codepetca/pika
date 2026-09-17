@@ -42,9 +42,10 @@ active/removed generations and rejects old-generation reopening, including
 archive restore through normal application paths. Ordinary roster removal keeps
 academic data and closes membership. Account/classroom policy remains separate.
 At Phase1 delivery, production was recorded through168. That checkpoint is
-historical: the current recorded local and production ledgers are001–178, and
-migration179 is the only pending schema change in this reliability PR. Exact
-target state must still be verified before any application.
+historical: the current recorded local ledger is001–179 and production is001–178.
+Migration179 is applied locally and remains the only pending production schema
+change in this reliability PR. Exact target state must still be verified before
+any application.
 
 ## Phase2 — classroom signals and client context: delivered, disabled
 
@@ -108,11 +109,12 @@ Current coherent deliverable:
 Source implementation does not authorize migration application, provider HTTP,
 allowlist/gate changes, a live deletion, production release or merge. At the
 Phase3 source checkpoint, local was recorded through174 and production through168;
-that rollout packet is now superseded. The current recorded local and production
-ledgers are001–178, and migration179 is the only pending migration in this PR.
-All previous migration approvals are consumed. Local/shared/hosted replay, reset,
-repair, seeding and physical deletion need their applicable fresh authority.
-Disposable normal CI fixtures remain authorized and must be labeled accurately.
+that rollout packet is now superseded. The current recorded local ledger is001–179
+and production is001–178. Migration179 is applied locally and is the only pending
+production migration in this PR. All previous migration approvals are consumed.
+Local/shared/hosted replay, reset, repair, seeding and physical deletion need
+their applicable fresh authority. Disposable normal CI fixtures remain authorized
+and must be labeled accurately.
 
 Exit: a reviewed, CI-green, default-disabled explicit path with truthful supported
 scope, exact commands/status, fresh rejoin proof and a concrete rollout packet.
@@ -127,8 +129,8 @@ a private durable queue, stable operation ids, bounded leases/retries, current
 authority, provider independence and truthful status.
 
 Migrations176–178, the protected worker route and the conditional watchdog are
-deployed and broadly active in production. Migration179 is the pending
-reliability correction. It reconstructs missing attendance-generation evidence
+deployed and broadly active in production. Migration179 is applied locally and
+pending production. It reconstructs missing attendance-generation evidence
 only for an exact post-cutoff Pal generation plus active classroom/student
 participant mapping. Eligible incomplete mappings become durable private
 `quarantined` jobs with `cleanup_eligibility_missing` and `quarantined_at`, so
