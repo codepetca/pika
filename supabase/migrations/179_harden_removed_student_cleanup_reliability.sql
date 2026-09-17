@@ -133,53 +133,80 @@ revoke all on function public.student_purge_inventory_resources(uuid,uuid)
 -- reference, and an irreversible request fingerprint. Target-owned override/event
 -- rows are separately inventoried. Any legacy or malformed receipt keeps the
 -- existing shared-data blocker instead of being treated as aggregate-only.
-create function private.attendance_override_request_receipts_known(
-  p_classroom_id uuid)
+create function private.attendance_override_request_receipt_known(
+  p_classroom_id uuid,p_request_fingerprint text,p_result jsonb)
 returns boolean language plpgsql stable set search_path='' as $$
 declare
-  v_request public.attendance_override_requests;
   v_keys text[];
   v_applied numeric;
   v_unchanged numeric;
 begin
-  for v_request in
-    select * from public.attendance_override_requests
-    where classroom_id=p_classroom_id
-  loop
-    if v_request.request_fingerprint !~ '^[a-f0-9]{32}$'
-      or jsonb_typeof(v_request.result) is distinct from 'object' then
-      return false;
-    end if;
-    select array_agg(key order by key) into v_keys
-    from jsonb_object_keys(v_request.result) key;
-    if v_keys is distinct from array[
-        'applied_count','occurrence_ref','outcome','unchanged_count']
-      or jsonb_typeof(v_request.result->'outcome') is distinct from 'string'
-      or v_request.result->>'outcome' is distinct from 'applied'
-      or jsonb_typeof(v_request.result->'occurrence_ref') is distinct from 'string'
-      or jsonb_typeof(v_request.result->'applied_count') is distinct from 'number'
-      or v_request.result->>'applied_count' !~ '^[0-9]+$'
-      or length(v_request.result->>'applied_count')>3
-      or jsonb_typeof(v_request.result->'unchanged_count') is distinct from 'number'
-      or v_request.result->>'unchanged_count' !~ '^[0-9]+$'
-      or length(v_request.result->>'unchanged_count')>3 then
-      return false;
-    end if;
-    v_applied:=(v_request.result->>'applied_count')::numeric;
-    v_unchanged:=(v_request.result->>'unchanged_count')::numeric;
-    if v_applied>200 or v_unchanged>200 or v_applied+v_unchanged not between 1 and 200
-      or not exists(
-        select 1 from public.attendance_occurrence_mappings occurrence
-        where occurrence.classroom_id=v_request.classroom_id
-          and occurrence.occurrence_ref=v_request.result->>'occurrence_ref') then
-      return false;
-    end if;
-  end loop;
+  if p_request_fingerprint !~ '^[a-f0-9]{32}$'
+    or jsonb_typeof(p_result) is distinct from 'object' then
+    return false;
+  end if;
+  select array_agg(key order by key) into v_keys
+  from jsonb_object_keys(p_result) key;
+  if v_keys is distinct from array[
+      'applied_count','occurrence_ref','outcome','unchanged_count']
+    or jsonb_typeof(p_result->'outcome') is distinct from 'string'
+    or p_result->>'outcome' is distinct from 'applied'
+    or jsonb_typeof(p_result->'occurrence_ref') is distinct from 'string'
+    or jsonb_typeof(p_result->'applied_count') is distinct from 'number'
+    or p_result->>'applied_count' !~ '^[0-9]+$'
+    or length(p_result->>'applied_count')>3
+    or jsonb_typeof(p_result->'unchanged_count') is distinct from 'number'
+    or p_result->>'unchanged_count' !~ '^[0-9]+$'
+    or length(p_result->>'unchanged_count')>3 then
+    return false;
+  end if;
+  v_applied:=(p_result->>'applied_count')::numeric;
+  v_unchanged:=(p_result->>'unchanged_count')::numeric;
+  if v_applied>200 or v_unchanged>200 or v_applied+v_unchanged not between 1 and 200
+    or not exists(
+      select 1 from public.attendance_occurrence_mappings occurrence
+      where occurrence.classroom_id=p_classroom_id
+        and occurrence.occurrence_ref=p_result->>'occurrence_ref') then
+    return false;
+  end if;
   return true;
 end;
 $$;
+revoke all on function private.attendance_override_request_receipt_known(uuid,text,jsonb)
+  from public,anon,authenticated,service_role;
+
+create function private.attendance_override_request_receipts_known(
+  p_classroom_id uuid)
+returns boolean language sql stable set search_path='' as $$
+  select not exists(
+    select 1 from public.attendance_override_requests request
+    where request.classroom_id=p_classroom_id
+      and not private.attendance_override_request_receipt_known(
+        request.classroom_id,request.request_fingerprint,request.result));
+$$;
 revoke all on function private.attendance_override_request_receipts_known(uuid)
   from public,anon,authenticated,service_role;
+
+-- The application writes only canonical aggregate receipts. Serialize their
+-- creation with student cleanup, and reject every noncanonical payload at the
+-- write boundary, so finalization cannot race a late unsafe receipt insert.
+create function private.guard_attendance_override_request_cleanup()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  perform private.try_lock_classroom_membership_change(new.classroom_id);
+  if not private.attendance_override_request_receipt_known(
+      new.classroom_id,new.request_fingerprint,new.result) then
+    raise exception using errcode='22023',
+      message='attendance_override_request_receipt_invalid';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.guard_attendance_override_request_cleanup()
+  from public,anon,authenticated,service_role;
+create trigger guard_attendance_override_request_cleanup
+  before insert on public.attendance_override_requests
+  for each row execute function private.guard_attendance_override_request_cleanup();
 
 alter function private.removed_academic_blockers(uuid)
   rename to removed_academic_blockers_pre_v179;

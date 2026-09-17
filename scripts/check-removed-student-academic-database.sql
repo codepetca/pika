@@ -349,6 +349,7 @@ insert into public.assignment_repo_targets(assignment_id,student_id) values('c17
   exception when sqlstate 'P1731' then null; end;
 
   -- Legacy or malformed request receipts must retain the shared-data blocker.
+  execute 'alter table public.attendance_override_requests disable trigger guard_attendance_override_request_cleanup';
   foreach f in array array['extra_key','nested_ref','invalid_count','malformed_fingerprint'] loop
     begin
       insert into public.attendance_override_requests(
@@ -387,6 +388,7 @@ insert into public.assignment_repo_targets(assignment_id,student_id) values('c17
       raise exception using errcode='P1731',message='rollback malformed attendance receipt';
     exception when sqlstate 'P1731' then null; end;
   end loop;
+  execute 'alter table public.attendance_override_requests enable trigger guard_attendance_override_request_cleanup';
 
   -- Blocked fixture: unknown_file; subtransaction restores the active baseline.
   begin
