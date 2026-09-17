@@ -196,7 +196,7 @@ describe('LessonDayCell', () => {
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
   })
 
-  it('uses the accessible solid fill for assignment due dates', () => {
+  it.each([false, true])('labels assignment due dates with accessible solid fill (compact=%s)', (compact) => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -206,7 +206,7 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
+        compact={compact}
       />
     )
 

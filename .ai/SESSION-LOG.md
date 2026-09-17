@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Pal identity schema and lifecycle verified locally
-
-User authorized clean migration 168 on isolated `pika-pal-phase1`; exact pending set/checksum revalidated and one local push succeeded. Gate remains false. Membership lifecycle/lock contracts, archive/compaction, two removal/archive orders, Gradebook round trip, canonical full archive recovery, schema audit and warning-level DB lint passed. Generated public types through the verified isolated schema, passed type-drift check and removed the temporary RPC adapter. Obsolete pre-Quiz-removal restore fixture is superseded by current contracts. No shared/hosted DB changes. Draft PR preparation underway; final review needs elapsed-budget extension and CI replay needs separate authority.
-
 ## 2026-09-12 — Pal final review and CI fixture correction
 
 User approved final Sol/high review extension and disposable CI replay/reset checks. Final review cleared 6d150f91; PR #1253 became ready and run 34705814298 exposed closed-generation reuse in the existing removal grade-race fixture. Returned PR to draft, reproduced the failure locally, and changed each fixture enrollment to a fresh default UUID; added exact isolated-project support while retaining target name/label checks. Product source and migration168 unchanged. Targeted correction review and new candidate CI pending.
@@ -243,3 +239,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Broad production activation was paused before enabling gates: production has 173 active memberships, 61 attendance mappings, and zero immutable provider-generation captures because provider cleanup remains disabled. Migration176 would have queued those legacy removals and quarantined them during reservation.
 - Branch `codex/automatic-cleanup-eligibility-guard` adds forward-only migration178. Its trigger queues only an exact post-activation generation with immutable Pal/attendance evidence plus matching participant, roster, and teacher-principal mappings; historical or partial memberships remain removable but are skipped by automation.
 - Initial high-risk review found queue enrollment was not serialized with a concurrent operator gate change. Batch1 takes the settings update lock before eligibility and insertion, adds a disposable two-session proof for both lock winners, distinguishes true pre-cutoff history from partial provider evidence, and updates rollout guidance. The concurrency proof and focused checks pass (99 tests plus architecture, UI/design policy, TypeScript and lint). Migration178 remains unapplied locally and in production pending exact target-specific authorization and CI replay; every production cleanup gate remains off.
+
+## 2026-09-17 — Calendar due-chip prefix
+- Reused LessonDayCell's expanded due-label wording in compact cells: `Due: <assignment title>`; added compact coverage to the existing chip test.
+- Reference: existing expanded calendar chip and Pattern Lab calendar owner. Risk: none. Both roles, desktop/mobile, light/dark default chips captured using a temporary fixture of the production LessonCalendar (output/playwright); narrow cells retain ellipsis. No new design pattern or composite interaction.
+- First focused run hit two unrelated 5-second test timeouts while the preview compiled; rerunning without the preview server.
