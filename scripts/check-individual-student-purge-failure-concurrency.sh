@@ -30,6 +30,7 @@ DB_CREATED=false
 WORK_DIR="$(mktemp -d)"
 CLAIMER_PID=""
 FAILURE_PID=""
+ATTENDANCE_LOCK_PID=""
 cleanup() {
   if [[ -n "$CLAIMER_PID" ]]; then
     kill "$CLAIMER_PID" >/dev/null 2>&1 || true
@@ -38,6 +39,10 @@ cleanup() {
   if [[ -n "$FAILURE_PID" ]]; then
     kill "$FAILURE_PID" >/dev/null 2>&1 || true
     wait "$FAILURE_PID" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$ATTENDANCE_LOCK_PID" ]]; then
+    kill "$ATTENDANCE_LOCK_PID" >/dev/null 2>&1 || true
+    wait "$ATTENDANCE_LOCK_PID" >/dev/null 2>&1 || true
   fi
   if [[ "$DB_CREATED" == "true" ]]; then
     if [[ "${KEEP_STUDENT_PURGE_CONCURRENCY_DATABASE:-false}" == "true" ]]; then
@@ -49,6 +54,27 @@ cleanup() {
   rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT
+
+wait_for_attendance_cleanup_lock() {
+  local observed=""
+  for _ in {1..100}; do
+    observed="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc "
+      select exists (
+        select 1 from pg_stat_activity
+        where datname = '$TMP_DB'
+          and application_name = 'student_purge_attendance_finalizer'
+          and state = 'active'
+          and wait_event = 'PgSleep'
+      );
+    ")"
+    if [[ "$observed" == "t" ]]; then
+      return
+    fi
+    sleep 0.05
+  done
+  echo "Attendance cleanup fixture did not acquire the classroom lock." >&2
+  return 1
+}
 
 wait_for_claimer_lock() {
   local observed=""
@@ -163,6 +189,13 @@ insert into public.classrooms (id, teacher_id, title, class_code) values (
   'd1350000-0000-4000-8000-000000000001',
   'Student purge failure concurrency',
   'SP135C'
+);
+
+insert into public.attendance_occurrence_mappings (
+  classroom_id, class_date, occurrence_ref
+) values (
+  'd1350000-0000-4000-8000-000000000010', '2026-09-17',
+  'occurrence_13500000000000000000000000000000'
 );
 
 insert into public.student_purge_operations (
@@ -280,5 +313,83 @@ begin
 end;
 $verify$;
 SQL
+
+# A finalizer holds the classroom operation lock across blocker validation and
+# deletion. The receipt INSERT must fail before writing while that lock is held;
+# once released, the payload-shape guard must still reject the malformed row.
+docker exec -e PGAPPNAME=student_purge_attendance_finalizer -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  >"$WORK_DIR/attendance-lock.out" 2>"$WORK_DIR/attendance-lock.err" <<'SQL' &
+set lock_timeout = '5s';
+set statement_timeout = '10s';
+begin;
+select private.try_lock_classroom_membership_change(
+  'd1350000-0000-4000-8000-000000000010',
+  'd1350000-0000-4000-8000-000000000002'
+);
+select pg_sleep(3);
+commit;
+SQL
+ATTENDANCE_LOCK_PID=$!
+wait_for_attendance_cleanup_lock
+
+if docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    >"$WORK_DIR/attendance-race.out" 2>"$WORK_DIR/attendance-race.err" <<'SQL'
+insert into public.attendance_override_requests(
+  request_id,classroom_id,request_fingerprint,result
+) values (
+  'd1350000-0000-4000-8000-000000000050',
+  'd1350000-0000-4000-8000-000000000010',repeat('d',32),
+  jsonb_build_object(
+    'outcome','applied',
+    'occurrence_ref','occurrence_13500000000000000000000000000000',
+    'applied_count',1,'unchanged_count',0,
+    'student_id','d1350000-0000-4000-8000-000000000002'
+  )
+);
+SQL
+then
+  echo "Malformed attendance receipt raced through the finalization lock." >&2
+  exit 1
+fi
+if ! grep -q 'classroom_operation_busy' "$WORK_DIR/attendance-race.err"; then
+  echo "Attendance receipt race did not fail on the classroom operation lock." >&2
+  sed -n '1,120p' "$WORK_DIR/attendance-race.err" >&2
+  exit 1
+fi
+
+wait "$ATTENDANCE_LOCK_PID"
+ATTENDANCE_LOCK_PID=""
+
+if docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    >"$WORK_DIR/attendance-shape.out" 2>"$WORK_DIR/attendance-shape.err" <<'SQL'
+insert into public.attendance_override_requests(
+  request_id,classroom_id,request_fingerprint,result
+) values (
+  'd1350000-0000-4000-8000-000000000051',
+  'd1350000-0000-4000-8000-000000000010',repeat('e',32),
+  jsonb_build_object(
+    'outcome','applied',
+    'occurrence_ref','occurrence_13500000000000000000000000000000',
+    'applied_count',1,'unchanged_count',0,
+    'metadata',jsonb_build_object('participant_ref','participant_unknown')
+  )
+);
+SQL
+then
+  echo "Malformed attendance receipt passed the post-lock shape guard." >&2
+  exit 1
+fi
+if ! grep -q 'attendance_override_request_receipt_invalid' "$WORK_DIR/attendance-shape.err"; then
+  echo "Malformed attendance receipt returned the wrong validation failure." >&2
+  sed -n '1,120p' "$WORK_DIR/attendance-shape.err" >&2
+  exit 1
+fi
+
+if [[ "$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc \
+  "select count(*) from public.attendance_override_requests")" != "0" ]]; then
+  echo "Rejected attendance receipt persisted." >&2
+  exit 1
+fi
 
 echo "Individual-student purge failure concurrency check passed."

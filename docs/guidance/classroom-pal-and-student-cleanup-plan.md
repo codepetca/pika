@@ -41,8 +41,11 @@ Pika PR1253 merged. Migration168 creates opaque membership references, tracks
 active/removed generations and rejects old-generation reopening, including
 archive restore through normal application paths. Ordinary roster removal keeps
 academic data and closes membership. Account/classroom policy remains separate.
-Production was recorded through168; exact current rollout evidence must be
-verified before another schema application.
+At Phase1 delivery, production was recorded through168. That checkpoint is
+historical: the current recorded local ledger is001–179 and production is001–178.
+Migration179 is applied locally and remains the only pending production schema
+change in this reliability PR. Exact target state must still be verified before
+any application.
 
 ## Phase2 — classroom signals and client context: delivered, disabled
 
@@ -104,17 +107,20 @@ Current coherent deliverable:
    evidence and the exact schema/release/activation approval packet.
 
 Source implementation does not authorize migration application, provider HTTP,
-allowlist/gate changes, a live deletion, production release or merge. Local ledger
-was recorded001–174; production001–168. All previous migration approvals are
-consumed.175 is a forward candidate; local/shared/hosted replay, reset, repair,
-seeding and physical deletion need their applicable fresh authority. Disposable
-normal CI fixtures remain authorized and must be labeled accurately.
+allowlist/gate changes, a live deletion, production release or merge. At the
+Phase3 source checkpoint, local was recorded through174 and production through168;
+that rollout packet is now superseded. The current recorded local ledger is001–179
+and production is001–178. Migration179 is applied locally and is the only pending
+production migration in this PR. All previous migration approvals are consumed.
+Local/shared/hosted replay, reset, repair, seeding and physical deletion need
+their applicable fresh authority. Disposable normal CI fixtures remain authorized
+and must be labeled accurately.
 
 Exit: a reviewed, CI-green, default-disabled explicit path with truthful supported
 scope, exact commands/status, fresh rejoin proof and a concrete rollout packet.
 Unsupported live-resource cases cannot be declared erased merely to finish Phase3.
 
-## Phase4 — automatic worker: source implemented; activation pending
+## Phase4 — automatic worker: production active; reliability correction pending
 
 The user approved automatic cleanup for new removals on 2026-09-15. Teachers
 remove students; the system owns purge progress. Historical removals remain out
@@ -123,19 +129,20 @@ a private durable queue, stable operation ids, bounded leases/retries, current
 authority, provider independence and truthful status.
 
 Migrations176–178, the protected worker route and the conditional watchdog are
-implemented. Migration178 is not yet applied locally or in production. It makes
-queue enrollment fail closed unless the exact post-activation generation has
-immutable Pal and attendance evidence plus matching participant, roster and
-teacher-principal mappings. Historical and partially provisioned memberships
-remain removable but never enter the automatic queue. Hosted migration and all
-cleanup gates remain pending; the feature is inert until that rollout completes.
+deployed and broadly active in production. Migration179 is applied locally and
+pending production. It reconstructs missing attendance-generation evidence
+only for an exact post-cutoff Pal generation plus active classroom/student
+participant mapping. Eligible incomplete mappings become durable private
+`quarantined` jobs with `cleanup_eligibility_missing` and `quarantined_at`, so
+operators can identify them; no worker callback is made for that admission
+quarantine. Pre-cutoff or nonexact Pal generations remain outside automation.
 
 The selected Free-plan topology is event-driven: a committed new removal queues
 one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog
 runs every five minutes, checks for due work in SQL, and makes no HTTP/serverless
 invocation while the queue is idle. Batch removals coalesce immediate callbacks.
-The queue, worker and schedule remain independently disabled until reviewed
-schema, application, provider and rollout gates are explicitly activated.
+The queue, worker and schedule retain independent gates so operators can pause
+new work without discarding existing jobs, fences or receipts.
 
 ## Phase5 — scoped rollout and live canary: separately approved
 

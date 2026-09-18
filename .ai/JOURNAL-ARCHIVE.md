@@ -32163,3 +32163,13 @@ User approved isolated `pika-pal-phase1` baseline migrations 001–165, without 
 ## 2026-09-12 — Pal migration rollback rehearsal passed
 
 User separately approved the intentional migration-168 rollback rehearsal on isolated `pika-pal-phase1`. Exact-target migration list/dry run showed only 168 pending. The approved harness produced the expected ambiguous-generation PK failure and verified complete rollback: no 168 objects/functions or synthetic users/classrooms/enrollments/roster; history stays at 165. Clean application of 168 remains the next one-time approval gate, then lifecycle contracts/types/PR. No shared or hosted database changes.
+
+<!-- pika-session-log-archive-batch:419688146cb8f521b66e2c741a141f60b77fb93453681041c177772348baa0fc -->
+## 2026-09-12 — Pal identity schema and lifecycle verified locally
+
+User authorized clean migration 168 on isolated `pika-pal-phase1`; exact pending set/checksum revalidated and one local push succeeded. Gate remains false. Membership lifecycle/lock contracts, archive/compaction, two removal/archive orders, Gradebook round trip, canonical full archive recovery, schema audit and warning-level DB lint passed. Generated public types through the verified isolated schema, passed type-drift check and removed the temporary RPC adapter. Obsolete pre-Quiz-removal restore fixture is superseded by current contracts. No shared/hosted DB changes. Draft PR preparation underway; final review needs elapsed-budget extension and CI replay needs separate authority.
+
+<!-- pika-session-log-archive-batch:902a791d32200cae410c43e622799a105fe66a59bd9c80673985286c3a4a7202 -->
+## 2026-09-12 — Pal final review and CI fixture correction
+
+User approved final Sol/high review extension and disposable CI replay/reset checks. Final review cleared 6d150f91; PR #1253 became ready and run 34705814298 exposed closed-generation reuse in the existing removal grade-race fixture. Returned PR to draft, reproduced the failure locally, and changed each fixture enrollment to a fresh default UUID; added exact isolated-project support while retaining target name/label checks. Product source and migration168 unchanged. Targeted correction review and new candidate CI pending.

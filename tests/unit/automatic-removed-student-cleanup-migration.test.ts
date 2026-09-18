@@ -64,7 +64,7 @@ describe('automatic removed-student cleanup migration', () => {
     expect(harness).toContain('Stale lease release was accepted')
     expect(harness).toContain('Completed job retained student identity')
     expect(harness).toContain('Generation eligibility capture boundary is incorrect')
-    expect(harness).toContain('Ineligible historical or partial removal entered the automatic queue')
+    expect(harness).toContain('Eligible incomplete removal was not durably quarantined')
     expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
     expect(concurrencyRunner).toContain('pika_automatic_cleanup_concurrency_')
     expect(concurrencyRunner).toContain('dropdb -U postgres --if-exists "$TMP_DB"')

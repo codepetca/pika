@@ -973,6 +973,72 @@ describe('TeacherAttendanceTab', () => {
     expect(document.querySelectorAll('colgroup col')).toHaveLength(9)
   })
 
+  it('restores automatic attendance before the undo request completes', async () => {
+    const base = combinedAttendanceView()
+    const overridden = {
+      ...base,
+      students: base.students.map((student, index) => index === 0 ? {
+        ...student,
+        status: 'absent' as const,
+        source: 'staff' as const,
+        hasManualOverride: true,
+      } : student),
+    }
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    let overrideActive = true
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: base.students.map((student) => ({
+            student_id: student.studentId,
+            student_email: `${student.studentId}@example.com`,
+            student_first_name: student.firstName,
+            student_last_name: student.lastName,
+            entry: null,
+            history_preview: [],
+          })),
+        })
+      }
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        return mockJson(overrideActive ? overridden : base)
+      }
+      if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        overrideActive = false
+        return post
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <AppMessageProvider>
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+        </AppMessageProvider>
+      </TooltipProvider>,
+    )
+
+    const undo = await screen.findByRole('button', { name: 'Undo override for Student1 Test' })
+    await user.click(undo)
+
+    expect(screen.queryByRole('button', { name: 'Undo override for Student1 Test' }))
+      .not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' }))
+      .toHaveAttribute('aria-pressed', 'true')
+
+    await act(async () => {
+      resolvePost(new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+  })
+
   it('keeps the entitled Attendance table stable while a date projection is not configured', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -1165,6 +1231,10 @@ describe('TeacherAttendanceTab', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test late' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Undo override for Student1 Test' }))
+      .toBeInTheDocument()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_250)
     })
@@ -1172,7 +1242,7 @@ describe('TeacherAttendanceTab', () => {
     const waitingLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
     expect(attendanceReadCount).toBe(9)
     expect(waitingLateButton).toBeDisabled()
-    expect(waitingLateButton).toHaveAttribute('aria-pressed', 'false')
+    expect(waitingLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
       text: 'Update sent; waiting for attendance confirmation',
       tone: 'info',
