@@ -43,9 +43,10 @@ archive restore through normal application paths. Ordinary roster removal keeps
 academic data and closes membership. Account/classroom policy remains separate.
 At Phase1 delivery, production was recorded through168. That checkpoint is
 historical: the current recorded local ledger is001–179 and production is001–178.
-Migration179 is applied locally and remains the only pending production schema
-change in this reliability PR. Exact target state must still be verified before
-any application.
+Migration179 is applied locally. Migration180 remains source-only; migrations
+179–180 are pending production in order. Migration180 changes only the
+conditional recovery watchdog to hourly. Exact target state must still be
+verified before any application.
 
 ## Phase2 — classroom signals and client context: delivered, disabled
 
@@ -110,8 +111,8 @@ Source implementation does not authorize migration application, provider HTTP,
 allowlist/gate changes, a live deletion, production release or merge. At the
 Phase3 source checkpoint, local was recorded through174 and production through168;
 that rollout packet is now superseded. The current recorded local ledger is001–179
-and production is001–178. Migration179 is applied locally and is the only pending
-production migration in this PR. All previous migration approvals are consumed.
+and production is001–178. Migration180 remains source-only; migrations179–180
+are pending production in order. All previous migration approvals are consumed.
 Local/shared/hosted replay, reset, repair, seeding and physical deletion need
 their applicable fresh authority. Disposable normal CI fixtures remain authorized
 and must be labeled accurately.

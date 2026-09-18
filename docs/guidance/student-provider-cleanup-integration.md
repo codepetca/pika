@@ -50,9 +50,10 @@ writer is not historical merely because it is called a backup.
 - At the Phase3 source checkpoint, the reported Pika ledgers were local001–174
   and production001–168. That rollout packet is historical and superseded. The
   current recorded local ledger is001–179 and production is001–178. Migration179
-  is applied locally and is the only pending production schema change in this
-  reliability PR. All earlier exact application approvals are consumed, and
-  applied migrations remain immutable.
+  is applied locally. Migration180 remains source-only; migrations179–180 are
+  pending production in order. Migration180 changes only the conditional
+  recovery watchdog to hourly. All earlier exact application approvals are
+  consumed, and applied migrations remain immutable.
 
 ## Immutable provider contracts
 
@@ -193,8 +194,9 @@ These cases are reported as blockers; the flow does not claim completion or
 silently delete classmates. The superseded Phase3 explicit flow added no worker,
 queue, dashboard or broad cron schedule. Phase4 subsequently added the deployed
 automatic queue, worker and five-minute conditional watchdog documented below;
-migration179 adds no second scheduler. No legacy sitewide Pal retirement,
-historical backfill or two-day guarantee is added.
+pending migration180 changes that watchdog to hourly, while migration179 adds no
+second scheduler. No legacy sitewide Pal retirement, historical backfill or
+two-day guarantee is added.
 
 ## Verification and rollout approval packet
 
