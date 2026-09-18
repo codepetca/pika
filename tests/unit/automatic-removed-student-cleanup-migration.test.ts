@@ -77,6 +77,7 @@ describe('automatic removed-student cleanup migration', () => {
     expect(runner).not.toMatch(/db (push|reset)|migration (up|repair)|create database/)
     expect(concurrencyRunner).toContain('pika_automatic_cleanup_concurrency_')
     expect(concurrencyRunner).toContain('dropdb -U postgres --if-exists "$TMP_DB"')
+    expect(concurrencyRunner).toContain("180_hourly_removed_student_cleanup_watchdog.sql' ]]; then")
     expect(concurrencyRunner).toContain('automatic_cleanup_removal_after_gate_off Lock')
     expect(concurrencyRunner).toContain('automatic_cleanup_gate_after_removal Lock')
     expect(concurrencyRunner).not.toMatch(/--linked|db push|db reset/)
