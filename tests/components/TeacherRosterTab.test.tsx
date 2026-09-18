@@ -633,6 +633,48 @@ describe('TeacherRosterTab', () => {
     )
   })
 
+  it('sorts Joined groups by last name, first name, then roster ID', async () => {
+    const user = userEvent.setup()
+    const rows = [
+      { ...rosterRow, id: 'joined-zulu', email: 'joined-zulu@example.com', last_name: 'Zulu', first_name: 'Amy', joined: true },
+      { ...rosterRow, id: 'invited-same-b', email: 'invited-same-b@example.com', last_name: 'Same', first_name: 'Amy', joined: false },
+      { ...rosterRow, id: 'joined-alpha', email: 'joined-alpha@example.com', last_name: 'Alpha', first_name: 'Bea', joined: true },
+      { ...rosterRow, id: 'invited-same-a', email: 'invited-same-a@example.com', last_name: 'Same', first_name: 'Amy', joined: false },
+      { ...rosterRow, id: 'invited-alpha', email: 'invited-alpha@example.com', last_name: 'Alpha', first_name: 'Bea', joined: false },
+    ]
+    renderRosterWithFetch((input, init) => {
+      if (String(input) === `/api/teacher/classrooms/${classroom.id}/roster` && (init?.method ?? 'GET') === 'GET') {
+        return mockJson({ roster: rows })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${String(input)}`)
+    })
+
+    await screen.findByText('joined-zulu@example.com')
+    const displayedRowIds = () => Array.from(
+      screen.getByRole('table').querySelectorAll('tbody tr'),
+      (row) => row.id,
+    )
+
+    const joinedSortButton = screen.getByRole('button', { name: /^Joined/ })
+    await user.click(joinedSortButton)
+    expect(displayedRowIds()).toEqual([
+      'roster-student-row-invited-alpha',
+      'roster-student-row-invited-same-a',
+      'roster-student-row-invited-same-b',
+      'roster-student-row-joined-alpha',
+      'roster-student-row-joined-zulu',
+    ])
+
+    await user.click(joinedSortButton)
+    expect(displayedRowIds()).toEqual([
+      'roster-student-row-joined-alpha',
+      'roster-student-row-joined-zulu',
+      'roster-student-row-invited-alpha',
+      'roster-student-row-invited-same-a',
+      'roster-student-row-invited-same-b',
+    ])
+  })
+
   it('supports direct roster row navigation and Escape focus recovery', async () => {
     mockRosterFetch()
     renderRoster()

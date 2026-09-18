@@ -78,6 +78,10 @@ for migration in "$ROOT"/supabase/migrations/*.sql; do
       -e '/^select cron\.schedule(/,/^);$/d' "$migration" \
       | docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
         psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null
+  elif [[ "$(basename "$migration")" == '180_hourly_removed_student_cleanup_watchdog.sql' ]]; then
+    # This disposable database intentionally omits pg_cron and the watchdog job.
+    # Migration180 changes only that omitted scheduler, not concurrency contracts.
+    continue
   else
     docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
       psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 < "$migration" >/dev/null

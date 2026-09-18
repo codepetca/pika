@@ -56,7 +56,7 @@ describe('automatic removed-student cleanup worker', () => {
     }))
   })
 
-  it('stops at the advancement bound and becomes retryable before the next five-minute boundary', async () => {
+  it('stops at the advancement bound and records prompt retry readiness', async () => {
     const f = fixture()
     f.cleanup.advance.mockResolvedValue({ cleanup_completed: false })
     const result = await runAutomaticRemovedStudentCleanup({ client: f.client, cleanup: f.cleanup,

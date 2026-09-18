@@ -172,6 +172,9 @@ for migration in "$ROOT"/supabase/migrations/*.sql; do
       "$migration" \
       | docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
         psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null
+  elif [[ "$(basename "$migration")" == "180_hourly_removed_student_cleanup_watchdog.sql" ]]; then
+    # This disposable database intentionally omits pg_cron and its watchdog job.
+    continue
   else
     docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
       psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \

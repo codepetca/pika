@@ -46,7 +46,6 @@ describe('TeacherAttendanceControls', () => {
           active
           onClick={onSort}
           tooltipContent="2 Present"
-          showSortIndicator
         />
       </>,
       { wrapper: TooltipProvider },
@@ -61,7 +60,7 @@ describe('TeacherAttendanceControls', () => {
 
     const sort = screen.getByRole('button', { name: 'Sort Present first, 2 students' })
     expect(sort).toHaveAttribute('aria-pressed', 'true')
-    expect(sort.querySelector('svg')).toBeInTheDocument()
+    expect(sort.querySelector('svg')).not.toBeInTheDocument()
     await user.click(sort)
     expect(onSort).toHaveBeenCalledOnce()
   })

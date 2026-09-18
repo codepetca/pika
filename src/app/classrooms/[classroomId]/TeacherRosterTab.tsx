@@ -189,7 +189,15 @@ export function TeacherRosterTab({ classroom }: Props) {
           sortDirection,
         )
       }
-      return applyDirection(Number(a.joined) - Number(b.joined), sortDirection)
+      const joinedComparison = Number(a.joined) - Number(b.joined)
+      if (joinedComparison !== 0) return applyDirection(joinedComparison, sortDirection)
+
+      return compareByNameFields(
+        { firstName: a.first_name, lastName: a.last_name, id: a.id },
+        { firstName: b.first_name, lastName: b.last_name, id: b.id },
+        'last_name',
+        'asc',
+      )
     })
     return rows
   }, [currentRoster, sortColumn, sortDirection])
