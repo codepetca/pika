@@ -32182,3 +32182,17 @@ Terra cleared the fixture correction at15a6566e; five reviews and two fix batche
 ## 2026-09-12 — Pal prerequisite CI blocker routed to owner
 
 On instruction to proceed, completed startup and watched prerequisite#1252 run34706856667. Test & Build passed; the database schema audit failed on untracked classroom_creation_operations. Reported exact evidence to its owning task, which returned#1252 to draft. No dependency branch edits or integration review launched. Prepared seed-disabled local pika-pal-integration configuration and proposed001–168 checksum manifest at /Users/stew/.codex/worktrees/pika/.pal-integration-db; no database started or migrations applied. Refresh that manifest after the prerequisite correction lands, and obtain exact combined-replay authority before using it. Pal#1253 remains draft with the approved integration review reserved.
+
+<!-- pika-session-log-archive-batch:e6ce2a85b93271b7d41c47f2b0c89ffdee7772ae1f2bc9899b9561491eb3f599 -->
+## 2026-09-12 — Abbreviate calendar day modal dates
+
+- Updated the shared week-header day modal to show `Fri Sep 11, 2026`; adjusted its two existing dialog-name assertions.
+- Verified: focused checks passed (254 tests, TypeScript, lint, architecture, UI/design policy); audit clean. Playwright screenshots reviewed for teacher/student, 1440×900 and 390×844, light/dark; next-day, ArrowLeft, and Escape checks passed in all eight combinations. Evidence: `output/playwright/calendar-*.png` in the task worktree.
+- Owner: calendar modal date task; branch `codex/calendar-modal-date-format`. Risk profile: none. Reused LessonCalendar date formatting and DialogPanel; Pattern Lab controls/dialog reference inspected. No new pattern or composite behavior.
+- Follow-up: gave the date/navigation row a full-width muted header band and divider using existing semantic tokens. Rechecked all eight screenshots, day navigation/Escape, and 254 focused tests. The pre-commit audit's whole-file composite heuristic requests a newly changed test for this class-only follow-up; existing dialog tests and the keyboard browser matrix passed, with no semantics or handlers changed. Targeted independent review will cover the refinement in the same PR.
+
+## 2026-09-12 — Begin Free / Access classroom-creation enforcement
+
+- Approved policy: Free is join/participate-only; Access permits one active owned classroom and unlimited joining. Initial Access is manually granted. Trial remains a separate, time-limited future overlay with at most one trial period per account; Plus/Pro and billing are deferred.
+- Authored additive migration166 with service-only effective snapshots, immutable idempotent audit, exact validity windows and a transaction-serialized active-classroom limit. Missing snapshots preserve current teacher-role behavior and no cohort is seeded. The database trigger covers direct inserts, reactivation and ownership transfer; the Blueprint entry point is wrapped before its internal error boundary.
+- Ordinary and Blueprint creation paths map exact database denials to safe 403/409/503 responses. Added source, API/helper and Blueprint tests plus a rollback-only database/concurrency harness wired into CI. Owner authorized and consumed one local application of migration166 checksum `c66842db8c504d50a438c8e6f3c841e759cac87923fa3531300b6a84ceeede6c`; preview contained only166 and application succeeded. Transactional and two-writer race contracts pass, database lint is warning-free, and regenerated public types match. Production remains164 and no entitlement row/cohort was created.

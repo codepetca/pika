@@ -1,5 +1,5 @@
--- Rollback-only migrations 166-167 behavioral fixture. The wrapper verifies
--- the exact local Supabase target and that both migrations are already applied.
+-- Rollback-only migrations 166-167 and 181 behavioral fixture. The wrapper
+-- verifies the exact local Supabase target and that all are already applied.
 begin;
 set local lock_timeout = '3s';
 set local statement_timeout = '20s';
@@ -12,6 +12,9 @@ declare
   v_create text := 'public.create_classroom_atomic_v1(uuid,uuid,text,text,text,text,text)';
   v_blueprint text := 'public.instantiate_course_blueprint_atomic_v2(uuid,uuid,uuid,uuid,text,bigint,jsonb)';
   v_blueprint_inner text := 'public.instantiate_course_blueprint_atomic_v2_pre_create_entitlement(uuid,uuid,uuid,uuid,text,bigint,jsonb)';
+  v_provision text := 'public.provision_default_classroom_creation_entitlement_v1()';
+  v_status text := 'public.get_classroom_creation_entitlement_cutover_status_v1()';
+  v_activate text := 'public.activate_classroom_creation_entitlement_cutover_v1(uuid,text)';
 begin
   if to_regprocedure(v_setter) is null
     or to_regprocedure(v_reader) is null
@@ -19,8 +22,11 @@ begin
     or to_regprocedure(v_create) is null
     or to_regprocedure(v_blueprint) is null
     or to_regprocedure(v_blueprint_inner) is null
+    or to_regprocedure(v_provision) is null
+    or to_regprocedure(v_status) is null
+    or to_regprocedure(v_activate) is null
   then
-    raise exception 'Migrations 166-167 are required; this fixture never applies them';
+    raise exception 'Migrations 166-167 and 181 are required; this fixture never applies them';
   end if;
 
   if has_table_privilege('anon', 'public.effective_feature_entitlements', 'select')
@@ -44,6 +50,14 @@ begin
     or not has_function_privilege('service_role', v_create, 'execute')
     or has_function_privilege('service_role', v_blueprint_inner, 'execute')
     or not has_function_privilege('service_role', v_blueprint, 'execute')
+    or has_function_privilege('service_role', v_provision, 'execute')
+    or has_function_privilege('anon', v_status, 'execute')
+    or has_function_privilege('authenticated', v_status, 'execute')
+    or not has_function_privilege('service_role', v_status, 'execute')
+    or has_function_privilege('anon', v_activate, 'execute')
+    or has_function_privilege('authenticated', v_activate, 'execute')
+    or not has_function_privilege('service_role', v_activate, 'execute')
+    or has_table_privilege('service_role', 'private.classroom_creation_entitlement_settings', 'select')
   then
     raise exception 'Classroom creation entitlement privileges are incorrect';
   end if;
@@ -58,13 +72,16 @@ begin
       to_regprocedure(v_reader),
       to_regprocedure(v_assert),
       to_regprocedure(v_create),
-      to_regprocedure(v_blueprint)
+      to_regprocedure(v_blueprint),
+      to_regprocedure(v_provision),
+      to_regprocedure(v_status),
+      to_regprocedure(v_activate)
     )
     group by owner.rolname
     having owner.rolname = 'postgres'
       and bool_and(procedure.prosecdef)
       and bool_and(procedure.proconfig @> array['search_path=""']::text[])
-      and count(*) = 5
+      and count(*) = 8
   ) then
     raise exception 'Classroom creation entitlement function security metadata is incorrect';
   end if;
@@ -85,7 +102,57 @@ insert into public.users (id, email, role) values
   ('e1660000-0000-4000-8000-000000000005', 'expired-166@example.invalid', 'teacher'),
   ('e1660000-0000-4000-8000-000000000006', 'existing-166@example.invalid', 'teacher'),
   ('e1660000-0000-4000-8000-000000000007', 'unavailable-166@example.invalid', 'teacher'),
-  ('e1670000-0000-4000-8000-000000000001', 'retry-167@example.invalid', 'teacher');
+  ('e1670000-0000-4000-8000-000000000001', 'retry-167@example.invalid', 'teacher'),
+  ('e1810000-0000-4000-8000-000000000001', 'default-free-181@example.invalid', 'student');
+
+do $provisioning$
+begin
+  if not exists (
+    select 1
+    from public.effective_feature_entitlements
+    where subject_user_id = 'e1810000-0000-4000-8000-000000000001'
+      and feature_key = 'classrooms.create'
+      and source = 'plan'
+      and not enabled
+      and quota_limit = 0
+      and revision = 1
+  ) or not exists (
+    select 1
+    from public.effective_feature_entitlement_audit
+    where subject_user_id = 'e1810000-0000-4000-8000-000000000001'
+      and feature_key = 'classrooms.create'
+      and actor_ref = 'system:user-provisioning'
+      and reason_code = 'default_free_account_provisioning'
+      and entitlement_revision = 1
+  ) then
+    raise exception 'New account did not receive one audited default Free entitlement';
+  end if;
+end;
+$provisioning$;
+
+-- Reconstruct pre-181 accounts for the compatibility and managed-state cases.
+delete from public.effective_feature_entitlement_audit
+where subject_user_id in (
+  'e1660000-0000-4000-8000-000000000001',
+  'e1660000-0000-4000-8000-000000000002',
+  'e1660000-0000-4000-8000-000000000003',
+  'e1660000-0000-4000-8000-000000000004',
+  'e1660000-0000-4000-8000-000000000005',
+  'e1660000-0000-4000-8000-000000000006',
+  'e1660000-0000-4000-8000-000000000007',
+  'e1670000-0000-4000-8000-000000000001'
+);
+delete from public.effective_feature_entitlements
+where subject_user_id in (
+  'e1660000-0000-4000-8000-000000000001',
+  'e1660000-0000-4000-8000-000000000002',
+  'e1660000-0000-4000-8000-000000000003',
+  'e1660000-0000-4000-8000-000000000004',
+  'e1660000-0000-4000-8000-000000000005',
+  'e1660000-0000-4000-8000-000000000006',
+  'e1660000-0000-4000-8000-000000000007',
+  'e1670000-0000-4000-8000-000000000001'
+);
 
 -- Missing rows preserve the current application-controlled behavior.
 insert into public.classrooms (id, teacher_id, title, class_code) values (
@@ -136,6 +203,35 @@ declare
   v_result jsonb;
   v_replay jsonb;
 begin
+  v_result := public.get_classroom_creation_entitlement_cutover_status_v1();
+  if (v_result->>'strict_enforcement_enabled')::boolean
+    or (v_result->>'unclassified_account_count')::integer <> 8
+  then
+    raise exception 'Initial cutover status is invalid: %', v_result;
+  end if;
+
+  begin
+    perform public.activate_classroom_creation_entitlement_cutover_v1(
+      'e1810000-0000-4000-8000-000000000101',
+      'test:migration-181'
+    );
+    raise exception 'Strict cutover activated with unclassified accounts';
+  exception when object_not_in_prerequisite_state then
+    if sqlerrm <> 'classroom_creation_cutover_incomplete' then raise; end if;
+  end;
+
+  begin
+    insert into public.classrooms (id, teacher_id, title, class_code) values (
+      'e1810000-0000-4000-8000-000000000011',
+      'e1810000-0000-4000-8000-000000000001',
+      'Default Free denied',
+      'E181FREE'
+    );
+    raise exception 'Default Free account created a classroom';
+  exception when insufficient_privilege then
+    if sqlerrm <> 'classroom_creation_entitlement_disabled' then raise; end if;
+  end;
+
   -- Ordinary creation stores exactly one result and replays it even when
   -- server-derived values are regenerated after a lost HTTP response.
   v_result := public.create_classroom_atomic_v1(
@@ -435,10 +531,116 @@ begin
     if sqlerrm <> 'feature_entitlement_revision_conflict' then raise; end if;
   end;
 
-  if (select count(*) from public.effective_feature_entitlement_audit) <> 6 then
+  if (
+    select count(*)
+    from public.effective_feature_entitlement_audit
+    where actor_ref = 'test:migration-166'
+  ) <> 6 then
     raise exception 'Entitlement audit count is invalid';
   end if;
 end;
 $behavior$;
+
+reset role;
+
+do $cutover$
+declare
+  v_account record;
+  v_result jsonb;
+begin
+  -- Complete the explicit classification without encoding a production cohort.
+  for v_account in
+    select account.id
+    from public.users account
+    where not exists (
+      select 1
+      from public.effective_feature_entitlements entitlement
+      where entitlement.subject_user_id = account.id
+        and entitlement.feature_key = 'classrooms.create'
+    )
+  loop
+    perform public.set_effective_feature_entitlement_v1(
+      gen_random_uuid(),
+      v_account.id,
+      'classrooms.create',
+      'plan',
+      false,
+      '2026-09-18T00:00:00Z',
+      null,
+      0,
+      'test:migration-181',
+      'cutover_classification_fixture',
+      0
+    );
+  end loop;
+
+  v_result := public.activate_classroom_creation_entitlement_cutover_v1(
+    'e1810000-0000-4000-8000-000000000102',
+    'test:migration-181'
+  );
+  if not (v_result->>'strict_enforcement_enabled')::boolean
+    or (v_result->>'duplicate')::boolean
+    or (v_result->>'already_enabled')::boolean
+  then
+    raise exception 'Strict cutover activation result is invalid: %', v_result;
+  end if;
+
+  v_result := public.activate_classroom_creation_entitlement_cutover_v1(
+    'e1810000-0000-4000-8000-000000000102',
+    'test:migration-181'
+  );
+  if not (v_result->>'duplicate')::boolean
+    or (v_result->>'already_enabled')::boolean
+  then
+    raise exception 'Strict cutover activation replay is invalid: %', v_result;
+  end if;
+
+  begin
+    perform public.activate_classroom_creation_entitlement_cutover_v1(
+      'e1810000-0000-4000-8000-000000000102',
+      'test:other-actor'
+    );
+    raise exception 'Cutover operation ID was reused by another actor';
+  exception when unique_violation then
+    if sqlerrm <> 'classroom_creation_cutover_operation_conflict' then raise; end if;
+  end;
+
+  insert into public.users (id, email, role) values (
+    'e1810000-0000-4000-8000-000000000002',
+    'post-cutover-181@example.invalid',
+    'student'
+  );
+  if not exists (
+    select 1
+    from public.effective_feature_entitlements
+    where subject_user_id = 'e1810000-0000-4000-8000-000000000002'
+      and feature_key = 'classrooms.create'
+      and not enabled
+      and quota_limit = 0
+  ) then
+    raise exception 'Post-cutover account did not receive default Free';
+  end if;
+
+  -- Simulate corruption that only the database owner can cause. Strict mode
+  -- must not silently reopen legacy creation even when both live state and its
+  -- audit history are missing.
+  delete from public.effective_feature_entitlements
+  where subject_user_id = 'e1810000-0000-4000-8000-000000000002';
+  delete from public.effective_feature_entitlement_audit
+  where subject_user_id = 'e1810000-0000-4000-8000-000000000002';
+
+  begin
+    insert into public.classrooms (id, teacher_id, title, class_code) values (
+      'e1810000-0000-4000-8000-000000000012',
+      'e1810000-0000-4000-8000-000000000002',
+      'Strict missing denied',
+      'E181MISS'
+    );
+    raise exception 'Strict mode admitted an account without a snapshot';
+  exception when object_not_in_prerequisite_state then
+    if sqlerrm <> 'classroom_creation_entitlement_unavailable' then raise; end if;
+  end;
+end;
+$cutover$;
 
 rollback;
