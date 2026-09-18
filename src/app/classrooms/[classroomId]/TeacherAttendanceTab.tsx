@@ -1057,7 +1057,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       count={attendanceStatusCounts[status]}
                       active={sortColumn === 'attendance_status' && sortStatus === status}
                       tooltipContent={`${attendanceStatusCounts[status]} ${status === 'absent' ? 'Absent' : status[0].toUpperCase() + status.slice(1)}`}
-                      showSortIndicator
                       onClick={() => handleAttendanceStatusSort(status)}
                     />
                   </DataTableHeaderCell>

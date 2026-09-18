@@ -482,7 +482,6 @@ export function DailyMockup({
                           count={statusCounts[status]}
                           active={statusSort === status}
                           tooltipContent={`${statusCounts[status]} ${ATTENDANCE_STATUS_LABELS[status]}`}
-                          showSortIndicator
                           onClick={() => {
                             setStatusSort(status)
                             onPrototypeAction(`Sort ${status} first`)

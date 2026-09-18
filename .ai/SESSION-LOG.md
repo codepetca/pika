@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Pal review extension and migration dependency
-
-Terra cleared the fixture correction at15a6566e; five reviews and two fix batches completed. Full CI also found the contiguous-number requirement: 6718 tests passed, while migration filenames fail because166/167 remain in draft PR#1252. User approved a further review extension; reserve one Sol/high integration pass capped at20minutes after the prerequisite lands. Read-only integration against prerequisite1da0bc20 found only a JOURNAL-ARCHIVE conflict; source, workflow and generated types merge cleanly. Its owner is still remediating/reviewing that branch, so no duplicate writer, migration, merge or heavy CI was started. PR#1253 stays draft pending that dependency, combined-schema verification and stable-head CI.
-
-## 2026-09-12 — Pal prerequisite CI blocker routed to owner
-
-On instruction to proceed, completed startup and watched prerequisite#1252 run34706856667. Test & Build passed; the database schema audit failed on untracked classroom_creation_operations. Reported exact evidence to its owning task, which returned#1252 to draft. No dependency branch edits or integration review launched. Prepared seed-disabled local pika-pal-integration configuration and proposed001–168 checksum manifest at /Users/stew/.codex/worktrees/pika/.pal-integration-db; no database started or migrations applied. Refresh that manifest after the prerequisite correction lands, and obtain exact combined-replay authority before using it. Pal#1253 remains draft with the approved integration review reserved.
-
 ## 2026-09-12 — Abbreviate calendar day modal dates
 
 - Updated the shared week-header day modal to show `Fri Sep 11, 2026`; adjusted its two existing dialog-name assertions.
@@ -252,6 +244,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Sixth review found one remaining Phase3/Phase4 prose contradiction. The final docs correction scopes the old no-worker language to superseded Phase3 and explicitly recognizes the deployed Phase4 queue, worker, and five-minute conditional watchdog; seventh review follows.
 - Seventh review cleared the stable source. Preflight then disproved the assumed local178 state: local was001–177 and the dry run named only178/179. With exact renewed approval, one local push applied178 (`ffb1c571aa287d5c858baf91af637aab714539efd5b39be1f91bb8bd1a12e9b4`) and179 (`9b89a92111e6485d7704372c8da413e1645f2cd58c0d452cb354033dbd96bfa8`). Postflight ledger001–179, required functions/receipt trigger present, all cleanup gates false, queue empty, storage compatibility, and warning-level DB lint clean. Production remains001–178; no production migration, synthetic fixture, provider request, gate change, or purge occurred. Eighth review follows the corrected rollout record.
 - Eighth review cleared the local179/production178 rollout record. Ready CI run35260054853 then exposed two source-contract mismatches, not a database failure: CURRENT had dropped the established attendance-release wording, and one unit test still expected partial removals to be skipped rather than durably quarantined under179. The PR returned to draft; authorized final batch6 restores the continuity wording and aligns the assertion with the exercised quarantine fixture. The eight-launch review hard cap is exhausted, so no ninth AI review is permitted; fresh checks/CI and human stable-SHA review remain.
+
 ## 2026-09-17 — Integrated attendance optimistic updates
 
 - Owner `codex/optimistic-integrated-attendance`. Production's integrated teacher attendance controller now projects manual present/late/absent marks immediately, preserves the projection through stale confirmation polls, and restores the derived automatic state immediately on undo. Failed requests restore the full previous record.
@@ -259,3 +252,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Verification: focused checks pass 16 files/221 tests plus architecture, UI/design policy, TypeScript and lint; targeted suites pass 73 tests; Playwright teacher/student desktop/mobile light/dark passes 8 cases and screenshots were inspected. No schema, API contract, dependency, or new design-pattern change.
 - Initial Terra/high review found that a second student's confirmation poll could replace an earlier unresolved optimistic projection. Batch1 reapplies every unresolved mark overlay to all incoming views and adds a two-student regression; targeted re-review and refreshed focused checks follow.
 - Targeted review found the same overlay was not registered until foreground polling expired, leaving in-flight marks vulnerable to concurrent timing-dialog refreshes. Batch2 registers marks before the request, removes them only on confirmation/rollback, and covers stale refresh plus two simultaneously unresolved marks during background revalidation.
+
+## 2026-09-18 — Deterministic roster Join sorting and attendance header cleanup
+
+- Owner `codex/roster-join-sort`. Roster sorting by Joined now uses ascending last name, first name, and roster ID tie-breakers inside each joined/unjoined group; toggling direction changes only the group priority.
+- Removed the Daily attendance count-bubble chevron while preserving button names, `aria-pressed`, tooltips, and the active focus ring. Updated the production control, Pattern Lab mockup, and component/UI regression coverage.
+- Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
