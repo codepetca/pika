@@ -50,9 +50,10 @@ writer is not historical merely because it is called a backup.
 - At the Phase3 source checkpoint, the reported Pika ledgers were local001–174
   and production001–168. That rollout packet is historical and superseded. The
   current recorded local ledger is001–179 and production is001–178. Migration179
-  is applied locally and is the only pending production schema change in this
-  reliability PR. All earlier exact application approvals are consumed, and
-  applied migrations remain immutable.
+  is applied locally. Migration180 remains source-only; migrations179–180 are
+  pending production in order. Migration180 changes only the conditional
+  recovery watchdog to hourly. All earlier exact application approvals are
+  consumed, and applied migrations remain immutable.
 
 ## Immutable provider contracts
 
@@ -193,8 +194,9 @@ These cases are reported as blockers; the flow does not claim completion or
 silently delete classmates. The superseded Phase3 explicit flow added no worker,
 queue, dashboard or broad cron schedule. Phase4 subsequently added the deployed
 automatic queue, worker and five-minute conditional watchdog documented below;
-migration179 adds no second scheduler. No legacy sitewide Pal retirement,
-historical backfill or two-day guarantee is added.
+pending migration180 changes that watchdog to hourly, while migration179 adds no
+second scheduler. No legacy sitewide Pal retirement, historical backfill or
+two-day guarantee is added.
 
 ## Verification and rollout approval packet
 
@@ -301,7 +303,7 @@ enter a private quarantine, emit an unhealthy worker result for operators and no
 longer consume claims ahead of later valid removals.
 
 The removal trigger asks `pg_net` for one asynchronous callback after commit;
-batch rows are coalesced. A `pg_cron` job runs `*/5 * * * *`, first checks for due
+batch rows are coalesced. A `pg_cron` job runs `0 * * * *`, first checks for due
 queue work in SQL, and makes no HTTP request while idle. Its HTTPS worker URL and
 shared secret are read from Supabase Vault names
 `pika_removed_student_cleanup_worker_url` and
@@ -312,8 +314,8 @@ with the existing `CRON_SECRET` value and independently gated by
 
 One invocation claims at most three jobs, gives each operation at most ten bounded
 advances, stops starting work after a45-second budget, and records completion or
-a sanitized retry. Pending work becomes eligible after240seconds so the next
-five-minute boundary can recover it. Provider and finalization receipts remain
+a sanitized retry. Pending work becomes eligible after240seconds; the hourly
+watchdog recovers it at the next boundary. Provider and finalization receipts remain
 the only cleanup proof; queue or HTTP success never releases re-add.
 
 Every live reservation/advance requires all five documented application gates;

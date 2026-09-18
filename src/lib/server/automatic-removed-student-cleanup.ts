@@ -52,7 +52,7 @@ async function release(client: QueueClient, input: {
     p_lease_token: input.leaseToken,
     p_completed: input.completed,
     p_error_code: input.errorCode,
-    // Become due before the next five-minute boundary instead of just after it.
+    // Record retry readiness promptly; the hourly watchdog controls recovery cadence.
     p_retry_delay_seconds: 240,
   })
   return response.error === null && response.data === true
