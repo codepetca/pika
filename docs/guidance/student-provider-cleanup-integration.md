@@ -301,7 +301,7 @@ enter a private quarantine, emit an unhealthy worker result for operators and no
 longer consume claims ahead of later valid removals.
 
 The removal trigger asks `pg_net` for one asynchronous callback after commit;
-batch rows are coalesced. A `pg_cron` job runs `*/5 * * * *`, first checks for due
+batch rows are coalesced. A `pg_cron` job runs `0 * * * *`, first checks for due
 queue work in SQL, and makes no HTTP request while idle. Its HTTPS worker URL and
 shared secret are read from Supabase Vault names
 `pika_removed_student_cleanup_worker_url` and
@@ -312,8 +312,8 @@ with the existing `CRON_SECRET` value and independently gated by
 
 One invocation claims at most three jobs, gives each operation at most ten bounded
 advances, stops starting work after a45-second budget, and records completion or
-a sanitized retry. Pending work becomes eligible after240seconds so the next
-five-minute boundary can recover it. Provider and finalization receipts remain
+a sanitized retry. Pending work becomes eligible after240seconds; the hourly
+watchdog recovers it at the next boundary. Provider and finalization receipts remain
 the only cleanup proof; queue or HTTP success never releases re-add.
 
 Every live reservation/advance requires all five documented application gates;

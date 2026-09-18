@@ -139,7 +139,7 @@ quarantine. Pre-cutoff or nonexact Pal generations remain outside automation.
 
 The selected Free-plan topology is event-driven: a committed new removal queues
 one asynchronous callback to a protected Vercel worker. A Supabase Cron watchdog
-runs every five minutes, checks for due work in SQL, and makes no HTTP/serverless
+runs at the top of each hour, checks for due work in SQL, and makes no HTTP/serverless
 invocation while the queue is idle. Batch removals coalesce immediate callbacks.
 The queue, worker and schedule retain independent gates so operators can pause
 new work without discarding existing jobs, fences or receipts.
