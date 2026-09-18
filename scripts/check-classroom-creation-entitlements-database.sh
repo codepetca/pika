@@ -22,6 +22,10 @@ if [[ "$(psql_local -Atc "select count(*) from supabase_migrations.schema_migrat
   echo 'Migrations 166-167 and 181 are required; this harness never applies them.' >&2
   exit 2
 fi
+if [[ "$(psql_local -Atc "select strict_enforcement_enabled from private.classroom_creation_entitlement_settings where singleton")" != 'f' ]]; then
+  echo 'The classroom-creation entitlement harness requires a pre-activation local database.' >&2
+  exit 2
+fi
 
 psql_local < scripts/check-classroom-creation-entitlements-database.sql
 

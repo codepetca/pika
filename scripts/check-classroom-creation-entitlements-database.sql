@@ -175,7 +175,23 @@ declare
 begin
   v_result := public.get_classroom_creation_entitlement_cutover_status_v1();
   if (v_result->>'strict_enforcement_enabled')::boolean
-    or (v_result->>'unclassified_account_count')::integer <> 9
+    or (v_result->>'unclassified_account_count')::integer < 9
+    or exists (
+      select 1
+      from public.effective_feature_entitlements entitlement
+      where entitlement.subject_user_id in (
+        'e1660000-0000-4000-8000-000000000001',
+        'e1660000-0000-4000-8000-000000000002',
+        'e1660000-0000-4000-8000-000000000003',
+        'e1660000-0000-4000-8000-000000000004',
+        'e1660000-0000-4000-8000-000000000005',
+        'e1660000-0000-4000-8000-000000000006',
+        'e1660000-0000-4000-8000-000000000007',
+        'e1670000-0000-4000-8000-000000000001',
+        'e1810000-0000-4000-8000-000000000001'
+      )
+        and entitlement.feature_key = 'classrooms.create'
+    )
   then
     raise exception 'Initial cutover status is invalid: %', v_result;
   end if;
