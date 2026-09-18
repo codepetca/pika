@@ -39,9 +39,13 @@ replay_first_app="pika_creation_167_first_$$"
 replay_second_app="pika_creation_167_second_$$"
 cutover_user='f1810000-0000-4000-8000-000000000001'
 cutover_operation='f1810000-0000-4000-8000-000000000002'
+cutover_pre_user='f1810000-0000-4000-8000-000000000003'
+cutover_pre_operation='f1810000-0000-4000-8000-000000000004'
 cutover_coordinator_app="pika_creation_181_gate_$$"
 cutover_activation_app="pika_creation_181_activation_$$"
 cutover_signup_app="pika_creation_181_signup_$$"
+cutover_pre_activation_app="pika_creation_181_pre_activation_$$"
+cutover_pre_signup_app="pika_creation_181_pre_signup_$$"
 
 cleanup() {
   psql_local >/dev/null 2>&1 <<SQL || true
@@ -50,7 +54,8 @@ from pg_stat_activity
 where application_name in (
   '$coordinator_app', '$first_app', '$second_app',
   '$replay_coordinator_app', '$replay_first_app', '$replay_second_app',
-  '$cutover_coordinator_app', '$cutover_activation_app', '$cutover_signup_app'
+  '$cutover_coordinator_app', '$cutover_activation_app', '$cutover_signup_app',
+  '$cutover_pre_activation_app', '$cutover_pre_signup_app'
 )
   and pid <> pg_backend_pid();
 update private.classroom_creation_entitlement_settings
@@ -58,14 +63,29 @@ set strict_enforcement_enabled=false,
     activated_at=null,
     activation_operation_id=null,
     activated_by=null
-where singleton and activation_operation_id='$cutover_operation'::uuid;
+where singleton
+  and activation_operation_id in (
+    '$cutover_operation'::uuid,
+    '$cutover_pre_operation'::uuid
+  );
 delete from public.classrooms where teacher_id = '$race_user'::uuid;
 delete from public.classrooms where teacher_id = '$replay_user'::uuid;
 delete from public.classrooms where teacher_id = '$cutover_user'::uuid;
+delete from public.classrooms where teacher_id = '$cutover_pre_user'::uuid;
 delete from public.effective_feature_entitlement_audit
-where subject_user_id in ('$race_user'::uuid, '$replay_user'::uuid, '$cutover_user'::uuid);
+where subject_user_id in (
+  '$race_user'::uuid,
+  '$replay_user'::uuid,
+  '$cutover_user'::uuid,
+  '$cutover_pre_user'::uuid
+);
 delete from public.users
-where id in ('$race_user'::uuid, '$replay_user'::uuid, '$cutover_user'::uuid);
+where id in (
+  '$race_user'::uuid,
+  '$replay_user'::uuid,
+  '$cutover_user'::uuid,
+  '$cutover_pre_user'::uuid
+);
 SQL
   rm -rf "$race_dir"
 }
@@ -82,7 +102,7 @@ set role service_role;
 select public.set_effective_feature_entitlement_v1(
   '$race_operation', '$race_user', 'classrooms.create', 'manual', true,
   '2026-09-01T00:00:00Z', null, 1,
-  'test:migration-166', 'concurrency_fixture', 1
+  'test:migration-166', 'concurrency_fixture', 0
 );
 SQL
 
@@ -161,7 +181,7 @@ set role service_role;
 select public.set_effective_feature_entitlement_v1(
   '$replay_entitlement_operation', '$replay_user', 'classrooms.create', 'manual', true,
   '2026-09-01T00:00:00Z', null, 1,
-  'test:migration-167', 'idempotency_concurrency_fixture', 1
+  'test:migration-167', 'idempotency_concurrency_fixture', 0
 );
 SQL
 
@@ -228,10 +248,69 @@ if ! grep -q '"replayed": true' "$race_dir/replay-first.out" \
   exit 1
 fi
 
-# Queue activation before a concurrent signup behind the same settings-row
-# lock. Activation may commit first, but signup must still provision Free before
-# its user row commits, leaving strict mode with complete coverage.
-docker exec -e PGAPPNAME="$cutover_coordinator_app" "$CREATION_DB_CONTAINER" \
+unrelated_account_count="$(psql_local -Atc "select count(*) from public.users where id not in ('$race_user'::uuid,'$replay_user'::uuid)")"
+if [[ "$unrelated_account_count" == '0' ]]; then
+  # First let a pre-activation signup own the shared settings lock and commit
+  # unmanaged. The queued activation must then observe that account and refuse
+  # incomplete coverage.
+  docker exec -e PGAPPNAME="$cutover_pre_signup_app" "$CREATION_DB_CONTAINER" \
+    psql -U postgres -d "$CREATION_DB_NAME" -X -v ON_ERROR_STOP=1 \
+    -c "begin; insert into public.users(id,email,role) values('$cutover_pre_user','pre-cutover-race-181@example.invalid','student'); select pg_sleep(3); commit;" \
+    >"$race_dir/cutover-pre-signup.out" 2>&1 &
+  cutover_pre_signup_pid=$!
+
+  cutover_pre_signup_ready=f
+  for _ in {1..100}; do
+    cutover_pre_signup_ready="$(psql_local -Atc "select exists(select 1 from pg_stat_activity where application_name='$cutover_pre_signup_app' and wait_event='PgSleep')")"
+    [[ "$cutover_pre_signup_ready" == t ]] && break
+    sleep 0.05
+  done
+  if [[ "$cutover_pre_signup_ready" != t ]]; then
+    echo 'Pre-cutover signup did not hold the settings row.' >&2
+    exit 1
+  fi
+
+  docker exec -e PGAPPNAME="$cutover_pre_activation_app" "$CREATION_DB_CONTAINER" \
+    psql -U postgres -d "$CREATION_DB_NAME" -X -v ON_ERROR_STOP=1 \
+    -c "set role service_role; select public.activate_classroom_creation_entitlement_cutover_v1('$cutover_pre_operation','test:migration-181-pre-race');" \
+    >"$race_dir/cutover-pre-activation.out" 2>&1 &
+  cutover_pre_activation_pid=$!
+
+  cutover_pre_activation_waiting=f
+  for _ in {1..100}; do
+    cutover_pre_activation_waiting="$(psql_local -Atc "select exists(select 1 from pg_stat_activity where application_name='$cutover_pre_activation_app' and wait_event_type='Lock')")"
+    [[ "$cutover_pre_activation_waiting" == t ]] && break
+    sleep 0.05
+  done
+  if [[ "$cutover_pre_activation_waiting" != t ]]; then
+    echo 'Activation did not wait for the pre-cutover signup.' >&2
+    exit 1
+  fi
+
+  wait "$cutover_pre_signup_pid"
+  set +e
+  wait "$cutover_pre_activation_pid"
+  cutover_pre_activation_status=$?
+  set -e
+  if [[ "$cutover_pre_activation_status" == '0' ]] \
+    || ! grep -q 'classroom_creation_cutover_incomplete' "$race_dir/cutover-pre-activation.out"; then
+    echo 'Activation did not reject the concurrently committed unclassified account.' >&2
+    exit 1
+  fi
+
+  psql_local >/dev/null <<SQL
+set role service_role;
+select public.set_effective_feature_entitlement_v1(
+  gen_random_uuid(), '$cutover_pre_user', 'classrooms.create', 'plan', false,
+  clock_timestamp(), null, 0,
+  'test:migration-181-race', 'pre_cutover_race_classification', 0
+);
+SQL
+
+  # Queue activation before a concurrent signup behind the same settings-row
+  # lock. Activation may commit first, but signup must still provision Free
+  # before its user row commits, leaving strict mode with complete coverage.
+  docker exec -e PGAPPNAME="$cutover_coordinator_app" "$CREATION_DB_CONTAINER" \
   psql -U postgres -d "$CREATION_DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "begin; select singleton from private.classroom_creation_entitlement_settings where singleton for update; select pg_sleep(30); rollback;" \
   >"$race_dir/cutover-coordinator.out" 2>&1 &
@@ -292,6 +371,9 @@ if [[ "$(psql_local -Atc "select strict_enforcement_enabled from private.classro
   || [[ "$(psql_local -Atc "select count(*) from public.effective_feature_entitlements where subject_user_id='$cutover_user'::uuid and feature_key='classrooms.create' and source='plan' and not enabled and quota_limit=0")" != '1' ]]; then
   echo 'Activation/signup race left strict enforcement without complete Free provisioning.' >&2
   exit 1
+fi
+else
+  echo 'Skipped strict-activation race because the selected local database contains unrelated accounts.'
 fi
 
 echo 'Classroom creation entitlement database contracts passed.'

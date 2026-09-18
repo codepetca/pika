@@ -7,9 +7,9 @@ activation, app deployment or neutral onboarding. Follow
 
 ## Resulting policy
 
-- Free is the default for accounts created after migration 181: joining remains available
-  through the existing role-compatible paths, but `classrooms.create` is disabled with a
-  zero quota.
+- Free is the default for accounts created after the controlled cutover is activated:
+  joining remains available through the existing role-compatible paths, but
+  `classrooms.create` is disabled with a zero quota.
 - Access is a manual `classrooms.create` grant with `enabled=true` and `quota_limit=1`.
 - Existing classrooms are preserved. Accounts already above one active owned classroom can
   continue using and editing them, but cannot create, restore or receive another active
@@ -24,16 +24,22 @@ activation, app deployment or neutral onboarding. Follow
 Apply migration 181 only after exact target/file authorization. It:
 
 1. creates a private, disabled strict-enforcement singleton;
-2. provisions every subsequently inserted `public.users` row with one audited Free
-   `classrooms.create` snapshot in the same transaction;
+2. installs a trigger that, after controlled activation, provisions each new
+   `public.users` row with one audited Free `classrooms.create` snapshot in the same
+   transaction;
 3. adds service-only readiness and activation RPCs;
 4. updates the authoritative creation assertion so a missing snapshot fails closed only
    after controlled activation (or when audit history proves the account was managed).
 
-Migration 181 does not backfill, classify or deny existing unmanaged accounts, and it does
-not activate strict enforcement. The signup trigger, creation assertion and activation RPC
-share a transaction-held settings-row lock, so activation cannot cross an in-flight legacy
-creation or commit an account without its default Free snapshot.
+Migration 181 does not backfill, classify or deny existing unmanaged accounts, change
+pre-activation signup behavior, or activate strict enforcement. The signup trigger,
+creation assertion and activation RPC share a transaction-held settings-row lock. A signup
+that commits before activation remains an explicit coverage requirement and blocks
+activation until classified; one that commits afterward receives Free transactionally.
+A legacy creation admission cannot cross activation. Once a creation assertion acquires
+the shared cutover lock, activation waits for its
+transaction; if activation wins before that admission point, the request observes strict
+mode and a missing snapshot is denied.
 
 ### Release B — controlled classification and activation
 
@@ -53,8 +59,9 @@ addresses in source control.
 5. With separate production authorization, call
    `activate_classroom_creation_entitlement_cutover_v1` once using a new operation UUID and
    named operator reference. The database rechecks complete coverage while holding the
-   cutover lock. Activation is one-way through the service API; reversal requires a reviewed
-   forward change.
+   cutover lock, then atomically enables strict enforcement and default-Free provisioning
+   for future accounts. Activation is one-way through the service API; reversal requires a
+   reviewed forward change.
 6. Re-read status and retain the activation operation, actor, timestamp and canary results.
 
 Classification itself is enforcement for each managed account. Stage and verify grants in

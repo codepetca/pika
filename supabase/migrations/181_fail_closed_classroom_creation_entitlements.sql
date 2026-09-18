@@ -2,10 +2,10 @@
 -- entitlements.
 --
 -- Applying this migration does not classify or restrict existing accounts and
--- does not enable strict enforcement. New accounts are provisioned as Free
--- (join-only) in the same transaction as their public.users row. A separate,
--- service-only activation RPC refuses to enable strict enforcement until every
--- current account has an explicit classrooms.create entitlement.
+-- does not enable strict enforcement or alter new-account behavior. Once the
+-- separate service-only activation RPC verifies that every current account has
+-- an explicit classrooms.create entitlement, that same cutover begins
+-- transactionally provisioning future accounts as Free (join-only).
 
 create table private.classroom_creation_entitlement_settings (
   singleton boolean primary key default true check (singleton),
@@ -42,13 +42,17 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_strict_enforcement_enabled boolean;
 begin
   -- Serialize account creation with strict cutover activation. The row lock is
-  -- held through the surrounding user-insert transaction. If signup wins,
-  -- activation observes this account and its Free snapshot. If activation wins,
-  -- the account cannot commit until its Free snapshot exists.
-  perform 1
-  from private.classroom_creation_entitlement_settings
+  -- held through the surrounding user-insert transaction. If a pre-cutover
+  -- signup wins, activation observes the missing snapshot and refuses until the
+  -- account is classified. If activation wins, the account cannot commit until
+  -- its Free snapshot exists.
+  select settings.strict_enforcement_enabled
+  into v_strict_enforcement_enabled
+  from private.classroom_creation_entitlement_settings settings
   where singleton
   for share;
 
@@ -56,6 +60,13 @@ begin
     raise exception using
       errcode = '55000',
       message = 'classroom_creation_cutover_settings_unavailable';
+  end if;
+
+  -- Before the controlled cutover, retain the same missing-snapshot
+  -- compatibility as existing accounts. Activation both removes that fallback
+  -- and starts default-Free provisioning at one transaction boundary.
+  if not v_strict_enforcement_enabled then
+    return new;
   end if;
 
   perform public.set_effective_feature_entitlement_v1(
@@ -319,8 +330,15 @@ begin
       message = 'classroom_creation_access_request_invalid';
   end if;
 
-  -- Hold a shared cutover lock through the caller's transaction so a classroom
-  -- admitted under legacy compatibility must finish before activation commits.
+  -- Keep the established subject-first lock order used by ordinary and
+  -- Blueprint creation, then hold the shared cutover lock through the caller's
+  -- transaction. A classroom admitted under legacy compatibility must finish
+  -- before activation commits.
+  perform public.lock_effective_feature_entitlement_v1(
+    p_subject_user_id,
+    'classrooms.create'
+  );
+
   select settings.strict_enforcement_enabled
   into v_strict_enforcement_enabled
   from private.classroom_creation_entitlement_settings settings
@@ -332,11 +350,6 @@ begin
       errcode = '55000',
       message = 'classroom_creation_entitlement_unavailable';
   end if;
-
-  perform public.lock_effective_feature_entitlement_v1(
-    p_subject_user_id,
-    'classrooms.create'
-  );
 
   select * into v_entitlement
   from public.effective_feature_entitlements

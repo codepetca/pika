@@ -107,52 +107,16 @@ insert into public.users (id, email, role) values
 
 do $provisioning$
 begin
-  if not exists (
+  if exists (
     select 1
     from public.effective_feature_entitlements
     where subject_user_id = 'e1810000-0000-4000-8000-000000000001'
       and feature_key = 'classrooms.create'
-      and source = 'plan'
-      and not enabled
-      and quota_limit = 0
-      and revision = 1
-  ) or not exists (
-    select 1
-    from public.effective_feature_entitlement_audit
-    where subject_user_id = 'e1810000-0000-4000-8000-000000000001'
-      and feature_key = 'classrooms.create'
-      and actor_ref = 'system:user-provisioning'
-      and reason_code = 'default_free_account_provisioning'
-      and entitlement_revision = 1
   ) then
-    raise exception 'New account did not receive one audited default Free entitlement';
+    raise exception 'Pre-activation account was provisioned before the controlled cutover';
   end if;
 end;
 $provisioning$;
-
--- Reconstruct pre-181 accounts for the compatibility and managed-state cases.
-delete from public.effective_feature_entitlement_audit
-where subject_user_id in (
-  'e1660000-0000-4000-8000-000000000001',
-  'e1660000-0000-4000-8000-000000000002',
-  'e1660000-0000-4000-8000-000000000003',
-  'e1660000-0000-4000-8000-000000000004',
-  'e1660000-0000-4000-8000-000000000005',
-  'e1660000-0000-4000-8000-000000000006',
-  'e1660000-0000-4000-8000-000000000007',
-  'e1670000-0000-4000-8000-000000000001'
-);
-delete from public.effective_feature_entitlements
-where subject_user_id in (
-  'e1660000-0000-4000-8000-000000000001',
-  'e1660000-0000-4000-8000-000000000002',
-  'e1660000-0000-4000-8000-000000000003',
-  'e1660000-0000-4000-8000-000000000004',
-  'e1660000-0000-4000-8000-000000000005',
-  'e1660000-0000-4000-8000-000000000006',
-  'e1660000-0000-4000-8000-000000000007',
-  'e1670000-0000-4000-8000-000000000001'
-);
 
 -- Missing rows preserve the current application-controlled behavior.
 insert into public.classrooms (id, teacher_id, title, class_code) values (
@@ -160,6 +124,12 @@ insert into public.classrooms (id, teacher_id, title, class_code) values (
   'e1660000-0000-4000-8000-000000000001',
   'Legacy compatible',
   'E166LEG'
+);
+insert into public.classrooms (id, teacher_id, title, class_code) values (
+  'e1810000-0000-4000-8000-000000000010',
+  'e1810000-0000-4000-8000-000000000001',
+  'Pre-cutover signup remains compatible',
+  'E181PRE'
 );
 
 -- Existing classrooms are grandfathered even when the account is already over
@@ -205,7 +175,7 @@ declare
 begin
   v_result := public.get_classroom_creation_entitlement_cutover_status_v1();
   if (v_result->>'strict_enforcement_enabled')::boolean
-    or (v_result->>'unclassified_account_count')::integer <> 8
+    or (v_result->>'unclassified_account_count')::integer <> 9
   then
     raise exception 'Initial cutover status is invalid: %', v_result;
   end if;
@@ -218,18 +188,6 @@ begin
     raise exception 'Strict cutover activated with unclassified accounts';
   exception when object_not_in_prerequisite_state then
     if sqlerrm <> 'classroom_creation_cutover_incomplete' then raise; end if;
-  end;
-
-  begin
-    insert into public.classrooms (id, teacher_id, title, class_code) values (
-      'e1810000-0000-4000-8000-000000000011',
-      'e1810000-0000-4000-8000-000000000001',
-      'Default Free denied',
-      'E181FREE'
-    );
-    raise exception 'Default Free account created a classroom';
-  exception when insufficient_privilege then
-    if sqlerrm <> 'classroom_creation_entitlement_disabled' then raise; end if;
   end;
 
   -- Ordinary creation stores exactly one result and replays it even when
@@ -444,6 +402,48 @@ begin
     if sqlerrm <> 'classroom_creation_active_limit_reached' then raise; end if;
   end;
 
+  -- Ownership transfer and archived-transfer reactivation cannot bypass the
+  -- same active-classroom quota.
+  insert into public.classrooms (id, teacher_id, title, class_code) values (
+    'e1660000-0000-4000-8000-000000000033',
+    'e1670000-0000-4000-8000-000000000001',
+    'Transfer source',
+    'E166XFER'
+  );
+  begin
+    update public.classrooms
+    set teacher_id = 'e1660000-0000-4000-8000-000000000003'
+    where id = 'e1660000-0000-4000-8000-000000000033';
+    raise exception 'Access account received a second active classroom by transfer';
+  exception when check_violation then
+    if sqlerrm <> 'classroom_creation_active_limit_reached' then raise; end if;
+  end;
+
+  insert into public.classrooms (
+    id,
+    teacher_id,
+    title,
+    class_code,
+    archived_at
+  ) values (
+    'e1660000-0000-4000-8000-000000000034',
+    'e1670000-0000-4000-8000-000000000001',
+    'Archived transfer source',
+    'E166ARCX',
+    clock_timestamp()
+  );
+  update public.classrooms
+  set teacher_id = 'e1660000-0000-4000-8000-000000000003'
+  where id = 'e1660000-0000-4000-8000-000000000034';
+  begin
+    update public.classrooms
+    set archived_at = null
+    where id = 'e1660000-0000-4000-8000-000000000034';
+    raise exception 'Access account restored a transferred classroom above its limit';
+  exception when check_violation then
+    if sqlerrm <> 'classroom_creation_active_limit_reached' then raise; end if;
+  end;
+
   -- Exact start and expiry windows fail closed.
   perform public.set_effective_feature_entitlement_v1(
     'e1660000-0000-4000-8000-000000000103',
@@ -620,6 +620,18 @@ begin
   ) then
     raise exception 'Post-cutover account did not receive default Free';
   end if;
+
+  begin
+    insert into public.classrooms (id, teacher_id, title, class_code) values (
+      'e1810000-0000-4000-8000-000000000011',
+      'e1810000-0000-4000-8000-000000000002',
+      'Post-cutover Free denied',
+      'E181FREE'
+    );
+    raise exception 'Post-cutover Free account created a classroom';
+  exception when insufficient_privilege then
+    if sqlerrm <> 'classroom_creation_entitlement_disabled' then raise; end if;
+  end;
 
   -- Simulate corruption that only the database owner can cause. Strict mode
   -- must not silently reopen legacy creation even when both live state and its
