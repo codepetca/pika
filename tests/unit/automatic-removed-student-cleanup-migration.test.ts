@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const sql = readFileSync(join(process.cwd(), 'supabase/migrations/176_automatic_removed_student_cleanup.sql'), 'utf8')
 const hardening = readFileSync(join(process.cwd(), 'supabase/migrations/177_harden_automatic_removed_student_cleanup.sql'), 'utf8')
 const eligibilityGuard = readFileSync(join(process.cwd(), 'supabase/migrations/178_guard_automatic_cleanup_eligibility.sql'), 'utf8')
+const hourlyWatchdog = readFileSync(join(process.cwd(), 'supabase/migrations/180_hourly_removed_student_cleanup_watchdog.sql'), 'utf8')
 const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
 const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
 const concurrencyRunner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-concurrency.sh'), 'utf8')
@@ -48,13 +49,21 @@ describe('automatic removed-student cleanup migration', () => {
     expect(sql).not.toMatch(/grant execute on function public\.claim_removed_student_cleanup_job\(uuid\) to (anon|authenticated)/)
   })
 
-  it('runs a conditional five-minute watchdog without embedding secrets or student data', () => {
+  it('defines a conditional watchdog without embedding secrets or student data', () => {
     expect(sql).toContain("'*/5 * * * *'")
     expect(sql).toContain("name='pika_removed_student_cleanup_worker_url'")
     expect(sql).toContain("name='pika_removed_student_cleanup_worker_secret'")
     expect(sql).toContain("body=>jsonb_build_object('source',p_source)")
     expect(sql).toContain("not exists (\n      select 1 from private.removed_student_cleanup_jobs")
     expect(sql).not.toMatch(/Bearer [A-Za-z0-9_-]{20,}/)
+  })
+
+  it('moves the recovery watchdog to hourly without changing its command', () => {
+    expect(hourlyWatchdog).toContain('select cron.alter_job(')
+    expect(hourlyWatchdog).toContain("where jobname = 'pika-removed-student-cleanup-watchdog'")
+    expect(hourlyWatchdog).toContain("schedule := '0 * * * *'")
+    expect(hourlyWatchdog).not.toMatch(/update\s+cron\.job|cron\.unschedule/i)
+    expect(hourlyWatchdog).not.toContain('private.run_removed_student_cleanup_watchdog()')
   })
 
   it('registers a rollback-only synthetic queue and lease lifecycle', () => {
