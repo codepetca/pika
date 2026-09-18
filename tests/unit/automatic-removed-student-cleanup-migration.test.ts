@@ -9,6 +9,8 @@ const hourlyWatchdog = readFileSync(join(process.cwd(), 'supabase/migrations/180
 const harness = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sql'), 'utf8')
 const runner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-database.sh'), 'utf8')
 const concurrencyRunner = readFileSync(join(process.cwd(), 'scripts/check-automatic-removed-student-cleanup-concurrency.sh'), 'utf8')
+const palConcurrencyRunner = readFileSync(join(process.cwd(), 'scripts/check-pal-outbox-concurrency.sh'), 'utf8')
+const purgeFailureConcurrencyRunner = readFileSync(join(process.cwd(), 'scripts/check-individual-student-purge-failure-concurrency.sh'), 'utf8')
 
 describe('automatic removed-student cleanup migration', () => {
   it('keeps automatic deletion disabled and limits enrollment to future removals', () => {
@@ -78,6 +80,8 @@ describe('automatic removed-student cleanup migration', () => {
     expect(concurrencyRunner).toContain('pika_automatic_cleanup_concurrency_')
     expect(concurrencyRunner).toContain('dropdb -U postgres --if-exists "$TMP_DB"')
     expect(concurrencyRunner).toContain("180_hourly_removed_student_cleanup_watchdog.sql' ]]; then")
+    expect(palConcurrencyRunner).toContain('180_hourly_removed_student_cleanup_watchdog.sql" ]]; then')
+    expect(purgeFailureConcurrencyRunner).toContain('180_hourly_removed_student_cleanup_watchdog.sql" ]]; then')
     expect(concurrencyRunner).toContain('automatic_cleanup_removal_after_gate_off Lock')
     expect(concurrencyRunner).toContain('automatic_cleanup_gate_after_removal Lock')
     expect(concurrencyRunner).not.toMatch(/--linked|db push|db reset/)
