@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Abbreviate calendar day modal dates
-
-- Updated the shared week-header day modal to show `Fri Sep 11, 2026`; adjusted its two existing dialog-name assertions.
-- Verified: focused checks passed (254 tests, TypeScript, lint, architecture, UI/design policy); audit clean. Playwright screenshots reviewed for teacher/student, 1440×900 and 390×844, light/dark; next-day, ArrowLeft, and Escape checks passed in all eight combinations. Evidence: `output/playwright/calendar-*.png` in the task worktree.
-- Owner: calendar modal date task; branch `codex/calendar-modal-date-format`. Risk profile: none. Reused LessonCalendar date formatting and DialogPanel; Pattern Lab controls/dialog reference inspected. No new pattern or composite behavior.
-- Follow-up: gave the date/navigation row a full-width muted header band and divider using existing semantic tokens. Rechecked all eight screenshots, day navigation/Escape, and 254 focused tests. The pre-commit audit's whole-file composite heuristic requests a newly changed test for this class-only follow-up; existing dialog tests and the keyboard browser matrix passed, with no semantics or handlers changed. Targeted independent review will cover the refinement in the same PR.
-
-## 2026-09-12 — Begin Free / Access classroom-creation enforcement
-
-- Approved policy: Free is join/participate-only; Access permits one active owned classroom and unlimited joining. Initial Access is manually granted. Trial remains a separate, time-limited future overlay with at most one trial period per account; Plus/Pro and billing are deferred.
-- Authored additive migration166 with service-only effective snapshots, immutable idempotent audit, exact validity windows and a transaction-serialized active-classroom limit. Missing snapshots preserve current teacher-role behavior and no cohort is seeded. The database trigger covers direct inserts, reactivation and ownership transfer; the Blueprint entry point is wrapped before its internal error boundary.
-- Ordinary and Blueprint creation paths map exact database denials to safe 403/409/503 responses. Added source, API/helper and Blueprint tests plus a rollback-only database/concurrency harness wired into CI. Owner authorized and consumed one local application of migration166 checksum `c66842db8c504d50a438c8e6f3c841e759cac87923fa3531300b6a84ceeede6c`; preview contained only166 and application succeeded. Transactional and two-writer race contracts pass, database lint is warning-free, and regenerated public types match. Production remains164 and no entitlement row/cohort was created.
-
 ## 2026-09-12 — Make ordinary classroom creation retry-safe
 
 - Initial Sol/Terra review of draft PR #1252 found that a lost ordinary-create response could duplicate an unmanaged classroom or consume Access capacity before the retry, and that reactivation denials collapsed to a generic 500. Remediation batch1 adds forward migration167 with a service-only operation ledger and atomic replay RPC, gives the existing blank-class modal a stable per-request idempotency key, and maps exact entitlement errors on restore. No visible modal contract changed.
@@ -258,7 +245,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Owner `codex/roster-join-sort`. Roster sorting by Joined now uses ascending last name, first name, and roster ID tie-breakers inside each joined/unjoined group; toggling direction changes only the group priority.
 - Removed the Daily attendance count-bubble chevron while preserving button names, `aria-pressed`, tooltips, and the active focus ring. Updated the production control, Pattern Lab mockup, and component/UI regression coverage.
 - Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
+
 ## 2026-09-18 — Hourly removed-student cleanup watchdog
 
 - Owner `codex/hourly-student-purge-watchdog`. User requested reducing the conditional Supabase recovery watchdog from every five minutes to hourly; the immediate removal-triggered callback remains unchanged.
 - Migration180 uses `cron.alter_job` on the exact named watchdog and a source regression rejects direct `cron.job` updates, unscheduling, or command replacement. Worker comments and rollout guidance now describe hourly recovery while preserving immediate callbacks and 240-second retry readiness. Targeted18 tests and focused checks (14 files/115 tests plus architecture, TypeScript, and lint) pass. No migration has been applied; production remains001–178 and requires exact approval for pending179 plus180 before rollout.
+
+## 2026-09-18 — Classroom creation entitlement cutover foundation
+
+- Owner `codex/access-entitlement-cutover`, based on `origin/main@c0b3d898`. Migration181 installs dormant Free provisioning, leaves existing and pre-activation accounts compatible, and exposes service-only readiness/one-way activation that refuses incomplete account coverage. Activation atomically starts strict enforcement and audited default-Free provisioning for future accounts.
+- The signup trigger, classroom assertion and activation share a transaction-held settings-row lock, closing signup/activation and legacy-creation/activation races. Existing direct, ordinary retry, Blueprint, restore and transfer enforcement continues through the migration166/167 database assertion; Access remains one active classroom and existing over-limit classrooms are preserved.
+- Disposable migration replay, warning-level database lint, generated-type comparison, rollback-only entitlement harness and activation-before-signup concurrency proof pass. Focused checks pass 95 tests plus architecture, TypeScript and lint. Migration181 has not been applied to shared local or production; no account was classified, granted Access or cut over. The runbook requires separate exact authorization for schema application and later production classification/activation.
+- Initial Sol/Terra review found that immediate post-migration Free provisioning violated the dormant Release-A boundary and that the new assertion reversed the established creation lock order. Remediation gates provisioning on successful strict activation, restores subject-before-settings locking, proves both signup/activation lock winners, adds ownership-transfer/reactivation quota coverage, and skips the destructive activation race on persistent local databases with unrelated accounts. Exact-head re-review follows.

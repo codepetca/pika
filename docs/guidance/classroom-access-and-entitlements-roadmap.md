@@ -153,9 +153,14 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation
   and ownership transfer share the database guard. Forward migration 167 makes ordinary
-  creation retries replay one stored classroom instead of consuming capacity twice. Both are
-  verified on shared local Supabase; neither is applied to hosted production, and no account
-  has been seeded or cut over.
+  creation retries replay one stored classroom instead of consuming capacity twice.
+- Migration 181 is the separately controlled Free-provisioning and fail-closed cutover
+  slice. After activation it gives future accounts an audited Free snapshot transactionally;
+  before activation it leaves existing and newly created unmanaged accounts compatible.
+  Strict activation is permitted only after every current account has an explicit snapshot.
+  Source landing does not authorize applying it or
+  classifying/activating any environment. The exact two-release procedure and canaries are
+  in the [classroom creation entitlement cutover runbook](classroom-creation-entitlement-cutover.md).
 
 ## Safe rollout while real classes continue
 

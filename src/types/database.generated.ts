@@ -7764,6 +7764,10 @@ export type Database = {
         Args: { p_teacher_id: string }
         Returns: Json
       }
+      activate_classroom_creation_entitlement_cutover_v1: {
+        Args: { p_actor_ref: string; p_operation_id: string }
+        Returns: Json
+      }
       activate_managed_storage_enforcement: {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
@@ -9935,6 +9939,10 @@ export type Database = {
       }
       get_classroom_creation_access_v1: {
         Args: { p_at?: string; p_subject_user_id: string }
+        Returns: Json
+      }
+      get_classroom_creation_entitlement_cutover_status_v1: {
+        Args: never
         Returns: Json
       }
       get_cleanup_history_cron_health_snapshot: {
