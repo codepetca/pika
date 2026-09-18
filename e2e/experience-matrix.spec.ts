@@ -5,6 +5,7 @@ import {
   type TestInfo,
 } from '@playwright/test'
 import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
+import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -1058,6 +1059,157 @@ test('shows manual attendance marks optimistically', async ({ page }, testInfo) 
 
   finishSave()
   await expect(page.getByText('Attendance updated')).toBeVisible()
+})
+
+test('shows integrated attendance marks and restores optimistically', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+  const studentIds = [
+    '40000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000002',
+  ]
+  let finishMark!: () => void
+  let finishRestore!: () => void
+  const markGate = new Promise<void>((resolve) => { finishMark = resolve })
+  const restoreGate = new Promise<void>((resolve) => { finishRestore = resolve })
+  let postCount = 0
+  let students: TeacherAttendanceView['students'] = studentIds.map((studentId, index) => ({
+    studentId,
+    firstName: `Student 0${index + 1}`,
+    lastName: `Alpha0${index + 1}`,
+    status: index === 0 ? 'late' as const : 'absent' as const,
+    source: index === 0 ? 'student_qr' as const : 'staff' as const,
+    checkedInAt: '2026-08-29T13:15:00.000Z',
+    revision: index + 1,
+    hasQrCheckIn: true,
+    hasManualOverride: index === 1,
+    pendingCommand: false,
+    commandFailed: false,
+  }))
+
+  await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        class_days: [{
+          id: '50000000-0000-4000-8000-000000000001',
+          classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          date: '2026-08-29',
+          prompt_text: null,
+          is_class_day: true,
+        }],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/logs?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        logs: students.map((student) => ({
+          student_id: student.studentId,
+          student_email: `${student.studentId}@example.com`,
+          student_first_name: student.firstName,
+          student_last_name: student.lastName,
+          entry: null,
+          history_preview: [],
+        })),
+      }),
+    })
+  })
+  await page.route('**/api/teacher/log-summary?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ summary_status: 'no_logs', summary: null }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classDate: '2026-08-29',
+        integration: 'ready',
+        session: {
+          state: 'open',
+          opensAt: '2026-08-29T12:45:00.000Z',
+          closesAt: '2026-08-29T14:00:00.000Z',
+          sessionStartsAt: '2026-08-29T13:00:00.000Z',
+          sessionEndsAt: '2026-08-29T14:00:00.000Z',
+          presentThroughAt: '2026-08-29T13:10:00.000Z',
+          absentAt: '2026-08-29T14:00:00.000Z',
+          revision: 1,
+          pendingCommand: false,
+          commandFailed: false,
+        },
+        sync: { state: 'current', confirmedAt: '2026-08-29T15:00:00.000Z' },
+        students,
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/marks', async (route) => {
+    const body = route.request().postDataJSON() as {
+      marks: Array<{ student_id: string; status: 'automatic' | 'present' | 'late' | 'absent' }>
+    }
+    postCount += 1
+    await (postCount === 1 ? markGate : restoreGate)
+    students = students.map((student) => {
+      const mark = body.marks.find((candidate) => candidate.student_id === student.studentId)
+      if (!mark) return student
+      return mark.status === 'automatic'
+        ? {
+            ...student,
+            status: 'late' as const,
+            source: 'student_qr' as const,
+            revision: (student.revision ?? 0) + 1,
+            hasManualOverride: false,
+          }
+        : {
+            ...student,
+            status: mark.status,
+            source: 'staff' as const,
+            revision: (student.revision ?? 0) + 1,
+            hasManualOverride: true,
+          }
+    })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ outcome: 'applied', appliedCount: body.marks.length }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
+  const absent = page.getByRole('button', { name: 'Mark Student 01 Alpha01 absent' })
+  await absent.click()
+  await expect(absent).toHaveAttribute('aria-pressed', 'true')
+  await expect(absent).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Undo override for Student 01 Alpha01' })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  const { theme, viewport } = getExperienceMetadata(testInfo)
+  await page.screenshot({
+    path: `/tmp/pika-integrated-attendance-${viewport}-${theme}-optimistic-mark.png`,
+    animations: 'disabled',
+  })
+
+  finishMark()
+  await expect(absent).toBeEnabled()
+  const undo = page.getByRole('button', { name: 'Undo override for Student 02 Alpha02' })
+  await undo.click()
+  await expect(undo).toHaveCount(0)
+  const restoredLate = page.getByRole('button', { name: 'Mark Student 02 Alpha02 late' })
+  await expect(restoredLate).toHaveAttribute('aria-pressed', 'true')
+  await expect(restoredLate).toBeDisabled()
+  await page.screenshot({
+    path: `/tmp/pika-integrated-attendance-${viewport}-${theme}-optimistic-restore.png`,
+    animations: 'disabled',
+  })
+
+  finishRestore()
+  await expect(restoredLate).toBeEnabled()
 })
 
 test('shows saved classroom hours across dates and delivery failures', async ({ page }, testInfo) => {
