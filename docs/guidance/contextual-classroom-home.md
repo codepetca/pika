@@ -53,10 +53,10 @@ subject-bound queries, sanitized responses, deduplication and fail-closed source
 or evidence errors. A local service-client canary must return only aggregate
 owned/joined counts; do not print account or classroom identifiers.
 
-Do not point the live page at this endpoint until contextual classroom-page
-routing/navigation and every reachable surface for the selected mixed-role pilot
-are compatible. The next UI slice must use the approved Pattern Lab Teaching /
-Joined reference, remain off by default, and complete Pika's teacher/student
-desktop/mobile light/dark verification. Production cohort enablement requires a
-separate permission-widening decision, canaries, stop thresholds and compatible
-rollback floor.
+The independently gated contextual classroom-page routing foundation now selects
+the existing owner/member experience without rewriting the session role. Do not point
+the live home at this endpoint until every downstream surface reachable from those
+experiences is compatible. The eventual home UI must use the approved Pattern Lab
+Teaching / Joined reference, remain off by default, and complete Pika's teacher/student
+desktop/mobile light/dark verification. Production cohort enablement requires a separate
+permission-widening decision, canaries, stop thresholds and compatible rollback floor.
