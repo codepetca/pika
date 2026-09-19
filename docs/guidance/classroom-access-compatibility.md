@@ -57,12 +57,19 @@ now covers owner/member lesson-plan list reads, preserving member visibility lim
 validating both the visibility record and returned plan bindings. Lesson-plan date,
 bulk and copy writes remain legacy. A third independent gate covers owner/member material
 list reads, retains member draft filtering and validates every returned classroom binding,
-including the missing-position fallback. Material writes remain legacy. Assignments,
-entries, surveys, tests and the remaining work domains are still outstanding; these read slices do not
+including the missing-position fallback. Material writes remain legacy. Entries,
+surveys, tests and the remaining work domains are still outstanding; these read slices do not
 make the page or home gate safe to enable. See
 [the announcement read contract](contextual-classroom-announcement-reads.md) and
 [the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md), plus
 [the material read contract](contextual-classroom-material-reads.md).
+
+A fourth independent gate now covers owner/member assignment list reads. It preserves
+owner roster statistics and submission requirements, member release visibility and
+own-document sanitization while validating all supporting bindings. Assignment item
+routes, mutations, submissions and grading remain legacy. Entries, surveys, tests and
+the remaining work domains are still outstanding; the page and home gates remain unsafe
+to enable. See [the assignment read contract](contextual-classroom-assignment-reads.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 

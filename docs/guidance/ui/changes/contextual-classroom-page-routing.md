@@ -57,3 +57,8 @@ precondition.
 The separately gated material list-read slice is compatible for admitted exact pairs
 and preserves owner drafts plus member published-only visibility. Material mutations
 and the other reachable domains remain legacy, so the page gate must stay disabled.
+
+The separately gated assignment list-read slice is compatible for admitted exact pairs
+and preserves owner statistics plus member release and own-document visibility. Item
+routes, assignment mutations, submissions, grading and the other reachable domains
+remain legacy, so the page gate must stay disabled.

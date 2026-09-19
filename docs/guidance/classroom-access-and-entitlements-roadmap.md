@@ -178,6 +178,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   fallback. Create/edit/delete remain legacy pending transaction-time relationship
   and resource checks. See
   [the material read contract](contextual-classroom-material-reads.md).
+- Classroom assignment list reads have a separate dormant exact-pair gate. It lets a
+  student-valued owner receive drafts plus roster-scoped statistics and lets a
+  teacher-valued active member receive only live assignments and their own sanitized
+  document. Assignment, roster, statistics, requirement and member-document evidence
+  is bound before use. All assignment writes, grading and submission flows remain
+  legacy. See
+  [the assignment read contract](contextual-classroom-assignment-reads.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
