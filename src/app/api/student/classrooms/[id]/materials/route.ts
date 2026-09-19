@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
+import {
+  assertContextualMaterialRows,
+  authorizeClassroomMaterialRequest,
+} from '@/lib/server/classroom-material-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,12 +20,20 @@ function isMissingMaterialsPositionError(error: any) {
 }
 
 export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_request, context) => {
-  const user = await requireRole('student')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const materialAccess = await authorizeClassroomMaterialRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'student',
+    permission: 'member',
+  })
+  const { id: classroomId } = await params
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status })
+  if (materialAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(materialAccess.user.id, classroomId)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -54,6 +65,10 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
     }
     console.error('Error fetching classwork materials:', error)
     return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
+  }
+
+  if (materialAccess.mode === 'contextual') {
+    assertContextualMaterialRows(classroomId, materials)
   }
 
   return NextResponse.json({ materials: materials || [] })

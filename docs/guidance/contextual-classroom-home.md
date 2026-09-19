@@ -69,3 +69,8 @@ this endpoint.
 Contextual owner/member lesson-plan list reads are also available behind their own
 dormant gate with member visibility limits preserved. Lesson-plan writes and the
 remaining domains are still role-bound, so the home activation rule is unchanged.
+
+Contextual owner/member material list reads are likewise available behind a separate
+dormant gate with member draft filtering and row binding preserved. Material writes
+and the remaining domains are still role-bound, so the home activation rule remains
+unchanged.
