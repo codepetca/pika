@@ -145,6 +145,25 @@ describe('contextual assignment detail route', () => {
     expect(client.from).not.toHaveBeenCalledWith('assignment_docs')
   })
 
+  it('uses the canonical assignment UUID for active-run evidence after uppercase admission', async () => {
+    const client = makeClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+    vi.mocked(getActiveAssignmentAiGradingRunSummary).mockResolvedValueOnce({
+      assignment_id: assignmentId,
+    } as any)
+
+    const uppercaseAssignmentId = assignmentId.toUpperCase()
+    const response = await GET(
+      new NextRequest(`http://localhost/api/teacher/assignments/${uppercaseAssignmentId}`),
+      { params: Promise.resolve({ id: uppercaseAssignmentId }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(getActiveAssignmentAiGradingRunSummary).toHaveBeenCalledWith(assignmentId, expect.objectContaining({
+      requireEvidence: true,
+    }))
+  })
+
   it('fails closed on an assignment substituted after exact-pair admission', async () => {
     const client = makeClient({ assignment: assignmentRow({ id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' }) })
     vi.mocked(getServiceRoleClient).mockReturnValue(client as never)

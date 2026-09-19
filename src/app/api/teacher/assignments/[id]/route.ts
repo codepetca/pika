@@ -177,7 +177,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   const assignmentAccess = await authorizeClassroomAssignmentDetailRequest(resolveAssignmentId, {
     legacyRole: 'teacher',
   })
-  const id = await resolveAssignmentId()
+  const requestedId = await resolveAssignmentId()
+  const id = assignmentAccess.mode === 'contextual'
+    ? assignmentAccess.assignmentId
+    : requestedId
   const supabase = getServiceRoleClient()
 
   const { data: assignment, error: assignmentError } = await supabase
