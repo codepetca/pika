@@ -160,7 +160,11 @@ describe('classroom assignment exact-pair access', () => {
       id: rowId, assignment_id: assignmentId,
     }])).not.toThrow()
     expect(() => assertContextualStudentAssignmentDocs(actorId, [assignmentId], [{
-      id: rowId, assignment_id: assignmentId, student_id: actorId,
+      id: rowId,
+      assignment_id: assignmentId,
+      student_id: actorId,
+      returned_at: null,
+      feedback_returned_at: null,
     }])).not.toThrow()
 
     expect(() => assertContextualAssignmentStatsDocs(
@@ -170,8 +174,20 @@ describe('classroom assignment exact-pair access', () => {
       id: rowId, assignment_id: otherAssignmentId,
     }])).toThrowError(expect.objectContaining({ statusCode: 503 }))
     expect(() => assertContextualStudentAssignmentDocs(actorId, [assignmentId], [{
-      id: rowId, assignment_id: assignmentId, student_id: studentId,
+      id: rowId,
+      assignment_id: assignmentId,
+      student_id: studentId,
+      returned_at: null,
+      feedback_returned_at: null,
     }])).toThrowError(expect.objectContaining({ statusCode: 503 }))
+
+    for (const doc of [
+      { id: rowId, assignment_id: assignmentId, student_id: actorId, returned_at: 'invalid', feedback_returned_at: null },
+      { id: rowId, assignment_id: assignmentId, student_id: actorId, returned_at: null, feedback_returned_at: true },
+    ]) {
+      expect(() => assertContextualStudentAssignmentDocs(actorId, [assignmentId], [doc]))
+        .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    }
   })
 
   it('loads a subject-bound contextual roster and rejects substituted evidence', async () => {

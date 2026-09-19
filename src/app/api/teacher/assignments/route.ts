@@ -17,6 +17,7 @@ import {
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import { ApiError } from '@/lib/api-error'
 import {
   assertContextualAssignmentRequirements,
   assertContextualAssignmentRows,
@@ -57,7 +58,8 @@ const ASSIGNMENT_LIST_STATS_FALLBACK_COLUMNS =
 async function loadAssignmentDocsForListStats(
   supabase: any,
   assignmentIds: string[],
-  studentIds: string[]
+  studentIds: string[],
+  options: { requireDataArray?: boolean } = {},
 ): Promise<{ docs: AssignmentStatsDocRow[]; error: any }> {
   if (assignmentIds.length === 0 || studentIds.length === 0) {
     return { docs: [], error: null }
@@ -75,6 +77,7 @@ async function loadAssignmentDocsForListStats(
     chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
     pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
     pageOrderColumn: 'id',
+    requireDataArray: options.requireDataArray,
   })
 
   if (!withMailboxTracking.error) {
@@ -93,6 +96,7 @@ async function loadAssignmentDocsForListStats(
     chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
     pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
     pageOrderColumn: 'id',
+    requireDataArray: options.requireDataArray,
   })
 
   if (fallback.error) {
@@ -180,10 +184,14 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   const { docs: assignmentDocs, error: assignmentDocsError } = await loadAssignmentDocsForListStats(
     supabase,
     assignmentIds,
-    classroomStudentsResult.studentIds
+    classroomStudentsResult.studentIds,
+    { requireDataArray: assignmentAccess.mode === 'contextual' },
   )
 
   if (assignmentDocsError) {
+    if (assignmentAccess.mode === 'contextual') {
+      throw new ApiError(503, 'Unable to verify assignment statistics')
+    }
     console.error('Error fetching assignment doc stats:', assignmentDocsError)
     return NextResponse.json({ error: 'Failed to fetch assignment stats' }, { status: 500 })
   }
@@ -212,7 +220,19 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
         docsByAssignmentId.get(assignment.id) || [],
         classroomStudentsResult.totalStudents
       )
-      const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, assignment.id)
+      let submissionRequirements
+      try {
+        submissionRequirements = await loadAssignmentSubmissionRequirements(
+          supabase,
+          assignment.id,
+          { requireDataArray: assignmentAccess.mode === 'contextual' },
+        )
+      } catch (error) {
+        if (assignmentAccess.mode === 'contextual') {
+          throw new ApiError(503, 'Unable to verify assignment submission requirements')
+        }
+        throw error
+      }
 
       if (assignmentAccess.mode === 'contextual') {
         assertContextualAssignmentRequirements(assignment.id, submissionRequirements)

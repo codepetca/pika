@@ -124,7 +124,8 @@ async function signArtifactImageUrls(
 
 export async function loadAssignmentSubmissionRequirements(
   supabase: SupabaseClientLike,
-  assignmentId: string
+  assignmentId: string,
+  options: { requireDataArray?: boolean } = {},
 ): Promise<AssignmentSubmissionRequirement[]> {
   try {
     const query = supabase.from('assignment_submission_requirements')
@@ -138,6 +139,9 @@ export async function loadAssignmentSubmissionRequirements(
     if (error) {
       if (isMissingAssignmentSubmissionSchemaError(error)) return []
       throw new Error('Failed to load assignment submission requirements')
+    }
+    if (options.requireDataArray && !Array.isArray(data)) {
+      throw new Error('Failed to verify assignment submission requirements')
     }
 
     return (data || []) as AssignmentSubmissionRequirement[]

@@ -11,6 +11,7 @@ type AssignmentAccess =
   | { mode: 'contextual'; user: AuthenticatedUser; context: ClassroomAccessContext }
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
+const timestamp = z.string().datetime({ offset: true })
 const assignmentPairsSchema = z.array(z.object({
   userId: canonicalUuid,
   classroomId: canonicalUuid,
@@ -21,6 +22,7 @@ const assignmentRowSchema = z.object({
 }).passthrough()
 const publishedAssignmentRowSchema = assignmentRowSchema.extend({
   is_draft: z.literal(false),
+  released_at: timestamp.nullable(),
 })
 const enrollmentRowSchema = z.object({
   classroom_id: canonicalUuid,
@@ -38,6 +40,8 @@ const assignmentDocSchema = z.object({
   id: canonicalUuid,
   assignment_id: canonicalUuid,
   student_id: canonicalUuid,
+  returned_at: timestamp.nullable(),
+  feedback_returned_at: timestamp.nullable(),
 }).passthrough()
 
 function configuredAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | null {

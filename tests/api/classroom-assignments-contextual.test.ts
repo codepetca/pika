@@ -151,7 +151,13 @@ function studentClient(options: {
     eq: vi.fn(() => docsBuilder),
     in: vi.fn().mockResolvedValue({
       data: options.docs === undefined
-        ? [{ id: rowId, assignment_id: assignmentId, student_id: actorId }]
+        ? [{
+            id: rowId,
+            assignment_id: assignmentId,
+            student_id: actorId,
+            returned_at: null,
+            feedback_returned_at: null,
+          }]
         : options.docs,
       error: options.docsError ?? null,
     }),
@@ -227,6 +233,15 @@ describe('contextual classroom assignment routes', () => {
     expect((await studentGet(studentRequest)).status).toBe(503)
   })
 
+  it('fails closed when a contextual member assignment omits its release policy', async () => {
+    vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue(contextualAccess('teacher', 'member'))
+    const { released_at: _releasedAt, ...missingReleasePolicy } = assignment
+    vi.mocked(getServiceRoleClient).mockReturnValue(
+      studentClient({ assignments: [missingReleasePolicy] }) as unknown as ReturnType<typeof getServiceRoleClient>
+    )
+    expect((await studentGet(studentRequest)).status).toBe(503)
+  })
+
   it('fails closed on substituted owner statistics or submission requirements', async () => {
     vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue(contextualAccess('student', 'owner'))
     vi.mocked(getServiceRoleClient).mockReturnValue(teacherClient({
@@ -240,11 +255,26 @@ describe('contextual classroom assignment routes', () => {
     expect((await teacherGet(teacherRequest)).status).toBe(503)
   })
 
+  it('fails closed on null owner statistics or requirement evidence', async () => {
+    vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue(contextualAccess('student', 'owner'))
+    vi.mocked(getServiceRoleClient).mockReturnValue(
+      teacherClient({ docs: null }) as unknown as ReturnType<typeof getServiceRoleClient>
+    )
+    expect((await teacherGet(teacherRequest)).status).toBe(503)
+
+    vi.mocked(getServiceRoleClient).mockReturnValue(
+      teacherClient({ requirements: null }) as unknown as ReturnType<typeof getServiceRoleClient>
+    )
+    expect((await teacherGet(teacherRequest)).status).toBe(503)
+  })
+
   it('fails closed on another learner document, another assignment, null rows, or query failure', async () => {
     vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue(contextualAccess('teacher', 'member'))
     for (const options of [
-      { docs: [{ id: rowId, assignment_id: assignmentId, student_id: studentId }] },
-      { docs: [{ id: rowId, assignment_id: otherAssignmentId, student_id: actorId }] },
+      { docs: [{ id: rowId, assignment_id: assignmentId, student_id: studentId, returned_at: null, feedback_returned_at: null }] },
+      { docs: [{ id: rowId, assignment_id: otherAssignmentId, student_id: actorId, returned_at: null, feedback_returned_at: null }] },
+      { docs: [{ id: rowId, assignment_id: assignmentId, student_id: actorId, returned_at: 'invalid', feedback_returned_at: null }] },
+      { docs: [{ id: rowId, assignment_id: assignmentId, student_id: actorId, returned_at: null, feedback_returned_at: 'invalid' }] },
       { docs: null },
       { docs: [], docsError: { message: 'database unavailable' } },
     ]) {

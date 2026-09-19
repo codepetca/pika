@@ -21,9 +21,11 @@ The contextual owner projection validates every assignment/classroom binding, ev
 roster row, all assignment-document statistics against both the returned assignments
 and active roster, and every submission requirement against its assignment. The
 contextual member projection independently proves `is_draft = false` and validates
-that every returned document belongs to the authenticated member and one of the
-authorized assignments. Null, malformed, substituted or unavailable supporting
-evidence returns 503 without disclosing a partial list.
+the release timestamp before visibility filtering. Every returned document must belong
+to the authenticated member and one of the authorized assignments, with valid return
+and feedback-return timestamps before sanitization. Null, malformed, substituted or
+unavailable supporting evidence returns 503 without disclosing a partial list. The
+intentional missing-requirements-schema compatibility fallback remains an empty list.
 
 ## Independent rollout gate
 
