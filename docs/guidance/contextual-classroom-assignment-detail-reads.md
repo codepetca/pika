@@ -23,8 +23,8 @@ against the assignment, every artifact against its document, student and
 requirement, every history row against a returned document, and any active
 grading run against the assignment. Null, malformed, duplicate, substituted or
 unavailable supporting evidence returns 503 without a partial response. The
-intentional missing-requirements-schema compatibility fallback remains an empty
-list.
+intentional missing-submission-schema compatibility fallbacks for requirements
+and artifacts remain empty lists during schema rollout.
 
 ## Independent rollout gate
 

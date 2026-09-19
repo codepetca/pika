@@ -212,7 +212,6 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
 
   if (assignmentAccess.mode === 'contextual') {
     await resolveContextualAssignmentDetailAccess(assignmentAccess, assignment, {
-      permission: 'owner',
       supabase,
     })
   } else if (assignment.classrooms.teacher_id !== assignmentAccess.user.id) {

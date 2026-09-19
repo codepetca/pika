@@ -5,7 +5,6 @@ import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import { resolveClassroomAccessFromRecord } from '@/lib/server/classroom-access'
 import type { AuthenticatedUser, UserRole } from '@/types'
 
-type AssignmentDetailPermission = 'owner' | 'member'
 export type AssignmentDetailAccess =
   | { mode: 'legacy'; user: AuthenticatedUser }
   | { mode: 'contextual'; user: AuthenticatedUser; assignmentId: string }
@@ -111,7 +110,7 @@ export async function authorizeClassroomAssignmentDetailRequest(
 export async function resolveContextualAssignmentDetailAccess(
   access: Extract<AssignmentDetailAccess, { mode: 'contextual' }>,
   assignment: unknown,
-  options: { permission: AssignmentDetailPermission; supabase: any },
+  options: { supabase: any },
 ): Promise<ClassroomAccessContext> {
   const parsed = assignmentRowSchema.safeParse(assignment)
   if (
@@ -128,9 +127,7 @@ export async function resolveContextualAssignmentDetailAccess(
     parsed.data.classrooms,
     { supabase: options.supabase },
   )
-  const allowed = options.permission === 'owner'
-    ? context.relationship === 'owner' && canAccessClassroom(context, 'read')
-    : canAccessClassroom(context, 'participate')
+  const allowed = context.relationship === 'owner' && canAccessClassroom(context, 'read')
   if (!allowed) throw new ApiError(403, 'Forbidden')
   return context
 }

@@ -123,7 +123,7 @@ describe('classroom assignment detail exact-pair access', () => {
         teacher_id: actorId,
         archived_at: '2026-09-01T00:00:00.000Z',
       },
-    }), { permission: 'owner', supabase: {} })).resolves.toMatchObject({ relationship: 'owner' })
+    }), { supabase: {} })).resolves.toMatchObject({ relationship: 'owner' })
   })
 
   it('rejects substituted bindings and the wrong classroom relationship', async () => {
@@ -136,7 +136,7 @@ describe('classroom assignment detail exact-pair access', () => {
       assignment({ classrooms: { id: otherClassroomId, teacher_id: actorId, archived_at: null } }),
     ]) {
       await expect(resolveContextualAssignmentDetailAccess(access, row, {
-        permission: 'owner', supabase: {},
+        supabase: {},
       })).rejects.toMatchObject({ statusCode: 503 })
     }
 
@@ -148,7 +148,7 @@ describe('classroom assignment detail exact-pair access', () => {
       archived: false,
     })
     await expect(resolveContextualAssignmentDetailAccess(access, assignment(), {
-      permission: 'owner', supabase: {},
+      supabase: {},
     })).rejects.toMatchObject({ statusCode: 403 })
   })
 
