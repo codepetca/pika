@@ -78,21 +78,28 @@ describe('classroom announcement exact-pair access', () => {
   })
 
   it('authenticates before evaluating configured pairs', async () => {
+    const resolveClassroomId = vi.fn().mockResolvedValue(classroomId)
     vi.mocked(requireAuth).mockRejectedValue(new Error('no session'))
-    await expect(authorizeClassroomAnnouncementRequest(classroomId, {
+    await expect(authorizeClassroomAnnouncementRequest(resolveClassroomId, {
       legacyRole: 'teacher',
       permission: 'owner',
     })).rejects.toThrow('no session')
+    expect(resolveClassroomId).not.toHaveBeenCalled()
     expect(resolveClassroomAccess).not.toHaveBeenCalled()
   })
 
-  it('rejects invalid identities and requested identifiers without a legacy escape', async () => {
+  it('rejects invalid identities and preserves role-first handling for malformed identifiers', async () => {
     vi.mocked(requireAuth).mockResolvedValue({ ...user(), id: 'invalid' })
     await expect(authorizeClassroomAnnouncementRequest(classroomId, {
       legacyRole: 'teacher',
       permission: 'owner',
     })).rejects.toMatchObject({ statusCode: 503 })
     vi.mocked(requireAuth).mockResolvedValue(user())
+    await expect(authorizeClassroomAnnouncementRequest('invalid', {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).rejects.toMatchObject({ name: 'AuthorizationError' })
+    vi.mocked(requireAuth).mockResolvedValue(user('teacher'))
     await expect(authorizeClassroomAnnouncementRequest('invalid', {
       legacyRole: 'teacher',
       permission: 'owner',
@@ -180,6 +187,7 @@ describe('classroom announcement exact-pair access', () => {
       permission: 'owner',
     })).mode).toBe('contextual')
     expect(resolveClassroomAccess).toHaveBeenCalledWith(actorId, classroomId)
+    vi.mocked(requireAuth).mockResolvedValue(user('teacher'))
     await expect(authorizeClassroomAnnouncementRequest(classroomId.replaceAll('-', ''), {
       legacyRole: 'teacher',
       permission: 'owner',

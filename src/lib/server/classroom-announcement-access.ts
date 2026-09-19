@@ -40,7 +40,7 @@ function configuredAnnouncementPairs(): z.infer<typeof announcementPairsSchema> 
  * Announcement mutations and member read receipts are intentionally out of scope.
  */
 export async function authorizeClassroomAnnouncementRequest(
-  classroomId: string,
+  classroomId: string | (() => Promise<string>),
   options: { legacyRole: UserRole; permission: AnnouncementPermission },
 ): Promise<AnnouncementAccess> {
   if (process.env.PIKA_CLASSROOM_ANNOUNCEMENTS_ACCESS_ENABLED !== 'true') {
@@ -54,8 +54,18 @@ export async function authorizeClassroomAnnouncementRequest(
     throw new ApiError(503, 'Classroom announcement access configuration is unavailable')
   }
 
-  const requestedId = canonicalUuid.safeParse(classroomId)
-  if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')
+  const requestedId = canonicalUuid.safeParse(
+    typeof classroomId === 'function' ? await classroomId() : classroomId
+  )
+  if (!requestedId.success) {
+    // Preserve the legacy role-first response for wrong-role callers. A valid
+    // classroom identifier is required before an exact contextual pair can be
+    // established, so malformed identifiers cannot opt into the pilot path.
+    if (user.role !== options.legacyRole) {
+      throw new AuthorizationError(`Forbidden: ${options.legacyRole} role required`)
+    }
+    throw new ApiError(400, 'Invalid classroom identifier')
+  }
   if (!pairs.some((pair) => (
     pair.userId === identity.data && pair.classroomId === requestedId.data
   ))) {

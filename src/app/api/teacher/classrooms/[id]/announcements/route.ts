@@ -17,11 +17,14 @@ export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetAnnouncements', async (_request, context) => {
-  const { id: classroomId } = await context.params
-  const announcementAccess = await authorizeClassroomAnnouncementRequest(classroomId, {
+  const params = context.params
+  const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
+    await params
+  ).id, {
     legacyRole: 'teacher',
     permission: 'owner',
   })
+  const { id: classroomId } = await params
   const { user } = announcementAccess
 
   if (announcementAccess.mode === 'legacy') {
