@@ -190,11 +190,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   existing roster, submission summary and one enrolled student's work while
   validating assignment/classroom, roster, profile, document, feedback, requirement,
   artifact, repository-target, repository-review, history and grading-run bindings.
-  The learner assignment-document GET remains legacy because it creates or updates
-  data and can emit Pal events. Migrations 182–183 and the server adapter now define the
-  dormant transactional learner-open boundary, including role-neutral exact-membership
-  Pal identity, but no route calls it yet. Autosave,
-  submission, artifacts and the remaining assignment writes are still outstanding.
+  The learner assignment-document GET now has its own dormant exact user/assignment
+  gate. A matched teacher- or student-valued active member opens only their own document
+  through the migration 182 transaction; the route binds the returned document,
+  feedback, requirements, artifacts and GitHub identity before responding and preserves
+  immediate Pal delivery. Disabled and unmatched requests remain on the legacy path.
+  The gate must stay disabled because autosave, submission, artifact mutations and the
+  remaining assignment writes are still outstanding.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a

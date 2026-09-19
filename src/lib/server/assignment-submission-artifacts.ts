@@ -475,24 +475,37 @@ export async function deleteAssignmentSubmissionArtifactAtomic(input: {
 
 export async function loadUserGitHubIdentity(
   supabase: SupabaseClientLike,
-  userId: string
+  userId: string,
+  options: { requireEvidence?: boolean } = {},
 ) {
   try {
     const query = supabase.from('user_github_identities')
-    if (!query) return null
-    const { data, error } = await query
+    if (!query) {
+      if (options.requireEvidence) throw new Error('Failed to verify GitHub identity')
+      return null
+    }
+    const filteredQuery = query
       .select('*')
       .eq('user_id', userId)
-      .maybeSingle()
+    const { data, error } = options.requireEvidence
+      ? await filteredQuery.limit(2)
+      : await filteredQuery.maybeSingle()
 
     if (error) {
-      if (isMissingAssignmentSubmissionSchemaError(error)) return null
+      if (isMissingAssignmentSubmissionSchemaError(error) && !options.requireEvidence) return null
       throw new Error('Failed to load GitHub identity')
+    }
+
+    if (options.requireEvidence) {
+      if (!Array.isArray(data) || data.length > 1) {
+        throw new Error('Failed to verify GitHub identity')
+      }
+      return data[0] ?? null
     }
 
     return data || null
   } catch (error) {
-    if (isMissingAssignmentSubmissionSchemaError(error)) return null
+    if (isMissingAssignmentSubmissionSchemaError(error) && !options.requireEvidence) return null
     throw error
   }
 }

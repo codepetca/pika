@@ -19,6 +19,9 @@ const result = {
     is_draft: false,
     created_at: '2026-09-01T12:00:00.000Z',
     released_at: '2026-09-19T12:00:00.000Z',
+    description: 'Complete the assignment.',
+    instructions_markdown: 'Complete the assignment.',
+    rich_instructions: null,
   },
   doc: {
     id: docId,
