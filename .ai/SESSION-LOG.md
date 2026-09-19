@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Sync Pal with merged classroom prerequisites
-
-Prerequisite#1252 merged to main as0aeba623 after all exact-head CI gates passed. Synced main into the Pal branch, resolving only continuity conflicts and retaining verified shared local001–168 status. Product and migration trees remain unchanged from the locally verified7eb26f75 integration. Final focused checks and the approved sixth review (Sol/high,20minute cap) precede stable-head Pal CI; production remains untouched.
-
 ## 2026-09-12 — Implement disabled classroom Pal signals and presentation
 
 - Owner task01a0978b-297c-70c1-9199-76a9f104cac0, branch codex/pal-classroom-signals, base3a225b0f. Authored migration169 with disabled database gate, immutable activation boundary, private generation-bound outbox/week state, all six existing v1 event families, legacy quiescence, scoped claims and bounded weekly planning. Historical/earlier-generation source rows are excluded; academic and outbox writes remain atomic.
@@ -252,3 +248,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-09-19 — Dormant contextual classroom home backend
 
 - Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
+
+## 2026-09-19 — Dormant contextual classroom page routing
+
+- Owner `codex/contextual-classroom-page-routing`. Added an independent, off-by-default exact user/classroom pair gate for classroom SSR routing. Admitted ownership selects the existing teacher experience and active membership selects the existing student experience while the real session role remains unchanged for session validation; contextual owner switching is limited to the current admitted classroom. Invalid enabled configuration and malformed relationship evidence fail closed, unmatched pairs retain the legacy branch, and the API pilot gate is not reused.
+- Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.

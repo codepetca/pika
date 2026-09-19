@@ -98,6 +98,7 @@ interface SelectedAssignmentInstructions {
 interface ClassroomPageClientProps {
   classroom: Classroom
   user: UserInfo
+  classroomRole?: UserInfo['role']
   teacherClassrooms: Classroom[]
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
@@ -170,6 +171,7 @@ function buildInitialQueryString(
 export function ClassroomPageClient({
   classroom,
   user,
+  classroomRole,
   teacherClassrooms,
   initialTab,
   initialSearchParams,
@@ -181,7 +183,8 @@ export function ClassroomPageClient({
   const [clientClassroom, setClientClassroom] = useState(classroom)
   const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
-  const isTeacher = user.role === 'teacher'
+  const experienceRole = classroomRole ?? user.role
+  const isTeacher = experienceRole === 'teacher'
   const palAvailable = palEnabled
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const featureVisibility = useMemo(
@@ -200,8 +203,8 @@ export function ClassroomPageClient({
   const basePath = `/classrooms/${effectiveClassroom.id}`
   const defaultTab = isTeacher ? 'daily' : 'today'
   const validTabs = useMemo(
-    () => getAvailableClassroomTabs(user.role, featureVisibility, palAvailable),
-    [featureVisibility, palAvailable, user.role],
+    () => getAvailableClassroomTabs(experienceRole, featureVisibility, palAvailable),
+    [experienceRole, featureVisibility, palAvailable],
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
@@ -297,7 +300,7 @@ export function ClassroomPageClient({
   }, [defaultTab, tab, updateSearchParams, validTabs])
 
   // Determine route key for layout config
-  const routeKey = getRouteKeyFromTab(activeTab, user.role)
+  const routeKey = getRouteKeyFromTab(activeTab, experienceRole)
 
   const classroomPage = (
     <ThreePanelProvider
@@ -308,6 +311,7 @@ export function ClassroomPageClient({
         <ClassroomPageContent
           classroom={effectiveClassroom}
           user={user}
+          classroomRole={experienceRole}
           teacherClassrooms={clientTeacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
@@ -561,6 +565,7 @@ function StudentTodayWorkspace({
 function ClassroomPageContent({
   classroom,
   user,
+  classroomRole,
   teacherClassrooms,
   activeTab,
   isArchived,
@@ -574,6 +579,7 @@ function ClassroomPageContent({
 }: {
   classroom: Classroom
   user: UserInfo
+  classroomRole: UserInfo['role']
   teacherClassrooms: Classroom[]
   activeTab: string
   isArchived: boolean
@@ -594,7 +600,7 @@ function ClassroomPageContent({
     hasLoadedSnapshot: hasLoadedClassDays,
   } = useClassDaysContext()
   const { showMarkdown } = useMarkdownPreference()
-  const isTeacher = user.role === 'teacher'
+  const isTeacher = classroomRole === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
   const materialIdParam = activeTab === 'assignments' ? searchParams.get('materialId') : null
   const surveyIdParam = activeTab === 'assignments' ? searchParams.get('surveyId') : null
@@ -1790,7 +1796,7 @@ function ClassroomPageContent({
           >
             <NavItems
               classroomId={classroom.id}
-              role={user.role}
+              role={classroomRole}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onTabIntent={prefetchTabData}

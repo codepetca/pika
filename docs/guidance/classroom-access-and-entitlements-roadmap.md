@@ -151,6 +151,12 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   It fails closed on either source or malformed relationship evidence and gives ownership
   precedence over historical self-enrollment. See
   [the home backend contract](contextual-classroom-home.md).
+- Classroom SSR routing/navigation has a separate dormant exact-pair gate. Admitted
+  relationships select the existing owner/member experience while the authenticated
+  session role remains unchanged. It is intentionally independent from the classroom-core
+  API gate and must not be enabled until every downstream surface reachable from that
+  experience is compatible. See the
+  [UI change record](ui/changes/contextual-classroom-page-routing.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

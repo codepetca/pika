@@ -42,15 +42,19 @@ remain deferred. No calendar estimate is implied: the broad route/resource migra
 is the dominant complexity, while the current observation slice is comparatively small.
 
 The dormant [contextual classroom home backend](contextual-classroom-home.md) now
-provides the subject-bound combined list contract for batch B. The live page,
-classroom-page routing, navigation and visual matrix remain outstanding, so this
-does not satisfy batch B's exit gate or authorize a mixed-role cohort.
+provides the subject-bound combined list contract for batch B. Classroom SSR routing
+and navigation can independently select the existing owner/member experience for an
+exact pair through the off-by-default page pilot described in
+[the UI change record](ui/changes/contextual-classroom-page-routing.md). The combined
+live home, complete visual matrix and compatible downstream domains remain outstanding,
+so this does not satisfy batch B's exit gate or authorize a mixed-role cohort.
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
-- `src/app/classrooms/[classroomId]/page.tsx` branches on `user.role`, so a teacher
-  enrolled in someone else's class cannot use the student branch; the inverse owner
-  also cannot use the teacher branch. Helper parity alone cannot repair that routing.
+- `src/app/classrooms/[classroomId]/page.tsx` preserves its `user.role` branch by
+  default. An independently gated exact pair now selects the trusted owner/member
+  experience without rewriting the session role, but the gate cannot be enabled until
+  the APIs and resources reachable from that experience are also contextual.
 - `src/app/api/student/classrooms/join/route.ts` retains its student-gated UUID/code path
   by default. Its off-by-default exact-pair branch requires a scoped code for creation,
   recognizes but never creates membership from a UUID, charges invalid guesses and uses

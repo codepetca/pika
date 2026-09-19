@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getPalApiUrl: vi.fn(),
   getUserDisplayInfo: vi.fn(),
   listActiveTeacherClassrooms: vi.fn(),
+  resolvePageAccess: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
   singleResults: [] as Array<{ data: unknown; error: unknown }>,
@@ -40,6 +41,10 @@ vi.mock('@/lib/server/classroom-order', () => ({
   listActiveTeacherClassrooms: (...args: unknown[]) => mocks.listActiveTeacherClassrooms(...args),
 }))
 
+vi.mock('@/lib/server/classroom-page-access', () => ({
+  resolveClassroomPagePilotAccess: (...args: unknown[]) => mocks.resolvePageAccess(...args),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => ({
     from: () => {
@@ -54,8 +59,8 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ user, initialTab, classroomQrAvailable }: { user: { role: string }; initialTab?: string; classroomQrAvailable?: boolean }) => (
-    <div data-testid="classroom-page" data-role={user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
+  ClassroomPageClient: ({ user, classroomRole, initialTab, classroomQrAvailable }: { user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => (
+    <div data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
   ),
 }))
 
@@ -83,6 +88,7 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.getPalApiUrl.mockReset()
     mocks.getUserDisplayInfo.mockReset()
     mocks.listActiveTeacherClassrooms.mockReset()
+    mocks.resolvePageAccess.mockReset()
     mocks.redirect.mockReset()
     mocks.notFound.mockReset()
     mocks.singleResults = []
@@ -90,6 +96,7 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.getPalApiUrl.mockReturnValue('https://pal.example.test')
     mocks.getUserDisplayInfo.mockResolvedValue({ displayName: 'Test User' })
     mocks.listActiveTeacherClassrooms.mockResolvedValue({ data: [], error: null })
+    mocks.resolvePageAccess.mockResolvedValue({ mode: 'legacy' })
     mocks.redirect.mockImplementation((url: string) => {
       throw new Error(`redirect:${url}`)
     })
@@ -218,5 +225,71 @@ describe('ClassroomPage feature visibility redirects', () => {
 
     expect(mocks.redirect).not.toHaveBeenCalled()
     expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', 'student')
+  })
+
+  it('renders a student-valued owner with the teacher classroom experience only', async () => {
+    const ownerId = '22222222-2222-4222-8222-222222222222'
+    const classroomId = '11111111-1111-4111-8111-111111111111'
+    mocks.getCurrentUser.mockResolvedValue({
+      id: ownerId,
+      email: 'owner@example.test',
+      role: 'student',
+    })
+    mocks.resolvePageAccess.mockResolvedValue({
+      mode: 'contextual',
+      context: {
+        userId: ownerId,
+        classroomId,
+        ownerId,
+        relationship: 'owner',
+        archived: false,
+      },
+    })
+    mocks.singleResults.push({
+      data: { ...classroom(), id: classroomId, teacher_id: ownerId },
+      error: null,
+    })
+
+    render(await ClassroomPage({
+      params: Promise.resolve({ classroomId }),
+      searchParams: Promise.resolve({ tab: 'daily' }),
+    }))
+
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', 'student')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', 'teacher')
+    expect(mocks.listActiveTeacherClassrooms).not.toHaveBeenCalled()
+  })
+
+  it('renders a teacher-valued member with the student classroom experience only', async () => {
+    const memberId = '22222222-2222-4222-8222-222222222222'
+    const ownerId = '33333333-3333-4333-8333-333333333333'
+    const classroomId = '11111111-1111-4111-8111-111111111111'
+    mocks.getCurrentUser.mockResolvedValue({
+      id: memberId,
+      email: 'member@example.test',
+      role: 'teacher',
+    })
+    mocks.resolvePageAccess.mockResolvedValue({
+      mode: 'contextual',
+      context: {
+        userId: memberId,
+        classroomId,
+        ownerId,
+        relationship: 'member',
+        archived: false,
+      },
+    })
+    mocks.singleResults.push(
+      { data: { classroom_id: classroomId }, error: null },
+      { data: { ...classroom(), id: classroomId, teacher_id: ownerId }, error: null },
+    )
+
+    render(await ClassroomPage({
+      params: Promise.resolve({ classroomId }),
+      searchParams: Promise.resolve({ tab: 'today' }),
+    }))
+
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', 'teacher')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', 'student')
   })
 })
