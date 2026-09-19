@@ -114,13 +114,23 @@ describe('contextual classroom material routes', () => {
     expect((await teacherGet(request, params)).status).toBe(503)
   })
 
-  it('validates contextual rows returned by the missing-position fallback', async () => {
+  it('fails closed when a contextual member primary read returns a same-class draft', async () => {
+    vi.mocked(authorizeClassroomMaterialRequest).mockResolvedValue(contextualAccess('teacher', 'member'))
+    const from = vi.fn(() => materialBuilder([{ ...material, is_draft: true }]))
+    vi.mocked(getServiceRoleClient).mockReturnValue({ from } as unknown as ReturnType<typeof getServiceRoleClient>)
+
+    const response = await studentGet(request, params)
+
+    expect(response.status).toBe(503)
+  })
+
+  it('rejects a same-class draft returned by the contextual missing-position fallback', async () => {
     vi.mocked(authorizeClassroomMaterialRequest).mockResolvedValue(contextualAccess('teacher', 'member'))
     const primary = materialBuilder(null, {
       code: 'PGRST204',
       message: "Could not find the 'position' column of 'classwork_materials'",
     })
-    const fallback = materialBuilder([{ ...material, classroom_id: otherClassroomId }])
+    const fallback = materialBuilder([{ ...material, is_draft: true }])
     const from = vi.fn()
       .mockReturnValueOnce(primary)
       .mockReturnValueOnce(fallback)

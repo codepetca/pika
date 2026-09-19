@@ -19,8 +19,9 @@ only the owner projection. Request role, relationship and plan claims are never 
 Contextual material arrays must be non-null and every row must contain canonical UUIDs
 whose `classroom_id` exactly matches the requested classroom. This validation also runs
 after the existing missing-`position` fallback query. Malformed or substituted
-service-role evidence returns 503 without disclosing a partial list. The established
-missing-table compatibility response remains an empty list.
+service-role evidence returns 503 without disclosing a partial list. Member rows must
+also independently prove `is_draft = false`; the query predicate alone is not trusted.
+The established missing-table compatibility response remains an empty list.
 
 ## Independent rollout gate
 

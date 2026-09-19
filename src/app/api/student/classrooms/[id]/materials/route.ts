@@ -3,7 +3,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
-  assertContextualMaterialRows,
+  assertContextualPublishedMaterialRows,
   authorizeClassroomMaterialRequest,
 } from '@/lib/server/classroom-material-access'
 
@@ -68,7 +68,7 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
   }
 
   if (materialAccess.mode === 'contextual') {
-    assertContextualMaterialRows(classroomId, materials)
+    assertContextualPublishedMaterialRows(classroomId, materials)
   }
 
   return NextResponse.json({ materials: materials || [] })

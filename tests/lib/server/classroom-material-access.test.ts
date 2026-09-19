@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '@/lib/auth'
 import { resolveClassroomAccess } from '@/lib/server/classroom-access'
 import {
   assertContextualMaterialRows,
+  assertContextualPublishedMaterialRows,
   authorizeClassroomMaterialRequest,
 } from '@/lib/server/classroom-material-access'
 import type { AuthenticatedUser } from '@/types'
@@ -210,5 +211,28 @@ describe('classroom material exact-pair access', () => {
       expect(() => assertContextualMaterialRows(classroomId, rows))
         .toThrowError(expect.objectContaining({ statusCode: 503 }))
     }
+  })
+
+  it('requires contextual member material rows to prove published visibility', () => {
+    expect(() => assertContextualPublishedMaterialRows(classroomId, [{
+      id: materialId,
+      classroom_id: classroomId,
+      is_draft: false,
+    }])).not.toThrow()
+
+    for (const rows of [
+      [{ id: materialId, classroom_id: classroomId, is_draft: true }],
+      [{ id: materialId, classroom_id: classroomId }],
+      [{ id: materialId, classroom_id: otherClassroomId, is_draft: false }],
+    ]) {
+      expect(() => assertContextualPublishedMaterialRows(classroomId, rows))
+        .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    }
+
+    expect(() => assertContextualMaterialRows(classroomId, [{
+      id: materialId,
+      classroom_id: classroomId,
+      is_draft: true,
+    }])).not.toThrow()
   })
 })

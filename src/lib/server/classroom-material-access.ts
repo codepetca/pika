@@ -19,6 +19,9 @@ const materialRowSchema = z.object({
   id: canonicalUuid,
   classroom_id: canonicalUuid,
 }).passthrough()
+const publishedMaterialRowSchema = materialRowSchema.extend({
+  is_draft: z.literal(false),
+})
 
 function configuredMaterialPairs(): z.infer<typeof materialPairsSchema> | null {
   const raw = process.env.PIKA_CLASSROOM_MATERIALS_ACCESS_PAIRS
@@ -92,5 +95,21 @@ export function assertContextualMaterialRows(
     || parsed.data.some((row) => row.classroom_id !== requestedId.data)
   ) {
     throw new ApiError(503, 'Unable to verify classroom materials')
+  }
+}
+
+/** Member reads must independently prove the published-only projection. */
+export function assertContextualPublishedMaterialRows(
+  classroomId: string,
+  rows: unknown,
+): asserts rows is Array<z.infer<typeof publishedMaterialRowSchema>> {
+  const requestedId = canonicalUuid.safeParse(classroomId)
+  const parsed = z.array(publishedMaterialRowSchema).safeParse(rows)
+  if (
+    !requestedId.success
+    || !parsed.success
+    || parsed.data.some((row) => row.classroom_id !== requestedId.data)
+  ) {
+    throw new ApiError(503, 'Unable to verify published classroom materials')
   }
 }
