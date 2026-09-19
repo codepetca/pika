@@ -65,3 +65,7 @@ Contextual owner/member announcement list reads are now available behind another
 independent dormant gate, but announcement mutations/read receipts and the other
 reachable classroom domains remain role-bound. The live home must still not consume
 this endpoint.
+
+Contextual owner/member lesson-plan list reads are also available behind their own
+dormant gate with member visibility limits preserved. Lesson-plan writes and the
+remaining domains are still role-bound, so the home activation rule is unchanged.

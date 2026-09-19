@@ -52,10 +52,14 @@ so this does not satisfy batch B's exit gate or authorize a mixed-role cohort.
 The first batch D announcement slice now contextually authorizes the two list-read
 endpoints behind an independent exact-pair gate and validates returned classroom
 bindings. Teacher announcement mutations and member read receipts deliberately remain
-legacy until transaction-time relationship checks exist. Assignments, entries, lesson
-plans, resources, surveys, tests and all other work domains are still outstanding; this
-read slice does not make the page or home gate safe to enable. See
-[the announcement read contract](contextual-classroom-announcement-reads.md).
+legacy until transaction-time relationship checks exist. A second independent gate
+now covers owner/member lesson-plan list reads, preserving member visibility limits and
+validating both the visibility record and returned plan bindings. Lesson-plan date,
+bulk and copy writes remain legacy. Assignments, entries, materials/resources, surveys,
+tests and the remaining work domains are still outstanding; these read slices do not
+make the page or home gate safe to enable. See
+[the announcement read contract](contextual-classroom-announcement-reads.md) and
+[the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 

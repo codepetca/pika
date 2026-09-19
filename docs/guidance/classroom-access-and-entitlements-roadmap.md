@@ -164,6 +164,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   transaction-time relationship checks, so this does not make the announcement tab or
   classroom page rollout-ready. See
   [the announcement read contract](contextual-classroom-announcement-reads.md).
+- Classroom lesson-plan list reads have a separate dormant exact-pair gate. It lets a
+  student-valued owner use the owner calendar projection and a teacher-valued active
+  member use the visibility-limited member projection, while binding both returned
+  plans and the visibility record to the requested classroom. Date, bulk and copy
+  writes remain legacy pending transaction-time relationship checks, so the calendar
+  and page gates must remain disabled. See
+  [the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { format } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { nowInToronto } from '@/lib/timezone'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { LessonPlanVisibility } from '@/types'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import {
+  assertContextualLessonPlanClassroom,
+  assertContextualLessonPlanRows,
+  authorizeClassroomLessonPlanRequest,
+} from '@/lib/server/classroom-lesson-plan-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -44,8 +48,14 @@ function getMaxAllowedDate(visibility: LessonPlanVisibility): string | null {
 
 // GET /api/student/classrooms/[id]/lesson-plans?start=YYYY-MM-DD&end=YYYY-MM-DD
 export const GET = withErrorHandler('GetStudentLessonPlans', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const lessonPlanAccess = await authorizeClassroomLessonPlanRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'student',
+    permission: 'member',
+  })
+  const { id: classroomId } = await params
   const { searchParams } = new URL(request.url)
   const start = searchParams.get('start')
   const end = searchParams.get('end')
@@ -57,12 +67,14 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
     )
   }
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (lessonPlanAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(lessonPlanAccess.user.id, classroomId)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -70,7 +82,7 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
   // Get classroom visibility setting
   const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')
-    .select('lesson_plan_visibility')
+    .select('id, lesson_plan_visibility')
     .eq('id', classroomId)
     .single()
 
@@ -79,6 +91,10 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
       { error: 'Classroom not found' },
       { status: 404 }
     )
+  }
+
+  if (lessonPlanAccess.mode === 'contextual') {
+    assertContextualLessonPlanClassroom(classroomId, classroom)
   }
 
   const visibility = (classroom.lesson_plan_visibility || 'current_week') as LessonPlanVisibility
@@ -109,6 +125,10 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
       { error: 'Failed to fetch lesson plans' },
       { status: 500 }
     )
+  }
+
+  if (lessonPlanAccess.mode === 'contextual') {
+    assertContextualLessonPlanRows(classroomId, lessonPlans)
   }
 
   return NextResponse.json({
