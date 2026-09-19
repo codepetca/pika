@@ -131,6 +131,34 @@ describe('atomic classroom creation adapter', () => {
     })
   })
 
+  it('preserves the Supabase client receiver when invoking the RPC', async () => {
+    const result = {
+      data: null,
+      error: {
+        code: '23514',
+        message: 'classroom_creation_active_limit_reached',
+      },
+    }
+    const client = {
+      rpc: vi.fn(function (this: unknown) {
+        if (this !== client) throw new TypeError('Supabase RPC receiver was lost')
+        return Promise.resolve(result)
+      }),
+    }
+
+    const outcome = await createClassroomAtomic({
+      operationId,
+      teacherId,
+      request: { title: 'Math' },
+      resolvedClassCode: 'ABC123',
+      resolvedThemeColor: 'blue',
+      supabase: client as never,
+    })
+
+    expect(outcome).toEqual({ kind: 'database_error', error: result.error })
+    expect(client.rpc).toHaveBeenCalledOnce()
+  })
+
   it('fails closed on missing migrations, malformed results, or mismatched operations', async () => {
     const base = {
       operationId,
