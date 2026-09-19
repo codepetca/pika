@@ -171,6 +171,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   writes remain legacy pending transaction-time relationship checks, so the calendar
   and page gates must remain disabled. See
   [the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md).
+- Classroom material list reads have another dormant exact-pair gate. It lets a
+  student-valued owner receive the owner projection, including drafts, and a
+  teacher-valued active member receive only published materials. Every returned
+  material is bound to the requested classroom, including after the legacy ordering
+  fallback. Create/edit/delete remain legacy pending transaction-time relationship
+  and resource checks. See
+  [the material read contract](contextual-classroom-material-reads.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

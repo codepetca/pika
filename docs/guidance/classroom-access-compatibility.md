@@ -55,11 +55,14 @@ bindings. Teacher announcement mutations and member read receipts deliberately r
 legacy until transaction-time relationship checks exist. A second independent gate
 now covers owner/member lesson-plan list reads, preserving member visibility limits and
 validating both the visibility record and returned plan bindings. Lesson-plan date,
-bulk and copy writes remain legacy. Assignments, entries, materials/resources, surveys,
-tests and the remaining work domains are still outstanding; these read slices do not
+bulk and copy writes remain legacy. A third independent gate covers owner/member material
+list reads, retains member draft filtering and validates every returned classroom binding,
+including the missing-position fallback. Material writes remain legacy. Assignments,
+entries, surveys, tests and the remaining work domains are still outstanding; these read slices do not
 make the page or home gate safe to enable. See
 [the announcement read contract](contextual-classroom-announcement-reads.md) and
-[the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md).
+[the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md), plus
+[the material read contract](contextual-classroom-material-reads.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 

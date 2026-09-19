@@ -53,3 +53,7 @@ The separately gated lesson-plan list-read slice is likewise compatible for admi
 exact pairs and preserves the member visibility window, but date/bulk/copy writes and
 the other reachable domains remain legacy. This does not satisfy the page activation
 precondition.
+
+The separately gated material list-read slice is compatible for admitted exact pairs
+and preserves owner drafts plus member published-only visibility. Material mutations
+and the other reachable domains remain legacy, so the page gate must stay disabled.

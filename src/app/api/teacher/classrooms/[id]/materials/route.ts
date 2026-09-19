@@ -6,6 +6,10 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import type { TiptapContent } from '@/types'
 import type { TableInsert } from '@/types/database'
+import {
+  assertContextualMaterialRows,
+  authorizeClassroomMaterialRequest,
+} from '@/lib/server/classroom-material-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,12 +28,20 @@ function isMissingMaterialsPositionError(error: any) {
 }
 
 export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const materialAccess = await authorizeClassroomMaterialRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const { id: classroomId } = await params
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+  if (materialAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(materialAccess.user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -59,6 +71,10 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
     }
     console.error('Error fetching classwork materials:', error)
     return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
+  }
+
+  if (materialAccess.mode === 'contextual') {
+    assertContextualMaterialRows(classroomId, materials)
   }
 
   return NextResponse.json({ materials: materials || [] })
