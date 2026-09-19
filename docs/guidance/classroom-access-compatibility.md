@@ -71,6 +71,14 @@ routes, mutations, submissions and grading remain legacy. Entries, surveys, test
 the remaining work domains are still outstanding; the page and home gates remain unsafe
 to enable. See [the assignment read contract](contextual-classroom-assignment-reads.md).
 
+A fifth, separately configured exact user/assignment gate covers only the owner aggregate
+assignment-detail read. A student-valued owner receives the existing roster/submission
+summary after every supporting resource binding is validated. The individual student-work
+read remains legacy, and the learner assignment-document GET is explicitly deferred because
+it creates or updates documents and can emit Pal events. No save, submit, grading, artifact
+or release behavior is widened. See
+[the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
+
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
 - `src/app/classrooms/[classroomId]/page.tsx` preserves its `user.role` branch by

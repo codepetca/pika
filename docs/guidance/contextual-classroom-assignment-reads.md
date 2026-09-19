@@ -46,10 +46,14 @@ for another slice. Production configuration remains unchanged.
 
 ## Deferred mutation boundary
 
-Assignment creation, item reads, editing, release, reorder, grading, return, artifact
-and submission operations retain their existing global-role and classroom guards.
-They require separate transaction-time owner/member, archive, assignment, student and
-artifact binding; replacing only a top-level role check would leave race windows.
+The aggregate owner item read has a separate dormant contract documented in
+[contextual classroom assignment detail reads](contextual-classroom-assignment-detail-reads.md).
+The individual student-work read, assignment creation, editing, release, reorder,
+grading, return, artifact and submission operations retain their existing global-role
+and classroom guards. The learner assignment-document GET also performs writes and
+therefore remains legacy. These paths require separate transaction-time owner/member,
+archive, assignment, student and artifact binding; replacing only a top-level role
+check would leave race windows.
 
 The assignment UI is reused unchanged. No navigation, visual pattern, signup,
 creation, joining, entitlement, migration or production setting changes in this slice.

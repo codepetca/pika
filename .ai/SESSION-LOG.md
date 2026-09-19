@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Phase3 provider prerequisite checkpoint
-
-Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
-Pal/Bara adapters, provider_pending prerequisite and permanent generation guards
-in unapplied171; initial source review requested before local application approval.
-85 unit tests pass; local ledger001–170 and pending-only171 dry run verified.
-No provider/network erase, SQL application, rollout, merge or deployment performed.
-See docs/guidance/student-provider-cleanup-integration.md for pending verification.
-
 ## 2026-09-13 — Phase3 initial review correction batch
 
 Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 application approval. Corrected three accepted blockers: provisional whole-class copy/intent policy and producer serialization, exact-reference attendance removal closure, and provider-pending ordinary-cron health. Added transaction-only SQL cases (unexecuted), plus43 passing cron/purge tests and passing TypeScript. Full initial source gate passed520 tests. No SQL/provider traffic/config/rollout or PR publication occurred. Further typed RPC integration, browser revocation, actual SQL and race verification remain incomplete.
@@ -256,3 +247,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Owner `codex/contextual-classroom-assignment-reads`, based on merged material-read PR1290. Added an independent, off-by-default exact user/classroom pair gate to the owner and member assignment list endpoints. A student-valued owner retains drafts, roster-scoped statistics and submission requirements; a teacher-valued active member retains live-only assignments and their own sanitized assignment document.
 - Contextual assignment, roster, statistics-document, requirement and member-document evidence is validated against the authenticated subject and authorized classroom/resources. Assignment item routes, mutations, submissions, artifacts and grading remain legacy. No UI, migration, production configuration or cohort activation changed. Initial targeted route/access/legacy coverage passes 54 tests plus TypeScript; focused checks and independent review follow.
 - Initial security/compatibility review found two fail-closed gaps: member release/return policy fields were not shape-validated before visibility/sanitization, and shared stats/requirement loaders normalized unexpected null evidence to empty arrays. Batch1 requires valid release, return and feedback-return timestamps; adds strict opt-in raw-array handling while preserving legacy normalization and the intentional missing-schema fallback; and covers null/malformed evidence. Refreshed verification and targeted re-review follow.
+
+## 2026-09-19 — Dormant contextual assignment aggregate detail
+
+- Owner `codex/contextual-assignment-detail-reads`, based on merged assignment-list PR1291. Added an independent, off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]`. A student-valued classroom owner retains the existing aggregate assignment, roster and submission summary, including archived-classroom reads.
+- Contextual mode binds the admitted assignment to its classroom and validates roster/users, optional profiles, assignment documents, requirements, artifacts, history and active grading-run evidence before returning anything. Strict loader mode rejects unexpected null evidence while legacy behavior is unchanged.
+- The learner assignment-document GET remains legacy because it can create a document, refresh viewed state and emit Pal events; individual student-work reads and every assignment mutation remain out of scope. No UI, migration, schema, production configuration or cohort activation changed. Initial targeted access/route/legacy coverage passes 40 tests plus TypeScript; focused verification and independent review follow.

@@ -185,6 +185,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   is bound before use. All assignment writes, grading and submission flows remain
   legacy. See
   [the assignment read contract](contextual-classroom-assignment-reads.md).
+- The owner aggregate assignment-detail read has its own dormant exact
+  user/assignment gate. It lets a student-valued owner inspect the existing roster
+  and submission summary while validating the assignment/classroom, roster, profile,
+  document, requirement, artifact, history and grading-run bindings. The learner
+  assignment-document GET remains legacy because it creates or updates data and can
+  emit Pal events; individual-work reads and all assignment writes remain outstanding.
+  See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
