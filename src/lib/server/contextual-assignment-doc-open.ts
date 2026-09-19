@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
+import { isValidTiptapContent } from '@/lib/tiptap-content'
+import type { TiptapContent } from '@/types'
 import type { Json } from '@/types/database.generated'
 import type { v1 } from '@/vendor/pal-contract'
 
@@ -16,6 +18,9 @@ const resultSchema = z.object({
     is_draft: z.literal(false),
     created_at: timestamp,
     released_at: timestamp.nullable(),
+    description: z.string(),
+    instructions_markdown: z.string().nullable(),
+    rich_instructions: z.custom<TiptapContent>(isValidTiptapContent).nullable(),
   }).passthrough(),
   doc: z.object({
     id: canonicalUuid,
@@ -34,7 +39,7 @@ export type ContextualAssignmentDocOpenClient = {
       p_viewed_at: string
       p_pal_event: Json | null
     },
-  ) => Promise<{ data: unknown; error: { code?: string; message?: string } | null }>
+  ) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
 
 function mapRpcError(code: string | undefined): never {

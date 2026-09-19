@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
+  loadAssignmentSubmissionRequirements,
+  loadUserGitHubIdentity,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
@@ -216,5 +218,93 @@ describe('loadAssignmentSubmissionArtifactsForDoc', () => {
     await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1', {
       requireDataArray: true,
     })).rejects.toThrow('Failed to verify assignment submission artifacts')
+  })
+
+  it.each([
+    ['PGRST205', 'missing relation'],
+    ['42P01', 'missing relation'],
+    ['42501', 'permission denied for assignment_submission_artifacts'],
+  ])('preserves missing-schema compatibility for %s only outside strict mode', async (code, message) => {
+    const query: any = {
+      eq: vi.fn(() => query),
+      then: (resolve: (value: unknown) => unknown) => resolve({
+        data: null,
+        error: { code, message },
+      }),
+    }
+    const supabase = {
+      from: vi.fn(() => ({ select: vi.fn(() => query) })),
+      storage: { from: vi.fn() },
+    }
+
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1'))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1', {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to load assignment submission artifacts')
+  })
+})
+
+describe('loadAssignmentSubmissionRequirements', () => {
+  it.each([
+    ['PGRST205', 'missing relation'],
+    ['42P01', 'missing relation'],
+    ['42501', 'permission denied for assignment_submission_requirements'],
+  ])('preserves missing-schema compatibility for %s only outside strict mode', async (code, message) => {
+    const query: any = {
+      eq: vi.fn(() => query),
+      order: vi.fn(() => query),
+      then: (resolve: (value: unknown) => unknown) => resolve({
+        data: null,
+        error: { code, message },
+      }),
+    }
+    const supabase = { from: vi.fn(() => ({ select: vi.fn(() => query) })) }
+
+    await expect(loadAssignmentSubmissionRequirements(supabase, 'assignment-1'))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionRequirements(supabase, 'assignment-1', {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to load assignment submission requirements')
+  })
+})
+
+describe('loadUserGitHubIdentity', () => {
+  it('preserves legacy absence normalization but requires bounded array evidence in strict mode', async () => {
+    const legacyQuery: any = {
+      eq: vi.fn(() => legacyQuery),
+      maybeSingle: vi.fn().mockResolvedValue({ data: undefined, error: null }),
+    }
+    const strictQuery: any = {
+      eq: vi.fn(() => strictQuery),
+      limit: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = {
+      from: vi.fn()
+        .mockReturnValueOnce({ select: vi.fn(() => legacyQuery) })
+        .mockReturnValueOnce({ select: vi.fn(() => strictQuery) }),
+    }
+
+    await expect(loadUserGitHubIdentity(supabase, 'user-1')).resolves.toBeNull()
+    await expect(loadUserGitHubIdentity(supabase, 'user-1', {
+      requireEvidence: true,
+    })).rejects.toThrow('Failed to verify GitHub identity')
+  })
+
+  it('rejects duplicate and missing-schema GitHub evidence in strict mode', async () => {
+    for (const result of [
+      { data: [{ id: 'one' }, { id: 'two' }], error: null },
+      { data: null, error: { code: 'PGRST205', message: 'missing relation' } },
+    ]) {
+      const query: any = {
+        eq: vi.fn(() => query),
+        limit: vi.fn().mockResolvedValue(result),
+      }
+      const supabase = { from: vi.fn(() => ({ select: vi.fn(() => query) })) }
+
+      await expect(loadUserGitHubIdentity(supabase, 'user-1', {
+        requireEvidence: true,
+      })).rejects.toThrow()
+    }
   })
 })

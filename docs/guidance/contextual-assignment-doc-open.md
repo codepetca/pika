@@ -2,10 +2,21 @@
 
 ## Status
 
-Migrations 182–183 and `openContextualAssignmentDoc` are additive, dormant foundations.
-No production route calls them, no environment flag is added, and applying the
-migration changes no existing row. The current learner assignment-document GET and
-all teacher flows remain legacy until a separately reviewed integration slice.
+Migrations 182–183 and the assignment-document GET integration are additive, dormant
+foundations. The integration is controlled by an independent exact user/assignment
+pair gate that is disabled by default. Disabled and unmatched requests retain the
+legacy route. Applying the migrations changes no existing row, and all teacher
+projection flows remain legacy.
+
+The rollout controls are:
+
+- `PIKA_CLASSROOM_ASSIGNMENT_DOC_OPEN_ACCESS_ENABLED=true` activates exact-pair
+  evaluation after authentication;
+- `PIKA_CLASSROOM_ASSIGNMENT_DOC_OPEN_ACCESS_PAIRS` is a strict JSON array of
+  `{ "userId": "<uuid>", "assignmentId": "<uuid>" }` objects, capped at 100
+  pairs and 20,000 characters;
+- malformed enabled configuration fails closed, and there are no wildcard or
+  separately cross-producted user/assignment admissions.
 
 ## Transactional contract
 
@@ -37,14 +48,16 @@ generation and scope fences. This prevents a teacher-valued member from losing t
 first-view signal when membership-scoped Pal routing is enabled; classroom ownership
 without enrollment still does not grant member identity.
 
-## Intentionally deferred
+## Route integration
 
-The next slice may add an independent, off-by-default exact user/assignment admission
-gate to the learner GET and consume this function's evidence. That integration must also
-bind feedback, submission requirements, artifacts and GitHub identity before returning
-them, preserve immediate Pal delivery behavior, and keep unmatched requests on the exact
-legacy path.
+A matched request uses a narrow assignment timestamp preflight only to construct the
+legacy Pal event. The RPC remains the sole authorization and visibility authority. Its
+locked assignment and document evidence drive the response; feedback, submission
+requirements, artifacts and GitHub identity are loaded in strict mode and rebound to
+the authenticated actor, assignment and document before return. A created document
+retains immediate Pal delivery. A `student_id` query parameter cannot substitute a
+different learner on this member projection.
 
-Even after that read/open integration, the gate must remain disabled until learner
+The gate must remain disabled until learner
 autosave, submission and artifact mutations enforce contextual membership at transaction
 time. Migration application and any route activation require their own rollout approval.
