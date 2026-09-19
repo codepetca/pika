@@ -157,6 +157,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   API gate and must not be enabled until every downstream surface reachable from that
   experience is compatible. See the
   [UI change record](ui/changes/contextual-classroom-page-routing.md).
+- Classroom announcement list reads have their own dormant exact-pair gate. It lets a
+  student-valued owner use the owner projection and a teacher-valued member use the
+  published member projection while validating every returned classroom binding.
+  Publishing/editing/deleting and member read receipts remain legacy mutations pending
+  transaction-time relationship checks, so this does not make the announcement tab or
+  classroom page rollout-ready. See
+  [the announcement read contract](contextual-classroom-announcement-reads.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

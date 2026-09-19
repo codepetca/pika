@@ -60,3 +60,8 @@ experiences is compatible. The eventual home UI must use the approved Pattern La
 Teaching / Joined reference, remain off by default, and complete Pika's teacher/student
 desktop/mobile light/dark verification. Production cohort enablement requires a separate
 permission-widening decision, canaries, stop thresholds and compatible rollback floor.
+
+Contextual owner/member announcement list reads are now available behind another
+independent dormant gate, but announcement mutations/read receipts and the other
+reachable classroom domains remain role-bound. The live home must still not consume
+this endpoint.

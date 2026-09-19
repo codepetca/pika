@@ -7,21 +7,31 @@ import {
 } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { parseAnnouncementTitleInput } from '@/lib/announcements'
+import {
+  assertContextualAnnouncementRows,
+  authorizeClassroomAnnouncementRequest,
+} from '@/lib/server/classroom-announcement-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetAnnouncements', async (_request, context) => {
-  const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
+  const announcementAccess = await authorizeClassroomAnnouncementRequest(classroomId, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const { user } = announcementAccess
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json(
-      { error: ownership.error },
-      { status: ownership.status }
-    )
+  if (announcementAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json(
+        { error: ownership.error },
+        { status: ownership.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -38,6 +48,10 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
       { error: 'Failed to fetch announcements' },
       { status: 500 }
     )
+  }
+
+  if (announcementAccess.mode === 'contextual') {
+    assertContextualAnnouncementRows(classroomId, announcements)
   }
 
   return NextResponse.json({ announcements: announcements || [] })

@@ -44,3 +44,7 @@ reachable from the selected owner/member experience is relationship-compatible. 
 slice does not make assignments, submissions, grading, attendance, files, archives,
 Pal or other downstream domains contextual. It does not authorize the combined home,
 neutral onboarding, new relationships, plan enforcement or a production cohort.
+
+The separately gated announcement list-read slice is compatible for admitted exact
+pairs, but announcement mutations/read receipts and the other reachable domains remain
+legacy. That partial progress does not change this page gate's disabled rollout status.
