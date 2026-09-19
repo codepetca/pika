@@ -41,6 +41,11 @@ requires complete reachable-domain coverage. Co-teachers and school administrati
 remain deferred. No calendar estimate is implied: the broad route/resource migration
 is the dominant complexity, while the current observation slice is comparatively small.
 
+The dormant [contextual classroom home backend](contextual-classroom-home.md) now
+provides the subject-bound combined list contract for batch B. The live page,
+classroom-page routing, navigation and visual matrix remain outstanding, so this
+does not satisfy batch B's exit gate or authorize a mixed-role cohort.
+
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
 - `src/app/classrooms/[classroomId]/page.tsx` branches on `user.role`, so a teacher

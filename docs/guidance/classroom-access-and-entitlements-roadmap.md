@@ -145,6 +145,12 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   deployed definition; migration 161 requires separate target-specific application
   authorization. No cohort or production configuration changed, so
   every current production request remains on the legacy join path.
+- The contextual classroom home backend exposes a new authenticated `owned` / `joined`
+  summary only for an exact server-configured user cohort. It is off by default and has no
+  live page consumer, so `/classrooms`, global-role routing and current users remain unchanged.
+  It fails closed on either source or malformed relationship evidence and gives ownership
+  precedence over historical self-enrollment. See
+  [the home backend contract](contextual-classroom-home.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
