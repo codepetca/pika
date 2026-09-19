@@ -23,8 +23,10 @@ The response contains only the home-card summary fields already available from
 the existing teacher/student list endpoints. It does not expose `teacher_id`,
 `student_id`, arbitrary classroom columns or client-provided role/plan claims.
 Both reads must succeed, and every returned classroom/enrollment identifier and
-relationship is validated before any response. A source error returns 503; the
-endpoint never returns a partial home or falls back to global-role authority.
+relationship is validated before any response, including an exact enrollment
+`classroom_id` to embedded classroom `id` match. A source error or non-array source
+payload returns 503; the endpoint never returns a partial home or falls back to
+global-role authority.
 
 ## Rollout gate
 

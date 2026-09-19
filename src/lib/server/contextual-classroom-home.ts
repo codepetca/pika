@@ -25,6 +25,7 @@ const activeClassroomRowSchema = z.object({
 const joinedClassroomRowSchema = z.object({
   id: canonicalUuid,
   student_id: canonicalUuid,
+  classroom_id: canonicalUuid,
   created_at: z.string(),
   classrooms: activeClassroomRowSchema,
 }).strict()
@@ -32,6 +33,7 @@ const joinedClassroomRowSchema = z.object({
 const JOINED_CLASSROOM_SELECT = `
   id,
   student_id,
+  classroom_id,
   created_at,
   classrooms!inner(
     id,
@@ -164,8 +166,8 @@ export async function loadContextualClassroomHome(
     throw new ApiError(503, 'Unable to load classroom home')
   }
 
-  const ownedRows = z.array(activeClassroomRowSchema).safeParse(ownedResult.data ?? [])
-  const joinedRows = z.array(joinedClassroomRowSchema).safeParse(joinedResult.data ?? [])
+  const ownedRows = z.array(activeClassroomRowSchema).safeParse(ownedResult.data)
+  const joinedRows = z.array(joinedClassroomRowSchema).safeParse(joinedResult.data)
   if (!ownedRows.success || !joinedRows.success) {
     throw new ApiError(503, 'Unable to verify classroom home')
   }
@@ -173,6 +175,9 @@ export async function loadContextualClassroomHome(
     throw new ApiError(503, 'Unable to verify classroom home')
   }
   if (joinedRows.data.some((row) => row.student_id !== identity.data)) {
+    throw new ApiError(503, 'Unable to verify classroom home')
+  }
+  if (joinedRows.data.some((row) => row.classroom_id !== row.classrooms.id)) {
     throw new ApiError(503, 'Unable to verify classroom home')
   }
 

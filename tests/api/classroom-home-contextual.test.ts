@@ -71,6 +71,7 @@ function enrollment(
   return {
     id: duplicateEnrollmentId,
     student_id: actorId,
+    classroom_id: classroom.id,
     created_at: '2026-09-10T12:00:00Z',
     classrooms: classroom,
     ...overrides,
@@ -234,9 +235,20 @@ describe('contextual classroom home backend pilot', () => {
     expect(await response.json()).toEqual({ error: 'Unable to load classroom home' })
   })
 
+  it.each(['owned', 'joined'])('rejects null %s data without an explicit source error', async (source) => {
+    if (source === 'owned') ownedResult = { data: null, error: null }
+    else joinedResult = { data: null, error: null }
+
+    const response = await GET()
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Unable to verify classroom home' })
+  })
+
   it.each([
     ['substituted owner', [{ ...ownedClassroom, teacher_id: otherOwnerId }], [enrollment()]],
     ['wrong enrollment subject', [ownedClassroom], [enrollment(joinedClassroom, { student_id: otherOwnerId })]],
+    ['substituted enrollment classroom', [ownedClassroom], [enrollment(joinedClassroom, { classroom_id: ownedId })]],
     ['archived joined class', [ownedClassroom], [enrollment({ ...joinedClassroom, archived_at: '2026-09-01T00:00:00Z' })]],
     ['malformed joined relation', [ownedClassroom], [enrollment(joinedClassroom, { classrooms: null })]],
   ])('rejects %s evidence instead of disclosing it', async (_case, owned, joined) => {
