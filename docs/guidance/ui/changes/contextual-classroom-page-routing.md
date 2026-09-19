@@ -48,3 +48,8 @@ neutral onboarding, new relationships, plan enforcement or a production cohort.
 The separately gated announcement list-read slice is compatible for admitted exact
 pairs, but announcement mutations/read receipts and the other reachable domains remain
 legacy. That partial progress does not change this page gate's disabled rollout status.
+
+The separately gated lesson-plan list-read slice is likewise compatible for admitted
+exact pairs and preserves the member visibility window, but date/bulk/copy writes and
+the other reachable domains remain legacy. This does not satisfy the page activation
+precondition.

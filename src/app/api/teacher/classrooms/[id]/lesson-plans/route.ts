@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import {
+  assertContextualLessonPlanRows,
+  authorizeClassroomLessonPlanRequest,
+} from '@/lib/server/classroom-lesson-plan-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id]/lesson-plans?start=YYYY-MM-DD&end=YYYY-MM-DD
 export const GET = withErrorHandler('GetLessonPlans', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const lessonPlanAccess = await authorizeClassroomLessonPlanRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const { id: classroomId } = await params
   const { searchParams } = new URL(request.url)
   const start = searchParams.get('start')
   const end = searchParams.get('end')
@@ -23,12 +32,14 @@ export const GET = withErrorHandler('GetLessonPlans', async (request, context) =
     )
   }
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json(
-      { error: ownership.error },
-      { status: ownership.status }
-    )
+  if (lessonPlanAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(lessonPlanAccess.user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json(
+        { error: ownership.error },
+        { status: ownership.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -47,6 +58,10 @@ export const GET = withErrorHandler('GetLessonPlans', async (request, context) =
       { error: 'Failed to fetch lesson plans' },
       { status: 500 }
     )
+  }
+
+  if (lessonPlanAccess.mode === 'contextual') {
+    assertContextualLessonPlanRows(classroomId, lessonPlans)
   }
 
   return NextResponse.json({
