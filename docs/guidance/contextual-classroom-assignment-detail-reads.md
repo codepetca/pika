@@ -7,12 +7,19 @@ enable.
 
 ## Endpoint contract
 
-`GET /api/teacher/assignments/[id]` may admit a configured classroom owner even
-when that person's legacy account role is `student`. The response remains the
-existing owner aggregate: assignment metadata, classroom, active roster,
-submission summaries and artifacts, document-history activity, submission
-requirements, and the active AI-grading-run summary. Archived owners retain
-read access. The route does not admit members or unrelated users.
+The following pure owner reads may admit a configured classroom owner even when
+that person's legacy account role is `student`:
+
+- `GET /api/teacher/assignments/[id]` returns the existing owner aggregate:
+  assignment metadata, classroom, active roster, submission summaries and
+  artifacts, document-history activity, submission requirements, and the active
+  AI-grading-run summary.
+- `GET /api/teacher/assignments/[id]/students/[studentId]` returns one enrolled
+  student's existing work, feedback, submission artifacts and requirements,
+  repository target, and latest completed repository review.
+
+Archived owners retain read access. Neither route admits members or unrelated
+users.
 
 After exact-pair admission, the server binds the assignment ID to its nested
 classroom record and resolves ownership from the authenticated identity and
@@ -25,6 +32,15 @@ grading run against the assignment. Null, malformed, duplicate, substituted or
 unavailable supporting evidence returns 503 without a partial response. The
 intentional missing-submission-schema compatibility fallbacks for requirements
 and artifacts remain empty lists during schema rollout.
+
+The individual-work route canonicalizes the student identifier only after exact
+assignment-pair admission, then proves that exact student is in the assignment's
+classroom roster. It uses bounded array evidence for optional profile, document,
+repository target and latest-review reads so unavailable or duplicate service-role
+results cannot be mistaken for genuine absence. Feedback, repository target,
+repository review, artifact and requirement rows are all rebound to the authorized
+assignment, student, document and classroom before use. The `studentId` is not a
+second rollout selector and cannot widen the admitted assignment pair.
 
 ## Independent rollout gate
 
@@ -55,9 +71,7 @@ student binding. Returning only an existing document to a mixed-role member
 would produce a misleading partial workflow because save, submit, artifact and
 history operations are still role-bound.
 
-The individual owner work route
-`GET /api/teacher/assignments/[id]/students/[studentId]`, assignment editing,
-release, reorder, grading, return, repository review, learner save/submit,
-artifact operations and every other assignment mutation remain legacy. No UI,
-navigation, signup, migration, schema, entitlement or production setting changes
-in this slice.
+Assignment editing, release, reorder, grading, return, repository review, learner
+save/submit, artifact operations and every other assignment mutation remain
+legacy. No UI, navigation, signup, migration, schema, entitlement or production
+setting changes in this slice.

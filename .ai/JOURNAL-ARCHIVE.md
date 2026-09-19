@@ -32251,3 +32251,8 @@ in unapplied171; initial source review requested before local application approv
 85 unit tests pass; local ledger001–170 and pending-only171 dry run verified.
 No provider/network erase, SQL application, rollout, merge or deployment performed.
 See docs/guidance/student-provider-cleanup-integration.md for pending verification.
+
+<!-- pika-session-log-archive-batch:110e0bfdf5db10e995a8f02b4110b50b405ef5d795ebaee5e88578d9e361994d -->
+## 2026-09-13 — Phase3 initial review correction batch
+
+Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 application approval. Corrected three accepted blockers: provisional whole-class copy/intent policy and producer serialization, exact-reference attendance removal closure, and provider-pending ordinary-cron health. Added transaction-only SQL cases (unexecuted), plus43 passing cron/purge tests and passing TypeScript. Full initial source gate passed520 tests. No SQL/provider traffic/config/rollout or PR publication occurred. Further typed RPC integration, browser revocation, actual SQL and race verification remain incomplete.

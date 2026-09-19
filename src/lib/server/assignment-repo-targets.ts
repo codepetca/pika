@@ -32,14 +32,27 @@ function getGitHubToken(): string | null {
 export async function loadAssignmentRepoTarget(
   assignmentId: string,
   studentId: string,
+  options: {
+    supabase?: ReturnType<typeof getServiceRoleClient>
+    requireEvidence?: boolean
+  } = {},
 ): Promise<AssignmentRepoTarget | null> {
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
+  const supabase = options.supabase ?? getServiceRoleClient()
+  const query = supabase
     .from('assignment_repo_targets')
     .select('*')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
-    .maybeSingle()
+
+  if (options.requireEvidence) {
+    const { data, error } = await query.limit(2)
+    if (error || !Array.isArray(data) || data.length > 1) {
+      throw new ApiError(500, 'Failed to verify repo target')
+    }
+    return (data[0] ?? null) as AssignmentRepoTarget | null
+  }
+
+  const { data, error } = await query.maybeSingle()
 
   if (error) {
     throw new ApiError(500, 'Failed to load repo target')
