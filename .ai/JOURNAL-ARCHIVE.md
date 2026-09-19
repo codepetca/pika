@@ -32241,3 +32241,13 @@ DraftPR1256 at95c87afb received independent Sol/high and Terra/high review. Both
 - Task branch `codex/student-actionbar-spacing`: student-density `PageActionBar` now owns the existing 12px comfortable top inset, fixing Calendar and Classwork Instructions/Submit header collisions. Teacher/default spacing remains caller-owned. Updated the canonical API note and role-aware Pattern Lab example; reused existing controls and spacing tokens. Risk profile: none; no new visual pattern or interaction semantics.
 - Local Playwright matrix covers student/teacher Calendar, selected assignment, and Pattern Lab at 1440×900/390×844 in light/dark; student Calendar Week/Month/All and assignment focus/open-instructions states also captured. Evidence: ignored `output/playwright/`, capture script `/tmp/pika-actionbar-verify.cjs`, local port3137. No page overflow; student action bars have 12px padding and controls retain 44px targets.
 - Focused check passed 1,665 tests in168 files plus architecture, UI/design policy, TypeScript and lint. The optional audit flags unchanged composite semantics by scanning whole touched files; this spacing-only diff changes no ARIA or keyboard behavior and has direct browser focus/dialog verification. Draft-first independent review and final CI follow; no merge or production authorization.
+
+<!-- pika-session-log-archive-batch:8c37f6f8deccc98f6c64efe745d6bbff0595e0f27d8668a962b7ccb43c929e1b -->
+## 2026-09-13 — Phase3 provider prerequisite checkpoint
+
+Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
+Pal/Bara adapters, provider_pending prerequisite and permanent generation guards
+in unapplied171; initial source review requested before local application approval.
+85 unit tests pass; local ledger001–170 and pending-only171 dry run verified.
+No provider/network erase, SQL application, rollout, merge or deployment performed.
+See docs/guidance/student-provider-cleanup-integration.md for pending verification.

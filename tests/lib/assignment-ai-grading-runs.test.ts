@@ -28,6 +28,7 @@ vi.mock('@/lib/server/gradex-assignment-grading', () => ({
 
 import {
   createOrResumeAssignmentAiGradingRun,
+  getActiveAssignmentAiGradingRunSummary,
   tickAssignmentAiGradingRun,
 } from '@/lib/server/assignment-ai-grading-runs'
 
@@ -109,6 +110,104 @@ function buildRunItemsTable(items: unknown[] = []) {
     })),
   }
 }
+
+describe('getActiveAssignmentAiGradingRunSummary strict evidence', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([
+    { data: null, error: null },
+    { data: null, error: { code: 'PGRST205', message: 'missing relation' } },
+  ])('rejects unavailable active-run evidence in strict mode', async (result) => {
+    const runsTable = {
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(result),
+      })),
+    }
+    const supabase = { from: vi.fn(() => runsTable) } as any
+
+    await expect(getActiveAssignmentAiGradingRunSummary('assignment-1', {
+      supabase,
+      requireEvidence: true,
+    })).rejects.toThrow()
+  })
+
+  it('preserves the legacy missing-schema fallback', async () => {
+    const runsTable = {
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({
+          data: null,
+          error: { code: 'PGRST205', message: 'missing relation' },
+        }),
+      })),
+    }
+    const supabase = { from: vi.fn(() => runsTable) } as any
+
+    await expect(getActiveAssignmentAiGradingRunSummary('assignment-1', { supabase }))
+      .resolves.toBeNull()
+  })
+
+  it('rejects a substituted active run and null run-item evidence', async () => {
+    const validRun = {
+      id: 'run-1',
+      assignment_id: 'assignment-1',
+      status: 'queued',
+      model: 'gpt-5-nano',
+      requested_count: 1,
+      gradable_count: 1,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_missing_count: 0,
+      skipped_empty_count: 0,
+      failed_count: 0,
+      error_samples_json: [],
+      started_at: null,
+      completed_at: null,
+      created_at: '2026-09-01T00:00:00.000Z',
+    }
+    const runTable = (rows: unknown[]) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: rows, error: null }),
+      })),
+    })
+
+    await expect(getActiveAssignmentAiGradingRunSummary('assignment-1', {
+      supabase: {
+        from: vi.fn(() => runTable([{ ...validRun, assignment_id: 'assignment-2' }])),
+      } as any,
+      requireEvidence: true,
+    })).rejects.toThrow('Failed to verify active assignment AI grading run')
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === 'assignment_ai_grading_runs') return runTable([validRun])
+        if (table === 'assignment_ai_grading_run_items') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              order: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      }),
+    }
+    await expect(getActiveAssignmentAiGradingRunSummary('assignment-1', {
+      supabase: supabase as any,
+      requireEvidence: true,
+    })).rejects.toThrow('Failed to verify assignment AI grading run items')
+  })
+})
 
 function buildTickHarness(opts: {
   skipReason: 'missing_doc' | 'empty_doc' | null

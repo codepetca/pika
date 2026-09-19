@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import {
   gradeStudentWork,
   hasGradableAssignmentSubmission,
@@ -42,6 +43,30 @@ const DEFAULT_MODEL = 'gpt-5-nano'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
+const gradingTimestampSchema = z.string().datetime({ offset: true })
+const activeAssignmentAiGradingRunEvidenceSchema = z.object({
+  id: z.string().min(1),
+  assignment_id: z.string().min(1),
+  status: z.enum(['queued', 'running']),
+  model: z.string().nullable(),
+  requested_count: z.number().int().nonnegative(),
+  gradable_count: z.number().int().nonnegative(),
+  processed_count: z.number().int().nonnegative(),
+  completed_count: z.number().int().nonnegative(),
+  skipped_missing_count: z.number().int().nonnegative(),
+  skipped_empty_count: z.number().int().nonnegative(),
+  failed_count: z.number().int().nonnegative(),
+  error_samples_json: z.array(z.unknown()),
+  started_at: gradingTimestampSchema.nullable(),
+  completed_at: gradingTimestampSchema.nullable(),
+  created_at: gradingTimestampSchema,
+}).passthrough()
+const assignmentAiGradingRunItemEvidenceSchema = z.object({
+  run_id: z.string().min(1),
+  assignment_id: z.string().min(1),
+  status: z.enum(['queued', 'processing', 'completed', 'skipped', 'failed']),
+  next_retry_at: gradingTimestampSchema.nullable(),
+}).passthrough()
 
 export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
@@ -244,6 +269,7 @@ async function fetchAssignmentAiGradingRunRow(
 async function fetchAssignmentAiGradingRunItems(
   supabase: ServiceRoleSupabase,
   runId: string,
+  options: { requireEvidence?: boolean; assignmentId?: string } = {},
 ): Promise<AssignmentAiGradingRunItem[]> {
   const { data, error } = await supabase
     .from('assignment_ai_grading_run_items')
@@ -252,10 +278,27 @@ async function fetchAssignmentAiGradingRunItems(
     .order('queue_position', { ascending: true })
 
   if (error) {
-    if (isAssignmentAiGradingSchemaError(error)) {
+    if (isAssignmentAiGradingSchemaError(error) && !options.requireEvidence) {
       return []
     }
     throw new Error('Failed to load assignment AI grading run items')
+  }
+
+  if (options.requireEvidence && !Array.isArray(data)) {
+    throw new Error('Failed to verify assignment AI grading run items')
+  }
+
+  if (options.requireEvidence) {
+    const parsed = z.array(assignmentAiGradingRunItemEvidenceSchema).safeParse(data)
+    if (
+      !options.assignmentId
+      || !parsed.success
+      || parsed.data.some((item) => (
+        item.run_id !== runId || item.assignment_id !== options.assignmentId
+      ))
+    ) {
+      throw new Error('Failed to verify assignment AI grading run items')
+    }
   }
 
   return (data as AssignmentAiGradingRunItem[]) ?? []
@@ -264,6 +307,7 @@ async function fetchAssignmentAiGradingRunItems(
 async function fetchLatestActiveRun(
   supabase: ServiceRoleSupabase,
   assignmentId: string,
+  options: { requireEvidence?: boolean } = {},
 ): Promise<AssignmentAiGradingRun | null> {
   const { data, error } = await supabase
     .from('assignment_ai_grading_runs')
@@ -274,10 +318,21 @@ async function fetchLatestActiveRun(
     .limit(1)
 
   if (error) {
-    if (isAssignmentAiGradingSchemaError(error)) {
+    if (isAssignmentAiGradingSchemaError(error) && !options.requireEvidence) {
       return null
     }
     throw new Error('Failed to load active assignment AI grading run')
+  }
+
+  if (options.requireEvidence && !Array.isArray(data)) {
+    throw new Error('Failed to verify active assignment AI grading run')
+  }
+
+  if (options.requireEvidence) {
+    const parsed = z.array(activeAssignmentAiGradingRunEvidenceSchema).max(1).safeParse(data)
+    if (!parsed.success || parsed.data.some((run) => run.assignment_id !== assignmentId)) {
+      throw new Error('Failed to verify active assignment AI grading run')
+    }
   }
 
   return ((data as AssignmentAiGradingRun[] | null) ?? [])[0] ?? null
@@ -943,12 +998,18 @@ export async function getAssignmentAiGradingRunSummary(opts: {
 
 export async function getActiveAssignmentAiGradingRunSummary(
   assignmentId: string,
+  options: { supabase?: ServiceRoleSupabase; requireEvidence?: boolean } = {},
 ): Promise<AssignmentAiGradingRunSummary | null> {
-  const supabase = getServiceRoleClient()
-  const run = await fetchLatestActiveRun(supabase, assignmentId)
+  const supabase = options.supabase ?? getServiceRoleClient()
+  const run = await fetchLatestActiveRun(supabase, assignmentId, {
+    requireEvidence: options.requireEvidence,
+  })
   if (!run) return null
 
-  const items = await fetchAssignmentAiGradingRunItems(supabase, run.id)
+  const items = await fetchAssignmentAiGradingRunItems(supabase, run.id, {
+    requireEvidence: options.requireEvidence,
+    assignmentId,
+  })
   return toAssignmentAiGradingRunSummary(run, { items })
 }
 

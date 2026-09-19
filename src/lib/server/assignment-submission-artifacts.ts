@@ -176,7 +176,8 @@ export async function loadAssignmentSubmissionArtifactsForDoc(
 
 export async function loadAssignmentSubmissionArtifactsForDocs(
   supabase: SupabaseClientLike,
-  assignmentDocIds: string[]
+  assignmentDocIds: string[],
+  options: { requireDataArray?: boolean } = {},
 ): Promise<AssignmentSubmissionArtifact[]> {
   if (assignmentDocIds.length === 0) return []
 
@@ -188,6 +189,7 @@ export async function loadAssignmentSubmissionArtifactsForDocs(
       select: '*',
       filters: [{ column: 'assignment_doc_id', values: assignmentDocIds }],
       pageSize: 1000,
+      requireDataArray: options.requireDataArray,
     })
 
     if (error) {

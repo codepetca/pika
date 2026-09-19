@@ -179,4 +179,22 @@ describe('loadAssignmentSubmissionArtifactsForDocs', () => {
       { table: 'assignment_submission_artifacts', from: 0, to: 999 },
     ])
   })
+
+  it('preserves legacy null normalization but rejects null evidence in strict mode', async () => {
+    const query: any = {
+      in: vi.fn(() => query),
+      order: vi.fn(() => query),
+      range: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = {
+      from: vi.fn(() => ({ select: vi.fn(() => query) })),
+      storage: { from: vi.fn() },
+    }
+
+    await expect(loadAssignmentSubmissionArtifactsForDocs(supabase, ['doc-1']))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionArtifactsForDocs(supabase, ['doc-1'], {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to load assignment submission artifacts')
+  })
 })
