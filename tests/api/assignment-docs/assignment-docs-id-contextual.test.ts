@@ -96,11 +96,13 @@ function makeClient(options: {
         eq: vi.fn(() => query),
         order: vi.fn(() => query),
         then: (resolve: (value: unknown) => unknown) => resolve({
-          data: options.feedback ?? [{
-            id: feedbackId,
-            assignment_id: assignmentId,
-            student_id: actorId,
-          }],
+          data: options.feedback === undefined
+            ? [{
+                id: feedbackId,
+                assignment_id: assignmentId,
+                student_id: actorId,
+              }]
+            : options.feedback,
           error: null,
         }),
       }
@@ -292,4 +294,32 @@ describe('contextual GET /api/assignment-docs/[id]', () => {
       supabase: client,
     })
   })
+
+  it.each([false, true])(
+    'attempts immediate Pal delivery after creation even when later evidence fails (classroom %s)',
+    async (classroomRequested) => {
+      vi.stubEnv('PAL_ENABLED', 'true')
+      vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
+      vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(classroomRequested))
+      vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+      vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+      vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
+      const client = makeClient({ created: true, feedback: null })
+      vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+
+      const response = await GET(
+        new NextRequest(`http://localhost/api/assignment-docs/${assignmentId}`),
+        { params: Promise.resolve({ id: assignmentId }) },
+      )
+
+      expect(response.status).toBe(503)
+      expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+        membership: { studentId: actorId, classroomId },
+        event: classroomRequested
+          ? null
+          : expect.objectContaining({ event_type: 'learning_item.viewed' }),
+        supabase: client,
+      })
+    },
+  )
 })

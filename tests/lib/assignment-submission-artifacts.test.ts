@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
+  loadAssignmentSubmissionRequirements,
   loadUserGitHubIdentity,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
@@ -217,6 +218,54 @@ describe('loadAssignmentSubmissionArtifactsForDoc', () => {
     await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1', {
       requireDataArray: true,
     })).rejects.toThrow('Failed to verify assignment submission artifacts')
+  })
+
+  it.each([
+    ['PGRST205', 'missing relation'],
+    ['42P01', 'missing relation'],
+    ['42501', 'permission denied for assignment_submission_artifacts'],
+  ])('preserves missing-schema compatibility for %s only outside strict mode', async (code, message) => {
+    const query: any = {
+      eq: vi.fn(() => query),
+      then: (resolve: (value: unknown) => unknown) => resolve({
+        data: null,
+        error: { code, message },
+      }),
+    }
+    const supabase = {
+      from: vi.fn(() => ({ select: vi.fn(() => query) })),
+      storage: { from: vi.fn() },
+    }
+
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1'))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1', {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to load assignment submission artifacts')
+  })
+})
+
+describe('loadAssignmentSubmissionRequirements', () => {
+  it.each([
+    ['PGRST205', 'missing relation'],
+    ['42P01', 'missing relation'],
+    ['42501', 'permission denied for assignment_submission_requirements'],
+  ])('preserves missing-schema compatibility for %s only outside strict mode', async (code, message) => {
+    const query: any = {
+      eq: vi.fn(() => query),
+      order: vi.fn(() => query),
+      then: (resolve: (value: unknown) => unknown) => resolve({
+        data: null,
+        error: { code, message },
+      }),
+    }
+    const supabase = { from: vi.fn(() => ({ select: vi.fn(() => query) })) }
+
+    await expect(loadAssignmentSubmissionRequirements(supabase, 'assignment-1'))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionRequirements(supabase, 'assignment-1', {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to load assignment submission requirements')
   })
 })
 

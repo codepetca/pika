@@ -123,8 +123,9 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     }
     const viewedAt = new Date()
     const effectiveReleaseAt = assignment.released_at ?? assignment.created_at
+    const palEnabled = isPalEnabled()
     let palEvent = null
-    if (isPalEnabled() && !isClassroomPalRequested()) {
+    if (palEnabled && !isClassroomPalRequested()) {
       if (!effectiveReleaseAt) {
         throw new ApiError(503, 'Unable to verify assignment access')
       }
@@ -144,6 +145,15 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       event: palEvent,
     })
     result.doc.content = parseContentField(result.doc.content)
+
+    let palDelivery: PalImmediateDeliveryStatus | undefined
+    if (result.created && palEnabled) {
+      palDelivery = await attemptImmediatePalEventDelivery({
+        membership: { studentId: user.id, classroomId: result.assignment.classroom_id },
+        event: palEvent,
+        supabase,
+      })
+    }
 
     let feedbackEntries
     let submissionContext
@@ -171,15 +181,6 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 503) throw error
       throw new ApiError(503, 'Unable to verify assignment document evidence')
-    }
-
-    let palDelivery: PalImmediateDeliveryStatus | undefined
-    if (result.created && isPalEnabled()) {
-      palDelivery = await attemptImmediatePalEventDelivery({
-        membership: { studentId: user.id, classroomId: result.assignment.classroom_id },
-        event: palEvent,
-        supabase,
-      })
     }
 
     return NextResponse.json({
