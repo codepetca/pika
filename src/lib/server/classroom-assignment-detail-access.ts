@@ -77,6 +77,8 @@ const repoReviewResultSchema = z.object({
   assignment_id: canonicalUuid,
   student_id: canonicalUuid,
   assignment_repo_review_runs: z.object({
+    id: canonicalUuid,
+    assignment_id: canonicalUuid,
     status: z.literal('completed'),
   }).passthrough(),
 }).passthrough()
@@ -369,6 +371,8 @@ export function assertContextualAssignmentStudentRepoReview(
     || !parsed.success
     || parsed.data.assignment_id !== requestedAssignmentId.data
     || parsed.data.student_id !== requestedStudentId.data
+    || parsed.data.run_id !== parsed.data.assignment_repo_review_runs.id
+    || parsed.data.assignment_id !== parsed.data.assignment_repo_review_runs.assignment_id
   ) {
     throw new ApiError(503, 'Unable to verify assignment student repository review')
   }

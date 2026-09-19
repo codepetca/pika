@@ -267,7 +267,11 @@ describe('contextual GET /api/teacher/assignments/[id]/students/[studentId]', ()
       run_id: '99999999-9999-4999-8999-999999999999',
       assignment_id: assignmentId,
       student_id: otherStudentId,
-      assignment_repo_review_runs: { status: 'completed' },
+      assignment_repo_review_runs: {
+        id: '99999999-9999-4999-8999-999999999999',
+        assignment_id: assignmentId,
+        status: 'completed',
+      },
     }], error: null } }
 
     const reviewResponse = await GET(
@@ -275,6 +279,24 @@ describe('contextual GET /api/teacher/assignments/[id]/students/[studentId]', ()
       { params: { id: assignmentId, studentId } },
     )
     expect(reviewResponse.status).toBe(503)
+
+    tableResults.assignment_repo_review_results = { rows: { data: [{
+      id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+      run_id: '99999999-9999-4999-8999-999999999999',
+      assignment_id: assignmentId,
+      student_id: studentId,
+      assignment_repo_review_runs: {
+        id: enrollmentId,
+        assignment_id: otherAssignmentId,
+        status: 'completed',
+      },
+    }], error: null } }
+
+    const runBindingResponse = await GET(
+      new NextRequest(`http://localhost/api/teacher/assignments/${assignmentId}/students/${studentId}`),
+      { params: { id: assignmentId, studentId } },
+    )
+    expect(runBindingResponse.status).toBe(503)
   })
 
   it('preserves role-first denial for an unmatched student-valued caller', async () => {

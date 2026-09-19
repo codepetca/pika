@@ -255,7 +255,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
 
   const latestRepoReviewQuery = supabase
     .from('assignment_repo_review_results')
-    .select('*, assignment_repo_review_runs!inner(status)')
+    .select('*, assignment_repo_review_runs!inner(id, assignment_id, status)')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .eq('assignment_repo_review_runs.status', 'completed')

@@ -241,7 +241,11 @@ describe('classroom assignment detail exact-pair access', () => {
       run_id: repoRunId,
       assignment_id: assignmentId,
       student_id: studentId,
-      assignment_repo_review_runs: { status: 'completed' },
+      assignment_repo_review_runs: {
+        id: repoRunId,
+        assignment_id: assignmentId,
+        status: 'completed',
+      },
     }
 
     expect(() => assertContextualAssignmentStudentEnrollment(classroomId, studentId, enrollment)).not.toThrow()
@@ -267,6 +271,20 @@ describe('classroom assignment detail exact-pair access', () => {
       }),
       () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
         ...review, assignment_repo_review_runs: { status: 'failed' },
+      }),
+      () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
+        ...review,
+        assignment_repo_review_runs: {
+          ...review.assignment_repo_review_runs,
+          id: ownerId,
+        },
+      }),
+      () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
+        ...review,
+        assignment_repo_review_runs: {
+          ...review.assignment_repo_review_runs,
+          assignment_id: otherAssignmentId,
+        },
       }),
     ]
     for (const run of badCases) {
