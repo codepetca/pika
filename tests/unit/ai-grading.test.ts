@@ -16,12 +16,12 @@ describe('gradeStudentWork prompt rules', () => {
     vi.restoreAllMocks()
   })
 
-  it('uses structured strength/next-step/improve guidance in system prompt', async () => {
+  it('states the deduction rules and feedback format in the system prompt', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Clear structure and complete sections. Next Step: tighten evidence-to-claim links. Improve: Add one concrete example in your analysis paragraph."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: Clear structure and complete sections. Next Step: tighten evidence-to-claim links. Improve: Add one concrete example in your analysis paragraph."}' }, finish_reason: 'stop' }],
         usage: { prompt_tokens: 120, completion_tokens: 40, total_tokens: 160 },
       }),
     })
@@ -42,13 +42,13 @@ describe('gradeStudentWork prompt rules', () => {
 
     expect(result.score_completion).toBe(8)
     expect(result.score_thinking).toBe(7)
-    expect(result.score_workflow).toBe(8)
+    expect(result.score_workflow).toBe(4)
     expect(result.feedback).toContain('Strength:')
     expect(result.feedback).toContain('Next Step:')
-    expect(result.grading_profile_version).toBe('pika-assignment-v1')
-    expect(result.rubric_version).toBe('pika-essay-ctw-v1')
-    expect(result.prompt_version).toBe('pika-assignment-prompt-v1')
-    expect(result.policy_version).toBe('pika-grading-policy-v2')
+    expect(result.grading_profile_version).toBe('pika-assignment-v2')
+    expect(result.rubric_version).toBe('pika-essay-ctw-v2')
+    expect(result.prompt_version).toBe('pika-assignment-prompt-v3')
+    expect(result.policy_version).toBe('pika-grading-policy-v3')
     expect(result.provider).toBe('deepseek')
     expect(result.token_usage).toEqual({
       input_tokens: 120,
@@ -59,10 +59,10 @@ describe('gradeStudentWork prompt rules', () => {
       schemaVersion: 'assignment-grading-provenance-v1',
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-grading-policy-v2',
-      promptVersion: 'pika-assignment-prompt-v1',
-      gradingProfileVersion: 'pika-assignment-v1',
-      rubricVersion: 'pika-essay-ctw-v1',
+      policyVersion: 'pika-grading-policy-v3',
+      promptVersion: 'pika-assignment-prompt-v3',
+      gradingProfileVersion: 'pika-assignment-v2',
+      rubricVersion: 'pika-essay-ctw-v2',
       providerRequestCount: 1,
       tokenUsage: {
         inputTokens: 120,
@@ -74,11 +74,17 @@ describe('gradeStudentWork prompt rules', () => {
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
     const systemPrompt = gradingBody.messages?.[0]?.content as string
-    expect(systemPrompt).toContain('feedback should be 1-3 sentences')
-    expect(systemPrompt).toContain('sentence starting with "Strength:"')
-    expect(systemPrompt).toContain('sentence starting with "Next Step:"')
-    expect(systemPrompt).toContain('total score is less than 30')
-    expect(gradingBody.max_tokens).toBe(800)
+    // Completion and Thinking deductions, presentation cap, and R9 feedback shape.
+    expect(systemPrompt).toContain('equal share of the 10 points')
+    expect(systemPrompt).toContain('Subtract 1 if the responses are brief')
+    expect(systemPrompt).toContain('**Presentation** (0–4, reported as score_workflow)')
+    expect(systemPrompt).toContain('Never consider grammar, spelling, or mechanics')
+    expect(systemPrompt).toContain('give the higher one')
+    expect(systemPrompt).toContain('One "Missed:" line')
+    expect(systemPrompt).toContain('Only list something as missed if the instructions actually ask for it')
+    expect(systemPrompt).toContain('At most one "Tip:"')
+    expect(systemPrompt).not.toContain('Improve:')
+    expect(gradingBody.max_tokens).toBe(2400)
     expect(gradingBody.reasoning_effort).toBe('high')
     // DeepSeek only guarantees syntactic json, so the schema rides in the prompt.
     expect(gradingBody.response_format).toEqual({ type: 'json_object' })
@@ -92,7 +98,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":9,"score_thinking":8,"score_workflow":8,"feedback":"Strength: You included the required project site. Next Step: add a brief note explaining your design choices. Improve: Add one concrete example showing how the site meets the assignment goals."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":9,"score_thinking":8,"score_workflow":4,"feedback":"Strength: You included the required project site. Next Step: add a brief note explaining your design choices. Improve: Add one concrete example showing how the site meets the assignment goals."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -126,9 +132,62 @@ describe('gradeStudentWork prompt rules', () => {
     const systemPrompt = gradingBody.messages?.[0]?.content as string
     const userPrompt = gradingBody.messages?.[1]?.content as string
 
-    expect(systemPrompt).toContain('Treat attached artifacts')
+    expect(systemPrompt).toContain('You cannot view or open any of them')
+    expect(systemPrompt).toContain('[Image attached]')
+    expect(systemPrompt).toContain('credit it under Completion')
     expect(userPrompt).toContain('Attached Artifacts:')
     expect(userPrompt).toContain('- Link: [url redacted]')
+  })
+
+  it('marks each embedded image where the student placed it, including app-relative src', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"score_completion":10,"score_thinking":6,"score_workflow":4,"feedback":"Strength: Every task has its screenshot. Next Step: explain each page in more depth. Improve: Add what you will use each page for."}' }, finish_reason: 'stop' }],
+      }),
+    })
+
+    await gradeStudentWork({
+      assignmentTitle: 'Getting Started',
+      instructions: 'Screenshot your score and each classroom page.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: '1) My score reached 100.' }] },
+          {
+            type: 'image',
+            attrs: {
+              src: '/api/storage/submission-images?object_id=11111111-1111-4111-8111-111111111111',
+              managed_object_id: '11111111-1111-4111-8111-111111111111',
+              storage_bucket: 'submission-images',
+            },
+          },
+          { type: 'paragraph', content: [{ type: 'text', text: '2) The calendar page.' }] },
+          {
+            type: 'image',
+            attrs: { src: '/api/storage/submission-images?object_id=22222222-2222-4222-8222-222222222222' },
+          },
+        ],
+      },
+    })
+
+    const gradingBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))
+    const userPrompt = gradingBody.messages?.[1]?.content as string
+
+    expect(userPrompt).toContain(
+      '1) My score reached 100.\n[Image attached]\n2) The calendar page.\n[Image attached]',
+    )
+    expect(userPrompt).not.toContain('Attached Artifacts:')
+    expect(userPrompt).not.toContain('object_id')
+    expect(userPrompt).not.toContain('11111111-1111')
+  })
+
+  it('treats an image-only submission with an app-relative src as gradable', () => {
+    expect(hasGradableAssignmentSubmission({
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: '/api/storage/submission-images?object_id=abc' } }],
+    })).toBe(true)
   })
 
   it('accepts artifact-only submissions when building the grading prompt', async () => {
@@ -136,7 +195,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: You submitted the required artifact. Next Step: add a short written explanation alongside it. Improve: Add one sentence that explains how the artifact meets the prompt."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: You submitted the required artifact. Next Step: add a short written explanation alongside it. Improve: Add one sentence that explains how the artifact meets the prompt."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -161,8 +220,63 @@ describe('gradeStudentWork prompt rules', () => {
     const userPrompt = gradingBody.messages?.[1]?.content as string
 
     expect(result.score_completion).toBe(8)
-    expect(userPrompt).toContain('Attached Artifacts:')
-    expect(userPrompt).toContain('- Image: [url redacted]')
+    expect(userPrompt).toContain('Student Work:\n[Image attached]')
+  })
+
+  it('marks images nested inside other blocks after that block text', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"score_completion":9,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Clear. Next Step: Expand."}' }, finish_reason: 'stop' }],
+      }),
+    })
+
+    await gradeStudentWork({
+      assignmentTitle: 'Lists',
+      instructions: 'List each page with a screenshot.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          {
+            type: 'bulletList',
+            content: [{
+              type: 'listItem',
+              content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'Calendar page' }] },
+                { type: 'image', attrs: { src: '/api/storage/submission-images?object_id=abc' } },
+              ],
+            }],
+          },
+        ],
+      },
+    })
+
+    const gradingBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))
+    const userPrompt = gradingBody.messages?.[1]?.content as string
+    expect(userPrompt).toContain('Calendar page\n[Image attached]')
+  })
+
+  it('keeps structured upload images in the attached artifacts list', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"score_completion":9,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Clear. Next Step: Expand."}' }, finish_reason: 'stop' }],
+      }),
+    })
+
+    await gradeStudentWork({
+      assignmentTitle: 'Upload',
+      instructions: 'Upload your diagram.',
+      studentWork: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'See upload.' }] }] },
+      submissionArtifacts: [{ type: 'image', url: 'https://storage.example.com/signed/diagram.png?token=abc' }],
+    })
+
+    const gradingBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))
+    const userPrompt = gradingBody.messages?.[1]?.content as string
+    expect(userPrompt).toContain('Attached Artifacts:\n- Image: attached')
+    expect(userPrompt).not.toContain('token=abc')
   })
 
   it('redacts direct identifiers from assignment grading input and output', async () => {
@@ -170,7 +284,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":7,"score_thinking":7,"score_workflow":7,"feedback":"Strength: alex@example.com included evidence. Next Step: remove phone 416-555-1212. Improve: Add a conclusion."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":7,"score_thinking":7,"score_workflow":4,"feedback":"Strength: alex@example.com included evidence. Next Step: remove phone 416-555-1212. Improve: Add a conclusion."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -207,7 +321,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":8,"score_thinking":8,"score_workflow":8,"feedback":"Strength: Strong reflection. Next Step: add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":8,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Strong reflection. Next Step: add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -249,7 +363,7 @@ describe('gradeStudentWork prompt rules', () => {
           {
             message: {
               reasoning_content: 'Synthetic thinking that must not be parsed as the grade.',
-              content: '```json\n{"score_completion":9,"score_thinking":8,"score_workflow":8,"feedback":"Strength: Strong structure. Next Step: Add one more specific detail. Improve: Expand your reflection with one concrete example."}\n```',
+              content: '```json\n{"score_completion":9,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Strong structure. Next Step: Add one more specific detail. Improve: Expand your reflection with one concrete example."}\n```',
             },
             finish_reason: 'stop',
           },
@@ -289,7 +403,7 @@ describe('gradeStudentWork prompt rules', () => {
         ok: true,
         json: async () => ({
           choices: [{
-            message: { content: '{"score_completion":8,"score_thinking":8,"score_workflow":7,"feedback":"Strength: Complete response. Next Step: Tighten your conclusion. Improve: Add one more concrete image to strengthen the ending."}' },
+            message: { content: '{"score_completion":8,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Complete response. Next Step: Tighten your conclusion. Improve: Add one more concrete image to strengthen the ending."}' },
             finish_reason: 'stop',
           }],
           usage: { prompt_tokens: 110, completion_tokens: 30, total_tokens: 140 },
@@ -315,8 +429,8 @@ describe('gradeStudentWork prompt rules', () => {
 
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}'))
-    expect(firstBody.max_tokens).toBe(800)
-    expect(secondBody.max_tokens).toBe(1600)
+    expect(firstBody.max_tokens).toBe(2400)
+    expect(secondBody.max_tokens).toBe(4800)
     expect(firstBody.reasoning_effort).toBe('high')
     expect(secondBody.reasoning_effort).toBe('high')
     expect(result.provider_request_count).toBe(2)
@@ -332,7 +446,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -361,7 +475,7 @@ describe('gradeStudentWork prompt rules', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
+          choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}' }, finish_reason: 'stop' }],
           usage: { prompt_tokens: 110, completion_tokens: 30, total_tokens: 140 },
         }),
       })
@@ -434,7 +548,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":12,"score_thinking":7,"score_workflow":8,"feedback":"Feedback"}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":12,"score_thinking":7,"score_workflow":4,"feedback":"Feedback"}' }, finish_reason: 'stop' }],
       }),
     })
 

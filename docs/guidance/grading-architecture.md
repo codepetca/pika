@@ -306,19 +306,32 @@ For a new rubric, prompt, assessment type, or provider:
 | Teacher review metrics | `tests/lib/grading/teacher-correction-evals.test.ts` and `pnpm eval:grading-reviews ...` |
 | Full integration gate | `pnpm test`, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`, and exact-head CI |
 
-## Assignment Score Anchors
+## Assignment Grade Composition
 
-Stage 1 of per-assignment score anchors is implemented and disabled by default
-behind `ASSIGNMENT_GRADING_ANCHORS_ENABLED`. When enabled and anchors are
-supplied, grading runs `pika-assignment-anchored` instead of `pika-assignment`:
-the same rubric, output schema and normalization, with band descriptors added to
-the prompt and distinct prompt/profile versions so provenance records which
-prompt produced a grade. Nothing persists yet. See
-[Assignment score anchors](../plans/assignment-grading-anchors.md).
+Assignment grading splits Workflow between the grader and the application:
+
+- The grader scores **Completion** (0–10), **Thinking** (0–10) and
+  **Presentation** (0–4) using the deduction rules in the
+  `pika-assignment` prompt. Screenshots and links are credited as completion
+  evidence, because the grader is text-only and URLs are redacted before egress.
+- `src/lib/assignment-workflow-process.ts` turns the document's save history
+  into the rest of Workflow: 2 points for being on time, less a lateness
+  deduction (up to 3 days −1, a week −2, two weeks −3, beyond −5); 2 points for
+  working in more than one sitting, which only applies to assignments marked
+  multi-session; and 2 points for authenticity. Missing history gives full
+  marks, and unsubmitted work is never counted late.
+- Feedback lists every requirement the student missed, even when it cost no
+  points, and the application appends reminders when authenticity is below 70%
+  or the work was never submitted.
+- Work with fewer than ten words and no attachments scores 0/0/0 without a
+  provider call.
+
+These rules were calibrated against two courses of real submissions; the
+teacher-approved rule set lives outside the repository with the private
+calibration snapshots.
 
 ## Related Guides
 
-- [Assignment score anchors](../plans/assignment-grading-anchors.md)
 - [AI grading egress](./ai-grading-egress.md)
 - [Teacher grading evaluations](./teacher-grading-evals.md)
 - [Atomic assignment grading rollout](./atomic-assignment-grading-rollout.md)

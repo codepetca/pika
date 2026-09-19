@@ -120,7 +120,15 @@ function buildTickHarness(opts: {
     feedback: string | null
     authenticity_score: number | null
     updated_at: string
+    is_submitted?: boolean | null
+    submitted_at?: string | null
   } | null
+  docHistory?: Array<{
+    word_count: number
+    paste_word_count: number | null
+    trigger: string
+    created_at: string
+  }>
   upsertError: unknown
 }) {
   const run = {
@@ -262,6 +270,7 @@ function buildTickHarness(opts: {
                 id: 'assignment-1',
                 title: 'Assignment One',
                 classroom_id: 'classroom-1',
+                due_at: '2026-04-20T23:59:00.000Z',
               },
               error: null,
             })),
@@ -288,6 +297,16 @@ function buildTickHarness(opts: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn(async () => ({ data: [], error: null })),
+        })),
+      }
+    }
+
+    if (table === 'assignment_doc_history') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(async () => ({ data: opts.docHistory ?? [], error: null })),
+          })),
         })),
       }
     }
@@ -328,7 +347,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
           content: [
             {
               type: 'paragraph',
-              content: [{ type: 'text', text: 'Final submission' }],
+              content: [{ type: 'text', text: 'Final submission: I finished every task and explained my reasoning in detail below.' }],
             },
           ],
         }),
@@ -410,7 +429,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
           content: [
             {
               type: 'paragraph',
-              content: [{ type: 'text', text: 'Final submission' }],
+              content: [{ type: 'text', text: 'Final submission: I finished every task and explained my reasoning in detail below.' }],
             },
           ],
         }),
@@ -697,7 +716,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
           content: [
             {
               type: 'paragraph',
-              content: [{ type: 'text', text: 'Final submission' }],
+              content: [{ type: 'text', text: 'Final submission: I finished every task and explained my reasoning in detail below.' }],
             },
           ],
         }),
@@ -724,6 +743,62 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       run: expect.objectContaining({ id: 'run-1', model: 'gradex:pika-assignment-v1' }),
       items: harness.items,
     })
+  })
+
+  it('adds process points to the grader presentation score and appends reminders', async () => {
+    const originalApiKey = process.env.DEEPSEEK_API_KEY
+    process.env.DEEPSEEK_API_KEY = 'synthetic-key'
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: '{"score_completion":9,"score_thinking":8,"score_workflow":4,"feedback":"Strength: Clear work.\\nNext Step: Add detail."}',
+        },
+        finish_reason: 'stop',
+      }],
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      buildTickHarness({
+        skipReason: null,
+        assignmentDoc: {
+          id: 'doc-1',
+          student_id: 'student-1',
+          content: JSON.stringify({
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My finished work covers every part of this assignment in detail.' }] }],
+          }),
+          feedback: null,
+          authenticity_score: null,
+          updated_at: '2026-04-21T12:00:00.000Z',
+          // Five days after the due date: -2 for lateness.
+          is_submitted: true,
+          submitted_at: '2026-04-25T23:59:00.000Z',
+        },
+        // Everything arrives in one paste: authenticity 0, so 0 of 2 there.
+        docHistory: [
+          { word_count: 0, paste_word_count: 0, trigger: 'autosave', created_at: '2026-04-25T23:50:00.000Z' },
+          { word_count: 400, paste_word_count: 400, trigger: 'autosave', created_at: '2026-04-25T23:50:05.000Z' },
+        ],
+        upsertError: null,
+      })
+
+      await tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
+
+      const call = mockSupabaseClient.rpc.mock.calls.find(
+        ([fn]) => fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic',
+      )
+      const payload = call?.[1] as Record<string, unknown>
+      // presentation 4 + on time 2 - late 2 + sittings 2 + authenticity 0
+      expect(payload.p_score_workflow).toBe(6)
+      expect(payload.p_score_completion).toBe(9)
+      expect(payload.p_score_thinking).toBe(8)
+      expect(String(payload.p_feedback)).toContain('Strength: Clear work.')
+      expect(String(payload.p_feedback)).toContain('type all of your work directly in Pika')
+    } finally {
+      process.env.DEEPSEEK_API_KEY = originalApiKey
+      vi.unstubAllGlobals()
+    }
   })
 
   it('marks an empty-doc item failed when saving the Missing grade fails', async () => {
@@ -779,7 +854,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         assignmentDoc: {
           id: 'doc-1', student_id: 'student-1',
           content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph',
-            content: [{ type: 'text', text: 'Synthetic submission' }] }] }),
+            content: [{ type: 'text', text: 'Synthetic submission: this fixture body is long enough to count as real work.' }] }] }),
           feedback: null, authenticity_score: null, updated_at: '2026-04-21T12:00:00.000Z',
         },
         upsertError: null,
@@ -822,7 +897,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
             content: [
               {
                 type: 'paragraph',
-                content: [{ type: 'text', text: 'Final submission' }],
+                content: [{ type: 'text', text: 'Final submission: I finished every task and explained my reasoning in detail below.' }],
               },
             ],
           }),

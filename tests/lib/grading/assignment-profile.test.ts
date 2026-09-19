@@ -21,14 +21,14 @@ describe('Pika assignment grading profile', () => {
 
   it('normalizes the legacy assignment output into criterion results', () => {
     const parsed = PIKA_ASSIGNMENT_GRADING_PROFILE.parseOutput(
-      '{"score_completion":8,"score_thinking":7,"score_workflow":6,"feedback":"Specific feedback."}',
+      '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Specific feedback."}',
     )
 
     expect(PIKA_ASSIGNMENT_GRADING_PROFILE.normalizeOutput(parsed)).toEqual({
       criteria: [
         { criterionId: 'completion', score: 8 },
         { criterionId: 'thinking', score: 7 },
-        { criterionId: 'workflow', score: 6 },
+        { criterionId: 'workflow', score: 4 },
       ],
       feedback: { student: 'Specific feedback.', teacherNotes: null },
     })

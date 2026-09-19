@@ -32124,3 +32124,8 @@ Implemented original standalone items/scores, explicit return/retraction, teache
 ## 2026-09-12 — Pal membership Phase 1 preparation
 
 Prepared disabled membership identity ledger/resolver and red-first server tests on `codex/pal-membership-foundation`. Migration 168 reserved after discovering separate local creation migrations 166/167. Focused checks passed (113 tests after remediation, architecture, policies, TypeScript, lint); database replay/types blocked pending exact target/migration approval. No migration, rollout, provider calls or data deletion performed. Independent Sol/high and Terra/high source review found migration atomicity and concurrent-backfill gaps; one batch adds explicit transaction/source locks and prepared rollback/lock rehearsals. Targeted Sol re-review cleared both at a553bf8c (3 launches, 1 fix batch); PR/final integration review await database approval and generated types. See `docs/guidance/pal-membership-identity-foundation.md`.
+
+<!-- pika-session-log-archive-batch:00e2b56bc6cab2e514dd0c4400857a9ffee5729a2d4e3874243bd5bbb7df526c -->
+## 2026-09-12 — Pal isolated baseline verified
+
+User approved isolated `pika-pal-phase1` baseline migrations 001–165, without seeds or real data. Prepared runtime at `/Users/stew/.codex/worktrees/pika/.pal-phase1-db`, verified the exact dry run, and applied once via `supabase db push --local`. All 165 history names/numbers match; users/classrooms/enrollments are empty; generated public baseline types match committed types. Migration 168 remains absent; next gate is exact approval for its intentional rollback rehearsal. No shared or hosted database changes, flags, or provider calls.

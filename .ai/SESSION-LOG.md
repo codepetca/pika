@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-12 — Pal isolated baseline verified
-
-User approved isolated `pika-pal-phase1` baseline migrations 001–165, without seeds or real data. Prepared runtime at `/Users/stew/.codex/worktrees/pika/.pal-phase1-db`, verified the exact dry run, and applied once via `supabase db push --local`. All 165 history names/numbers match; users/classrooms/enrollments are empty; generated public baseline types match committed types. Migration 168 remains absent; next gate is exact approval for its intentional rollback rehearsal. No shared or hosted database changes, flags, or provider calls.
-
 ## 2026-09-12 — Pal migration rollback rehearsal passed
 
 User separately approved the intentional migration-168 rollback rehearsal on isolated `pika-pal-phase1`. Exact-target migration list/dry run showed only 168 pending. The approved harness produced the expected ambiguous-generation PK failure and verified complete rollback: no 168 objects/functions or synthetic users/classrooms/enrollments/roster; history stays at 165. Clean application of 168 remains the next one-time approval gate, then lifecycle contracts/types/PR. No shared or hosted database changes.
@@ -239,3 +235,11 @@ Stage 1 of per-assignment score anchors landed disabled behind `ASSIGNMENT_GRADI
 Verification: tsc, lint, `check:architecture` (961 modules) clean; 7083/7084 tests. The one failure, `ai-startup-docs > keeps verify-env fast by default`, is pre-existing (container runs Node 22, repo requires 24) and reproduces on a stashed clean tree.
 
 NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and compare anchored vs baseline spread against the teacher's own marks. Proceed to stage 2 (migration 176, anchor caching, read-only teacher panel — specified in `docs/plans/assignment-grading-anchors.md`) only if spread widens without inverting that ranking. Type regeneration without Docker images is documented in that plan and was verified against all 175 migrations.
+
+## 2026-09-19 — Calibrated assignment grading rules and screenshot fix
+
+- Branch `claude/beautiful-mayer-4jk2lf`. Calibrated AI assignment grading against real submissions from two courses (PPZ3C A1, GLD2O A1/A4/A6) with the teacher, one submission at a time. The approved rule set and the de-identified snapshots stay private and gitignored (`*.grading-snapshot.json`, `*.grader-calibration.json`).
+- Fixed two production bugs found during calibration. Since #1158 privatized submission storage, uploaded images carry an app-relative src, so URL-based artifact extraction dropped every screenshot: grading had been blind to them. Images now appear as `[Image attached]` where the student placed them, so captions can be matched, and attachments are credited as completion evidence. Separately, an email or phone number written with no separating space bypassed redaction; both patterns now end on a non-letter/non-digit boundary. Six GLD2O resumes were affected.
+- Grade composition changed. The grader now scores Completion, Thinking and Presentation (0–4) by explicit deductions, and `assignment-workflow-process.ts` derives the rest of Workflow from save history (lateness scale, sittings, authenticity). Feedback lists every missed requirement even at full marks, with reminders for pasted or unsubmitted work; work under ten words with no attachments scores 0/0/0 with no provider call. Prompt/profile/policy/rubric versions bumped; output budget raised to 2400/4800 because reasoning tokens truncated the longer feedback.
+- Removed the per-assignment score anchor feature (profiles, generation, flag, eval script, plan doc): the general deduction rules replaced it.
+- Verification: 7,085 tests including 13 new process-scoring cases, plus typecheck, lint, architecture. Re-graded five calibration submissions through the shipped path; scores matched the calibrated results within a point.
