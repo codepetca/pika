@@ -11,6 +11,24 @@ export function requireWorkOSMagicAuthPilot(): void {
   }
 }
 
+/**
+ * Guards the legacy email/password auth routes.
+ *
+ * While the WorkOS pilot is enabled, WorkOS is the credential authority and a
+ * password-issued `pika_session` already authorizes nothing (see
+ * `getCurrentUser` in `@/lib/auth`). Refusing these routes outright removes the
+ * residual credential-verification oracle and the account-enumeration and
+ * email-amplification surface they would otherwise keep exposed.
+ *
+ * Uses the same opaque 404 as `requireWorkOSMagicAuthPilot` so neither guard
+ * reveals which auth flow an environment is running.
+ */
+export function requireLegacyPasswordAuth(): void {
+  if (isWorkOSMagicAuthPilotEnabled()) {
+    throw new ApiError(404, 'Not found')
+  }
+}
+
 export function getWorkOSPilotConfig(): {
   clientId: string
   apiKey: string
