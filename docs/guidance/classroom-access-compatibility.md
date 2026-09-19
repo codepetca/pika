@@ -49,6 +49,14 @@ exact pair through the off-by-default page pilot described in
 live home, complete visual matrix and compatible downstream domains remain outstanding,
 so this does not satisfy batch B's exit gate or authorize a mixed-role cohort.
 
+The first batch D announcement slice now contextually authorizes the two list-read
+endpoints behind an independent exact-pair gate and validates returned classroom
+bindings. Teacher announcement mutations and member read receipts deliberately remain
+legacy until transaction-time relationship checks exist. Assignments, entries, lesson
+plans, resources, surveys, tests and all other work domains are still outstanding; this
+read slice does not make the page or home gate safe to enable. See
+[the announcement read contract](contextual-classroom-announcement-reads.md).
+
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
 - `src/app/classrooms/[classroomId]/page.tsx` preserves its `user.role` branch by
