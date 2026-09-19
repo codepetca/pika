@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '@/lib/auth'
 import { resolveClassroomAccess } from '@/lib/server/classroom-access'
 import {
   assertContextualLessonPlanClassroom,
+  assertContextualLessonPlanDateRange,
   assertContextualLessonPlanRows,
   authorizeClassroomLessonPlanRequest,
 } from '@/lib/server/classroom-lesson-plan-access'
@@ -222,6 +223,19 @@ describe('classroom lesson-plan exact-pair access', () => {
     ]) {
       expect(() => assertContextualLessonPlanClassroom(classroomId, row))
         .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    }
+  })
+
+  it('accepts only real canonical calendar dates for contextual visibility comparisons', () => {
+    expect(() => assertContextualLessonPlanDateRange('2026-09-01', '2026-09-30')).not.toThrow()
+    for (const [start, end] of [
+      ['09/01/2026', '09/30/2027'],
+      ['2026-09-01', '09/30/2027'],
+      ['2026-02-30', '2026-03-01'],
+      ['2026-9-1', '2026-09-30'],
+    ]) {
+      expect(() => assertContextualLessonPlanDateRange(start, end))
+        .toThrowError(expect.objectContaining({ statusCode: 400 }))
     }
   })
 })

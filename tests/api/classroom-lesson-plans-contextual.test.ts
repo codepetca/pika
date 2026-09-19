@@ -17,6 +17,9 @@ vi.mock('@/lib/server/classroom-lesson-plan-access', async (importOriginal) => (
   ...await importOriginal<typeof import('@/lib/server/classroom-lesson-plan-access')>(),
   authorizeClassroomLessonPlanRequest: vi.fn(),
 }))
+vi.mock('@/lib/timezone', () => ({
+  nowInToronto: vi.fn(() => new Date('2026-09-16T12:00:00')),
+}))
 
 const actorId = '11111111-1111-4111-8111-111111111111'
 const ownerId = '22222222-2222-4222-8222-222222222222'
@@ -103,6 +106,53 @@ describe('contextual classroom lesson-plan routes', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ visibility: 'all', lesson_plans: [{ id: lessonPlanId }] })
     expect(assertStudentCanAccessClassroom).not.toHaveBeenCalled()
+  })
+
+  it('rejects PostgreSQL date aliases before a contextual member data query', async () => {
+    vi.mocked(authorizeClassroomLessonPlanRequest).mockResolvedValue({
+      mode: 'contextual',
+      user: user('teacher'),
+      context: {
+        userId: actorId,
+        classroomId,
+        ownerId,
+        relationship: 'member',
+        archived: false,
+      },
+    })
+    const from = vi.fn()
+    vi.mocked(getServiceRoleClient).mockReturnValue({ from } as unknown as ReturnType<typeof getServiceRoleClient>)
+    const aliasRequest = new NextRequest(
+      `http://localhost/api/classrooms/${classroomId}/lesson-plans?start=2026-09-01&end=09/30/2027`,
+    )
+
+    const response = await studentGet(aliasRequest, params)
+
+    expect(response.status).toBe(400)
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('clamps a canonical future member range to the configured current week', async () => {
+    vi.mocked(authorizeClassroomLessonPlanRequest).mockResolvedValue({
+      mode: 'contextual',
+      user: user('teacher'),
+      context: {
+        userId: actorId,
+        classroomId,
+        ownerId,
+        relationship: 'member',
+        archived: false,
+      },
+    })
+    const range = rangeBuilder([])
+    const visibility = visibilityBuilder({ id: classroomId, lesson_plan_visibility: 'current_week' })
+    const from = vi.fn((table: string) => table === 'classrooms' ? visibility : range)
+    vi.mocked(getServiceRoleClient).mockReturnValue({ from } as unknown as ReturnType<typeof getServiceRoleClient>)
+
+    const response = await studentGet(request, params)
+
+    expect(response.status).toBe(200)
+    expect(range.lte).toHaveBeenCalledWith('date', '2026-09-19')
   })
 
   it('returns contextual denials before querying lesson-plan data', async () => {

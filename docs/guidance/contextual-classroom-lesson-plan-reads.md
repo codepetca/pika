@@ -22,6 +22,11 @@ visibility record must also identify that exact classroom and contain a recogniz
 visibility value. Malformed or substituted service-role evidence returns 503 without
 disclosing a partial list.
 
+Contextual member date bounds must be real canonical `YYYY-MM-DD` calendar dates
+before the server compares them with the visibility ceiling. PostgreSQL-compatible
+aliases are rejected with 400 so alternate spellings cannot bypass the week clamp.
+The unmatched legacy path keeps its existing request behavior.
+
 ## Independent rollout gate
 
 - `PIKA_CLASSROOM_LESSON_PLANS_ACCESS_ENABLED=true` activates pair evaluation.

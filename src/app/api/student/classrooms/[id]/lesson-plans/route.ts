@@ -8,6 +8,7 @@ import type { LessonPlanVisibility } from '@/types'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import {
   assertContextualLessonPlanClassroom,
+  assertContextualLessonPlanDateRange,
   assertContextualLessonPlanRows,
   authorizeClassroomLessonPlanRequest,
 } from '@/lib/server/classroom-lesson-plan-access'
@@ -65,6 +66,10 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
       { error: 'start and end query params are required (YYYY-MM-DD)' },
       { status: 400 }
     )
+  }
+
+  if (lessonPlanAccess.mode === 'contextual') {
+    assertContextualLessonPlanDateRange(start, end)
   }
 
   if (lessonPlanAccess.mode === 'legacy') {

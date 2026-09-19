@@ -23,6 +23,10 @@ const lessonPlanClassroomSchema = z.object({
   id: canonicalUuid,
   lesson_plan_visibility: z.enum(['current_week', 'one_week_ahead', 'all']).nullable(),
 }).passthrough()
+const canonicalDateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+})
 
 function configuredLessonPlanPairs(): z.infer<typeof lessonPlanPairsSchema> | null {
   const raw = process.env.PIKA_CLASSROOM_LESSON_PLANS_ACCESS_PAIRS
@@ -108,5 +112,12 @@ export function assertContextualLessonPlanClassroom(
   const parsed = lessonPlanClassroomSchema.safeParse(row)
   if (!requestedId.success || !parsed.success || parsed.data.id !== requestedId.data) {
     throw new ApiError(503, 'Unable to verify lesson-plan visibility')
+  }
+}
+
+/** PostgreSQL accepts aliases that cannot be compared safely to ISO visibility limits. */
+export function assertContextualLessonPlanDateRange(start: string, end: string): void {
+  if (!canonicalDateOnly.safeParse(start).success || !canonicalDateOnly.safeParse(end).success) {
+    throw new ApiError(400, 'start and end must use YYYY-MM-DD')
   }
 }
