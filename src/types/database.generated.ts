@@ -10289,6 +10289,15 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      open_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_pal_event?: Json
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
       prepare_attendance_snapshot_v1: {
         Args: {
