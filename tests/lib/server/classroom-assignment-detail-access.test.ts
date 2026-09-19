@@ -9,7 +9,14 @@ import {
   assertContextualAssignmentDetailHistory,
   assertContextualAssignmentDetailProfiles,
   assertContextualAssignmentDetailRequirements,
+  assertContextualAssignmentStudentDoc,
+  assertContextualAssignmentStudentEnrollment,
+  assertContextualAssignmentStudentFeedback,
+  assertContextualAssignmentStudentProfile,
+  assertContextualAssignmentStudentRepoReview,
+  assertContextualAssignmentStudentRepoTarget,
   authorizeClassroomAssignmentDetailRequest,
+  canonicalizeContextualAssignmentStudentId,
   resolveContextualAssignmentDetailAccess,
 } from '@/lib/server/classroom-assignment-detail-access'
 import type { AuthenticatedUser } from '@/types'
@@ -31,6 +38,10 @@ const otherAssignmentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 const docId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
 const requirementId = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
 const artifactId = '99999999-9999-4999-8999-999999999999'
+const feedbackId = '88888888-8888-4888-8888-888888888888'
+const repoTargetId = '77777777-7777-4777-8777-777777777777'
+const repoReviewId = '66666666-6666-4666-8666-666666666666'
+const repoRunId = '55555555-5555-4555-8555-555555555555'
 
 const user = (role: 'student' | 'teacher' = 'student') => ({
   id: actorId,
@@ -201,6 +212,79 @@ describe('classroom assignment detail exact-pair access', () => {
       }]),
       () => assertContextualAssignmentDetailGradingRun(assignmentId, {
         assignment_id: otherAssignmentId,
+      }),
+    ]
+    for (const run of badCases) {
+      expect(run).toThrowError(expect.objectContaining({ statusCode: 503 }))
+    }
+  })
+
+  it('canonicalizes the contextual student identifier and rejects aliases', () => {
+    expect(canonicalizeContextualAssignmentStudentId(studentId.toUpperCase())).toBe(studentId)
+    expect(() => canonicalizeContextualAssignmentStudentId('not-a-uuid'))
+      .toThrowError(expect.objectContaining({ statusCode: 400 }))
+  })
+
+  it('validates individual student-work bindings and optional absence', () => {
+    const enrollment = {
+      id: ownerId,
+      classroom_id: classroomId,
+      student_id: studentId,
+      users: { id: studentId, email: 'student@example.com' },
+    }
+    const profile = { user_id: studentId, first_name: 'Student', last_name: null }
+    const doc = { id: docId, assignment_id: assignmentId, student_id: studentId }
+    const feedback = [{ id: feedbackId, assignment_id: assignmentId, student_id: studentId }]
+    const target = { id: repoTargetId, assignment_id: assignmentId, student_id: studentId }
+    const review = {
+      id: repoReviewId,
+      run_id: repoRunId,
+      assignment_id: assignmentId,
+      student_id: studentId,
+      assignment_repo_review_runs: {
+        id: repoRunId,
+        assignment_id: assignmentId,
+        status: 'completed',
+      },
+    }
+
+    expect(() => assertContextualAssignmentStudentEnrollment(classroomId, studentId, enrollment)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentProfile(studentId, profile)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentProfile(studentId, null)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentDoc(assignmentId, studentId, doc)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentDoc(assignmentId, studentId, null)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentFeedback(assignmentId, studentId, feedback)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentRepoTarget(assignmentId, studentId, target)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentRepoTarget(assignmentId, studentId, null)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, review)).not.toThrow()
+    expect(() => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, null)).not.toThrow()
+
+    const badCases = [
+      () => assertContextualAssignmentStudentEnrollment(classroomId, ownerId, enrollment),
+      () => assertContextualAssignmentStudentProfile(ownerId, profile),
+      () => assertContextualAssignmentStudentDoc(otherAssignmentId, studentId, doc),
+      () => assertContextualAssignmentStudentFeedback(assignmentId, studentId, [{
+        ...feedback[0], student_id: ownerId,
+      }]),
+      () => assertContextualAssignmentStudentRepoTarget(assignmentId, studentId, {
+        ...target, assignment_id: otherAssignmentId,
+      }),
+      () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
+        ...review, assignment_repo_review_runs: { status: 'failed' },
+      }),
+      () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
+        ...review,
+        assignment_repo_review_runs: {
+          ...review.assignment_repo_review_runs,
+          id: ownerId,
+        },
+      }),
+      () => assertContextualAssignmentStudentRepoReview(assignmentId, studentId, {
+        ...review,
+        assignment_repo_review_runs: {
+          ...review.assignment_repo_review_runs,
+          assignment_id: otherAssignmentId,
+        },
       }),
     ]
     for (const run of badCases) {

@@ -129,7 +129,10 @@ export async function loadAssignmentSubmissionRequirements(
 ): Promise<AssignmentSubmissionRequirement[]> {
   try {
     const query = supabase.from('assignment_submission_requirements')
-    if (!query) return []
+    if (!query) {
+      if (options.requireDataArray) throw new Error('Failed to verify assignment submission requirements')
+      return []
+    }
     const { data, error } = await query
       .select('*')
       .eq('assignment_id', assignmentId)
@@ -153,11 +156,15 @@ export async function loadAssignmentSubmissionRequirements(
 
 export async function loadAssignmentSubmissionArtifactsForDoc(
   supabase: SupabaseClientLike,
-  assignmentDocId: string
+  assignmentDocId: string,
+  options: { requireDataArray?: boolean } = {},
 ): Promise<AssignmentSubmissionArtifact[]> {
   try {
     const query = supabase.from('assignment_submission_artifacts')
-    if (!query) return []
+    if (!query) {
+      if (options.requireDataArray) throw new Error('Failed to verify assignment submission artifacts')
+      return []
+    }
     const { data, error } = await query
       .select('*')
       .eq('assignment_doc_id', assignmentDocId)
@@ -165,6 +172,9 @@ export async function loadAssignmentSubmissionArtifactsForDoc(
     if (error) {
       if (isMissingAssignmentSubmissionSchemaError(error)) return []
       throw new Error('Failed to load assignment submission artifacts')
+    }
+    if (options.requireDataArray && !Array.isArray(data)) {
+      throw new Error('Failed to verify assignment submission artifacts')
     }
 
     return signArtifactImageUrls(supabase, (data || []) as AssignmentSubmissionArtifact[])

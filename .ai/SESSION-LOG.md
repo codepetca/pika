@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Phase3 initial review correction batch
-
-Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 application approval. Corrected three accepted blockers: provisional whole-class copy/intent policy and producer serialization, exact-reference attendance removal closure, and provider-pending ordinary-cron health. Added transaction-only SQL cases (unexecuted), plus43 passing cron/purge tests and passing TypeScript. Full initial source gate passed520 tests. No SQL/provider traffic/config/rollout or PR publication occurred. Further typed RPC integration, browser revocation, actual SQL and race verification remain incomplete.
-
 ## 2026-09-13 — Phase3 browser revocation and independent provider steps
 
 Finished membership browser reauthorization/cache-memory clearing on revoked access, preserving academic children and dismissing pending rewards/late replies. Synthetic Playwright8cases desktop/mobile/light/dark passed and screenshots inspected;45focused unit tests and full source605tests/types/policies/lint passed, Pikaauditpassed. Provider advancement now explicitly selects one provider per bounded step so Pal pending does not starve Bara. SQL171 remains unchanged at reviewedhash598ee035 and unapplied; exactlocalpacket sent coordinator. Typed RPC bridge, attendance consumers, actual SQL/concurrency verification and final review/PR remain pending. No rollout/provider calls.
@@ -256,3 +252,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Initial compatibility review found the independent gate absent from `.env.example`. Batch1 adds explicit disabled/empty defaults and scoped operational comments; exact-head verification and re-review follow.
 - The same review found active grading-run schema/null evidence still normalized to “no run.” Batch2 adds strict contextual active-run and run-item evidence loading through the already-authorized service client while preserving legacy missing-schema fallbacks, with null and missing-schema regressions.
 - Final compatibility review found uppercase admitted UUIDs could mismatch lowercase grading evidence. Batch3 canonicalizes the contextual assignment ID once for every downstream detail query and adds an uppercase active-run regression; the legacy identifier path remains unchanged.
+
+## 2026-09-19 — Dormant contextual individual assignment work read
+
+- Owner `codex/contextual-assignment-student-work-read`, based on merged aggregate-detail PR1292. Extended the same off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]/students/[studentId]`. A student-valued classroom owner may read one enrolled student's existing work, including an archived classroom, without changing the account's legacy role.
+- Contextual mode canonicalizes the student identifier after assignment-pair admission, proves the exact classroom enrollment, and validates profile, document, feedback, requirement, artifact, repository-target and completed repository-review bindings. Optional single-row evidence uses bounded arrays so unavailable or duplicate service-role results cannot be normalized to absence; the already-authorized client is reused by supporting loaders. The learner document route and every assignment mutation remain legacy.
+- No UI, migration, schema, dependency, production configuration or cohort activation changed. Initial targeted contextual/legacy/helper coverage passes 48 tests plus TypeScript; focused verification and independent review follow.
+- Initial security and compatibility review found that the repository-review result was bound to the requested assignment/student but its joined run was validated only by completed status. Batch1 selects the nested run ID and assignment, proves `result.run_id` and assignment match that run, and adds helper plus route regressions for substituted cross-assignment run evidence; refreshed checks and exact-head re-review follow.

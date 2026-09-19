@@ -61,6 +61,27 @@ const historyRowSchema = z.object({
 const gradingRunSchema = z.object({
   assignment_id: canonicalUuid,
 }).passthrough()
+const feedbackEntrySchema = z.object({
+  id: canonicalUuid,
+  assignment_id: canonicalUuid,
+  student_id: canonicalUuid,
+}).passthrough()
+const repoTargetSchema = z.object({
+  id: canonicalUuid,
+  assignment_id: canonicalUuid,
+  student_id: canonicalUuid,
+}).passthrough()
+const repoReviewResultSchema = z.object({
+  id: canonicalUuid,
+  run_id: canonicalUuid,
+  assignment_id: canonicalUuid,
+  student_id: canonicalUuid,
+  assignment_repo_review_runs: z.object({
+    id: canonicalUuid,
+    assignment_id: canonicalUuid,
+    status: z.literal('completed'),
+  }).passthrough(),
+}).passthrough()
 
 function configuredAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | null {
   const raw = process.env.PIKA_CLASSROOM_ASSIGNMENT_DETAILS_ACCESS_PAIRS
@@ -130,6 +151,12 @@ export async function resolveContextualAssignmentDetailAccess(
   const allowed = context.relationship === 'owner' && canAccessClassroom(context, 'read')
   if (!allowed) throw new ApiError(403, 'Forbidden')
   return context
+}
+
+export function canonicalizeContextualAssignmentStudentId(studentId: string): string {
+  const parsed = canonicalUuid.safeParse(studentId)
+  if (!parsed.success) throw new ApiError(400, 'Invalid student identifier')
+  return parsed.data
 }
 
 function canonicalSet(values: string[], errorMessage: string): Set<string> {
@@ -252,5 +279,101 @@ export function assertContextualAssignmentDetailGradingRun(
   const parsed = gradingRunSchema.safeParse(row)
   if (!requestedId.success || !parsed.success || parsed.data.assignment_id !== requestedId.data) {
     throw new ApiError(503, 'Unable to verify assignment detail grading run')
+  }
+}
+
+export function assertContextualAssignmentStudentEnrollment(
+  classroomId: string,
+  studentId: string,
+  row: unknown,
+): void {
+  const requestedStudentId = canonicalUuid.safeParse(studentId)
+  if (!requestedStudentId.success) {
+    throw new ApiError(503, 'Unable to verify assignment student roster')
+  }
+  assertContextualAssignmentDetailEnrollments(classroomId, [row])
+  const parsed = enrollmentRowSchema.safeParse(row)
+  if (!parsed.success || parsed.data.student_id !== requestedStudentId.data) {
+    throw new ApiError(503, 'Unable to verify assignment student roster')
+  }
+}
+
+export function assertContextualAssignmentStudentProfile(
+  studentId: string,
+  row: unknown,
+): void {
+  if (row === null) return
+  assertContextualAssignmentDetailProfiles([studentId], [row])
+}
+
+export function assertContextualAssignmentStudentDoc(
+  assignmentId: string,
+  studentId: string,
+  row: unknown,
+): void {
+  if (row === null) return
+  assertContextualAssignmentDetailDocs(assignmentId, [studentId], [row])
+}
+
+export function assertContextualAssignmentStudentFeedback(
+  assignmentId: string,
+  studentId: string,
+  rows: unknown,
+): void {
+  const requestedAssignmentId = canonicalUuid.safeParse(assignmentId)
+  const requestedStudentId = canonicalUuid.safeParse(studentId)
+  const parsed = z.array(feedbackEntrySchema).safeParse(rows)
+  if (
+    !requestedAssignmentId.success
+    || !requestedStudentId.success
+    || !parsed.success
+    || parsed.data.some((row) => (
+      row.assignment_id !== requestedAssignmentId.data || row.student_id !== requestedStudentId.data
+    ))
+    || new Set(parsed.success ? parsed.data.map((row) => row.id) : []).size !== (parsed.success ? parsed.data.length : 0)
+  ) {
+    throw new ApiError(503, 'Unable to verify assignment student feedback')
+  }
+}
+
+export function assertContextualAssignmentStudentRepoTarget(
+  assignmentId: string,
+  studentId: string,
+  row: unknown,
+): void {
+  if (row === null) return
+  const requestedAssignmentId = canonicalUuid.safeParse(assignmentId)
+  const requestedStudentId = canonicalUuid.safeParse(studentId)
+  const parsed = repoTargetSchema.safeParse(row)
+  if (
+    !requestedAssignmentId.success
+    || !requestedStudentId.success
+    || !parsed.success
+    || parsed.data.assignment_id !== requestedAssignmentId.data
+    || parsed.data.student_id !== requestedStudentId.data
+  ) {
+    throw new ApiError(503, 'Unable to verify assignment student repository target')
+  }
+}
+
+export function assertContextualAssignmentStudentRepoReview(
+  assignmentId: string,
+  studentId: string,
+  row: unknown,
+): void {
+  if (row === null) return
+  const requestedAssignmentId = canonicalUuid.safeParse(assignmentId)
+  const requestedStudentId = canonicalUuid.safeParse(studentId)
+  const parsed = repoReviewResultSchema.safeParse(row)
+  if (
+    !requestedAssignmentId.success
+    || !requestedStudentId.success
+    || !parsed.success
+    || parsed.data.assignment_id !== requestedAssignmentId.data
+    || parsed.data.student_id !== requestedStudentId.data
+    || parsed.data.run_id !== parsed.data.assignment_repo_review_runs.id
+    || parsed.data.assignment_id !== parsed.data.assignment_repo_review_runs.assignment_id
+  ) {
+    throw new ApiError(503, 'Unable to verify assignment student repository review')
   }
 }

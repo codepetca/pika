@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
@@ -196,5 +197,24 @@ describe('loadAssignmentSubmissionArtifactsForDocs', () => {
     await expect(loadAssignmentSubmissionArtifactsForDocs(supabase, ['doc-1'], {
       requireDataArray: true,
     })).rejects.toThrow('Failed to load assignment submission artifacts')
+  })
+})
+
+describe('loadAssignmentSubmissionArtifactsForDoc', () => {
+  it('preserves legacy null normalization but rejects null evidence in strict mode', async () => {
+    const query: any = {
+      eq: vi.fn(() => query),
+      then: (resolve: (value: unknown) => unknown) => resolve({ data: null, error: null }),
+    }
+    const supabase = {
+      from: vi.fn(() => ({ select: vi.fn(() => query) })),
+      storage: { from: vi.fn() },
+    }
+
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1'))
+      .resolves.toEqual([])
+    await expect(loadAssignmentSubmissionArtifactsForDoc(supabase, 'doc-1', {
+      requireDataArray: true,
+    })).rejects.toThrow('Failed to verify assignment submission artifacts')
   })
 })
