@@ -191,8 +191,11 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   validating assignment/classroom, roster, profile, document, feedback, requirement,
   artifact, repository-target, repository-review, history and grading-run bindings.
   The learner assignment-document GET remains legacy because it creates or updates
-  data and can emit Pal events; all assignment writes remain outstanding.
+  data and can emit Pal events. Migration 182 and its server adapter now define the
+  dormant transactional learner-open boundary, but no route calls it yet. Autosave,
+  submission, artifacts and the remaining assignment writes are still outstanding.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
+  See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
