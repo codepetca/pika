@@ -424,7 +424,18 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     return nameA.localeCompare(nameB)
   })
 
-  const activeAiGradingRun = await getActiveAssignmentAiGradingRunSummary(id)
+  let activeAiGradingRun
+  try {
+    activeAiGradingRun = await getActiveAssignmentAiGradingRunSummary(id, {
+      supabase,
+      requireEvidence: assignmentAccess.mode === 'contextual',
+    })
+  } catch (error) {
+    if (assignmentAccess.mode === 'contextual') {
+      throw new ApiError(503, 'Unable to verify assignment detail grading run')
+    }
+    throw error
+  }
   if (assignmentAccess.mode === 'contextual') {
     assertContextualAssignmentDetailGradingRun(id, activeAiGradingRun)
   }

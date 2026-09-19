@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { AuthenticationError, requireAuth } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { GET } from '@/app/api/teacher/assignments/[id]/route'
+import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
 import type { AuthenticatedUser } from '@/types'
 
 vi.mock('@/lib/auth', async (importOriginal) => ({
@@ -101,6 +102,7 @@ describe('contextual assignment detail route', () => {
       assignmentId,
     }]))
     vi.mocked(requireAuth).mockResolvedValue(actor)
+    vi.mocked(getActiveAssignmentAiGradingRunSummary).mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -165,6 +167,21 @@ describe('contextual assignment detail route', () => {
 
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ error: 'Unable to verify assignment detail roster' })
+  })
+
+  it('maps unavailable active grading-run evidence to 503', async () => {
+    const client = makeClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+    vi.mocked(getActiveAssignmentAiGradingRunSummary).mockRejectedValueOnce(
+      new Error('Failed to verify active assignment AI grading run'),
+    )
+
+    const response = await GET(new NextRequest(`http://localhost/api/teacher/assignments/${assignmentId}`), {
+      params: Promise.resolve({ id: assignmentId }),
+    })
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Unable to verify assignment detail grading run' })
   })
 
   it('preserves wrong-role denial for an unmatched assignment without database reads', async () => {
