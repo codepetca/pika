@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Restore student action-bar header clearance
-
-- Task branch `codex/student-actionbar-spacing`: student-density `PageActionBar` now owns the existing 12px comfortable top inset, fixing Calendar and Classwork Instructions/Submit header collisions. Teacher/default spacing remains caller-owned. Updated the canonical API note and role-aware Pattern Lab example; reused existing controls and spacing tokens. Risk profile: none; no new visual pattern or interaction semantics.
-- Local Playwright matrix covers student/teacher Calendar, selected assignment, and Pattern Lab at 1440×900/390×844 in light/dark; student Calendar Week/Month/All and assignment focus/open-instructions states also captured. Evidence: ignored `output/playwright/`, capture script `/tmp/pika-actionbar-verify.cjs`, local port3137. No page overflow; student action bars have 12px padding and controls retain 44px targets.
-- Focused check passed 1,665 tests in168 files plus architecture, UI/design policy, TypeScript and lint. The optional audit flags unchanged composite semantics by scanning whole touched files; this spacing-only diff changes no ARIA or keyboard behavior and has direct browser focus/dialog verification. Draft-first independent review and final CI follow; no merge or production authorization.
-
 ## 2026-09-13 — Phase3 provider prerequisite checkpoint
 
 Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
@@ -256,3 +250,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Owner `codex/contextual-classroom-material-reads`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member material list endpoints. A student-valued owner receives the owner projection including drafts; a teacher-valued active member retains published-only filtering. Contextual arrays and every material/classroom binding fail closed on malformed or substituted service-role evidence, including after the existing missing-position fallback.
 - Material create/edit/delete operations remain on their legacy guards pending transaction-time owner/archive and resource binding. The missing-table empty-list compatibility response is preserved. No page/home consumer, UI, migration, production configuration or cohort activation changed. Initial targeted access/route/legacy coverage passes 42 tests; focused checks and independent review follow.
 - Initial security and compatibility reviews found that same-class draft evidence could pass the generic contextual row validator despite the member query predicate. Batch1 adds member-specific `is_draft: false` validation after both primary and missing-position fallback reads, with same-class draft regressions while preserving owner draft visibility. Refreshed verification and targeted re-review follow.
+
+## 2026-09-19 — Dormant contextual assignment reads
+
+- Owner `codex/contextual-classroom-assignment-reads`, based on merged material-read PR1290. Added an independent, off-by-default exact user/classroom pair gate to the owner and member assignment list endpoints. A student-valued owner retains drafts, roster-scoped statistics and submission requirements; a teacher-valued active member retains live-only assignments and their own sanitized assignment document.
+- Contextual assignment, roster, statistics-document, requirement and member-document evidence is validated against the authenticated subject and authorized classroom/resources. Assignment item routes, mutations, submissions, artifacts and grading remain legacy. No UI, migration, production configuration or cohort activation changed. Initial targeted route/access/legacy coverage passes 54 tests plus TypeScript; focused checks and independent review follow.
+- Initial security/compatibility review found two fail-closed gaps: member release/return policy fields were not shape-validated before visibility/sanitization, and shared stats/requirement loaders normalized unexpected null evidence to empty arrays. Batch1 requires valid release, return and feedback-return timestamps; adds strict opt-in raw-array handling while preserving legacy normalization and the intentional missing-schema fallback; and covers null/malformed evidence. Refreshed verification and targeted re-review follow.

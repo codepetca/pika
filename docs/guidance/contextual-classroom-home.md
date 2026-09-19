@@ -74,3 +74,8 @@ Contextual owner/member material list reads are likewise available behind a sepa
 dormant gate with member draft filtering and row binding preserved. Material writes
 and the remaining domains are still role-bound, so the home activation rule remains
 unchanged.
+
+Contextual owner/member assignment list reads are available behind another independent
+dormant gate with owner statistics and member own-document binding preserved. Assignment
+item routes, writes, submissions, grading and the remaining domains are still role-bound,
+so the home activation rule remains unchanged.
