@@ -5,6 +5,10 @@ const migration = () => readFileSync(
   'supabase/migrations/182_contextual_assignment_doc_open.sql',
   'utf8',
 )
+const relationshipMigration = () => readFileSync(
+  'supabase/migrations/183_relationship_based_pal_membership.sql',
+  'utf8',
+)
 
 describe('contextual assignment document open migration', () => {
   it('is a service-only security-definer boundary with an empty search path', () => {
@@ -76,6 +80,10 @@ describe('contextual assignment document open migration', () => {
     )
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
     expect(behavior).toContain('Migration 182 is required; this harness never applies it')
+    expect(behavior).toContain('Migration 183 is required; this harness never applies it')
+    expect(behavior).toContain('Teacher-valued exact member did not emit one bound first-view fact')
+    expect(behavior).toContain('Student-valued exact member did not emit one bound first-view fact')
+    expect(behavior).toContain('Assignment-open retries duplicated membership-scoped first-view facts')
     expect(behavior).toContain('rollback;')
     expect(concurrency).toContain("'removal_wins'")
     expect(concurrency).toContain("'archive_wins'")
@@ -85,5 +93,29 @@ describe('contextual assignment document open migration', () => {
     expect(concurrency).not.toMatch(/supabase\s+(?:db\s+push|migration\s+up|db\s+reset)/)
     expect(workflow).toContain('bash scripts/check-contextual-assignment-doc-open-database.sh')
     expect(workflow).toContain('node scripts/check-contextual-assignment-doc-open-concurrency.mjs')
+  })
+
+  it('resolves Pal membership from an exact relationship instead of a legacy role', () => {
+    const sql = relationshipMigration()
+    expect(sql).toContain('create or replace function public.resolve_pal_membership(')
+    expect(sql).toContain('security definer')
+    expect(sql).toContain("set search_path = ''")
+    expect(sql).toMatch(
+      /revoke all on function public\.resolve_pal_membership\(uuid, uuid\)[\s\S]+from public, anon, authenticated/,
+    )
+    expect(sql).toMatch(
+      /grant execute on function public\.resolve_pal_membership\(uuid, uuid\)[\s\S]+to service_role/,
+    )
+
+    expect(sql).toContain('from public.student_purge_fences as fence')
+    expect(sql).toContain('from public.classroom_purge_fences as fence')
+    expect(sql).toContain('from public.cold_classroom_purge_fences as fence')
+    expect(sql).toContain('from public.classroom_roster as roster')
+    expect(sql).toContain('from public.classroom_enrollments as enrollment')
+    expect(sql).toContain('classroom.archived_at is null')
+    expect(sql).toContain("identity.state = 'active'")
+    expect(sql).toContain('identity.generation_id = enrollment.id')
+    expect(sql).toContain('identity.scope_digest = private.pal_membership_scope(')
+    expect(sql).not.toMatch(/join public\.users|student\.role|role\s*=\s*'student'/)
   })
 })

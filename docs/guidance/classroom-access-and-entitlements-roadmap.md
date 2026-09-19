@@ -191,8 +191,9 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   validating assignment/classroom, roster, profile, document, feedback, requirement,
   artifact, repository-target, repository-review, history and grading-run bindings.
   The learner assignment-document GET remains legacy because it creates or updates
-  data and can emit Pal events. Migration 182 and its server adapter now define the
-  dormant transactional learner-open boundary, but no route calls it yet. Autosave,
+  data and can emit Pal events. Migrations 182–183 and the server adapter now define the
+  dormant transactional learner-open boundary, including role-neutral exact-membership
+  Pal identity, but no route calls it yet. Autosave,
   submission, artifacts and the remaining assignment writes are still outstanding.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).

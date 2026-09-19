@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after separately authorized migration 182.
+# leaves no durable rows. Run only after separately authorized migrations 182
+# and 183.
 ASSIGNMENT_OPEN_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$ASSIGNMENT_OPEN_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -23,6 +24,13 @@ declare
 begin
   if to_regprocedure(v_signature) is null then
     raise exception 'Migration 182 is required; this harness never applies it';
+  end if;
+  if not exists (
+    select 1
+    from supabase_migrations.schema_migrations
+    where version = '183'
+  ) then
+    raise exception 'Migration 183 is required; this harness never applies it';
   end if;
   if has_function_privilege('anon', v_signature, 'execute')
     or has_function_privilege('authenticated', v_signature, 'execute')
@@ -106,7 +114,12 @@ insert into public.assignments (
   ('c1820000-0000-4000-8000-000000000021', 'c1820000-0000-4000-8000-000000000010', 'Draft assignment', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000002', true, null),
   ('c1820000-0000-4000-8000-000000000022', 'c1820000-0000-4000-8000-000000000010', 'Scheduled assignment', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000002', false, clock_timestamp() + interval '1 hour'),
   ('c1820000-0000-4000-8000-000000000023', 'c1820000-0000-4000-8000-000000000011', 'Archived assignment', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000002', false, clock_timestamp() - interval '1 hour'),
-  ('c1820000-0000-4000-8000-000000000024', 'c1820000-0000-4000-8000-000000000012', 'Owner-only assignment', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour');
+  ('c1820000-0000-4000-8000-000000000024', 'c1820000-0000-4000-8000-000000000012', 'Owner-only assignment', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
+  ('c1820000-0000-4000-8000-000000000025', 'c1820000-0000-4000-8000-000000000010', 'Teacher member signal', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000002', false, clock_timestamp() - interval '1 hour'),
+  ('c1820000-0000-4000-8000-000000000026', 'c1820000-0000-4000-8000-000000000010', 'Student member signal', '', clock_timestamp() + interval '7 days', 'c1820000-0000-4000-8000-000000000002', false, clock_timestamp() - interval '1 hour');
+
+update private.pal_membership_settings set enabled = false;
+update private.pal_classroom_signal_settings set enabled = false;
 
 set local role service_role;
 do $behavior$
@@ -243,7 +256,116 @@ end;
 $behavior$;
 reset role;
 
+-- A legacy-global-role value must not suppress membership-scoped Pal identity.
+-- Add the student control before activation so the join itself is not captured.
+insert into public.classroom_enrollments (classroom_id, student_id) values
+  ('c1820000-0000-4000-8000-000000000010', 'c1820000-0000-4000-8000-000000000003');
+update private.pal_membership_settings set enabled = true;
+update private.pal_classroom_signal_settings
+set enabled = true,
+    activated_at = coalesce(
+      activated_at,
+      date_trunc('week', clock_timestamp() at time zone 'America/Toronto')
+        at time zone 'America/Toronto'
+    );
+
+set local role service_role;
+do $membership_pal$
+declare
+  v_teacher_member constant uuid := 'c1820000-0000-4000-8000-000000000001';
+  v_student_member constant uuid := 'c1820000-0000-4000-8000-000000000003';
+  v_nonmember_owner constant uuid := 'c1820000-0000-4000-8000-000000000002';
+  v_classroom constant uuid := 'c1820000-0000-4000-8000-000000000010';
+  v_teacher_assignment constant uuid := 'c1820000-0000-4000-8000-000000000025';
+  v_student_assignment constant uuid := 'c1820000-0000-4000-8000-000000000026';
+  v_result jsonb;
+begin
+  if public.resolve_pal_membership(v_teacher_member, v_classroom)->>'status' <> 'active'
+    or public.resolve_pal_membership(v_student_member, v_classroom)->>'status' <> 'active'
+  then
+    raise exception 'Exact enrollment did not resolve Pal identity across legacy roles';
+  end if;
+  if public.resolve_pal_membership(v_nonmember_owner, v_classroom) <> '{"status":"forbidden"}'::jsonb then
+    raise exception 'Classroom ownership without enrollment resolved member Pal identity';
+  end if;
+
+  v_result := public.open_assignment_doc_for_member_v1(
+    v_teacher_member, v_teacher_assignment, clock_timestamp(), null
+  );
+  if not (v_result->>'created')::boolean then
+    raise exception 'Teacher-valued member document was not created: %', v_result;
+  end if;
+  v_result := public.open_assignment_doc_for_member_v1(
+    v_student_member, v_student_assignment, clock_timestamp(), null
+  );
+  if not (v_result->>'created')::boolean then
+    raise exception 'Student-valued member document was not created: %', v_result;
+  end if;
+
+  v_result := public.open_assignment_doc_for_member_v1(
+    v_teacher_member, v_teacher_assignment, clock_timestamp() + interval '1 minute', null
+  );
+  if (v_result->>'created')::boolean then
+    raise exception 'Teacher-valued member retry created a second document';
+  end if;
+  v_result := public.open_assignment_doc_for_member_v1(
+    v_student_member, v_student_assignment, clock_timestamp() + interval '1 minute', null
+  );
+  if (v_result->>'created')::boolean then
+    raise exception 'Student-valued member retry created a second document';
+  end if;
+end;
+$membership_pal$;
+reset role;
+
+do $membership_pal_evidence$
+declare
+  v_teacher_member constant uuid := 'c1820000-0000-4000-8000-000000000001';
+  v_student_member constant uuid := 'c1820000-0000-4000-8000-000000000003';
+  v_classroom constant uuid := 'c1820000-0000-4000-8000-000000000010';
+begin
+  if (
+    select count(*)
+    from public.pal_event_outbox as outbox
+    join private.pal_membership_outbox as binding on binding.outbox_id = outbox.id
+    where binding.classroom_id = v_classroom
+      and binding.student_id = v_teacher_member
+      and outbox.student_id = v_teacher_member
+      and outbox.source_kind = 'membership_v1'
+      and outbox.source_id = binding.generation_id::text
+      and outbox.event_type = 'learning_item.viewed'
+      and outbox.payload->'metadata'->>'kind' = 'assignment'
+  ) <> 1 then
+    raise exception 'Teacher-valued exact member did not emit one bound first-view fact';
+  end if;
+  if (
+    select count(*)
+    from public.pal_event_outbox as outbox
+    join private.pal_membership_outbox as binding on binding.outbox_id = outbox.id
+    where binding.classroom_id = v_classroom
+      and binding.student_id = v_student_member
+      and outbox.student_id = v_student_member
+      and outbox.source_kind = 'membership_v1'
+      and outbox.source_id = binding.generation_id::text
+      and outbox.event_type = 'learning_item.viewed'
+      and outbox.payload->'metadata'->>'kind' = 'assignment'
+  ) <> 1 then
+    raise exception 'Student-valued exact member did not emit one bound first-view fact';
+  end if;
+  if (
+    select count(*)
+    from public.pal_event_outbox as outbox
+    join private.pal_membership_outbox as binding on binding.outbox_id = outbox.id
+    where binding.classroom_id = v_classroom
+      and binding.student_id in (v_teacher_member, v_student_member)
+      and outbox.event_type = 'learning_item.viewed'
+  ) <> 2 then
+    raise exception 'Assignment-open retries duplicated membership-scoped first-view facts';
+  end if;
+end;
+$membership_pal_evidence$;
+
 rollback;
 SQL
 
-echo 'Contextual assignment-open visibility, membership, idempotency, refresh, Pal, and privilege contracts passed.'
+echo 'Contextual assignment-open visibility, role-neutral membership, idempotency, refresh, Pal, and privilege contracts passed.'

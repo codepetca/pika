@@ -2,7 +2,7 @@
 
 ## Status
 
-Migration 182 and `openContextualAssignmentDoc` are additive, dormant foundations.
+Migrations 182–183 and `openContextualAssignmentDoc` are additive, dormant foundations.
 No production route calls them, no environment flag is added, and applying the
 migration changes no existing row. The current learner assignment-document GET and
 all teacher flows remain legacy until a separately reviewed integration slice.
@@ -29,6 +29,13 @@ The function is `security definer`, has an empty search path, and is executable 
 `service_role`. The outer result, assignment binding, actor binding and changed-view
 timestamp are validated again by the server adapter. Missing schema, unexpected database
 evidence and transport errors fail closed.
+
+Migration 183 keeps membership-scoped Pal identity aligned with the classroom access
+model: an exact active enrollment resolves identity regardless of the account's legacy
+global `teacher`/`student` value. It preserves the existing archive, removal, purge,
+generation and scope fences. This prevents a teacher-valued member from losing the
+first-view signal when membership-scoped Pal routing is enabled; classroom ownership
+without enrollment still does not grant member identity.
 
 ## Intentionally deferred
 
