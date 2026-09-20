@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import {
   countCharacters,
   countWords,
@@ -153,7 +154,7 @@ function mapRpcError(code: string | undefined): never {
   if (code === '22023' || code === '22007' || code === '22008') {
     throw new ApiError(400, 'Invalid assignment save request')
   }
-  if (code === '40001' || code === '55000') {
+  if (isRetryableDatabaseContention({ code })) {
     throw new ApiError(409, 'Assignment access changed. Refresh and try again.')
   }
   throw new ApiError(503, 'Unable to save assignment')
