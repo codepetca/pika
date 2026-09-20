@@ -10977,6 +10977,16 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_repo_target_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_id: string
+          p_target: Json
+        }
+        Returns: Json
+      }
       save_assignments_bulk_for_owner_v1: {
         Args: {
           p_actor_id: string
