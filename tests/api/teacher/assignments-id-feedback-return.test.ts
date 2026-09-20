@@ -268,6 +268,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
   })
 
   it('uses the owner-fenced RPC for an exact contextual student-owner pair', async () => {
+    const casedStudentId = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
     process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED = 'true'
     process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS = JSON.stringify([{
       userId: teacherRowId,
@@ -279,16 +280,18 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
         doc: {
           ...successfulAtomicResult('Contextual feedback').doc,
           assignment_id: 'a0000000-0000-4000-8000-000000000001',
+          student_id: casedStudentId,
         },
         entry: {
           ...successfulAtomicResult('Contextual feedback').entry,
           assignment_id: 'a0000000-0000-4000-8000-000000000001',
+          student_id: casedStudentId,
         },
       },
       error: null,
     })
 
-    const response = await POST(makeRequest({ student_id: studentId.toUpperCase(), feedback: 'Contextual feedback' }), {
+    const response = await POST(makeRequest({ student_id: casedStudentId.toUpperCase(), feedback: 'Contextual feedback' }), {
       params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
 
@@ -299,7 +302,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       expect.objectContaining({
         p_actor_id: teacherRowId,
         p_assignment_id: 'a0000000-0000-4000-8000-000000000001',
-        p_student_id: studentId,
+        p_student_id: casedStudentId,
       }),
     )
   })

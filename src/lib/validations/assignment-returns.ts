@@ -36,7 +36,7 @@ export const returnAssignmentFeedbackSchema = z.preprocess(
   }
 
   return {
-    studentId: parsedStudentId.data.toLowerCase(),
+    studentId: body.student_id,
     feedback: typeof body.feedback === 'string' ? body.feedback.trim() : undefined,
     expectedDocUpdatedAt: body.expected_doc_updated_at,
   }
@@ -70,7 +70,7 @@ export const returnAssignmentsSchema = z.preprocess(
     return z.NEVER
   }
 
-  return { studentIds: Array.from(new Set(stringStudentIds.map((studentId) => studentId.toLowerCase()))) }
+  return { studentIds: Array.from(new Set(stringStudentIds)) }
 })
 
 const uuidArraySchema = z.array(uuidSchema)

@@ -128,11 +128,12 @@ export async function returnAssignmentFeedbackForOwner(opts: {
   feedback?: string
   expectedDocUpdatedAt: string | null
 }) {
+  const studentId = opts.studentId.toLowerCase()
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase.rpc('return_assignment_feedback_for_owner_v1', {
     p_actor_id: opts.actorId,
     p_assignment_id: opts.assignmentId,
-    p_student_id: opts.studentId,
+    p_student_id: studentId,
     p_feedback: opts.feedback ?? null,
     p_expected_doc_updated_at: opts.expectedDocUpdatedAt,
     p_now: new Date().toISOString(),
@@ -149,9 +150,9 @@ export async function returnAssignmentFeedbackForOwner(opts: {
     throw new ApiError(409, 'Assignment feedback changed; reload and try again')
   }
   if (result.doc.assignment_id !== opts.assignmentId
-    || result.doc.student_id !== opts.studentId
+    || result.doc.student_id !== studentId
     || result.entry.assignment_id !== opts.assignmentId
-    || result.entry.student_id !== opts.studentId
+    || result.entry.student_id !== studentId
     || result.entry.entry_kind !== 'teacher_feedback'
     || result.entry.author_type !== 'teacher'
     || result.entry.created_by !== opts.actorId
@@ -168,11 +169,12 @@ export async function returnAssignmentsForOwner(opts: {
   actorId: string
   studentIds: string[]
 }): Promise<AssignmentReturnResult> {
+  const studentIds = Array.from(new Set(opts.studentIds.map((studentId) => studentId.toLowerCase())))
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase.rpc('return_assignment_docs_for_owner_v1', {
     p_actor_id: opts.actorId,
     p_assignment_id: opts.assignmentId,
-    p_student_ids: opts.studentIds,
+    p_student_ids: studentIds,
     p_now: new Date().toISOString(),
   })
   if (error) mapContextualReturnError(error)
@@ -183,7 +185,7 @@ export async function returnAssignmentsForOwner(opts: {
     errorMessage: 'Invalid assignment return result',
     statusCode: 503,
   })
-  const requested = new Set(opts.studentIds)
+  const requested = new Set(studentIds)
   const sameSet = (left: string[], right: string[]) => (
     left.length === right.length && left.every((id) => right.includes(id))
   )
