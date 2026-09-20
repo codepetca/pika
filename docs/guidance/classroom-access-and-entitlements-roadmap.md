@@ -195,7 +195,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   through the migration 182 transaction; the route binds the returned document,
   feedback, requirements, artifacts and GitHub identity before responding and preserves
   immediate Pal delivery. Disabled and unmatched requests remain on the legacy path.
-  Learner autosave/PATCH now has a second independent exact-pair gate and migration 184
+  Learner autosave/PATCH now has a second independent exact-pair gate and migrations 184–185
   transaction. A matched teacher- or student-valued active member can save only their own
   document while live enrollment and assignment visibility are locked; revision, history
   and metric behavior stays delegated to the established atomic save. Disabled and

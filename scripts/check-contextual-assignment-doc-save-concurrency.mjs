@@ -19,10 +19,10 @@ assert.match(
 const tag = `assignment_save_${randomUUID().replaceAll('-', '').slice(0, 10)}`
 const actor = randomUUID()
 const owner = randomUUID()
-const classrooms = Array.from({ length: 5 }, () => randomUUID())
-const assignments = Array.from({ length: 5 }, () => randomUUID())
-const saveSessions = Array.from({ length: 5 }, () => randomUUID())
-const metricSessions = Array.from({ length: 5 }, () => randomUUID())
+const classrooms = Array.from({ length: 10 }, () => randomUUID())
+const assignments = Array.from({ length: 10 }, () => randomUUID())
+const saveSessions = Array.from({ length: 10 }, () => randomUUID())
+const metricSessions = Array.from({ length: 10 }, () => randomUUID())
 const sessions = []
 
 class Session {
@@ -110,17 +110,57 @@ async function waitBlocked(waiter, blocker) {
   throw new Error(`Expected ${waiter.name} to block on ${blocker.name}`)
 }
 
-function saveSql(index) {
+function revisionSql(index) {
+  return `(SELECT updated_at FROM public.assignment_docs WHERE assignment_id = '${assignments[index]}' AND student_id = '${actor}')`
+}
+
+function saveSql(index, expectedUpdatedAt = 'null', sequence = 1) {
   return `SET ROLE service_role;
     SELECT concat(result->>'ok', '|', result->>'created')
     FROM (SELECT public.save_assignment_doc_for_member_v1(
         '${actor}', '${assignments[index]}',
         '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}"}]}]}'::jsonb,
-        null, 'autosave', 0, 1, '[]'::jsonb,
+        ${expectedUpdatedAt}, 'autosave', 0, 1, '[]'::jsonb,
         '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}"}]}]}'::jsonb,
-        1, ${tag.length}, '${saveSessions[index]}', 1, '${metricSessions[index]}'
+        1, ${tag.length}, '${saveSessions[index]}', ${sequence}, '${metricSessions[index]}'
       ) AS result
-    ) AS saved;`
+    ) AS saved;
+    RESET ROLE;`
+}
+
+function legacySaveSql(index, expectedUpdatedAt = revisionSql(index), sequence = 2) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.save_assignment_doc_atomic(
+        '${assignments[index]}', '${actor}',
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_${sequence}"}]}]}'::jsonb,
+        ${expectedUpdatedAt}, 'restore', 0, 1, '[]'::jsonb, null,
+        1, ${tag.length + 2}, '${saveSessions[index]}', ${sequence}, '${metricSessions[index]}'
+      ) AS result
+    ) AS saved;
+    RESET ROLE;`
+}
+
+function submitSql(index) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.submit_assignment_doc_atomic(
+        '${assignments[index]}', '${actor}',
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}"}]}]}'::jsonb,
+        ${revisionSql(index)}, 1, ${tag.length}, '{}'::uuid[]
+      ) AS result
+    ) AS submitted;
+    RESET ROLE;`
+}
+
+function unsubmitSql(index) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.unsubmit_assignment_doc_atomic(
+        '${assignments[index]}', '${actor}'
+      ) AS result
+    ) AS unsubmitted;
+    RESET ROLE;`
 }
 
 async function blockingRace(label, holderSql, waiterSql, expectedCode) {
@@ -147,6 +187,11 @@ try {
     await admin.run("SELECT to_regprocedure('public.save_assignment_doc_for_member_v1(uuid,uuid,jsonb,timestamp with time zone,text,integer,integer,jsonb,jsonb,integer,integer,uuid,bigint,uuid)') IS NOT NULL;"),
     't',
     'Migration 184 must already be applied',
+  )
+  assert.equal(
+    await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '185');"),
+    't',
+    'Migration 185 must already be applied',
   )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
@@ -249,6 +294,144 @@ try {
       '1',
     )
     console.log('Passed: duplicate_save')
+  }
+
+  // Seed existing documents for the cross-operation lock-order cases.
+  for (const index of [5, 6, 7, 8, 9]) {
+    assert.equal(await admin.run(saveSql(index)), 'true|true')
+  }
+
+  // An existing submit owns its established fence first; contextual save waits
+  // without holding a classroom/member fence and then observes immutability.
+  {
+    const submitter = await newSession('submit_wins_holder')
+    const saver = await newSession('submit_wins_waiter')
+    assert.equal(await submitter.run(`BEGIN; ${submitSql(5)}`), 'true|ok')
+    const outcome = saver.run(saveSql(5, revisionSql(5), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(saver, submitter)
+    await submitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|')
+    await submitter.close()
+    await saver.close()
+    console.log('Passed: submit_wins')
+  }
+
+  // Contextual save owns both document fences first; submit waits and returns
+  // the established revision conflict after the save commits.
+  {
+    const saver = await newSession('save_wins_submit_holder')
+    const submitter = await newSession('save_wins_submit_waiter')
+    assert.equal(await saver.run(`BEGIN; ${saveSql(6, revisionSql(6), 2)}`), 'true|false')
+    const outcome = submitter.run(submitSql(6)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(submitter, saver)
+    await saver.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|assignment_doc_revision_conflict')
+    await saver.close()
+    await submitter.close()
+    console.log('Passed: save_wins_submit')
+  }
+
+  // Restore/legacy-save and contextual save share the editor fence in either
+  // ordering instead of waiting on each other's document/member locks.
+  {
+    const legacy = await newSession('legacy_save_wins_holder')
+    const contextual = await newSession('legacy_save_wins_waiter')
+    assert.equal(await legacy.run(`BEGIN; ${legacySaveSql(7)}`), 'true|ok')
+    const outcome = contextual.run(saveSql(7, revisionSql(7), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(contextual, legacy)
+    await legacy.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.match(result.value, /^false\|$/)
+    await legacy.close()
+    await contextual.close()
+    console.log('Passed: legacy_save_wins')
+  }
+  {
+    const contextual = await newSession('contextual_save_wins_holder')
+    const legacy = await newSession('contextual_save_wins_waiter')
+    assert.equal(await contextual.run(`BEGIN; ${saveSql(8, revisionSql(8), 2)}`), 'true|false')
+    const outcome = legacy.run(legacySaveSql(8)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(legacy, contextual)
+    await contextual.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|assignment_doc_save_superseded')
+    await contextual.close()
+    await legacy.close()
+    console.log('Passed: contextual_save_wins')
+  }
+
+  // Unsubmit also holds the submission fence first. The waiting save observes
+  // the changed revision rather than deadlocking or surfacing a database error.
+  assert.equal(await admin.run(submitSql(9)), 'true|ok')
+  {
+    const unsubmitter = await newSession('unsubmit_wins_holder')
+    const saver = await newSession('unsubmit_wins_waiter')
+    assert.equal(await unsubmitter.run(`BEGIN; ${unsubmitSql(9)}`), 'true|ok')
+    const outcome = saver.run(saveSql(9, revisionSql(9), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(saver, unsubmitter)
+    await unsubmitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|')
+    await unsubmitter.close()
+    await saver.close()
+    console.log('Passed: unsubmit_wins')
+  }
+
+  // If save owns the classroom fence, draft/archive transitions return the
+  // established retry signal and succeed after the short save transaction.
+  {
+    const saver = await newSession('save_wins_draft_holder')
+    const updater = await newSession('save_wins_draft_waiter')
+    assert.equal(await saver.run(`BEGIN; ${saveSql(4, revisionSql(4), 2)}`), 'true|false')
+    const outcome = await updater.run(
+      `UPDATE public.assignments SET is_draft = true, released_at = null WHERE id = '${assignments[4]}';`,
+    ).then((value) => ({ value }), (error) => ({ error }))
+    assert.match(outcome.error?.message ?? '', /ERROR: +(40001|55P03):/)
+    await saver.run('COMMIT;')
+    await updater.close()
+    assert.equal(await admin.run(
+      `UPDATE public.assignments SET is_draft = true, released_at = null WHERE id = '${assignments[4]}'; SELECT is_draft FROM public.assignments WHERE id = '${assignments[4]}';`,
+    ), 't')
+    await saver.close()
+    console.log('Passed: save_wins_draft')
+  }
+  {
+    const saver = await newSession('save_wins_archive_holder')
+    const updater = await newSession('save_wins_archive_waiter')
+    assert.equal(await saver.run(`BEGIN; ${saveSql(8, revisionSql(8), 3)}`), 'true|false')
+    const outcome = await updater.run(
+      `UPDATE public.classrooms SET archived_at = clock_timestamp() WHERE id = '${classrooms[8]}';`,
+    ).then((value) => ({ value }), (error) => ({ error }))
+    assert.match(outcome.error?.message ?? '', /ERROR: +(40001|55P03):/)
+    await saver.run('COMMIT;')
+    await updater.close()
+    assert.equal(await admin.run(
+      `UPDATE public.classrooms SET archived_at = clock_timestamp() WHERE id = '${classrooms[8]}'; SELECT archived_at IS NOT NULL FROM public.classrooms WHERE id = '${classrooms[8]}';`,
+    ), 't')
+    await saver.close()
+    console.log('Passed: save_wins_archive')
   }
 
   console.log('All contextual assignment-save concurrency contracts passed.')

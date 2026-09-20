@@ -2,7 +2,7 @@
 
 ## Status
 
-Migration 184 and the assignment-document PATCH integration are additive, dormant
+Migrations 184–185 and the assignment-document PATCH integration are additive, dormant
 foundations. The route is controlled by an independent exact user/assignment pair gate
 that is disabled by default. Disabled and unmatched requests retain the legacy student
 role path. Applying the migration changes no rows and does not activate the new path.
@@ -23,6 +23,9 @@ The rollout controls are:
 assignment identifier and the established atomic-save payload. It:
 
 - discovers the assignment's classroom only to establish the advisory-lock namespace;
+- first takes the established assignment-submission and editor-save fences in a fixed
+  order, so submit, unsubmit, restore and legacy autosave never hold a document lock while
+  contextual save holds the broader classroom/member fences;
 - takes the same classroom, student-subject and classroom/student advisory fences used
   by membership removal and purge;
 - re-reads and locks the assignment and classroom, rejecting a changed binding;
@@ -37,6 +40,12 @@ The function is `security definer`, has an empty search path and is executable o
 complete success/error envelope, the exact document binding and any history binding.
 Missing schema, malformed database evidence and transport failures fail closed. It never
 falls back to the legacy RPC after a matched request.
+
+Migration 185 is the effective lock-order definition. Existing assignment-document and
+teacher assignment/classroom adapters convert guarded lifecycle contention into a safe
+409 refresh/retry response rather than exposing it as a generic 500. Multi-connection
+contracts cover both save/submit orderings, unsubmit-first, both contextual/legacy-save
+orderings, and save-first draft/archive retries in addition to removal and visibility races.
 
 ## Route integration
 

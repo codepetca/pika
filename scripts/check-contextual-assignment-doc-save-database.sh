@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after separately authorized migration 184.
+# leaves no durable rows. Run only after separately authorized migrations 184–185.
 ASSIGNMENT_SAVE_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$ASSIGNMENT_SAVE_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -22,7 +22,12 @@ declare
   v_owner text;
 begin
   if to_regprocedure(v_signature) is null then
-    raise exception 'Migration 184 is required; this harness never applies it';
+    raise exception 'Migration 185 is required; this harness never applies it';
+  end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '185'
+  ) then
+    raise exception 'Migration 185 is required; this harness never applies it';
   end if;
   if has_function_privilege('anon', v_signature, 'execute')
     or has_function_privilege('authenticated', v_signature, 'execute')

@@ -76,8 +76,9 @@ individual student-work assignment-detail reads. A student-valued owner receives
 existing roster/submission summary and may inspect one enrolled student's work after every
 supporting resource binding is validated. Independent dormant GET and PATCH gates now let
 an exact teacher- or student-valued active member open and autosave only their own learner
-document. Migrations 182 and 184 perform current membership and visibility authorization
-under removal fences; migration 183 keeps membership-scoped Pal identity role-neutral.
+document. Migrations 182 and 184–185 perform current membership and visibility authorization
+under removal fences, with assignment-document mutation fences acquired first for safe
+save/submit/restore ordering; migration 183 keeps membership-scoped Pal identity role-neutral.
 Submission, unsubmit, history/restore, grading, artifact and release behavior remains
 legacy, so none of these gates may be activated. See
 [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
