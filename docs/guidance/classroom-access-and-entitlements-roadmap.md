@@ -221,7 +221,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   material or survey and its mixed-classwork position are inserted atomically; Assignment
   requirements are included in that transaction. Bulk/reorder and return flows remain
   legacy. Manual Assignment grading now has an eighth independent exact user/Assignment
-  gate and migration 194. Matched teacher- or student-valued current owners are rechecked
+  gate and migrations 194–195. Matched teacher- or student-valued current owners are rechecked
   under the established grading then Classroom-operation fences before the existing atomic
   grade save runs. Feedback return, AI grading and repository review remain legacy. All
   eight gates must therefore stay disabled.

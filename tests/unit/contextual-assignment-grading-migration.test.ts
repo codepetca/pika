@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = () => readFileSync(
-  'supabase/migrations/194_contextual_assignment_manual_grading.sql',
+  'supabase/migrations/195_harden_contextual_assignment_grading_purge_lock_order.sql',
   'utf8',
 )
 const behaviorScript = () => readFileSync(
@@ -27,6 +27,10 @@ describe('contextual Assignment manual grading migration', () => {
     expect(gradingLock).toBeLessThan(classroomLock)
     expect(classroomLock).toBeLessThan(rowLock)
     expect(rowLock).toBeLessThan(delegate)
+    expect(sql.indexOf('private.try_lock_classroom_membership_change('))
+      .toBeGreaterThan(classroomLock)
+    expect(sql.indexOf('private.try_lock_classroom_membership_change('))
+      .toBeLessThan(rowLock)
     expect(sql).toContain('v_owner_id is distinct from p_actor_id')
     expect(sql).toContain('v_archived_at is not null or v_blueprint_archived_at is not null')
   })
@@ -44,6 +48,7 @@ describe('contextual Assignment manual grading migration', () => {
     expect(behaviorScript()).not.toContain('supabase db push')
     expect(concurrencyScript()).toContain('archive_wins_contextual_assignment_grade')
     expect(concurrencyScript()).toContain('contextual_assignment_grade_wins_archive')
+    expect(concurrencyScript()).toContain('student_purge_subject_wins_contextual_assignment_grade')
     expect(concurrencyScript()).not.toContain('supabase db push')
     expect(workflow()).toContain('bash scripts/check-contextual-assignment-grading-database.sh')
     expect(workflow()).toContain('node scripts/check-contextual-assignment-grading-concurrency.mjs')

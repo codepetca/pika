@@ -173,7 +173,9 @@ export async function saveAssignmentGradesForOwner(opts: {
   if (error) {
     if (error.code === 'P0002') throw new ApiError(404, 'Assignment not found')
     if (error.code === '42501') throw new ApiError(403, 'Unauthorized')
-    if (error.code === '55000') throw new ApiError(403, 'Assignment is archived')
+    if (error.code === '55000' && error.message === 'assignment_grading_archived') {
+      throw new ApiError(403, 'Assignment is archived')
+    }
     if (error.code === '40001' || isRetryableDatabaseContention(error)) {
       throw apiErrors.conflict('Assignment grade changed; reload and retry')
     }

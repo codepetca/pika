@@ -117,8 +117,8 @@ function gradeSql(score) {
 
 try {
   assert.equal(adminSql(`select exists (
-    select 1 from supabase_migrations.schema_migrations where version = '194'
-  );`), 't', 'Migration 194 must already be applied')
+    select 1 from supabase_migrations.schema_migrations where version = '195'
+  );`), 't', 'Migration 195 must already be applied')
 
   adminSql(`
     insert into public.users (id, email, role) values
@@ -145,6 +145,30 @@ try {
     insert into public.assignment_docs (assignment_id, student_id, content)
     values ('${assignment}', '${learner}', '{"type":"doc","content":[]}'::jsonb);
   `)
+
+  const purgeSubject = new Session('purge_subject_wins')
+  const retryGrade = new Session('grade_retries')
+  await purgeSubject.run(`begin; select pg_advisory_xact_lock(
+    hashtextextended('pika-student-purge-subject:${learner}', 0)
+  );`)
+  const retry = await retryGrade.run(`begin; set role service_role;
+    do $block$ begin
+      perform public.save_assignment_grades_for_owner_v1(
+        '${owner}', '${assignment}', array['${learner}'::uuid], '{}'::jsonb,
+        true, 1, 1, 1, true, false, '', clock_timestamp()
+      );
+      raise exception 'Expected purge-overlap retry';
+    exception when serialization_failure then null;
+    end $block$;
+    reset role; select 'retry';`)
+  assert.equal(retry, 'retry')
+  await retryGrade.run('rollback;')
+  assert.equal(await purgeSubject.run(`select public.student_purge_lock('${classroom}', '${learner}');
+    select 'purge-locked';`), 'purge-locked')
+  await purgeSubject.run('commit;')
+  assert.equal(adminSql(`select score_completion is null from public.assignment_docs
+    where assignment_id = '${assignment}' and student_id = '${learner}';`), 't')
+  console.log('Passed: student_purge_subject_wins_contextual_assignment_grade')
 
   const archive = new Session('archive_wins')
   const deniedGrade = new Session('grade_loses')

@@ -5,7 +5,7 @@ approved for cohort activation or production migration application.
 
 ## Scope
 
-Migration 194 and the matching server gate cover manual grade saves for one
+Migrations 194–195 and the matching server gate cover manual grade saves for one
 student or a selected student set. A matched current Assignment owner may be
 teacher- or student-valued; global account role is not used as ownership
 evidence.
@@ -36,23 +36,26 @@ fields. It:
 - acquires the established grading/return Assignment fence;
 - discovers the Classroom only to select the broader operation namespace;
 - acquires the Classroom-operation fence and locks the Assignment and Classroom;
+- acquires each target learner's purge subject/pair fences nonblocking so a
+  started purge wins with a retry instead of forming a reverse-order deadlock;
 - rechecks stable binding, exact current ownership and active lifecycle; and
 - delegates within the same transaction to the established atomic grade save.
 
 The RPC is `SECURITY DEFINER` with an empty search path and is executable only by
 `service_role`. The server adapter rejects malformed results, a substituted
 Assignment, duplicate students or any returned student outside the exact request.
-Applying migration 194 changes no durable product rows and routes no requests.
+Applying migrations 194–195 changes no durable product rows and routes no requests.
 
 ## Verification and rollout
 
 The rollback-only database harness covers a student-valued owner, service-only
 privileges, unrelated actors, non-enrolled students and archived work. The
 multi-connection harness proves archive-first denies the waiting grade and
-grade-first completes before a waiting archive. Neither harness applies
-migrations.
+grade-first completes before a waiting archive. It also proves a purge holding
+the learner subject fence makes grading return a retry and then proceeds without
+deadlock. Neither harness applies migrations.
 
-Keep the gate disabled until migration 194 is deployed to the target environment
+Keep the gate disabled until migrations 194–195 are deployed to the target environment
 and the broader classroom pilot checklist approves the exact user/Assignment
 pairs. Feedback return, AI grading/repository review, bulk/reorder and remaining
 owner surfaces must be completed before the whole owner experience is considered

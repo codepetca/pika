@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after migration 194 is applied locally.
+# leaves no durable rows. Run only after migrations 194–195 are applied locally.
 GRADING_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$GRADING_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -21,9 +21,9 @@ declare
   v_config text[];
 begin
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '194'
+    select 1 from supabase_migrations.schema_migrations where version = '195'
   ) then
-    raise exception 'Migration 194 is required; this harness never applies it';
+    raise exception 'Migration 195 is required; this harness never applies it';
   end if;
   if to_regprocedure(v_signature) is null then
     raise exception 'Contextual Assignment grading function is missing';

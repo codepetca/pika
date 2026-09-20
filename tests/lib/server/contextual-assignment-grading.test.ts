@@ -75,7 +75,7 @@ describe('saveAssignmentGradesForOwner', () => {
   it.each([
     ['P0002', 404],
     ['42501', 403],
-    ['55000', 403],
+    ['55000', 409],
     ['40001', 409],
     ['55P03', 409],
     ['22023', 400],
@@ -83,5 +83,16 @@ describe('saveAssignmentGradesForOwner', () => {
   ])('maps database error %s to HTTP %s', async (code, statusCode) => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { code, message: 'Database error' } })
     await expect(saveAssignmentGradesForOwner(input(rpc))).rejects.toMatchObject({ statusCode })
+  })
+
+  it('maps only the wrapper archive sentinel to the stable archived denial', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '55000', message: 'assignment_grading_archived' },
+    })
+    await expect(saveAssignmentGradesForOwner(input(rpc))).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Assignment is archived',
+    })
   })
 })
