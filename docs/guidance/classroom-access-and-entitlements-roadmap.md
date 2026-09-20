@@ -215,12 +215,12 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   have a sixth independent exact-pair gate and migration 191. A matched teacher- or
   student-valued current owner is authorized under the shared assignment/classroom lock
   order, with allowed update keys, release state, archive state and ownership rechecked in
-  the mutation transaction. Assignment creation now has a seventh independent exact
-  user/Classroom gate and migration 192. A matched teacher- or student-valued current
-  owner is rechecked under the shared Classroom-operation fence before the Assignment,
-  mixed-classwork position and initial requirements are inserted atomically. Bulk/reorder,
-  grading and return flows remain legacy. Material and survey creation also remain outside
-  the shared position fence, which is a hard blocker for activating the creation gate.
+  the mutation transaction. Classwork creation now has a seventh independent exact
+  user/Classroom gate and migrations 192–193. A matched teacher- or student-valued current
+  owner is rechecked under the shared Classroom-operation fence before an Assignment,
+  material or survey and its mixed-classwork position are inserted atomically; Assignment
+  requirements are included in that transaction. Bulk/reorder, grading and return flows
+  remain legacy.
   All seven gates must therefore stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).

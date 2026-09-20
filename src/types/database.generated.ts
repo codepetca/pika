@@ -9392,6 +9392,16 @@ export type Database = {
         }
         Returns: Json
       }
+      create_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -9518,6 +9528,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_survey_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_dynamic_responses: boolean
+          p_show_results: boolean
+          p_title: string
+        }
+        Returns: Json
       }
       create_test_ai_grading_run_atomic: {
         Args: {

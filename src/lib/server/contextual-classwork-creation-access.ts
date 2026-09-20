@@ -4,7 +4,7 @@ import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import type { AuthenticatedUser } from '@/types'
 
-export type ContextualAssignmentCreationAccess =
+export type ContextualClassworkCreationAccess =
   | { mode: 'legacy'; user: AuthenticatedUser; classroomId: string }
   | { mode: 'contextual'; user: AuthenticatedUser; classroomId: string }
 
@@ -15,7 +15,7 @@ const classroomPairsSchema = z.array(z.object({
 }).strict()).max(100)
 
 function configuredClassroomPairs(): z.infer<typeof classroomPairsSchema> | null {
-  const raw = process.env.PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_PAIRS
+  const raw = process.env.PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_PAIRS
   if (!raw || raw.length > 20_000) return null
   try {
     const parsed = classroomPairsSchema.safeParse(JSON.parse(raw))
@@ -25,11 +25,11 @@ function configuredClassroomPairs(): z.infer<typeof classroomPairsSchema> | null
   }
 }
 
-/** Dormant exact-pair admission for creating an Assignment in one Classroom. */
-export async function authorizeContextualAssignmentCreationRequest(
+/** Dormant exact-pair admission for creating classwork in one Classroom. */
+export async function authorizeContextualClassworkCreationRequest(
   classroomId: string | (() => string | Promise<string>),
-): Promise<ContextualAssignmentCreationAccess> {
-  if (process.env.PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_ENABLED !== 'true') {
+): Promise<ContextualClassworkCreationAccess> {
+  if (process.env.PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('teacher')
     const resolvedClassroomId = typeof classroomId === 'function'
       ? await classroomId()
@@ -41,7 +41,7 @@ export async function authorizeContextualAssignmentCreationRequest(
   const pairs = configuredClassroomPairs()
   const identity = canonicalUuid.safeParse(user.id)
   if (pairs === null || !identity.success) {
-    throw new ApiError(503, 'Classroom assignment creation configuration is unavailable')
+    throw new ApiError(503, 'Classroom classwork creation configuration is unavailable')
   }
 
   const rawClassroomId = typeof classroomId === 'function'

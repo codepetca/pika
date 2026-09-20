@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { authorizeContextualAssignmentCreationRequest } from '@/lib/server/contextual-assignment-creation-access'
+import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
 import { requireAuth, requireRole } from '@/lib/auth'
 
 vi.mock('@/lib/auth', async (importOriginal) => ({
@@ -16,11 +16,11 @@ const otherClassroomId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 const teacher = { id: actorId, role: 'teacher', email: 'owner@example.com' }
 const student = { id: actorId, role: 'student', email: 'owner@example.com' }
 
-describe('contextual assignment creation access', () => {
+describe('contextual classwork creation access', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_ENABLED', 'true')
-    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_PAIRS', JSON.stringify([{
+    vi.stubEnv('PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_PAIRS', JSON.stringify([{
       userId: actorId,
       classroomId,
     }]))
@@ -31,10 +31,10 @@ describe('contextual assignment creation access', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   it('preserves legacy teacher auth before body resolution when disabled', async () => {
-    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_ENABLED', 'false')
+    vi.stubEnv('PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_ENABLED', 'false')
     const resolveId = vi.fn(async () => classroomId)
 
-    await expect(authorizeContextualAssignmentCreationRequest(resolveId)).resolves.toEqual({
+    await expect(authorizeContextualClassworkCreationRequest(resolveId)).resolves.toEqual({
       mode: 'legacy',
       user: teacher,
       classroomId,
@@ -46,22 +46,22 @@ describe('contextual assignment creation access', () => {
 
   it.each([teacher, student])('admits an exact pair for a $role-valued owner', async (user) => {
     vi.mocked(requireAuth).mockResolvedValue(user as any)
-    await expect(authorizeContextualAssignmentCreationRequest(classroomId.toUpperCase()))
+    await expect(authorizeContextualClassworkCreationRequest(classroomId.toUpperCase()))
       .resolves.toEqual({ mode: 'contextual', user, classroomId })
   })
 
   it('does not cross-product independently configured users and Classrooms', async () => {
     vi.mocked(requireAuth).mockResolvedValue(student as any)
-    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_PAIRS', JSON.stringify([
+    vi.stubEnv('PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_PAIRS', JSON.stringify([
       { userId: actorId, classroomId },
       { userId: otherActorId, classroomId: otherClassroomId },
     ]))
-    await expect(authorizeContextualAssignmentCreationRequest(otherClassroomId))
+    await expect(authorizeContextualClassworkCreationRequest(otherClassroomId))
       .rejects.toMatchObject({ name: 'AuthorizationError' })
   })
 
   it('keeps an unmatched teacher on the legacy path', async () => {
-    await expect(authorizeContextualAssignmentCreationRequest(otherClassroomId)).resolves.toEqual({
+    await expect(authorizeContextualClassworkCreationRequest(otherClassroomId)).resolves.toEqual({
       mode: 'legacy',
       user: teacher,
       classroomId: otherClassroomId,
@@ -70,7 +70,7 @@ describe('contextual assignment creation access', () => {
 
   it('denies an unmatched student as the legacy teacher boundary would', async () => {
     vi.mocked(requireAuth).mockResolvedValue(student as any)
-    await expect(authorizeContextualAssignmentCreationRequest(otherClassroomId))
+    await expect(authorizeContextualClassworkCreationRequest(otherClassroomId))
       .rejects.toMatchObject({ name: 'AuthorizationError' })
   })
 
@@ -83,8 +83,8 @@ describe('contextual assignment creation access', () => {
     JSON.stringify(Array(101).fill({ userId: actorId, classroomId })),
     ' '.repeat(20_001),
   ])('fails closed for invalid enabled configuration', async (pairs) => {
-    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_PAIRS', pairs)
-    await expect(authorizeContextualAssignmentCreationRequest(classroomId))
+    vi.stubEnv('PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_PAIRS', pairs)
+    await expect(authorizeContextualClassworkCreationRequest(classroomId))
       .rejects.toMatchObject({ statusCode: 503 })
   })
 })

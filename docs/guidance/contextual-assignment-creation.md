@@ -1,21 +1,21 @@
-# Contextual Assignment Creation
+# Contextual Classwork Creation
 
 Status: implemented behind an off-by-default exact user/Classroom gate; not
 approved for cohort activation or production migration application.
 
 ## Scope
 
-Migration 192 and the matching server gate cover creation of one Assignment and
-its initial submission requirements. A matched current Classroom owner may be
-teacher- or student-valued; global account role is not used as ownership evidence.
+Migrations 192–193 and one matching server gate cover creation of Assignments,
+materials and surveys. A matched current Classroom owner may be teacher- or
+student-valued; global account role is not used as ownership evidence.
 
 Bulk creation, classwork reorder, grading, feedback/return, repository review,
 automatic grading, UI routing and rollout activation remain outside this slice.
 
 ## Admission and compatibility
 
-`PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_ENABLED` must equal `true` and
-`PIKA_CLASSROOM_ASSIGNMENT_CREATION_ACCESS_PAIRS` must be a strict JSON array of
+`PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_ENABLED` must equal `true` and
+`PIKA_CLASSROOM_CLASSWORK_CREATION_ACCESS_PAIRS` must be a strict JSON array of
 exact `{ "userId": "uuid", "classroomId": "uuid" }` pairs. The gate is
 independent from assignment reads, existing-assignment owner mutations and every
 learner-document gate.
@@ -26,44 +26,48 @@ legacy path and a student-valued user receives the legacy role denial. Missing o
 malformed enabled configuration fails closed. No wildcard, user-only,
 Classroom-only or cross-product admission exists.
 
-The request body is validated by a strict named Zod schema after authentication.
-The schema applies only after exact-pair admission. The legacy path retains its
+Each request body is validated by a strict named Zod schema after authentication.
+The schemas apply only after exact-pair admission. Each legacy path retains its
 existing permissive parsing, required-field messages, ownership check and insert
-sequence; only an exact matched pair enters the contextual transaction.
+sequence; only an exact matched pair enters a contextual transaction.
 
 ## Transaction boundary
 
-`public.create_assignment_for_owner_v1` accepts the authenticated actor and exact
-Classroom IDs plus server-normalized Assignment fields and requirements. It:
+`public.create_assignment_for_owner_v1`,
+`public.create_classwork_material_for_owner_v1` and
+`public.create_survey_for_owner_v1` accept the authenticated actor and exact
+Classroom IDs plus server-normalized fields. Together they:
 
-- allocates the Assignment identity before locking;
+- allocate each record identity before locking;
 - acquires the Assignment-submission advisory namespace before the shared
   Classroom-operation namespace;
 - locks the current Classroom row and rechecks exact ownership and active state;
 - calculates the next position across Assignments, materials and surveys; and
-- inserts the Assignment and initial requirements in one transaction.
+- insert the requested classwork, including initial Assignment requirements, in
+  one transaction.
 
-The function returns the inserted rows as binding evidence. The server adapter
-rejects malformed output, a substituted Classroom or actor, and any requirement
+The functions return inserted rows as binding evidence. The server adapters
+reject malformed output, a substituted Classroom or actor, and any requirement
 bound to a different Assignment. Contention is mapped to a safe retry response.
 
-The RPC is `SECURITY DEFINER` with an empty search path and is executable only by
-`service_role`. Applying migration 192 changes no durable product rows and routes
-no requests.
+The RPCs are `SECURITY DEFINER` with empty search paths and are executable only by
+`service_role`. Migration 193 replaces the Assignment creator so all three use one
+private allocator under the shared Classroom-operation fence. Applying migrations
+192–193 changes no durable product rows and routes no requests.
 
 ## Verification and rollout
 
-The rollback-only database harness covers teacher- and student-valued owners,
+The rollback-only database harnesses cover teacher- and student-valued owners,
 mixed-classwork positioning, requirements, unrelated actors, archived
-Classrooms, malformed titles and malformed requirements. The multi-connection
-harness covers ownership-transfer-first, creation-first and two simultaneous
-creations with distinct sequential positions. Both require migration 192 and
-never apply migrations themselves.
+Classrooms and malformed input. The multi-connection harnesses cover ownership
+transfer, simultaneous Assignment creation, material followed by survey, and
+survey followed by Assignment. They prove cross-kind positions remain distinct
+and sequential. The harnesses require migrations 192–193 and never apply
+migrations themselves.
 
-Keep the gate disabled until migration 192 is deployed to the target environment
+Keep the gate disabled until migrations 192–193 are deployed to the target environment
 and the broader classroom pilot checklist approves the exact user/Classroom
-pairs. This gate has an additional hard activation blocker: material and survey
-creation must first share the same Classroom position-allocation fence so mixed
-classwork cannot receive duplicate positions under concurrent writes.
-Bulk/reorder, grading and feedback/return compatibility must also be completed
-before the whole owner experience is considered role-neutral.
+pairs. Assignment, material and survey creation must always use the same exact-pair
+gate so admitted owners cannot split between transactional and legacy position
+allocation. Bulk/reorder, grading and feedback/return compatibility must still be
+completed before the whole owner experience is considered role-neutral.

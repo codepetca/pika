@@ -70,8 +70,9 @@ describe('contextual Assignment creation migration', () => {
     expect(ci).toContain('node scripts/check-contextual-assignment-creation-concurrency.mjs')
   })
 
-  it('keeps activation blocked until every mixed-classwork writer shares the position fence', () => {
-    expect(rolloutGuide()).toContain('hard activation blocker')
-    expect(rolloutGuide()).toMatch(/material and survey\s+creation must first share/)
+  it('defers activation to the shared classwork creation contract', () => {
+    expect(rolloutGuide()).toContain('Migration 193')
+    expect(rolloutGuide()).toContain('shared Classroom-operation fence')
+    expect(rolloutGuide()).toContain('Keep the gate disabled')
   })
 })
