@@ -9523,6 +9523,14 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
       delete_assignment_submission_artifact_atomic: {
         Args: {
           p_assignment_id: string
@@ -10308,6 +10316,14 @@ export type Database = {
         Returns: Json
       }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
       prepare_assignment_doc_submission_for_member_v1: {
         Args: { p_actor_id: string; p_assignment_id: string }
         Returns: Json
@@ -11336,6 +11352,26 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      upsert_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_github_login?: string
+          p_github_validation_message?: string
+          p_github_validation_status?: string
+          p_managed_object_id: string
+          p_metadata_json: Json
+          p_requirement_id: string
+          p_save_github_identity?: boolean
+          p_storage_path: string
+          p_type: string
+          p_url: string
+          p_validated_at: string
+          p_validation_message: string
+          p_validation_status: string
         }
         Returns: Json
       }

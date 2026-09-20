@@ -32293,3 +32293,8 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 ## 2026-09-13 — Fence mixed attendance parent links
 
 - PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.
+
+<!-- pika-session-log-archive-batch:1854432673530efb4267184357640ff6da5cefa8f8ddeb10541eacd90795a1e1 -->
+## 2026-09-13 — Register academic cleanup CI verification
+
+- Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.

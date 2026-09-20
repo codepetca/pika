@@ -11,6 +11,7 @@ export type ContextualAssignmentDocAccess =
 export type ContextualAssignmentDocSaveAccess = ContextualAssignmentDocAccess
 export type ContextualAssignmentDocSubmissionAccess = ContextualAssignmentDocAccess
 export type ContextualAssignmentDocHistoryAccess = ContextualAssignmentDocAccess
+export type ContextualAssignmentArtifactAccess = ContextualAssignmentDocAccess
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 const assignmentPairsSchema = z.array(z.object({
@@ -64,6 +65,52 @@ function configuredHistoryAssignmentPairs(): z.infer<typeof assignmentPairsSchem
   } catch {
     return null
   }
+}
+
+function configuredArtifactAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | null {
+  const raw = process.env.PIKA_CLASSROOM_ASSIGNMENT_ARTIFACT_ACCESS_PAIRS
+  if (!raw || raw.length > 20_000) return null
+  try {
+    const parsed = assignmentPairsSchema.safeParse(JSON.parse(raw))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+/** Dormant exact-pair admission for learner assignment-artifact mutations. */
+export async function authorizeContextualAssignmentArtifactRequest(
+  assignmentId: string | (() => string | Promise<string>),
+): Promise<ContextualAssignmentArtifactAccess> {
+  if (process.env.PIKA_CLASSROOM_ASSIGNMENT_ARTIFACT_ACCESS_ENABLED !== 'true') {
+    const user = await requireRole('student')
+    const resolvedAssignmentId = typeof assignmentId === 'function'
+      ? await assignmentId()
+      : assignmentId
+    return { mode: 'legacy', user, assignmentId: resolvedAssignmentId }
+  }
+
+  const user = await requireAuth()
+  const pairs = configuredArtifactAssignmentPairs()
+  const identity = canonicalUuid.safeParse(user.id)
+  if (pairs === null || !identity.success) {
+    throw new ApiError(503, 'Classroom assignment attachment configuration is unavailable')
+  }
+
+  const rawAssignmentId = typeof assignmentId === 'function'
+    ? await assignmentId()
+    : assignmentId
+  const requestedId = canonicalUuid.safeParse(rawAssignmentId)
+  if (!requestedId.success || !pairs.some((pair) => (
+    pair.userId === identity.data && pair.assignmentId === requestedId.data
+  ))) {
+    if (user.role !== 'student') {
+      throw new AuthorizationError('Forbidden: student role required')
+    }
+    return { mode: 'legacy', user, assignmentId: rawAssignmentId }
+  }
+
+  return { mode: 'contextual', user, assignmentId: requestedId.data }
 }
 
 async function resolveContextualAssignmentDocHistoryAccess(

@@ -19,13 +19,14 @@ assert.match(
 const tag = `assignment_save_${randomUUID().replaceAll('-', '').slice(0, 10)}`
 const actor = randomUUID()
 const owner = randomUUID()
-const classrooms = Array.from({ length: 20 }, () => randomUUID())
-const assignments = Array.from({ length: 20 }, () => randomUUID())
-const saveSessions = Array.from({ length: 20 }, () => randomUUID())
-const metricSessions = Array.from({ length: 20 }, () => randomUUID())
-const restoreSessions = Array.from({ length: 20 }, () => randomUUID())
-const restoreMetricSessions = Array.from({ length: 20 }, () => randomUUID())
-const restoreTargetHistoryIds = Array.from({ length: 20 }, () => randomUUID())
+const classrooms = Array.from({ length: 24 }, () => randomUUID())
+const assignments = Array.from({ length: 24 }, () => randomUUID())
+const saveSessions = Array.from({ length: 24 }, () => randomUUID())
+const metricSessions = Array.from({ length: 24 }, () => randomUUID())
+const restoreSessions = Array.from({ length: 24 }, () => randomUUID())
+const restoreMetricSessions = Array.from({ length: 24 }, () => randomUUID())
+const restoreTargetHistoryIds = Array.from({ length: 24 }, () => randomUUID())
+const artifactRequirementIds = Array.from({ length: 4 }, () => randomUUID())
 const sessions = []
 
 class Session {
@@ -217,6 +218,19 @@ function contextualRestoreSql(index) {
     RESET ROLE;`
 }
 
+function contextualArtifactUpsertSql(index) {
+  const requirementId = artifactRequirementIds[index - 20]
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.upsert_assignment_artifact_for_member_v1(
+        '${actor}', '${assignments[index]}', '${requirementId}',
+        'link', 'https://example.com/${tag}/${index}', null,
+        '{}'::jsonb, 'valid', null, clock_timestamp(), null
+      ) AS result
+    ) AS attached;
+    RESET ROLE;`
+}
+
 function seedContextualRestoreHistorySql(index) {
   return `SET ROLE service_role;
     UPDATE public.assignment_doc_history AS history
@@ -294,6 +308,11 @@ try {
     't',
     'Migration 189 must already be applied',
   )
+  assert.equal(
+    await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '190');"),
+    't',
+    'Migration 190 must already be applied',
+  )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
       ('${actor}', '${tag}_actor@example.invalid', 'teacher'),
@@ -301,7 +320,7 @@ try {
     SET LOCAL ROLE service_role;
     SELECT public.set_effective_feature_entitlement_v1(
       gen_random_uuid(), '${owner}', 'classrooms.create', 'manual', true,
-      clock_timestamp(), null, 20, 'test:migration-184', 'assignment_save_concurrency_fixture',
+      clock_timestamp(), null, 24, 'test:migration-184', 'assignment_save_concurrency_fixture',
       coalesce((SELECT revision FROM public.effective_feature_entitlements
         WHERE subject_user_id = '${owner}' AND feature_key = 'classrooms.create'), 0)
     );
@@ -316,6 +335,10 @@ try {
       id, classroom_id, title, description, due_at, created_by, is_draft, released_at
     ) VALUES
       ${assignments.map((id, index) => `('${id}', '${classrooms[index]}', '${tag}', '', clock_timestamp() + interval '7 days', '${owner}', false, clock_timestamp() - interval '1 hour')`).join(',')};
+    INSERT INTO public.assignment_submission_requirements (
+      id, assignment_id, type, label, required, position
+    ) VALUES
+      ${artifactRequirementIds.map((id, offset) => `('${id}', '${assignments[offset + 20]}', 'link', '${tag}', false, 0)`).join(',')};
     COMMIT;`)
   fixturesCreated = true
 
@@ -738,7 +761,95 @@ try {
     console.log('Passed: save_wins_contextual_restore')
   }
 
-  console.log('All contextual assignment save, submission, history, and restore concurrency contracts passed.')
+  // Artifact mutations share the same document and membership fences. A
+  // committed removal prevents a waiting attach from creating any document or
+  // artifact; an already-authorized attach commits before access is revoked.
+  await blockingRace(
+    'removal_wins_contextual_artifact',
+    `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[20]}' AND student_id = '${actor}';`,
+    contextualArtifactUpsertSql(20),
+    '42501',
+  )
+  assert.equal(
+    await admin.run(`SELECT (
+      SELECT count(*) FROM public.assignment_docs WHERE assignment_id = '${assignments[20]}'
+    ) + (
+      SELECT count(*) FROM public.assignment_submission_artifacts
+      WHERE requirement_id = '${artifactRequirementIds[0]}'
+    );`),
+    '0',
+  )
+
+  {
+    const attacher = await newSession('contextual_artifact_wins_removal_holder')
+    const remover = await newSession('contextual_artifact_wins_removal_waiter')
+    assert.equal(await attacher.run(`BEGIN; ${contextualArtifactUpsertSql(21)}`), 'true|ok')
+    const outcome = remover.run(
+      `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[21]}' AND student_id = '${actor}';`,
+    ).then((value) => ({ value }), (error) => ({ error }))
+    await waitBlocked(remover, attacher)
+    await attacher.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    await attacher.close()
+    await remover.close()
+    assert.equal(await admin.run(`SELECT NOT EXISTS (
+      SELECT 1 FROM public.classroom_enrollments
+      WHERE classroom_id = '${classrooms[21]}' AND student_id = '${actor}'
+    ) AND EXISTS (
+      SELECT 1 FROM public.assignment_submission_artifacts
+      WHERE requirement_id = '${artifactRequirementIds[1]}' AND student_id = '${actor}'
+    );`), 't')
+    console.log('Passed: contextual_artifact_wins_removal')
+  }
+
+  // Submission and artifact attachment serialize in both directions. If the
+  // submission commits first, the attachment receives the established
+  // immutable-document result. If the attachment commits first, submission
+  // observes it and proceeds without a deadlock.
+  assert.equal(await admin.run(contextualArtifactUpsertSql(22)), 'true|ok')
+  {
+    const submitter = await newSession('contextual_submit_wins_artifact_holder')
+    const attacher = await newSession('contextual_submit_wins_artifact_waiter')
+    assert.equal(await submitter.run(`BEGIN; ${contextualSubmitSql(22)}`), 'true|ok')
+    const outcome = attacher.run(contextualArtifactUpsertSql(22)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(attacher, submitter)
+    await submitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|assignment_doc_submitted')
+    await submitter.close()
+    await attacher.close()
+    console.log('Passed: contextual_submit_wins_artifact')
+  }
+
+  assert.equal(await admin.run(`SET ROLE service_role;
+    SELECT result->>'ok' FROM (SELECT public.prepare_assignment_artifact_for_member_v1(
+      '${actor}', '${assignments[23]}', '${artifactRequirementIds[3]}'
+    ) AS result) AS prepared;
+    RESET ROLE;`), 'true')
+  {
+    const attacher = await newSession('contextual_artifact_wins_submit_holder')
+    const submitter = await newSession('contextual_artifact_wins_submit_waiter')
+    assert.equal(await attacher.run(`BEGIN; ${contextualArtifactUpsertSql(23)}`), 'true|ok')
+    const outcome = submitter.run(contextualSubmitSql(23)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(submitter, attacher)
+    await attacher.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'true|ok')
+    await attacher.close()
+    await submitter.close()
+    console.log('Passed: contextual_artifact_wins_submit')
+  }
+
+  console.log('All contextual assignment save, submission, history, restore, and artifact concurrency contracts passed.')
 } finally {
   try {
     const workers = sessions.filter((session) => session !== admin)
