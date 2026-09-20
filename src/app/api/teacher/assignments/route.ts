@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import {
   assertTeacherCanMutateClassroom,
   assertTeacherOwnsClassroom,
@@ -25,6 +24,10 @@ import {
   authorizeClassroomAssignmentRequest,
   loadContextualClassroomStudentIds,
 } from '@/lib/server/classroom-assignment-access'
+import { authorizeContextualAssignmentCreationRequest } from '@/lib/server/contextual-assignment-creation-access'
+import { createAssignmentForOwner } from '@/lib/server/contextual-assignment-creation'
+import { teacherAssignmentCreateSchema } from '@/lib/validations/assignment-authoring'
+import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -252,28 +255,60 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
 // POST /api/teacher/assignments - Create a new assignment
 export const POST = withErrorHandler('PostTeacherAssignments', async (request, context) => {
-  const user = await requireRole('teacher')
-  const body = await request.json()
-  const { classroom_id, title, instructions_markdown, rich_instructions, due_at, submission_requirements } = body
+  let bodyPromise: Promise<unknown> | null = null
+  const resolveRawBody = () => {
+    bodyPromise ??= request.json()
+    return bodyPromise
+  }
+  const resolveClassroomId = async () => {
+    const rawBody = await resolveRawBody()
+    if (!rawBody || typeof rawBody !== 'object' || !('classroom_id' in rawBody)) return ''
+    const classroomId = (rawBody as { classroom_id?: unknown }).classroom_id
+    return typeof classroomId === 'string' ? classroomId : ''
+  }
+  const assignmentAccess = await authorizeContextualAssignmentCreationRequest(resolveClassroomId)
+  const body = teacherAssignmentCreateSchema.parse(await resolveRawBody())
+  const {
+    classroom_id,
+    title,
+    instructions_markdown,
+    rich_instructions,
+    due_at,
+    submission_requirements,
+  } = body
+  const user = assignmentAccess.user
 
-  if (!classroom_id) {
-    return NextResponse.json(
-      { error: 'classroom_id is required' },
-      { status: 400 }
-    )
+  const instructionFields = buildAssignmentInstructionFields(
+    typeof instructions_markdown === 'string'
+      ? instructions_markdown
+      : getAssignmentInstructionsMarkdown({
+          instructions_markdown: null,
+          rich_instructions: rich_instructions ?? null,
+          description: '',
+        }).markdown
+  )
+
+  const supabase = getServiceRoleClient()
+  if (assignmentAccess.mode === 'contextual') {
+    const created = await createAssignmentForOwner({
+      supabase,
+      actorId: user.id,
+      classroomId: assignmentAccess.classroomId,
+      title,
+      description: instructionFields.description,
+      instructionsMarkdown: instructionFields.instructions_markdown,
+      richInstructions: instructionFields.rich_instructions as unknown as Json,
+      dueAt: due_at,
+      requirements: submission_requirements,
+    })
+    return NextResponse.json({
+      assignment: {
+        ...created.assignment,
+        submission_requirements: created.submissionRequirements,
+      },
+    }, { status: 201 })
   }
-  if (!title || !title.trim()) {
-    return NextResponse.json(
-      { error: 'Title is required' },
-      { status: 400 }
-    )
-  }
-  if (!due_at) {
-    return NextResponse.json(
-      { error: 'Due date is required' },
-      { status: 400 }
-    )
-  }
+
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
     return NextResponse.json(
@@ -281,8 +316,6 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
       { status: ownership.status }
     )
   }
-
-  const supabase = getServiceRoleClient()
 
   const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
     supabase
@@ -336,18 +369,9 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
 
   const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition, lastSurveyPosition) + 1
 
-  const instructionFields = buildAssignmentInstructionFields(
-    typeof instructions_markdown === 'string'
-      ? instructions_markdown
-      : getAssignmentInstructionsMarkdown({
-          instructions_markdown: null,
-          rich_instructions: rich_instructions ?? null,
-          description: '',
-        }).markdown
-  )
   const insertBody: TableInsert<'assignments'> = {
     classroom_id,
-    title: title.trim(),
+    title,
     instructions_markdown: instructionFields.instructions_markdown,
     rich_instructions: instructionFields.rich_instructions,
     description: instructionFields.description,

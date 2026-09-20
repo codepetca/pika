@@ -215,8 +215,11 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   have a sixth independent exact-pair gate and migration 191. A matched teacher- or
   student-valued current owner is authorized under the shared assignment/classroom lock
   order, with allowed update keys, release state, archive state and ownership rechecked in
-  the mutation transaction. Creation, bulk/reorder, grading and return flows remain legacy,
-  so all six gates must stay disabled.
+  the mutation transaction. Assignment creation now has a seventh independent exact
+  user/Classroom gate and migration 192. A matched teacher- or student-valued current
+  owner is rechecked under the shared Classroom-operation fence before the Assignment,
+  mixed-classwork position and initial requirements are inserted atomically. Bulk/reorder,
+  grading and return flows remain legacy, so all seven gates must stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
@@ -224,6 +227,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   See also [the learner assignment-history contract](contextual-assignment-doc-history.md).
   See also [the learner assignment-artifact contract](contextual-assignment-artifacts.md).
   See also [the owner assignment-mutation contract](contextual-assignment-owner-mutations.md).
+  See also [the Assignment creation contract](contextual-assignment-creation.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

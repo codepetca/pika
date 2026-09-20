@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Correct rollback fixture integration assumptions
-
-- Direct approval allowed up to3 local rollback-only retries with fixture-only fixes. All3 attempts rolled back; failures exposed missing simulated storage-readiness fields, a PL/pgSQL variable/alias collision, then an existing Gradebook constraint intercepting the parent-move test. Fixed those fixture assumptions; parent-move now clears the category and requires the exact cleanup guard error. Latest run passed setup/inventory/blocked-case checks but did not reach storage/row deletion or final absence assertions.
-- Zero synthetic users, both cleanup gates false and storage mode compatibility verified after each attempt.173 remains byte-identical. Retry permission consumed; further fixture execution needs direct approval. Final review clock has not started because runtime verification is incomplete.
-
 ## 2026-09-13 — Verify local academic cleanup end to end
 
 - Direct approval resumed same-local rollback-only fixture validation with fixture-only corrections. Adopted the existing managed-storage fixture pattern for Storage API SQL-delete permission inside the transaction; added exact denial checks without completed providers and with expired leases. The full fixture passes, including22 success categories, all29 allowlisted row tables across success/blocked cases, two file leases, target absence and preserved peer/other-class/account/roster/provider/fence evidence.
@@ -284,3 +279,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Owner `codex/contextual-assignment-owner-mutations`, based on merged artifact PR1300. Migration191 adds service-only actor-bound edit, release, delete and pristine-draft-discard boundaries for an existing Assignment. The shared helper acquires assignment-submission then Classroom-operation fences, locks both authorization parents, and rechecks exact current owner, binding and archive state transactionally.
 - Added one independent off-by-default exact user/assignment gate across the four existing owner routes. Matched teacher- or student-valued owners use migration191; disabled and unmatched requests preserve the legacy teacher-only path. Creation, bulk/reorder, grading, return, UI and rollout activation remain out of scope.
 - Under standing local-migration authorization, migration191 applied locally after correcting a failed, rolled-back composite-row definition. Generated types match local history001–191. The rollback behavior contract and ownership-transfer/archive two-connection races pass; production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
+
+## 2026-09-20 — Dormant contextual Assignment creation
+
+- Owner `codex/contextual-assignment-creation`, based on merged owner-mutation PR1301. Migration192 adds one service-only actor-bound transaction that rechecks exact current Classroom ownership and archive state, allocates a mixed-classwork position, and inserts an Assignment plus initial requirements atomically.
+- Added an independent off-by-default exact user/Classroom gate to Assignment POST. Matched teacher- or student-valued owners use migration192; disabled and unmatched requests preserve the legacy teacher-only path, including authentication before request validation. Bulk/reorder, grading, return, UI and activation remain out of scope.
+- Under standing local-migration authorization, migration192 applied after a clean dry run. Generated types match local history001–192; warning-level DB lint, rollback behavior and ownership-transfer/two-creation concurrency contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.

@@ -662,6 +662,8 @@ describe('GET /api/teacher/assignments', () => {
 })
 
 describe('POST /api/teacher/assignments', () => {
+  const classroomId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should return 400 when required fields are missing', async () => {
@@ -733,7 +735,7 @@ describe('POST /api/teacher/assignments', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({
-        classroom_id: 'c1',
+        classroom_id: classroomId,
         title: 'Essay Draft',
         due_at: '2026-03-20T23:59:59.000Z',
       }),
@@ -795,7 +797,7 @@ describe('POST /api/teacher/assignments', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({
-        classroom_id: 'c1',
+        classroom_id: classroomId,
         title: 'Essay Draft',
         due_at: '2026-03-20T23:59:59.000Z',
       }),

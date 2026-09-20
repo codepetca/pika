@@ -9337,6 +9337,19 @@ export type Database = {
         }
         Returns: Json
       }
+      create_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_description: string
+          p_due_at: string
+          p_instructions_markdown: string
+          p_requirements: Json
+          p_rich_instructions: Json
+          p_title: string
+        }
+        Returns: Json
+      }
       create_classroom_atomic_v1: {
         Args: {
           p_class_code: string
