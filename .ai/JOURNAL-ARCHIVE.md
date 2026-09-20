@@ -32331,3 +32331,10 @@ Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
 synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
 shared-data blockers; updates existing roadmap to settled historical-backup
 exclusion. No persistent DB/provider/config action. Review/CI still pending.
+
+<!-- pika-session-log-archive-batch:18961bce74c0a95b0f9eaa9ac017f4e6c0c4cf7be2adb9279c98e0299d3cc1ed -->
+## 2026-09-13 — Teacher live classroom cleanup integration
+
+Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.
+
+Browser CI follow-up: replaced obsolete active-student purge expectations with absence assertions, retained ordinary removal/re-add/student boundaries, and added the seven-test live cleanup fixture to the existing CI browser selection. The first reviewed-commit Test & Build and database contracts passed; obsolete browser run canceled before this test-only correction. No application/gate configuration changed.

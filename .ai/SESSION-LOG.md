@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Teacher live classroom cleanup integration
-
-Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.
-
-Browser CI follow-up: replaced obsolete active-student purge expectations with absence assertions, retained ordinary removal/re-add/student boundaries, and added the seven-test live cleanup fixture to the existing CI browser selection. The first reviewed-commit Test & Build and database contracts passed; obsolete browser run canceled before this test-only correction. No application/gate configuration changed.
-
 ## 2026-09-14 — Keep Daily attendance columns beneath the sticky header
 
 - Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
@@ -290,3 +284,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Under standing local-migration authorization, migration196 is applied locally. Generated types match local history001–196; error-level DB lint, rollback behavior and purge-first/archive-first/return-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
 - PR1307 initial compatibility review signed off exact head `02b384ca`. Security review found uppercase learner UUIDs could commit then fail response binding, feedback entry/document bodies were not cross-checked, and duplicate created-student evidence could satisfy the batch counts. Remediation batch1 canonicalizes request UUIDs before deduplication/RPC and requires exact feedback-body and created-subpartition evidence, with route and adapter regressions; targeted security re-review follows.
 - Security targeted review signed off batch1 head `ee8bc935`. Final compatibility review found shared-parser UUID canonicalization changed disabled/unmatched legacy behavior for case-variant UUIDs. Batch2 restores byte-for-byte legacy parsing and canonicalizes/deduplicates only inside the contextual adapters, with disabled, unmatched-teacher and exact-contextual route coverage; final re-review follows.
+
+## 2026-09-20 — Dormant contextual classwork reorder
+
+- Owner `codex/contextual-classwork-reorder`, based on merged feedback-return PR1307. Migration197 adds service-only actor-bound wrappers for Assignment-only and mixed Assignment/material/survey ordering. Both take the shared Classroom-operation fence, lock the current Classroom, recheck exact ownership and active lifecycle, delegate to the established migration068 ordering functions, and return actor/Classroom binding evidence.
+- Added one independent off-by-default exact user/Classroom gate shared by both reorder routes. Matched teacher- or student-valued current owners use migration197; disabled and unmatched requests preserve the legacy teacher-only path. Bulk Assignment operations, AI grading, repository review, UI and activation remain out of scope.
+- Under standing local-migration authorization, migration197 applied after a clean dry run showing only197. Generated types match local history001–197; rollback behavior and archive-first/reorder-first/creation-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
