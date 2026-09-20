@@ -1,11 +1,14 @@
 import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
+import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import type { AuthenticatedUser } from '@/types'
 
 export type ContextualAssignmentDocAccess =
   | { mode: 'legacy'; user: AuthenticatedUser; assignmentId: string }
   | { mode: 'contextual'; user: AuthenticatedUser; assignmentId: string }
+
+export type ContextualAssignmentDocSaveAccess = ContextualAssignmentDocAccess
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 const assignmentPairsSchema = z.array(z.object({
@@ -26,6 +29,52 @@ function configuredAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | nu
   } catch {
     return null
   }
+}
+
+function configuredSaveAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | null {
+  const raw = process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_SAVE_ACCESS_PAIRS
+  if (!raw || raw.length > 20_000) return null
+  try {
+    const parsed = assignmentPairsSchema.safeParse(JSON.parse(raw))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+/** Dormant exact-pair admission for the learner assignment-document save path only. */
+export async function authorizeContextualAssignmentDocSaveRequest(
+  assignmentId: string | (() => string | Promise<string>),
+): Promise<ContextualAssignmentDocSaveAccess> {
+  if (process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_SAVE_ACCESS_ENABLED !== 'true') {
+    const user = await requireRole('student')
+    const resolvedAssignmentId = typeof assignmentId === 'function'
+      ? await assignmentId()
+      : assignmentId
+    return { mode: 'legacy', user, assignmentId: resolvedAssignmentId }
+  }
+
+  const user = await requireAuth()
+  const pairs = configuredSaveAssignmentPairs()
+  const identity = canonicalUuid.safeParse(user.id)
+  if (pairs === null || !identity.success) {
+    throw new ApiError(503, 'Classroom assignment document save configuration is unavailable')
+  }
+
+  const rawAssignmentId = typeof assignmentId === 'function'
+    ? await assignmentId()
+    : assignmentId
+  const requestedId = canonicalUuid.safeParse(rawAssignmentId)
+  if (!requestedId.success || !pairs.some((pair) => (
+    pair.userId === identity.data && pair.assignmentId === requestedId.data
+  ))) {
+    if (user.role !== 'student') {
+      throw new AuthorizationError('Forbidden: student role required')
+    }
+    return { mode: 'legacy', user, assignmentId: rawAssignmentId }
+  }
+
+  return { mode: 'contextual', user, assignmentId: requestedId.data }
 }
 
 /** Dormant exact-pair admission for the learner assignment-document open path only. */

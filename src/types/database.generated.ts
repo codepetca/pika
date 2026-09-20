@@ -10792,6 +10792,25 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       save_assignment_grades_atomic: {
         Args: {
           p_apply_comments: boolean

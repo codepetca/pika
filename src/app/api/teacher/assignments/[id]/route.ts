@@ -9,6 +9,7 @@ import {
 import { extractAssignmentArtifacts, type AssignmentArtifact } from '@/lib/assignment-artifacts'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 import {
@@ -674,6 +675,12 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
       .single()
 
     if (error || !updatedAssignment) {
+      if (isRetryableDatabaseContention(error)) {
+        return NextResponse.json(
+          { error: 'Assignment changed during this update. Refresh and try again.' },
+          { status: 409 }
+        )
+      }
       console.error('Error updating assignment:', error)
       return NextResponse.json(
         { error: 'Failed to update assignment' },

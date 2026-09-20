@@ -25,9 +25,14 @@ import { createAssignmentDocWithPalEvent } from '@/lib/server/pal-source-writes'
 import { ApiError } from '@/lib/api-error'
 import { openContextualAssignmentDoc } from '@/lib/server/contextual-assignment-doc-open'
 import {
+  authorizeContextualAssignmentDocSaveRequest,
   assertContextualAssignmentGitHubIdentity,
   resolveContextualAssignmentDocAccess,
 } from '@/lib/server/contextual-assignment-doc-access'
+import {
+  saveContextualAssignmentDoc,
+  verifyContextualAssignmentDocSaveEvidence,
+} from '@/lib/server/contextual-assignment-doc-save'
 import {
   assertContextualAssignmentDetailArtifacts,
   assertContextualAssignmentDetailRequirements,
@@ -454,8 +459,11 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
 
 // PATCH /api/assignment-docs/[id] - Save content (autosave)
 export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId } = await context.params
+  const assignmentAccess = await authorizeContextualAssignmentDocSaveRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
   const body = assignmentDocSaveRequestSchema.parse(await request.json())
   const { content, trigger } = body
   const isLegacySave = !('save_session_id' in body)
@@ -463,6 +471,61 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   const keystroke_count = body.keystroke_count ?? 0
 
   const supabase = getServiceRoleClient()
+  if (assignmentAccess.mode === 'contextual') {
+    const { data: evidence, error: evidenceError } = await supabase
+      .from('assignment_docs')
+      .select('id, assignment_id, student_id, is_submitted, content, updated_at')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
+      .limit(2)
+
+    if (evidenceError) {
+      throw new ApiError(503, 'Unable to verify assignment document')
+    }
+    const existingDoc = verifyContextualAssignmentDocSaveEvidence({
+      actorId: user.id,
+      assignmentId,
+      rows: evidence,
+    })
+    if (existingDoc?.is_submitted) {
+      return NextResponse.json(
+        { error: 'Cannot edit a submitted document' },
+        { status: 403 }
+      )
+    }
+
+    const saveSessionId = isLegacySave ? crypto.randomUUID() : body.save_session_id
+    const saveResult = await saveContextualAssignmentDoc({
+      supabase,
+      assignmentId,
+      actorId: user.id,
+      previousContent: existingDoc
+        ? existingDoc.content
+        : { type: 'doc', content: [] },
+      content,
+      expectedUpdatedAt: isLegacySave ? existingDoc?.updated_at ?? null : body.expected_updated_at,
+      trigger: trigger ?? 'autosave',
+      pasteWordCount: paste_word_count,
+      keystrokeCount: keystroke_count,
+      saveSessionId,
+      saveSequence: isLegacySave ? 1 : body.save_sequence,
+      metricSessionId: isLegacySave ? saveSessionId : body.metric_session_id,
+    })
+
+    if (!saveResult.ok) {
+      return NextResponse.json(
+        { error: saveResult.error, error_code: saveResult.errorCode },
+        { status: saveResult.status }
+      )
+    }
+
+    saveResult.doc.content = parseContentField(saveResult.doc.content)
+    return NextResponse.json({
+      doc: sanitizeDocForStudent(saveResult.doc),
+      historyEntry: saveResult.historyEntry,
+    })
+  }
+
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
