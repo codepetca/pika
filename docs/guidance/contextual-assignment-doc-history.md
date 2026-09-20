@@ -70,8 +70,8 @@ of a valid target UUID paired with tampered content. Twenty-two multi-connection
 cover patch-target restore in both orderings against membership removal and contextual
 saves, in addition to the existing save/submit/unsubmit races.
 
-This slice does not widen assignment artifact mutations. Assignment open, save,
-submission and history/restore gates remain independent and must stay disabled until
-every reachable learner mutation is compatible, the complete pilot matrix passes and
-rollout is separately approved. Production migration application and route activation
-each require separate explicit authorization.
+Artifact mutations are covered separately by migration 190 and their own independent
+gate. Assignment open, save, submission, history/restore and artifact gates must stay
+disabled until every reachable learner mutation is compatible, the complete pilot matrix
+passes and rollout is separately approved. Production migration application and route
+activation each require separate explicit authorization.

@@ -67,7 +67,7 @@ make the page or home gate safe to enable. See
 A fourth independent gate now covers owner/member assignment list reads. It preserves
 owner roster statistics and submission requirements, member release visibility and
 own-document sanitization while validating all supporting bindings. Assignment item
-routes, mutations, submissions and grading remain legacy. Entries, surveys, tests and
+routes, owner mutations and grading remain legacy. Entries, surveys, tests and
 the remaining work domains are still outstanding; the page and home gates remain unsafe
 to enable. See [the assignment read contract](contextual-classroom-assignment-reads.md).
 
@@ -77,19 +77,22 @@ existing roster/submission summary and may inspect one enrolled student's work a
 supporting resource binding is validated. Independent dormant GET, PATCH, submission and
 history gates now let an exact teacher- or student-valued active member open, autosave,
 submit, unsubmit, inspect history and restore only their own learner document. Migrations
-182 and 184–188 perform current
+182 and 184–190 perform current
 membership and visibility authorization under removal fences, with assignment-document
 mutation fences acquired first for safe save/submit/restore ordering; migration 187 keeps
 submit preflight evidence behind the same current-member boundary, while migration 183 keeps
 membership-scoped Pal identity role-neutral. Migration 188 also gives a role-neutral owner
 the existing one-enrollee history projection and makes member restore recheck the exact
-history target transactionally. Grading, artifact and release behavior remains legacy, so
+history target transactionally. Migration 190 adds exact-member artifact preparation,
+attach and delete boundaries, including managed-image ownership and post-upload
+reauthorization. Grading, release and the remaining owner mutation behavior stays legacy, so
 none of these gates may be activated. See
 [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
 See [the learner assignment-open contract](contextual-assignment-doc-open.md) and
 [the learner assignment-save contract](contextual-assignment-doc-save.md), plus
-[the learner assignment-submission contract](contextual-assignment-doc-submission.md) and
-[the learner assignment-history contract](contextual-assignment-doc-history.md).
+[the learner assignment-submission contract](contextual-assignment-doc-submission.md),
+[the learner assignment-history contract](contextual-assignment-doc-history.md), and
+[the learner assignment-artifact contract](contextual-assignment-artifacts.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
