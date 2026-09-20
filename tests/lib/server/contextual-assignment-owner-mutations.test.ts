@@ -58,6 +58,60 @@ describe('contextual assignment owner mutation adapters', () => {
     })).rejects.toMatchObject({ statusCode: 503 })
   })
 
+  it('normalizes submission requirements exactly like the legacy update path', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        assignment: assignment(),
+        submission_requirements: [],
+      },
+      error: null,
+    })
+
+    await updateAssignmentForOwner({
+      supabase: { rpc },
+      actorId,
+      assignmentId,
+      updates: {},
+      requirements: [
+        { type: 'image', label: '  ', instructions: '  Screenshot the result  ' },
+        {
+          type: 'link',
+          validation_policy_json: {
+            mode: 'expected_domain',
+            expected_domains: ['HTTPS://WWW.Example.com/path', 'example.com'],
+          },
+        },
+      ],
+    })
+
+    expect(rpc).toHaveBeenCalledWith('update_assignment_for_owner_v1', expect.objectContaining({
+      p_requirements: [
+        {
+          id: undefined,
+          type: 'image',
+          label: 'Image',
+          instructions: 'Screenshot the result',
+          required: true,
+          position: 0,
+          validation_policy_json: {},
+        },
+        {
+          id: undefined,
+          type: 'link',
+          label: 'Link',
+          instructions: '',
+          required: true,
+          position: 1,
+          validation_policy_json: {
+            mode: 'expected_domain',
+            expected_domains: ['example.com'],
+          },
+        },
+      ],
+    }))
+  })
+
   it('propagates atomic business errors without collapsing their status', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

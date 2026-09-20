@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
+import {
+  normalizeAssignmentSubmissionRequirementDrafts,
+  type AssignmentSubmissionRequirementDraft,
+} from '@/lib/assignment-submission-requirements'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import type { AssignmentSubmissionRequirement } from '@/types'
 import type { TableRow } from '@/types/database'
@@ -105,18 +109,21 @@ export async function updateAssignmentForOwner(input: {
   actorId: string
   assignmentId: string
   updates: Record<string, unknown>
-  requirements?: unknown[]
+  requirements?: AssignmentSubmissionRequirementDraft[]
 }): Promise<{
   ok: true
   assignment: TableRow<'assignments'>
   submissionRequirements: AssignmentSubmissionRequirement[]
 } | AtomicError> {
   const ids = parseIds(input.actorId, input.assignmentId)
+  const requirements = input.requirements === undefined
+    ? null
+    : normalizeAssignmentSubmissionRequirementDrafts(input.requirements)
   const { data, error } = await input.supabase.rpc('update_assignment_for_owner_v1', {
     p_actor_id: ids.actorId,
     p_assignment_id: ids.assignmentId,
     p_updates: input.updates as Json,
-    p_requirements: input.requirements === undefined ? null : input.requirements as Json,
+    p_requirements: requirements as Json,
   })
   if (error) mapRpcError(error)
 
